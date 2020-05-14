@@ -15,10 +15,13 @@ let viewBrowserMessage : msg Html.html =
         ] ]
 
 
-let html : msg Html.html =
-  Html.div
-    [ Html.class' "modal-overlay"
-    ; Html.id "unsupportedBrowser"
-    ; ViewUtils.nothingMouseEvent "mousedown"
-    ; ViewUtils.nothingMouseEvent "mouseup" ]
-    [Html.div [Html.classList [("modal", true)]] [viewBrowserMessage]]
+let unsupportedBrowser ~(show : bool) : msg Html.html =
+  if show
+  then
+    Html.div
+      [ Html.class' "modal-overlay"
+      ; Html.id "unsupportedBrowser"
+      ; ViewUtils.nothingMouseEvent "mousedown"
+      ; ViewUtils.nothingMouseEvent "mouseup" ]
+      [Html.div [Html.classList [("modal", true)]] [viewBrowserMessage]]
+  else Vdom.noNode

@@ -2,31 +2,32 @@ open Prelude
 open ViewUtils
 
 (* Spec: https://www.notion.so/darklang/Hello-World-Tutorial-9f0caa9890e74e47b5ac3e66ee826a4c *)
-let defaultStep : tutorialSteps option = Some Welcome
+let defaultStep : tutorialStep option = Some Welcome
 
-let isGettingStartedCanvas (username : string) (canvasName : string) : bool =
-  String.toLower canvasName = username ^ "-gettingstarted"
+let isGettingStartedCanvas ~(username : string) ~(canvasname : string) : bool =
+  canvasname = username ^ "-gettingstarted"
 
 
-let numberOfSteps (current : tutorialSteps) : string * string =
-  let currentStep =
-    match current with
+(** [currentStepFraction currentStep] returns a tuple of the form [(currentStepNumber, totalSteps)], given the [currentStep]. *)
+let currentStepFraction (currentStep : tutorialStep) : int * int =
+  let currentStepNumber =
+    match currentStep with
     | Welcome ->
-        "1"
+        1
     | VerbChange ->
-        "2"
+        2
     | ReturnValue ->
-        "3"
+        3
     | OpenTab ->
-        "4"
+        4
     | GettingStarted ->
-        "5"
+        5
   in
-  let totalSteps = "5" in
-  (currentStep, totalSteps)
+  let totalSteps = 5 in
+  (currentStepNumber, totalSteps)
 
 
-let getPrevStep (current : tutorialSteps option) : tutorialSteps option =
+let getPrevStep (current : tutorialStep option) : tutorialStep option =
   match current with
   | Some Welcome ->
       None
@@ -42,7 +43,7 @@ let getPrevStep (current : tutorialSteps option) : tutorialSteps option =
       None
 
 
-let getNextStep (current : tutorialSteps option) : tutorialSteps option =
+let getNextStep (current : tutorialStep option) : tutorialStep option =
   match current with
   | Some Welcome ->
       Some VerbChange
@@ -64,7 +65,7 @@ let update (m : model) (msg : tutorialMsg) : modification =
     | PrevStep ->
         (getPrevStep m.userTutorial, [])
     | CloseTutorial ->
-        if isGettingStartedCanvas m.username m.canvasName
+        if isGettingStartedCanvas ~username:m.username ~canvasname:m.canvasName
         then Entry.sendSegmentMessage WelcomeModal ;
         ( None
         , [ ReplaceAllModificationsWithThisOne
@@ -87,11 +88,12 @@ let update (m : model) (msg : tutorialMsg) : modification =
             (fun m -> ({m with userTutorial}, Tea.Cmd.none)) ] )
 
 
-let tutorialStepsToText (step : tutorialSteps) (username : string) :
-    msg Html.html =
+let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
   let stepTitle =
-    let current, total = numberOfSteps step in
-    Html.p [Html.class' "step-title"] [Html.text (current ^ "/" ^ total)]
+    let current, total = currentStepFraction step in
+    Html.p
+      [Html.class' "step-title"]
+      [Html.text (Printf.sprintf "%d/%d" current total)]
   in
   match step with
   | Welcome ->
@@ -101,12 +103,19 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
         ; Html.p
             []
             [ Html.text
-                "Welcome to Dark! Let's get started by creating our first Hello World."
+                "Welcome to Dark! Let's get started by creating a \"Hello World\" endpoint."
             ]
         ; Html.p
             []
             [ Html.text
-                "Click anywhere on the canvas (the lighter grey area), type hello and choose \"New HTTP handler\""
+                "Click anywhere on the canvas (the large light gray region in the center of the screen), type "
+            ; Html.span [Html.class' "grey-highlight"] [Html.text "\"hello\""]
+            ; Html.text " and choose (by clicking or pressing enter) "
+            ; Html.span
+                [Html.class' "grey-highlight"]
+                [Html.text "\"New HTTP handler named /hello\""]
+            ; Html.text
+                ". This will create a handler for the /hello endpoint of your app."
             ] ]
   | VerbChange ->
       Html.div
@@ -121,8 +130,11 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
         ; Html.p
             []
             [ Html.text
-                "In the return value (the light grey box), type \"Hello World\"."
-            ] ]
+                "In the return value (the small light gray box inside your HTTP handler), type "
+            ; Html.span
+                [Html.class' "grey-highlight"]
+                [Html.text "\"Hello World\""]
+            ; Html.text ". Make sure to include the quotes!" ] ]
   | OpenTab ->
       Html.div
         [Html.class' "tutorial-txt"]
@@ -130,8 +142,11 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
         ; Html.p
             []
             [ Html.text
-                "Click on the hamburger menu in the upper right and select Open in New Tab."
-            ] ]
+                "Now let's test out the /hello endpoint. Click on the hamburger menu in the upper right of your HTTP handler and select "
+            ; Html.span
+                [Html.class' "grey-highlight"]
+                [Html.text "\"Open in new tab\""]
+            ; Html.text "." ] ]
   | GettingStarted ->
       let btn =
         let link = "https://darklang.com/a/" ^ username ^ "-gettingstarted" in
@@ -141,7 +156,7 @@ let tutorialStepsToText (step : tutorialSteps) (username : string) :
           ; Html.class' "getting-started" ]
           [ Html.a
               [Html.href link; Html.target "_blank"]
-              [Html.text "Open my getting started canvas"] ]
+              [Html.text "Open my Getting Started canvas"] ]
       in
       Html.div
         [Html.class' "tutorial-txt"]
@@ -169,14 +184,14 @@ let closeTutorial : msg Html.html =
     [Html.text "End tutorial"]
 
 
-let viewNavigationBtns (step : tutorialSteps) : msg Html.html =
+let viewNavigationBtns (step : tutorialStep) : msg Html.html =
   let prevBtn =
     let clickEvent =
       match getPrevStep (Some step) with
       | Some _ ->
-          let stepNum, _ = numberOfSteps step in
+          let stepNum, _ = currentStepFraction step in
           ViewUtils.eventNoPropagation
-            ~key:("prev-step-" ^ stepNum)
+            ~key:("prev-step-" ^ string_of_int stepNum)
             "click"
             (fun _ -> TutorialMsg PrevStep)
       | None ->
@@ -194,9 +209,9 @@ let viewNavigationBtns (step : tutorialSteps) : msg Html.html =
     let clickEvent =
       match getNextStep (Some step) with
       | Some _ ->
-          let stepNum, _ = numberOfSteps step in
+          let stepNum, _ = currentStepFraction step in
           ViewUtils.eventNoPropagation
-            ~key:("next-step-" ^ stepNum)
+            ~key:("next-step-" ^ string_of_int stepNum)
             "click"
             (fun _ -> TutorialMsg NextStep)
       | None ->
@@ -225,46 +240,58 @@ let viewGettingStarted : msg Html.html =
           [Html.text "Take me to the walkthrough"] ]
   in
   Html.div
-    []
+    [ Html.id "sidebar-right"
+    ; nothingMouseEvent "mousedown"
+    ; ViewUtils.eventNoPropagation
+        ~key:"disable-panning-gettingstarted"
+        "mouseover"
+        (fun _ -> EnablePanning false)
+    ; ViewUtils.eventNoPropagation
+        ~key:"enable-panning-gettingstarted"
+        "mouseout"
+        (fun _ -> EnablePanning true) ]
     [ Html.div
-        [Html.class' "tutorial-txt"]
-        [ Html.p
-            []
-            [ Html.text
-                "This is your Getting Started canvas, which showcases some basic functionality."
-            ]
-        ; Html.p
-            []
-            [ Html.text
-                "If you'd like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
-            ] ]
-    ; btn ]
+        []
+        [ Html.div
+            [Html.class' "tutorial-txt"]
+            [ Html.p
+                []
+                [ Html.text
+                    "This is your Getting Started canvas, which showcases some basic functionality."
+                ]
+            ; Html.p
+                []
+                [ Html.text
+                    "If you'd like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
+                ] ]
+        ; btn ] ]
 
 
-let view
-    (step : tutorialSteps option)
-    (username : string)
-    (canvasName : string)
-    (firstVisitToCanvas : bool) : msg Html.html =
+let viewStep (step : tutorialStep option) (username : string) : msg Html.html =
   match step with
-  | _ when firstVisitToCanvas && isGettingStartedCanvas username canvasName ->
-      Html.div
-        [ Html.id "sidebar-right"
-        ; nothingMouseEvent "mousedown"
-        ; ViewUtils.eventNoPropagation ~key:"ept" "mouseover" (fun _ ->
-              EnablePanning false)
-        ; ViewUtils.eventNoPropagation ~key:"epf" "mouseout" (fun _ ->
-              EnablePanning true) ]
-        [viewGettingStarted; closeTutorial]
   | Some step ->
       let btnContainer = viewNavigationBtns step in
       Html.div
         [ Html.id "sidebar-right"
         ; nothingMouseEvent "mousedown"
-        ; ViewUtils.eventNoPropagation ~key:"ept" "mouseover" (fun _ ->
-              EnablePanning false)
-        ; ViewUtils.eventNoPropagation ~key:"epf" "mouseout" (fun _ ->
-              EnablePanning true) ]
-        [tutorialStepsToText step username; btnContainer; closeTutorial]
-  | _ ->
+        ; ViewUtils.eventNoPropagation
+            ~key:"disable-panning-tutorial"
+            "mouseover"
+            (fun _ -> EnablePanning false)
+        ; ViewUtils.eventNoPropagation
+            ~key:"enableable-panning-tutorial"
+            "mouseout"
+            (fun _ -> EnablePanning true) ]
+        [htmlForStep step username; btnContainer]
+  | None ->
       Vdom.noNode
+
+
+let view
+    (step : tutorialStep option)
+    (username : string)
+    (canvasname : string)
+    (firstVisitToCanvas : bool) : msg Html.html =
+  if firstVisitToCanvas && isGettingStartedCanvas ~username ~canvasname
+  then viewGettingStarted
+  else viewStep step username
