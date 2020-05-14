@@ -646,7 +646,7 @@ let getNeighbours ~(pos : int) (tokens : tokenInfos) :
  * closest to the caret that is a not TNewline nor TSep. It is used for
  * figuring out where your caret is, to determine whether certain rendering
  * behavior should be applicable *)
-let getTokenNotWhitespace (tokens : T.tokenInfo list) (s : fluidState) :
+let getTokenNotWhitespace (tokens : tokenInfos) (s : fluidState) :
     T.tokenInfo option =
   let left, right, _ = getNeighbours ~pos:s.newPos tokens in
   match (left, right) with
@@ -743,6 +743,10 @@ module ASTInfo = struct
 
   let getToken (astInfo : t) : T.tokenInfo option =
     getToken' (activeTokenInfos astInfo) astInfo.state
+
+
+  let getTokenNotWhitespace (astInfo : t) : T.tokenInfo option =
+    getTokenNotWhitespace (activeTokenInfos astInfo) astInfo.state
 
 
   let emptyFor (props : fluidProps) (state : fluidState) : t =
