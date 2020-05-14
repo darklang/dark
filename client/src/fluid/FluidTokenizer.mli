@@ -40,6 +40,7 @@ val getNeighbours :
 val getToken' :
   FluidToken.tokenInfo list -> Types.fluidState -> FluidToken.tokenInfo option
 
+(* Get token at caret is likely an expression token *)
 val getTokenNotWhitespace :
   FluidToken.tokenInfo list -> Types.fluidState -> FluidToken.tokenInfo option
 
@@ -60,6 +61,8 @@ module ASTInfo : sig
   val modifyState : f:(Types.fluidState -> Types.fluidState) -> t -> t
 
   val getToken : t -> FluidToken.tokenInfo option
+
+  val getTokenNotWhitespace : t -> FluidToken.tokenInfo option
 
   val emptyFor : Types.fluidProps -> Types.fluidState -> t
 
