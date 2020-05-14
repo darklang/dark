@@ -396,20 +396,16 @@ $icSize: 1em;
       width: 100%;
     }
   }
+}
 
-  @at-root .detailed & {
-    margin-left: 1em;
-  }
+.category-content {
+  padding-left: 1em;
 }
 
 // Special cases: Deleted & 404s
 .detailed .sidebar-category {
   &.deleted > .category-summary {
     margin-bottom: $hSpace;
-  }
-
-  &.fof .category-content {
-    margin-left: 0.5em;
   }
 
   .sidebar-category {
@@ -453,8 +449,6 @@ $icSize: 1em;
 .sidebar-category.fof {
   .simple-item {
     display: flex;
-    justify-content: flex-end;
-    margin-left: 0.5em;
 
     &.empty {
       justify-content: flex-start;
