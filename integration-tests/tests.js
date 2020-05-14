@@ -1460,5 +1460,6 @@ test("unfade_command_palette", async t => {
     .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
     .ok();
 
+  // Checks Command Palette opens inside a token with full opacity
   await t.expect(Selector(".fluid-code-focus > .command-palette").exists).ok();
 });
