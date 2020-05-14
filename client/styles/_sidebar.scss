@@ -320,6 +320,12 @@ $icSize: 1em;
     cursor: pointer;
   }
 
+  .toplevel-msg, .toplevel-link {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+
   .toplevel-name {
     width: calc(100% - #{2 * $icSize});
     display: inline-block;
@@ -452,14 +458,6 @@ $icSize: 1em;
 
     &.empty {
       justify-content: flex-start;
-    }
-
-    .toplevel-name {
-      width: calc(100% - #{3 * $icSize});
-
-      .verb {
-        float: right;
-      }
     }
 
     .icon-button:hover {
