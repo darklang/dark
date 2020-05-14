@@ -97,7 +97,7 @@ $ff-color: adjust-hue($purple, -40deg);
 
     position: absolute;
     left: calc(100% - 2px);
-    bottom: 0;
+    bottom: 100%;
 
     &:after {
       @include font-awesome("\f0da");
