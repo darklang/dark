@@ -744,7 +744,7 @@ module ASTInfo = struct
     getToken' (activeTokenInfos astInfo) astInfo.state
 
 
-  let getNonWhitespaceToken (astInfo : t) : T.tokenInfo option =
+  let getTokenNotWhitespace (astInfo : t) : T.tokenInfo option =
     getTokenNotWhitespace (activeTokenInfos astInfo) astInfo.state
 
 

@@ -98,6 +98,7 @@ let toHtml (s : state) : Types.msg Html.html list =
         && isNotInBlock
         && exeFlow ti = CodeNotExecuted
   in
+  (* Returns true if token is part of the expr the opened command palette will act on *)
   let isInCPExpr ti =
     match s.fluidState.cp.location with
     | Some (_, id) when id = FluidToken.tid ti.token ->
@@ -246,6 +247,8 @@ let toHtml (s : state) : Types.msg Html.html list =
             sourceId = Some (s.tlid, analysisId)
           in
           let isNotExecuted = exeFlow ti = CodeNotExecuted in
+          (* Unfade non-executed code if the caret is in it,
+           * so auto-complete and command-palette will render at full opacity. *)
           let isInFocus = isNotExecuted && (isNearCaret ti || isInCPExpr ti) in
           [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
