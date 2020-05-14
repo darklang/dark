@@ -52,6 +52,64 @@ let viewDval tlid dval ~(canCopy : bool) =
   [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
 
 
+type lvResult =
+  | WithMessage of string
+  | WithDval of dval * bool
+  | WithMessageAndDval of string * dval * bool
+  | WithSource of TLID.t * ID.t * dval * lvResult
+  | Loading
+
+let rec lvResultForId (vs : viewState) (id : ID.t) : lvResult =
+  let fnLoading =
+    (* If fn needs to be manually executed, check status *)
+    let ast = vs.astInfo.ast in
+    FluidAST.find id ast
+    |> Option.andThen ~f:(fun expr ->
+           match expr with
+           | E.EFnCall (_, name, _, _) | E.EBinOp (_, name, _, _, _) ->
+               Functions.find name vs.functions
+           | _ ->
+               None)
+    |> Option.andThen ~f:(fun fn ->
+           match fn.fnPreviewSafety with
+           | Safe ->
+               None
+           | Unsafe ->
+               let args = ast |> AST.getArguments id |> List.map ~f:E.toID in
+               let s = ViewFnExecution.stateFromViewState vs in
+               ViewFnExecution.fnExecutionStatus s fn id args
+               |> ViewFnExecution.executionError
+               |> Option.some)
+  in
+  match Analysis.getLiveValueLoadable vs.analysisStore id with
+  | LoadableSuccess (ExecutedResult (DIncomplete _))
+    when Option.isSome fnLoading ->
+      fnLoading
+      |> Option.map ~f:(fun msg -> WithMessage msg)
+      |> Option.withDefault ~default:Loading
+  | LoadableSuccess
+      (ExecutedResult (DIncomplete (SourceId (srcTlid, srcId)) as dv))
+  | LoadableSuccess
+      (ExecutedResult (DError (SourceId (srcTlid, srcId), _) as dv))
+    when srcId <> id || srcTlid <> vs.tlid ->
+      WithSource (srcTlid, srcId, dv, lvResultForId vs srcId)
+  | LoadableSuccess (ExecutedResult (DError _ as dval))
+  | LoadableSuccess (ExecutedResult (DIncomplete _ as dval)) ->
+      WithDval (dval, false)
+  | LoadableSuccess (ExecutedResult dval) ->
+      WithDval (dval, true)
+  | LoadableNotInitialized | LoadableLoading _ ->
+      Loading
+  | LoadableSuccess (NonExecutedResult (DError _ as dval))
+  | LoadableSuccess (NonExecutedResult (DIncomplete _ as dval)) ->
+      WithMessageAndDval
+        ("This code was not executed in this trace", dval, false)
+  | LoadableSuccess (NonExecutedResult dval) ->
+      WithMessageAndDval ("This code was not executed in this trace", dval, true)
+  | LoadableError err ->
+      WithMessage ("Error loading live value: " ^ err)
+
+
 let viewLiveValue (vs : viewState) : Types.msg Html.html =
   (* isLoaded will be set to false later if we are in the middle of loading
    * results. All other states are considered loaded. This is used to apply
@@ -61,67 +119,39 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
   (* Renders dval*)
   let renderDval = viewDval vs.tlid in
   (* Renders live value for token *)
-  let renderTokenLv token id =
-    let fnLoading =
-      (* If fn needs to be manually executed, check status *)
-      ViewUtils.fnForToken vs.functions token
-      |> Option.andThen ~f:(fun fn ->
-             match fn.fnPreviewSafety with
-             | Safe ->
-                 None
-             | Unsafe ->
-                 let id = T.tid token in
-                 let args =
-                   vs.astInfo.ast
-                   |> AST.getArguments (T.tid token)
-                   |> List.map ~f:E.toID
-                 in
-                 let s = ViewFnExecution.stateFromViewState vs in
-                 ViewFnExecution.fnExecutionStatus s fn id args
-                 |> ViewFnExecution.executionError
-                 |> Option.some)
-    in
-    match Analysis.getLiveValueLoadable vs.analysisStore id with
-    | LoadableSuccess (ExecutedResult (DIncomplete _))
-      when Option.isSome fnLoading ->
-        [Html.text (Option.withDefault ~default:"" fnLoading)]
-    | LoadableSuccess
-        (ExecutedResult (DIncomplete (SourceId (srcTlid, srcId)) as dv))
-    | LoadableSuccess
-        (ExecutedResult (DError (SourceId (srcTlid, srcId), _) as dv))
-      when srcId <> id || srcTlid <> vs.tlid ->
-        let errType = dv |> Runtime.typeOf |> Runtime.tipe2str in
-        let msg = "<" ^ errType ^ ">" in
+  let renderTokenLv id =
+    match lvResultForId vs id with
+    | WithMessage msg ->
+        [Html.text msg]
+    | WithDval (dv, canCopy) ->
+        renderDval dv ~canCopy
+    | WithMessageAndDval (msg, dv, canCopy) ->
+        [Html.text msg; Html.br []; Html.br []] @ renderDval dv ~canCopy
+    | WithSource (tlid, srcId, dv, lvRes) ->
+        Debug.loG "With Source" (ID.toString id ^ " ~ " ^ ID.toString srcId) ;
+        let msg =
+          match lvRes with
+          | WithMessage msg ->
+              msg
+          | WithDval (dv, _) ->
+              Runtime.toRepr dv
+          | WithMessageAndDval (msg, dv, _) ->
+              msg ^ "\n\n" ^ Runtime.toRepr dv
+          | _ ->
+              Runtime.toRepr dv
+        in
         [ viewArrow id srcId
         ; Html.div
             [ ViewUtils.eventNoPropagation
-                ~key:("lv-src-" ^ ID.toString srcId ^ TLID.toString srcTlid)
+                ~key:("lv-src-" ^ ID.toString srcId ^ TLID.toString tlid)
                 "click"
-                (fun _ -> FluidMsg (FluidFocusOnToken (srcTlid, srcId)))
+                (fun _ -> FluidMsg (FluidFocusOnToken (tlid, srcId)))
             ; Html.class' "jump-src"
-            ; Html.title ("Click here to go to the source of " ^ errType) ]
+            ; Html.title "Click here to go to the source of problem" ]
             [Html.text msg; ViewUtils.fontAwesome "arrow-alt-circle-up"] ]
-    | LoadableSuccess (ExecutedResult (DError _ as dval))
-    | LoadableSuccess (ExecutedResult (DIncomplete _ as dval)) ->
-        renderDval dval ~canCopy:false
-    | LoadableSuccess (ExecutedResult dval) ->
-        renderDval dval ~canCopy:true
-    | LoadableNotInitialized | LoadableLoading _ ->
+    | Loading ->
         isLoaded := false ;
         [ViewUtils.fontAwesome "spinner"]
-    | LoadableSuccess (NonExecutedResult (DError _ as dval))
-    | LoadableSuccess (NonExecutedResult (DIncomplete _ as dval)) ->
-        [ Html.div
-            []
-            ( Html.text "This code was not executed in this trace\n\n"
-            :: renderDval dval ~canCopy:false ) ]
-    | LoadableSuccess (NonExecutedResult dval) ->
-        [ Html.div
-            []
-            ( Html.text "This code was not executed in this trace.\n\n"
-            :: renderDval dval ~canCopy:true ) ]
-    | LoadableError err ->
-        [Html.text ("Error loading live value: " ^ err)]
   in
   FluidTokenizer.ASTInfo.getToken vs.astInfo
   |> Option.andThen ~f:(fun ti ->
@@ -136,7 +166,7 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
                (* Else show live value of current token *)
                let token = ti.token in
                let id = T.analysisID token in
-               if T.validID id then Some (renderTokenLv token id) else None
+               if T.validID id then Some (renderTokenLv id) else None
          in
          Option.pair content (Some row))
   (* Render live value to the side *)
