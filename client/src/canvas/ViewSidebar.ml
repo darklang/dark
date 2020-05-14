@@ -15,6 +15,11 @@ type identifier =
   | Tlid of TLID.t
   | Other of string
 
+type onClickAction =
+  | Destination of page
+  | SendMsg of msg
+  | DoNothing
+
 let tlidOfIdentifier identifier : TLID.t option =
   match identifier with Tlid tlid -> Some tlid | Other _ -> None
 
@@ -30,7 +35,7 @@ let entryKeyFromIdentifier identifier : string =
 type entry =
   { name : string
   ; identifier : identifier
-  ; destination : page option (* where to go when clicked *)
+  ; onClick : onClickAction
   ; uses : int option
   ; minusButton : msg option
   ; plusButton : msg option
@@ -136,7 +141,7 @@ let handlerCategory
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
             ; identifier = Tlid tlid
-            ; destination = Some (FocusedHandler (tlid, None, true))
+            ; onClick = Destination (FocusedHandler (tlid, None, true))
             ; minusButton = None
             ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
@@ -195,7 +200,7 @@ let dbCategory (m : model) (dbs : db list) : category =
           { name = B.valueWithDefault "Untitled DB" db.dbName
           ; identifier = Tlid db.dbTLID
           ; uses = Some uses
-          ; destination = Some (FocusedDB (db.dbTLID, true))
+          ; onClick = Destination (FocusedDB (db.dbTLID, true))
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; verb = None
@@ -244,7 +249,7 @@ let f404Category (m : model) : category =
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
             ; uses = None
             ; identifier = Other (fof.space ^ fof.path ^ fof.modifier)
-            ; destination = None
+            ; onClick = SendMsg (CreateHandlerFrom404 fof)
             ; minusButton = Some (Delete404APICall fof)
             ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
@@ -265,7 +270,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
               ; uses = Some (List.length usedIn)
               ; minusButton
               ; killAction = Some (DeleteUserFunctionForever tlid)
-              ; destination = Some (FocusedFn (tlid, None))
+              ; onClick = Destination (FocusedFn (tlid, None))
               ; plusButton = None
               ; verb = None }))
   in
@@ -293,7 +298,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
               ; uses = Some (Refactor.tipeUseCount m name)
               ; minusButton
               ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
-              ; destination = Some (FocusedType tipe.utTLID)
+              ; onClick = Destination (FocusedType tipe.utTLID)
               ; plusButton = None
               ; verb = None }))
   in
@@ -320,7 +325,7 @@ let groupCategory (groups : group list) : category =
               ; uses = None
               ; minusButton
               ; killAction = Some (DeleteGroupForever group.gTLID)
-              ; destination = Some (FocusedGroup (group.gTLID, true))
+              ; onClick = Destination (FocusedGroup (group.gTLID, true))
               ; plusButton = None
               ; verb = None }))
   in
@@ -384,7 +389,7 @@ let packageManagerCategory (pmfns : packageFns) : category =
              { name =
                  fn.module_ ^ "::" ^ fn.fnname ^ "_v" ^ string_of_int fn.version
              ; identifier = Tlid fn.pfTLID
-             ; destination = Some (FocusedPackageManagerFn fn.pfTLID)
+             ; onClick = Destination (FocusedPackageManagerFn fn.pfTLID)
              ; uses = None
              ; minusButton = None
              ; plusButton = None
@@ -456,15 +461,20 @@ let deletedCategory (m : model) : category =
            ; entries =
                List.map c.entries ~f:(function
                    | Entry e ->
+                       let actionOpt =
+                         e.identifier
+                         |> tlidOfIdentifier
+                         |> Option.map ~f:(fun tlid -> RestoreToplevel tlid)
+                       in
                        Entry
                          { e with
-                           plusButton =
-                             e.identifier
-                             |> tlidOfIdentifier
-                             |> Option.map ~f:(fun tlid -> RestoreToplevel tlid)
+                           plusButton = actionOpt
                          ; uses = None
                          ; minusButton = e.killAction
-                         ; destination = None }
+                         ; onClick =
+                             actionOpt
+                             |> Option.map ~f:(fun msg -> SendMsg msg)
+                             |> Option.withDefault ~default:DoNothing }
                    | c ->
                        c) })
   in
@@ -502,14 +512,29 @@ let viewEntry (m : model) (e : entry) : msg Html.html =
       | _ ->
           Vdom.noNode
     in
-    match e.destination with
-    | Some dest ->
+    match e.onClick with
+    | Destination dest ->
         let cls = "toplevel-link" ^ if isSelected then " selected" else "" in
         let path = Html.span [Html.class' "path"] [Html.text name] in
         Html.span
           [Html.class' "toplevel-name"]
           [Url.linkFor dest cls [path; verb]]
-    | _ ->
+    | SendMsg msg ->
+        let cls = "toplevel-msg" in
+        let path = Html.span [Html.class' "path"] [Html.text name] in
+        let action =
+          if m.permission = Some ReadWrite
+          then
+            ViewUtils.eventNeither
+              ~key:(name ^ "-clicked-msg")
+              "click"
+              (fun _ -> msg)
+          else Vdom.noProp
+        in
+        Html.span
+          [Html.class' "toplevel-name"; action]
+          [Html.span [Html.class' cls] [path; verb]]
+    | DoNothing ->
         Html.span [Html.class' "toplevel-name"] [Html.text name; verb]
   in
   let iconspacer = Html.div [Html.class' "icon-spacer"] [] in

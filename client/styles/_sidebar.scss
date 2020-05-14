@@ -17,6 +17,23 @@ $sectionSpace: 20px;
 $hSpace: 5px;
 $icSize: 1em;
 
+/******************************************************************************
+* 
+* General structure:
+* 
+* .component {
+*   &.states-definitions { }
+*   .children-definitions {}
+*   .special-case-definitions {} (abridged vs detailed mode specific style-attrs)
+* }
+* ... and so on for each (category wrapper, category titles, line items)
+* .special-case-categories (404, static assets, deleted, etc.)
+* 
+* We use @at-root to reduce deep nesting where repeating attributes
+* overwrite each other.
+* 
+******************************************************************************/
+
 #sidebar-left {
   width: max-content;
   height: 100%;
@@ -247,6 +264,8 @@ $icSize: 1em;
 
 // Wrapper for categories' content
 .category-content {
+  padding-left: 1em;
+
   @at-root .detailed & > .category-name {
     display: none;
   }
@@ -316,13 +335,27 @@ $icSize: 1em;
     }
   }
 
+  .icon-button {
+    cursor: pointer;
+  }
+
   .toplevel-name {
     width: calc(100% - #{2 * $icSize});
     display: inline-block;
 
-    a.toplevel-link {
+    &:hover + .add-button {
+      color: $hoverColor;
+    }
+
+    .toplevel-msg,
+    .toplevel-link {
       display: flex;
       justify-content: space-between;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    a.toplevel-link {
       color: $primaryColor;
       text-decoration: none;
       outline: none;
@@ -378,20 +411,12 @@ $icSize: 1em;
       width: 100%;
     }
   }
-
-  @at-root .detailed & {
-    margin-left: 1em;
-  }
 }
 
 // Special cases: Deleted & 404s
 .detailed .sidebar-category {
   &.deleted > .category-summary {
     margin-bottom: $hSpace;
-  }
-
-  &.fof .category-content {
-    margin-left: 0.5em;
   }
 
   .sidebar-category {
@@ -435,20 +460,15 @@ $icSize: 1em;
 .sidebar-category.fof {
   .simple-item {
     display: flex;
-    justify-content: flex-end;
-    margin-left: 0.5em;
 
     &.empty {
       justify-content: flex-start;
     }
 
-    .toplevel-name {
-      width: calc(100% - #{3 * $icSize});
-
-      .verb {
-        float: right;
-      }
+    .icon-button:hover {
+      color: $hoverColor;
     }
+
     .delete-button {
       margin-right: 0.8em;
       color: $secondaryColor;
