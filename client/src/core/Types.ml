@@ -1760,10 +1760,12 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
+        (* indicates if it is the users first time visiting any dark canvas *)
   ; userTutorial : tutorialStep option
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState
-  ; firstVisitToCanvas : bool }
+  ; firstVisitToThisCanvas : bool
+        (* indicates if it is the users first time this canvas *) }
 
 and savedUserSettings =
   { showUserWelcomeModal : bool
@@ -1779,7 +1781,7 @@ and savedSettings =
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarState : sidebarState
   ; showTopbar : bool
-  ; firstVisitToCanvas : bool
+  ; firstVisitToThisCanvas : bool
   ; userTutorial : tutorialStep option }
 [@@deriving show {with_path = false}]
 

@@ -31,7 +31,7 @@ let toModel (e : savedSettings) : model =
   ; lastReload = e.lastReload
   ; sidebarState = e.sidebarState
   ; showTopbar = e.showTopbar
-  ; firstVisitToCanvas = e.firstVisitToCanvas
+  ; firstVisitToThisCanvas = e.firstVisitToThisCanvas
   ; userTutorial = e.userTutorial }
 
 
@@ -47,7 +47,7 @@ let model2editor (m : model) : savedSettings =
   ; lastReload = m.lastReload
   ; sidebarState = m.sidebarState
   ; showTopbar = m.showTopbar
-  ; firstVisitToCanvas = m.firstVisitToCanvas
+  ; firstVisitToThisCanvas = m.firstVisitToThisCanvas
   ; userTutorial = m.userTutorial }
 
 

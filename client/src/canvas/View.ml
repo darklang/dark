@@ -598,7 +598,7 @@ let view (m : model) : msg Html.html =
         m.userTutorial
         m.username
         m.canvasName
-        m.firstVisitToCanvas
+        m.firstVisitToThisCanvas
     else Vdom.noNode
   in
   let modal =

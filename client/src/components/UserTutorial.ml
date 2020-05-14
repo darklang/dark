@@ -1,7 +1,8 @@
+(* Spec for User Tutorial : https://www.notion.so/darklang/Hello-World-Tutorial-9f0caa9890e74e47b5ac3e66ee826a4c *)
+
 open Prelude
 open ViewUtils
 
-(* Spec: https://www.notion.so/darklang/Hello-World-Tutorial-9f0caa9890e74e47b5ac3e66ee826a4c *)
 let defaultStep : tutorialStep option = Some Welcome
 
 let isGettingStartedCanvas ~(username : string) ~(canvasname : string) : bool =
@@ -76,7 +77,7 @@ let update (m : model) (msg : tutorialMsg) : modification =
               (fun m ->
                 ( { m with
                     showUserWelcomeModal = false
-                  ; firstVisitToCanvas = false }
+                  ; firstVisitToThisCanvas = false }
                 , Tea.Cmd.none )) ] )
     | ReopenTutorial ->
         (defaultStep, [])
@@ -113,11 +114,11 @@ let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
             []
             [ Html.text
                 "Click anywhere on the canvas (the large light gray region in the center of the screen), type "
-            ; Html.span [Html.class' "grey-highlight"] [Html.text "\"hello\""]
+            ; Html.span [Html.class' "grey-highlight"] [Html.text "hello"]
             ; Html.text " and choose (by clicking or pressing enter) "
             ; Html.span
-                [Html.class' "grey-highlight"]
-                [Html.text "\"New HTTP handler named /hello\""]
+                [Html.class' "bold"]
+                [Html.text "New HTTP handler named /hello"]
             ; Html.text
                 ". This will create a handler for the /hello endpoint of your app."
             ] ]
@@ -293,7 +294,7 @@ let view
     (step : tutorialStep option)
     (username : string)
     (canvasname : string)
-    (firstVisitToCanvas : bool) : msg Html.html =
-  if firstVisitToCanvas && isGettingStartedCanvas ~username ~canvasname
+    (firstVisitToThisCanvas : bool) : msg Html.html =
+  if firstVisitToThisCanvas && isGettingStartedCanvas ~username ~canvasname
   then viewGettingStarted
   else viewStep step username
