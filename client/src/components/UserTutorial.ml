@@ -27,33 +27,37 @@ let currentStepFraction (currentStep : tutorialStep) : int * int =
   (currentStepNumber, totalSteps)
 
 
+let stepNumToStep (currentStep : int) : tutorialStep option =
+  match currentStep with
+  | 1 ->
+      Some Welcome
+  | 2 ->
+      Some VerbChange
+  | 3 ->
+      Some ReturnValue
+  | 4 ->
+      Some OpenTab
+  | 5 ->
+      Some GettingStarted
+  | _ ->
+      None
+
+
 let getPrevStep (current : tutorialStep option) : tutorialStep option =
   match current with
-  | Some Welcome ->
-      None
-  | Some VerbChange ->
-      Some Welcome
-  | Some ReturnValue ->
-      Some VerbChange
-  | Some OpenTab ->
-      Some ReturnValue
-  | Some GettingStarted ->
-      Some OpenTab
+  | Some step ->
+      let currentStepNumber, _ = currentStepFraction step in
+      stepNumToStep (currentStepNumber - 1)
   | None ->
       None
 
 
 let getNextStep (current : tutorialStep option) : tutorialStep option =
   match current with
-  | Some Welcome ->
-      Some VerbChange
-  | Some VerbChange ->
-      Some ReturnValue
-  | Some ReturnValue ->
-      Some OpenTab
-  | Some OpenTab ->
-      Some GettingStarted
-  | Some GettingStarted | None ->
+  | Some step ->
+      let currentStepNumber, _ = currentStepFraction step in
+      stepNumToStep (currentStepNumber + 1)
+  | None ->
       None
 
 
