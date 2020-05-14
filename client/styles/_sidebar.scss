@@ -247,6 +247,8 @@ $icSize: 1em;
 
 // Wrapper for categories' content
 .category-content {
+  padding-left: 1em;
+
   @at-root .detailed & > .category-name {
     display: none;
   }
@@ -320,19 +322,19 @@ $icSize: 1em;
     cursor: pointer;
   }
 
-  .toplevel-msg,
-  .toplevel-link {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-  }
-
   .toplevel-name {
     width: calc(100% - #{2 * $icSize});
     display: inline-block;
 
     &:hover + .add-button {
       color: $hoverColor;
+    }
+
+    .toplevel-msg,
+    .toplevel-link {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
     }
 
     a.toplevel-link {
@@ -397,10 +399,6 @@ $icSize: 1em;
       width: 100%;
     }
   }
-}
-
-.category-content {
-  padding-left: 1em;
 }
 
 // Special cases: Deleted & 404s
