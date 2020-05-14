@@ -112,9 +112,9 @@ let record_execution (canvas_id : Uuidm.t) (h : 'expr_type handler) : unit =
     ~name:"Cron.record_execution"
 
 
-(** sum2 folds over the list [l] with function [f], summing the
+(** sum_pairs folds over the list [l] with function [f], summing the
   * values of the returned (int * int) tuple from each call *)
-let sum2 (l : 'a list) ~(f : 'a -> int * int) : int * int =
+let sum_pairs (l : 'a list) ~(f : 'a -> int * int) : int * int =
   List.fold l ~init:(0, 0) ~f:(fun (a, b) c ->
       let a', b' = f c in
       (a + a', b + b'))
@@ -253,7 +253,7 @@ let check_and_schedule_work_for_canvas
 let check_and_schedule_work_for_canvases
     (parent : Span.t) (canvases : expr Canvas.canvas ref list) : int * int =
   Telemetry.with_span parent "check_and_schedule_work_for_canvases" (fun span ->
-      sum2 canvases ~f:(check_and_schedule_work_for_canvas span))
+      sum_pairs canvases ~f:(check_and_schedule_work_for_canvas span))
 
 
 (* check_and_schedule_work_for_all_canvases iterates through every (non-test)
@@ -305,7 +305,7 @@ let check_and_schedule_work_for_all_canvases (pid : int) :
           check_and_schedule_work_for_canvases span loaded
         in
 
-        let checked, scheduled = sum2 chunks ~f:process_chunk in
+        let checked, scheduled = sum_pairs chunks ~f:process_chunk in
         let errors = List.length !failed_to_load in
         Span.set_attrs
           span
