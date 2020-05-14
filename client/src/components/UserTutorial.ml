@@ -147,9 +147,7 @@ let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
             []
             [ Html.text
                 "Now let's test out the /hello endpoint. Click on the hamburger menu in the upper right of your HTTP handler and select "
-            ; Html.span
-                [Html.class' "grey-highlight"]
-                [Html.text "\"Open in new tab\""]
+            ; Html.span [Html.class' "bold"] [Html.text "Open in new tab"]
             ; Html.text "." ] ]
   | GettingStarted ->
       let btn =
