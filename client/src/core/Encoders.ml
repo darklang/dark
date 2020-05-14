@@ -840,7 +840,7 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarState", sidebarState se.sidebarState)
     ; ("showTopbar1", bool se.showTopbar)
-    ; ("firstVisitToCanvas", bool se.firstVisitToCanvas)
+    ; ("firstVisitToThisCanvas", bool se.firstVisitToThisCanvas)
     ; ( "userTutorial"
       , Option.map ~f:userTutorial se.userTutorial
         |> Option.withDefault ~default:null ) ]

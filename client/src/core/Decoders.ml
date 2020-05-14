@@ -457,10 +457,10 @@ and savedSettings (j : Js.Json.t) : savedSettings =
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
         j
-  ; firstVisitToCanvas =
+  ; firstVisitToThisCanvas =
       withDefault
-        Defaults.defaultSavedSettings.firstVisitToCanvas
-        (field "firstVisitToCanvas" bool)
+        Defaults.defaultSavedSettings.firstVisitToThisCanvas
+        (field "firstVisitToThisCanvas" bool)
         j
   ; userTutorial =
       withDefault

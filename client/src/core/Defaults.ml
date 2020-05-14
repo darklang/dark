@@ -37,7 +37,7 @@ let defaultSavedSettings : savedSettings =
   ; lastReload = None
   ; sidebarState = defaultSidebar
   ; showTopbar = false
-  ; firstVisitToCanvas = true
+  ; firstVisitToThisCanvas = true
   ; userTutorial = None }
 
 
@@ -173,7 +173,7 @@ let defaultModel : model =
   ; showUserWelcomeModal = true
   ; userTutorial = Some Welcome
   ; currentUserFn = defaultFnSpace
-  ; firstVisitToCanvas = true
+  ; firstVisitToThisCanvas = true
   ; settingsView =
       { opened = false
       ; tab = UserSettings
