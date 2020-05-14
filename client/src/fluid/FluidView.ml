@@ -55,9 +55,18 @@ let viewDval tlid dval ~(canCopy : bool) =
 
 type lvResult =
   | WithMessage of string
-  | WithDval of dval * bool
-  | WithMessageAndDval of string * dval * bool
-  | WithSource of TLID.t * ID.t * dval * lvResult
+  | WithDval of
+      { value : dval
+      ; canCopy : bool }
+  | WithMessageAndDval of
+      { msg : string
+      ; value : dval
+      ; canCopy : bool }
+  | WithSource of
+      { tlid : TLID.t
+      ; srcID : ID.t
+      ; propValue : dval
+      ; srcResult : lvResult }
   | Loading
 
 let rec lvResultForId (vs : viewState) (id : ID.t) : lvResult =
@@ -89,24 +98,30 @@ let rec lvResultForId (vs : viewState) (id : ID.t) : lvResult =
       |> Option.map ~f:(fun msg -> WithMessage msg)
       |> Option.withDefault ~default:Loading
   | LoadableSuccess
-      (ExecutedResult (DIncomplete (SourceId (srcTlid, srcId)) as dv))
+      (ExecutedResult (DIncomplete (SourceId (srcTlid, srcID)) as propValue))
   | LoadableSuccess
-      (ExecutedResult (DError (SourceId (srcTlid, srcId), _) as dv))
-    when srcId <> id || srcTlid <> vs.tlid ->
-      WithSource (srcTlid, srcId, dv, lvResultForId vs srcId)
+      (ExecutedResult (DError (SourceId (srcTlid, srcID), _) as propValue))
+    when srcID <> id || srcTlid <> vs.tlid ->
+      WithSource
+        {tlid = srcTlid; srcID; propValue; srcResult = lvResultForId vs srcID}
   | LoadableSuccess (ExecutedResult (DError _ as dval))
   | LoadableSuccess (ExecutedResult (DIncomplete _ as dval)) ->
-      WithDval (dval, false)
+      WithDval {value = dval; canCopy = false}
   | LoadableSuccess (ExecutedResult dval) ->
-      WithDval (dval, true)
+      WithDval {value = dval; canCopy = true}
   | LoadableNotInitialized | LoadableLoading _ ->
       Loading
   | LoadableSuccess (NonExecutedResult (DError _ as dval))
   | LoadableSuccess (NonExecutedResult (DIncomplete _ as dval)) ->
       WithMessageAndDval
-        ("This code was not executed in this trace", dval, false)
+        { msg = "This code was not executed in this trace"
+        ; value = dval
+        ; canCopy = false }
   | LoadableSuccess (NonExecutedResult dval) ->
-      WithMessageAndDval ("This code was not executed in this trace", dval, true)
+      WithMessageAndDval
+        { msg = "This code was not executed in this trace"
+        ; value = dval
+        ; canCopy = true }
   | LoadableError err ->
       WithMessage ("Error loading live value: " ^ err)
 
@@ -124,29 +139,28 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
     match lvResultForId vs id with
     | WithMessage msg ->
         [Html.text msg]
-    | WithDval (dv, canCopy) ->
-        renderDval dv ~canCopy
-    | WithMessageAndDval (msg, dv, canCopy) ->
-        [Html.text msg; Html.br []; Html.br []] @ renderDval dv ~canCopy
-    | WithSource (tlid, srcId, dv, lvRes) ->
-        Debug.loG "With Source" (ID.toString id ^ " ~ " ^ ID.toString srcId) ;
+    | WithDval {value; canCopy} ->
+        renderDval value ~canCopy
+    | WithMessageAndDval {msg; value; canCopy} ->
+        [Html.text msg; Html.br []; Html.br []] @ renderDval value ~canCopy
+    | WithSource {tlid; srcID; propValue; srcResult} ->
         let msg =
-          match lvRes with
+          match srcResult with
           | WithMessage msg ->
               msg
-          | WithDval (dv, _) ->
-              Runtime.toRepr dv
-          | WithMessageAndDval (msg, dv, _) ->
-              msg ^ "\n\n" ^ Runtime.toRepr dv
+          | WithDval {value; _} ->
+              Runtime.toRepr value
+          | WithMessageAndDval {msg; value; _} ->
+              msg ^ "\n\n" ^ Runtime.toRepr value
           | _ ->
-              Runtime.toRepr dv
+              Runtime.toRepr propValue
         in
-        [ viewArrow id srcId
+        [ viewArrow id srcID
         ; Html.div
             [ ViewUtils.eventNoPropagation
-                ~key:("lv-src-" ^ ID.toString srcId ^ TLID.toString tlid)
+                ~key:("lv-src-" ^ ID.toString srcID ^ TLID.toString tlid)
                 "click"
-                (fun _ -> FluidMsg (FluidFocusOnToken (tlid, srcId)))
+                (fun _ -> FluidMsg (FluidFocusOnToken (tlid, srcID)))
             ; Html.class' "jump-src"
             ; Html.title "Click here to go to the source of problem" ]
             [Html.text msg; ViewUtils.fontAwesome "arrow-alt-circle-up"] ]
