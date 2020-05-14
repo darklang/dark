@@ -335,6 +335,7 @@ $icSize: 1em;
       display: flex;
       justify-content: space-between;
       width: 100%;
+      cursor: pointer;
     }
 
     a.toplevel-link {
@@ -364,10 +365,6 @@ $icSize: 1em;
         color: $orange;
         font-weight: 900;
       }
-    }
-
-    span.toplevel-msg {
-      cursor: pointer;
     }
 
     .verb {
