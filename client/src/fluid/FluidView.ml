@@ -69,7 +69,8 @@ type lvResult =
       ; srcResult : lvResult }
   | Loading
 
-let rec lvResultForId (vs : viewState) (id : ID.t) : lvResult =
+let rec lvResultForId ?(recurred = false) (vs : viewState) (id : ID.t) :
+    lvResult =
   let fnLoading =
     (* If fn needs to be manually executed, check status *)
     let ast = vs.astInfo.ast in
@@ -102,8 +103,14 @@ let rec lvResultForId (vs : viewState) (id : ID.t) : lvResult =
   | LoadableSuccess
       (ExecutedResult (DError (SourceId (srcTlid, srcID), _) as propValue))
     when srcID <> id || srcTlid <> vs.tlid ->
-      WithSource
-        {tlid = srcTlid; srcID; propValue; srcResult = lvResultForId vs srcID}
+      if recurred
+      then WithDval {value = propValue; canCopy = false}
+      else
+        WithSource
+          { tlid = srcTlid
+          ; srcID
+          ; propValue
+          ; srcResult = lvResultForId ~recurred:true vs srcID }
   | LoadableSuccess (ExecutedResult (DError _ as dval))
   | LoadableSuccess (ExecutedResult (DIncomplete _ as dval)) ->
       WithDval {value = dval; canCopy = false}
