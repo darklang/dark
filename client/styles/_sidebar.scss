@@ -17,6 +17,23 @@ $sectionSpace: 20px;
 $hSpace: 5px;
 $icSize: 1em;
 
+/******************************************************************************
+* 
+* General structure:
+* 
+* .component {
+*   &.states-definitions { }
+*   .children-definitions {}
+*   .special-case-definitions {} (abridged vs detailed mode specific style-attrs)
+* }
+* ... and so on for each (category wrapper, category titles, line items)
+* .special-case-categories (404, static assets, deleted, etc.)
+* 
+* We use @at-root to reduce deep nesting where repeating attributes
+* overwrite each other.
+* 
+******************************************************************************/
+
 #sidebar-left {
   width: max-content;
   height: 100%;
