@@ -42,8 +42,11 @@ $icSize: 1em;
   padding: 90px 25px;
   background-color: rgba(43, 41, 41, 0.8);
   .tutorial-txt {
-    height: 250px;
+    height: 340px;
     margin: 0px;
+    .grey-highlight {
+      background-color: $grey2;
+    }
     p {
       margin: 0px;
       padding-bottom: 15px;

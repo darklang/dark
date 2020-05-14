@@ -1673,7 +1673,7 @@ and avatarModelMessage =
   ; canvasName : string
   ; timestamp : float }
 
-and tutorialSteps =
+and tutorialStep =
   | Welcome
   | VerbChange
   | ReturnValue
@@ -1760,7 +1760,7 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
-  ; userTutorial : tutorialSteps option
+  ; userTutorial : tutorialStep option
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState
   ; firstVisitToCanvas : bool }
@@ -1780,7 +1780,7 @@ and savedSettings =
   ; sidebarState : sidebarState
   ; showTopbar : bool
   ; firstVisitToCanvas : bool
-  ; userTutorial : tutorialSteps option }
+  ; userTutorial : tutorialStep option }
 [@@deriving show {with_path = false}]
 
 and permission =

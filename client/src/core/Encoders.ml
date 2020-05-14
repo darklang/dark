@@ -710,7 +710,7 @@ and fluidExpr (expr : FluidExpression.t) : Js.Json.t =
       ev "EPipeTarget" [id id']
 
 
-and userTutorial (ut : Types.tutorialSteps) : Js.Json.t =
+and userTutorial (ut : Types.tutorialStep) : Js.Json.t =
   let ev = variant in
   match ut with
   | Welcome ->
