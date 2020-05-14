@@ -320,7 +320,8 @@ $icSize: 1em;
     cursor: pointer;
   }
 
-  .toplevel-msg, .toplevel-link {
+  .toplevel-msg,
+  .toplevel-link {
     display: flex;
     justify-content: space-between;
     width: 100%;
