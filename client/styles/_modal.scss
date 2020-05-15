@@ -25,19 +25,6 @@ $light-grey: $grey2;
     &.unsupported {
       width: 50%;
     }
-    .welcome {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      .subtext {
-        width: 85%;
-      }
-    }
-    a.doc-link {
-      color: $white3;
-      display: inline;
-    }
     .close-btn {
       position: relative;
       align-self: flex-start;
@@ -57,23 +44,6 @@ $light-grey: $grey2;
     .title {
       font-size: $title-size;
       text-align: center;
-    }
-    .btn-wrap {
-      a {
-        text-decoration: none;
-      }
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      .btn {
-        background: white;
-        color: $grey2;
-        margin: 15px;
-        p {
-          padding: 15px 19px;
-          margin: 0px;
-        }
-      }
     }
   }
 }

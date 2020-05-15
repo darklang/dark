@@ -483,6 +483,13 @@ let accountView (m : model) : msg Html.html =
             UpdateSegment OpenDocs) ]
       [Html.text "Documentation"]
   in
+  let tutorial =
+    Html.p
+      [ Html.class' "account-action-btn"
+      ; ViewUtils.eventNoPropagation ~key:"tutorial" "click" (fun _ ->
+            TutorialMsg ReopenTutorial) ]
+      [Html.text "Hello World tutorial"]
+  in
   let spacer = Html.div [Html.class' "account-action-spacer"] [] in
   let newCanvas =
     Html.p
@@ -528,8 +535,15 @@ let accountView (m : model) : msg Html.html =
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
     ; Html.div
         [Html.class' "account-actions"]
-        [newCanvas; canvasInfo; settings; privacy; share; logout; spacer; docs]
-    ]
+        [ newCanvas
+        ; canvasInfo
+        ; settings
+        ; privacy
+        ; share
+        ; logout
+        ; spacer
+        ; docs
+        ; tutorial ] ]
 
 
 let view (m : model) : msg Html.html =
@@ -577,14 +591,19 @@ let view (m : model) : msg Html.html =
               UpdateSegment OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]
   in
-  let modal =
-    (* Temporarily disabling modal || m.showUserWelcomeModal *)
-    if (not (m.integrationTestState <> NoIntegrationTest))
-       && ( m.unsupportedBrowser
-          || m.showUserWelcomeModal
-          || VariantTesting.variantIsActive m ForceWelcomeModalVariant )
-    then ViewModal.html m
+  let tutorial =
+    if m.integrationTestState = NoIntegrationTest
+    then
+      UserTutorial.view
+        m.userTutorial
+        m.username
+        m.canvasName
+        m.firstVisitToThisCanvas
     else Vdom.noNode
+  in
+  let modal =
+    ViewModal.unsupportedBrowser
+      ~show:(m.integrationTestState = NoIntegrationTest && m.unsupportedBrowser)
   in
   let settingsModal =
     if m.settingsView.opened then SettingsView.html m else Vdom.noNode
@@ -598,7 +617,8 @@ let view (m : model) : msg Html.html =
       ; viewToast m.toast
       ; entry
       ; modal
-      ; settingsModal ]
+      ; settingsModal
+      ; tutorial ]
     @ fluidStatus
     @ footer
     @ viewDocs

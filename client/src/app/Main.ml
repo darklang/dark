@@ -73,6 +73,11 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   let variants = VariantTesting.enabledVariantTests isAdmin in
   let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
+  let userTutorial =
+    if m.showUserWelcomeModal && m.userTutorial = None
+    then UserTutorial.defaultStep
+    else m.userTutorial
+  in
   let page =
     Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
@@ -106,7 +111,8 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; username
     ; teaDebuggerEnabled = Url.isDebugging ()
     ; unsupportedBrowser = Entry.unsupportedBrowser ()
-    ; fluidState = Fluid.initAC m.fluidState }
+    ; fluidState = Fluid.initAC m.fluidState
+    ; userTutorial }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
@@ -1439,10 +1445,8 @@ let update_ (msg : msg) (m : model) : modification =
   | UpdateSegment msg ->
       Entry.sendSegmentMessage msg ;
       NoChange
-  | CloseWelcomeModal ->
-      Entry.sendSegmentMessage WelcomeModal ;
-      ReplaceAllModificationsWithThisOne
-        (fun m -> ({m with showUserWelcomeModal = false}, Cmd.none))
+  | TutorialMsg msg ->
+      UserTutorial.update m msg
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)

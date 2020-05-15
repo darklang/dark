@@ -710,6 +710,21 @@ and fluidExpr (expr : FluidExpression.t) : Js.Json.t =
       ev "EPipeTarget" [id id']
 
 
+and userTutorial (ut : Types.tutorialStep) : Js.Json.t =
+  let ev = variant in
+  match ut with
+  | Welcome ->
+      ev "Welcome" []
+  | VerbChange ->
+      ev "VerbChange" []
+  | ReturnValue ->
+      ev "ReturnValue" []
+  | OpenTab ->
+      ev "OpenTab" []
+  | GettingStarted ->
+      ev "GettingStarted" []
+
+
 and cursorState (cs : Types.cursorState) : Js.Json.t =
   let ev = variant in
   match cs with
@@ -824,7 +839,11 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarState", sidebarState se.sidebarState)
-    ; ("showTopbar1", bool se.showTopbar) ]
+    ; ("showTopbar1", bool se.showTopbar)
+    ; ("firstVisitToThisCanvas", bool se.firstVisitToThisCanvas)
+    ; ( "userTutorial"
+      , Option.map ~f:userTutorial se.userTutorial
+        |> Option.withDefault ~default:null ) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =
