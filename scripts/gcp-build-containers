@@ -170,3 +170,11 @@ docker build scripts/support -t "${PREFIX}tunnel:latest" -f scripts/support/tunn
 cd postgres-honeytail \
   && docker build -t "${PREFIX}dark-gcp-postgres-honeytail:latest" . \
   && cd -
+
+#################################
+## honeycomb-logger
+#################################
+cd honeycomb-nginx-logger \
+  && docker build -t "${PREFIX}dark-gcp-honeycomb-logger:latest" \
+        -f honeycomb-logger.Dockerfile . \
+  && cd -
