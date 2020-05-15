@@ -409,6 +409,16 @@ and sidebarMode (j : Js.Json.t) : sidebarMode =
        ; ("AbridgedMode", variant0 AbridgedMode) ]
 
 
+and tutorialStep (j : Js.Json.t) : tutorialStep =
+  j
+  |> variants
+       [ ("Welcome", variant0 Welcome)
+       ; ("VerbChange", variant0 VerbChange)
+       ; ("ReturnValue", variant0 ReturnValue)
+       ; ("OpenTab", variant0 OpenTab)
+       ; ("GettingStarted", variant0 GettingStarted) ]
+
+
 and sidebarState (j : Js.Json.t) : sidebarState =
   { mode = field "mode" sidebarMode j
   ; openedCategories =
@@ -446,6 +456,16 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.showTopbar
         (field "showTopbar1" bool)
+        j
+  ; firstVisitToThisCanvas =
+      withDefault
+        Defaults.defaultSavedSettings.firstVisitToThisCanvas
+        (field "firstVisitToThisCanvas" bool)
+        j
+  ; userTutorial =
+      withDefault
+        Defaults.defaultSavedSettings.userTutorial
+        (field "userTutorial" (optional tutorialStep))
         j }
 
 

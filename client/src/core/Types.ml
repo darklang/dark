@@ -1003,6 +1003,13 @@ and fnpMsg =
   | ParamDropIntoSpace of int
   | Reset
 
+(* Tutorial *)
+and tutorialMsg =
+  | NextStep
+  | PrevStep
+  | CloseTutorial
+  | ReopenTutorial
+
 (* Sidebar state *)
 and sidebarMode =
   | DetailedMode
@@ -1385,8 +1392,8 @@ and msg =
   | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * TLID.t
-  | CloseWelcomeModal
   | FnParamMsg of fnpMsg
+  | TutorialMsg of tutorialMsg
   | UpdateSegment of segmentTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg
 
@@ -1399,7 +1406,6 @@ and variantTest =
       StubVariant
   | GroupVariant
   | NgrokVariant
-  | ForceWelcomeModalVariant
   | LeftPartialVariant
   | FnReturnVariant
 
@@ -1667,6 +1673,13 @@ and avatarModelMessage =
   ; canvasName : string
   ; timestamp : float }
 
+and tutorialStep =
+  | Welcome
+  | VerbChange
+  | ReturnValue
+  | OpenTab
+  | GettingStarted
+
 and model =
   { error : Error.t
   ; lastMsg : msg
@@ -1747,8 +1760,12 @@ and model =
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
+        (* indicates if it is the users first time visiting any dark canvas *)
+  ; userTutorial : tutorialStep option
   ; currentUserFn : fnProps
-  ; settingsView : SettingsViewTypes.settingsViewState }
+  ; settingsView : SettingsViewTypes.settingsViewState
+  ; firstVisitToThisCanvas : bool
+        (* indicates if it is the users first time this canvas *) }
 
 and savedUserSettings =
   { showUserWelcomeModal : bool
@@ -1763,7 +1780,9 @@ and savedSettings =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarState : sidebarState
-  ; showTopbar : bool }
+  ; showTopbar : bool
+  ; firstVisitToThisCanvas : bool
+  ; userTutorial : tutorialStep option }
 [@@deriving show {with_path = false}]
 
 and permission =

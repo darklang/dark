@@ -17,8 +17,6 @@ let toVariantTest (s : string) : variantTest option =
       Some GroupVariant
   | "localhost-assets" ->
       Some NgrokVariant
-  | "force-welcome-modal" ->
-      Some ForceWelcomeModalVariant
   | "lpartial" ->
       Some LeftPartialVariant
   | "fnreturn" ->
@@ -36,8 +34,6 @@ let nameOf (vt : variantTest) : string =
       "groups"
   | NgrokVariant ->
       "localhost-assets"
-  | ForceWelcomeModalVariant ->
-      "force-welcome-modal"
   | LeftPartialVariant ->
       "lpartial"
   | FnReturnVariant ->
@@ -47,7 +43,7 @@ let nameOf (vt : variantTest) : string =
 let toCSSClass (vt : variantTest) : string = nameOf vt ^ "-variant"
 
 let availableAdminVariants : variantTest list =
-  [FnReturnVariant; ForceWelcomeModalVariant; NgrokVariant; GroupVariant]
+  [FnReturnVariant; NgrokVariant; GroupVariant]
 
 
 let activeCSSClasses (m : model) : string =
