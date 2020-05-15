@@ -70,8 +70,7 @@ let update (m : model) (msg : tutorialMsg) : modification =
     | PrevStep ->
         (getPrevStep m.userTutorial, [])
     | CloseTutorial ->
-        if isGettingStartedCanvas ~username:m.username ~canvasname:m.canvasName
-        then Entry.sendSegmentMessage WelcomeModal ;
+        if m.showUserWelcomeModal then Entry.sendSegmentMessage WelcomeModal ;
         ( None
         , [ ReplaceAllModificationsWithThisOne
               (fun m ->
@@ -267,7 +266,8 @@ let viewGettingStarted : msg Html.html =
                 [ Html.text
                     "If you'd like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
                 ] ]
-        ; btn ] ]
+        ; btn ]
+    ; closeTutorial ]
 
 
 let viewStep (step : tutorialStep option) (username : string) : msg Html.html =
@@ -285,7 +285,7 @@ let viewStep (step : tutorialStep option) (username : string) : msg Html.html =
             ~key:"enableable-panning-tutorial"
             "mouseout"
             (fun _ -> EnablePanning true) ]
-        [htmlForStep step username; btnContainer]
+        [htmlForStep step username; btnContainer; closeTutorial]
   | None ->
       Vdom.noNode
 
