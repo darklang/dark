@@ -246,6 +246,10 @@ sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   scripts/support/kubernetes/postgres-honeytail-deployment.yaml.template > scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 
+sed -e "s!{HONEYCOMB_LOGGER_IMAGE}!${HONEYCOMB_LOGGER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  scripts/support/kubernetes/honeycomb-logger-deployment.yaml.template > scripts/support/kubernetes/honeycomb-logger-deployment.yaml
+
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/cronchecker/cc-network-policy.yaml

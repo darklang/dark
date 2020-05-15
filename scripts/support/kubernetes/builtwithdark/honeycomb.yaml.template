@@ -154,6 +154,7 @@ metadata:
   namespace: default
   annotations:
     reloader.stakater.com/auto: "true"
+    kubernetes.io/change-cause: {CHANGE_CAUSE}
 spec:
   updateStrategy:
     type: RollingUpdate
@@ -172,6 +173,18 @@ spec:
         - operator: Exists
           effect: NoSchedule
       containers:
+      - env:
+        - name: DATASETS_TO_LOG
+          value: "kubernetes-bwd-nginx|kubernetes-bwd-ocaml|kubernetes-stroller"
+        image: gcr.io/balmy-ground-195100/dark-gcp-honeycomb-logger:{HONEYCOMB_LOGGER_IMAGE}
+        imagePullPolicy: IfNotPresent
+        name: honeycomb-logger
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
       - env:
         - name: HONEYCOMB_WRITEKEY
           valueFrom:

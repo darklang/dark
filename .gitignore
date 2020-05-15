@@ -18,6 +18,7 @@ _esy/
 # Templates for these are in scripts/support/kubernetes/*/*.yaml.template
 /scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
 /scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
+/scripts/support/kubernetes/builtwithdark/honeycomb.yaml
 /scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 /scripts/support/kubernetes/queueworker/qw-deployment.yaml
 /scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
