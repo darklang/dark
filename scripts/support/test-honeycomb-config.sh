@@ -3,8 +3,10 @@
 set -eu
 set pipefail
 
-YAML=scripts/support/kubernetes/builtwithdark/honeycomb.yaml
-IMAGE=$(yq -sr '.[4].spec.template.spec.containers[0].image' $YAML)
+# We don't need to do any templating here, the templated parts are not
+# honeycomb-kubernetes-agent config
+YAML=scripts/support/kubernetes/builtwithdark/honeycomb.yaml.template
+IMAGE=$(yq -sr '.[4].spec.template.spec.containers[1].image' $YAML)
 
 TMP_CONFIG=tmp_honeycomb_config.yaml
 TMP_DOCKERFILE=tmp_honeycomb_config.Dockerfile
