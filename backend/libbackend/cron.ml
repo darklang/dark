@@ -280,7 +280,6 @@ let check_and_schedule_work_for_all_crons (pid : int) :
         [ ("crons.count", `Int (List.length all_crons))
         ; ("chunks.count", `Int (List.length chunks)) ] ;
 
-      let failed_to_load = ref [] in
       try
         (* process_chunk loads each canvas by name,
          * then checks and schedules crons *)
@@ -289,12 +288,9 @@ let check_and_schedule_work_for_all_crons (pid : int) :
         in
 
         let checked, scheduled = sum_pairs chunks ~f:process_chunk in
-        let errors = List.length !failed_to_load in
         Span.set_attrs
           span
-          [ ("canvas.errors", `Int errors)
-          ; ("crons.checked", `Int checked)
-          ; ("crons.scheduled", `Int scheduled) ] ;
+          [("crons.checked", `Int checked); ("crons.scheduled", `Int scheduled)] ;
         Ok ()
       with e ->
         let bt = Exception.get_backtrace () in
