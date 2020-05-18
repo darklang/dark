@@ -14,13 +14,7 @@ let sum_pairs (l : 'a list) ~(f : 'a -> int * int) : int * int =
       (a + a', b + b'))
 
 
-type cron_schedule_data =
-  { canvas_id : Uuidm.t
-  ; owner : Uuidm.t
-  ; host : string
-  ; tlid : string
-  ; name : string
-  ; modifier : string }
+type cron_schedule_data = Serialize.cron_schedule_data
 
 (* TODO: this is a query per cron handler. Might be worth seeing (later) if a we
  * could do this better with a join in the initial query that gets all cron
@@ -227,46 +221,7 @@ let check_and_schedule_work_for_all_crons (pid : int) :
             "error.msg"
             (`String "Not running any crons; pointed at prodclone!") ;
           [] )
-        else
-          (* usually functions should trace their own execution, but
-           * current_hosts is used from many places, not all of which have
-           * tracing yet. *)
-          Telemetry.with_span span "Cron_get_crons_for_scheduler" (fun _ ->
-              Db.fetch
-                ~name:"get crons for scheduler"
-                (* When a CRON handler is deleted, we set (module, modifier, deleted) to
-                 * (NULL, NULL, True);  so our query `WHERE module = 'CRON'` already
-                 * ignores deleted CRONs.
-                 *
-                 * We also have `modifier IS NOT NULL` to avoid crons with an
-                 * empty interval *)
-                "SELECT canvas_id,
-                        tlid,
-                        modifier,
-                        toplevel_oplists.name,
-                        account_id,
-                        canvases.name
-                 FROM toplevel_oplists
-                   JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
-                 WHERE module = $1 AND modifier IS NOT NULL"
-                ~params:[Db.String "CRON"]
-              |> List.map ~f:(function
-                     | [canvas_id; tlid; modifier; name; account_id; host] ->
-                         { canvas_id =
-                             canvas_id
-                             |> Uuidm.of_string
-                             |> Option.value_exn
-                         ; tlid
-                         ; modifier
-                         ; name
-                         ; owner =
-                             account_id
-                             |> Uuidm.of_string
-                             |> Option.value_exn
-                         ; host }
-                     | _ ->
-                         Exception.internal
-                           "Wrong shape from get_crons_for_scheduler query"))
+        else Serialize.fetch_active_crons span
       in
 
       (* Chunk the crons list so that we don't have to load thousands of
