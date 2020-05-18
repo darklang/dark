@@ -33,7 +33,7 @@
     "minimist": ">=1.2.3",
     "moment": "^2.25.3",
     "mouse-wheel": "1.2.0",
-    "pusher-js": "5.1.1",
+    "pusher-js": "6.0.3",
     "rollbar": "2.16.2",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "0.0.6",
