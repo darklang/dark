@@ -5174,10 +5174,10 @@ syntax-error@^1.1.1:
   dependencies:
     acorn-node "^1.2.0"
 
-tablecloth-bucklescript@0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/tablecloth-bucklescript/-/tablecloth-bucklescript-0.0.6.tgz#92b27c4e46ceec47008728367eccd7d5016b3914"
-  integrity sha512-rfwtTya+tfPByxsfH0i1GACppzv098wKNGa4YEG9t9m+hpj0T/qpyjA1iOngN9w1iBJaIs4pSUNEAgLf7jWAmw==
+tablecloth-bucklescript@0.0.7:
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/tablecloth-bucklescript/-/tablecloth-bucklescript-0.0.7.tgz#635f66b773900cac4ee8287a8d2b21a294b7f038"
+  integrity sha512-LR509lBXGDZcunx74BxdP5AgmeGpNPe4VKbH7edADjHor7hLa1MNFy5EbuL5HgrI893sGxTpBwlQq7nKJ0O9Fg==
 
 tar@^2.0.0:
   version "2.2.2"
