@@ -1445,6 +1445,8 @@ let update_ (msg : msg) (m : model) : modification =
   | UpdateSegment msg ->
       Entry.sendSegmentMessage msg ;
       NoChange
+  | ToolTipMsg msg ->
+      Tooltips.update msg
   | TutorialMsg msg ->
       UserTutorial.update m msg
   | DeleteUserTypeForever tlid ->
