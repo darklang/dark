@@ -120,12 +120,16 @@ let categoryButton ?(props = []) (name : string) (description : string) :
     (categoryIcon_ name)
 
 
+let setTooltips (tooltip : tooltip) (entries : 'a list) : tooltip option =
+  if entries = [] then Some tooltip else None
+
+
 let handlerCategory
     (filter : toplevel -> bool)
     (name : string)
     (action : omniAction)
     (iconAction : msg option)
-    (tooltip : tooltip option)
+    (tooltip : tooltip)
     (hs : handler list) : category =
   let handlers = hs |> List.filter ~f:(fun h -> filter (TLHandler h)) in
   { count = List.length handlers
@@ -133,7 +137,7 @@ let handlerCategory
   ; plusButton = Some (CreateRouteHandler action)
   ; classname = String.toLower name
   ; iconAction
-  ; tooltip
+  ; tooltip = setTooltips tooltip handlers
   ; entries =
       List.map handlers ~f:(fun h ->
           let tlid = h.hTLID in
@@ -154,17 +158,13 @@ let handlerCategory
                 else None ) }) }
 
 
-let setTooltips (tooltip : tooltip) (entries : 'a list) : tooltip option =
-  if entries = [] then Some tooltip else None
-
-
 let httpCategory (handlers : handler list) : category =
   handlerCategory
     TL.isHTTPHandler
     "HTTP"
     (NewHTTPHandler None)
     (Some GoToArchitecturalView)
-    (setTooltips Http handlers)
+    Http
     handlers
 
 
@@ -174,7 +174,7 @@ let cronCategory (handlers : handler list) : category =
     "Cron"
     (NewCronHandler None)
     (Some GoToArchitecturalView)
-    (setTooltips Cron handlers)
+    Cron
     handlers
 
 
@@ -184,7 +184,7 @@ let replCategory (handlers : handler list) : category =
     "REPL"
     (NewReplHandler None)
     None
-    (setTooltips Repl handlers)
+    Repl
     handlers
 
 
@@ -197,7 +197,7 @@ let workerCategory (handlers : handler list) : category =
     "Worker"
     (NewWorkerHandler None)
     (Some GoToArchitecturalView)
-    (setTooltips Worker handlers)
+    Worker
     handlers
 
 
@@ -663,20 +663,6 @@ let viewDeployStats (m : model) : msg Html.html =
   in
   let title = categoryName "Static Assets" in
   let summary =
-    let props =
-      [ eventPreventDefault ~key:"disable-sa-click" "click" (fun _ ->
-            IgnoreMsg "static asset icon click") ]
-    in
-    let header =
-      Html.div
-        [Html.class' "category-header"]
-        [categoryButton "static" "Static Assets" ~props; title]
-    in
-    let deployLatest =
-      if count <> 0
-      then entries |> List.take ~count:1 |> List.map ~f:viewDeploy
-      else []
-    in
     let openTooltip =
       if count = 0
       then
@@ -686,8 +672,18 @@ let viewDeployStats (m : model) : msg Html.html =
           (fun _ -> ToolTipMsg (Open (Some StaticAssets)))
       else Vdom.noProp
     in
+    let header =
+      Html.div
+        [Html.class' "category-header"; openTooltip]
+        [categoryButton "static" "Static Assets"; title]
+    in
+    let deployLatest =
+      if count <> 0
+      then entries |> List.take ~count:1 |> List.map ~f:viewDeploy
+      else []
+    in
     Html.summary
-      [openEventHandler; openTooltip; Html.class' "category-summary"]
+      [openEventHandler; Html.class' "category-summary"]
       (header :: deployLatest)
   in
   let deploys =
@@ -757,21 +753,19 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     in
     let catIcon =
       let props =
-        [ eventNeither ~key:"return-to-arch" "click" (fun _ ->
-              if m.sidebarState.mode = AbridgedMode && not isSubCat
-              then
-                match c.iconAction with
-                | Some ev ->
-                    ev
-                | None ->
-                    IgnoreMsg "sidebar-return-to-arch"
-              else IgnoreMsg "sidebar-return-to-arch") ]
+        match c.iconAction with
+        | Some ev when m.sidebarState.mode = AbridgedMode && not isSubCat ->
+            [eventNeither ~key:"return-to-arch" "click" (fun _ -> ev)]
+        | Some _ | None ->
+            []
       in
       categoryButton c.classname c.name ~props
     in
-    let header = Html.div [Html.class' "category-header"] [catIcon; title] in
+    let header =
+      Html.div [Html.class' "category-header"; openTooltip] [catIcon; title]
+    in
     Html.summary
-      [Html.class' "category-summary"; openEventHandler; openTooltip]
+      [Html.class' "category-summary"; openEventHandler]
       [header; plusButton]
   in
   let content =
