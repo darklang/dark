@@ -202,11 +202,10 @@ let check_and_schedule_work_for_cron
 let check_and_schedule_work_for_crons
     (parent : Span.t) (crons : cron_schedule_data list) : int * int =
   Telemetry.with_span parent "check_and_schedule_work_for_crons" (fun span ->
-      let checked_crons =
+      let enqueued_crons =
         crons |> List.map ~f:(check_and_schedule_work_for_cron span)
       in
-      let enqueued_crons = checked_crons |> List.filter ~f:ident in
-      (List.length checked_crons, List.length enqueued_crons))
+      (List.length crons, List.length enqueued_crons))
 
 
 (** check_and_schedule_work_for_all_crons iterates through every (non-deleted)
