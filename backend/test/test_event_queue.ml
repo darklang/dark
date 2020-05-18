@@ -93,6 +93,13 @@ let t_event_queue_is_fifo () =
 (*        cron         *)
 (* ------------------- *)
 
+let t_cron_fetch_active_crons () =
+  let span = Telemetry.Span.root "test fetch_active_crons" in
+  (*  Just checking that this doesn't raise *)
+  Serialize.fetch_active_crons span |> ignore ;
+  ()
+
+
 let t_cron_sanity () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
@@ -170,6 +177,9 @@ let t_get_worker_schedules_for_canvas () =
 
 let suite =
   [ ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
+  ; ( "Cron should be able to fetch active crons"
+    , `Quick
+    , t_cron_fetch_active_crons )
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
   ; ("Cron just ran", `Quick, t_cron_just_ran)
   ; ("Event queue is FIFO per worker", `Quick, t_event_queue_is_fifo)
