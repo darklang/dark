@@ -54,6 +54,14 @@ $icSize: 1em;
       margin: 0px;
       padding-bottom: 15px;
     }
+    .learn-more-link {
+      text-decoration: none;
+      color: $white1;
+      cursor: pointer;
+      &:hover {
+        color: $purple;
+      }
+    }
   }
 
   .getting-started {

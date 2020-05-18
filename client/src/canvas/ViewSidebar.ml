@@ -502,12 +502,13 @@ let deletedCategory (m : model) : category =
                    | c ->
                        c) })
   in
+  let showTooltip = List.filter ~f:(fun c -> c.entries <> []) cats in
   { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
   ; iconAction = None
-  ; tooltip = setTooltips Deleted cats
+  ; tooltip = setTooltips Deleted showTooltip
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
@@ -676,8 +677,17 @@ let viewDeployStats (m : model) : msg Html.html =
       then entries |> List.take ~count:1 |> List.map ~f:viewDeploy
       else []
     in
+    let openTooltip =
+      if count = 0
+      then
+        ViewUtils.eventNoPropagation
+          ~key:"open-tooltip-deploys"
+          "click"
+          (fun _ -> ToolTipMsg (Open (Some StaticAssets)))
+      else Vdom.noProp
+    in
     Html.summary
-      [openEventHandler; Html.class' "category-summary"]
+      [openEventHandler; openTooltip; Html.class' "category-summary"]
       (header :: deployLatest)
   in
   let deploys =
