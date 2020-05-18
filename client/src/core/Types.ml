@@ -1003,6 +1003,11 @@ and fnpMsg =
   | ParamDropIntoSpace of int
   | Reset
 
+(* Tool tips *)
+and toolTipMsg =
+  | Open of tooltip option
+  | Close
+
 (* Tutorial *)
 and tutorialMsg =
   | NextStep
@@ -1394,6 +1399,7 @@ and msg =
   | NewTabFromTLMenu of string * TLID.t
   | FnParamMsg of fnpMsg
   | TutorialMsg of tutorialMsg
+  | ToolTipMsg of toolTipMsg
   | UpdateSegment of segmentTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg
 
@@ -1680,6 +1686,18 @@ and tutorialStep =
   | OpenTab
   | GettingStarted
 
+and tooltip =
+  | Http
+  | Worker
+  | Cron
+  | Repl
+  | Datastore
+  | Function
+  | FourOhFour
+  | Deleted
+  | PackageManager
+  | StaticAssets
+
 and model =
   { error : Error.t
   ; lastMsg : msg
@@ -1762,6 +1780,7 @@ and model =
   ; showUserWelcomeModal : bool
         (* indicates if it is the users first time visiting any dark canvas *)
   ; userTutorial : tutorialStep option
+  ; tooltip : tooltip option
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState
   ; firstVisitToThisCanvas : bool
