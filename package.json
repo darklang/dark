@@ -20,7 +20,7 @@
   "dependencies": {
     "@fullstory/browser": "^1.4.4",
     "@glennsl/bs-json": "5.0.2",
-    "acorn": ">=7.1.1",
+    "acorn": ">=7.2.0",
     "analytics-node": "^3.4.0-beta.1",
     "bs-deriving": "44.1.1",
     "bs-fetch": "0.5.2",
