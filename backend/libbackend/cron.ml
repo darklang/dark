@@ -255,14 +255,14 @@ let check_and_schedule_work_for_all_crons (pid : int) :
                          { canvas_id =
                              canvas_id
                              |> Uuidm.of_string
-                             |> Option.value ~default:Uuidm.nil
+                             |> Option.value_exn
                          ; tlid
                          ; modifier
                          ; name
                          ; owner =
                              account_id
                              |> Uuidm.of_string
-                             |> Option.value ~default:Uuidm.nil
+                             |> Option.value_exn
                          ; host }
                      | _ ->
                          Exception.internal
