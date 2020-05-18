@@ -6,20 +6,7 @@ open Types.RuntimeT.HandlerT
 module Log = Libcommon.Log
 module Span = Telemetry.Span
 
-(** sum_pairs folds over the list [l] with function [f], summing the
-  * values of the returned (int * int) tuple from each call *)
-let sum_pairs (l : 'a list) ~(f : 'a -> int * int) : int * int =
-  List.fold l ~init:(0, 0) ~f:(fun (a, b) c ->
-      let a', b' = f c in
-      (a + a', b + b'))
-
-
-type cron_schedule_data = Serialize.cron_schedule_data
-
-(* TODO: this is a query per cron handler. Might be worth seeing (later) if a we
- * could do this better with a join in the initial query that gets all cron
- * handlers from toplevel_oplists. *)
-let last_ran_at (cron : cron_schedule_data) : Time.t option =
+let last_ran_at (canvas_id : Uuidm.t) (h : 'expr_type handler) : Time.t option =
   Db.fetch_one_option
     ~name:"last_ran_at"
     "SELECT ran_at
@@ -28,13 +15,16 @@ let last_ran_at (cron : cron_schedule_data) : Time.t option =
        AND canvas_id = $2
        ORDER BY id DESC
        LIMIT 1"
-    ~params:[ID (Int63.of_string cron.tlid); Uuid cron.canvas_id]
+    ~params:[ID h.tlid; Uuid canvas_id]
   |> Option.map ~f:List.hd_exn
   |> Option.map ~f:Db.date_of_sqlstring
 
 
-let parse_interval (cron : cron_schedule_data) : Time.Span.t option =
-  match String.lowercase cron.modifier with
+let parse_interval (h : 'expr_type handler) : Time.Span.t option =
+  let open Option in
+  Handler.modifier_for h
+  >>= fun modif ->
+  match String.lowercase modif with
   | "daily" ->
       Time.Span.create ~sign:Sign.Pos ~day:1 () |> Some
   | "weekly" ->
@@ -56,23 +46,31 @@ type execution_check_type =
   ; scheduled_run_at : Time.t option
   ; interval : Time.Span.t option }
 
-let execution_check (parent : Span.t) (cron : cron_schedule_data) :
+let execution_check
+    (parent : Span.t) (canvas_id : Uuidm.t) (h : 'expr_type handler) :
     execution_check_type =
   let open Option in
   let now = Time.now () in
-  match last_ran_at cron with
+  match last_ran_at canvas_id h with
   | None ->
       {should_execute = true; scheduled_run_at = Some now; interval = None}
       (* we should always run if we've never run before *)
   | Some lrt ->
-    ( match parse_interval cron with
+    ( match parse_interval h with
     | None ->
         let bt = Caml.Printexc.get_raw_backtrace () in
-        Log.erroR "Can't parse interval: " ~params:[("modifier", cron.modifier)] ;
+        Log.erroR
+          "Can't parse interval: "
+          ~params:
+            [ ( "modifier"
+              , Handler.modifier_for h
+                |> Option.value ~default:"<empty modifier>" ) ] ;
         let e =
           Exception.make_exception
             DarkInternal
-            ("Can't parse interval: " ^ cron.modifier)
+            ( "Can't parse interval: "
+            ^ ( Handler.modifier_for h
+              |> Option.value ~default:"<empty modifier>" ) )
         in
         ignore
           (Rollbar.report
@@ -105,113 +103,169 @@ let execution_check (parent : Span.t) (cron : cron_schedule_data) :
           ; interval = Some interval } )
 
 
-let record_execution (cron : cron_schedule_data) : unit =
-  let tlid = cron.tlid |> Int63.of_string in
+let record_execution (canvas_id : Uuidm.t) (h : 'expr_type handler) : unit =
   Db.run
     "INSERT INTO cron_records
     (tlid, canvas_id)
     VALUES ($1, $2)"
-    ~params:[ID tlid; Uuid cron.canvas_id]
+    ~params:[ID h.tlid; Uuid canvas_id]
     ~name:"Cron.record_execution"
 
 
-(** Check if a given cron spec should execute now, and if so, enqueue it.
-  *
-  * Returns true/false whether the cron was enqueued, so we can count it later *)
-let check_and_schedule_work_for_cron
-    (parent : Span.t) (cron : cron_schedule_data) : bool =
-  let {should_execute; scheduled_run_at; interval} =
-    execution_check parent cron
+(** sum_pairs folds over the list [l] with function [f], summing the
+  * values of the returned (int * int) tuple from each call *)
+let sum_pairs (l : 'a list) ~(f : 'a -> int * int) : int * int =
+  List.fold l ~init:(0, 0) ~f:(fun (a, b) c ->
+      let a', b' = f c in
+      (a + a', b + b'))
+
+
+(** load_canvases takes a list of canvas [names] (ie, canvas.host) and returns
+  * the full Canvas.canvas for each, along with a list of canvas names that
+  * couldn't be loaded for one reason (it errored) or another (it raised). *)
+let load_canvases (parent : Telemetry.Span.t) (names : string list) :
+    'a Canvas.canvas ref list * string list =
+  Telemetry.with_span parent "Cron.load_canvases" (fun span ->
+      List.partition_map names ~f:(fun name ->
+          (* Load each canvas in chunk, logging and dropping from list on any error *)
+          try
+            (* serialization can fail, attempt first *)
+            match Canvas.load_for_cron_checker_from_cache name with
+            | Ok canvas ->
+                `Fst canvas
+            | Error errs ->
+                Log.erroR
+                  "cron_checker"
+                  ~data:"Canvas verification error"
+                  ~params:
+                    [ ("host", name)
+                    ; ("errs", String.concat ~sep:", " errs)
+                    ; ("execution_id", Telemetry.ID.to_string parent.trace_id)
+                    ] ;
+                `Snd name
+          with e ->
+            let bt = Exception.get_backtrace () in
+            let tid = Telemetry.ID.to_string span.trace_id in
+            ignore (Rollbar.report e bt CronChecker tid) ;
+            `Snd name))
+
+
+(* check_and_schedule_work_for_canvas checks all cron handlers on the given
+ * [canvas] and if necessary, enqueues work to run each one.
+ *
+ * Returns a tuple of the number of crons (checked * scheduled).
+ *
+ * Does not add a Telemetry.Span as this is called thousands of times per tick. *)
+let check_and_schedule_work_for_canvas
+    (parent : Span.t) (canvas : expr Canvas.canvas ref) : int * int =
+  let crons =
+    !canvas.handlers
+    |> Types.IDMap.data
+    |> List.filter_map ~f:Toplevel.as_handler
+    |> List.filter ~f:Handler.is_complete
+    |> List.filter ~f:Handler.is_cron
   in
-  if should_execute
-  then
-    let space = "CRON" in
-    let name = cron.name in
-    let modifier = cron.modifier in
-    Log.add_log_annotations
-      [("cron", `Bool true)]
-      (fun _ ->
-        Event_queue.enqueue
-          ~account_id:cron.owner
-          ~canvas_id:cron.canvas_id
-          space
-          name
-          modifier
-          DNull ;
-        record_execution cron ;
 
-        (* It's a little silly to recalculate now when we just did
-         * it in execution_check, but maybe Event_queue.enqueue was
-         * slow or something *)
-        let now = Time.now () in
-        let delay_ms =
-          scheduled_run_at
-          |> Option.map ~f:(Time.diff now)
-          (* For future reference: yes, to_ms returns the span of time
-           * in milliseconds, _not_ "the ms part of the span of
-           * time". I had to check that it wasn't, like, 10.5s |>
-           * to_ms is 500, because 10.5|>to_s is 10. Time-related
-           * APIs get tricky that way. *)
-          |> Option.map ~f:Time.Span.to_ms
-        in
-        let delay_log =
-          delay_ms |> Option.map ~f:(fun delay -> ("delay", `Float delay))
-        in
-        let interval_log =
-          interval
-          (* This is definitely not None, but keep the
-           * typechecker happy *)
-          (* Floats are IEEE-754, which has a max at 2**31-1;
-           * that's 24.85 days worth of milliseconds. Since our
-           * longest allowed cron interval is two weeks, this is
-           * fine *)
-          |> Option.map ~f:(fun interval ->
-                 ("interval", `Float (interval |> Time.Span.to_ms)))
-        in
-        let delay_ratio_log =
-          Option.map2 delay_ms interval ~f:(fun delay_ms interval ->
-              let interval = interval |> Time.Span.to_ms in
-              delay_ms /. interval)
-          |> Option.map ~f:(fun delay_ratio ->
-                 ("delay_ratio", `Float delay_ratio))
-        in
-        let attrs =
-          [ ("canvas_name", `String cron.host)
-          ; ("tlid", `String cron.tlid)
-          ; ("handler_name", `String name)
-            (* method here to use the spec-handler name for
-             * consistency with http/worker logs *)
-          ; ("method", `String modifier) ]
-          @ ([delay_log; interval_log; delay_ratio_log] |> List.filter_opt)
-        in
-        Span.event parent "cron.enqueue" ~attrs ;
-        true)
-  else false
+  let cron_count = List.length crons in
+  Log.debuG
+    "cron_checker"
+    ~data:"checking canvas"
+    ~params:
+      [ ("execution_id", Telemetry.ID.to_string parent.trace_id)
+      ; ("canvas", !canvas.host) ]
+    ~jsonparams:[("number_of_crons", `Int cron_count)] ;
 
-
-(** Given a list of [cron_schedule_data] records, check which ones are due to
-  * run, and enqueue them.
-  *
-  * Returns a tuple of the number of crons (checked * scheduled) *)
-let check_and_schedule_work_for_crons
-    (parent : Span.t) (crons : cron_schedule_data list) : int * int =
-  Telemetry.with_span parent "check_and_schedule_work_for_crons" (fun span ->
-      let enqueued_crons =
-        crons |> List.map ~f:(check_and_schedule_work_for_cron span)
+  let scheduled = ref 0 in
+  List.iter crons ~f:(fun cron ->
+      let {should_execute; scheduled_run_at; interval} =
+        execution_check parent !canvas.id cron
       in
-      (List.length crons, List.length enqueued_crons))
+      if should_execute
+      then
+        let space = Handler.module_for_exn cron in
+        let name = Handler.event_name_for_exn cron in
+        let modifier = Handler.modifier_for_exn cron in
+        Log.add_log_annotations
+          [("cron", `Bool true)]
+          (fun _ ->
+            Event_queue.enqueue
+              ~account_id:!canvas.owner
+              ~canvas_id:!canvas.id
+              space
+              name
+              modifier
+              DNull ;
+            record_execution !canvas.id cron ;
+
+            (* It's a little silly to recalculate now when we just did
+             * it in execution_check, but maybe Event_queue.enqueue was
+             * slow or something *)
+            let now = Time.now () in
+            let delay_ms =
+              scheduled_run_at
+              |> Option.map ~f:(Time.diff now)
+              (* For future reference: yes, to_ms returns the span of time
+               * in milliseconds, _not_ "the ms part of the span of
+               * time". I had to check that it wasn't, like, 10.5s |>
+               * to_ms is 500, because 10.5|>to_s is 10. Time-related
+               * APIs get tricky that way. *)
+              |> Option.map ~f:Time.Span.to_ms
+            in
+            let delay_log =
+              delay_ms |> Option.map ~f:(fun delay -> ("delay", `Float delay))
+            in
+            let interval_log =
+              interval
+              (* This is definitely not None, but keep the
+               * typechecker happy *)
+              (* Floats are IEEE-754, which has a max at 2**31-1;
+               * that's 24.85 days worth of milliseconds. Since our
+               * longest allowed cron interval is two weeks, this is
+               * fine *)
+              |> Option.map ~f:(fun interval ->
+                     ("interval", `Float (interval |> Time.Span.to_ms)))
+            in
+            let delay_ratio_log =
+              Option.map2 delay_ms interval ~f:(fun delay_ms interval ->
+                  let interval = interval |> Time.Span.to_ms in
+                  delay_ms /. interval)
+              |> Option.map ~f:(fun delay_ratio ->
+                     ("delay_ratio", `Float delay_ratio))
+            in
+            let attrs =
+              [ ("canvas_name", `String !canvas.host)
+              ; ("tlid", `String (Types.string_of_id cron.tlid))
+              ; ("handler_name", `String name)
+                (* method here to use the spec-handler name for
+                 * consistency with http/worker logs *)
+              ; ("method", `String modifier) ]
+              @ ([delay_log; interval_log; delay_ratio_log] |> List.filter_opt)
+            in
+            Span.event parent "cron.enqueue" ~attrs ;
+            incr scheduled)) ;
+  (cron_count, !scheduled)
 
 
-(** check_and_schedule_work_for_all_crons iterates through every (non-deleted)
-  * cron toplevel_oplist and checks to see if it should be executed, enqueuing
-  * work to execute it if necessary. *)
-let check_and_schedule_work_for_all_crons (pid : int) :
+(* check_and_schedule_work_for_canvases checks all cron handlers on all the given
+ * [canvases] and if necessary, enqueues work to run each one.
+ *
+ * Returns a tuple of the number of crons (checked * scheduled) *)
+let check_and_schedule_work_for_canvases
+    (parent : Span.t) (canvases : expr Canvas.canvas ref list) : int * int =
+  Telemetry.with_span parent "check_and_schedule_work_for_canvases" (fun span ->
+      sum_pairs canvases ~f:(check_and_schedule_work_for_canvas span))
+
+
+(* check_and_schedule_work_for_all_canvases iterates through every (non-test)
+ * canvas and checks every cron handler to see if it should be executed,
+ * enqueuing work to execute it if necessary. *)
+let check_and_schedule_work_for_all_canvases (pid : int) :
     (unit, Exception.captured) Result.t =
-  let span = Span.root "Cron.check_and_schedule_work_for_all_crons" in
+  let span = Span.root "Cron.check_and_schedule_work_for_all_canvases" in
   Span.set_attr span "meta.process_id" (`Int pid) ;
 
   protectx span ~finally:Span.finish ~f:(fun span ->
-      let all_crons =
+      let all_canvas_names =
         if String.Caseless.equal
              Libservice.Config.postgres_settings.dbname
              "prodclone"
@@ -221,30 +275,43 @@ let check_and_schedule_work_for_all_crons (pid : int) :
             "error.msg"
             (`String "Not running any crons; pointed at prodclone!") ;
           [] )
-        else Serialize.fetch_active_crons span
+        else
+          (* usually functions should trace their own execution, but
+           * current_hosts is used from many places, not all of which have
+           * tracing yet. *)
+          Telemetry.with_span span "Serialize.current_hosts" (fun _ ->
+              Serialize.current_hosts ()
+              |> List.filter ~f:(Fn.non Serialize.is_test))
       in
 
-      (* Chunk the crons list so that we don't have to load thousands of
+      (* Chunk the canvas name list so that we don't have to load thousands of
        * canvases into memory at once.
        *
        * 1000 was chosen arbitrarily. Please update if data shows this is the wrong number. *)
-      let chunks = all_crons |> List.chunks_of ~length:1000 in
+      let chunks = all_canvas_names |> List.chunks_of ~length:1000 in
       Span.set_attrs
         span
-        [ ("crons.count", `Int (List.length all_crons))
+        [ ("canvas.count", `Int (List.length all_canvas_names))
         ; ("chunks.count", `Int (List.length chunks)) ] ;
 
+      let failed_to_load = ref [] in
       try
         (* process_chunk loads each canvas by name,
          * then checks and schedules crons *)
-        let process_chunk (chunk : cron_schedule_data list) =
-          check_and_schedule_work_for_crons span chunk
+        let process_chunk (chunk : string list) =
+          let loaded, errors = load_canvases span chunk in
+          failed_to_load := List.append !failed_to_load errors ;
+          Thread.yield () ;
+          check_and_schedule_work_for_canvases span loaded
         in
 
         let checked, scheduled = sum_pairs chunks ~f:process_chunk in
+        let errors = List.length !failed_to_load in
         Span.set_attrs
           span
-          [("crons.checked", `Int checked); ("crons.scheduled", `Int scheduled)] ;
+          [ ("canvas.errors", `Int errors)
+          ; ("crons.checked", `Int checked)
+          ; ("crons.scheduled", `Int scheduled) ] ;
         Ok ()
       with e ->
         let bt = Exception.get_backtrace () in

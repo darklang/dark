@@ -250,18 +250,10 @@ let t_cron_sanity () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c_exn "test-cron_works" [hop h] in
-  let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
-    { canvas_id = !c.id
-    ; owner = Uuidm.nil
-    ; host = !c.host
-    ; tlid = h.tlid |> Int63.to_string
-    ; name = (match h.spec.name with Filled (_, s) -> s | _ -> "CAN'T HAPPEN")
-    ; modifier =
-        (match h.spec.modifier with Filled (_, s) -> s | _ -> "CAN'T HAPPEN") }
-  in
+  let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check (Telemetry.Span.root "test") cron_schedule_data
+    Cron.execution_check (Telemetry.Span.root "test") !c.id handler
   in
   AT.check AT.bool "should_execute should be true" should_execute true ;
   ()
@@ -271,19 +263,11 @@ let t_cron_just_ran () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c_exn "test-cron_works" [hop h] in
-  let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
-    { canvas_id = !c.id
-    ; owner = Uuidm.nil
-    ; host = !c.host
-    ; tlid = h.tlid |> Int63.to_string
-    ; name = (match h.spec.name with Filled (_, s) -> s | _ -> "CAN'T HAPPEN")
-    ; modifier =
-        (match h.spec.modifier with Filled (_, s) -> s | _ -> "CAN'T HAPPEN") }
-  in
-  Cron.record_execution cron_schedule_data ;
+  let handler = !c.handlers |> TL.handlers |> List.hd_exn in
+  Cron.record_execution !c.id handler ;
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check (Telemetry.Span.root "test") cron_schedule_data
+    Cron.execution_check (Telemetry.Span.root "test") !c.id handler
   in
   AT.check AT.bool "should_execute should be false" should_execute false ;
   ()
