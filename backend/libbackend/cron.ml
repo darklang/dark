@@ -111,13 +111,13 @@ let execution_check (parent : Span.t) (cron : cron_schedule_data) :
           ; interval = Some interval } )
 
 
-let record_execution (canvas_id : Uuidm.t) (cron : cron_schedule_data) : unit =
+let record_execution (cron : cron_schedule_data) : unit =
   let tlid = cron.tlid |> Int63.of_string in
   Db.run
     "INSERT INTO cron_records
     (tlid, canvas_id)
     VALUES ($1, $2)"
-    ~params:[ID tlid; Uuid canvas_id]
+    ~params:[ID tlid; Uuid cron.canvas_id]
     ~name:"Cron.record_execution"
 
 
@@ -144,7 +144,7 @@ let check_and_schedule_work_for_cron
           name
           modifier
           DNull ;
-        record_execution cron.canvas_id cron ;
+        record_execution cron ;
 
         (* It's a little silly to recalculate now when we just did
          * it in execution_check, but maybe Event_queue.enqueue was
