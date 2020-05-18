@@ -757,7 +757,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
         | Some ev when m.sidebarState.mode = AbridgedMode && not isSubCat ->
             [eventNeither ~key:"return-to-arch" "click" (fun _ -> ev)]
         | Some _ | None ->
-            []
+            [Vdom.noProp]
       in
       categoryButton c.classname c.name ~props
     in
