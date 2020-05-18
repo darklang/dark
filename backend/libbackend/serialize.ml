@@ -3,6 +3,7 @@ open Libcommon
 open Libexecution
 open Types
 module RTT = RuntimeT
+module Span = Telemetry.Span
 
 let handler_of_binary_string (str : string) : RuntimeT.expr RTT.HandlerT.handler
     =
@@ -668,3 +669,44 @@ let fetch_canvas_id (owner : Uuidm.t) (host : string) : Uuidm.t =
     |> List.hd_exn
     |> Uuidm.of_string
     |> Option.value_exn
+
+
+type cron_schedule_data =
+  { canvas_id : Uuidm.t
+  ; owner : Uuidm.t
+  ; host : string
+  ; tlid : string
+  ; name : string
+  ; modifier : string }
+
+(** Fetch cron handlers from the DB. Active here means:
+ * - a non-null interval field in the spec
+ * - not deleted (When a CRON handler is deleted, we set (module, modifier,
+ *   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
+ *   ignores deleted CRONs.)
+ *)
+let fetch_active_crons (span : Span.t) : cron_schedule_data list =
+  Telemetry.with_span span "Serialize.fetch_crons" (fun _ ->
+      Db.fetch
+        ~name:"get crons for scheduler"
+        "SELECT canvas_id,
+                        tlid,
+                        modifier,
+                        toplevel_oplists.name,
+                        account_id,
+                        canvases.name
+                 FROM toplevel_oplists
+                   JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
+                 WHERE module = $1 AND modifier IS NOT NULL"
+        ~params:[Db.String "CRON"]
+      |> List.map ~f:(function
+             | [canvas_id; tlid; modifier; name; account_id; host] ->
+                 { canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
+                 ; tlid
+                 ; modifier
+                 ; name
+                 ; owner = account_id |> Uuidm.of_string |> Option.value_exn
+                 ; host }
+             | _ ->
+                 Exception.internal
+                   "Wrong shape from get_crons_for_scheduler query"))
