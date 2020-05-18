@@ -7,7 +7,7 @@ let shutdown = ref false
 
 let rec cron_checker (pid : int) () =
   let%lwt () = Lwt_unix.sleep 1.0 in
-  let result = Libbackend.Cron.check_and_schedule_work_for_all_canvases pid in
+  let result = Libbackend.Cron.check_and_schedule_work_for_all_crons pid in
   match result with
   | Ok _ ->
       if not !shutdown then (cron_checker pid [@tailcall]) () else exit 0
