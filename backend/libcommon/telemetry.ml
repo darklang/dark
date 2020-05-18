@@ -70,8 +70,9 @@ module Span = struct
      * is (in words) minor_words + major_words - promoted_words. Multiply by
      * the word size (4 on a 32-bit machine, 8 on a 64-bit machine) to get the
      * number of bytes. *)
+    let minor, promoted, major = Gc.counters () in
     let mem_usage =
-      Gc.allocated_bytes () |> Float.iround |> Option.value ~default:0
+      minor +. major -. promoted |> Float.iround |> Option.value ~default:0
     in
     let timestamp =
       Time.to_string_iso8601_basic ~zone:Time.Zone.utc span.start_time
