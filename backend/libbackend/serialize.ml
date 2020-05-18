@@ -690,14 +690,14 @@ let fetch_active_crons (span : Span.t) : cron_schedule_data list =
       Db.fetch
         ~name:"get crons for scheduler"
         "SELECT canvas_id,
-                        tlid,
-                        modifier,
-                        toplevel_oplists.name,
-                        account_id,
-                        canvases.name
-                 FROM toplevel_oplists
-                   JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
-                 WHERE module = $1 AND modifier IS NOT NULL"
+                tlid,
+                modifier,
+                toplevel_oplists.name,
+                toplevel_oplists.account_id,
+                canvases.name
+         FROM toplevel_oplists
+         JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
+         WHERE module = $1 AND modifier IS NOT NULL"
         ~params:[Db.String "CRON"]
       |> List.map ~f:(function
              | [canvas_id; tlid; modifier; name; account_id; host] ->
