@@ -3,7 +3,7 @@ open Prelude
 (* Dark *)
 module B = BlankOr
 
-type viewState = ViewUtils.viewState
+type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
 
@@ -42,9 +42,9 @@ let viewDbLatestEntry (stats : dbStats) : msg Html.html =
   Html.div [Html.class' "db db-liveVal"] [title; exampleHtml]
 
 
-let viewDBData (vs : viewState) (db : db) : msg Html.html =
-  match StrDict.get ~key:(TLID.toString db.dbTLID) vs.dbStats with
-  | Some stats when CursorState.tlidOf vs.cursorState = Some db.dbTLID ->
+let viewDBData (vp : viewProps) (db : db) : msg Html.html =
+  match StrDict.get ~key:(TLID.toString db.dbTLID) vp.dbStats with
+  | Some stats when CursorState.tlidOf vp.cursorState = Some db.dbTLID ->
       let liveVal = viewDbLatestEntry stats in
       let count = viewDbCount stats in
       Html.div [Html.class' "dbdata"] [count; liveVal]
@@ -52,7 +52,7 @@ let viewDBData (vs : viewState) (db : db) : msg Html.html =
       Vdom.noNode
 
 
-let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
+let viewDBHeader (vp : viewProps) (db : db) : msg Html.html list =
   let typeView =
     Html.span
       [Html.class' "toplevel-type"]
@@ -60,14 +60,14 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
   in
   let titleView =
     let nameField =
-      if vs.dbLocked
+      if vp.dbLocked
       then Html.text (dbName2String db.dbName)
       else
         ViewBlankOr.viewText
           ~enterable:true
           ~classes:["dbname"]
           DBName
-          vs
+          vp
           db.dbName
     in
     Html.span
@@ -80,41 +80,41 @@ let viewDBHeader (vs : viewState) (db : db) : msg Html.html list =
   let menuView =
     let delAct : TLMenu.menuItem =
       let disableMsg =
-        if vs.dbLocked
+        if vp.dbLocked
         then Some "Cannot delete due to data inside"
-        else if not (List.isEmpty vs.usedInRefs)
+        else if not (List.isEmpty vp.usedInRefs)
         then Some "Cannot delete because your code refers to this DB"
         else None
       in
       { title = "Delete"
       ; key = "del-db-"
       ; icon = Some "times"
-      ; action = (fun _ -> ToplevelDelete vs.tlid)
+      ; action = (fun _ -> ToplevelDelete vp.tlid)
       ; disableMsg }
     in
-    Html.div [Html.class' "menu"] [TLMenu.viewMenu vs.menuState vs.tlid [delAct]]
+    Html.div [Html.class' "menu"] [TLMenu.viewMenu vp.menuState vp.tlid [delAct]]
   in
   [typeView; titleView; menuView]
 
 
-let viewDBColName ~(classes : string list) (vs : viewState) (v : string blankOr)
+let viewDBColName ~(classes : string list) (vp : viewProps) (v : string blankOr)
     : msg Html.html =
-  let enterable = B.isBlank v || not vs.dbLocked in
-  ViewBlankOr.viewText ~enterable ~classes DBColName vs v
+  let enterable = B.isBlank v || not vp.dbLocked in
+  ViewBlankOr.viewText ~enterable ~classes DBColName vp v
 
 
-let viewDBColType ~(classes : string list) (vs : viewState) (v : string blankOr)
+let viewDBColType ~(classes : string list) (vp : viewProps) (v : string blankOr)
     : msg Html.html =
-  let enterable = B.isBlank v || not vs.dbLocked in
-  ViewBlankOr.viewText ~enterable ~classes DBColType vs v
+  let enterable = B.isBlank v || not vp.dbLocked in
+  ViewBlankOr.viewText ~enterable ~classes DBColType vp v
 
 
 let viewDBCol
-    (vs : viewState) (isMigra : bool) (tlid : TLID.t) ((n, t) : dbColumn) :
+    (vp : viewProps) (isMigra : bool) (tlid : TLID.t) ((n, t) : dbColumn) :
     msg Html.html =
   let deleteButton =
-    if vs.permission = Some ReadWrite
-       && (isMigra || not vs.dbLocked)
+    if vp.permission = Some ReadWrite
+       && (isMigra || not vp.dbLocked)
        && (B.isF n || B.isF t)
     then
       Html.div
@@ -131,14 +131,14 @@ let viewDBCol
     else Vdom.noNode
   in
   let row =
-    [viewDBColName vs ~classes:["name"] n; viewDBColType vs ~classes:["type"] t]
+    [viewDBColName vp ~classes:["name"] n; viewDBColType vp ~classes:["type"] t]
   in
   Html.div
     [Html.classList [("col", true); ("has-empty", deleteButton = Vdom.noNode)]]
     (deleteButton :: row)
 
 
-let viewMigraFuncs (vs : viewState) (desc : string) (varName : string) :
+let viewMigraFuncs (vp : viewProps) (desc : string) (varName : string) :
     msg Html.html =
   Html.div
     [Html.class' "col roll-fn"]
@@ -146,22 +146,22 @@ let viewMigraFuncs (vs : viewState) (desc : string) (varName : string) :
           [Html.class' "fn-title"]
           [ Html.span [] [Html.text (desc ^ " : ")]
           ; Html.span [Html.class' "varname"] [Html.text varName] ] ]
-    @ FluidView.view vs [] )
+    @ FluidView.view vp [] )
 
 
-let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
+let viewDBMigration (migra : dbMigration) (db : db) (vp : viewProps) :
     msg Html.html =
   let name = Html.text (dbName2String db.dbName) in
-  let cols = List.map ~f:(viewDBCol vs true db.dbTLID) migra.cols in
+  let cols = List.map ~f:(viewDBCol vp true db.dbTLID) migra.cols in
   let funcs =
     (* this AST expr stuff is kind of a hack but until we reintroduce migration
      * fields I don't know what else to do with it -- @dstrelau 2020-02-25 *)
     [ (*   viewMigraFuncs *)
-      (*     {vs with ast = FluidAST.ofExpr migra.rollforward} *)
+      (*     {vp with ast = FluidAST.ofExpr migra.rollforward} *)
       (*     "Rollforward" *)
       (*     "oldObj" *)
       (* ; viewMigraFuncs *)
-      (*     {vs with ast = FluidAST.ofExpr migra.rollback} *)
+      (*     {vp with ast = FluidAST.ofExpr migra.rollback} *)
       (*     "Rollback" *)
       (*     "newObj"  *) ]
   in
@@ -196,13 +196,13 @@ let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
     (name :: (cols @ funcs @ errorMsg @ actions))
 
 
-let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
+let viewDB (vp : viewProps) (db : db) (dragEvents : domEventList) :
     msg Html.html list =
   let lockClass =
-    if vs.dbLocked && db.activeMigration = None then "lock" else "unlock"
+    if vp.dbLocked && db.activeMigration = None then "lock" else "unlock"
   in
   let cols =
-    if (not (vs.permission = Some ReadWrite)) || vs.dbLocked
+    if (not (vp.permission = Some ReadWrite)) || vp.dbLocked
     then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
@@ -211,19 +211,19 @@ let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
       [Html.class' "col key"]
       [Html.text "All entries are identified by a unique string `key`."]
   in
-  let coldivs = List.map ~f:(viewDBCol vs false db.dbTLID) cols in
-  let data = viewDBData vs db in
+  let coldivs = List.map ~f:(viewDBCol vp false db.dbTLID) cols in
+  let data = viewDBData vp db in
   let migrationView =
     match db.activeMigration with
     | Some migra ->
         if migra.state <> DBMigrationAbandoned
-        then [viewDBMigration migra db vs]
+        then [viewDBMigration migra db vp]
         else []
     | None ->
         []
   in
   let headerView =
-    Html.div [Html.class' ("spec-header " ^ lockClass)] (viewDBHeader vs db)
+    Html.div [Html.class' ("spec-header " ^ lockClass)] (viewDBHeader vp db)
   in
   [Html.div (Html.class' "db" :: dragEvents) (headerView :: keyView :: coldivs)]
   @ migrationView

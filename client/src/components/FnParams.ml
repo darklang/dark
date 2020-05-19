@@ -5,7 +5,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let onEvent = ViewUtils.onEvent
 
-type viewState = ViewUtils.viewState
+type viewProps = ViewUtils.viewProps
 
 let moveParams (fn : userFunction) (oldPos : int) (newPos : int) : userFunction
     =
@@ -103,14 +103,14 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
       buttonContent true
 
 
-let viewParamName ~(classes : string list) (vs : viewState) (v : string blankOr)
+let viewParamName ~(classes : string list) (vp : viewProps) (v : string blankOr)
     : msg Html.html =
-  ViewBlankOr.viewText ~enterable:true ~classes ParamName vs v
+  ViewBlankOr.viewText ~enterable:true ~classes ParamName vp v
 
 
-let viewParamTipe ~(classes : string list) (vs : viewState) (v : tipe blankOr) :
+let viewParamTipe ~(classes : string list) (vp : viewProps) (v : tipe blankOr) :
     msg Html.html =
-  ViewBlankOr.viewTipe ~classes ~enterable:true ParamTipe vs v
+  ViewBlankOr.viewTipe ~classes ~enterable:true ParamTipe vp v
 
 
 let jsDragStart : Web.Node.event -> unit =
@@ -155,7 +155,7 @@ let viewParamSpace (index : int) (fs : fnProps) : msg Html.html =
 
 let viewParam
     (fn : functionTypes)
-    (vs : viewState)
+    (vp : viewProps)
     (index : int)
     (p : userFunctionParameter) : msg Html.html list =
   let nameId = p.ufpName |> B.toID in
@@ -172,9 +172,9 @@ let viewParam
   in
   let conditionalClasses =
     [ ( "dragging"
-      , vs.fnProps.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
+      , vp.fnProps.draggingParamIndex |> Option.isSomeEqualTo ~value:index )
     ; ( "just-moved"
-      , vs.fnProps.justMovedParam |> Option.isSomeEqualTo ~value:nameId ) ]
+      , vp.fnProps.justMovedParam |> Option.isSomeEqualTo ~value:nameId ) ]
   in
   let param =
     let events =
@@ -195,7 +195,7 @@ let viewParam
     in
     let killParamBtn =
       match fn with
-      | UserFunction fn when vs.permission = Some ReadWrite ->
+      | UserFunction fn when vp.permission = Some ReadWrite ->
           viewKillParameterBtn fn p
       | _ ->
           Vdom.noNode
@@ -213,26 +213,26 @@ let viewParam
         ; Vdom.attribute "" "data-pos" (string_of_int index) ]
       @ events )
       [ killParamBtn
-      ; viewParamName vs ~classes:["name"] p.ufpName
-      ; viewParamTipe vs ~classes:["type"] p.ufpTipe
+      ; viewParamName vp ~classes:["name"] p.ufpName
+      ; viewParamTipe vp ~classes:["type"] p.ufpTipe
       ; dragIcon ]
   in
-  let space = viewParamSpace index vs.fnProps in
+  let space = viewParamSpace index vp.fnProps in
   [space; param]
 
 
-let view (fn : functionTypes) (vs : viewState) : msg Html.html list =
+let view (fn : functionTypes) (vp : viewProps) : msg Html.html list =
   let params =
     match fn with
     | UserFunction f ->
         f.ufMetadata.ufmParameters
-        |> List.indexedMap ~f:(viewParam fn vs)
+        |> List.indexedMap ~f:(viewParam fn vp)
         |> List.flatten
     | PackageFn f ->
         f.parameters
         |> List.map ~f:PackageManager.pmParamsToUserFnParams
-        |> List.indexedMap ~f:(viewParam fn vs)
+        |> List.indexedMap ~f:(viewParam fn vp)
         |> List.flatten
   in
-  let lastSpace = viewParamSpace (List.length params) vs.fnProps in
+  let lastSpace = viewParamSpace (List.length params) vp.fnProps in
   params @ [lastSpace]

@@ -10,10 +10,10 @@ let div
     ~(id : ID.t)
     ~(enterable : bool)
     ~(classes : string list)
-    (vs : ViewUtils.viewState)
+    (vp : ViewUtils.viewProps)
     (content : msg Html.html list) : msg Html.html =
   let selected =
-    match vs.cursorState with
+    match vp.cursorState with
     | Selecting (_, Some selectingID) ->
         id = selectingID
     | _ ->
@@ -21,7 +21,7 @@ let div
   in
   let mouseoverClass =
     let targetted =
-      enterable && Some id = Option.map ~f:Tuple2.second vs.hovering
+      enterable && Some id = Option.map ~f:Tuple2.second vp.hovering
     in
     if targetted then ["mouseovered-selectable"] else []
   in
@@ -36,7 +36,7 @@ let div
   let events =
     if enterable
     then
-      let tlid = TL.id vs.tl in
+      let tlid = TL.id vp.tl in
       let keyStr = TLID.toString tlid ^ "-" ^ ID.toString id in
       let event = ViewUtils.eventNoPropagation in
       [ event "click" ~key:("bcc-" ^ keyStr) (fun x ->
@@ -63,11 +63,11 @@ let div
     content
 
 
-let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
+let placeHolderFor (vp : ViewUtils.viewProps) (pt : blankOrType) : string =
   match pt with
   | EventName ->
     ( match
-        TL.spaceOf vs.tl |> Option.withDefault ~default:HSDeprecatedOther
+        TL.spaceOf vp.tl |> Option.withDefault ~default:HSDeprecatedOther
       with
     | HSHTTP ->
         "route"
@@ -75,7 +75,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (pt : blankOrType) : string =
         "name" )
   | EventModifier ->
     ( match
-        TL.spaceOf vs.tl |> Option.withDefault ~default:HSDeprecatedOther
+        TL.spaceOf vp.tl |> Option.withDefault ~default:HSDeprecatedOther
       with
     | HSHTTP ->
         "verb"
@@ -114,38 +114,38 @@ let viewBlankOr
     ~(classes : string list)
     (htmlFn : 'a -> msg Html.html)
     (pt : blankOrType)
-    (vs : ViewUtils.viewState)
+    (vp : ViewUtils.viewProps)
     (bo : 'a blankOr) : msg Html.html =
   let id = B.toID bo in
   let thisText =
     match bo with
     | F (_, fill) ->
-        div ~id ~enterable ~classes vs [htmlFn fill]
+        div ~id ~enterable ~classes vp [htmlFn fill]
     | Blank _ ->
         div
           ~id
           ~enterable
           ~classes:("blank" :: classes)
-          vs
+          vp
           [ Html.div
               [Html.class' "blank-entry"]
-              [Html.text (placeHolderFor vs pt)] ]
+              [Html.text (placeHolderFor vp pt)] ]
   in
-  match vs.cursorState with
+  match vp.cursorState with
   | Entering (Filling (_, thisID)) ->
       let id = B.toID bo in
       if id = thisID
       then
-        if vs.showEntry
+        if vp.showEntry
         then
-          let placeholder = placeHolderFor vs pt in
+          let placeholder = placeHolderFor vp pt in
           div
             ~id
             ~enterable
             ~classes
-            vs
-            [ViewEntry.normalEntryHtml placeholder vs.ac]
-        else Html.text vs.ac.value
+            vp
+            [ViewEntry.normalEntryHtml placeholder vp.ac]
+        else Html.text vp.ac.value
       else thisText
   | _ ->
       thisText
@@ -155,16 +155,16 @@ let viewText
     ~(enterable : bool)
     ~(classes : string list)
     (pt : blankOrType)
-    (vs : ViewUtils.viewState)
+    (vp : ViewUtils.viewProps)
     (str : string blankOr) : msg Html.html =
-  viewBlankOr ~enterable ~classes Html.text pt vs str
+  viewBlankOr ~enterable ~classes Html.text pt vp str
 
 
 let viewTipe
     ~(enterable : bool)
     ~(classes : string list)
     (pt : blankOrType)
-    (vs : ViewUtils.viewState)
+    (vp : ViewUtils.viewProps)
     (str : tipe blankOr) : msg Html.html =
   let fn t = Html.text (Runtime.tipe2str t) in
-  viewBlankOr ~enterable ~classes fn pt vs str
+  viewBlankOr ~enterable ~classes fn pt vp str

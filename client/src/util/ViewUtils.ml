@@ -5,7 +5,7 @@ module TD = TLIDDict
 module E = FluidExpression
 module ASTInfo = FluidTokenizer.ASTInfo
 
-type viewState =
+type viewProps =
   { tl : toplevel
   ; functions : Functions.t
   ; astInfo : ASTInfo.t
@@ -46,7 +46,7 @@ type domEvent = msg Vdom.property
 
 type domEventList = domEvent list
 
-let createVS (m : model) (tl : toplevel) : viewState =
+let createVS (m : model) (tl : toplevel) : viewProps =
   let tlid = TL.id tl in
   let hp =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
@@ -272,22 +272,22 @@ let createHandlerProp (hs : handler list) : handlerProp TD.t =
   |> TD.fromList
 
 
-let getHandlerState (vs : viewState) : handlerState =
-  match vs.handlerProp with
+let getHandlerState (vp : viewProps) : handlerState =
+  match vp.handlerProp with
   | Some p ->
       p.handlerState
   | None ->
       Defaults.defaultHandlerProp.handlerState
 
 
-let isHandlerExpanded (vs : viewState) : bool =
-  let state = getHandlerState vs in
+let isHandlerExpanded (vp : viewProps) : bool =
+  let state = getHandlerState vp in
   match state with HandlerExpanded | HandlerExpanding -> true | _ -> false
 
 
-let isHoverOverTL (vs : viewState) : bool =
-  match vs.hovering with
-  | Some (tlid, _id) when tlid = TL.id vs.tl ->
+let isHoverOverTL (vp : viewProps) : bool =
+  match vp.hovering with
+  | Some (tlid, _id) when tlid = TL.id vp.tl ->
       true
   | _ ->
       false
