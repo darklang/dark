@@ -1,0 +1,51 @@
+[
+  [ "TLSavepoint", 1825910366 ],
+  [
+    "SetHandler",
+    1825910366,
+    { "x": 400, "y": 200 },
+    {
+      "tlid": 1825910366,
+      "ast": [
+        "Filled",
+        818712402,
+        [
+          "Let",
+          [ "Filled", 479144770, "name" ],
+          [
+            "Filled",
+            1648879869,
+            [
+              "FeatureFlag",
+              [ "Filled", 218225733, "flag-114573363" ],
+              [ "Filled", 1652980448, [ "Value", "false" ] ],
+              [ "Filled", 1624550924, [ "Value", "\"Vanessa Ives\"" ] ],
+              [ "Filled", 1916674282, [ "Value", "\"Dorian Gray\"" ] ]
+            ]
+          ],
+          [
+            "Filled",
+            64986033,
+            [
+              "FnCall",
+              "++",
+              [
+                [ "Filled", 1643956865, [ "Value", "\"farewell \"" ] ],
+                [ "Filled", 162918442, [ "Variable", "name" ] ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Filled", 1880483820, "REPL" ],
+        "name": [ "Filled", 2013353319, "stubbornGoral" ],
+        "modifier": [ "Filled", 402801079, "_" ],
+        "types": {
+          "input": [ "Blank", 86867665 ],
+          "output": [ "Blank", 1493885034 ]
+        }
+      }
+    }
+  ]
+]
