@@ -2162,42 +2162,29 @@ let rec filter_read_only (m : model) (modification : modification) =
         modification
 
 
-let astUpdates (oldM : model) (newM : model) (cmds : msg Cmd.t) :
-    model * msg Cmd.t =
-  (* Returns right Tea.Cmd.t for adding `c` to `cmds`,
-  * so we don't wrap Cmd.batch in Cmd.batch *)
-  let prependCommand c =
-    match cmds with
-    | Cmd.Batch otherCmds ->
-        Cmd.batch (c :: otherCmds)
-    | Cmd.NoCmd ->
-        c
-    | aCmd ->
-        Cmd.batch [c; aCmd]
-  in
+(* Checks to see if AST has changed, if so make requestAnalysis command. *)
+let maybeRequestAnalysis
+    (oldM : model) (newM : model) (otherCommands : msg Cmd.t) : msg Cmd.t =
   match (TL.selected oldM, TL.selected newM) with
   | Some prevTL, Some newTL when TL.id prevTL = TL.id newTL ->
     ( match (TL.getAST prevTL, TL.getAST newTL) with
     | Some oldAST, Some newAST when oldAST <> newAST ->
-        (* If AST has changed, we want to re-run analysis *)
         let tlid = TL.id newTL in
-        let updatedCmds =
-          Analysis.getSelectedTraceID newM tlid
-          |> Option.map ~f:(fun traceID ->
-                 Analysis.requestAnalysis newM tlid traceID |> prependCommand)
-          |> Option.withDefault ~default:cmds
-        in
-        (newM, updatedCmds)
+        Analysis.getSelectedTraceID newM tlid
+        |> Option.map ~f:(fun traceID ->
+               Cmd.batch
+                 [otherCommands; Analysis.requestAnalysis newM tlid traceID])
+        |> Option.withDefault ~default:otherCommands
     | _, _ ->
-        (newM, cmds) )
+        otherCommands )
   | _, _ ->
-      (newM, cmds)
+      otherCommands
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
-  let newm, newc = astUpdates m newm newc in
+  let newc = maybeRequestAnalysis m newm newc in
   (* BEGIN HACK
    * Patch up the activeEditor to match the toplevel if
    * there is a selected toplevel. Instead, we should deprecate
