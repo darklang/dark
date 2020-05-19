@@ -4,7 +4,7 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 
-type viewState = ViewUtils.viewState
+type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
 
@@ -14,7 +14,7 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let blankOr2String (name : string blankOr) : string = B.valueWithDefault "" name
 
-let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
+let viewGroupName (vp : viewProps) (g : group) (preview : bool) : msg Html.html
     =
   if preview
   then
@@ -23,7 +23,7 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
       [Html.p [] [Html.text (blankOr2String g.gName)]]
   else
     let nameField =
-      ViewBlankOr.viewText ~enterable:true ~classes:[] GroupName vs g.gName
+      ViewBlankOr.viewText ~enterable:true ~classes:[] GroupName vp g.gName
     in
     Html.div [Html.class' "group-name form"] [nameField]
 
@@ -76,13 +76,13 @@ let previewMembers (gTLID : TLID.t) (tl : toplevel) : msg Html.html =
     body
 
 
-let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
+let viewMember (vp : viewProps) (tl : toplevel) : msg Html.html =
   let body, data =
     match tl with
     | TLHandler h ->
-        (ViewHandler.view vs h [], ViewData.viewData vs)
+        (ViewHandler.view vp h [], ViewData.viewData vp)
     | TLDB db ->
-        (ViewDB.viewDB vs db [], [])
+        (ViewDB.viewDB vp db [], [])
     | _ ->
         ([], [])
   in
@@ -91,7 +91,7 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
 
 let viewGroupMembers
     (m : model)
-    (vs : viewState)
+    (vp : viewProps)
     (gTLID : TLID.t)
     (members : TLID.t list)
     (preview : bool) : msg Html.html =
@@ -105,7 +105,7 @@ let viewGroupMembers
       |> List.map ~f:(fun tlid ->
              match TL.get m tlid with
              | Some tl ->
-                 if preview then previewMembers gTLID tl else viewMember vs tl
+                 if preview then previewMembers gTLID tl else viewMember vp tl
              | None ->
                  Html.noNode)
     in
@@ -115,12 +115,12 @@ let viewGroupMembers
 
 
 let viewGroup
-    (m : model) (vs : viewState) (group : group) (dragEvents : domEventList) :
+    (m : model) (vp : viewProps) (group : group) (dragEvents : domEventList) :
     msg Html.html =
   (* Disabling detail view for now *)
   (* let isPreview = not (Some group.gTLID = tlidOf m.cursorState) in *)
   let isPreview = true in
-  let nameView = viewGroupName vs group isPreview in
+  let nameView = viewGroupName vp group isPreview in
   (* Check here to see if group is empty *)
   let closeIcon =
     let hasMembers = List.length group.members > 0 in
@@ -152,7 +152,7 @@ let viewGroup
       @ errorText )
   in
   let groupMemberView =
-    viewGroupMembers m vs group.gTLID group.members isPreview
+    viewGroupMembers m vp group.gTLID group.members isPreview
   in
   Html.div
     (Html.class' "group-data" :: dragEvents)

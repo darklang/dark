@@ -4,11 +4,11 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 
-let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) : msg Html.html
+let pauseWorkerButton (vp : ViewUtils.viewProps) (name : string) : msg Html.html
     =
-  let strTLID = TLID.toString vs.tlid in
+  let strTLID = TLID.toString vp.tlid in
   let schedule =
-    vs.workerStats
+    vp.workerStats
     |> Option.andThen ~f:(fun (ws : Types.workerStats) -> ws.schedule)
     |> Option.withDefault ~default:"run"
   in
@@ -116,7 +116,7 @@ let viewTrace
   Html.li props (dotHtml @ [viewData])
 
 
-let viewTraces (vs : ViewUtils.viewState) : msg Html.html list =
+let viewTraces (vp : ViewUtils.viewProps) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
     let value =
       Option.map ~f:(fun td -> td.input) (traceData |> Result.to_option)
@@ -128,32 +128,32 @@ let viewTraces (vs : ViewUtils.viewState) : msg Html.html list =
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
-      Analysis.selectedTraceID vs.tlTraceIDs vs.traces vs.tlid = Some traceID
+      Analysis.selectedTraceID vp.tlTraceIDs vp.traces vp.tlid = Some traceID
     in
-    let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
+    let isHover = vp.hovering = Some (vp.tlid, ID traceID) in
     let isUnfetchable =
       match traceData with Error MaximumCallStackError -> true | _ -> false
     in
-    viewTrace vs.tl traceID value timestamp isActive isHover isUnfetchable
+    viewTrace vp.tl traceID value timestamp isActive isHover isUnfetchable
   in
-  List.map ~f:traceToHtml vs.traces
+  List.map ~f:traceToHtml vp.traces
 
 
-let viewData (vs : ViewUtils.viewState) : msg Html.html list =
-  let requestEls = viewTraces vs in
+let viewData (vp : ViewUtils.viewProps) : msg Html.html list =
+  let requestEls = viewTraces vp in
   let tlSelected =
-    match CursorState.tlidOf vs.cursorState with
-    | Some tlid when tlid = vs.tlid ->
+    match CursorState.tlidOf vp.cursorState with
+    | Some tlid when tlid = vp.tlid ->
         true
     | Some _ | None ->
         false
   in
-  let showWorkerStats = tlSelected && Option.isSome vs.workerStats in
+  let showWorkerStats = tlSelected && Option.isSome vp.workerStats in
   let workQStats =
     if showWorkerStats
     then
       let count =
-        vs.workerStats
+        vp.workerStats
         |> Option.map ~f:(fun ws -> ws.count)
         |> Option.withDefault ~default:0
       in
@@ -166,30 +166,30 @@ let viewData (vs : ViewUtils.viewState) : msg Html.html list =
     else Vdom.noNode
   in
   let maxHeight =
-    if Some vs.tlid = CursorState.tlidOf vs.cursorState
+    if Some vp.tlid = CursorState.tlidOf vp.cursorState
     then "max-content"
     else
       let height =
-        Native.Ext.querySelector (".tl-" ^ TLID.toString vs.tlid ^ " .ast")
+        Native.Ext.querySelector (".tl-" ^ TLID.toString vp.tlid ^ " .ast")
         |> Option.andThen ~f:(fun e -> Some (Native.Ext.clientHeight e + 20))
         |> Option.withDefault ~default:100
       in
       string_of_int height ^ "px"
   in
   let selectedValue =
-    match vs.cursorState with
+    match vp.cursorState with
     | Selecting (_, Some id) ->
-        Analysis.getLiveValue' vs.analysisStore id
+        Analysis.getLiveValue' vp.analysisStore id
     | _ ->
         None
   in
   let pauseBtn =
-    vs.tl
+    vp.tl
     |> TL.asHandler
     |> Option.andThen ~f:(fun h ->
            match (h.spec.space, h.spec.name) with
            | F (_, "WORKER"), F (_, name) ->
-               Some (pauseWorkerButton vs name)
+               Some (pauseWorkerButton vp name)
            | _ ->
                None)
     |> Option.withDefault ~default:Vdom.noNode

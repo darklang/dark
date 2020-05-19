@@ -3,7 +3,7 @@ open Prelude
 (* Dark *)
 module B = BlankOr
 
-type viewState = ViewUtils.viewState
+type viewProps = ViewUtils.viewProps
 
 type domEventList = ViewUtils.domEventList
 
@@ -13,25 +13,25 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let viewText = ViewBlankOr.viewText
 
-let handlerIsExeComplete (vs : viewState) : bool =
-  match vs.handlerProp with Some hp -> hp.execution = Complete | None -> false
+let handlerIsExeComplete (vp : viewProps) : bool =
+  match vp.handlerProp with Some hp -> hp.execution = Complete | None -> false
 
 
 (* If a handler's execution has failed, we want to display an X instead of a
  * check. We define failure here as DIncomplete, DError, and DErrorRail *)
-let handlerIsExeFail (vs : viewState) : bool =
-  if not (handlerIsExeComplete vs)
+let handlerIsExeFail (vp : viewProps) : bool =
+  if not (handlerIsExeComplete vp)
   then false
   else
     let outermostId =
-      match vs.tl with
+      match vp.tl with
       | TLHandler handler ->
           Some (FluidAST.toID handler.ast)
       | _ ->
           None
     in
     outermostId
-    |> Option.andThen ~f:(Analysis.getLiveValue' vs.analysisStore)
+    |> Option.andThen ~f:(Analysis.getLiveValue' vp.analysisStore)
     |> Option.map ~f:(fun outermostResult ->
            match outermostResult with
            | DIncomplete _ | DError _ | DErrorRail _ ->
@@ -41,7 +41,7 @@ let handlerIsExeFail (vs : viewState) : bool =
     |> Option.withDefault ~default:false
 
 
-let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
+let triggerHandlerButton (vp : viewProps) (spec : handlerSpec) : msg Html.html =
   match (spec.space, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
@@ -49,36 +49,36 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
     when List.any ~f:(fun s -> String.length s = 0) [a; b; c] ->
       Vdom.noNode
   | F _, F _, F _ ->
-      if vs.permission = Some ReadWrite
+      if vp.permission = Some ReadWrite
       then
         let hasData =
-          Analysis.selectedTraceID vs.tlTraceIDs vs.traces vs.tlid
+          Analysis.selectedTraceID vp.tlTraceIDs vp.traces vp.tlid
           |> Option.andThen ~f:(fun trace_id ->
-                 List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
+                 List.find ~f:(fun (id, _) -> id = trace_id) vp.traces
                  |> Option.andThen ~f:(fun (_, data) -> data |> Result.toOption))
           |> Option.is_some
         in
         let classes =
           Html.classList
             [ ("handler-trigger", true)
-            ; ("is-executing", vs.isExecuting)
+            ; ("is-executing", vp.isExecuting)
             ; ("inactive", not hasData)
-            ; ("complete", handlerIsExeComplete vs)
-            ; ("failed", handlerIsExeFail vs) ]
+            ; ("complete", handlerIsExeComplete vp)
+            ; ("failed", handlerIsExeFail vp) ]
         in
         let attrs =
           if hasData
           then
             [ Html.title "Replay this execution"
             ; ViewUtils.eventNoPropagation
-                ~key:("lh" ^ "-" ^ TLID.toString vs.tlid)
+                ~key:("lh" ^ "-" ^ TLID.toString vp.tlid)
                 "click"
-                (fun _ -> TriggerHandler vs.tlid)
+                (fun _ -> TriggerHandler vp.tlid)
             ; ViewUtils.onAnimationEnd
-                ~key:("exe" ^ "-" ^ TLID.toString vs.tlid)
+                ~key:("exe" ^ "-" ^ TLID.toString vp.tlid)
                 ~listener:(fun name ->
                   if name = "fadeIn"
-                  then SetHandlerExeIdle vs.tlid
+                  then SetHandlerExeIdle vp.tlid
                   else IgnoreMsg "trigger-animation-end") ]
           else
             [ Html.title "Need input data to replay execution"
@@ -91,12 +91,12 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
       Vdom.noNode
 
 
-let externalLink (vs : viewState) (name : string) =
+let externalLink (vp : viewProps) (name : string) =
   let urlPath =
     let currentTraceData =
-      Analysis.selectedTraceID vs.tlTraceIDs vs.traces vs.tlid
+      Analysis.selectedTraceID vp.tlTraceIDs vp.traces vp.tlid
       |> Option.andThen ~f:(fun trace_id ->
-             List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
+             List.find ~f:(fun (id, _) -> id = trace_id) vp.traces
              |> Option.andThen ~f:(fun (_, data) -> data |> Result.toOption))
     in
     match currentTraceData with
@@ -105,11 +105,11 @@ let externalLink (vs : viewState) (name : string) =
     | None ->
         name
   in
-  "//" ^ Tea.Http.encodeUri vs.canvasName ^ "." ^ vs.userContentHost ^ urlPath
+  "//" ^ Tea.Http.encodeUri vp.canvasName ^ "." ^ vp.userContentHost ^ urlPath
 
 
-let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
-  let tlid = vs.tlid in
+let viewMenu (vp : viewProps) (spec : handlerSpec) : msg Html.html =
+  let tlid = vp.tlid in
   let actions =
     let commonAction : TLMenu.menuItem =
       { title = "Delete"
@@ -130,7 +130,7 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
         let httpActions = [curlAction; commonAction] in
         if meth = "GET"
         then
-          let url = externalLink vs name in
+          let url = externalLink vp name in
           let newTabAction : TLMenu.menuItem =
             { title = "Open in new tab"
             ; key = "new-tab-"
@@ -143,17 +143,17 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
     | _ ->
         [commonAction]
   in
-  TLMenu.viewMenu vs.menuState tlid actions
+  TLMenu.viewMenu vp.menuState tlid actions
 
 
 let viewEventSpec
-    (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
+    (vp : viewProps) (spec : handlerSpec) (dragEvents : domEventList) :
     msg Html.html =
   let viewEventName =
-    viewText ~enterable:true ~classes:["toplevel-name"] EventName vs spec.name
+    viewText ~enterable:true ~classes:["toplevel-name"] EventName vp spec.name
   in
   let viewEventSpace =
-    viewText ~enterable:true ~classes:["space"] EventSpace vs spec.space
+    viewText ~enterable:true ~classes:["space"] EventSpace vp spec.space
   in
   let viewEventModifier =
     let viewMod =
@@ -161,7 +161,7 @@ let viewEventSpec
         ~enterable:true
         ~classes:["modifier"]
         EventModifier
-        vs
+        vp
         spec.modifier
     in
     match (spec.space, spec.modifier, spec.name) with
@@ -195,8 +195,8 @@ let viewEventSpec
         baseClass
   in
   let viewActions =
-    let triggerBtn = triggerHandlerButton vs spec in
-    Html.div [Html.class' "handler-actions"] [triggerBtn; viewMenu vs spec]
+    let triggerBtn = triggerHandlerButton vp spec in
+    Html.div [Html.class' "handler-actions"] [triggerBtn; viewMenu vp spec]
   in
   let viewType =
     Html.div [Html.class' "toplevel-type"] [viewEventSpace; viewEventModifier]
@@ -249,9 +249,9 @@ let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
       [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
 
 
-let view (vs : viewState) (h : handler) (dragEvents : domEventList) :
+let view (vp : viewProps) (h : handler) (dragEvents : domEventList) :
     msg Html.html list =
-  let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
-  let ast = Html.div attrs (FluidView.view vs dragEvents) in
-  let header = viewEventSpec vs h.spec dragEvents in
+  let attrs = handlerAttrs vp.tlid (ViewUtils.getHandlerState vp) in
+  let ast = Html.div attrs (FluidView.view vp dragEvents) in
+  let header = viewEventSpec vp h.spec dragEvents in
   [header; ast]
