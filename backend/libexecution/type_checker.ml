@@ -181,3 +181,11 @@ let check_function_call
   |> List.map ~f:(fun (param, value) -> unify ~type_env param.tipe value)
   |> Result.combine_errors_unit
   |> Result.map_error ~f:List.concat
+
+
+let check_function_return_type
+    ~(user_tipes : user_tipe list)
+    (fn : 'expr_type fn)
+    (result : 'expr_type dval) : (unit, 'expr_type Error.t list) Result.t =
+  let type_env = user_tipe_list_to_type_env user_tipes in
+  unify ~type_env fn.return_type result

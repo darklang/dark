@@ -403,9 +403,11 @@ let t_typechecker_return_types () =
     "typecheck_userfn_return_type"
     (exec_ast' ~ops:[fop myFn] (fn "myFn" []))
     ~f:(function
-      | DError (_, msg) ->
-          Libcommon.Log.inspecT "msg" msg ;
-          false
+      | DError
+          ( SourceId _
+          , "Type error(s) in return type: Expected to see a value of type Str but found a Int"
+          ) ->
+          true
       | _ ->
           false)
 
