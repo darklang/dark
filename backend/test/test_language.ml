@@ -396,6 +396,20 @@ let t_typechecker_error_isnt_wrapped_by_errorail () =
           false)
 
 
+let t_typechecker_return_types () =
+  let open Libshared.FluidShortcuts in
+  let myFn = user_fn "myFn" ~return_type:TStr [] (f (Value "5")) in
+  check_condition
+    "typecheck_userfn_return_type"
+    (exec_ast' ~ops:[fop myFn] (fn "myFn" []))
+    ~f:(function
+      | DError (_, msg) ->
+          Libcommon.Log.inspecT "msg" msg ;
+          false
+      | _ ->
+          false)
+
+
 let t_int_functions_works () =
   check_condition
     "Int::random_v1 0 3 returns a number between [0,3]"
@@ -557,6 +571,7 @@ let suite =
   ; ( "Type checking error isn't wrapped by error rail"
     , `Quick
     , t_typechecker_error_isnt_wrapped_by_errorail )
+  ; ("Type checkingfor return types", `Quick, t_typechecker_return_types)
   ; ( "Error rail is propagated by functions"
     , `Quick
     , t_error_rail_is_propagated_by_functions )
