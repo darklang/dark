@@ -398,10 +398,10 @@ let t_typechecker_error_isnt_wrapped_by_errorail () =
 
 let t_typechecker_return_types () =
   let open Libshared.FluidShortcuts in
-  let myFn = user_fn "myFn" ~return_type:TStr [] (f (Value "5")) in
+  let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (f (Value "5")) in
   check_condition
-    "typecheck_userfn_return_type"
-    (exec_ast' ~ops:[fop myFn] (fn "myFn" []))
+    "typecheck userfn with bad return type"
+    (exec_ast' ~ops:[fop myBadFn] (fn "myBadFn" []))
     ~f:(function
       | DError
           ( SourceId _
@@ -409,7 +409,20 @@ let t_typechecker_return_types () =
           ) ->
           true
       | _ ->
-          false)
+          false) ;
+  let myGoodFn =
+    user_fn "myGoodFn" ~return_type:TStr [] (f (Value "\"str\""))
+  in
+  check_dval
+    "typecheck userfn with good return type"
+    (exec_ast' ~ops:[fop myGoodFn] (fn "myGoodFn" []))
+    (Dval.dstr_of_string_exn "str") ;
+  let myAnyFn = user_fn "myAnyFn" ~return_type:TAny [] (f (Value "5")) in
+  check_dval
+    "typecheck userfn with any return type"
+    (exec_ast' ~ops:[fop myAnyFn] (fn "myAnyFn" []))
+    (Dval.dint 5) ;
+  ()
 
 
 let t_int_functions_works () =
