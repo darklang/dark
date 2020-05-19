@@ -2164,7 +2164,8 @@ let rec filter_read_only (m : model) (modification : modification) =
 
 let astUpdates (oldM : model) (newM : model) (cmds : msg Cmd.t) :
     model * msg Cmd.t =
-  (* Returns correct Tea.Cmd.t for adding `c` to `cmds` *)
+  (* Returns right Tea.Cmd.t for adding `c` to `cmds`,
+  * so we don't wrap Cmd.batch in Cmd.batch *)
   let prependCommand c =
     match cmds with
     | Cmd.Batch otherCmds ->
