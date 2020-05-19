@@ -36,7 +36,10 @@ val with_transaction :
 val dequeue : transaction -> RuntimeT.expr t option
 
 val put_back :
-  transaction -> 'expr_type t -> status:[`OK | `Err | `Incomplete] -> unit
+     transaction
+  -> 'expr_type t
+  -> status:[`OK | `Err | `Incomplete | `Missing]
+  -> unit
 
 val finish : transaction -> 'expr_type t -> unit
 

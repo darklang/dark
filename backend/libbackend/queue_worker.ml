@@ -101,7 +101,7 @@ let dequeue_and_process execution_id :
                                   Event_queue.put_back
                                     transaction
                                     event
-                                    `Incomplete ;
+                                    `Missing ;
                                   Ok None
                               | Some h ->
                                   Log.infO
