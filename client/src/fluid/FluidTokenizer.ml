@@ -119,10 +119,6 @@ module Builder = struct
     List.reverse b.tokens
 end
 
-(** patternToToken takes a match pattern `p` and converts it to a list of
-    fluidTokens.
-
-    ~idx is the zero-based index of the pattern in the enclosing match *)
 let rec patternToToken (p : FluidPattern.t) ~(idx : int) : fluidToken list =
   match p with
   | FPVariable (mid, id, name) ->
@@ -552,7 +548,6 @@ let tokenize : E.t -> FluidToken.tokenInfo list =
   tokenizeWithFFTokenization FeatureFlagOnlyDisabled
 
 
-(** returns the tokens that should populate the given editor *)
 let tokensForEditor (e : fluidEditor) (ast : FluidAST.t) :
     FluidToken.tokenInfo list =
   match e with
@@ -571,7 +566,6 @@ let tokensForEditor (e : fluidEditor) (ast : FluidAST.t) :
            ~default:[]
 
 
-(** returns the given expression, tokenized with the rules of the specified editor *)
 let tokenizeForEditor (e : fluidEditor) (expr : FluidExpression.t) :
     FluidToken.tokenInfo list =
   match e with
@@ -642,10 +636,6 @@ let getNeighbours ~(pos : int) (tokens : tokenInfos) :
   (toTheLeft, toTheRight, mNext)
 
 
-(* This is slightly different from getToken. Here we simply want the token
- * closest to the caret that is a not TNewline nor TSep. It is used for
- * figuring out where your caret is, to determine whether certain rendering
- * behavior should be applicable *)
 let getTokenNotWhitespace (tokens : tokenInfos) (s : fluidState) :
     T.tokenInfo option =
   let left, right, _ = getNeighbours ~pos:s.newPos tokens in
