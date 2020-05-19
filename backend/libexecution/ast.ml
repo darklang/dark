@@ -716,6 +716,7 @@ and exec_fn
     (args : 'expr_type dval_map) : 'expr_type dval =
   let sourceId id = SourceId (state.tlid, id) in
   let type_error_or_value ~user_tipes result =
+    (* https://www.notion.so/darklang/What-should-happen-when-the-return-type-is-wrong-533f274f94754549867fefc554f9f4e3 *)
     match Type_checker.check_function_return_type ~user_tipes fn result with
     | Ok () ->
         result
