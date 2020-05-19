@@ -172,6 +172,7 @@ let defaultModel : model =
   ; tlMenus = TLIDDict.empty
   ; showUserWelcomeModal = true
   ; userTutorial = Some Welcome
+  ; tooltip = None
   ; currentUserFn = defaultFnSpace
   ; firstVisitToThisCanvas = true
   ; settingsView =
