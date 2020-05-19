@@ -697,8 +697,10 @@ let fetch_active_crons (span : Span.t) : cron_schedule_data list =
                 canvases.name
          FROM toplevel_oplists
          JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
-         WHERE module = $1 AND modifier IS NOT NULL"
-        ~params:[Db.String "CRON"]
+         WHERE module = 'CRON'
+           AND modifier IS NOT NULL
+           AND toplevel_oplists.name IS NOT NULL"
+        ~params:[]
       |> List.map ~f:(function
              | [canvas_id; tlid; modifier; name; account_id; host] ->
                  { canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
