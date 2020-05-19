@@ -49,6 +49,7 @@ and category =
   ; plusButton : msg option
   ; iconAction : msg option
   ; classname : string
+  ; tooltip : tooltip option
   ; entries : item list }
 
 and item =
@@ -119,11 +120,16 @@ let categoryButton ?(props = []) (name : string) (description : string) :
     (categoryIcon_ name)
 
 
+let setTooltips (tooltip : tooltip) (entries : 'a list) : tooltip option =
+  if entries = [] then Some tooltip else None
+
+
 let handlerCategory
     (filter : toplevel -> bool)
     (name : string)
     (action : omniAction)
     (iconAction : msg option)
+    (tooltip : tooltip)
     (hs : handler list) : category =
   let handlers = hs |> List.filter ~f:(fun h -> filter (TLHandler h)) in
   { count = List.length handlers
@@ -131,6 +137,7 @@ let handlerCategory
   ; plusButton = Some (CreateRouteHandler action)
   ; classname = String.toLower name
   ; iconAction
+  ; tooltip = setTooltips tooltip handlers
   ; entries =
       List.map handlers ~f:(fun h ->
           let tlid = h.hTLID in
@@ -157,6 +164,7 @@ let httpCategory (handlers : handler list) : category =
     "HTTP"
     (NewHTTPHandler None)
     (Some GoToArchitecturalView)
+    Http
     handlers
 
 
@@ -166,11 +174,18 @@ let cronCategory (handlers : handler list) : category =
     "Cron"
     (NewCronHandler None)
     (Some GoToArchitecturalView)
+    Cron
     handlers
 
 
 let replCategory (handlers : handler list) : category =
-  handlerCategory TL.isReplHandler "REPL" (NewReplHandler None) None handlers
+  handlerCategory
+    TL.isReplHandler
+    "REPL"
+    (NewReplHandler None)
+    None
+    Repl
+    handlers
 
 
 let workerCategory (handlers : handler list) : category =
@@ -182,6 +197,7 @@ let workerCategory (handlers : handler list) : category =
     "Worker"
     (NewWorkerHandler None)
     (Some GoToArchitecturalView)
+    Worker
     handlers
 
 
@@ -211,6 +227,7 @@ let dbCategory (m : model) (dbs : db list) : category =
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; iconAction = Some GoToArchitecturalView
+  ; tooltip = setTooltips Datastore entries
   ; entries }
 
 
@@ -243,6 +260,7 @@ let f404Category (m : model) : category =
   ; plusButton = None
   ; classname = "fof"
   ; iconAction = None
+  ; tooltip = setTooltips FourOhFour f404s
   ; entries =
       List.map f404s ~f:(fun ({space; path; modifier; _} as fof) ->
           Entry
@@ -279,6 +297,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   ; classname = "fns"
   ; plusButton = Some CreateFunction
   ; iconAction = Some GoToArchitecturalView
+  ; tooltip = setTooltips Function entries
   ; entries }
 
 
@@ -307,6 +326,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
   ; classname = "types"
   ; plusButton = Some CreateType
   ; iconAction = None
+  ; tooltip = None
   ; entries }
 
 
@@ -334,6 +354,7 @@ let groupCategory (groups : group list) : category =
   ; classname = "group"
   ; plusButton = Some CreateGroup
   ; iconAction = None
+  ; tooltip = None
   ; entries }
 
 
@@ -413,6 +434,7 @@ let packageManagerCategory (pmfns : packageFns) : category =
              ; plusButton = None
              ; iconAction = None
              ; classname = "pm-package" ^ fn.package
+             ; tooltip = None
              ; entries = getFnnameEntries packageList })
   in
   let uniqueauthors =
@@ -433,6 +455,7 @@ let packageManagerCategory (pmfns : packageFns) : category =
              ; plusButton = None
              ; iconAction = None
              ; classname = "pm-author" ^ fn.user
+             ; tooltip = None
              ; entries = getPackageEntries authorList })
   in
   { count = List.length uniqueauthors
@@ -440,6 +463,7 @@ let packageManagerCategory (pmfns : packageFns) : category =
   ; plusButton = None
   ; iconAction = None
   ; classname = "package-manager"
+  ; tooltip = Some PackageManager
   ; entries = getAuthorEntries }
 
 
@@ -478,11 +502,13 @@ let deletedCategory (m : model) : category =
                    | c ->
                        c) })
   in
+  let showTooltip = List.filter ~f:(fun c -> c.entries <> []) cats in
   { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
   ; iconAction = None
+  ; tooltip = setTooltips Deleted showTooltip
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
@@ -637,14 +663,19 @@ let viewDeployStats (m : model) : msg Html.html =
   in
   let title = categoryName "Static Assets" in
   let summary =
-    let props =
-      [ eventPreventDefault ~key:"disable-sa-click" "click" (fun _ ->
-            IgnoreMsg "static asset icon click") ]
+    let openTooltip =
+      if count = 0
+      then
+        ViewUtils.eventNoPropagation
+          ~key:"open-tooltip-deploys"
+          "click"
+          (fun _ -> ToolTipMsg (Open (Some StaticAssets)))
+      else Vdom.noProp
     in
     let header =
       Html.div
-        [Html.class' "category-header"]
-        [categoryButton "static" "Static Assets" ~props; title]
+        [Html.class' "category-header"; openTooltip]
+        [categoryButton "static" "Static Assets"; title]
     in
     let deployLatest =
       if count <> 0
@@ -689,6 +720,15 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   let openEventHandler, openAttr =
     categoryOpenCloseHelpers m.sidebarState c.classname c.count
   in
+  let openTooltip =
+    if Option.isSome c.tooltip
+    then
+      ViewUtils.eventNoPropagation
+        ~key:("open-tooltip-" ^ c.classname)
+        "click"
+        (fun _ -> ToolTipMsg (Open c.tooltip))
+    else Vdom.noProp
+  in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
     then Vdom.attribute "" "open" ""
@@ -713,19 +753,17 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     in
     let catIcon =
       let props =
-        [ eventNeither ~key:"return-to-arch" "click" (fun _ ->
-              if m.sidebarState.mode = AbridgedMode && not isSubCat
-              then
-                match c.iconAction with
-                | Some ev ->
-                    ev
-                | None ->
-                    IgnoreMsg "sidebar-return-to-arch"
-              else IgnoreMsg "sidebar-return-to-arch") ]
+        match c.iconAction with
+        | Some ev when m.sidebarState.mode = AbridgedMode && not isSubCat ->
+            [eventNeither ~key:"return-to-arch" "click" (fun _ -> ev)]
+        | Some _ | None ->
+            [Vdom.noProp]
       in
       categoryButton c.classname c.name ~props
     in
-    let header = Html.div [Html.class' "category-header"] [catIcon; title] in
+    let header =
+      Html.div [Html.class' "category-header"; openTooltip] [catIcon; title]
+    in
     Html.summary
       [Html.class' "category-summary"; openEventHandler]
       [header; plusButton]

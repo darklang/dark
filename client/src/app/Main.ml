@@ -1071,6 +1071,11 @@ let update_ (msg : msg) (m : model) : modification =
             (* Click handled in component *)
             []
       in
+      let clickBehavior =
+        if Option.isSome m.tooltip
+        then Tooltips.update Close :: clickBehavior
+        else clickBehavior
+      in
       ( match m.cursorState with
       | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
           let distSquared (a : vPos) (b : vPos) : int =
@@ -1445,6 +1450,8 @@ let update_ (msg : msg) (m : model) : modification =
   | UpdateSegment msg ->
       Entry.sendSegmentMessage msg ;
       NoChange
+  | ToolTipMsg msg ->
+      Tooltips.update msg
   | TutorialMsg msg ->
       UserTutorial.update m msg
   | DeleteUserTypeForever tlid ->
