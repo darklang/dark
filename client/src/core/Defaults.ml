@@ -19,7 +19,7 @@ let pageWidth : int = 500
 let unsetCSRF : string = "UNSET_CSRF"
 
 let defaultUserSettings : savedUserSettings =
-  {showUserWelcomeModal = true; recordConsent = None}
+  {firstVisitToDark = true; recordConsent = None}
 
 
 let defaultSidebar : sidebarState =
@@ -170,7 +170,7 @@ let defaultModel : model =
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
-  ; showUserWelcomeModal = true
+  ; firstVisitToDark = true
   ; userTutorial = Some Welcome
   ; tooltip = None
   ; currentUserFn = defaultFnSpace

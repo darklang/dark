@@ -71,12 +71,12 @@ let update (m : model) (msg : tutorialMsg) : modification =
     | PrevStep ->
         (getPrevStep m.userTutorial, [])
     | CloseTutorial ->
-        if m.showUserWelcomeModal then Entry.sendSegmentMessage WelcomeModal ;
+        if m.firstVisitToDark then Entry.sendSegmentMessage WelcomeModal ;
         ( None
         , [ ReplaceAllModificationsWithThisOne
               (fun m ->
                 ( { m with
-                    showUserWelcomeModal = false
+                    firstVisitToDark = false
                   ; firstVisitToThisCanvas = false }
                 , Tea.Cmd.none )) ] )
     | ReopenTutorial ->

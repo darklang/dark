@@ -393,11 +393,19 @@ and handlerProp j : handlerProp =
 
 
 and savedUserSettings (j : Js.Json.t) : savedUserSettings =
-  { showUserWelcomeModal =
-      withDefault
-        Defaults.defaultUserSettings.showUserWelcomeModal
-        (field "showUserWelcomeModal" bool)
-        j
+  let oldFirstVisitToDark =
+    withDefault
+      Defaults.defaultUserSettings.firstVisitToDark
+      (field "showUserWelcomeModal" bool)
+      j
+  in
+  let newFirstVisitToDark =
+    withDefault
+      Defaults.defaultUserSettings.firstVisitToDark
+      (field "firstVisitToDark" bool)
+      j
+  in
+  { firstVisitToDark = oldFirstVisitToDark || newFirstVisitToDark
   ; recordConsent = withDefault None (field "recordConsent" (optional bool)) j
   }
 

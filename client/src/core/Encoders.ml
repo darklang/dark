@@ -822,7 +822,7 @@ let editorSettings (es : Types.editorSettings) : Js.Json.t =
 
 let savedUserSettings (se : Types.savedUserSettings) : Js.Json.t =
   object_
-    [ ("showUserWelcomeModal", bool se.showUserWelcomeModal)
+    [ ("showUserWelcomeModal", bool se.firstVisitToDark)
     ; ( "recordConsent"
       , Option.map ~f:bool se.recordConsent |> Option.withDefault ~default:null
       ) ]

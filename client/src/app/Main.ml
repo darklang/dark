@@ -74,7 +74,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
   let userTutorial =
-    if m.showUserWelcomeModal && m.userTutorial = None
+    if m.firstVisitToDark && m.userTutorial = None
     then UserTutorial.defaultStep
     else m.userTutorial
   in
