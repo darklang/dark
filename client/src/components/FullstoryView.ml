@@ -75,7 +75,5 @@ let html (m : Types.model) : Types.msg Html.html =
   in
   Html.div
     [ Html.classList
-        [ ( "modal-overlay"
-          , m.settingsView.privacy.recordConsent = None
-            && m.integrationTestState = NoIntegrationTest ) ] ]
+        [("modal-overlay", m.settingsView.privacy.recordConsent = None)] ]
     [Html.div [Html.class' ("fullstory-modal " ^ cls)] content]

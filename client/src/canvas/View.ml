@@ -592,20 +592,14 @@ let view (m : model) : msg Html.html =
         [fontAwesome "book"; Html.text "Docs"] ]
   in
   let tutorial =
-    if m.integrationTestState = NoIntegrationTest
-    then
-      UserTutorial.view
-        m.userTutorial
-        m.username
-        m.canvasName
-        m.firstVisitToThisCanvas
-        m.tooltip
-    else Vdom.noNode
+    UserTutorial.view
+      m.userTutorial
+      m.username
+      m.canvasName
+      m.firstVisitToThisCanvas
+      m.tooltip
   in
-  let modal =
-    ViewModal.unsupportedBrowser
-      ~show:(m.integrationTestState = NoIntegrationTest && m.unsupportedBrowser)
-  in
+  let modal = ViewModal.unsupportedBrowser ~show:m.unsupportedBrowser in
   let settingsModal =
     if m.settingsView.opened then SettingsView.html m else Vdom.noNode
   in
