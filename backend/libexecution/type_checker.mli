@@ -22,6 +22,8 @@ module Error : sig
         ; actual_fields : String.Set.t }
 
   val to_string : 'expr_type t -> string
+
+  val list_to_string : 'expr_type t list -> string
 end
 
 val check_function_call :

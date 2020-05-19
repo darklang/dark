@@ -52,6 +52,9 @@ module Error = struct
         | true, true ->
             "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!"
         )
+
+
+  let list_to_string ts = ts |> List.map ~f:to_string |> String.concat ~sep:", "
 end
 
 open Error

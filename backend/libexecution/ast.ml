@@ -827,28 +827,20 @@ and exec_fn
                   | Ok () ->
                       result
                   | Error errs ->
-                      let error_msgs =
-                        errs
-                        |> List.map ~f:Type_checker.Error.to_string
-                        |> String.concat ~sep:", "
-                      in
                       DError
                         ( sourceId id
-                        , "Type error(s) in return type: " ^ error_msgs ) )
+                        , "Type error(s) in return type: "
+                          ^ Type_checker.Error.list_to_string errs ) )
             in
             (* there's no point storing data we'll never ask for *)
             if fn.preview_safety <> Safe
             then state.store_fn_result sfr_desc arglist result ;
             result
         | Error errs ->
-            let error_msgs =
-              errs
-              |> List.map ~f:Type_checker.Error.to_string
-              |> String.concat ~sep:", "
-            in
             DError
               ( sourceId id
-              , "Type error(s) in function parameters: " ^ error_msgs ) )
+              , "Type error(s) in function parameters: "
+                ^ Type_checker.Error.list_to_string errs ) )
       | UserCreated (tlid, body) ->
         ( match
             Type_checker.check_function_call
@@ -879,23 +871,15 @@ and exec_fn
                 | Ok () ->
                     result
                 | Error errs ->
-                    let error_msgs =
-                      errs
-                      |> List.map ~f:Type_checker.Error.to_string
-                      |> String.concat ~sep:", "
-                    in
                     DError
                       ( sourceId id
-                      , "Type error(s) in return type: " ^ error_msgs ) ) )
+                      , "Type error(s) in return type: "
+                        ^ Type_checker.Error.list_to_string errs ) ) )
         | Error errs ->
-            let error_msgs =
-              errs
-              |> List.map ~f:Type_checker.Error.to_string
-              |> String.concat ~sep:", "
-            in
             DError
               ( sourceId id
-              , "Type error(s) in function parameters: " ^ error_msgs ) )
+              , "Type error(s) in function parameters: "
+                ^ Type_checker.Error.list_to_string errs ) )
       | API f ->
           f args )
 
