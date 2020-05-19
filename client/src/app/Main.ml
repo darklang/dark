@@ -2169,9 +2169,29 @@ let rec filter_read_only (m : model) (modification : modification) =
         modification
 
 
+(* Checks to see if AST has changed, if so make requestAnalysis command. *)
+let maybeRequestAnalysis
+    (oldM : model) (newM : model) (otherCommands : msg Cmd.t) : msg Cmd.t =
+  match (TL.selected oldM, TL.selected newM) with
+  | Some prevTL, Some newTL when TL.id prevTL = TL.id newTL ->
+    ( match (TL.getAST prevTL, TL.getAST newTL) with
+    | Some oldAST, Some newAST when oldAST <> newAST ->
+        let tlid = TL.id newTL in
+        Analysis.getSelectedTraceID newM tlid
+        |> Option.map ~f:(fun traceID ->
+               Cmd.batch
+                 [otherCommands; Analysis.requestAnalysis newM tlid traceID])
+        |> Option.withDefault ~default:otherCommands
+    | _, _ ->
+        otherCommands )
+  | _, _ ->
+      otherCommands
+
+
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
+  let newc = maybeRequestAnalysis m newm newc in
   (* BEGIN HACK
    * Patch up the activeEditor to match the toplevel if
    * there is a selected toplevel. Instead, we should deprecate
