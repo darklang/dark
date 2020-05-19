@@ -318,7 +318,8 @@ let worker name ast : 'expr_type HandlerT.handler =
 
 let hop h = Op.SetHandler (tlid, pos, h)
 
-let user_fn ?(tlid = tlid) name params ast : 'expr_type user_fn =
+let user_fn ?(tlid = tlid) ?(return_type = TAny) name params ast :
+    'expr_type user_fn =
   { tlid
   ; ast
   ; metadata =
@@ -330,7 +331,7 @@ let user_fn ?(tlid = tlid) name params ast : 'expr_type user_fn =
               ; block_args = []
               ; optional = false
               ; description = "test" })
-      ; return_type = f TAny
+      ; return_type = f return_type
       ; description = "test user fn"
       ; infix = false } }
 
