@@ -714,6 +714,18 @@ and exec_fn
     (id : id)
     (fn : 'expr_type fn)
     (args : 'expr_type dval_map) : 'expr_type dval =
+  let sourceId id = SourceId (state.tlid, id) in
+  let type_error_or_value ~user_tipes result =
+    match Type_checker.check_function_return_type ~user_tipes fn result with
+    | Ok () ->
+        result
+    | Error errs ->
+        DError
+          ( sourceId id
+          , "Type error(s) in return type: "
+            ^ Type_checker.Error.list_to_string errs )
+  in
+
   if state.context = Preview
      && (not state.on_execution_path)
      && Tc.StrSet.member state.callstack ~value:fnname
@@ -727,7 +739,6 @@ and exec_fn
         executing_fnname = fnname
       ; callstack = Tc.StrSet.add fnname state.callstack }
     in
-    let sourceId id = SourceId (state.tlid, id) in
     let arglist =
       fn.parameters
       |> List.map ~f:(fun (p : param) -> p.name)
@@ -817,21 +828,11 @@ and exec_fn
                    * *)
                   let result = exec ~state args_with_dbs body in
                   state.store_fn_result sfr_desc arglist result ;
-                  let result = Dval.unwrap_from_errorrail result in
-                  ( match
-                      Type_checker.check_function_return_type
-                        ~user_tipes:[]
-                        fn
-                        result
-                    with
-                  | Ok () ->
-                      result
-                  | Error errs ->
-                      DError
-                        ( sourceId id
-                        , "Type error(s) in return type: "
-                          ^ Type_checker.Error.list_to_string errs ) )
+                  result
+                  |> Dval.unwrap_from_errorrail
+                  |> type_error_or_value ~user_tipes:[]
             in
+
             (* there's no point storing data we'll never ask for *)
             if fn.preview_safety <> Safe
             then state.store_fn_result sfr_desc arglist result ;
@@ -861,20 +862,10 @@ and exec_fn
                 let state = {state with tlid} in
                 let result = exec ~state args_with_dbs body in
                 state.store_fn_result sfr_desc arglist result ;
-                let result = Dval.unwrap_from_errorrail result in
-                ( match
-                    Type_checker.check_function_return_type
-                      ~user_tipes:state.user_tipes
-                      fn
-                      result
-                  with
-                | Ok () ->
-                    result
-                | Error errs ->
-                    DError
-                      ( sourceId id
-                      , "Type error(s) in return type: "
-                        ^ Type_checker.Error.list_to_string errs ) ) )
+
+                result
+                |> Dval.unwrap_from_errorrail
+                |> type_error_or_value ~user_tipes:state.user_tipes )
         | Error errs ->
             DError
               ( sourceId id
