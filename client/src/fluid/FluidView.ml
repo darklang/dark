@@ -14,7 +14,7 @@ module Printer = FluidPrinter
 
 (* Tea *)
 
-type viewState = ViewUtils.viewState
+type viewProps = ViewUtils.viewProps
 
 type token = T.t
 
@@ -69,16 +69,16 @@ type lvResult =
       ; srcResult : lvResult }
   | Loading
 
-let rec lvResultForId ?(recurred = false) (vs : viewState) (id : ID.t) :
+let rec lvResultForId ?(recurred = false) (vp : viewProps) (id : ID.t) :
     lvResult =
   let fnLoading =
     (* If fn needs to be manually executed, check status *)
-    let ast = vs.astInfo.ast in
+    let ast = vp.astInfo.ast in
     FluidAST.find id ast
     |> Option.andThen ~f:(fun expr ->
            match expr with
            | E.EFnCall (_, name, _, _) | E.EBinOp (_, name, _, _, _) ->
-               Functions.find name vs.functions
+               Functions.find name vp.functions
            | _ ->
                None)
     |> Option.andThen ~f:(fun fn ->
@@ -87,12 +87,12 @@ let rec lvResultForId ?(recurred = false) (vs : viewState) (id : ID.t) :
                None
            | Unsafe ->
                let args = ast |> AST.getArguments id |> List.map ~f:E.toID in
-               let s = ViewFnExecution.stateFromViewState vs in
+               let s = ViewFnExecution.propsFromViewProps vp in
                ViewFnExecution.fnExecutionStatus s fn id args
                |> ViewFnExecution.executionError
                |> Option.some)
   in
-  match Analysis.getLiveValueLoadable vs.analysisStore id with
+  match Analysis.getLiveValueLoadable vp.analysisStore id with
   | LoadableSuccess (ExecutedResult (DIncomplete _))
     when Option.isSome fnLoading ->
       fnLoading
@@ -102,7 +102,7 @@ let rec lvResultForId ?(recurred = false) (vs : viewState) (id : ID.t) :
       (ExecutedResult (DIncomplete (SourceId (srcTlid, srcID)) as propValue))
   | LoadableSuccess
       (ExecutedResult (DError (SourceId (srcTlid, srcID), _) as propValue))
-    when srcID <> id || srcTlid <> vs.tlid ->
+    when srcID <> id || srcTlid <> vp.tlid ->
       if recurred
       then WithDval {value = propValue; canCopy = false}
       else
@@ -110,7 +110,7 @@ let rec lvResultForId ?(recurred = false) (vs : viewState) (id : ID.t) :
           { tlid = srcTlid
           ; srcID
           ; propValue
-          ; srcResult = lvResultForId ~recurred:true vs srcID }
+          ; srcResult = lvResultForId ~recurred:true vp srcID }
   | LoadableSuccess (ExecutedResult (DError _ as dval))
   | LoadableSuccess (ExecutedResult (DIncomplete _ as dval)) ->
       WithDval {value = dval; canCopy = false}
@@ -133,17 +133,17 @@ let rec lvResultForId ?(recurred = false) (vs : viewState) (id : ID.t) :
       WithMessage ("Error loading live value: " ^ err)
 
 
-let viewLiveValue (vs : viewState) : Types.msg Html.html =
+let viewLiveValue (vp : viewProps) : Types.msg Html.html =
   (* isLoaded will be set to false later if we are in the middle of loading
    * results. All other states are considered loaded. This is used to apply
    * a class ".loaded" purely for integration tests being able to know when
    * the live value content is ready and can be asserted on *)
   let isLoaded = ref true in
   (* Renders dval*)
-  let renderDval = viewDval vs.tlid in
+  let renderDval = viewDval vp.tlid in
   (* Renders live value for token *)
   let renderTokenLv id =
-    match lvResultForId vs id with
+    match lvResultForId vp id with
     | WithMessage msg ->
         [Html.text msg]
     | WithDval {value; canCopy} ->
@@ -175,11 +175,11 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
         isLoaded := false ;
         [ViewUtils.fontAwesome "spinner"]
   in
-  FluidTokenizer.ASTInfo.getToken vs.astInfo
+  FluidTokenizer.ASTInfo.getToken vp.astInfo
   |> Option.andThen ~f:(fun ti ->
          let row = ti.startRow in
          let content =
-           match AC.highlighted vs.fluidState.ac with
+           match AC.highlighted vp.fluidState.ac with
            | Some (FACVariable (_, Some dv)) ->
                (* If autocomplete is open and a variable is highlighted,
                 * then show its dval *)
@@ -205,15 +205,15 @@ let viewLiveValue (vs : viewState) : Types.msg Html.html =
 
 
 let viewReturnValue
-    (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
+    (vp : ViewUtils.viewProps) (dragEvents : ViewUtils.domEventList) :
     Types.msg Html.html =
-  if CursorState.tlidOf vs.cursorState = Some vs.tlid
+  if CursorState.tlidOf vp.cursorState = Some vp.tlid
   then
-    let id = FluidAST.toID vs.astInfo.ast in
-    match Analysis.getLiveValueLoadable vs.analysisStore id with
+    let id = FluidAST.toID vp.astInfo.ast in
+    match Analysis.getLiveValueLoadable vp.analysisStore id with
     | LoadableSuccess (ExecutedResult dval) ->
         let isRefreshed =
-          match vs.handlerProp with
+          match vp.handlerProp with
           | Some {execution = Complete; _} ->
               true
           | _ ->
@@ -221,7 +221,7 @@ let viewReturnValue
         in
         let warningHtml =
           let onDefaultTrace tlid =
-            match vs.traces with
+            match vp.traces with
             | [(tid, _)] when tid = Analysis.defaultTraceIDForTL ~tlid ->
                 true
             | _ ->
@@ -234,7 +234,7 @@ let viewReturnValue
           (* Since HTTP and userFunctions are the case where Incomplete return
            * is likely to case and error, we only want to highlight those
            * cases. *)
-          match (dval, vs.tl) with
+          match (dval, vp.tl) with
           | DIncomplete _, TLHandler h when SpecHeaders.spaceOf h.spec = HSHTTP
             ->
               text "Your code needs to return a value in the last expression"
@@ -284,7 +284,7 @@ let viewReturnValue
           Html.div
             [Html.class' "value"]
             ( [Html.text "This trace returns: "; newLine]
-            @ viewDval vs.tlid dval ~canCopy:true )
+            @ viewDval vp.tlid dval ~canCopy:true )
         in
         Html.div
           ( Html.classList
@@ -298,33 +298,33 @@ let viewReturnValue
   else Vdom.noNode
 
 
-let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
+let viewAST (vp : ViewUtils.viewProps) (dragEvents : ViewUtils.domEventList) :
     Types.msg Html.html list =
   let liveValue =
-    if vs.cursorState = FluidEntering vs.tlid
-    then viewLiveValue vs
+    if vp.cursorState = FluidEntering vp.tlid
+    then viewLiveValue vp
     else Vdom.noNode
   in
   let editorState =
-    { FluidEditorView.analysisStore = vs.analysisStore
-    ; ast = vs.astInfo.ast
-    ; functions = vs.functions
-    ; executingFunctions = vs.executingFunctions
-    ; editor = MainEditor vs.tlid
-    ; hoveringRefs = vs.hoveringRefs
-    ; fluidState = vs.fluidState
-    ; permission = vs.permission
-    ; tlid = vs.tlid
-    ; tokens = vs.astInfo.mainTokenInfos }
+    { FluidEditorView.analysisStore = vp.analysisStore
+    ; ast = vp.astInfo.ast
+    ; functions = vp.functions
+    ; executingFunctions = vp.executingFunctions
+    ; editor = MainEditor vp.tlid
+    ; hoveringRefs = vp.hoveringRefs
+    ; fluidState = vp.fluidState
+    ; permission = vp.permission
+    ; tlid = vp.tlid
+    ; tokens = vp.astInfo.mainTokenInfos }
   in
   let mainEditor = FluidEditorView.view editorState in
-  let returnValue = viewReturnValue vs dragEvents in
+  let returnValue = viewReturnValue vp dragEvents in
   let debugAST =
-    if vs.showHandlerASTs
+    if vp.showHandlerASTs
     then
       Html.div
         [Html.class' "debug-ast"]
-        [Html.text (E.toHumanReadable (FluidAST.toExpr vs.astInfo.ast))]
+        [Html.text (E.toHumanReadable (FluidAST.toExpr vp.astInfo.ast))]
     else Vdom.noNode
   in
   let secondaryEditors =
@@ -335,18 +335,18 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
        * and then looking through the main tokens [O(N)] to find one with a
        * corresponding id. This is brittle and will likely break at some point. We
        * should do something better. *)
-      FluidAST.find flagID vs.astInfo.ast
+      FluidAST.find flagID vp.astInfo.ast
       |> Option.andThen ~f:(function
              | E.EFeatureFlag (_, _, _, oldCode, _) ->
                  Some (E.toID oldCode)
              | _ ->
                  None)
       |> Option.andThen ~f:(fun oldCodeID ->
-             List.find vs.astInfo.mainTokenInfos ~f:(fun ti ->
+             List.find vp.astInfo.mainTokenInfos ~f:(fun ti ->
                  oldCodeID = T.tid ti.token))
       |> Option.map ~f:(fun ti -> ti.startRow)
     in
-    Fluid.buildFeatureFlagEditors vs.tlid vs.astInfo.ast
+    Fluid.buildFeatureFlagEditors vp.tlid vp.astInfo.ast
     |> List.map ~f:(fun e ->
            match e with
            | NoEditor ->
@@ -369,28 +369,28 @@ let viewAST (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) :
                  |> Option.withDefault ~default:0
                in
                let tokens =
-                 FluidTokenizer.ASTInfo.ffTokenInfosFor flagID vs.astInfo
+                 FluidTokenizer.ASTInfo.ffTokenInfosFor flagID vp.astInfo
                  |> recoverOpt "can't find tokens for real flag" ~default:[]
                in
-               let editorState =
-                 { FluidEditorView.analysisStore = vs.analysisStore
-                 ; ast = vs.astInfo.ast
-                 ; functions = vs.functions
-                 ; executingFunctions = vs.executingFunctions
+               let editorProps =
+                 { FluidEditorView.analysisStore = vp.analysisStore
+                 ; ast = vp.astInfo.ast
+                 ; functions = vp.functions
+                 ; executingFunctions = vp.executingFunctions
                  ; editor = e
-                 ; hoveringRefs = vs.hoveringRefs
-                 ; fluidState = vs.fluidState
-                 ; permission = vs.permission
-                 ; tlid = vs.tlid
+                 ; hoveringRefs = vp.hoveringRefs
+                 ; fluidState = vp.fluidState
+                 ; permission = vp.permission
+                 ; tlid = vp.tlid
                  ; tokens }
                in
                Html.div
                  [ Html.class' "fluid-secondary-editor"
                  ; Html.styles [("top", string_of_int rowOffset ^ ".5rem")] ]
-                 [flagIcon; FluidEditorView.view editorState])
+                 [flagIcon; FluidEditorView.view editorProps])
   in
   mainEditor :: liveValue :: returnValue :: debugAST :: secondaryEditors
 
 
-let view (vs : ViewUtils.viewState) (dragEvents : ViewUtils.domEventList) =
-  [Html.div [Html.class' "fluid-ast"] (viewAST vs dragEvents)]
+let view (vp : ViewUtils.viewProps) (dragEvents : ViewUtils.domEventList) =
+  [Html.div [Html.class' "fluid-ast"] (viewAST vp dragEvents)]

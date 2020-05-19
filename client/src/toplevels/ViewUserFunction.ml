@@ -3,7 +3,7 @@ open Prelude
 (* Dark *)
 module B = BlankOr
 
-type viewState = ViewUtils.viewState
+type viewProps = ViewUtils.viewProps
 
 let fontAwesome = ViewUtils.fontAwesome
 
@@ -15,18 +15,18 @@ type exeFunction =
   | IsExecuting
 
 let viewUserFnName
-    ~(classes : string list) (vs : viewState) (v : string blankOr) :
+    ~(classes : string list) (vp : viewProps) (v : string blankOr) :
     msg Html.html =
-  ViewBlankOr.viewText ~classes ~enterable:true FnName vs v
+  ViewBlankOr.viewText ~classes ~enterable:true FnName vp v
 
 
-let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
+let viewExecuteBtn (vp : viewProps) (fn : userFunction) : msg Html.html =
   let exeStatus =
-    if vs.isExecuting
+    if vp.isExecuting
     then IsExecuting
     else
       (* Attempts to get trace inputValues for this function *)
-      match Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid with
+      match Analysis.selectedTrace vp.tlTraceIDs vp.traces vp.tlid with
       | Some (traceID, Ok td) ->
           let args = UserFunctions.inputToArgs fn td.input in
           (* If any of the args is Incomplete/Error then we don't want to bother allowing this function to be executed *)
@@ -73,7 +73,7 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     [ Html.classList
         [ ("execution-button", true)
         ; ( "is-ready"
-          , vs.permission = Some ReadWrite
+          , vp.permission = Some ReadWrite
             && match exeStatus with CanExecute _ -> true | _ -> false )
         ; ("is-executing", exeStatus = IsExecuting) ]
     ; events
@@ -81,11 +81,11 @@ let viewExecuteBtn (vs : viewState) (fn : userFunction) : msg Html.html =
     [fontAwesome "redo"]
 
 
-let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
+let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
   let addParamBtn =
     match fn with
     | UserFunction fn ->
-        if vs.permission = Some ReadWrite
+        if vp.permission = Some ReadWrite
         then
           let strTLID = TLID.toString fn.ufTLID in
           Html.div
@@ -125,7 +125,7 @@ let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
             in
             let delAct : TLMenu.menuItem =
               let disableMsg =
-                if not (UserFunctions.canDelete vs.usedInRefs fn.ufTLID)
+                if not (UserFunctions.canDelete vp.usedInRefs fn.ufTLID)
                 then
                   Some
                     "Cannot delete this function as it is used in your code base. Use the references on the right to find and change this function's callers, after which you'll be able to delete it."
@@ -138,29 +138,29 @@ let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
               ; disableMsg }
             in
             let menuItems =
-              if vs.isAdmin then [delAct; uploadPackageFnAction] else [delAct]
+              if vp.isAdmin then [delAct; uploadPackageFnAction] else [delAct]
             in
             Html.div
               [Html.class' "menu"]
-              [TLMenu.viewMenu vs.menuState vs.tlid menuItems]
+              [TLMenu.viewMenu vp.menuState vp.tlid menuItems]
           in
-          Html.div [Html.class' "fn-actions"] [viewExecuteBtn vs fn; menuView]
+          Html.div [Html.class' "fn-actions"] [viewExecuteBtn vp fn; menuView]
       | PackageFn _ ->
           Html.div [Html.class' "fn-actions"] []
     in
     Html.div
       [Html.class' "spec-header"]
       [ ViewUtils.darkIcon "fn"
-      ; viewUserFnName vs ~classes:["fn-name-content"] titleText
+      ; viewUserFnName vp ~classes:["fn-name-content"] titleText
       ; executeBtn ]
   in
   let paramRows =
     Html.div
       [Html.id "fnparams"; Html.class' "params"]
-      (FnParams.view fn vs @ [addParamBtn])
+      (FnParams.view fn vp @ [addParamBtn])
   in
   let returnRow =
-    if VariantTesting.variantIsActive' vs.testVariants FnReturnVariant
+    if VariantTesting.variantIsActive' vp.testVariants FnReturnVariant
     then
       let returnType =
         match fn with
@@ -176,15 +176,15 @@ let viewMetadata (vs : viewState) (fn : functionTypes) : msg Html.html =
             ~classes:["type"]
             ~enterable:true
             FnReturnTipe
-            vs
+            vp
             returnType ]
     else Vdom.noNode
   in
   Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
 
 
-let view (vs : viewState) (fn : functionTypes) : msg Html.html =
+let view (vp : viewProps) (fn : functionTypes) : msg Html.html =
   Html.div
     [Html.class' "user-fn-toplevel"]
-    [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
-    ; Html.div [Html.class' "function-body expand"] (FluidView.view vs []) ]
+    [ Html.div [Html.class' "metadata"] [viewMetadata vp fn]
+    ; Html.div [Html.class' "function-body expand"] (FluidView.view vp []) ]

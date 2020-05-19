@@ -1,6 +1,6 @@
 open Prelude
 
-type state =
+type props =
   { analysisStore : analysisStore
   ; ast : FluidAST.t
   ; functions : functionsType
@@ -17,18 +17,18 @@ type executionFlow =
   | CodeNotExecuted
   | UnknownExecution
 
-let isActiveEditor (s : state) = s.fluidState.activeEditor = s.editor
+let isActiveEditor (p : props) = p.fluidState.activeEditor = p.editor
 
-let stateToFnExecutionState (s : state) : ViewFnExecution.state =
-  { analysisStore = s.analysisStore
-  ; ast = s.ast
-  ; executingFunctions = s.executingFunctions
-  ; permission = s.permission
-  ; tlid = s.tlid }
+let propsToFnExecutionProps (p : props) : ViewFnExecution.props =
+  { analysisStore = p.analysisStore
+  ; ast = p.ast
+  ; executingFunctions = p.executingFunctions
+  ; permission = p.permission
+  ; tlid = p.tlid }
 
 
-let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
-  match ViewUtils.fnForToken s.functions ti.token with
+let viewPlayIcon (p : props) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
+  match ViewUtils.fnForToken p.functions ti.token with
   | Some ({fnOrigin = UserFunction; _} as fn)
   (* HACK: UserFunctions need to be executable so that the user can get a value
    * into the trace. Otherwise, when they edit the function they won't have any
@@ -39,12 +39,12 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
        *
        * Note that fnPreviewSafety is calculated dynamically by
        * FluidAutocomplete. *)
-      let allExprs = AST.getArguments (FluidToken.tid ti.token) s.ast in
+      let allExprs = AST.getArguments (FluidToken.tid ti.token) p.ast in
       let argIDs = List.map ~f:FluidExpression.toID allExprs in
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
           ViewFnExecution.fnExecutionButton
-            (stateToFnExecutionState s)
+            (propsToFnExecutionProps p)
             fn
             id
             argIDs
@@ -52,7 +52,7 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       (* If fn is unversioned or is v0 *)
         when displayName = fnName || displayName ^ "_v0" = fnName ->
           ViewFnExecution.fnExecutionButton
-            (stateToFnExecutionState s)
+            (propsToFnExecutionProps p)
             fn
             id
             argIDs
@@ -62,10 +62,10 @@ let viewPlayIcon (s : state) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       Vdom.noNode
 
 
-let toHtml (s : state) : Types.msg Html.html list =
+let toHtml (p : props) : Types.msg Html.html list =
   let exeFlow ti =
     let id = FluidToken.analysisID ti.token in
-    match Analysis.getLiveValueLoadable s.analysisStore id with
+    match Analysis.getLiveValueLoadable p.analysisStore id with
     | LoadableSuccess (ExecutedResult _) ->
         CodeExecuted
     | LoadableSuccess (NonExecutedResult _) ->
@@ -73,7 +73,7 @@ let toHtml (s : state) : Types.msg Html.html list =
     | _ ->
         UnknownExecution
   in
-  let caretToken = FluidTokenizer.getTokenNotWhitespace s.tokens s.fluidState in
+  let caretToken = FluidTokenizer.getTokenNotWhitespace p.tokens p.fluidState in
   let caretParentBlockID =
     caretToken
     |> Option.andThen ~f:(fun ti ->
@@ -100,7 +100,7 @@ let toHtml (s : state) : Types.msg Html.html list =
   in
   (* Returns true if token is part of the expr the opened command palette will act on *)
   let isInCPExpr ti =
-    match s.fluidState.cp.location with
+    match p.fluidState.cp.location with
     | Some (_, id) when id = FluidToken.tid ti.token ->
         true
     | _ ->
@@ -111,7 +111,7 @@ let toHtml (s : state) : Types.msg Html.html list =
     if FluidToken.validID id
     then
       (* Only highlight incompletes and errors on executed paths *)
-      match Analysis.getLiveValueLoadable s.analysisStore id with
+      match Analysis.getLiveValueLoadable p.analysisStore id with
       | LoadableSuccess (ExecutedResult (DIncomplete (SourceId (tlid, id)))) ->
           (Some (tlid, id), "dark-incomplete")
       | LoadableSuccess (ExecutedResult (DError (SourceId (tlid, id), _))) ->
@@ -120,7 +120,7 @@ let toHtml (s : state) : Types.msg Html.html list =
           (None, "")
     else (None, "")
   in
-  let currentTokenInfo = FluidTokenizer.getToken' s.tokens s.fluidState in
+  let currentTokenInfo = FluidTokenizer.getToken' p.tokens p.fluidState in
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
@@ -134,10 +134,10 @@ let toHtml (s : state) : Types.msg Html.html list =
   in
   let nesting = ref 0 in
   let cmdToken =
-    match s.fluidState.cp.location with
-    | Some (ltlid, id) when s.tlid = ltlid ->
+    match p.fluidState.cp.location with
+    | Some (ltlid, id) when p.tlid = ltlid ->
         (* Reversing list will get us the last token visually rendered with matching expression ID, so we don't have to keep track of max pos *)
-        s.tokens
+        p.tokens
         |> List.reverse
         |> List.getBy ~f:(fun ti -> FluidToken.tid ti.token = id)
     | _ ->
@@ -146,27 +146,27 @@ let toHtml (s : state) : Types.msg Html.html list =
   let dropdown ti =
     match cmdToken with
     | Some onTi when onTi = ti ->
-        FluidCommands.viewCommandPalette s.fluidState.cp
+        FluidCommands.viewCommandPalette p.fluidState.cp
     | _ ->
-        if Fluid.isAutocompleting ti s.fluidState && isActiveEditor s
-        then FluidAutocompleteView.view s.fluidState.ac
+        if Fluid.isAutocompleting ti p.fluidState && isActiveEditor p
+        then FluidAutocompleteView.view p.fluidState.ac
         else Vdom.noNode
   in
   let isSelected tokenStart tokenEnd =
-    let selStart, selEnd = FluidUtil.getSelectionRange s.fluidState in
-    isActiveEditor s && selStart <= tokenStart && tokenEnd <= selEnd
+    let selStart, selEnd = FluidUtil.getSelectionRange p.fluidState in
+    isActiveEditor p && selStart <= tokenStart && tokenEnd <= selEnd
   in
   let idsInAFlag =
     (* If we're in the main editor, find all the FF expressions, then build a
      * set of all the IDs of them and their children. This is used below to
      * apply a CSS class to highlight tokens contained in a FF. *)
-    match s.editor with
+    match p.editor with
     | NoEditor ->
         ID.Set.empty
     | FeatureFlagEditor _ ->
         ID.Set.empty
     | MainEditor _ ->
-        FluidAST.filter s.ast ~f:(function
+        FluidAST.filter p.ast ~f:(function
             | EFeatureFlag _ ->
                 true
             | _ ->
@@ -189,7 +189,7 @@ let toHtml (s : state) : Types.msg Html.html list =
    * IDs above, then toggle it off as soon as we see a non-whitespace token
    * that's not contained in the set. *)
   let withinFlag = ref false in
-  List.map s.tokens ~f:(fun ti ->
+  List.map p.tokens ~f:(fun ti ->
       let element nested =
         let tokenId = FluidToken.tid ti.token in
         let idStr = ID.toString tokenId in
@@ -244,13 +244,13 @@ let toHtml (s : state) : Types.msg Html.html list =
             && (* This expression is the source of its own incompleteness. We
             only draw underlines under sources of incompletes, not all
             propagated occurrences. *)
-            sourceId = Some (s.tlid, analysisId)
+            sourceId = Some (p.tlid, analysisId)
           in
           let isNotExecuted = exeFlow ti = CodeNotExecuted in
           (* Unfade non-executed code if the caret is in it,
            * so auto-complete and command-palette will render at full opacity. *)
           let isInFocus = isNotExecuted && (isNearCaret ti || isInCPExpr ti) in
-          [ ("related-change", List.member ~value:tokenId s.hoveringRefs)
+          [ ("related-change", List.member ~value:tokenId p.hoveringRefs)
           ; ("cursor-on", currentTokenInfo = Some ti)
           ; ("in-flag", !withinFlag)
           ; ("fluid-error", isError)
@@ -259,13 +259,13 @@ let toHtml (s : state) : Types.msg Html.html list =
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated
              * into another, where the cursor is currently on *)
-            ("is-origin", sourceOfCurrentToken ti = Some (s.tlid, analysisId))
+            ("is-origin", sourceOfCurrentToken ti = Some (p.tlid, analysisId))
           ; ( "jumped-to"
-            , match s.fluidState.errorDvSrc with
+            , match p.fluidState.errorDvSrc with
               | SourceNone ->
                   false
               | SourceId (tlid, id) ->
-                  id = tokenId && s.tlid = tlid )
+                  id = tokenId && p.tlid = tlid )
           ; ("selected", isSelected ti.startPos ti.endPos) ]
         in
         let innerNode =
@@ -281,18 +281,18 @@ let toHtml (s : state) : Types.msg Html.html list =
           [Html.classList (cls @ conditionalClasses)]
           (innerNode @ nested)
       in
-      if s.permission = Some ReadWrite
-      then [element [dropdown ti; viewPlayIcon s ti]]
+      if p.permission = Some ReadWrite
+      then [element [dropdown ti; viewPlayIcon p ti]]
       else [element []])
   |> List.flatten
 
 
-let tokensView (s : state) : Types.msg Html.html =
-  let tlidStr = TLID.toString s.tlid in
+let tokensView (p : props) : Types.msg Html.html =
+  let tlidStr = TLID.toString p.tlid in
   let textInputListeners =
     (* the command palette is inside div.fluid-editor but has it's own input
      * handling, so don't do normal fluid input stuff if it's open *)
-    if FluidCommands.isOpened s.fluidState.cp
+    if FluidCommands.isOpened p.fluidState.cp
     then (Html.noProp, Html.noProp, Html.noProp)
     else
       ( Html.onCB
@@ -323,13 +323,13 @@ let tokensView (s : state) : Types.msg Html.html =
               in
               FluidMsg
                 (FluidMouseDoubleClick
-                   {tlid = s.tlid; editor = s.editor; selection})
+                   {tlid = p.tlid; editor = p.editor; selection})
           | None ->
               IgnoreMsg "fluid-dblclick-noselection")
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mousedown" ^ tlidStr)
         "mousedown"
-        (fun _ -> FluidMsg (FluidMouseDown s.tlid))
+        (fun _ -> FluidMsg (FluidMouseDown p.tlid))
     ; ViewUtils.eventNoPropagation
         ~key:("fluid-selection-mouseup" ^ tlidStr)
         "mouseup"
@@ -342,19 +342,19 @@ let tokensView (s : state) : Types.msg Html.html =
                 else SelectText (startPos, endPos)
               in
               FluidMsg
-                (FluidMouseUp {tlid = s.tlid; editor = s.editor; selection})
+                (FluidMouseUp {tlid = p.tlid; editor = p.editor; selection})
           | None ->
               (* Select the handler, if not selected *)
               FluidMsg
                 (FluidMouseUp
-                   {tlid = s.tlid; editor = s.editor; selection = ClickAt 0}))
+                   {tlid = p.tlid; editor = p.editor; selection = ClickAt 0}))
     ; ViewUtils.onAnimationEnd ~key:("anim-end" ^ tlidStr) ~listener:(fun msg ->
           if msg = "flashError" || msg = "flashIncomplete"
           then FluidMsg FluidClearErrorDvSrc
           else IgnoreMsg "fluid-animation-end") ]
   in
   let idAttr =
-    if s.fluidState.activeEditor = s.editor
+    if p.fluidState.activeEditor = p.editor
     then Html.id "active-editor"
     else Html.noProp
   in
@@ -368,17 +368,17 @@ let tokensView (s : state) : Types.msg Html.html =
       ]
     @ clickHandlers
     @ Tuple3.toList textInputListeners )
-    (toHtml s)
+    (toHtml p)
 
 
-let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
+let viewErrorIndicator (p : props) (ti : FluidToken.tokenInfo) :
     Types.msg Html.html =
   let returnTipe (name : string) =
-    Functions.find name s.functions
+    Functions.find name p.functions
     |> Option.map ~f:(fun fn -> fn.fnReturnTipe)
     |> Option.withDefault ~default:TAny
   in
-  let liveValue (id : ID.t) = Analysis.getLiveValue' s.analysisStore id in
+  let liveValue (id : ID.t) = Analysis.getLiveValue' p.analysisStore id in
   let isEvalSuccess dv =
     match dv with
     | Some (DIncomplete _) | Some (DError _) ->
@@ -419,8 +419,8 @@ let viewErrorIndicator (s : state) (ti : FluidToken.tokenInfo) :
       Vdom.noNode
 
 
-let errorRailView (s : state) : Types.msg Html.html =
-  let indicators = List.map s.tokens ~f:(viewErrorIndicator s) in
+let errorRailView (p : props) : Types.msg Html.html =
+  let indicators = List.map p.tokens ~f:(viewErrorIndicator p) in
   let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
   Html.div
     [Html.classList [("fluid-error-rail", true); ("show", hasMaybeErrors)]]
@@ -428,5 +428,5 @@ let errorRailView (s : state) : Types.msg Html.html =
 
 
 (** [view] builds a fluid editor *)
-let view (s : state) : Types.msg Html.html =
-  Html.div [Html.class' "fluid-editor"] [tokensView s; errorRailView s]
+let view (p : props) : Types.msg Html.html =
+  Html.div [Html.class' "fluid-editor"] [tokensView p; errorRailView p]

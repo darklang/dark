@@ -18,7 +18,7 @@ let run () =
                   ; ufmInfix = false } }
           in
           let tl = tlFunc in
-          let vs : ViewUtils.viewState =
+          let vp : ViewUtils.viewProps =
             { tl
             ; astInfo =
                 FluidTokenizer.ASTInfo.make
@@ -67,6 +67,6 @@ let run () =
                 ; justMovedParam = None }
             ; showHandlerASTs = false }
           in
-          expect (placeHolderFor vs ParamName) |> toEqual "param name") ;
+          expect (placeHolderFor vp ParamName) |> toEqual "param name") ;
       ()) ;
   ()

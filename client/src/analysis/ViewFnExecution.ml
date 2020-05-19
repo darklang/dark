@@ -3,7 +3,7 @@ open Prelude
 (* Dark *)
 module B = BlankOr
 
-type viewState = ViewUtils.viewState
+type viewProps = ViewUtils.viewProps
 
 let fontAwesome = ViewUtils.fontAwesome
 
@@ -15,39 +15,39 @@ type fnExecutionStatus =
   | Replayable
   | NoPermission
 
-type state =
+type props =
   { analysisStore : analysisStore
   ; ast : FluidAST.t
   ; executingFunctions : ID.t list
   ; permission : permission option
   ; tlid : TLID.t }
 
-let stateFromViewState (s : ViewUtils.viewState) : state =
-  { analysisStore = s.analysisStore
-  ; ast = s.astInfo.ast
-  ; executingFunctions = s.executingFunctions
-  ; permission = s.permission
-  ; tlid = s.tlid }
+let propsFromViewProps (p : ViewUtils.viewProps) : props =
+  { analysisStore = p.analysisStore
+  ; ast = p.astInfo.ast
+  ; executingFunctions = p.executingFunctions
+  ; permission = p.permission
+  ; tlid = p.tlid }
 
 
 let fnExecutionStatus
-    (s : state) (fn : function_) (id : ID.t) (args : ID.t list) =
+    (p : props) (fn : function_) (id : ID.t) (args : ID.t list) =
   let functionIsExecuting (fid : ID.t) : bool =
-    List.member ~value:fid s.executingFunctions
+    List.member ~value:fid p.executingFunctions
   in
   let isComplete id =
-    match Analysis.getLiveValue' s.analysisStore id with
+    match Analysis.getLiveValue' p.analysisStore id with
     | None | Some (DError _) | Some (DIncomplete _) ->
         false
     | Some _ ->
         true
   in
   let fnIsComplete id =
-    match Analysis.getLiveValue' s.analysisStore id with
+    match Analysis.getLiveValue' p.analysisStore id with
     | Some (DIncomplete (SourceId (srcTlid, srcId)))
     | Some (DError (SourceId (srcTlid, srcId), _))
     (* assume tlids are the same if the ids are *)
-      when (srcTlid, srcId) = (s.tlid, id) ->
+      when (srcTlid, srcId) = (p.tlid, id) ->
         (* this means the live value is an error/incomplete created by this
          * function, so the function is incomplete because it's unplayed. *)
         false
@@ -64,7 +64,7 @@ let fnExecutionStatus
   let paramsComplete = List.all ~f:isComplete args in
   let resultHasValue = fnIsComplete id in
   let name = fn.fnName in
-  if s.permission <> Some ReadWrite
+  if p.permission <> Some ReadWrite
   then NoPermission
   else if name = "Password::check" || name = "Password::hash"
   then Unsafe
@@ -150,9 +150,9 @@ let executionEvents status tlid id name =
 
 
 let fnExecutionButton
-    (s : state) (fn : function_) (id : ID.t) (args : ID.t list) =
+    (p : props) (fn : function_) (id : ID.t) (args : ID.t list) =
   let name = fn.fnName in
-  let status = fnExecutionStatus s fn id args in
+  let status = fnExecutionStatus p fn id args in
   match fn.fnPreviewSafety with
   (* UserFunctions always need play buttons to add the arguments to the trace *)
   | Safe when fn.fnOrigin <> UserFunction ->
@@ -161,7 +161,7 @@ let fnExecutionButton
       let class_ = executionClass status in
       let title = executionTitle status in
       let icon = executionIcon status in
-      let events = executionEvents status s.tlid id name in
+      let events = executionEvents status p.tlid id name in
       Html.div
         ([Html.class' ("execution-button " ^ class_); Html.title title] @ events)
         [fontAwesome icon]
