@@ -1041,7 +1041,7 @@ babel-register@^6.26.0:
     mkdirp "^0.5.1"
     source-map-support "^0.4.15"
 
-babel-runtime@^5.6.15, babel-runtime@^5.8.34:
+babel-runtime@^5.8.34:
   version "5.8.38"
   resolved "https://registry.yarnpkg.com/babel-runtime/-/babel-runtime-5.8.38.tgz#1c0b02eb63312f5f087ff20450827b425c9d4c19"
   integrity sha1-HAsC62MxL18If/IEUIJ7QlydTBk=
@@ -2794,15 +2794,17 @@ human-signals@^1.1.1:
   resolved "https://registry.yarnpkg.com/human-signals/-/human-signals-1.1.1.tgz#c5b1cd14f50aeae09ab6c59fe63ba3395fe4dfa3"
   integrity sha512-SEQu7vl8KjNL2eoGBLF3+wAjpsNfA9XMlXAYj/3EdaNfAlxKthD1xjEQfGOUhllCGGJVNY34bRr6lPINhNjyZw==
 
-iconv-lite@0.4.11:
-  version "0.4.11"
-  resolved "https://registry.yarnpkg.com/iconv-lite/-/iconv-lite-0.4.11.tgz#2ecb42fd294744922209a2e7c404dac8793d8ade"
-  integrity sha1-LstC/SlHRJIiCaLnxATayHk9it4=
-
 iconv-lite@0.4.24:
   version "0.4.24"
   resolved "https://registry.yarnpkg.com/iconv-lite/-/iconv-lite-0.4.24.tgz#2022b4b25fbddc21d2f524974a474aafe733908b"
   integrity sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==
+  dependencies:
+    safer-buffer ">= 2.1.2 < 3"
+
+iconv-lite@0.5.1:
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/iconv-lite/-/iconv-lite-0.5.1.tgz#b2425d3c7b18f7219f2ca663d103bddb91718d64"
+  integrity sha512-ONHr16SQvKZNSqjQT9gy5z24Jw+uqfO02/ngBSBoqChZ+W8qXX7GPRa1RoUnzGADw8K63R1BXUMzarCVQBpY8Q==
   dependencies:
     safer-buffer ">= 2.1.2 < 3"
 
@@ -5186,13 +5188,12 @@ tar@^2.0.0:
     fstream "^1.0.12"
     inherits "2"
 
-testcafe-browser-tools@2.0.10:
-  version "2.0.10"
-  resolved "https://registry.yarnpkg.com/testcafe-browser-tools/-/testcafe-browser-tools-2.0.10.tgz#ca7784d23e5051ffd5d0a410ff689d29a00c6570"
-  integrity sha512-fLY5LFsAFrjBXeLgGMLDsHVub5VcHNDpPfBK1+CgSF/koL7fy22ZP85IQORYBR8ThTnKfMzYij95Fg6NwDi/uA==
+testcafe-browser-tools@2.0.11:
+  version "2.0.11"
+  resolved "https://registry.yarnpkg.com/testcafe-browser-tools/-/testcafe-browser-tools-2.0.11.tgz#bdc9a1487d3bd44201f3ef3df9cb8a722acb57d1"
+  integrity sha512-T9mjSTj8DLd8G20TjWuA03xAXH59i2OxN+Ehx99ZBeOUAxUc9mRa8Gf1BT4Sj5nd28xfYJpstIYXgI46Ol51Qw==
   dependencies:
     array-find "^1.0.0"
-    babel-runtime "^5.6.15"
     dedent "^0.7.0"
     del "^5.1.0"
     execa "^3.3.0"
@@ -5208,10 +5209,10 @@ testcafe-browser-tools@2.0.10:
     read-file-relative "^1.2.0"
     which-promise "^1.0.0"
 
-testcafe-hammerhead@16.2.3:
-  version "16.2.3"
-  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-16.2.3.tgz#6df9a1ed14e7e421710da1be7adc94073c189609"
-  integrity sha512-5g2awOPP5kUxz5dVX64D0uWutrOjgcjLTbLQ9zSx+Y18wK88F8L8WKLXU74cIG23+dr1z+lyTLUQEor9iUHpNQ==
+testcafe-hammerhead@16.2.9:
+  version "16.2.9"
+  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-16.2.9.tgz#efb18f71f4d02304f8f7ae717e049e7b20579205"
+  integrity sha512-1nGfVgkmz9aHihexzLSVqe3YtGSLNxDXInZ3mTg28O+lZp+5Ies8LeSXQhFoSd/ibT25rhwc3TFEcIJYxeIa8w==
   dependencies:
     acorn-hammerhead "^0.3.0"
     asar "^2.0.1"
@@ -5220,7 +5221,7 @@ testcafe-hammerhead@16.2.3:
     crypto-md5 "^1.0.0"
     css "2.2.3"
     esotope-hammerhead "0.5.3"
-    iconv-lite "0.4.11"
+    iconv-lite "0.5.1"
     lodash "^4.17.13"
     lru-cache "2.6.3"
     match-url-wildcard "0.0.4"
@@ -5281,10 +5282,10 @@ testcafe-reporter-xunit@^2.1.0:
   resolved "https://registry.yarnpkg.com/testcafe-reporter-xunit/-/testcafe-reporter-xunit-2.1.0.tgz#e6d66c572ce15af266706af0fd610b2a841dd443"
   integrity sha1-5tZsVyzhWvJmcGrw/WELKoQd1EM=
 
-testcafe@^1.8.4:
-  version "1.8.4"
-  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.8.4.tgz#3a67ff581fe3ed5d3563b10ba5103693c37960e9"
-  integrity sha512-YGSdM9ydRKQIndqhIV5VE7nNsTwDFXCQIGlfFha/a6KVZfhVXPWx/SjP0A50+1OcHrhUnZSLeB5FrLKlxrehtA==
+testcafe@^1.8.5:
+  version "1.8.5"
+  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.8.5.tgz#049496b20e3a70f3286afc23ddd88c50507b7bb5"
+  integrity sha512-qLoiQRip2fk5ldIzPYRC2yztjAhihpxhQyPtNomDEYTnSyovCADAMP3Ok+Pc6HNkA7sC1tAi2yGaCW1QbmXwOw==
   dependencies:
     "@types/node" "^10.12.19"
     async-exit-hook "^1.1.2"
@@ -5347,8 +5348,8 @@ testcafe@^1.8.4:
     sanitize-filename "^1.6.0"
     source-map-support "^0.5.16"
     strip-bom "^2.0.0"
-    testcafe-browser-tools "2.0.10"
-    testcafe-hammerhead "16.2.3"
+    testcafe-browser-tools "2.0.11"
+    testcafe-hammerhead "16.2.9"
     testcafe-legacy-api "3.1.11"
     testcafe-reporter-json "^2.1.0"
     testcafe-reporter-list "^2.1.0"
