@@ -95,22 +95,18 @@ let dequeue_and_process execution_id :
                          * from the 404s. But sometimes they won't do that and it
                          * will just sit in the queue, being processed forever.
                          * Instead, let's drop it after a week. *)
-                        let expired = Event_queue.has_expired event in
                         Span.set_attrs
                           parent
                           [ ("host", `String host)
                           ; ("event", `String (Log.dump desc))
                           ; ("event_id", `String (string_of_int event.id))
-                          ; ("delay", `Float event.delay)
-                          ; ("event.expired", `Bool expired) ] ;
+                          ; ("delay", `Float event.delay) ] ;
                         let space, name, modifier = desc in
                         Stroller.push_new_404
                           ~execution_id
                           ~canvas_id
                           (space, name, modifier, event_timestamp, trace_id) ;
-                        if expired
-                        then Event_queue.finish transaction event
-                        else Event_queue.put_back transaction event `Incomplete ;
+                        Event_queue.put_back transaction event `Missing ;
                         Ok None
                     | Some h ->
                         Span.set_attrs

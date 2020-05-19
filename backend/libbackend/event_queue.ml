@@ -406,7 +406,15 @@ let with_transaction (parent : Span.t) f =
 
 let put_back transaction (item : t) ~status : unit =
   let show_status s =
-    match s with `OK -> "Ok" | `Err -> "Err" | `Incomplete -> "Incomplete"
+    match s with
+    | `OK ->
+        "Ok"
+    | `Err ->
+        "Err"
+    | `Incomplete ->
+        "Incomplete"
+    | `Missing ->
+        "Missing"
   in
   Log.infO
     "event_queue: put_back_transaction"
@@ -420,6 +428,13 @@ let put_back transaction (item : t) ~status : unit =
         "UPDATE \"events\"
       SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
       WHERE id = $1"
+        ~params:[Int item.id]
+  | `Missing ->
+      Db.run
+        ~name:"put_back_Missing"
+        "UPDATE events
+         SET status = 'missing', last_processed_at = CURRENT_TIMESTAMP
+         WHERE id = $1"
         ~params:[Int item.id]
   | `Err ->
       if item.retries < 2
