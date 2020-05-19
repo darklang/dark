@@ -1463,3 +1463,67 @@ test("unfade_command_palette", async t => {
   // Checks Command Palette opens inside a token with full opacity
   await t.expect(Selector(".fluid-code-focus > .command-palette").exists).ok();
 });
+
+test("redo_analysis_on_toggle_erail", async t => {
+  const fnCall = Selector(".id-108391798");
+  const justExpr = Selector(".id-21312903");
+  const nothingExpr = Selector(".id-1409226084");
+  const errorRail = Selector(".fluid-error-rail");
+  const returnValue = Selector(".return-value");
+
+  const t0 = new Date();
+  await t.click(".handler-trigger");
+  awaitAnalysis(t, t0);
+  await t.expect(errorRail.hasClass("show")).ok();
+  await t.expect(returnValue.innerText).contains("<Incomplete>");
+  await t.expect(justExpr.hasClass("fluid-not-executed")).ok();
+  await t.expect(nothingExpr.hasClass("fluid-not-executed")).ok();
+
+  // takes function off rail
+  await t
+    .doubleClick(fnCall)
+    .pressKey("ctrl+\\")
+    .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
+    .ok();
+  await t.typeText("#cmd-filter", "rail");
+  await t
+    .expect(Selector(".fluid-selected").innerText)
+    .eql("take-function-off-rail");
+
+  // analysis is reruns
+  const t1 = new Date();
+  await t.pressKey("enter");
+  awaitAnalysis(t, t1);
+
+  // assert values have changed
+  await t.expect(errorRail.hasClass("show")).notOk();
+  await t.expect(returnValue.innerText).contains("1");
+  await t.expect(justExpr.hasClass("fluid-not-executed")).notOk();
+  await t.expect(nothingExpr.hasClass("fluid-not-executed")).ok();
+});
+
+test("redo_analysis_on_commit_ff", async t => {
+  const returnValue = Selector(".return-value");
+  const t0 = new Date();
+  await t.click(".handler-trigger");
+  awaitAnalysis(t, t0);
+  await t.expect(returnValue.innerText).contains("farewell Vanessa Ives");
+
+  // commits feature flag
+  await t
+    .doubleClick(".in-flag")
+    .pressKey("ctrl+\\")
+    .expect(Selector("#cmd-filter", { timeout: 1500 }).exists)
+    .ok();
+  await t.typeText("#cmd-filter", "commit");
+  await t
+    .expect(Selector(".fluid-selected").innerText)
+    .eql("commit-feature-flag");
+
+  // analysis is reruns
+  const t1 = new Date();
+  await t.pressKey("enter");
+  awaitAnalysis(t, t1);
+
+  await t.expect(returnValue.innerText).contains("farewell Dorian Gray");
+});
