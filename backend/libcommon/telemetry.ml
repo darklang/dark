@@ -17,7 +17,7 @@ module Span = struct
   type t =
     { name : string
           (** the unique name of the span, commonly the function name *)
-    ; service : string
+    ; service_name : string
           (** the service name, like "backend" or "scheduler-service" *)
     ; span_id : ID.t  (** this span's unique ID *)
     ; trace_id : ID.t  (** the span's trace's ID *)
@@ -30,9 +30,9 @@ module Span = struct
   (** root creates a new root span (that is, one without a parent),
    * generating a new trace ID. *)
   let root (name : string) : t =
-    (* service is the name of the binary file that was executed - argv[0] minus
+    (* service_name is the name of the binary file that was executed - argv[0] minus
      * the path & the .exe *)
-    let service =
+    let service_name =
       let exe_pattern = String.Search_pattern.create ".exe" in
       Sys.argv.(0)
       (* Remove paths - this is like bash's 'basename' *)
@@ -43,7 +43,7 @@ module Span = struct
       String.Search_pattern.replace_first exe_pattern ~in_ ~with_:""
     in
     { name
-    ; service
+    ; service_name
     ; trace_id = gid ()
     ; span_id = gid ()
     ; parent_id = 0
@@ -54,7 +54,7 @@ module Span = struct
   (** from_parent creates a new span deriving from the passed [parent] *)
   let from_parent (name : string) (parent : t) : t =
     { name
-    ; service = parent.service
+    ; service_name = parent.service_name
     ; trace_id = parent.trace_id
     ; span_id = gid ()
     ; parent_id = parent.span_id
@@ -86,6 +86,7 @@ module Span = struct
     in
     let p =
       [ ("timestamp", `String timestamp)
+      ; ("service_name", `String span.service_name)
       ; ("name", `String span.name)
       ; ("duration_ms", `Float duration_ms)
       ; ("trace.span_id", `String (ID.to_string span.span_id))
