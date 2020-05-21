@@ -17,6 +17,8 @@ module Span = struct
   type t =
     { name : string
           (** the unique name of the span, commonly the function name *)
+    ; service_name : string
+          (** the service name, like "backend" or "scheduler-service" *)
     ; span_id : ID.t  (** this span's unique ID *)
     ; trace_id : ID.t  (** the span's trace's ID *)
     ; parent_id : ID.t
@@ -28,7 +30,11 @@ module Span = struct
   (** root creates a new root span (that is, one without a parent),
    * generating a new trace ID. *)
   let root (name : string) : t =
+    let service_name =
+      Sys.argv.(0) |> Filename.basename |> Filename.remove_extension
+    in
     { name
+    ; service_name
     ; trace_id = gid ()
     ; span_id = gid ()
     ; parent_id = 0
@@ -39,6 +45,7 @@ module Span = struct
   (** from_parent creates a new span deriving from the passed [parent] *)
   let from_parent (name : string) (parent : t) : t =
     { name
+    ; service_name = parent.service_name
     ; trace_id = parent.trace_id
     ; span_id = gid ()
     ; parent_id = parent.span_id
@@ -65,23 +72,14 @@ module Span = struct
     let duration_ms =
       span.start_time |> Time.diff (Time.now ()) |> Time.Span.to_ms
     in
-    (* From the OCaml Gc docs:
-     * The total amount of memory allocated by the program since it was started
-     * is (in words) minor_words + major_words - promoted_words. Multiply by
-     * the word size (4 on a 32-bit machine, 8 on a 64-bit machine) to get the
-     * number of bytes. *)
-    let minor, promoted, major = Gc.counters () in
-    let mem_usage =
-      minor +. major -. promoted |> Float.iround |> Option.value ~default:0
-    in
     let timestamp =
       Time.to_string_iso8601_basic ~zone:Time.Zone.utc span.start_time
     in
     let p =
       [ ("timestamp", `String timestamp)
+      ; ("service_name", `String span.service_name)
       ; ("name", `String span.name)
       ; ("duration_ms", `Float duration_ms)
-      ; ("meta.process_memory", `Int mem_usage)
       ; ("trace.span_id", `String (ID.to_string span.span_id))
       ; ("trace.trace_id", `String (ID.to_string span.trace_id)) ]
       @ Hashtbl.to_alist span.attributes
@@ -97,7 +95,7 @@ module Span = struct
 
 
   (** event immediately logs a span event, ie, a timestamped log without a
-    * duration,associated with the passed [span]
+    * duration, associated with the passed [span]
     *
     * See https://docs.honeycomb.io/working-with-your-data/tracing/send-trace-data/#span-events *)
   let event
