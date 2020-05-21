@@ -2350,7 +2350,7 @@ let server () =
       |> Option.value ~default:(get_ip_address ch)
     in
     let headers = CRequest.headers req in
-    let root = Span.root ~service:"backend" "http.request" in
+    let root = Span.root "http.request" in
     protectx root ~finally:Span.finish ~f:(fun span ->
         (* attribute names copied from honeycomb's beeline-go *)
         Span.set_attrs
