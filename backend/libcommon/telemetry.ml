@@ -69,15 +69,6 @@ module Span = struct
     let duration_ms =
       span.start_time |> Time.diff (Time.now ()) |> Time.Span.to_ms
     in
-    (* From the OCaml Gc docs:
-     * The total amount of memory allocated by the program since it was started
-     * is (in words) minor_words + major_words - promoted_words. Multiply by
-     * the word size (4 on a 32-bit machine, 8 on a 64-bit machine) to get the
-     * number of bytes. *)
-    let minor, promoted, major = Gc.counters () in
-    let mem_usage =
-      minor +. major -. promoted |> Float.iround |> Option.value ~default:0
-    in
     let timestamp =
       Time.to_string_iso8601_basic ~zone:Time.Zone.utc span.start_time
     in
@@ -85,7 +76,6 @@ module Span = struct
       [ ("timestamp", `String timestamp)
       ; ("name", `String span.name)
       ; ("duration_ms", `Float duration_ms)
-      ; ("meta.process_memory", `Int mem_usage)
       ; ("trace.span_id", `String (ID.to_string span.span_id))
       ; ("trace.trace_id", `String (ID.to_string span.trace_id)) ]
       @ Hashtbl.to_alist span.attributes
