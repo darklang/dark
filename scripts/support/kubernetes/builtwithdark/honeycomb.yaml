@@ -68,6 +68,10 @@ data:
       - labelSelector: "app in (bwd-app, editor-app, qw-worker)"
         containerName: stroller
         dataset: kubernetes-stroller
+        processors:
+        - sample:
+            type: static
+            rate: 100
         parser: json
       - labelSelector: "app=scheduler-worker"
         containerName: scheduler-ctr
