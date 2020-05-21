@@ -500,6 +500,20 @@ let t_is_canvas_name_valid () =
   ()
 
 
+let t_is_service_name_valid () =
+  let span = Telemetry.Span.root "test" in
+  let service =
+    Telemetry.Span.log_params span
+    |> List.find ~f:(fun (k, _) -> k = "service_name")
+    |> Option.bind ~f:(function _, `String s -> Some s | _ -> None)
+  in
+  AT.check
+    (AT.option AT.string)
+    "service_name should be \"test\"."
+    (Some "test")
+    service
+
+
 let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
   ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
@@ -520,4 +534,4 @@ let suite =
   ; ("canvas name validator works", `Quick, t_is_canvas_name_valid)
   ; ("route_host
 works for hosts hardcoded or in the db", `Quick, t_route_host)
-  ]
+  ; ("is_service_name_valid", `Quick, t_is_service_name_valid) ]
