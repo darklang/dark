@@ -17,7 +17,7 @@ module Span = struct
   type t =
     { name : string
           (** the unique name of the span, commonly the function name *)
-    ; service : string
+    ; service_name : string
           (** the service name, like "backend" or "scheduler-service" *)
     ; span_id : ID.t  (** this span's unique ID *)
     ; trace_id : ID.t  (** the span's trace's ID *)
@@ -29,9 +29,12 @@ module Span = struct
 
   (** root creates a new root span (that is, one without a parent),
    * generating a new trace ID. *)
-  let root ~(service : string) (name : string) : t =
+  let root (name : string) : t =
+    let service_name =
+      Sys.argv.(0) |> Filename.basename |> Filename.remove_extension
+    in
     { name
-    ; service
+    ; service_name
     ; trace_id = gid ()
     ; span_id = gid ()
     ; parent_id = 0
@@ -42,7 +45,7 @@ module Span = struct
   (** from_parent creates a new span deriving from the passed [parent] *)
   let from_parent (name : string) (parent : t) : t =
     { name
-    ; service = parent.service
+    ; service_name = parent.service_name
     ; trace_id = parent.trace_id
     ; span_id = gid ()
     ; parent_id = parent.span_id
@@ -74,6 +77,7 @@ module Span = struct
     in
     let p =
       [ ("timestamp", `String timestamp)
+      ; ("service_name", `String span.service_name)
       ; ("name", `String span.name)
       ; ("duration_ms", `Float duration_ms)
       ; ("trace.span_id", `String (ID.to_string span.span_id))
@@ -91,7 +95,7 @@ module Span = struct
 
 
   (** event immediately logs a span event, ie, a timestamped log without a
-    * duration,associated with the passed [span]
+    * duration, associated with the passed [span]
     *
     * See https://docs.honeycomb.io/working-with-your-data/tracing/send-trace-data/#span-events *)
   let event
