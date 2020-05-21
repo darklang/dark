@@ -160,7 +160,7 @@ let t_head_and_get_requests_are_coalesced () =
            ~ip:""
            ~uri:(req |> Req.uri)
            ~body:""
-           (Telemetry.Span.root ~service:"test" "test")
+           (Telemetry.Span.root "test")
            req
        in
        let code = resp |> Resp.status |> Code.code_of_status in
@@ -213,7 +213,7 @@ let t_authenticate_then_handle_code_and_cookie () =
        let%lwt resp, _ =
          Webserver.authenticate_then_handle
            ~execution_id:test_id
-           (Telemetry.Span.root ~service:"test" "test")
+           (Telemetry.Span.root "test")
            (fun ~session ~csrf_token span req ->
              Webserver.respond ~execution_id:test_id span `OK "test handler")
            req
@@ -303,7 +303,7 @@ let t_check_csrf_then_handle () =
          Webserver.check_csrf_then_handle
            ~execution_id:test_id
            ~session:test_session
-           (Telemetry.Span.root ~service:"test" "test")
+           (Telemetry.Span.root "test")
            (fun span req ->
              Webserver.respond ~execution_id:test_id span `OK "test handler")
            req
@@ -347,7 +347,7 @@ let admin_handler_code
          ~body
          ~session
          ~csrf_token:(Auth.SessionLwt.csrf_token_for session)
-         (Telemetry.Span.root ~service:"test" "test")
+         (Telemetry.Span.root "test")
          (Req.make ~meth ~headers uri)
      in
      resp |> Resp.status |> Code.code_of_status |> return)
@@ -405,7 +405,7 @@ let t_head_and_get_requests_are_coalesced () =
            ~ip:""
            ~uri:(req |> Req.uri)
            ~body:""
-           (Telemetry.Span.root ~service:"test" "test")
+           (Telemetry.Span.root "test")
            req
        in
        let code = resp |> Resp.status |> Code.code_of_status in
@@ -455,7 +455,7 @@ let t_http_request_redirects () =
        ignore (setup_canvas ()) ;
        let%lwt resp, body =
          Webserver.callback
-           (Telemetry.Span.root ~service:"test" "test")
+           (Telemetry.Span.root "test")
            ~k8s_callback:(fun _ ~execution_id ->
              Cohttp_lwt_unix.Server.respond_string
                ~status:(Cohttp.Code.status_of_code 911)
@@ -500,6 +500,20 @@ let t_is_canvas_name_valid () =
   ()
 
 
+let t_is_service_name_valid () =
+  let span = Telemetry.Span.root "test" in
+  let service =
+    Telemetry.Span.log_params span
+    |> List.find ~f:(fun (k, _) -> k = "service_name")
+    |> Option.bind ~f:(function _, `String s -> Some s | _ -> None)
+  in
+  AT.check
+    (AT.option AT.string)
+    "service_name should be \"test\"."
+    (Some "test")
+    service
+
+
 let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
   ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
@@ -520,4 +534,4 @@ let suite =
   ; ("canvas name validator works", `Quick, t_is_canvas_name_valid)
   ; ("route_host
 works for hosts hardcoded or in the db", `Quick, t_route_host)
-  ]
+  ; ("is_service_name_valid", `Quick, t_is_service_name_valid) ]
