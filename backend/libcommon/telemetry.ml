@@ -103,7 +103,7 @@ module Span = struct
 
 
   (** event immediately logs a span event, ie, a timestamped log without a
-    * duration,associated with the passed [span]
+    * duration, associated with the passed [span]
     *
     * See https://docs.honeycomb.io/working-with-your-data/tracing/send-trace-data/#span-events *)
   let event
