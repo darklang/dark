@@ -29,7 +29,19 @@ module Span = struct
 
   (** root creates a new root span (that is, one without a parent),
    * generating a new trace ID. *)
-  let root ~(service : string) (name : string) : t =
+  let root (name : string) : t =
+    (* service is the name of the binary file that was executed - argv[0] minus
+     * the path & the .exe *)
+    let service =
+      let exe_pattern = String.Search_pattern.create ".exe" in
+      Sys.argv.(0)
+      (* Remove paths - this is like bash's 'basename' *)
+      |> String.split ~on:'/'
+      |> List.last_exn
+      (* Remove .exe *)
+      |> fun in_ ->
+      String.Search_pattern.replace_first exe_pattern ~in_ ~with_:""
+    in
     { name
     ; service
     ; trace_id = gid ()
