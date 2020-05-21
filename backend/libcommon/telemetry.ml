@@ -17,6 +17,8 @@ module Span = struct
   type t =
     { name : string
           (** the unique name of the span, commonly the function name *)
+    ; service : string
+          (** the service name, like "backend" or "scheduler-service" *)
     ; span_id : ID.t  (** this span's unique ID *)
     ; trace_id : ID.t  (** the span's trace's ID *)
     ; parent_id : ID.t
@@ -27,8 +29,9 @@ module Span = struct
 
   (** root creates a new root span (that is, one without a parent),
    * generating a new trace ID. *)
-  let root (name : string) : t =
+  let root ~(service : string) (name : string) : t =
     { name
+    ; service
     ; trace_id = gid ()
     ; span_id = gid ()
     ; parent_id = 0
@@ -39,6 +42,7 @@ module Span = struct
   (** from_parent creates a new span deriving from the passed [parent] *)
   let from_parent (name : string) (parent : t) : t =
     { name
+    ; service = parent.service
     ; trace_id = parent.trace_id
     ; span_id = gid ()
     ; parent_id = parent.span_id

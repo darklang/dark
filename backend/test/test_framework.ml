@@ -261,7 +261,9 @@ let t_cron_sanity () =
   in
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check (Telemetry.Span.root "test") cron_schedule_data
+    Cron.execution_check
+      (Telemetry.Span.root ~service:"test" "test")
+      cron_schedule_data
   in
   AT.check AT.bool "should_execute should be true" should_execute true ;
   ()
@@ -283,7 +285,9 @@ let t_cron_just_ran () =
   Cron.record_execution cron_schedule_data ;
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check (Telemetry.Span.root "test") cron_schedule_data
+    Cron.execution_check
+      (Telemetry.Span.root ~service:"test" "test")
+      cron_schedule_data
   in
   AT.check AT.bool "should_execute should be false" should_execute false ;
   ()
