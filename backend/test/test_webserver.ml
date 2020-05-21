@@ -160,6 +160,7 @@ let t_head_and_get_requests_are_coalesced () =
            ~ip:""
            ~uri:(req |> Req.uri)
            ~body:""
+           (Telemetry.Span.root ~service:"test" "test")
            req
        in
        let code = resp |> Resp.status |> Code.code_of_status in
@@ -212,8 +213,9 @@ let t_authenticate_then_handle_code_and_cookie () =
        let%lwt resp, _ =
          Webserver.authenticate_then_handle
            ~execution_id:test_id
-           (fun ~session ~csrf_token req ->
-             Webserver.respond ~execution_id:test_id `OK "test handler")
+           (Telemetry.Span.root ~service:"test" "test")
+           (fun ~session ~csrf_token span req ->
+             Webserver.respond ~execution_id:test_id span `OK "test handler")
            req
            body
        in
@@ -301,8 +303,9 @@ let t_check_csrf_then_handle () =
          Webserver.check_csrf_then_handle
            ~execution_id:test_id
            ~session:test_session
-           (fun req ->
-             Webserver.respond ~execution_id:test_id `OK "test handler")
+           (Telemetry.Span.root ~service:"test" "test")
+           (fun span req ->
+             Webserver.respond ~execution_id:test_id span `OK "test handler")
            req
        in
        resp |> Resp.status |> Code.code_of_status |> return)
@@ -344,6 +347,7 @@ let admin_handler_code
          ~body
          ~session
          ~csrf_token:(Auth.SessionLwt.csrf_token_for session)
+         (Telemetry.Span.root ~service:"test" "test")
          (Req.make ~meth ~headers uri)
      in
      resp |> Resp.status |> Code.code_of_status |> return)
@@ -401,6 +405,7 @@ let t_head_and_get_requests_are_coalesced () =
            ~ip:""
            ~uri:(req |> Req.uri)
            ~body:""
+           (Telemetry.Span.root ~service:"test" "test")
            req
        in
        let code = resp |> Resp.status |> Code.code_of_status in
@@ -450,6 +455,7 @@ let t_http_request_redirects () =
        ignore (setup_canvas ()) ;
        let%lwt resp, body =
          Webserver.callback
+           (Telemetry.Span.root ~service:"test" "test")
            ~k8s_callback:(fun _ ~execution_id ->
              Cohttp_lwt_unix.Server.respond_string
                ~status:(Cohttp.Code.status_of_code 911)

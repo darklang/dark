@@ -146,6 +146,7 @@ let t_result_to_response_works () =
          dval
          |> Webserver.result_to_response ~c ~execution_id ~req
          |> Webserver.respond_or_redirect
+              (Libcommon.Telemetry.Span.root ~service:"test" "test")
          |> Lwt_main.run
          |> fst
          |> check)
