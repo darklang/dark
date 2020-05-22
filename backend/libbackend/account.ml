@@ -145,6 +145,8 @@ let insert_account
              "Insert failed, probably because the username is already taken.")
 
 
+(* Passwords set here are only valid locally, production uses auth0 to check
+ * access *)
 let upsert_account ?(validate : bool = true) (account : account) :
     (unit, string) Result.t =
   let result = if validate then validate_account account else Ok () in
@@ -173,6 +175,8 @@ let upsert_account_exn ?(validate : bool = true) (account : account) : unit =
   |> Prelude.Result.ok_or_internal_exception "Cannot upsert account"
 
 
+(* Passwords set here are only valid locally, production uses auth0 to check
+ * access *)
 let upsert_admin ?(validate : bool = true) (account : account) :
     (unit, string) Result.t =
   Result.map (validate_account account) ~f:(fun () ->
