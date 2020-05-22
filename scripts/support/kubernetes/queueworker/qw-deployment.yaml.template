@@ -34,6 +34,17 @@ spec:
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
+            - name: DARK_CONFIG_PUSHER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: key
+            - name: DARK_CONFIG_PUSHER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: secret
+
 
 #########################
 # Postgres proxy config
@@ -55,7 +66,6 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
-
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
           resources:
