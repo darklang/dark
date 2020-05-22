@@ -22,7 +22,7 @@
     "@glennsl/bs-json": "5.0.2",
     "acorn": ">=7.2.0",
     "analytics-node": "^3.4.0-beta.1",
-    "bs-deriving": "44.1.1",
+    "bs-deriving": "44.1.2",
     "bs-fetch": "0.5.2",
     "bs-uuid": "0.3.1",
     "bs-webapi": "0.15.9",
