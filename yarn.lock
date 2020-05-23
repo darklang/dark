@@ -1376,10 +1376,10 @@ browserslist@^3.2.6:
     caniuse-lite "^1.0.30000844"
     electron-to-chromium "^1.3.47"
 
-bs-deriving@44.1.1:
-  version "44.1.1"
-  resolved "https://registry.yarnpkg.com/bs-deriving/-/bs-deriving-44.1.1.tgz#8282cccebbfd37235b1a165d38bf09ed13d50f6b"
-  integrity sha512-EYlG4neHeC+ZYEnnZZYhKFyaEIVYbm6uuhyXLSF2hIhOIlGs68pBFg4FSKYro5GOkXCuqe0fEqftDAW5vICD6w==
+bs-deriving@44.1.2:
+  version "44.1.2"
+  resolved "https://registry.yarnpkg.com/bs-deriving/-/bs-deriving-44.1.2.tgz#7be05116987e5d1c9d186dfdc6be9c96b96563b8"
+  integrity sha512-7eL9fSRXeu5w030ec8d9X5iKmh5GcK/qf2udbFIBNio+AtmoAqTAuFstLBvVa6sIpKC7G74egtA80uUWPcfZ9w==
   dependencies:
     "@elliottcable/bs-result" "^12.0.0-pre.2"
 
@@ -4242,10 +4242,10 @@ posix-character-classes@^0.1.0:
   resolved "https://registry.yarnpkg.com/posix-character-classes/-/posix-character-classes-0.1.1.tgz#01eac0fe3b5af71a2a6c02feabb8c1fef7e00eab"
   integrity sha1-AerA/jta9xoqbAL+q7jB/vfgDqs=
 
-ppx-deriving@44.1.1:
-  version "44.1.1"
-  resolved "https://registry.yarnpkg.com/ppx-deriving/-/ppx-deriving-44.1.1.tgz#f35fc0c43f6a36bc720e98594436a132d917411e"
-  integrity sha512-D+OEVxB15AeUDf03i9eusG5M+qYJcvKfzjZ2rKwR+BoT9k9TgUTILpnspP8JXjyzfNkQ55fX8Sa6BAKr3uTEcw==
+ppx-deriving@44.1.2:
+  version "44.1.2"
+  resolved "https://registry.yarnpkg.com/ppx-deriving/-/ppx-deriving-44.1.2.tgz#e8979aa9d87a694dc063b909824773f3b201ead1"
+  integrity sha512-UtIW4u9vcp8aNa4o5NJIU2K7l9zEn35DJkQ5gpT4PMNKVKTJIN+rDMJNsBUys+4biTInQVO8OFqf10ijoM8fCg==
   dependencies:
     arch "^2.1.1"
 
