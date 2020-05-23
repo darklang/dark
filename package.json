@@ -13,7 +13,7 @@
     "jsdom-global": "3.0.2",
     "node-sass": "4.14.1",
     "npm-run-all": "4.1.5",
-    "ppx-deriving": "44.1.1",
+    "ppx-deriving": "44.1.2",
     "prettier": "2.0.5",
     "testcafe": "^1.8.5"
   },
@@ -22,7 +22,7 @@
     "@glennsl/bs-json": "5.0.2",
     "acorn": ">=7.2.0",
     "analytics-node": "^3.4.0-beta.1",
-    "bs-deriving": "44.1.1",
+    "bs-deriving": "44.1.2",
     "bs-fetch": "0.5.2",
     "bs-uuid": "0.3.1",
     "bs-webapi": "0.15.9",
