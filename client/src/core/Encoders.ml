@@ -771,7 +771,7 @@ and traceData (t : Types.traceData) : Js.Json.t =
 
 and trace (t : Types.trace) : Js.Json.t =
   let data v =
-    Result.map traceData v
+    Result.map ~f:traceData v
     |> Result.toOption
     |> Option.withDefault ~default:null
   in
