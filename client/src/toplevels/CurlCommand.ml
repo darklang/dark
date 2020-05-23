@@ -220,7 +220,7 @@ let curlFromHttpClientCall
              |> Option.map ~f:Js.Re.captures
              |> Option.andThen ~f:(fun captures ->
                     captures
-                    |> Array.get ~index:1
+                    |. Array.get 1
                     |> Option.andThen ~f:Js.Nullable.toOption)
              |> Option.map ~f:(fun meth -> "-X " ^ meth)
              |> recoverOpt

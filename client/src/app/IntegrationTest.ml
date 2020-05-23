@@ -253,7 +253,7 @@ let rename_db_fields (m : model) : testResult =
          | _ ->
              fail ~f:(show_list ~f:show_dbColumn) cols)
   |> Result.combine
-  |> Result.map (fun _ -> ())
+  |> Result.map ~f:(fun _ -> ())
 
 
 let rename_db_type (m : model) : testResult =
@@ -278,7 +278,7 @@ let rename_db_type (m : model) : testResult =
          | _ ->
              fail ~f:(show_list ~f:show_dbColumn) cols)
   |> Result.combine
-  |> Result.map (fun _ -> ())
+  |> Result.map ~f:(fun _ -> ())
 
 
 let feature_flag_works (m : model) : testResult =
@@ -453,7 +453,7 @@ let jump_to_error (m : model) : testResult =
         fail "incorrect cursor state"
   in
   Result.combine [focusedPass; browserCursorPass; cursorPass]
-  |> Result.map (fun _ -> ())
+  |> Result.map ~f:(fun _ -> ())
 
 
 let fourohfours_parse (m : model) : testResult =
@@ -623,7 +623,7 @@ let fluid_click_2x_on_token_places_cursor (m : model) : testResult =
         fail "incorrect cursor state"
   in
   Result.combine [focusedPass; browserCursorPass; cursorPass]
-  |> Result.map (fun _ -> ())
+  |> Result.map ~f:(fun _ -> ())
 
 
 let fluid_click_2x_in_function_places_cursor (m : model) : testResult =
@@ -652,7 +652,7 @@ let fluid_click_2x_in_function_places_cursor (m : model) : testResult =
         fail "incorrect cursor state"
   in
   Result.combine [focusedPass; browserCursorPass; cursorPass]
-  |> Result.map (fun _ -> ())
+  |> Result.map ~f:(fun _ -> ())
 
 
 let fluid_shift_right_selects_chars_in_front (m : model) : testResult =

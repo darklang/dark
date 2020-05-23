@@ -81,7 +81,7 @@ let replaceFunctionResult
                   then
                     ( tid
                     , Result.map
-                        (fun tdata ->
+                        ~f:(fun tdata ->
                           { tdata with
                             functionResults = newResult :: tdata.functionResults
                           })
