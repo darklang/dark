@@ -131,6 +131,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
+          env:
+            - name: DARK_CONFIG_PUSHER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: key
+            - name: DARK_CONFIG_PUSHER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: secret
           lifecycle:
             preStop:
               httpGet:
