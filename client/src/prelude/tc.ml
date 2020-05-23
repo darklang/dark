@@ -17,6 +17,7 @@ include (
       with module StrDict := Tablecloth.StrDict
       with module Option := Tablecloth.Option
       with module Int := Tablecloth.Int
+      with module Float := Tablecloth.Float
       with module String := Tablecloth.String
       with module Array := Tablecloth.Array
       with module Result := Tablecloth.Result
@@ -27,6 +28,14 @@ module Array = struct
 
   let iter ~(f : 'a -> unit) (arr : 'a array) : unit = Belt.Array.forEach arr f
 end
+
+let ( <| ) a b = a b
+
+let ( >> ) (f1 : 'a -> 'b) (f2 : 'b -> 'c) : 'a -> 'c = fun x -> x |> f1 |> f2
+
+let ( << ) (f1 : 'b -> 'c) (f2 : 'a -> 'b) : 'a -> 'c = fun x -> x |> f2 |> f1
+
+let identity (value : 'a) : 'a = value
 
 module Option = struct
   include Tablecloth.Option
@@ -101,6 +110,12 @@ module List = struct
     loop t
 
 
+  let flatten = List.concat
+
+  let foldl ~init ~f list = Tablecloth.List.fold_left ~initial:init ~f list
+
+  let foldr ~init ~f list = Tablecloth.List.fold_right ~initial:init ~f list
+
   let findWithIndex ~(f : int -> 'a -> bool) (l : 'a list) : int option =
     let rec findIndexHelper
         ~(i : int) ~(predicate : int -> 'a -> bool) (l : 'a list) : int option =
@@ -169,7 +184,7 @@ module List = struct
    * `Right`. *)
   let partitionMap ~(f : 'c -> ('a, 'b) Either.t) (items : 'c list) :
       'a list * 'b list =
-    Tablecloth.List.foldr
+    foldr
       ~init:([], [])
       ~f:(fun item (lefts, rights) ->
         match f item with
@@ -181,6 +196,8 @@ module List = struct
 end
 
 module Float = struct
+  include Tablecloth.Float
+
   let toString (f : float) : string = Js.Float.toString f
 end
 
