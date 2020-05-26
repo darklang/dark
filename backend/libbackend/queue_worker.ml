@@ -24,7 +24,7 @@ let dequeue_and_process execution_id :
       |> Result.bind ~f:(fun event ->
              match event with
              | None ->
-                 Span.event parent "No events in queue" ;
+                 Span.set_attr parent "event_queue.no_events" (`Bool true) ;
                  Ok None
              | Some event ->
                  let c =
@@ -54,12 +54,7 @@ let dequeue_and_process execution_id :
                          let bt = Exception.get_backtrace () in
                          ignore
                            (Event_queue.put_back transaction event ~status:`Err) ;
-                         Span.event parent "Exception while loading canvas" ;
-                         (* execution_id will be in this log *)
-                         Span.set_attr
-                           parent
-                           "load_event_succeeded"
-                           (`Bool false) ;
+                         Span.set_attr parent "event.load_success" (`Bool false) ;
                          Error (bt, e, []))
                  in
                  c
@@ -179,7 +174,7 @@ let dequeue_and_process execution_id :
                                     parent
                                     [ ( "result_tipe"
                                       , `String (result_tipe result) )
-                                    ; ("execution_success", `Bool true) ] ;
+                                    ; ("event.execution_success", `Bool true) ] ;
                                   Event_queue.finish transaction event ;
                                   Ok (Some result)
                             with e ->
@@ -187,7 +182,7 @@ let dequeue_and_process execution_id :
              * so put it back as an error *)
                               Span.set_attrs
                                 parent
-                                [("execution_success", `Bool false)] ;
+                                [("event.execution_success", `Bool false)] ;
                               let bt = Exception.get_backtrace () in
                               ignore
                                 ( try
@@ -196,15 +191,12 @@ let dequeue_and_process execution_id :
                                       event
                                       ~status:`Err
                                   with e ->
-                                    Span.event
+                                    Span.set_attr
                                       parent
-                                      "Unhandled exception in Event_queue.put_back"
-                                      ~attrs:
-                                        [ ( "exception"
-                                          , `String
-                                              (Libexecution.Exception
-                                               .exn_to_string
-                                                 e) ) ] ) ;
+                                      "error.msg"
+                                      (`String
+                                        (Libexecution.Exception.exn_to_string e))
+                                ) ;
                               let log_params =
                                 List.append
                                   (Log.current_log_annotations ())
