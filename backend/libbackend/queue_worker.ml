@@ -100,11 +100,12 @@ let dequeue_and_process execution_id :
                               in
                               match h with
                               | None ->
-                                  Span.set_str_attrs
+                                  Span.set_attrs
                                     parent
-                                    [ ("host", host)
-                                    ; ("event", Log.dump desc)
-                                    ; ("event_id", string_of_int event.id) ] ;
+                                    [ ("host", `String host)
+                                    ; ("event", `String (Log.dump desc))
+                                    ; ( "event_id"
+                                      , `String (string_of_int event.id) ) ] ;
                                   let space, name, modifier = desc in
                                   Stroller.push_new_404
                                     ~execution_id
@@ -120,13 +121,14 @@ let dequeue_and_process execution_id :
                                     `Incomplete ;
                                   Ok None
                               | Some h ->
-                                  Span.set_str_attrs
+                                  Span.set_attrs
                                     parent
-                                    [ ("event", Log.dump desc)
-                                    ; ("host", host)
-                                    ; ("event_id", string_of_int event.id)
-                                    ; ("handler_id", Types.string_of_id h.tlid)
-                                    ] ;
+                                    [ ("event", `String (Log.dump desc))
+                                    ; ("host", `String host)
+                                    ; ( "event_id"
+                                      , `String (string_of_int event.id) )
+                                    ; ( "handler_id"
+                                      , `String (Types.string_of_id h.tlid) ) ] ;
 
                                   let result, touched_tlids =
                                     Execution.execute_handler
