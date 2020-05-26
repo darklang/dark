@@ -4,7 +4,7 @@ open Types
 open Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
-module Telemetry = Libcommon.Telemetry
+module Span = Libcommon.Telemetry.Span
 
 (* -------------------- *)
 (* Input_vars *)
@@ -100,7 +100,7 @@ let execute_handler
     ~package_fns
     ~account_id
     ~canvas_id
-    ?(parent = (None : Telemetry.Span.t option))
+    ?(parent = (None : Span.t option))
     ?(load_fn_result = load_no_results)
     ?(load_fn_arguments = load_no_arguments)
     ?(store_fn_result = store_no_results)
