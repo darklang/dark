@@ -18,7 +18,6 @@ let dequeue_and_process execution_id :
          * no item to put back *)
           let bt = Exception.get_backtrace () in
           Span.event parent "Exception while dequeueing" ;
-          (* execution_id will be in this log *)
           Error (bt, e, [])
       in
       event
