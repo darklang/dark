@@ -5,6 +5,7 @@ open Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 module Span = Libcommon.Telemetry.Span
+module Telemetry = Libcommon.Telemetry
 
 (* -------------------- *)
 (* Input_vars *)
