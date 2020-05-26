@@ -17,6 +17,9 @@ let map ~(f : E.t -> E.t) (ast : t) : t = toExpr ast |> f |> ofExpr
 let replace ~(replacement : E.t) (target : Shared.id) (ast : t) : t =
   map ast ~f:(E.replace ~replacement target)
 
+let replace2 ~(replacement : E.t) (target : Shared.id) (ast : t) : t =
+  map ast ~f:(E.replaceParentAware ~parent:None ~replacement target)
+
 
 let update
     ?(failIfMissing = true) ~(f : E.t -> E.t) (target : Shared.id) (ast : t) : t

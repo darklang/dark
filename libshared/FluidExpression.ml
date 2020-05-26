@@ -38,6 +38,9 @@ type fluidPatOrExpr =
   | Pat of FluidPattern.t
 [@@deriving show {with_path = false}, eq]
 
+type replacementAndResult = {replacement: t; result : t}
+[@@deriving show {with_path = false}, eq]
+
 let newB () = EBlank (gid ())
 
 let toID (expr : t) : id =
@@ -240,6 +243,69 @@ let isEmpty (expr : t) : bool =
 
 let hasEmptyWithId (id : id) (expr : t) : bool =
   match find id expr with Some e -> isEmpty e | _ -> false
+
+
+let rec preTraversalParentAware
+    ~(parent : t option) ~(f : parent:t option -> t -> t) (expr : t) : t =
+  let r = preTraversalParentAware ~f in
+  match f ~parent expr with
+  | EInteger _
+  | EBlank _
+  | EString _
+  | EVariable _
+  | EBool _
+  | ENull _
+  | EPipeTarget _
+  | EFloat _ ->
+      expr
+  | ELet (id, name, rhs, next) as p ->
+      ELet (id, name, r ~parent:(Some p) rhs, r ~parent:(Some p) next)
+  | EIf (id, cond, ifexpr, elseexpr) as p ->
+      EIf
+        ( id
+        , r ~parent:(Some p) cond
+        , r ~parent:(Some p) ifexpr
+        , r ~parent:(Some p) elseexpr )
+  | EBinOp (id, op, lexpr, rexpr, ster) as p ->
+      EBinOp (id, op, r ~parent:(Some p) lexpr, r ~parent:(Some p) rexpr, ster)
+  | EFieldAccess (id, expr, fieldname) as p ->
+      EFieldAccess (id, r ~parent:(Some p) expr, fieldname)
+  | EFnCall (id, name, exprs, ster) as p ->
+      EFnCall (id, name, List.map ~f:(r ~parent:(Some p)) exprs, ster)
+  | ELambda (id, names, expr) as p ->
+      ELambda (id, names, r ~parent:(Some p) expr)
+  | EList (id, exprs) as p ->
+      EList (id, List.map ~f:(r ~parent:(Some p)) exprs)
+  | EMatch (id, mexpr, pairs) as p ->
+      EMatch
+        ( id
+        , r ~parent:(Some p) mexpr
+        , List.map
+            ~f:(fun (name, expr) -> (name, r ~parent:(Some p) expr))
+            pairs )
+  | ERecord (id, fields) as p ->
+      ERecord
+        ( id
+        , List.map
+            ~f:(fun (name, expr) -> (name, r ~parent:(Some p) expr))
+            fields )
+  | EPipe (id, exprs) as p ->
+      EPipe (id, List.map ~f:(r ~parent:(Some p)) exprs)
+  | EConstructor (id, name, exprs) as p ->
+      EConstructor (id, name, List.map ~f:(r ~parent:(Some p)) exprs)
+  | EPartial (id, str, oldExpr) as p ->
+      EPartial (id, str, r ~parent:(Some p) oldExpr)
+  | ERightPartial (id, str, oldExpr) as p ->
+      ERightPartial (id, str, r ~parent:(Some p) oldExpr)
+  | ELeftPartial (id, str, oldExpr) as p ->
+      ELeftPartial (id, str, r ~parent:(Some p) oldExpr)
+  | EFeatureFlag (id, msg, cond, casea, caseb) as p ->
+      EFeatureFlag
+        ( id
+        , msg
+        , r ~parent:(Some p) cond
+        , r ~parent:(Some p) casea
+        , r ~parent:(Some p) caseb )
 
 
 let rec preTraversal ~(f : t -> t) (expr : t) : t =
@@ -447,6 +513,110 @@ let replace ~(replacement : t) (target : id) (ast : t) : t =
         (target, replacement)
   in
   update target' ast ~f:(fun _ -> newExpr')
+
+
+let replaceParentAware
+    ?(failIfMissing = true)
+    ~(parent : t option)
+    ~(replacement : t)
+    (target : id)
+    (expr : t) : t =
+  (* [addPipeTarget pipeId initialExpr] replaces the first arg into which one can pipe with a pipe target having [pipeId]
+        * at the root of [initialExpr], if such an arg exists.
+        * It is recursive in order to handle root expressions inside partials. *)
+  let rec addPipeTarget (pipeId : Shared.id) (initialExpr : t) : t =
+    match initialExpr with
+    | EFnCall (id, name, args, sendToRail) ->
+        let args =
+          match args with
+          | _ :: rest ->
+              EPipeTarget pipeId :: rest
+          | args ->
+              args
+        in
+        EFnCall (id, name, args, sendToRail)
+    | EBinOp (id, name, _lhs, rhs, sendToRail) ->
+        EBinOp (id, name, EPipeTarget pipeId, rhs, sendToRail)
+    | EPartial (id, text, oldExpr) ->
+        EPartial (id, text, addPipeTarget pipeId oldExpr)
+    | ERightPartial (id, text, oldExpr) ->
+        ERightPartial (id, text, addPipeTarget pipeId oldExpr)
+    | ELeftPartial (id, text, oldExpr) ->
+        ELeftPartial (id, text, addPipeTarget pipeId oldExpr)
+    | _ ->
+        initialExpr
+  in
+  (* [removePipeTarget initialExpr] replaces all pipe targets at the root of [initialExpr] with blanks.
+        * It is recursive in order to handle pipe targets inside partials. *)
+  let rec removePipeTarget (initialExpr : t) : t =
+    match initialExpr with
+    | EFnCall (id, name, args, sendToRail) ->
+        let args =
+          args |> List.map ~f:(function EPipeTarget _ -> newB () | arg -> arg)
+        in
+        EFnCall (id, name, args, sendToRail)
+    | EBinOp (id, name, lhs, rhs, sendToRail) ->
+        let lhs, rhs =
+          (lhs, rhs)
+          |> Tuple2.mapAll ~f:(function EPipeTarget _ -> newB () | arg -> arg)
+        in
+        EBinOp (id, name, lhs, rhs, sendToRail)
+    | EPartial (id, text, oldExpr) ->
+        EPartial (id, text, removePipeTarget oldExpr)
+    | ERightPartial (id, text, oldExpr) ->
+        ERightPartial (id, text, removePipeTarget oldExpr)
+    | ELeftPartial (id, text, oldExpr) ->
+        ELeftPartial (id, text, removePipeTarget oldExpr)
+    | _ ->
+        initialExpr
+  in
+  (* let target, replacement =
+    match (findParent target expr, replacement) with
+    | Some (EPipe (parentID, oldExprs)), EPipe (newID, newExprs) ->
+        let before, elemAndAfter =
+          List.splitWhen ~f:(fun nested -> toID nested = target) oldExprs
+        in
+        let after = List.tail elemAndAfter |> Option.withDefault ~default:[] in
+        (parentID, EPipe (newID, before @ newExprs @ after))
+    | _ ->
+        (target, replacement)
+  in *)
+  let found = ref 0 in
+  let modifiedReplacement = ref replacement in
+  Printf.printf "REPLACEMENT: %s\n" (show replacement);
+  let replacer ~(parent : t option) (e : t) =
+    if target = toID e
+    then (
+      found := !found + 1 ;
+      (match parent with
+      | None -> ()
+      | Some p -> Printf.printf "PARENT: %s\n" (show p));
+      Printf.printf "EXPR: %s\n" (show e);
+      modifiedReplacement := (match parent with
+      | Some (EPipe (_, head :: _)) when head = e ->
+          (* If replacing into the head of a pipe, drop any root-level pipe targets *)
+          removePipeTarget replacement
+      | Some (EPipe (pipeId, _)) ->
+          (* If replacing into a child of a pipe, replace first arg of a root-level function with pipe target*)
+          addPipeTarget pipeId replacement
+      | _ ->
+          (* If not replacing into a child of a pipe, drop any root-level pipe targets *)
+          removePipeTarget replacement);
+     !modifiedReplacement)
+    else e
+  in
+  let result = preTraversalParentAware ~parent ~f:replacer expr in
+  if failIfMissing && (!found <> 1)
+  then
+    (* prevents the significant performance cost of show *)
+    Recover.asserT
+      ~debug:(show_id target, show expr)
+      (if !found = 0 then "didn't find the id in the expression to update" else "found too many ids in expression to update")
+      true
+  else () ;
+  let _replacement = !modifiedReplacement in
+  result
+  (* {replacement; result} *)
 
 
 (* Slightly modified version of `AST.uses` (pre-fluid code) *)

@@ -81,6 +81,9 @@ type fluidPatOrExpr =
   | Pat of FluidPattern.t
 [@@deriving show {with_path = false}, eq]
 
+type replacementAndResult = {replacement: t; result : t}
+[@@deriving show {with_path = false}, eq]
+
 val toID : t -> Shared.id
 
 (** Generate a new EBlank *)
@@ -167,6 +170,17 @@ val update : ?failIfMissing:bool -> f:(t -> t) -> Shared.id -> t -> t
 
 (** [replace replacement target ast] finds the expression with Shared.id of [target] in the [ast] and replaces it with [replacement]. *)
 val replace : replacement:t -> Shared.id -> t -> t
+
+(** [replaceParentAware failIfMissing? parent replacement target expr] recursively searches [expr] for an expression [e]
+    having an [Shared.id] of [target]. [parent] must be the current parent of [expr].
+
+    If found, replaces [e] with [replacement] and returns the new ast, having corrected for [e]'s parent
+    by stripping or adding pipe targets to [replacement] as needed.
+    If not found, returns the unmodified [ast].
+    If [failIfMissing] is [true], as it is by default,
+    calls [Recover.asserT] before returning. *)
+val replaceParentAware :
+  ?failIfMissing:bool -> parent:t option -> replacement:t -> Shared.id -> t -> t (* replacementAndResult *)
 
 val removeVariableUse : string -> t -> t
 

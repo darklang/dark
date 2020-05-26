@@ -1948,7 +1948,7 @@ let replacePartialWithArguments
          | _ ->
              mkExprAndTarget newExpr)
   |> Option.map ~f:(fun (newExpr, target) ->
-         (FluidAST.replace id ~replacement:newExpr ast, target))
+         (FluidAST.replace2 id ~replacement:newExpr ast, target))
   |> recoverOpt
        "replacePartialWithArguments"
        ~default:(ast, {astRef = ARInvalid; offset = 0})
@@ -2417,7 +2417,7 @@ let updateFromACItem
         (* when committing `if` in front of another expression, put the expr into the if condition *)
         let _ = Debug.loG "updateFromACItem - Q" () in
         let replacement = EIf (ifID, expr, E.newB (), E.newB ()) in
-        let newAST = FluidAST.replace ~replacement pID ast in
+        let newAST = FluidAST.replace2 ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' expr)
     | ( TLeftPartial _
       , Some (ELeftPartial (pID, _, expr))
@@ -2436,12 +2436,13 @@ let updateFromACItem
         let _ = Debug.loG "updateFromACItem - O" () in
         let blank = E.newB () in
         let replacement = ELet (letID, "", expr, E.newB ()) in
-        let newAST = FluidAST.replace ~replacement pID ast in
+        let newAST = FluidAST.replace2 ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' blank)
-    | TPartial _, _, Some (EPipe _), Expr (EBinOp (bID, name, _, rhs, str)) ->
+(*     | TPartial _, _, Some (EPipe _), Expr (EBinOp (bID, name, lhs, rhs, str)) ->
         let _ = Debug.loG "updateFromACItem - E" () in
-        let newAST = FluidAST.replace ~replacement id ast in
-        (newAST, caretTargetForEndOfExpr' replacement)
+        let replacement = EBinOp (bID, name, lhs, rhs, str) in
+        let newAST = FluidAST.replace2 ~replacement id ast in
+        (newAST, caretTargetForEndOfExpr' replacement) *)
     | TPartial _, Some oldExpr, Some (EPipe (_, firstExpr :: _)), Expr newExpr
       when oldExpr = firstExpr ->
         let _ = Debug.loG "updateFromACItem - F" () in
@@ -2463,7 +2464,7 @@ let updateFromACItem
       , Expr (EBinOp (bID, name, _, _, str)) ) ->
         let _ = Debug.loG "updateFromACItem - H" () in
         let replacement = EBinOp (bID, name, lhs, rhs, str) in
-        let newAST = FluidAST.replace ~replacement id ast in
+        let newAST = FluidAST.replace2 ~replacement id ast in
         (newAST, caretTargetForStartOfExpr' rhs)
     | TPartial _, _, _, Expr newExpr ->
         (* We can't use the newTarget because it might point to eg a blank
@@ -2475,7 +2476,7 @@ let updateFromACItem
       , _
       , Expr (EBinOp (bID, name, _, rhs, str)) ) ->
         let replacement = EBinOp (bID, name, oldExpr, rhs, str) in
-        let newAST = FluidAST.replace ~replacement id ast in
+        let newAST = FluidAST.replace2 ~replacement id ast in
         let _ = Debug.loG "updateFromACItem - J" () in
         (newAST, caretTargetForStartOfExpr' rhs)
     | ( (TFieldName _ | TFieldPartial _ | TBlank _)
@@ -2486,10 +2487,11 @@ let updateFromACItem
       , Expr (EFieldAccess (_, _, newname)) ) ->
         let _ = Debug.loG "updateFromACItem - K" () in
         let replacement = EFieldAccess (faID, expr, newname) in
-        let newAST = FluidAST.replace ~replacement id ast in
+        let newAST = FluidAST.replace2 ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
     | _, _, _, Expr newExpr ->
         let _ = Debug.loG "updateFromACItem - L" () in
+        let newAST = FluidAST.replace2 ~replacement:newExpr id ast in
         (newAST, newTarget)
     | _, _, _, Pat _ ->
         let _ = Debug.loG "updateFromACItem - M" () in
