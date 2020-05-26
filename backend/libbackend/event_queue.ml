@@ -188,7 +188,7 @@ let enqueue
       ; RoundtrippableDval data ]
 
 
-let dequeue parent transaction : expr t option =
+let dequeue (parent : Span.t) (transaction : Int63.t) : expr t option =
   Telemetry.with_span parent "dequeue" (fun parent ->
       let fetched =
         Db.fetch_one_option
@@ -387,7 +387,9 @@ let end_transaction t =
   ignore (Db.run ~name:"end_transaction" ~params:[] "COMMIT")
 
 
-let with_transaction parent f =
+(** Open a database [transaction] and run [f],in it - [f] takes both a [Span.t]
+ * (for tracing) and a [transaction] id *)
+let with_transaction (parent : Span.t) f =
   let transaction = begin_transaction () in
   let result = f parent transaction in
   end_transaction transaction ;
