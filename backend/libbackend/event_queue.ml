@@ -219,22 +219,14 @@ let dequeue parent transaction : expr t option =
             ; modifier
             ; queue_delay_ms ] ->
             log_queue_size Dequeue ~host canvas_id space name modifier ;
-            let queue_delay =
-              queue_delay_ms
-              |> float_of_string_opt
-              |> Option.map ~f:(fun flt -> [("queue_delay_ms", `Float flt)])
-              |> Option.value ~default:[]
-            in
-            Span.event
+            Span.set_attrs
               parent
-              "queue_delay"
-              ~attrs:
-                ( [ ("host", `String host)
-                  ; ("canvas_id", `String canvas_id)
-                  ; ("space", `String space)
-                  ; ("name", `String name)
-                  ; ("modifier", `String modifier) ]
-                @ queue_delay ) ;
+              [ ("queue_delay", `Float (float_of_string queue_delay_ms))
+              ; ("host", `String host)
+              ; ("canvas_id", `String canvas_id)
+              ; ("space", `String space)
+              ; ("name", `String name)
+              ; ("modifier", `String modifier) ] ;
             Some
               { id = int_of_string id
               ; value =
