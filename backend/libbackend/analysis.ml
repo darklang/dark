@@ -20,6 +20,10 @@ let unlocked (c : 'expr_type Canvas.canvas) : tlid list =
   |> List.map ~f:(fun x -> x.tlid)
 
 
+let unlocked2 (canvas_id : Uuidm.t) (account_id : Uuidm.t) : tlid list =
+  User_db.unlocked2 canvas_id account_id
+
+
 type db_stat =
   { count : int
   ; example : (fluid_expr RTT.dval * string) option }
@@ -45,7 +49,7 @@ let db_stats (c : fluid_expr Canvas.canvas) (tlids : tlid list) : db_stat_map =
 
 type worker_stat = {count : int} [@@deriving show, yojson]
 
-let worker_stats (c : fluid_expr Canvas.canvas) (tlid : tlid) : worker_stat =
+let worker_stats (canvas_id : Uuidm.t) (tlid : tlid) : worker_stat =
   let count =
     Db.fetch_one
       ~name:"count_workers"
@@ -59,7 +63,7 @@ let worker_stats (c : fluid_expr Canvas.canvas) (tlid : tlid) : worker_stat =
       WHERE TL.tlid = $1
       AND TL.canvas_id = $2
       AND E.status IN('new', 'scheduled')"
-      ~params:[Db.ID tlid; Db.Uuid c.id]
+      ~params:[Db.ID tlid; Db.Uuid canvas_id]
     |> List.hd_exn
     |> int_of_string
   in
@@ -279,8 +283,7 @@ let to_get_trace_data_rpc_result
 type get_unlocked_dbs_rpc_result = {unlocked_dbs : tlid list}
 [@@deriving to_yojson]
 
-let to_get_unlocked_dbs_rpc_result
-    (unlocked_dbs : tlid list) (c : fluid_expr Canvas.canvas) : string =
+let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) : string =
   {unlocked_dbs}
   |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true

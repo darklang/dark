@@ -540,6 +540,30 @@ let unlocked canvas_id account_id (dbs : 'expr_type db list) :
       List.filter dbs ~f:(fun db -> not (List.mem ~equal:( = ) locked db.tlid))
 
 
+let unlocked2 canvas_id account_id : tlid list =
+  (* this will need to be fixed when we allow migrations *)
+  (* Note: tl.module IS NULL means it's a db; anything else will be
+   * HTTP/REPL/CRON/WORKER or a legacy space *)
+  Db.fetch
+    ~name:"unlocked"
+    "SELECT tl.tlid
+         FROM toplevel_oplists as tl
+         LEFT JOIN user_data as ud
+         ON tl.tlid = ud.table_tlid
+         AND tl.canvas_id = ud.canvas_id
+         AND tl.account_id = ud.account_id
+         WHERE tl.canvas_id = $1
+         AND tl.account_id = $2
+         AND tl.module IS NULL
+         AND tl.deleted = $3
+         AND ud.table_tlid IS NULL
+         GROUP BY tl.tlid
+"
+    ~params:[Uuid canvas_id; Uuid account_id; Bool false]
+  |> List.map ~f:List.hd_exn
+  |> List.map ~f:id_of_string
+
+
 (* ------------------------- *)
 (* DB schema *)
 (* ------------------------- *)
