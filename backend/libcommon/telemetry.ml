@@ -65,6 +65,13 @@ module Span = struct
     List.iter attrs ~f:(fun (k, v) -> Hashtbl.set span.attributes k v)
 
 
+  (** A convenience wrapper, to make migrating off of Log.infO's  params easier
+   * *)
+  let set_str_attrs (span : t) (attrs : (string * string) list) : unit =
+    let attrs = attrs |> List.map ~f:(fun (k, v) -> (k, `String v)) in
+    List.iter attrs ~f:(fun (k, v) -> Hashtbl.set span.attributes k v)
+
+
   (** log_params returns the span data to be logged
    *
    * See https://docs.honeycomb.io/working-with-your-data/tracing/send-trace-data/#manual-tracing *)

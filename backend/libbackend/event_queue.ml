@@ -3,6 +3,7 @@ open Libexecution
 open Types
 open Types.RuntimeT
 open Libcommon
+module Span = Telemetry.Span
 
 type transaction = id
 
@@ -187,11 +188,12 @@ let enqueue
       ; RoundtrippableDval data ]
 
 
-let dequeue transaction : expr t option =
-  let fetched =
-    Db.fetch_one_option
-      ~name:"dequeue_fetch"
-      "SELECT e.id, e.value, e.retries, e.canvas_id, c.name, e.space, e.name, e.modifier,
+let dequeue parent transaction : expr t option =
+  Telemetry.with_span parent "dequeue" (fun parent ->
+      let fetched =
+        Db.fetch_one_option
+          ~name:"dequeue_fetch"
+          "SELECT e.id, e.value, e.retries, e.canvas_id, c.name, e.space, e.name, e.modifier,
          (extract(epoch from (CURRENT_TIMESTAMP - enqueued_at)) * 1000) as queue_delay_ms
        FROM events AS e
        JOIN canvases AS c ON e.canvas_id = c.id
@@ -199,53 +201,60 @@ let dequeue transaction : expr t option =
        ORDER BY e.id ASC
        FOR UPDATE OF e SKIP LOCKED
        LIMIT 1"
-      ~params:[]
-  in
-  match fetched with
-  | None ->
-      None
-  | Some
-      [ id
-      ; value
-      ; retries
-      ; canvas_id
-      ; host
-      ; space
-      ; name
-      ; modifier
-      ; queue_delay_ms ] ->
-      log_queue_size Dequeue ~host canvas_id space name modifier ;
-      let queue_delay =
-        queue_delay_ms
-        |> float_of_string_opt
-        |> Option.map ~f:(fun flt -> [("queue_delay_ms", `Float flt)])
-        |> Option.value ~default:[]
+          ~params:[]
       in
-      Log.infO
-        "queue_delay"
-        ~params:
-          [ ("host", host)
-          ; ("canvas_id", canvas_id)
-          ; ("space", space)
-          ; ("name", name)
-          ; ("modifier", modifier) ]
-        ~jsonparams:queue_delay ;
-      Some
-        { id = int_of_string id
-        ; value =
-            value |> Dval.of_internal_roundtrippable_v0 |> Fluid.dval_of_fluid
-        ; retries = int_of_string retries
-        ; canvas_id = Util.uuid_of_string canvas_id
-        ; host
-        ; space
-        ; name
-        ; modifier }
-  | Some s ->
-      Exception.internal
-        ( "Fetched seemingly impossible shape from Postgres"
-        ^ "["
-        ^ String.concat ~sep:", " s
-        ^ "]" )
+      (* This let is just here for type annotation *)
+      let result : expr t option =
+        match fetched with
+        | None ->
+            None
+        | Some
+            [ id
+            ; value
+            ; retries
+            ; canvas_id
+            ; host
+            ; space
+            ; name
+            ; modifier
+            ; queue_delay_ms ] ->
+            log_queue_size Dequeue ~host canvas_id space name modifier ;
+            let queue_delay =
+              queue_delay_ms
+              |> float_of_string_opt
+              |> Option.map ~f:(fun flt -> [("queue_delay_ms", `Float flt)])
+              |> Option.value ~default:[]
+            in
+            Span.event
+              parent
+              "queue_delay"
+              ~attrs:
+                ( [ ("host", `String host)
+                  ; ("canvas_id", `String canvas_id)
+                  ; ("space", `String space)
+                  ; ("name", `String name)
+                  ; ("modifier", `String modifier) ]
+                @ queue_delay ) ;
+            Some
+              { id = int_of_string id
+              ; value =
+                  value
+                  |> Dval.of_internal_roundtrippable_v0
+                  |> Fluid.dval_of_fluid
+              ; retries = int_of_string retries
+              ; canvas_id = Util.uuid_of_string canvas_id
+              ; host
+              ; space
+              ; name
+              ; modifier }
+        | Some s ->
+            Exception.internal
+              ( "Fetched seemingly impossible shape from Postgres"
+              ^ "["
+              ^ String.concat ~sep:", " s
+              ^ "]" )
+      in
+      result)
 
 
 (* TESTS ONLY *)
@@ -386,9 +395,9 @@ let end_transaction t =
   ignore (Db.run ~name:"end_transaction" ~params:[] "COMMIT")
 
 
-let with_transaction f =
+let with_transaction parent f =
   let transaction = begin_transaction () in
-  let result = f transaction in
+  let result = f parent transaction in
   end_transaction transaction ;
   result
 

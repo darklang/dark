@@ -67,8 +67,9 @@ let t_event_queue_is_fifo () =
   enqueue "banana" 3 ;
   enqueue "apple" 4 ;
   E.schedule_all () ;
+  let span = Telemetry.Span.root "test" in
   let check_dequeue tx i exname =
-    let evt = E.dequeue tx |> Option.value_exn in
+    let evt = E.dequeue span tx |> Option.value_exn in
     AT.check
       AT.string
       (Printf.sprintf "dequeue %d is handler %s" i exname)
@@ -79,7 +80,7 @@ let t_event_queue_is_fifo () =
     E.finish tx evt
   in
   let _ =
-    E.with_transaction (fun tx ->
+    E.with_transaction span (fun _span tx ->
         check_dequeue tx 1 "apple" ;
         check_dequeue tx 2 "apple" ;
         check_dequeue tx 3 "banana" ;

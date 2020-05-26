@@ -2,6 +2,7 @@ open Core
 open Libexecution
 open Libexecution.Types.RuntimeT
 open Types
+module Span = Libcommon.Telemetry.Span
 
 (* implementation deliberately hidden to prevent users accidentally
  * passing a variable that'll unify *)
@@ -29,11 +30,13 @@ val enqueue :
   -> unit
 
 val with_transaction :
-     (   transaction
+     Span.t
+  -> (   Span.t
+      -> transaction
       -> ('expr_type RuntimeT.dval option, Exception.captured) Result.t)
   -> ('expr_type RuntimeT.dval option, Exception.captured) Result.t
 
-val dequeue : transaction -> RuntimeT.expr t option
+val dequeue : Span.t -> transaction -> RuntimeT.expr t option
 
 val put_back :
   transaction -> 'expr_type t -> status:[`OK | `Err | `Incomplete] -> unit

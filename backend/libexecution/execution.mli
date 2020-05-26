@@ -1,4 +1,5 @@
 open Core_kernel
+module Telemetry = Libcommon.Telemetry
 
 (* ----------------- *)
 (* Input vars *)
@@ -58,6 +59,7 @@ val execute_handler :
   -> package_fns:Types.RuntimeT.expr Types.RuntimeT.fn list
   -> account_id:Uuidm.t
   -> canvas_id:Uuidm.t
+  -> ?parent:Telemetry.Span.t option
   -> ?load_fn_result:Types.RuntimeT.expr Types.RuntimeT.load_fn_result_type
   -> ?load_fn_arguments:
        Types.RuntimeT.expr Types.RuntimeT.load_fn_arguments_type
