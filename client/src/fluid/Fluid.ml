@@ -2363,6 +2363,7 @@ let updateFromACItem
   let props = astInfo.props in
   let oldExpr = FluidAST.find id ast in
   let parent = FluidAST.findParent id ast in
+  let _ = Debug.loG "updateFromACItem - R" () in
   let newAST, target =
     match (ti.token, oldExpr, parent, newPatOrExpr) with
     (* since patterns have no partial but commit as variables
@@ -2372,6 +2373,7 @@ let updateFromACItem
       , _
       , _
       , Pat newPat ) ->
+        let _ = Debug.loG "updateFromACItem - D" () in
         let newAST = replacePattern ~newPat mID pID ast in
         (newAST, newTarget)
     | ( (TPartial _ | TRightPartial _)
@@ -2390,16 +2392,19 @@ let updateFromACItem
         in
         ( match exprToReplace with
         | None ->
+            let _ = Debug.loG "updateFromACItem - A" () in
             let blank = E.newB () in
             let replacement = EPipe (gid (), [subExpr; blank]) in
             ( FluidAST.replace (E.toID oldExpr) ast ~replacement
             , caretTargetForEndOfExpr' blank )
         | Some expr when expr = subExpr ->
+            let _ = Debug.loG "updateFromACItem - B" () in
             let blank = E.newB () in
             let replacement = EPipe (gid (), [subExpr; blank]) in
             ( FluidAST.replace (E.toID oldExpr) ast ~replacement
             , caretTargetForEndOfExpr' blank )
         | Some expr ->
+            let _ = Debug.loG "updateFromACItem - C" () in
             let blank = E.newB () in
             let expr = E.replace (E.toID oldExpr) expr ~replacement:subExpr in
             let replacement = EPipe (gid (), [expr; blank]) in
@@ -2410,6 +2415,7 @@ let updateFromACItem
       , _
       , Expr (EIf (ifID, _, _, _)) ) ->
         (* when committing `if` in front of another expression, put the expr into the if condition *)
+        let _ = Debug.loG "updateFromACItem - Q" () in
         let replacement = EIf (ifID, expr, E.newB (), E.newB ()) in
         let newAST = FluidAST.replace ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' expr)
@@ -2418,24 +2424,27 @@ let updateFromACItem
       , _
       , Expr (EMatch (mID, _, pats)) ) ->
         (* when committing `match` in front of another expression, put the expr into the match condition *)
+        let _ = Debug.loG "updateFromACItem - P" () in
         let replacement = EMatch (mID, expr, pats) in
-        let newAST = FluidAST.replace ~replacement pID ast in
+        let newAST = FluidAST.replace2 ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' expr)
     | ( TLeftPartial _
       , Some (ELeftPartial (pID, _, expr))
       , _
       , Expr (ELet (letID, _, _, _)) ) ->
         (* when committing `let` in front of another expression, put the expr into the RHS *)
+        let _ = Debug.loG "updateFromACItem - O" () in
         let blank = E.newB () in
         let replacement = ELet (letID, "", expr, E.newB ()) in
         let newAST = FluidAST.replace ~replacement pID ast in
         (newAST, caretTargetForStartOfExpr' blank)
     | TPartial _, _, Some (EPipe _), Expr (EBinOp (bID, name, _, rhs, str)) ->
-        let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
+        let _ = Debug.loG "updateFromACItem - E" () in
         let newAST = FluidAST.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
     | TPartial _, Some oldExpr, Some (EPipe (_, firstExpr :: _)), Expr newExpr
       when oldExpr = firstExpr ->
+        let _ = Debug.loG "updateFromACItem - F" () in
         (* special case of the generic TPartial in EPipe case just below this:
           * when we are the first thing in the pipe, no pipe target required *)
         replacePartialWithArguments props ~newExpr id ast
@@ -2444,6 +2453,7 @@ let updateFromACItem
       , Some (EPipe _)
       , Expr (EFnCall (fnID, name, _ :: args, str)) ) ->
         let newExpr = EFnCall (fnID, name, EPipeTarget (gid ()) :: args, str) in
+        let _ = Debug.loG "updateFromACItem - G" () in
         (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
         replacePartialWithArguments props ~newExpr id ast
@@ -2451,12 +2461,14 @@ let updateFromACItem
       , Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
       , _
       , Expr (EBinOp (bID, name, _, _, str)) ) ->
+        let _ = Debug.loG "updateFromACItem - H" () in
         let replacement = EBinOp (bID, name, lhs, rhs, str) in
         let newAST = FluidAST.replace ~replacement id ast in
         (newAST, caretTargetForStartOfExpr' rhs)
     | TPartial _, _, _, Expr newExpr ->
         (* We can't use the newTarget because it might point to eg a blank
          * replaced with an argument *)
+        let _ = Debug.loG "updateFromACItem - I" () in
         replacePartialWithArguments props ~newExpr id ast
     | ( TRightPartial _
       , Some (ERightPartial (_, _, oldExpr))
@@ -2464,6 +2476,7 @@ let updateFromACItem
       , Expr (EBinOp (bID, name, _, rhs, str)) ) ->
         let replacement = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = FluidAST.replace ~replacement id ast in
+        let _ = Debug.loG "updateFromACItem - J" () in
         (newAST, caretTargetForStartOfExpr' rhs)
     | ( (TFieldName _ | TFieldPartial _ | TBlank _)
       , Some
@@ -2471,18 +2484,21 @@ let updateFromACItem
           | EPartial (_, _, EFieldAccess (faID, expr, _)) )
       , _
       , Expr (EFieldAccess (_, _, newname)) ) ->
+        let _ = Debug.loG "updateFromACItem - K" () in
         let replacement = EFieldAccess (faID, expr, newname) in
         let newAST = FluidAST.replace ~replacement id ast in
         (newAST, caretTargetForEndOfExpr' replacement)
     | _, _, _, Expr newExpr ->
-        let newAST = FluidAST.replace ~replacement:newExpr id ast in
+        let _ = Debug.loG "updateFromACItem - L" () in
         (newAST, newTarget)
     | _, _, _, Pat _ ->
+        let _ = Debug.loG "updateFromACItem - M" () in
         recover
           "updateFromACItem - unhandled pattern"
           ~debug:entry
           (ast, {astRef = ARInvalid; offset = 0})
   in
+  let _ = Debug.loG "updateFromACItem - N" () in
   astInfo
   |> ASTInfo.modifyState ~f:(fun s -> {s with ac = {s.ac with query = None}})
   |> ASTInfo.setAST newAST
@@ -2493,22 +2509,25 @@ let acEnter (ti : T.tokenInfo) (key : K.key) (astInfo : ASTInfo.t) : ASTInfo.t =
   let astInfo = recordAction "acEnter" astInfo in
   match AC.highlighted astInfo.state.ac with
   | None ->
-    ( match ti.token with
-    | TPatternVariable _ ->
-        moveToNextBlank astInfo.state.newPos astInfo
-    | TFieldPartial (partialID, _fieldAccessID, anaID, fieldname, _) ->
-        (* Accept fieldname, even if it's not in the autocomplete *)
-        FluidAST.find anaID astInfo.ast
-        |> Option.map ~f:(fun expr ->
-               let replacement = E.EFieldAccess (gid (), expr, fieldname) in
-               FluidAST.replace ~replacement partialID astInfo.ast)
-        |> Option.map ~f:(fun ast -> ASTInfo.setAST ast astInfo)
-        |> Option.withDefault ~default:astInfo
-    | _ ->
-        astInfo )
+      let _ = Debug.loG "acEnter - A" () in
+      ( match ti.token with
+      | TPatternVariable _ ->
+          moveToNextBlank astInfo.state.newPos astInfo
+      | TFieldPartial (partialID, _fieldAccessID, anaID, fieldname, _) ->
+          (* Accept fieldname, even if it's not in the autocomplete *)
+          FluidAST.find anaID astInfo.ast
+          |> Option.map ~f:(fun expr ->
+                 let replacement = E.EFieldAccess (gid (), expr, fieldname) in
+                 FluidAST.replace ~replacement partialID astInfo.ast)
+          |> Option.map ~f:(fun ast -> ASTInfo.setAST ast astInfo)
+          |> Option.withDefault ~default:astInfo
+      | _ ->
+          let _ = Debug.loG "acEnter - B" () in
+          astInfo )
   | Some (FACCreateFunction _) ->
       recover "FACNewfunction should be dealt with outside fluid.ml" astInfo
   | Some entry ->
+      let _ = Debug.loG "acEnter - C" () in
       updateFromACItem entry ti key astInfo
 
 
@@ -4092,10 +4111,12 @@ let rec updateKey
     | Keypress {key; _}, L (_, ti), _
       when isAutocompleting ti astInfo.state
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
+        let _ = Debug.loG "AC B" () in
         acEnter ti key astInfo
     | Keypress {key; _}, _, R (_, ti)
       when isAutocompleting ti astInfo.state
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key ->
+        let _ = Debug.loG "AC A" () in
         acEnter ti key astInfo
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
@@ -4673,6 +4694,7 @@ let rec updateKey
         in
         if shouldCommit
         then
+          let _ = Debug.loG "AC E" () in
           (* To calculate the new AST, try to commit the old AST with the new
            * position. *)
           let committed = commitIfValid astInfo.state.newPos ti origAstInfo in
