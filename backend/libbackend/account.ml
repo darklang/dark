@@ -465,26 +465,19 @@ let upsert_admins () : unit =
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWjdFdjJlZ2ZmMnZRaFhjQWlpOWlPZyRrL2F1bGFEU0tra3BQMmNKTHF6S3NaU3d5WXdmWm1pNkQ4Yy96alJrT3YwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "dean@darklang.com"
     ; name = "Dean Strelau" } ;
-  (* dark contractors *)
-  (* upsert_account_exn *)
-  (*   { username = "lizzie" *)
-  (*   ; password = *)
-  (*       "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWTNueDFWQUFYRWpLMjJGclcwMjU2ZyRYVDQxUGtGNnYyM1E4L0MrSUZITlNXNi8wUGN4TFdEbkRMZ0xVdHN2bHJZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" *)
-  (*   ; email = "_@lizzie.io" *)
-  (*   ; name = "Lizzie Dixon" } ; *)
   ()
 
 
 (* accounts to create namespaces for dark canvases *)
 let upsert_useful_canvases () : unit =
   (* Needed for tests *)
-  upsert_admin_exn
+  upsert_account_exn
     ~validate:false
     { username = "sample"
     ; password = Password.invalid
-    ; email = "nouser@example.com"
+    ; email = "ops+sample@darklang.com"
     ; name = "Sample Owner" } ;
-  upsert_admin_exn
+  upsert_account_exn
     ~validate:false
     { username = "dark"
     ; password = Password.invalid
