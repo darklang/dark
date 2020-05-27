@@ -4,6 +4,8 @@ open Types
 open Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
+module Span = Libcommon.Telemetry.Span
+module Telemetry = Libcommon.Telemetry
 
 (* -------------------- *)
 (* Input_vars *)
@@ -99,49 +101,59 @@ let execute_handler
     ~package_fns
     ~account_id
     ~canvas_id
+    ?(parent = (None : Span.t option))
     ?(load_fn_result = load_no_results)
     ?(load_fn_arguments = load_no_arguments)
     ?(store_fn_result = store_no_results)
     ?(store_fn_arguments = store_no_arguments)
     (h : RuntimeT.expr HandlerT.handler) : RuntimeT.expr dval * tlid list =
-  let input_vars = dbs_as_input_vars dbs @ input_vars in
-  let tlid_store = TLIDTable.create () in
-  let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  let state : 'expr_type exec_state =
-    { tlid
-    ; callstack = Tc.StrSet.empty
-    ; account_id
-    ; canvas_id
-    ; user_fns
-    ; user_tipes
-    ; package_fns
-    ; dbs
-    ; trace = (fun ~on_execution_path _ _ -> ())
-    ; trace_tlid
-    ; on_execution_path = true
-    ; exec =
-        (fun ~state _ _ -> Exception.internal "invalid state.exec function")
-    ; context = Real
-    ; execution_id
-    ; fail_fn = None
-    ; executing_fnname = ""
-    ; load_fn_result
-    ; load_fn_arguments
-    ; store_fn_result
-    ; store_fn_arguments }
+  let f unit =
+    let input_vars = dbs_as_input_vars dbs @ input_vars in
+    let tlid_store = TLIDTable.create () in
+    let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
+    let state : 'expr_type exec_state =
+      { tlid
+      ; callstack = Tc.StrSet.empty
+      ; account_id
+      ; canvas_id
+      ; user_fns
+      ; user_tipes
+      ; package_fns
+      ; dbs
+      ; trace = (fun ~on_execution_path _ _ -> ())
+      ; trace_tlid
+      ; on_execution_path = true
+      ; exec =
+          (fun ~state _ _ -> Exception.internal "invalid state.exec function")
+      ; context = Real
+      ; execution_id
+      ; fail_fn = None
+      ; executing_fnname = ""
+      ; load_fn_result
+      ; load_fn_arguments
+      ; store_fn_result
+      ; store_fn_arguments }
+    in
+    let result = Ast.execute_ast ~state ~input_vars h.ast in
+    let tlids = TLIDTable.keys tlid_store in
+    match result with
+    | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
+        (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"), tlids)
+    | DErrorRail _ ->
+        ( DResp
+            ( Response (500, [])
+            , Dval.dstr_of_string_exn "Invalid conversion from errorrail" )
+        , tlids )
+    | dv ->
+        (dv, tlids)
   in
-  let result = Ast.execute_ast ~state ~input_vars h.ast in
-  let tlids = TLIDTable.keys tlid_store in
-  match result with
-  | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
-      (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"), tlids)
-  | DErrorRail _ ->
-      ( DResp
-          ( Response (500, [])
-          , Dval.dstr_of_string_exn "Invalid conversion from errorrail" )
-      , tlids )
-  | dv ->
-      (dv, tlids)
+  (* Wrapping here b/c we call execute_handler in a lot of places, I'm not yet
+   * ready to instrument all of them *)
+  match parent with
+  | None ->
+      f ()
+  | Some parent ->
+      Telemetry.with_span parent "execute_handler" (fun _parent -> f ())
 
 
 let execute_function

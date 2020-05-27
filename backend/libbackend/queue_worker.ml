@@ -5,45 +5,57 @@ open Types
 module RTT = Types.RuntimeT
 module C = Canvas
 module TL = Toplevel
+module Span = Telemetry.Span
 
 let dequeue_and_process execution_id :
     (RTT.expr RTT.dval option, Exception.captured) Result.t =
-  Event_queue.with_transaction (fun transaction ->
+  let root = Span.root "dequeue_and_process" in
+  Event_queue.with_transaction root (fun parent transaction ->
       let event =
-        try Ok (Event_queue.dequeue transaction)
+        try Ok (Event_queue.dequeue parent transaction)
         with e ->
           (* exception occurred while dequeuing,
          * no item to put back *)
           let bt = Exception.get_backtrace () in
-          Log.erroR "Exception while dequeueing" ;
-          (* execution_id will be in this log *)
+          Span.event parent "Exception while dequeueing" ;
           Error (bt, e, [])
       in
       event
       |> Result.bind ~f:(fun event ->
              match event with
              | None ->
-                 Log.infO "queue_worker" ~data:"No events in queue" ;
+                 Span.set_attr parent "event_queue.no_events" (`Bool true) ;
                  Ok None
              | Some event ->
                  let c =
-                   try
-                     Canvas.load_for_event_from_cache event
-                     |> Result.map_error ~f:(String.concat ~sep:", ")
-                     |> Prelude.Result.ok_or_internal_exception
-                          "Canvas load error"
-                     (* This is a little silly, we could just return the error,
+                   (* Telemetry.with_span might belong inside
+                    * Canvas.load_for_event_with_cache, but then so would the
+                    * error handling ... this mmay want a refactor *)
+                   Telemetry.with_span
+                     parent
+                     "Canvas.load_for_event_from_cache"
+                     (fun parent ->
+                       try
+                         Canvas.load_for_event_from_cache event
+                         |> Result.map_error ~f:(String.concat ~sep:", ")
+                         |> Prelude.Result.ok_or_internal_exception
+                              "Canvas load error"
+                         (* This is a little silly, we could just return the error,
                    * maybe? *)
-                     |> Ok
-                   with e ->
-                     (* exception occurred when processing an item,
-                      * so put it back as an error *)
-                     let bt = Exception.get_backtrace () in
-                     ignore
-                       (Event_queue.put_back transaction event ~status:`Err) ;
-                     Log.erroR "Exception while loading canvas" ;
-                     (* execution_id will be in this log *)
-                     Error (bt, e, [])
+                         |> fun canvas ->
+                         Span.set_attr
+                           parent
+                           "load_event_succeeded"
+                           (`Bool true) ;
+                         Ok canvas
+                       with e ->
+                         (* exception occurred when processing an item,
+                          * so put it back as an error *)
+                         let bt = Exception.get_backtrace () in
+                         ignore
+                           (Event_queue.put_back transaction event ~status:`Err) ;
+                         Span.set_attr parent "event.load_success" (`Bool false) ;
+                         Error (bt, e, []))
                  in
                  c
                  |> Result.bind ~f:(fun c ->
@@ -82,13 +94,12 @@ let dequeue_and_process execution_id :
                               in
                               match h with
                               | None ->
-                                  Log.infO
-                                    "queue_worker"
-                                    ~data:"No handler for event"
-                                    ~params:
-                                      [ ("host", host)
-                                      ; ("event", Log.dump desc)
-                                      ; ("event_id", string_of_int event.id) ] ;
+                                  Span.set_attrs
+                                    parent
+                                    [ ("host", `String host)
+                                    ; ("event", `String (Log.dump desc))
+                                    ; ( "event_id"
+                                      , `String (string_of_int event.id) ) ] ;
                                   let space, name, modifier = desc in
                                   Stroller.push_new_404
                                     ~execution_id
@@ -104,17 +115,18 @@ let dequeue_and_process execution_id :
                                     `Incomplete ;
                                   Ok None
                               | Some h ->
-                                  Log.infO
-                                    "queue_worker"
-                                    ~data:"Executing handler for event"
-                                    ~params:
-                                      [ ("event", Log.dump desc)
-                                      ; ("host", host)
-                                      ; ("event_id", string_of_int event.id)
-                                      ; ("handler_id", Types.string_of_id h.tlid)
-                                      ] ;
+                                  Span.set_attrs
+                                    parent
+                                    [ ("event", `String (Log.dump desc))
+                                    ; ("host", `String host)
+                                    ; ( "event_id"
+                                      , `String (string_of_int event.id) )
+                                    ; ( "handler_id"
+                                      , `String (Types.string_of_id h.tlid) ) ] ;
+
                                   let result, touched_tlids =
                                     Execution.execute_handler
+                                      ~parent:(Some parent)
                                       h
                                       ~execution_id
                                       ~tlid:h.tlid
@@ -158,20 +170,19 @@ let dequeue_and_process execution_id :
                                     | _ ->
                                         r |> Dval.tipe_of |> Dval.tipe_to_string
                                   in
-                                  Log.infO
-                                    "queue_worker"
-                                    ~data:"Successful execution"
-                                    ~params:
-                                      [ ("host", host)
-                                      ; ("event", Log.dump desc)
-                                      ; ("event_id", string_of_int event.id)
-                                      ; ("handler_id", Types.string_of_id h.tlid)
-                                      ; ("result_type", result_tipe result) ] ;
+                                  Span.set_attrs
+                                    parent
+                                    [ ( "result_tipe"
+                                      , `String (result_tipe result) )
+                                    ; ("event.execution_success", `Bool true) ] ;
                                   Event_queue.finish transaction event ;
                                   Ok (Some result)
                             with e ->
                               (* exception occurred when processing an item,
              * so put it back as an error *)
+                              Span.set_attrs
+                                parent
+                                [("event.execution_success", `Bool false)] ;
                               let bt = Exception.get_backtrace () in
                               ignore
                                 ( try
@@ -180,13 +191,17 @@ let dequeue_and_process execution_id :
                                       event
                                       ~status:`Err
                                   with e ->
-                                    Log.erroR
-                                      "Unhandled
-exception in Event_queue.put_back"
-                                      ~data:
-                                        (Libexecution.Exception.exn_to_string e)
+                                    Span.set_attr
+                                      parent
+                                      "error.msg"
+                                      (`String
+                                        (Libexecution.Exception.exn_to_string e))
                                 ) ;
-                              let log_params = Log.current_log_annotations () in
+                              let log_params =
+                                List.append
+                                  (Log.current_log_annotations ())
+                                  (Span.log_params parent)
+                              in
                               Error (bt, e, log_params)))))
 
 
