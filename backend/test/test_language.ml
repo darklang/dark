@@ -396,6 +396,35 @@ let t_typechecker_error_isnt_wrapped_by_errorail () =
           false)
 
 
+let t_typechecker_return_types () =
+  let open Libshared.FluidShortcuts in
+  let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (f (Value "5")) in
+  check_condition
+    "typecheck userfn with bad return type"
+    (exec_ast' ~ops:[fop myBadFn] (fn "myBadFn" []))
+    ~f:(function
+      | DError
+          ( SourceId _
+          , "Type error(s) in return type: Expected to see a value of type Str but found a Int"
+          ) ->
+          true
+      | _ ->
+          false) ;
+  let myGoodFn =
+    user_fn "myGoodFn" ~return_type:TStr [] (f (Value "\"str\""))
+  in
+  check_dval
+    "typecheck userfn with good return type"
+    (exec_ast' ~ops:[fop myGoodFn] (fn "myGoodFn" []))
+    (Dval.dstr_of_string_exn "str") ;
+  let myAnyFn = user_fn "myAnyFn" ~return_type:TAny [] (f (Value "5")) in
+  check_dval
+    "typecheck userfn with any return type"
+    (exec_ast' ~ops:[fop myAnyFn] (fn "myAnyFn" []))
+    (Dval.dint 5) ;
+  ()
+
+
 let t_int_functions_works () =
   check_condition
     "Int::random_v1 0 3 returns a number between [0,3]"
@@ -557,6 +586,7 @@ let suite =
   ; ( "Type checking error isn't wrapped by error rail"
     , `Quick
     , t_typechecker_error_isnt_wrapped_by_errorail )
+  ; ("Type checkingfor return types", `Quick, t_typechecker_return_types)
   ; ( "Error rail is propagated by functions"
     , `Quick
     , t_error_rail_is_propagated_by_functions )

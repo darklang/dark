@@ -22,10 +22,18 @@ module Error : sig
         ; actual_fields : String.Set.t }
 
   val to_string : 'expr_type t -> string
+
+  val list_to_string : 'expr_type t list -> string
 end
 
 val check_function_call :
      user_tipes:user_tipe list
   -> 'expr_type fn
   -> 'expr_type dval_map
+  -> (unit, 'expr_type Error.t list) Result.t
+
+val check_function_return_type :
+     user_tipes:user_tipe list
+  -> 'expr_type fn
+  -> 'expr_type dval
   -> (unit, 'expr_type Error.t list) Result.t

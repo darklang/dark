@@ -714,6 +714,19 @@ and exec_fn
     (id : id)
     (fn : 'expr_type fn)
     (args : 'expr_type dval_map) : 'expr_type dval =
+  let sourceId id = SourceId (state.tlid, id) in
+  let type_error_or_value ~user_tipes result =
+    (* https://www.notion.so/darklang/What-should-happen-when-the-return-type-is-wrong-533f274f94754549867fefc554f9f4e3 *)
+    match Type_checker.check_function_return_type ~user_tipes fn result with
+    | Ok () ->
+        result
+    | Error errs ->
+        DError
+          ( sourceId id
+          , "Type error(s) in return type: "
+            ^ Type_checker.Error.list_to_string errs )
+  in
+
   if state.context = Preview
      && (not state.on_execution_path)
      && Tc.StrSet.member state.callstack ~value:fnname
@@ -727,7 +740,6 @@ and exec_fn
         executing_fnname = fnname
       ; callstack = Tc.StrSet.add fnname state.callstack }
     in
-    let sourceId id = SourceId (state.tlid, id) in
     let arglist =
       fn.parameters
       |> List.map ~f:(fun (p : param) -> p.name)
@@ -806,29 +818,31 @@ and exec_fn
               | Preview, None when fn.preview_safety <> Safe ->
                   DIncomplete (sourceId id)
               | _ ->
-                  (* It's okay to execute user functions in both Preview and Real contexts,
-                  * But in Preview we might not have all the data we need *)
-                  (* TODO: We don't munge `state.tlid` like we do in UserCreated, which means
-                * there might be `id` collisions between AST nodes. Munging `state.tlid` would not
-                * save us from tlid collisions either. tl;dr, executing a package function may result
-                * in trace data being associated with the wrong handler/call site. *)
+                  (* It's okay to execute user functions in both Preview and
+                   * Real contexts, But in Preview we might not have all the
+                   * data we need *)
+                  (* TODO: We don't munge `state.tlid` like we do in
+                   * UserCreated, which means there might be `id` collisions between
+                   * AST nodes. Munging `state.tlid` would not save us from tlid
+                   * collisions either. tl;dr, executing a package function may result
+                   * in trace data being associated with the wrong handler/call site.
+                   * *)
                   let result = exec ~state args_with_dbs body in
                   state.store_fn_result sfr_desc arglist result ;
-                  Dval.unwrap_from_errorrail result
+                  result
+                  |> Dval.unwrap_from_errorrail
+                  |> type_error_or_value ~user_tipes:[]
             in
+
             (* there's no point storing data we'll never ask for *)
             if fn.preview_safety <> Safe
             then state.store_fn_result sfr_desc arglist result ;
             result
         | Error errs ->
-            let error_msgs =
-              errs
-              |> List.map ~f:Type_checker.Error.to_string
-              |> String.concat ~sep:", "
-            in
             DError
               ( sourceId id
-              , "Type error(s) in function parameters: " ^ error_msgs ) )
+              , "Type error(s) in function parameters: "
+                ^ Type_checker.Error.list_to_string errs ) )
       | UserCreated (tlid, body) ->
         ( match
             Type_checker.check_function_call
@@ -849,16 +863,15 @@ and exec_fn
                 let state = {state with tlid} in
                 let result = exec ~state args_with_dbs body in
                 state.store_fn_result sfr_desc arglist result ;
-                Dval.unwrap_from_errorrail result )
+
+                result
+                |> Dval.unwrap_from_errorrail
+                |> type_error_or_value ~user_tipes:state.user_tipes )
         | Error errs ->
-            let error_msgs =
-              errs
-              |> List.map ~f:Type_checker.Error.to_string
-              |> String.concat ~sep:", "
-            in
             DError
               ( sourceId id
-              , "Type error(s) in function parameters: " ^ error_msgs ) )
+              , "Type error(s) in function parameters: "
+                ^ Type_checker.Error.list_to_string errs ) )
       | API f ->
           f args )
 
