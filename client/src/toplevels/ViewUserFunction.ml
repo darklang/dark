@@ -154,6 +154,13 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
       ; viewUserFnName vp ~classes:["fn-name-content"] titleText
       ; executeBtn ]
   in
+  let docstringRow =
+    Html.textarea
+      [ Html.id "fndocstring"
+      ; Html.placeholder "What does this function do?"
+      ; Vdom.prop "rows" "3" ]
+      [Html.text ""]
+  in
   let paramRows =
     Html.div
       [Html.id "fnparams"; Html.class' "params"]
@@ -180,7 +187,9 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
             returnType ]
     else Vdom.noNode
   in
-  Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
+  Html.div
+    [Html.class' "fn-header"]
+    [titleRow; docstringRow; paramRows; returnRow]
 
 
 let view (vp : viewProps) (fn : functionTypes) : msg Html.html =

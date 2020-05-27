@@ -156,6 +156,15 @@
     }
   }
 
+  #fndocstring {
+    width: 100%;
+    color: $grey3;
+    background-color: $black1;
+    font-size: $code-font-size;
+    resize: none;
+    padding: 0.5rem;
+  }
+
   #fnreturn {
     margin-top: 0.5em;
 
