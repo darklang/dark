@@ -1344,7 +1344,10 @@ test("exe_flow_fades", async t => {
   const timestamp = new Date();
   await t.click(".fluid-entry");
   awaitAnalysis(t, timestamp);
-  await t.expect(Selector(".fluid-not-executed").exists).ok();
+  // wait up to 1000ms for this selector to appear
+  await t
+    .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
+    .ok();
 });
 
 test("unexe_code_unfades_on_focus", async t => {
