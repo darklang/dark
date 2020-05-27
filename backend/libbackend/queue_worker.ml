@@ -9,12 +9,11 @@ module Span = Telemetry.Span
 
 let dequeue_and_process execution_id :
     (RTT.expr RTT.dval option, Exception.captured) Result.t =
-  let root = Span.root "dequeue_and_process" in
-  Span.set_attr
-    root
-    "meta.process_id"
-    (`Intlit (execution_id |> Int63.to_string)) ;
-  protectx root ~finally:Span.finish ~f:(fun span ->
+  Telemetry.with_root "dequeue_and_process" (fun span ->
+      Span.set_attr
+        span
+        "meta.process_id"
+        (`Intlit (execution_id |> Int63.to_string)) ;
       Event_queue.with_transaction span (fun parent transaction ->
           let event =
             try Ok (Event_queue.dequeue parent transaction)

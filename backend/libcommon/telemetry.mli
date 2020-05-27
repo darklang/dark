@@ -17,10 +17,6 @@ module Span : sig
 
   val event : ?attrs:(string * Yojson.Safe.t) list -> t -> string -> unit
 
-  val root : string -> t
-
-  val finish : t -> unit
-
   val log_params : t -> (string * Yojson.Safe.t) list
 end
 
@@ -30,3 +26,6 @@ val with_span :
   -> ?attrs:(string * Yojson.Safe.t) list
   -> (Span.t -> 'a)
   -> 'a
+
+val with_root :
+  string -> ?attrs:(string * Yojson.Safe.t) list -> (Span.t -> 'a) -> 'a

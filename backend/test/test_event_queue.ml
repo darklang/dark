@@ -67,8 +67,7 @@ let t_event_queue_is_fifo () =
   enqueue "banana" 3 ;
   enqueue "apple" 4 ;
   E.schedule_all () ;
-  let span = Telemetry.Span.root "test" in
-  let check_dequeue tx i exname =
+  let check_dequeue span tx i exname =
     let evt = E.dequeue span tx |> Option.value_exn in
     AT.check
       AT.string
@@ -80,12 +79,13 @@ let t_event_queue_is_fifo () =
     E.finish tx evt
   in
   let _ =
-    E.with_transaction span (fun _span tx ->
-        check_dequeue tx 1 "apple" ;
-        check_dequeue tx 2 "apple" ;
-        check_dequeue tx 3 "banana" ;
-        check_dequeue tx 4 "apple" ;
-        Ok (Some DNull))
+    Telemetry.with_root "test" (fun span ->
+        E.with_transaction span (fun span tx ->
+            check_dequeue span tx 1 "apple" ;
+            check_dequeue span tx 2 "apple" ;
+            check_dequeue span tx 3 "banana" ;
+            check_dequeue span tx 4 "apple" ;
+            Ok (Some DNull)))
   in
   ()
 
@@ -95,10 +95,10 @@ let t_event_queue_is_fifo () =
 (* ------------------- *)
 
 let t_cron_fetch_active_crons () =
-  let span = Telemetry.Span.root "test fetch_active_crons" in
-  (*  Just checking that this doesn't raise *)
-  Serialize.fetch_active_crons span |> ignore ;
-  ()
+  Telemetry.with_root "test" (fun span ->
+      Serialize.fetch_active_crons span
+      (* Just checking that this doesn't raise *)
+      |> ignore)
 
 
 let t_cron_sanity () =
@@ -116,7 +116,8 @@ let t_cron_sanity () =
   in
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check (Telemetry.Span.root "test") cron_schedule_data
+    Telemetry.with_root "test" (fun span ->
+        Cron.execution_check span cron_schedule_data)
   in
   AT.check AT.bool "should_execute should be true" should_execute true ;
   ()
@@ -138,7 +139,8 @@ let t_cron_just_ran () =
   Cron.record_execution cron_schedule_data ;
   let ({should_execute; scheduled_run_at; interval}
         : Libbackend.Cron.execution_check_type) =
-    Cron.execution_check (Telemetry.Span.root "test") cron_schedule_data
+    Telemetry.with_root "test" (fun span ->
+        Cron.execution_check span cron_schedule_data)
   in
   AT.check AT.bool "should_execute should be false" should_execute false ;
   ()
