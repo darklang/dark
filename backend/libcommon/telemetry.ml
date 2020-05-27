@@ -124,3 +124,16 @@ let with_span
   let span = Span.from_parent name parent in
   Span.set_attrs span attrs ;
   protectx span ~f ~finally:Span.finish
+
+
+(** with_root is a helper for wrapping a function call in a root span - as when
+ * you are starting a new trace. It calls the given function [f] with a newly
+ * created root span, ensuring a call to [finish] after the function returns.
+ * *)
+let with_root
+    (name : string)
+    ?(attrs : (string * Yojson.Safe.t) list = [])
+    (f : Span.t -> 'a) : 'a =
+  let span = Span.root name in
+  Span.set_attrs span attrs ;
+  protectx span ~f ~finally:Span.finish

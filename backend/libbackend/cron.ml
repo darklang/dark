@@ -207,10 +207,10 @@ let check_and_schedule_work_for_crons
   * work to execute it if necessary. *)
 let check_and_schedule_work_for_all_crons (pid : int) :
     (unit, Exception.captured) Result.t =
-  let span = Span.root "Cron.check_and_schedule_work_for_all_crons" in
-  Span.set_attr span "meta.process_id" (`Int pid) ;
-
-  protectx span ~finally:Span.finish ~f:(fun span ->
+  Telemetry.with_root
+    "Cron.check_and_schedule_work_for_all_crons"
+    ~attrs:[("meta.process_id", `Int pid)]
+    (fun span ->
       let all_crons =
         if String.Caseless.equal
              Libservice.Config.postgres_settings.dbname

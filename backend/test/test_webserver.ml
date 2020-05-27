@@ -154,14 +154,15 @@ let t_head_and_get_requests_are_coalesced () =
        let test_id = Types.id_of_int 1234 in
        let canvas = setup_canvas () in
        let%lwt resp, body =
-         Webserver.canvas_handler
-           ~execution_id:test_id
-           ~canvas:!canvas.host
-           ~ip:""
-           ~uri:(req |> Req.uri)
-           ~body:""
-           (Telemetry.Span.root "test")
-           req
+         Telemetry.with_root "test" (fun span ->
+             Webserver.canvas_handler
+               ~execution_id:test_id
+               ~canvas:!canvas.host
+               ~ip:""
+               ~uri:(req |> Req.uri)
+               ~body:""
+               span
+               req)
        in
        let code = resp |> Resp.status |> Code.code_of_status in
        let body_string = Cohttp_lwt__.Body.to_string body |> Lwt_main.run in
@@ -211,13 +212,14 @@ let t_authenticate_then_handle_code_and_cookie () =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt resp, _ =
-         Webserver.authenticate_then_handle
-           ~execution_id:test_id
-           (Telemetry.Span.root "test")
-           (fun ~session ~csrf_token span req ->
-             Webserver.respond ~execution_id:test_id span `OK "test handler")
-           req
-           body
+         Telemetry.with_root "test" (fun span ->
+             Webserver.authenticate_then_handle
+               ~execution_id:test_id
+               span
+               (fun ~session ~csrf_token span req ->
+                 Webserver.respond ~execution_id:test_id span `OK "test handler")
+               req
+               body)
        in
        let code = resp |> Resp.status |> Code.code_of_status in
        let redirect =
@@ -300,13 +302,14 @@ let t_check_csrf_then_handle () =
     Lwt_main.run
       (let%lwt () = Nocrypto_entropy_lwt.initialize () in
        let%lwt resp, _ =
-         Webserver.check_csrf_then_handle
-           ~execution_id:test_id
-           ~session:test_session
-           (Telemetry.Span.root "test")
-           (fun span req ->
-             Webserver.respond ~execution_id:test_id span `OK "test handler")
-           req
+         Telemetry.with_root "test" (fun span ->
+             Webserver.check_csrf_then_handle
+               ~execution_id:test_id
+               ~session:test_session
+               span
+               (fun span req ->
+                 Webserver.respond ~execution_id:test_id span `OK "test handler")
+               req)
        in
        resp |> Resp.status |> Code.code_of_status |> return)
   in
@@ -341,14 +344,15 @@ let admin_handler_code
      in
      let%lwt () = Nocrypto_entropy_lwt.initialize () in
      let%lwt resp, _ =
-       Webserver.admin_handler
-         ~execution_id:test_id
-         ~uri
-         ~body
-         ~session
-         ~csrf_token:(Auth.SessionLwt.csrf_token_for session)
-         (Telemetry.Span.root "test")
-         (Req.make ~meth ~headers uri)
+       Telemetry.with_root "test" (fun span ->
+           Webserver.admin_handler
+             ~execution_id:test_id
+             ~uri
+             ~body
+             ~session
+             ~csrf_token:(Auth.SessionLwt.csrf_token_for session)
+             span
+             (Req.make ~meth ~headers uri))
      in
      resp |> Resp.status |> Code.code_of_status |> return)
 
@@ -399,14 +403,15 @@ let t_head_and_get_requests_are_coalesced () =
        let test_id = Types.id_of_int 1234 in
        let canvas = setup_canvas () in
        let%lwt resp, body =
-         Webserver.canvas_handler
-           ~execution_id:test_id
-           ~canvas:!canvas.host
-           ~ip:""
-           ~uri:(req |> Req.uri)
-           ~body:""
-           (Telemetry.Span.root "test")
-           req
+         Telemetry.with_root "test" (fun span ->
+             Webserver.canvas_handler
+               ~execution_id:test_id
+               ~canvas:!canvas.host
+               ~ip:""
+               ~uri:(req |> Req.uri)
+               ~body:""
+               span
+               req)
        in
        let code = resp |> Resp.status |> Code.code_of_status in
        let body_string = Cohttp_lwt__.Body.to_string body |> Lwt_main.run in
@@ -454,17 +459,18 @@ let t_http_request_redirects () =
        let test_id = Types.id_of_int 1234 in
        ignore (setup_canvas ()) ;
        let%lwt resp, body =
-         Webserver.callback
-           (Telemetry.Span.root "test")
-           ~k8s_callback:(fun _ ~execution_id ->
-             Cohttp_lwt_unix.Server.respond_string
-               ~status:(Cohttp.Code.status_of_code 911)
-               ~body:""
-               ())
-           ""
-           req
-           ""
-           test_id
+         Telemetry.with_root "test" (fun span ->
+             Webserver.callback
+               span
+               ~k8s_callback:(fun _ ~execution_id ->
+                 Cohttp_lwt_unix.Server.respond_string
+                   ~status:(Cohttp.Code.status_of_code 911)
+                   ~body:""
+                   ())
+               ""
+               req
+               ""
+               test_id)
        in
        resp |> Resp.status |> Code.code_of_status |> return)
   in
@@ -501,11 +507,11 @@ let t_is_canvas_name_valid () =
 
 
 let t_is_service_name_valid () =
-  let span = Telemetry.Span.root "test" in
   let service =
-    Telemetry.Span.log_params span
-    |> List.find ~f:(fun (k, _) -> k = "service_name")
-    |> Option.bind ~f:(function _, `String s -> Some s | _ -> None)
+    Telemetry.with_root "test" (fun span ->
+        Telemetry.Span.log_params span
+        |> List.find ~f:(fun (k, _) -> k = "service_name")
+        |> Option.bind ~f:(function _, `String s -> Some s | _ -> None))
   in
   AT.check
     (AT.option AT.string)
