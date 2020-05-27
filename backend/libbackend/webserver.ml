@@ -958,7 +958,8 @@ let initial_load
           (c, op_ctrs))
     in
     let t2, unlocked =
-      time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
+      time "2-analyze-unlocked-dbs" (fun _ ->
+          Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
     in
     let t3, assets =
       time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
@@ -1029,7 +1030,8 @@ let execute_function
           ~args:(List.map ~f:Libexecution.Fluid.dval_of_fluid params.args))
   in
   let t4, unlocked =
-    time "4-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
+    time "4-analyze-unlocked-dbs" (fun _ ->
+        Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
   in
   let t5, response =
     time "5-to-frontend" (fun _ ->
@@ -1317,7 +1319,7 @@ let get_unlocked_dbs
           let canvas_id, account_id =
             Canvas.id_and_account_id_for_name_exn host
           in
-          Analysis.unlocked canvas_id account_id)
+          Analysis.unlocked ~canvas_id ~account_id)
     in
     let t2, result =
       time "2-to-frontend" (fun _ ->
