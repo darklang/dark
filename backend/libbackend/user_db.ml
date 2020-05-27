@@ -521,7 +521,7 @@ let stats_count ~account_id ~canvas_id (db : 'expr_type db) : int =
  * pass in a whole canvas and get [canvas_id] and [account_id] from that, but
  * that would require loading the canvas, which is undesirable for performance
  * reasons *)
-let unlocked ~(canvas_id:Uuidm.t) ~(account_id:Uuidm.t) : tlid list =
+let unlocked ~(canvas_id : Uuidm.t) ~(account_id : Uuidm.t) : tlid list =
   (* this will need to be fixed when we allow migrations *)
   (* Note: tl.module IS NULL means it's a db; anything else will be
    * HTTP/REPL/CRON/WORKER or a legacy space *)
@@ -536,11 +536,11 @@ let unlocked ~(canvas_id:Uuidm.t) ~(account_id:Uuidm.t) : tlid list =
          WHERE tl.canvas_id = $1
          AND tl.account_id = $2
          AND tl.module IS NULL
-         AND tl.deleted = $3
+         AND tl.deleted = false
          AND ud.table_tlid IS NULL
          GROUP BY tl.tlid
 "
-    ~params:[Uuid canvas_id; Uuid account_id; Bool false]
+    ~params:[Uuid canvas_id; Uuid account_id]
   |> List.map ~f:List.hd_exn
   |> List.map ~f:id_of_string
 
