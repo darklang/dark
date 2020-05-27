@@ -164,6 +164,7 @@ let setFluidSelectionRange (beginIdx : int) (endIdx : int) : unit =
   Dom.document
   |> Document.querySelector ".selected #active-editor"
   |> recoverOption
+       ~sendToRollbar:false
        "setFluidSelectionRange querySelector failed to find #active-editor"
   |> Option.andThen ~f:(fun editor ->
          let maxChars = editor |> Element.textContent |> String.length in
