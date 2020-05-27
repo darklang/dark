@@ -513,6 +513,14 @@ let stats_count ~account_id ~canvas_id (db : 'expr_type db) : int =
   |> int_of_string
 
 
+(** Given a [canvas_id] and an [account_id], return tlids for all unlocked databases -
+ * a database is unlocked if it has no records, and thus its schema can be
+ * changed without a migration.
+ *
+ * [account_id] is needed here because we'll use it in the DB JOIN; we could
+ * pass in a whole canvas and get [canvas_id] and [account_id] from that, but
+ * that would require loading the canvas, which is undesirable for performance
+ * reasons *)
 let unlocked canvas_id account_id : tlid list =
   (* this will need to be fixed when we allow migrations *)
   (* Note: tl.module IS NULL means it's a db; anything else will be

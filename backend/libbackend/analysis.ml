@@ -13,6 +13,10 @@ module SA = Static_assets
 (* Non-execution analysis *)
 (* ------------------------- *)
 
+(** Given a [canvas_id] and an [account_id], return tlids for all unlocked databases -
+ * a database is unlocked if it has no records, and thus its schema can be
+ * changed without a migration.
+ *)
 let unlocked (canvas_id : Uuidm.t) (account_id : Uuidm.t) : tlid list =
   User_db.unlocked canvas_id account_id
 
