@@ -19,8 +19,6 @@ let toVariantTest (s : string) : variantTest option =
       Some NgrokVariant
   | "lpartial" ->
       Some LeftPartialVariant
-  | "fnreturn" ->
-      Some FnReturnVariant
   | _ ->
       None
 
@@ -36,15 +34,11 @@ let nameOf (vt : variantTest) : string =
       "localhost-assets"
   | LeftPartialVariant ->
       "lpartial"
-  | FnReturnVariant ->
-      "fnreturn"
 
 
 let toCSSClass (vt : variantTest) : string = nameOf vt ^ "-variant"
 
-let availableAdminVariants : variantTest list =
-  [FnReturnVariant; NgrokVariant; GroupVariant]
-
+let availableAdminVariants : variantTest list = [NgrokVariant; GroupVariant]
 
 let activeCSSClasses (m : model) : string =
   m.tests |> List.map ~f:toCSSClass |> String.join ~sep:" "
@@ -52,7 +46,7 @@ let activeCSSClasses (m : model) : string =
 
 let enabledVariantTests (isAdmin : bool) : variantTest list =
   (* admins have these enabled by default, but can opt-out via query param *)
-  let init = if isAdmin then [FnReturnVariant] else [] in
+  let init = if isAdmin then [] else [] in
   Url.queryParams ()
   (* convert a (string * bool) list to a (variantTest * bool) list,
    * ignoring any unknown query params *)

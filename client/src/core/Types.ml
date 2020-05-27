@@ -1413,7 +1413,6 @@ and variantTest =
   | GroupVariant
   | NgrokVariant
   | LeftPartialVariant
-  | FnReturnVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
