@@ -8,19 +8,23 @@ type analysisID = UnsharedTypes.analysisID
 val gid : unit -> UnsharedTypes.id
 
 module Recover : sig
-  val recover : ?debug:'d -> string -> 'r -> 'r
+  val recover : ?sendToRollbar:bool -> ?debug:'d -> string -> 'r -> 'r
 
-  val recoverOpt : ?debug:'d -> string -> default:'r -> 'r option -> 'r
+  val recoverOpt :
+    ?sendToRollbar:bool -> ?debug:'d -> string -> default:'r -> 'r option -> 'r
 
-  val recoverOption : ?debug:'d -> string -> 'r option -> 'r option
+  val recoverOption :
+    ?sendToRollbar:bool -> ?debug:'d -> string -> 'r option -> 'r option
 
-  val assert_ : ?debug:'d -> string -> bool -> 'r -> 'r
+  val assert_ : ?sendToRollbar:bool -> ?debug:'d -> string -> bool -> 'r -> 'r
 
-  val asserT : ?debug:'d -> string -> bool -> unit
+  val asserT : ?sendToRollbar:bool -> ?debug:'d -> string -> bool -> unit
 
-  val assertFn : ?debug:'d -> string -> f:('r -> bool) -> 'r -> 'r
+  val assertFn :
+    ?sendToRollbar:bool -> ?debug:'d -> string -> f:('r -> bool) -> 'r -> 'r
 
-  val asserTFn : ?debug:'d -> string -> f:(unit -> bool) -> unit
+  val asserTFn :
+    ?sendToRollbar:bool -> ?debug:'d -> string -> f:(unit -> bool) -> unit
 
-  val todo : string -> 'b -> 'b
+  val todo : ?sendToRollbar:bool -> string -> 'b -> 'b
 end
