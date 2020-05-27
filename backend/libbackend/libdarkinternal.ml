@@ -1447,4 +1447,70 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DarkInternal::getTableSizes"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TObj
+    ; description =
+        "Query the postgres database for the current size (disk + rowcount) of all
+tables. This uses pg_stat, so it is fast but imprecise. This function is logged
+in OCaml; its primary purpose is to send data to honeycomb, but also gives
+human-readable data."
+    ; func =
+        internal_fn (function
+            | exec_state, [] ->
+                let table_stats = Db.table_stats () in
+                (* Send logs to honeycomb. We could save some events by sending
+                 * these all as a single event - tablename.disk = 1, etc - but
+                 * by having an event per table, it's easier to query and graph:
+                 * `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`. (Also,
+                 * if/when we add more tables, the graph-query doesn't need to
+                 * be updated,)
+                 *
+                 * There are ~40k minutes/month, and 20 tables, so a 1/min cron
+                 * would consume 80k of our 1.5B monthly events. That seems
+                 * reasonable.
+                 *
+                 * The log statements all look like:
+                 * {"timestamp":"2020-05-29T00:20:08.769420000Z","level":"INFO","name":"postgres_table_sizes","relation":"Total","disk":835584.0,"rows":139.0,"disk_human":"816 kB","rows_human":"139"}
+                 * *)
+                table_stats
+                |> List.iter ~f:(fun ts ->
+                       Log.infO
+                         "postgres_table_sizes"
+                         ~jsonparams:
+                           [ ("relation", `String ts.relation)
+                           ; ("disk", `Float ts.disk)
+                           ; ("rows", `Float ts.rows)
+                           ; ("disk_human", `String ts.disk_human)
+                           ; ("rows_human", `String ts.rows_human) ]) ;
+                (* Reformat a bit for human-usable dval output.
+                 * Example from my local dev: {
+                 *   Total: {
+                 *     disk: 835584,
+                 *     disk_human: "816 kB",
+                 *     rows: 139,
+                 *     rows_human: 139
+                 *   },
+                 *   access: {...},
+                 *   ...
+                 * } *)
+                let table_stats_for_dobj =
+                  table_stats
+                  |> List.map ~f:(fun ts ->
+                         ( ts.relation
+                         , [ ("disk", DFloat ts.disk)
+                           ; ("rows", DFloat ts.rows)
+                           ; ( "disk_human"
+                             , Dval.dstr_of_string_exn ts.disk_human )
+                           ; ( "rows_human"
+                             , Dval.dstr_of_string_exn ts.rows_human ) ]
+                           |> DvalMap.from_list
+                           |> DObj ))
+                in
+                table_stats_for_dobj |> DvalMap.from_list |> DObj
+            | args ->
+                fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]

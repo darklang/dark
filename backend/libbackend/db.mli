@@ -109,3 +109,12 @@ val delete_benchmarking_data : unit -> unit
 exception DBQueryException of string
 
 val dbQueryExceptionToString : exn -> string
+
+type table_stats_row =
+  { relation : string
+  ; disk : float
+  ; rows : float
+  ; disk_human : string
+  ; rows_human : string }
+
+val table_stats : unit -> table_stats_row list
