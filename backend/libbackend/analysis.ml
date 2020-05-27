@@ -13,15 +13,8 @@ module SA = Static_assets
 (* Non-execution analysis *)
 (* ------------------------- *)
 
-let unlocked (c : 'expr_type Canvas.canvas) : tlid list =
-  c.dbs
-  |> TL.dbs
-  |> User_db.unlocked c.id c.owner
-  |> List.map ~f:(fun x -> x.tlid)
-
-
-let unlocked2 (canvas_id : Uuidm.t) (account_id : Uuidm.t) : tlid list =
-  User_db.unlocked2 canvas_id account_id
+let unlocked (canvas_id : Uuidm.t) (account_id : Uuidm.t) : tlid list =
+  User_db.unlocked canvas_id account_id
 
 
 type db_stat =

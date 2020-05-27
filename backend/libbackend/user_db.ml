@@ -513,34 +513,7 @@ let stats_count ~account_id ~canvas_id (db : 'expr_type db) : int =
   |> int_of_string
 
 
-let unlocked canvas_id account_id (dbs : 'expr_type db list) :
-    'expr_type db list =
-  match dbs with
-  | [] ->
-      []
-  | db :: _ ->
-      (* this will need to be fixed when we allow migrations *)
-      let locked =
-        Db.fetch
-          ~name:"unlocked"
-          "SELECT DISTINCT table_tlid
-         FROM user_data
-         WHERE user_version = $1
-         AND dark_version = $2
-         AND canvas_id = $3
-         AND account_id = $4"
-          ~params:
-            [ Int db.version
-            ; Int current_dark_version
-            ; Uuid canvas_id
-            ; Uuid account_id ]
-        |> List.concat
-        |> List.map ~f:id_of_string
-      in
-      List.filter dbs ~f:(fun db -> not (List.mem ~equal:( = ) locked db.tlid))
-
-
-let unlocked2 canvas_id account_id : tlid list =
+let unlocked canvas_id account_id : tlid list =
   (* this will need to be fixed when we allow migrations *)
   (* Note: tl.module IS NULL means it's a db; anything else will be
    * HTTP/REPL/CRON/WORKER or a legacy space *)

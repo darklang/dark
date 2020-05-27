@@ -1317,7 +1317,7 @@ let get_unlocked_dbs
           let canvas_id, account_id =
             Canvas.id_and_account_id_for_name_exn host
           in
-          Analysis.unlocked2 canvas_id account_id)
+          Analysis.unlocked canvas_id account_id)
     in
     let t2, result =
       time "2-to-frontend" (fun _ ->

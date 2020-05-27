@@ -87,10 +87,7 @@ val change_col_type : id -> tipe -> 'expr_type DbT.db -> 'expr_type DbT.db
 
 val delete_col : id -> 'expr_type DbT.db -> 'expr_type DbT.db
 
-val unlocked :
-  Uuidm.t -> Uuidm.t -> 'expr_type DbT.db list -> 'expr_type DbT.db list
-
-val unlocked2 : Uuidm.t -> Uuidm.t -> tlid list
+val unlocked : Uuidm.t -> Uuidm.t -> tlid list
 
 val find_db : 'expr_type DbT.db list -> string -> 'expr_type DbT.db option
 
