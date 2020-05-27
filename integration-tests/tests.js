@@ -1344,6 +1344,8 @@ test("exe_flow_fades", async t => {
   const timestamp = new Date();
   await t.click(".fluid-entry");
   awaitAnalysis(t, timestamp);
+  // wait up to 1000ms for this selector to appear
+  await Selector(".fluid-not-executed", { timeout: 1000});
   await t.expect(Selector(".fluid-not-executed").exists).ok();
 });
 
