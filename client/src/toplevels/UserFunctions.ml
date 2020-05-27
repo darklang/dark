@@ -120,6 +120,12 @@ let replaceFnName
   else uf
 
 
+let replaceFnDescription (m : model) ~(tlid : TLID.t) (newDescription : string)
+    : model =
+  update m ~tlid ~f:(fun fn ->
+      {fn with ufMetadata = {fn.ufMetadata with ufmDescription = newDescription}})
+
+
 let allParamNames (uf : userFunction) : string list =
   uf
   |> allParamData

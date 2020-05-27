@@ -1398,6 +1398,7 @@ and msg =
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * TLID.t
   | FnParamMsg of fnpMsg
+  | FnUpdateDocstring of TLID.t * string
   | TutorialMsg of tutorialMsg
   | ToolTipMsg of toolTipMsg
   | UpdateSegment of segmentTrack

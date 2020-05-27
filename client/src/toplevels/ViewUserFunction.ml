@@ -2,6 +2,8 @@ open Prelude
 
 (* Dark *)
 module B = BlankOr
+module Events = Tea.Html2.Events
+module Attributes = Tea.Html2.Attributes
 
 type viewProps = ViewUtils.viewProps
 
@@ -155,11 +157,22 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
       ; executeBtn ]
   in
   let docstringRow =
-    Html.textarea
+    let props =
       [ Html.id "fndocstring"
       ; Html.placeholder "What does this function do?"
-      ; Vdom.prop "rows" "3" ]
-      [Html.text ""]
+      ; Attributes.rows 3 ]
+    in
+    let props, description =
+      match fn with
+      | UserFunction fn ->
+          ( Events.onInput (fun msg -> FnUpdateDocstring (fn.ufTLID, msg))
+            :: Attributes.readonly false
+            :: props
+          , fn.ufMetadata.ufmDescription )
+      | PackageFn fn ->
+          (Vdom.noProp :: Attributes.readonly true :: props, fn.description)
+    in
+    Html.textarea props [Html.text description]
   in
   let paramRows =
     Html.div
