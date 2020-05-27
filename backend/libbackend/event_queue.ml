@@ -228,7 +228,7 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : expr t option =
               @ [ ("host", `String host)
                 ; ("canvas_id", `String canvas_id)
                 ; ("space", `String space)
-                ; ("name", `String name)
+                ; ("handler_name", `String name)
                 ; ("modifier", `String modifier) ] ) ;
             Some
               { id = int_of_string id
