@@ -6,13 +6,12 @@
 
 To build and run the server you must have the following installed (and running):
 
-- Homebrew for Mac (https://brew.sh/)
-- Docker for Mac (https://docs.docker.com/docker-for-mac/install/)
-- The latest version of bash `brew install bash`
-- fswatch `brew install fswatch`
-- PIP `brew install python`
+- Mac only: Homebrew for Mac (https://brew.sh/)
+- Mac only: Docker for Mac (https://docs.docker.com/docker-for-mac/install/)
+- Mac only: The latest version of bash `brew install bash`
+- fswatch `brew install fswatch` / `apt install fswatch`
+- PIP `brew install python` / `apt install python3-pip`
 - live reload `pip3 install livereload`
-- Dnsmasq `brew install dnsmasq`
 
 ### First time setup
 
@@ -27,12 +26,12 @@ Ignore the other tabs (for example you don't need to enable Kubernetes).
 
 #### Dnsmasq
 
-A local DNS server is needed (on OSX) to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide]( https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
+A local DNS server is needed to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide]( https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
 
 Install dnsmasq:
 
 ```
-brew install dnsmasq
+brew install dnsmasq / apt install dnsmasq
 ```
 
 Follow brew's post-install instructions:
@@ -48,7 +47,7 @@ address=/localhost/127.0.0.1
 
 Restart dnsmasq:
 ```
-sudo brew services restart dnsmasq
+sudo brew services restart dnsmasq / sudo /etc/init.d/dnsmasq restart
 ```
 
 Configure OSX to use dnsmasq:
@@ -71,6 +70,8 @@ dig testing.builtwithdark.localhost @127.0.0.1
 
 - Run `scripts/builder --compile --watch --test`
 - Wait until the terminal says "Finished initial compile" - this means the build server is ready
+- If you see "initial compile failed", it may be a memory issue. Ensure you
+  have docker configured to provide 4GB of memory.
 
 #### Get a Dark account for yourself
 
@@ -91,10 +92,15 @@ This will output
       ; name = "Ada Lovelace"};
 ```
 
-Then open a PR adding this account data to `account.ml` in the `upsert_admins` function.
+Dark employees should open a PR adding this account data to `account.ml` in the
+`upsert_admins` function.
 
-Note: this password is _not_ used in prod; it may be different from your auth0
-password, if you have a darklang.com account.
+Contributors should add this to the `upsert_admins` function in account.ml -
+that will restart the Dark server, causing your user to be added. You won't
+need this anymore then.
+
+Note: this password is _not_ used in prod; it may be different from your password
+on darklang.com.
 
 ### Building and running
 
