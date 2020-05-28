@@ -160,7 +160,9 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
     let props =
       [ Html.id "fndescription"
       ; Html.placeholder "What does this function do?"
-      ; Attributes.rows 3 ]
+      ; Attributes.rows 3
+      ; (* Prevent panning canvas when you scroll: *)
+        ViewUtils.nothingMouseEvent "wheel" ]
     in
     let props, description =
       match fn with
