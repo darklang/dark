@@ -775,8 +775,7 @@ let admin_add_op_handler
     body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, (params, canvas_id) =
     time "1-read-api-ops" (fun _ ->
-        let owner = Account.for_host_exn host in
-        let canvas_id = Serialize.fetch_canvas_id owner host in
+        let canvas_id, owner = Canvas.id_and_account_id_for_name_exn host in
         let params = Api.to_add_op_rpc_params body in
         if Op.is_latest_op_request params.clientOpCtrId params.opCtr canvas_id
         then (params, canvas_id)
@@ -959,7 +958,8 @@ let initial_load
           (c, op_ctrs))
     in
     let t2, unlocked =
-      time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
+      time "2-analyze-unlocked-dbs" (fun _ ->
+          Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
     in
     let t3, assets =
       time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
@@ -1030,7 +1030,8 @@ let execute_function
           ~args:(List.map ~f:Libexecution.Fluid.dval_of_fluid params.args))
   in
   let t4, unlocked =
-    time "4-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
+    time "4-analyze-unlocked-dbs" (fun _ ->
+        Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
   in
   let t5, response =
     time "5-to-frontend" (fun _ ->
@@ -1292,23 +1293,17 @@ let worker_stats
     let t1, params =
       time "1-read-api-tlid" (fun _ -> Api.to_worker_stats_rpc_params body)
     in
-    let t2, c =
-      time "2-load-saved-ops" (fun _ ->
-          C.load_tlids_from_cache ~tlids:[params.tlid] host
-          |> Result.map ~f:C.to_fluid_ref
-          |> Result.map_error ~f:(String.concat ~sep:", ")
-          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
+    let t2, stats =
+      let canvas_id = Canvas.id_for_name host in
+      time "2-analyze-worker-stats" (fun _ ->
+          Analysis.worker_stats canvas_id params.tlid)
     in
-    let t3, stats =
-      time "3-analyze-worker-stats" (fun _ ->
-          Analysis.worker_stats !c params.tlid)
-    in
-    let t4, result =
-      time "4-to-frontend" (fun _ -> Analysis.to_worker_stats_rpc_result stats)
+    let t3, result =
+      time "3-to-frontend" (fun _ -> Analysis.to_worker_stats_rpc_result stats)
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4])
+      ~resp_headers:(server_timing [t1; t2; t3])
       parent
       `OK
       result
@@ -1319,23 +1314,20 @@ let get_unlocked_dbs
     ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
     : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, c =
-      time "1-load-saved-ops" (fun _ ->
-          C.load_all_dbs_from_cache host
-          |> Result.map ~f:C.to_fluid_ref
-          |> Result.map_error ~f:(String.concat ~sep:", ")
-          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
+    let t1, unlocked =
+      time "1-analyze-unlocked-dbs" (fun _ ->
+          let canvas_id, account_id =
+            Canvas.id_and_account_id_for_name_exn host
+          in
+          Analysis.unlocked ~canvas_id ~account_id)
     in
-    let t2, unlocked =
-      time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
-    in
-    let t3, result =
-      time "3-to-frontend" (fun _ ->
-          Analysis.to_get_unlocked_dbs_rpc_result unlocked !c)
+    let t2, result =
+      time "2-to-frontend" (fun _ ->
+          Analysis.to_get_unlocked_dbs_rpc_result unlocked)
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3])
+      ~resp_headers:(server_timing [t1; t2])
       parent
       `OK
       result

@@ -449,6 +449,22 @@ let id_for_name (name : string) : Uuidm.t =
   name |> id_for_name_option |> Option.value_exn
 
 
+let id_and_account_id_for_name_exn (name : string) : Uuidm.t * Uuidm.t =
+  (* If we're using this in /api/.../ we're already guaranteed that the canvas
+   * exists *)
+  Db.fetch_one
+    ~name:"fetch_canvas_id_and_account_id"
+    "SELECT id, account_id FROM canvases WHERE name = $1"
+    ~params:[Db.String name]
+  |> function
+  | [canvas_id; account_id] ->
+      (* These are guaranteed by the db schema to be uuids *)
+      ( canvas_id |> Uuidm.of_string |> Option.value_exn
+      , account_id |> Uuidm.of_string |> Option.value_exn )
+  | _ ->
+      Exception.internal "Wrong db shape in Canvas.id_and_account_id"
+
+
 let update_cors_setting
     (c : 'expr_type canvas ref) (setting : cors_setting option) : unit =
   let cors_setting_to_db (setting : cors_setting option) : 'expr_type Db.param =

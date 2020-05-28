@@ -513,31 +513,36 @@ let stats_count ~account_id ~canvas_id (db : 'expr_type db) : int =
   |> int_of_string
 
 
-let unlocked canvas_id account_id (dbs : 'expr_type db list) :
-    'expr_type db list =
-  match dbs with
-  | [] ->
-      []
-  | db :: _ ->
-      (* this will need to be fixed when we allow migrations *)
-      let locked =
-        Db.fetch
-          ~name:"unlocked"
-          "SELECT DISTINCT table_tlid
-         FROM user_data
-         WHERE user_version = $1
-         AND dark_version = $2
-         AND canvas_id = $3
-         AND account_id = $4"
-          ~params:
-            [ Int db.version
-            ; Int current_dark_version
-            ; Uuid canvas_id
-            ; Uuid account_id ]
-        |> List.concat
-        |> List.map ~f:id_of_string
-      in
-      List.filter dbs ~f:(fun db -> not (List.mem ~equal:( = ) locked db.tlid))
+(** Given a [canvas_id] and an [account_id], return tlids for all unlocked databases -
+ * a database is unlocked if it has no records, and thus its schema can be
+ * changed without a migration.
+ *
+ * [account_id] is needed here because we'll use it in the DB JOIN; we could
+ * pass in a whole canvas and get [canvas_id] and [account_id] from that, but
+ * that would require loading the canvas, which is undesirable for performance
+ * reasons *)
+let unlocked ~(canvas_id : Uuidm.t) ~(account_id : Uuidm.t) : tlid list =
+  (* this will need to be fixed when we allow migrations *)
+  (* Note: tl.module IS NULL means it's a db; anything else will be
+   * HTTP/REPL/CRON/WORKER or a legacy space *)
+  Db.fetch
+    ~name:"unlocked"
+    "SELECT tl.tlid
+         FROM toplevel_oplists as tl
+         LEFT JOIN user_data as ud
+         ON tl.tlid = ud.table_tlid
+         AND tl.canvas_id = ud.canvas_id
+         AND tl.account_id = ud.account_id
+         WHERE tl.canvas_id = $1
+         AND tl.account_id = $2
+         AND tl.module IS NULL
+         AND tl.deleted = false
+         AND ud.table_tlid IS NULL
+         GROUP BY tl.tlid
+"
+    ~params:[Uuid canvas_id; Uuid account_id]
+  |> List.map ~f:List.hd_exn
+  |> List.map ~f:id_of_string
 
 
 (* ------------------------- *)
