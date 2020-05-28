@@ -156,9 +156,9 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
       ; viewUserFnName vp ~classes:["fn-name-content"] titleText
       ; executeBtn ]
   in
-  let docstringRow =
+  let descriptionRow =
     let props =
-      [ Html.id "fndocstring"
+      [ Html.id "fndescription"
       ; Html.placeholder "What does this function do?"
       ; Attributes.rows 3 ]
     in
@@ -177,7 +177,7 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
             :: props
           , fn.ufMetadata.ufmDescription )
       | PackageFn fn ->
-          (Vdom.noProp :: Attributes.readonly true :: props, fn.description)
+          (Attributes.readonly true :: props, fn.description)
     in
     Html.textarea props [Html.text description]
   in
@@ -209,7 +209,7 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
   in
   Html.div
     [Html.class' "fn-header"]
-    [titleRow; docstringRow; paramRows; returnRow]
+    [titleRow; descriptionRow; paramRows; returnRow]
 
 
 let view (vp : viewProps) (fn : functionTypes) : msg Html.html =
