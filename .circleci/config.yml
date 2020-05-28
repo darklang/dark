@@ -1,13 +1,9 @@
 version: 2.1
 
-executors:
-  my-executor:
+jobs:
+  build:
     docker:
       - image: docker:stable-git
-
-jobs:
-  build-container:
-    executor: my-executor
     environment:
       TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
       RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
@@ -20,41 +16,18 @@ jobs:
           name: Setup docker-env for debugging
           command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
-
       - run: apk add --update bash python3 --update-cache
       - run: pip3 install awscli --upgrade --user
-      - run: $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
-      # This is not working, feels like it should. It's downloading, yet still rebuilding.
-      # - run:
-      #     name: Pre-fetch docker container
-      #     shell: bash
-      #     command: |
-      #       if [[ `docker images $TAG -q` == "" ]]
-      #       then
-      #         set -x
-      #         docker pull $TAG
-      #         docker images
-      #       fi
       - run: docker build --target dark-base -t $TAG .
-      - run:
-          background: true
-          command: docker push $TAG
       - run: docker build -t $RUST_TAG .
-      - run: docker push $RUST_TAG
-
-workflows:
-  version: 2
-  build-and-deploy:
-    jobs:
-      # initial builds & tests
-      - build-container
       - deploy:
-          filters:
-            branches:
-              only: master
-          requires:
-            - build-container
-            - validate-honeycomb-config
-            - integration-tests
-            - rust-integration-tests
-            - push-to-gcp
+          name: Push image
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              login="$(aws ecr get-login)"
+              ${login}
+              docker push $TAG
+              docker push $RUST_TAG
+            fi
+
+
