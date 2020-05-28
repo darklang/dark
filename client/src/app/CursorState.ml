@@ -23,6 +23,8 @@ let tlidOf (s : cursorState) : TLID.t option =
       None
   | FluidEntering tlid ->
       Some tlid
+  | EditingText editRegion ->
+    (match editRegion with FnDescription tlid -> Some tlid)
   (* NOTE: These have no id because unwrapCursorState should unwrap them *)
   | DraggingTL _ | PanningCanvas _ ->
       None
@@ -38,6 +40,8 @@ let idOf (s : cursorState) : ID.t option =
       None
   | FluidEntering _ ->
       None
+  | EditingText editRegion ->
+    (match editRegion with FnDescription _ -> None)
   (* NOTE: These have no id because unwrapCursorState should unwrap them *)
   | DraggingTL _ | PanningCanvas _ ->
       None

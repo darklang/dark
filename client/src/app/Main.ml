@@ -1136,6 +1136,9 @@ let update_ (msg : msg) (m : model) : modification =
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
+  | EditableTextMouseDown editRegion ->
+      ReplaceAllModificationsWithThisOne
+        (CursorState.setCursorState (EditingText editRegion))
   | MouseWheel (x, y) ->
       Viewport.moveCanvasBy m x y
   | TraceMouseEnter (tlid, traceID, _) ->
@@ -1270,6 +1273,8 @@ let update_ (msg : msg) (m : model) : modification =
               defaultBehaviour )
       | Selecting (_, _) ->
           select targetID
+      | EditingText editRegion ->
+        (match editRegion with FnDescription _ -> select targetID)
       | FluidEntering _ ->
           select targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
@@ -2154,53 +2159,56 @@ let update_ (msg : msg) (m : model) : modification =
            err)
   | UploadFnAPICallback (_, Ok _) ->
       Model.updateErrorMod (Error.set "Successfully uploaded function")
-  | FnUpdateDocstring (tlid, newDescription) ->
-      (* XXX(JULIAN): CLEAN THIS UP!!! *)
-      Debug.loG "DOCSTRING" newDescription ;
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          let handleAPI params focus =
-            (* immediately update the model based on SetHandler and focus, if
+  | EditableTextUpdate (editRegion, newDescription) ->
+    ( match editRegion with
+    | FnDescription tlid ->
+        (* XXX(JULIAN): CLEAN THIS UP!!! *)
+        Debug.loG "DOCSTRING" newDescription ;
+        ReplaceAllModificationsWithThisOne
+          (fun m ->
+            let handleAPI params focus =
+              (* immediately update the model based on SetHandler and focus, if
                   possible *)
-            let m = m |> incOpCtr in
-            let localM =
-              List.foldl
-                ~f:(fun call m ->
-                  match call with
-                  | SetHandler (_tlid, _pos, h) ->
-                      Handlers.upsert m h
-                  | SetFunction f ->
-                      UserFunctions.upsert m f
-                  | SetType t ->
-                      UserTypes.upsert m t
-                  | _ ->
-                      m)
-                ~init:m
-                params.ops
-            in
-            let withFocus, wfCmd =
-              updateMod
-                (Many [AutocompleteMod ACReset; processFocus localM focus])
-                (localM, Cmd.none)
-            in
-            ( withFocus
-            , Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params] )
-          in
-          match TD.get ~tlid m.userFunctions with
-          | Some userFn ->
-              let newFn =
-                { userFn with
-                  ufMetadata =
-                    {userFn.ufMetadata with ufmDescription = newDescription} }
+              let m = m |> incOpCtr in
+              let localM =
+                List.foldl
+                  ~f:(fun call m ->
+                    match call with
+                    | SetHandler (_tlid, _pos, h) ->
+                        Handlers.upsert m h
+                    | SetFunction f ->
+                        UserFunctions.upsert m f
+                    | SetType t ->
+                        UserTypes.upsert m t
+                    | _ ->
+                        m)
+                  ~init:m
+                  params.ops
               in
-              handleAPI
-                (API.opsParams
-                   [SetFunction newFn]
-                   ((m |> opCtr) + 1)
-                   m.clientOpCtrId)
-                FocusNoChange
-          | None ->
-              (m, Cmd.none))
+              let withFocus, wfCmd =
+                updateMod
+                  (Many [AutocompleteMod ACReset; processFocus localM focus])
+                  (localM, Cmd.none)
+              in
+              ( withFocus
+              , Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params] )
+            in
+            match TD.get ~tlid m.userFunctions with
+            | Some userFn ->
+                let newFn =
+                  { userFn with
+                    ufMetadata =
+                      {userFn.ufMetadata with ufmDescription = newDescription}
+                  }
+                in
+                handleAPI
+                  (API.opsParams
+                     [SetFunction newFn]
+                     ((m |> opCtr) + 1)
+                     m.clientOpCtrId)
+                  FocusNoChange
+            | None ->
+                (m, Cmd.none)) )
 
 
 let rec filter_read_only (m : model) (modification : modification) =

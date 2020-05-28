@@ -191,6 +191,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 ; MakeCmd (CursorState.focusEntry m) ]
           | _ ->
               AutocompleteMod (ACSetVisible true) )
+    | EditingText editRegion ->
+      (match editRegion with FnDescription _ -> NoChange)
     | Deselected ->
       ( match m.currentPage with
       | Architecture ->

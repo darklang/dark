@@ -478,6 +478,7 @@ and cursorState j =
   variants
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
     ; ("Entering", dv1 (fun a -> Entering a) entering)
+    ; ("EditingText", dv1 (fun a -> EditingText a) editingText)
     ; ( "Dragging" (* Deprecated via DraggingTL *)
       , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
       )
@@ -498,6 +499,11 @@ and cursorState j =
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
     ; ("FluidMouseSelecting", dv1 (fun a -> FluidEntering a) tlid) ]
     j
+
+
+and editingText j =
+  let dv1 = variant1 in
+  j |> variants [("FnDescription", dv1 (fun a -> FnDescription a) tlid)]
 
 
 and entering j =

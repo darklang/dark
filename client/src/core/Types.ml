@@ -518,8 +518,11 @@ and entryCursor =
 
 and hasMoved = bool
 
+and editRegion = FnDescription of TLID.t
+
 and cursorState =
   | Selecting of TLID.t * ID.t option
+  | EditingText of editRegion
   | Entering of entryCursor
   | FluidEntering of TLID.t
   | DraggingTL of TLID.t * vPos * hasMoved * cursorState
@@ -1344,6 +1347,7 @@ and msg =
   | BlankOrDoubleClick of TLID.t * ID.t * mouseEvent
   | BlankOrMouseEnter of TLID.t * ID.t * mouseEvent
   | BlankOrMouseLeave of TLID.t * ID.t * mouseEvent
+  | EditableTextMouseDown of editRegion
   | MouseWheel of int * int
   | TraceClick of TLID.t * traceID * mouseEvent
   | TraceMouseEnter of TLID.t * traceID * mouseEvent
@@ -1398,7 +1402,7 @@ and msg =
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * TLID.t
   | FnParamMsg of fnpMsg
-  | FnUpdateDocstring of TLID.t * string
+  | EditableTextUpdate of editRegion * string
   | TutorialMsg of tutorialMsg
   | ToolTipMsg of toolTipMsg
   | UpdateSegment of segmentTrack
