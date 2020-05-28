@@ -2162,51 +2162,22 @@ let update_ (msg : msg) (m : model) : modification =
   | EditableTextUpdate (editRegion, newDescription) ->
     ( match editRegion with
     | FnDescription tlid ->
-        (* XXX(JULIAN): CLEAN THIS UP!!! *)
-        Debug.loG "DOCSTRING" newDescription ;
         ReplaceAllModificationsWithThisOne
           (fun m ->
-            let handleAPI params focus =
-              (* immediately update the model based on SetHandler and focus, if
-                  possible *)
-              let m = m |> incOpCtr in
-              let localM =
-                List.foldl
-                  ~f:(fun call m ->
-                    match call with
-                    | SetHandler (_tlid, _pos, h) ->
-                        Handlers.upsert m h
-                    | SetFunction f ->
-                        UserFunctions.upsert m f
-                    | SetType t ->
-                        UserTypes.upsert m t
-                    | _ ->
-                        m)
-                  ~init:m
-                  params.ops
-              in
-              let withFocus, wfCmd =
-                updateMod
-                  (Many [AutocompleteMod ACReset; processFocus localM focus])
-                  (localM, Cmd.none)
-              in
-              ( withFocus
-              , Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params] )
-            in
             match TD.get ~tlid m.userFunctions with
             | Some userFn ->
                 let newFn =
-                  { userFn with
-                    ufMetadata =
-                      {userFn.ufMetadata with ufmDescription = newDescription}
-                  }
+                  UserFunctions.replaceFnDescription userFn newDescription
                 in
-                handleAPI
-                  (API.opsParams
-                     [SetFunction newFn]
-                     ((m |> opCtr) + 1)
-                     m.clientOpCtrId)
-                  FocusNoChange
+                let m = m |> incOpCtr in
+                ( m
+                , API.addOp
+                    m
+                    FocusNoChange
+                    (API.opsParams
+                       [SetFunction newFn]
+                       (m |> opCtr)
+                       m.clientOpCtrId) )
             | None ->
                 (m, Cmd.none)) )
 
