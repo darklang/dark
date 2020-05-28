@@ -172,7 +172,8 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
               (fun _ -> EditableTextMouseDown (FnDescription fn.ufTLID))
             :: Events.onInput
                  ~key:("fn-description-input" ^ tlidString)
-                 (fun newDescription -> EditableTextUpdate (FnDescription fn.ufTLID, newDescription))
+                 (fun newDescription ->
+                   EditableTextUpdate (FnDescription fn.ufTLID, newDescription))
             :: Attributes.readonly false
             :: props
           , fn.ufMetadata.ufmDescription )
