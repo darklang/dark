@@ -138,6 +138,11 @@ let () =
     match Array.to_list Sys.argv with _ :: fnNames -> fnNames | [] -> usage ()
   in
   if List.is_empty fnNames then usage () else Libs.init [] ;
+  let filter : fn -> bool =
+    if fnNames = ["--package_fns"]
+    then fun fn -> fn.fnname |> String.is_substring ~substring:"/"
+    else fun fn -> List.mem ~equal:( = ) fnNames fn.fnname
+  in
   ignore
     (let hosts = Serialize.current_hosts () in
      hosts
@@ -145,7 +150,7 @@ let () =
             let canvas =
               try
                 Some
-                  ( Canvas.load_all host []
+                  ( Canvas.load_all_from_cache host
                   |> Result.map_error ~f:(String.concat ~sep:", ")
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                   )
@@ -164,8 +169,7 @@ let () =
             canvas
             |> Option.map ~f:process_canvas
             |> Option.value ~default:[]
-            |> List.filter ~f:(fun fn ->
-                   List.mem ~equal:( = ) fnNames fn.fnname)
+            |> List.filter ~f:filter
             |> List.map ~f:(fun fn ->
                    Log.infO "function" ~params:(pairs_of_fn fn)))) ;
   ()
