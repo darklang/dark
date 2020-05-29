@@ -2011,6 +2011,22 @@ let t_libhttp () =
   ()
 
 
+(* This test doesn't bother to destructure + examine the contents of the dobj;
+ * it's just intended to ensure that the thing runs and doesn't DError. Esp
+ * since the contents of the DObj depend on the database's stats and those
+ * aren't stable in the test env! We could do a spot check on the keys present,
+ * but I don't think that's terribly useful right now, type guarantees are
+ * enough. *)
+let t_darkinternal_table_stats_works () =
+  let ast = fn "DarkInternal::getTableSizes" [] in
+  AT.check
+    AT.bool
+    "DarkInternal::table_stats works (no params)"
+    true
+    (match exec_ast' ast with DObj _ -> true | _ -> false) ;
+  ()
+
+
 let suite =
   [ ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
@@ -2033,4 +2049,6 @@ let suite =
   ; ("Bytes stdlibs work", `Quick, t_libbytes)
   ; ("List::sortByComparator works", `Quick, t_liblist_sort_by_comparator_works)
   ; ("Math stdlibs work", `Quick, t_math_stdlibs)
-  ; ("HTTP stdlibs work", `Quick, t_libhttp) ]
+  ; ("HTTP stdlibs work", `Quick, t_libhttp)
+  ; ("DarkInternal::table_stats works", `Quick, t_darkinternal_table_stats_works)
+  ]
