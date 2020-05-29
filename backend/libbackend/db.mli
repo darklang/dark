@@ -112,8 +112,8 @@ val dbQueryExceptionToString : exn -> string
 
 type table_stats_row =
   { relation : string
-  ; disk : float
-  ; rows : float
+  ; disk : int
+  ; rows : int
   ; disk_human : string
   ; rows_human : string }
 

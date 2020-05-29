@@ -522,8 +522,8 @@ let dbQueryExceptionToString = function
 
 type table_stats_row =
   { relation : string
-  ; disk : float
-  ; rows : float
+  ; disk : int
+  ; rows : int
   ; disk_human : string
   ; rows_human : string }
 
@@ -588,8 +588,8 @@ let table_stats () : table_stats_row list =
   |> List.map ~f:(function
          | [relation; disk; rows; disk_human; rows_human] ->
              { relation
-             ; disk = disk |> float_of_string_opt |> Option.value ~default:0.0
-             ; rows = rows |> float_of_string_opt |> Option.value ~default:0.0
+             ; disk = disk |> int_of_string_opt |> Option.value ~default:0
+             ; rows = rows |> int_of_string_opt |> Option.value ~default:0
              ; disk_human
              ; rows_human }
          | _ ->
