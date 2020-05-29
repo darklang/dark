@@ -1,0 +1,17 @@
+[
+  [ "TLSavepoint", 86953439 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 86953439,
+      "metadata": {
+        "name": [ "Filled", 1661671248, "always5" ],
+        "parameters": [],
+        "return_type": [ "Filled", 1845185814, [ "TAny" ] ],
+        "description": "always5 returns the value 5",
+        "infix": false
+      },
+      "ast": [ "Filled", 1296744364, [ "Value", "5" ] ]
+    }
+  ]
+]

@@ -735,6 +735,27 @@ test("function_analysis_works", async t => {
     .eql("10", { timeout: 5000 });
 });
 
+test("change_fn_description", async t => {
+  await t
+    .navigateTo("#fn=86953439")
+    .expect(available("#fndescription"))
+    .ok({ timeout: 1000 })
+    .click(Selector("#fndescription"))
+    .typeText(Selector("#fndescription"), "!");
+
+  await t
+    // Navigate away and back to check for persistence
+    .navigateTo("#")
+    .navigateTo("#fn=86953439")
+    .expect(available("#fndescription"))
+    .ok({ timeout: 1000 })
+    // Note that `value` is the appropriate JS property to use for dynamically-updated text,
+    // but we are using `textContent` because we want to check the contents after they have persisted
+    // and have become the default content of the textarea
+    .expect(Selector("#fndescription").textContent)
+    .eql("always5 returns the value 5!");
+});
+
 test("jump_to_error", async t => {
   await t
     .navigateTo("#handler=123")

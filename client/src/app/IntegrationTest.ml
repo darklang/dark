@@ -427,6 +427,11 @@ let function_analysis_works (_m : model) : testResult =
   pass
 
 
+let change_fn_description (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let jump_to_error (m : model) : testResult =
   let focusedPass =
     match m.currentPage with
@@ -943,6 +948,8 @@ let trigger (test_name : string) : integrationTestState =
         select_route
     | "function_analysis_works" ->
         function_analysis_works
+    | "change_fn_description" ->
+        change_fn_description
     | "jump_to_error" ->
         jump_to_error
     | "fourohfours_parse" ->
