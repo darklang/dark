@@ -571,6 +571,10 @@ let table_stats () : table_stats_row list =
          disk,
          \"rows\",
          pg_size_pretty(disk) as disk_human,
+         -- NOTE: below uses pg_size_pretty to get us something human readable
+         -- ('100M' is easier than '100000000', but it's _row count_, not bytes,
+         -- hence trimming those parts off.)
+         --
          -- Examples for trim(from substring(...)):
          -- 100 MB -> 100M
          -- 100 kb -> 100k
