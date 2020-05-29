@@ -2170,6 +2170,7 @@ let update_ (msg : msg) (m : model) : modification =
                   UserFunctions.replaceFnDescription userFn newDescription
                 in
                 let m = m |> incOpCtr in
+                let m = UserFunctions.upsert m newFn in
                 ( m
                 , API.addOp
                     m
