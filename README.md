@@ -170,19 +170,21 @@ any other env var.
 
 ## Setting up your editor
 
+### Merlin
+
 Merlin is an OCaml language server that provides things like autocompletion,
 type information, and go-to-definition functionality. Because all OCaml
 libraries are installed inside the container and not on your local machine,
 merlin needs to be running inside the container. Unfortunately, this install is
 not completely isolated and we still need some supporting things installed on
-your host.
+your host machine.
 
-The way this works is that you'll need merlin on your host to get the editor
-support files and then you'll point those at the `scripts/ocamlmerlin` wrapper
+The way this works is that you'll need merlin on your host machine (to get the editor
+support files) and then you'll point those at the `scripts/ocamlmerlin` wrapper
 to execute the actual process inside the container. This means that you need
 those scripts first in your `$PATH`.
 
-- `export $PATH=$DARKDIR/scripts:$PATH` in your shell config
+- `export $PATH=[path to dark]/scripts:$PATH` in your shell config
 - Install merlin:
   - `brew install opam`
   - `opam init -c 4.06.1`
@@ -197,16 +199,20 @@ CAVEAT: If you install the zsh config that merlin recommends, it will
 automatically execute the equivalent of `eval $(opam env)` after every command.
 This command mucks with your `$PATH`, which means that you will never execute
 the `scripts/` wrappers you want. Do not use the shell integration. Instead
-call `eval $(opam env)` and then `export $PATH=$DARKDIR/scripts:$PATH` (put
+call `eval $(opam env)` and then `export $PATH=[path to dark]/scripts:$PATH` (put
 this in an alias or something).
 
-You will also want to support ocamlformat. For emacs, see [the
+### Formatting
+
+You will also want to support formatting in your client. Dark uses Prettier for Js/Html/CSS, and OCamlformat for OCaml and Bucklescript. The script `script/format` can be used to format or check formatting, and there is a pre-commit hook you can use to run it automatically.
+
+For emacs, see [the
 readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
 - install [ALE](https://github.com/w0rp/ale)
 - Add to your `.vimrc` (with an appropriate path-to-dark replacement):
 ```
 set rtp+=~/[path to dark]/dark/scripts/ocamlformat
-let g:ale_javascript_prettier_executable= '/Users/YOURUSERNAME/YOURPATH/dark/scripts/prettier'
+let g:ale_javascript_prettier_executable= '~/path to dark]/dark/scripts/prettier'
 let g:ale_fixers =
 \ {'rust': ['rustfmt'],
 \  'ocaml':['ocamlformat'],
@@ -217,9 +223,9 @@ let g:ale_fixers =
 \  'scss': ['prettier']}
 ```
 
-## Pre-commit hook
+### Pre-commit hook
 
-You probably also want to install a pre-commit hook that runs ocamlformat for
+You probably also want to install a pre-commit hook that the formatters for
 you.
 `cp scripts/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
 
@@ -235,11 +241,11 @@ Chrome Dev Tools instead of their JS representation. From within Chrome
 Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
 Formatters".
 
-## Running the client in production
+## Running the client against production
 
-Expose your local assets using ngrok:
+If you want to run your local client against the production server, we have a way to do that using ngrok:
 
-- Join the company ngrok account by asking Paul
+- Join our ngrok account by asking Paul
 - install ngrok: `brew cask install ngrok` on OS X, or follow instructions at
   https://ngrok.com/download for Linux. (The snap installer is broken.)
 - authorize your ngrok client: `ngrok authtoken YOURTOKEN` (found at
@@ -258,6 +264,7 @@ tunnels:
 Use the queryparam "localhost-assets=<username>" to load static assets from darklang-<username>.ngrok.io instead of static.darklang.com.
 
 You can check if it's going through via the ngrok console (which logs requests), and by tailing the server logs: `tail -f rundir/logs/server.log`.
+
 
 ## Editing other BS libraries
 
