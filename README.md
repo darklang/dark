@@ -72,38 +72,9 @@ dig testing.builtwithdark.localhost @127.0.0.1
 - Wait until the terminal says "Finished initial compile" - this means the build server is ready
 - If you see "initial compile failed", it may be a memory issue. Ensure you
   have docker configured to provide 4GB of memory.
-- Open your browser to http://darklang.localhost:8000/a/YOURNAME/
-- Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
+- Open your browser to http://darklang.localhost:8000/a/dark/, username "dark", password "what"
+- Edit code normally - on each save to your filesystem, the app will be rebuilt and the browser will reload as necessary
 
-
-#### Get a Dark account for yourself
-
-To add your account to local dev for yourself, run:
-```
-scripts/run-in-docker _build/default/backend/bin/add_admin.exe --prompt-for-password
-```
-which will prompt you for your password, username, email, and name.
-
-This will output
-```
-  upsert_admin_exn
-      { username = "YOURNAME"
-      ; password =
-          Password.from_hash
-            "..."
-      ; email = "developer@example.com"
-      ; name = "Ada Lovelace"};
-```
-
-Dark employees should open a PR adding this account data to `account.ml` in the
-`upsert_admins` function.
-
-Contributors should add this to the `upsert_admins` function in account.ml -
-that will restart the Dark server, causing your user to be added. You won't
-need this anymore then.
-
-Note: this password is _not_ used in production; it may be different
-from your password on darklang.com.
 
 ## Other ways to run the dev container
 
@@ -294,6 +265,35 @@ flag to see the commands run. You'll see something that looks like this:
 
 Run that without the --dump-ast and then look at the .pp.ml file to find
 the preprocessed version.
+
+## Get a Dark account for yourself 
+
+(note: this appears to be broken at the moment)
+
+To add your account to local dev for yourself, run:
+```
+scripts/run-in-docker _build/default/backend/bin/add_admin.exe --prompt-for-password
+```
+which will prompt you for your password, username, email, and name.
+
+This will output
+```
+  upsert_admin_exn
+      { username = "YOURNAME"
+      ; password =
+          Password.from_hash
+            "..."
+      ; email = "developer@example.com"
+      ; name = "Ada Lovelace"};
+```
+
+Dark employees should open a PR adding this account data to `account.ml` in the
+`upsert_admins` function.
+
+Note: this password is _not_ used in production; it may be different
+from your password on darklang.com.
+
+
 
 ## Other important docs:
 

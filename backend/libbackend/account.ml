@@ -417,6 +417,13 @@ let init_testing () : unit =
 
 let upsert_admins () : unit =
   upsert_admin_exn
+    { username = "dark"
+    ; password =
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "ops+darkuser@darklang.com"
+    ; name = "Kiera Dubh" } ;
+  upsert_admin_exn
     { username = "paul"
     ; password =
         Password.from_hash
@@ -476,13 +483,7 @@ let upsert_useful_canvases () : unit =
     { username = "sample"
     ; password = Password.invalid
     ; email = "ops+sample@darklang.com"
-    ; name = "Sample Owner" } ;
-  upsert_account_exn
-    ~validate:false
-    { username = "dark"
-    ; password = Password.invalid
-    ; email = "ops+dark@darklang.com"
-    ; name = "Dark Inc." }
+    ; name = "Sample Owner" }
 
 
 let upsert_banned_accounts () : unit =
