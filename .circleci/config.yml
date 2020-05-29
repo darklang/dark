@@ -159,36 +159,6 @@ commands:
 # Actual workflow
 ##########################
 jobs:
-
-  build-container:
-    executor: my-executor
-    environment:
-      TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
-      RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
-    steps:
-      - checkout
-      - prep-container-creation
-      - run: apk add --update bash python3 --update-cache
-      - run: pip3 install awscli --upgrade --user
-      - run: $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
-      # This is not working, feels like it should. It's downloading, yet still rebuilding.
-      # - run:
-      #     name: Pre-fetch docker container
-      #     shell: bash
-      #     command: |
-      #       if [[ `docker images $TAG -q` == "" ]]
-      #       then
-      #         set -x
-      #         docker pull $TAG
-      #         docker images
-      #       fi
-      - run: docker build --target dark-base -t $TAG .
-      - run:
-          background: true
-          command: docker push $TAG
-      - run: docker build -t $RUST_TAG .
-      - run: docker push $RUST_TAG
-
   build-client:
     executor: in-container
     steps:
@@ -417,25 +387,21 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - build-container
       - build-postgres-honeytail
       - validate-honeycomb-config
-
-      - build-backend: { requires: [ build-container ] }
-      - build-client: { requires: [ build-container ] }
-      - build-stroller: { requires: [ build-container ] }
-      - build-queue-scheduler: { requires: [ build-container ] }
+      - build-backend
+      - build-client
+      - build-stroller
+      - build-queue-scheduler
 
       # expensive tests
       - rust-integration-tests:
           requires:
-            - build-container
             - build-backend
             - build-client
             - build-queue-scheduler
       - integration-tests:
           requires:
-            - build-container
             - build-backend
             - build-client
       - gcp-containers-test:
@@ -451,7 +417,6 @@ workflows:
             branches:
               only: master
           requires:
-            - build-container
             - build-backend
             - build-client
             - build-stroller
@@ -464,7 +429,6 @@ workflows:
             branches:
               only: master
           requires:
-            - build-container
             - validate-honeycomb-config
             - integration-tests
             - rust-integration-tests
