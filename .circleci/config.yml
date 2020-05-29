@@ -24,8 +24,7 @@ jobs:
           name: Push image
           command: |
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              login="$(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)"
-              ${login}
+              $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
               docker push $TAG
               docker push $RUST_TAG
             fi
