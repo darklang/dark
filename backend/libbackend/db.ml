@@ -538,7 +538,7 @@ type table_stats_row =
  * 3) the final query provides both raw- and humanized- formatted columns
  *)
 
-(** Queries the database to get sizes (both in bytes and in # of rows) for each
+(** Queries the database to get approximate sizes (both in bytes and in # of rows) for each
  * table in the postgres DB.
  *
  * Primary use case here is to run in a cron and be logged to honeycomb, but
