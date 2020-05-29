@@ -154,7 +154,7 @@ You can also run them on your machine, which gives you some debugging ability, a
 
 There are good debugging options for integration testing. See integration-tests/README.
 
-## Accessing the container
+## Running unix commands in the container
 
 - `scripts/run-in-docker bash`
 
@@ -217,7 +217,7 @@ let g:ale_fixers =
 \  'scss': ['prettier']}
 ```
 
-### Pre-commit hook
+## Pre-commit hook
 
 You probably also want to install a pre-commit hook that runs ocamlformat for
 you.
@@ -288,9 +288,11 @@ flag to see the commands run. You'll see something that looks like this:
 Run that without the --dump-ast and then look at the .pp.ml file to find
 the preprocessed version.
 
-## Important docs which we believe are up-to-date:
+## Other important docs:
 
 - [docs/oplist-serialization.md](docs/oplist-serialization.md)
+- [docs/bs-tea.md](docs/bs-tea.md)
+- [docs/writing-docstrings.md](docs/writing-docstrings.md)
 
 
 
