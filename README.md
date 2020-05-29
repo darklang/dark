@@ -50,7 +50,7 @@ Restart dnsmasq:
 sudo brew services restart dnsmasq / sudo /etc/init.d/dnsmasq restart
 ```
 
-Configure OSX to use dnsmasq:
+Configure OSX to use dnsmasq (not needed on linux):
 ```
 sudo mkdir -p /etc/resolver
 sudo tee /etc/resolver/localhost >/dev/null <<EOF
@@ -72,6 +72,9 @@ dig testing.builtwithdark.localhost @127.0.0.1
 - Wait until the terminal says "Finished initial compile" - this means the build server is ready
 - If you see "initial compile failed", it may be a memory issue. Ensure you
   have docker configured to provide 4GB of memory.
+- Open your browser to http://darklang.localhost:8000/a/YOURNAME/
+- Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
+
 
 #### Get a Dark account for yourself
 
@@ -99,87 +102,41 @@ Contributors should add this to the `upsert_admins` function in account.ml -
 that will restart the Dark server, causing your user to be added. You won't
 need this anymore then.
 
-Note: this password is _not_ used in prod; it may be different from your password
-on darklang.com.
+Note: this password is _not_ used in production; it may be different
+from your password on darklang.com.
 
-### Building and running
-
-- Run `scripts/builder --compile --watch --test`
-- Wait til the terminal says "Finished initial compile" - this means the build server is ready
-- Open your browser to http://darklang.localhost:8000/a/YOURNAME/
-- Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
-
-### If you're interviewing:
-
-- run `scripts/builder --compile --test` and leave it for 10-15mins to compile the Docker image.
-- If there's any issues, let us know when we start and we can fix it in the background.
+## Other ways to run the dev container
 
 ### Just serve it, not constantly recompiling
 
 - Run `scripts/builder --compile --serve`
 
-## Deploy it to prod
+### (Not) Rebuilding the dev container
 
-We're running in kubernetes on GKE.
+If you pull a commit with a Dockerfile update, and then restart your
+`scripts/builder` script -- it will rebuild as much of the container as possible.
 
-The production containers are deployed as part of the CI build on master.
+If you don't want to rebuild the container, use `NEVER_REBUILD_DOCKER=1 scripts/builder ...`
+to make the the build script use the last built one.
 
-### How to build production containers
+In another shell you can now kick off a `scripts/builder --compile` to rebuild the container
+in parallel with your currently working one.
 
-Build the production container (assumes that the build has succeeded):
+You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker invocations, including say ocamlmerlin, use the old+running container as opposed to attempting to use the container
+that has an in progress build.
 
-- `./scripts/gcp-build-containers`
+### Preserving battery life
 
-### How to deploy manually.
+The're a poll during building that is a great drain on battery life. To
+reduce the frequency of the poll, run script/builder using
+POLL_FREQUENCY, which is the number of times per second to check.
 
-You'll need `gcloud` installed:
+- `POLL_FREQUENCY=0.1 scripts/builder --etc`
 
-- `curl -s https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-192.0.0-darwin-x86_64.tar.gz | tar xz && ./google-cloud-sdk/install.sh`
+You can also disable the polling (and consequently the building):
 
-then authenticate with gcloud:
+- `scripts/builder --compile --serve`
 
-- `gcloud auth login`
-
-(Note: you might need to restart your shell for gcloud to appear in your $PATH,
-or run `exec $SHELL`)
-
-You should restart your development container at this point, as it pulls in
-your currently authenticated user at start time.
-
-Push the production container to Google Cloud Registry:
-
-- `./scripts/gcp-push-images-to-gcr`
-
-Trigger the deploy:
-
-- `./script/gke-deploy`
-
-### How to rollback a deploy (or pause deploys):
-Use:
-- `kubectl rollout history <deployment>`
-- `kubectl rollout undo <deployment> --to-revision=N`
-- `kubectl rollout pause <deployment>` (keeps CI from deploying while you work on a fix)
-- `kubectl rollout resume <deployment>` (to resume after pausing)
-
-See `docs/kubectl-rollout.md` for details.
-
-### Troubleshooting GCP/GKE:
-
-If gcloud auth is hanging, you can pass `--no-launch-browser` to `gcloud auth login` to have a CLI based workflow.
-
-If you have authentication problems (eg. `denied: Unable to access the
-repository, please check that you have permission to access it.` from a GCR
-push), and you've confirmed that you've logged into gcloud and restarted your
-container, then check that you've accepted the invite to the Google Developer
-Project in your email. If you have and it's still not working, or you don't
-have an invitation, then ping Paul or Ian.
-
-
-### Troubleshooting container issues:
-
-If don't have time to debug docker issues, try:
-
-- `NEVER_REBUILD_DOCKER=1 scripts/builder ...`
 
 ## Testing
 
@@ -204,29 +161,6 @@ There are good debugging options for integration testing. See integration-tests/
 ## Accessing the local db
 
 - `scripts/run-in-docker psql -d devdb`
-
-## Pull the prod db locally
-
-- `scripts/download-gcp-db`
-
-This pulls all the data from gcp and puts it in a db named "prodclone".
-
-Access it:
-
-- `scripts/builder --compile --watch [etc] --prodclone`
-
-You can reset the clone to a pristine production clone (at the time of
-download) with:
-
-- `scripts/reset-prodclone`
-
-And access it directly with:
-
-- `scripts/run-in-docker psql -d prodclone`
-
-You can also access the real DB in production:
-
-- `./scripts/gcp-prod`
 
 ## Config files
 
@@ -289,32 +223,6 @@ You probably also want to install a pre-commit hook that runs ocamlformat for
 you.
 `cp scripts/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
 
-
-## (Not) Rebuilding the dev container
-
-If you pull a commit with a Dockerfile update, and then restart your
-`scripts/builder` script -- it will rebuild as much of the container as possible.
-
-If you don't want to rebuild the container, use `NEVER_REBUILD_DOCKER=1 scripts/builder ...`
-to make the the build script use the last built one.
-
-In another shell you can now kick off a `scripts/builder --compile` to rebuild the container
-in parallel with your currently working one.
-
-You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker invocations, including say ocamlmerlin, use the old+running container as opposed to attempting to use the container
-that has an in progress build.
-
-## Preserving battery life
-
-The're a poll during building that is a great drain on battery life. To
-reduce the frequency of the poll, run script/builder using
-POLL_FREQUENCY, which is the number of times per second to check.
-
-- `POLL_FREQUENCY=0.1 scripts/builder --etc`
-
-You can also disable the polling (ans consequently the building):
-
-- `scripts/builder --compile --serve`
 
 ## Debugging the client
 
@@ -382,25 +290,7 @@ the preprocessed version.
 
 ## Important docs which we believe are up-to-date:
 
-- [docs/add-user.md](docs/add-user.md)
 - [docs/oplist-serialization.md](docs/oplist-serialization.md)
 
-lol pushing to master
 
-## Adding Vector Graphics
-All our SVG icons are converted into a font set via [Glyphter](https://glyphter.com/).
-They are stored in `client/static/dark-icons-font-vX`. And defined for usage in `client/styles/_dark-icons.scss`.
-To add a new font:
 
-1. Login to glyphter via 1Password. There should be account credentials stored in Dark's shared vault.
-2. Once you are logged in, there is a dropdown that saids "My Fonts" at the top. Select "Dark Icons" from it.
-3. Make sure your SVG filename(s) is something recongizable (ie: new-logo.svg). Drag SVG file(s) into the empty spaces.
-4. Once you are done adding the new icon(s), save this font and download it.
-5. Inside the downloaded zip there are two folders `css` and `fonts`. Rename the fonts folder to `dark-icons-font-vX`, where X is the new version number.
-6. Move your `dark-icons-font-vX` folder into `client/static` and delete the old version folder.
-7. Open `css/Dark-Icons.css` in your zip, and `client/styles/_dark-icons.scss` in your Dark source code.
-8. In `_dark-icons.scss`, update the variable `$dark-icons-version` to the new version.
-9. In `Dark-Icons.css` you should see something like `.icon-new-logo:before{content:'\00A1';}`, '\00A1' is the ASCII notation for you glyph. In `_dark-icons.scss`, find the variable `$dark-icons`, use the ASCII notation to update the map. ie: `"new-logo":"\00A1"`.
-10. Now you can use your awesome new icons! Like this `<i class="di di-new-logo" />`.
-
-If you need to design your own icon, remember to look at the [icon requirements](https://www.notion.so/darklang/Font-Icon-Requirements-9ea9b3f06bd94f6a842cd2ea473bc334) first.
