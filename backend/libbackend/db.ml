@@ -527,23 +527,22 @@ type table_stats_row =
   ; disk_human : string
   ; rows_human : string }
 
-(* Sizes from the pg_class table are fast (vs, say, running `SELECT count` on a
- * large table) but also are approximate, not precise. That's fine for purposes
- * of "how big are my tables growing to be?"
- *
- * Three steps in the query in table_stats:
- * 1) subquery "sizes" gets the data we want (size in bytes, number of rows)
- * 2) subquery "with_total_row" appends a row to the resultset that SUM()s the contents of each
- *    field
- * 3) the final query provides both raw- and humanized- formatted columns
- *)
-
 (** Queries the database to get approximate sizes (both in bytes and in # of rows) for each
  * table in the postgres DB.
  *
  * Primary use case here is to run in a cron and be logged to honeycomb, but
  * there is also human-readable output. *)
 let table_stats () : table_stats_row list =
+  (* Sizes from the pg_class table are fast (vs, say, running `SELECT count` on a
+   * large table) but also are approximate, not precise. That's fine for purposes
+   * of "how big are my tables growing to be?"
+   *
+   * Three steps in the query in table_stats:
+   * 1) subquery "sizes" gets the data we want (size in bytes, number of rows)
+   * 2) subquery "with_total_row" appends a row to the resultset that SUM()s the contents of each
+   *    field
+   * 3) the final query provides both raw- and humanized- formatted columns
+   *)
   fetch
     ~name:"table_stats"
     ~params:[]
