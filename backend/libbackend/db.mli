@@ -117,4 +117,9 @@ type table_stats_row =
   ; disk_human : string
   ; rows_human : string }
 
+(** Queries the database to get approximate sizes (both in bytes and in # of rows) for each
+ * table in the postgres DB, as a list of [table_stats_rows].
+ *
+ * Primary use case here is to run in a cron and be logged to honeycomb, but
+ * there is also human-readable output. *)
 val table_stats : unit -> table_stats_row list

@@ -527,11 +527,6 @@ type table_stats_row =
   ; disk_human : string
   ; rows_human : string }
 
-(** Queries the database to get approximate sizes (both in bytes and in # of rows) for each
- * table in the postgres DB.
- *
- * Primary use case here is to run in a cron and be logged to honeycomb, but
- * there is also human-readable output. *)
 let table_stats () : table_stats_row list =
   (* Sizes from the pg_class table are fast (vs, say, running `SELECT count` on a
    * large table) but also are approximate, not precise. That's fine for purposes
