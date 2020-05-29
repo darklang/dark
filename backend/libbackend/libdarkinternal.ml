@@ -1448,7 +1448,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getTableSizes"]
+  ; { prefix_names = ["DarkInternal::getAndLogTableSizes"]
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
