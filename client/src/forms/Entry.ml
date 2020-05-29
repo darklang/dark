@@ -348,11 +348,7 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
   | PDBColType _ ->
       v AC.dbColTypeValidator "DB type"
   | PDBColName _ ->
-      if value = "id"
-      then
-        Some
-          "The field name 'id' was reserved when IDs were implicit. We are transitioning to allowing it, but we're not there just yet. Sorry!"
-      else v AC.dbColNameValidator "DB column name"
+      v AC.dbColNameValidator "DB column name"
   | PEventName _ ->
       if TL.isHTTPHandler tl
       then
