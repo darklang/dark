@@ -1,5 +1,12 @@
 # Dark
 
+## Contributing
+
+We have a [set of contributor
+docs](https://darklang.github.io/docs/contributing/getting-started) to guide
+you through your first PR, find good projects to contribute to, and learn about
+the code base, available on our docs site.
+
 ## Getting Started
 
 ### Requirements
@@ -300,6 +307,7 @@ from your password on darklang.com.
 - [docs/oplist-serialization.md](docs/oplist-serialization.md)
 - [docs/bs-tea.md](docs/bs-tea.md)
 - [docs/writing-docstrings.md](docs/writing-docstrings.md)
+- [contributor docs](https://darklang.github.io/docs/contributing/getting-started)
 
 
 
