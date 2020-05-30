@@ -94,6 +94,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libev-dev \
       libgmp-dev \
       pkg-config \
+      # see https://www.agwa.name/blog/post/fixing_the_addtrust_root_expiration
+      # for why openssl and not gnutls
       libcurl4-openssl-dev \
       libpq-dev \
       postgresql-9.6 \
