@@ -1,7 +1,7 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
+FROM ubuntu:20.04 as dark-base
 
 ENV FORCE_BUILD 1
 
@@ -34,6 +34,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       less \
       gpg \
       gpg-agent \
+      sudo \
+      software-properties-common \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -54,10 +56,10 @@ RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" 
 RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
 
 # Testcafe needs node >= 11
-RUN echo "deb https://deb.nodesource.com/node_13.x bionic main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_13.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_13.x focal main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_13.x focal main" >> /etc/apt/sources.list.d/nodesource.list
 
-RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -cs)" && \
+RUN export CLOUD_SDK_REPO="cloud-sdk" && \
     echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
 
@@ -76,6 +78,9 @@ RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_releas
 # - most libs re for ocaml
 # - net-tools for netstat
 # - esy packages need texinfo
+# - python2 for nodejs
+# - universe for python2
+RUN sudo add-apt-repository universe
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
@@ -100,6 +105,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
       google-chrome-stable \
+      python2 \
       nodejs \
       google-cloud-sdk \
       jq \
@@ -287,6 +293,9 @@ RUN adduser --disabled-password --gecos '' --gid ${gid} tunnel
 USER dark
 ENV TERM=xterm-256color
 
+# Prevent warning
+RUN echo "Set disable_coredump false" >> /etc/sudo.conf
+
 ############################
 # Finish
 ############################
@@ -330,6 +339,7 @@ RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
   && chmod +x /usr/bin/cloud_sql_proxy
 
 RUN apt update && apt install -y dnsutils && apt clean && rm -rf /var/lib/apt/lists/*
+
 
 user dark
 
