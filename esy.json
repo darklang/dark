@@ -56,6 +56,7 @@
     "@opam/ocamlformat": "0.12"
   },
   "resolutions": {
+    "@opam/ocurl": "github:darklang/ocurl:opam#be7def67e402e315f263c99b082ce39aec124161",
     "@opam/conf-libev": "esy-packages/libev:package.json#0b5eb6685b688649045aceac55dc559f6f21b829",
     "@opam/jwt": "github:ismith/ocaml-jwt:jwt.opam#1a4b601",
     "@opam/gcloud": "github:darklang/ocaml-gcloud:gcloud.opam#3d575fd",
