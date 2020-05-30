@@ -1707,6 +1707,22 @@ let t_int_stdlibs () =
 
 let t_bool_stdlibs () =
   check_dval
+    "Bool::and works (true, false)"
+    (exec_ast' (fn "Bool::and" [bool true; bool false]))
+    (DBool false) ;
+  check_dval
+    "Bool::and works (false, true)"
+    (exec_ast' (fn "Bool::and" [bool false; bool true]))
+    (DBool false) ;
+  check_dval
+    "Bool::and works (false, false)"
+    (exec_ast' (fn "Bool::and" [bool false; bool false]))
+    (DBool false) ;
+  check_dval
+    "Bool::and works (true, true)"
+    (exec_ast' (fn "Bool::and" [bool true; bool true]))
+    (DBool true) ;
+  check_dval
     "Bool::xor works (true, false)"
     (exec_ast' (fn "Bool::xor" [bool true; bool false]))
     (DBool true) ;
