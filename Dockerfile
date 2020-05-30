@@ -78,6 +78,8 @@ RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_releas
 # - most libs re for ocaml
 # - net-tools for netstat
 # - esy packages need texinfo
+# - python2 for nodejs
+# - universe for python2
 RUN sudo add-apt-repository universe
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
@@ -291,6 +293,9 @@ RUN adduser --disabled-password --gecos '' --gid ${gid} tunnel
 USER dark
 ENV TERM=xterm-256color
 
+# Prevent warning
+RUN echo "Set disable_coredump false" >> /etc/sudo.conf
+
 ############################
 # Finish
 ############################
@@ -334,6 +339,7 @@ RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
   && chmod +x /usr/bin/cloud_sql_proxy
 
 RUN apt update && apt install -y dnsutils && apt clean && rm -rf /var/lib/apt/lists/*
+
 
 user dark
 
