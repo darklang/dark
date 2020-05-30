@@ -294,6 +294,7 @@ USER dark
 ENV TERM=xterm-256color
 
 # Prevent warning
+user root
 RUN echo "Set disable_coredump false" >> /etc/sudo.conf
 
 ############################
