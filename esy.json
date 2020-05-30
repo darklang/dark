@@ -23,7 +23,7 @@
     "@opam/js_of_ocaml-ppx": "3.4.0",
     "@opam/jwt": "*",
     "@opam/lwt": "5.1.0",
-    "@opam/lwt_ppx": "2.0.0",
+    "@opam/lwt_ppx": "*",
     "@opam/lwt_ssl": "1.1.3",
     "@opam/magic-mime": "1.1.2",
     "@opam/multipart-form-data": "*",
