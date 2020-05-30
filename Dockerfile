@@ -341,6 +341,8 @@ RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
 
 RUN apt update && apt install -y dnsutils && apt clean && rm -rf /var/lib/apt/lists/*
 
+# TODO: this is a temporary fix, there's likely a better way to build + install
+# this
 ADD libcurl.so /lib/x86_64-linux-gnu/libcurl-gnutls.so.4
 
 user dark
