@@ -46,4 +46,9 @@ ENV GIT_COMMIT ${GIT_COMMIT}
 
 RUN ./check-linked-libs bin/server.exe
 
+# Disable expired AddTrust root, per
+# https://www.agwa.name/blog/post/fixing_the_addtrust_root_expiration
+RUN sed -i'' /etc/ca-certificates.conf -e 's|mozilla/AddTrust_External_Root.  crt|!&|' \
+  && update-ca-certificates
+
 CMD "./gcp-run-server"
