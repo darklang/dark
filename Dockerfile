@@ -295,7 +295,6 @@ ENV TERM=xterm-256color
 
 # Prevent warning
 user root
-RUN chown postgres:postgres /etc/ssl/private/ssl-cert-snakeoil.key
 RUN echo "Set disable_coredump false" >> /etc/sudo.conf
 
 ############################
