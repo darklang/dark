@@ -94,7 +94,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libev-dev \
       libgmp-dev \
       pkg-config \
-      libcurl4-gnutls-dev \
+      libcurl4-openssl-dev \
       libpq-dev \
       postgresql-9.6 \
       postgresql-client-9.6 \
