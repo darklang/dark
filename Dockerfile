@@ -94,9 +94,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libev-dev \
       libgmp-dev \
       pkg-config \
-      # see https://www.agwa.name/blog/post/fixing_the_addtrust_root_expiration
-      # for why openssl and not gnutls
-      libcurl4-openssl-dev \
+      libcurl4-gnutls-dev \
       libpq-dev \
       postgresql-9.6 \
       postgresql-client-9.6 \
@@ -332,6 +330,12 @@ RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
   && chmod +x /usr/bin/cloud_sql_proxy
 
 RUN apt update && apt install -y dnsutils && apt clean && rm -rf /var/lib/apt/lists/*
+
+# Disable expired AddTrust root, per
+# https://www.agwa.name/blog/post/fixing_the_addtrust_root_expiration
+RUN sed -i'' /etc/ca-certificates.conf -e 's|mozilla/AddTrust_External_Root.crt|!&|' \
+  && update-ca-certificates
+
 
 user dark
 
