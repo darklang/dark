@@ -191,7 +191,11 @@ let t_toint_works () =
   check_dval
     "String::toInt works"
     (exec_ast' (fn "String::toInt" [str "1"]))
-    (DInt Dint.one)
+    (DInt Dint.one) ;
+  check_dval
+    "String::toInt works"
+    (exec_ast' (fn "String::toInt_v1" [str "1"]))
+    (DResult (ResOk (Dval.dint 1)))
 
 
 let suite =
