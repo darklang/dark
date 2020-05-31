@@ -782,4 +782,23 @@ let fns : expr fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DB::queryCount"]
+    ; infix_names = []
+    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+    ; return_type = TInt
+    ; description =
+        "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+    ; func =
+        InProcess
+          (function
+          | state, [DDB dbname; DBlock b] ->
+            ( try
+                let db = find_db state.dbs dbname in
+                User_db.query_count ~state db b |> Dval.dint
+              with Db.DBQueryException _ as e ->
+                DError (SourceNone, Db.dbQueryExceptionToString e) )
+          | args ->
+              fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false } ]
