@@ -26,7 +26,6 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
       # to allow checkout for contributors
-      CIRCLE_REPOSITORY_URL: https://github.com/darklang/dark
       # these keys are read-only
       AWS_ACCESS_KEY_ID: "AKIAXJAGP54V756YBAHZ"
       AWS_SECRET_ACCESS_KEY: "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"
