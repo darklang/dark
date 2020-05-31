@@ -377,6 +377,45 @@ let query ~state (db : expr db) (b : expr dblock_args) :
              Exception.internal "bad format received in get_all")
 
 
+let query_count ~state (db : expr db) (b : expr dblock_args) : int =
+  let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
+  let param_name =
+    match b.params with
+    | [(_, name)] ->
+        name
+    | _ ->
+        Exception.internal "wrong number of args"
+  in
+  let sql =
+    Sql_compiler.compile_lambda ~state b.symtable param_name db_fields b.body
+  in
+  let result =
+    try
+      Db.fetch
+        ~name:"filter"
+        ( "SELECT COUNT(*)
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5
+     AND ("
+        ^ sql
+        ^ ")" )
+        ~params:
+          [ ID db.tlid
+          ; Uuid state.account_id
+          ; Uuid state.canvas_id
+          ; Int db.version
+          ; Int current_dark_version ]
+    with e ->
+      Libcommon.Log.erroR "error compiling sql" ~data:(Exception.to_string e) ;
+      raise (DBQueryException "A type error occurred at run-time")
+  in
+  result |> List.hd_exn |> List.hd_exn |> int_of_string
+
+
 let get_all_keys ~state (db : 'expr_type db) : string list =
   Db.fetch
     ~name:"get_all_keys"

@@ -53,6 +53,12 @@ val query :
   -> Types.RuntimeT.expr dblock_args
   -> (string * Types.RuntimeT.expr dval) list
 
+val query_count :
+     state:Types.RuntimeT.expr exec_state
+  -> Types.RuntimeT.expr DbT.db
+  -> Types.RuntimeT.expr dblock_args
+  -> int
+
 val count : state:'expr_type exec_state -> 'expr_type DbT.db -> int
 
 val delete : state:'expr_type exec_state -> 'expr_type DbT.db -> string -> unit
