@@ -980,6 +980,21 @@ let t_db_query_works () =
            ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
         [lambda ["r"] (field "r" "rachel")]
     |> exec ) ;
+  check_dval
+    "queryCount - empty"
+    (Dval.dint 0)
+    ( fn
+        "DB::queryCount"
+        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
+    |> exec ) ;
+  check_dval
+    "queryCount"
+    (Dval.dint 3)
+    ( fn
+        "DB::queryCount"
+        [var "Person"; lambda ["v"] (binop ">" (field "v" "height") (int 3))]
+    |> exec ) ;
+
   (* -------------- *)
   (* Test functions *)
   (* -------------- *)
