@@ -1738,6 +1738,14 @@ let t_bool_stdlibs () =
     "Bool::xor works (true, true)"
     (exec_ast' (fn "Bool::xor" [bool true; bool true]))
     (DBool false) ;
+  check_dval
+    "Bool::not works (true)"
+    (exec_ast' (fn "Bool::not" [bool true]))
+    (DBool false) ;
+  check_dval
+    "Bool::not works (false)"
+    (exec_ast' (fn "Bool::not" [bool false]))
+    (DBool true) ;
   ()
 
 
