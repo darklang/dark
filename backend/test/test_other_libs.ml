@@ -1999,6 +1999,13 @@ let t_libhttp () =
   ()
 
 
+let t_string_toint_works () =
+  check_dval
+    "toInt"
+    (exec_ast' (fn "String::toInt_v1" [str "1"]))
+    (DInt Dint.one)
+
+
 let suite =
   [ ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)

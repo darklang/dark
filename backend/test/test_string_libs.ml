@@ -187,13 +187,6 @@ let t_endsWith_works () =
     (DBool false)
 
 
-let t_toInt_works () =
-  check_dval
-    "toInt"
-    (exec_ast' (fn "String::toInt_v1" [str "1"]))
-    (DInt Dint.one)
-
-
 let suite =
   [ ( "String::length_v2 returns the correct length for a string containing an emoji"
     , `Quick
