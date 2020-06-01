@@ -2018,7 +2018,7 @@ let t_libhttp () =
  * but I don't think that's terribly useful right now, type guarantees are
  * enough. *)
 let t_darkinternal_table_stats_works () =
-  let ast = fn "DarkInternal::getTableSizes" [] in
+  let ast = fn "DarkInternal::getAndLogTableSizes" [] in
   AT.check
     AT.bool
     "DarkInternal::table_stats works (no params)"
