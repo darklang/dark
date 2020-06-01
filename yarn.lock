@@ -510,6 +510,15 @@ babel-helper-builder-binary-assignment-operator-visitor@^6.24.1:
     babel-runtime "^6.22.0"
     babel-types "^6.24.1"
 
+babel-helper-builder-react-jsx@^6.24.1:
+  version "6.26.0"
+  resolved "https://registry.yarnpkg.com/babel-helper-builder-react-jsx/-/babel-helper-builder-react-jsx-6.26.0.tgz#39ff8313b75c8b65dceff1f31d383e0ff2a408a0"
+  integrity sha1-Of+DE7dci2Xc7/HzHTg+D/KkCKA=
+  dependencies:
+    babel-runtime "^6.26.0"
+    babel-types "^6.26.0"
+    esutils "^2.0.2"
+
 babel-helper-call-delegate@^6.24.1:
   version "6.24.1"
   resolved "https://registry.yarnpkg.com/babel-helper-call-delegate/-/babel-helper-call-delegate-6.24.1.tgz#ece6aacddc76e41c3461f88bfc575bd0daa2df8d"
@@ -672,6 +681,11 @@ babel-plugin-syntax-flow@^6.18.0:
   version "6.18.0"
   resolved "https://registry.yarnpkg.com/babel-plugin-syntax-flow/-/babel-plugin-syntax-flow-6.18.0.tgz#4c3ab20a2af26aa20cd25995c398c4eb70310c8d"
   integrity sha1-TDqyCiryaqIM0lmVw5jE63AxDI0=
+
+babel-plugin-syntax-jsx@^6.3.13, babel-plugin-syntax-jsx@^6.8.0:
+  version "6.18.0"
+  resolved "https://registry.yarnpkg.com/babel-plugin-syntax-jsx/-/babel-plugin-syntax-jsx-6.18.0.tgz#0af32a9a6e13ca7a3fd5069e62d7b0f58d0d8946"
+  integrity sha1-CvMqmm4Tyno/1QaeYtew9Y0NiUY=
 
 babel-plugin-syntax-object-rest-spread@^6.8.0:
   version "6.13.0"
@@ -942,6 +956,38 @@ babel-plugin-transform-object-rest-spread@^6.22.0:
     babel-plugin-syntax-object-rest-spread "^6.8.0"
     babel-runtime "^6.26.0"
 
+babel-plugin-transform-react-display-name@^6.23.0:
+  version "6.25.0"
+  resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-display-name/-/babel-plugin-transform-react-display-name-6.25.0.tgz#67e2bf1f1e9c93ab08db96792e05392bf2cc28d1"
+  integrity sha1-Z+K/Hx6ck6sI25Z5LgU5K/LMKNE=
+  dependencies:
+    babel-runtime "^6.22.0"
+
+babel-plugin-transform-react-jsx-self@^6.22.0:
+  version "6.22.0"
+  resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-jsx-self/-/babel-plugin-transform-react-jsx-self-6.22.0.tgz#df6d80a9da2612a121e6ddd7558bcbecf06e636e"
+  integrity sha1-322AqdomEqEh5t3XVYvL7PBuY24=
+  dependencies:
+    babel-plugin-syntax-jsx "^6.8.0"
+    babel-runtime "^6.22.0"
+
+babel-plugin-transform-react-jsx-source@^6.22.0:
+  version "6.22.0"
+  resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-jsx-source/-/babel-plugin-transform-react-jsx-source-6.22.0.tgz#66ac12153f5cd2d17b3c19268f4bf0197f44ecd6"
+  integrity sha1-ZqwSFT9c0tF7PBkmj0vwGX9E7NY=
+  dependencies:
+    babel-plugin-syntax-jsx "^6.8.0"
+    babel-runtime "^6.22.0"
+
+babel-plugin-transform-react-jsx@^6.24.1:
+  version "6.24.1"
+  resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-jsx/-/babel-plugin-transform-react-jsx-6.24.1.tgz#840a028e7df460dfc3a2d29f0c0d91f6376e66a3"
+  integrity sha1-hAoCjn30YN/DotKfDA2R9jduZqM=
+  dependencies:
+    babel-helper-builder-react-jsx "^6.24.1"
+    babel-plugin-syntax-jsx "^6.8.0"
+    babel-runtime "^6.22.0"
+
 babel-plugin-transform-regenerator@^6.22.0:
   version "6.26.0"
   resolved "https://registry.yarnpkg.com/babel-plugin-transform-regenerator/-/babel-plugin-transform-regenerator-6.26.0.tgz#e0703696fbde27f0a3efcacf8b4dca2f7b3a8f2f"
@@ -1006,6 +1052,18 @@ babel-preset-flow@^6.23.0:
   integrity sha1-5xIYiHCFrpoktb5Baa/7WZgWxJ0=
   dependencies:
     babel-plugin-transform-flow-strip-types "^6.22.0"
+
+babel-preset-react@^6.24.1:
+  version "6.24.1"
+  resolved "https://registry.yarnpkg.com/babel-preset-react/-/babel-preset-react-6.24.1.tgz#ba69dfaea45fc3ec639b6a4ecea6e17702c91380"
+  integrity sha1-umnfrqRfw+xjm2pOzqbhdwLJE4A=
+  dependencies:
+    babel-plugin-syntax-jsx "^6.3.13"
+    babel-plugin-transform-react-display-name "^6.23.0"
+    babel-plugin-transform-react-jsx "^6.24.1"
+    babel-plugin-transform-react-jsx-self "^6.22.0"
+    babel-plugin-transform-react-jsx-source "^6.22.0"
+    babel-preset-flow "^6.23.0"
 
 babel-preset-stage-2@^6.22.0:
   version "6.24.1"
@@ -1901,6 +1959,13 @@ debug@2.6.9, debug@^2.2.0, debug@^2.3.3, debug@^2.6.8, debug@^2.6.9:
   integrity sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA==
   dependencies:
     ms "2.0.0"
+
+debug@4.1.1:
+  version "4.1.1"
+  resolved "https://registry.yarnpkg.com/debug/-/debug-4.1.1.tgz#3b72260255109c6b589cee050f1d516139664791"
+  integrity sha512-pYAIzeRo8J6KPEaJ0VWOh5Pzkbw/RetuzehGM7QRRX5he4fPHx2rdKMB256ehJCkX+XRQm16eZLqLNS8RSZXZw==
+  dependencies:
+    ms "^2.1.1"
 
 debug@=3.1.0:
   version "3.1.0"
@@ -3733,7 +3798,7 @@ ms@2.0.0:
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.0.0.tgz#5608aeadfc00be6c2901df5f9861788de0d597c8"
   integrity sha1-VgiurfwAvmwpAd9fmGF4jeDVl8g=
 
-ms@^2.0.0:
+ms@^2.0.0, ms@^2.1.1:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.2.tgz#d09d1f357b443f493382a8eb3ccd183872ae6009"
   integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
@@ -5188,10 +5253,10 @@ tar@^2.0.0:
     fstream "^1.0.12"
     inherits "2"
 
-testcafe-browser-tools@2.0.11:
-  version "2.0.11"
-  resolved "https://registry.yarnpkg.com/testcafe-browser-tools/-/testcafe-browser-tools-2.0.11.tgz#bdc9a1487d3bd44201f3ef3df9cb8a722acb57d1"
-  integrity sha512-T9mjSTj8DLd8G20TjWuA03xAXH59i2OxN+Ehx99ZBeOUAxUc9mRa8Gf1BT4Sj5nd28xfYJpstIYXgI46Ol51Qw==
+testcafe-browser-tools@2.0.12:
+  version "2.0.12"
+  resolved "https://registry.yarnpkg.com/testcafe-browser-tools/-/testcafe-browser-tools-2.0.12.tgz#33b0173b5d7cd4c1327a94139f93630e6012ca65"
+  integrity sha512-5oNNYlcZiDspqJB6L8CfI4vxjzkvARSZv3pa+JrFAoqYmEA3VPiAvzrn+P0zi0D5jEPkKngW2KTpq6r3GfdDNw==
   dependencies:
     array-find "^1.0.0"
     dedent "^0.7.0"
@@ -5209,10 +5274,10 @@ testcafe-browser-tools@2.0.11:
     read-file-relative "^1.2.0"
     which-promise "^1.0.0"
 
-testcafe-hammerhead@16.2.9:
-  version "16.2.9"
-  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-16.2.9.tgz#efb18f71f4d02304f8f7ae717e049e7b20579205"
-  integrity sha512-1nGfVgkmz9aHihexzLSVqe3YtGSLNxDXInZ3mTg28O+lZp+5Ies8LeSXQhFoSd/ibT25rhwc3TFEcIJYxeIa8w==
+testcafe-hammerhead@17.1.2:
+  version "17.1.2"
+  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-17.1.2.tgz#589e9dfe397bb5181725af177e7385a308e8a6f5"
+  integrity sha512-WkTRrZoMYIZkB0NGiT+xrlD71hcMDX/a34iHNdrUBwcw9o/xi7ym4YzyZO0LXrG5b1pzuLS3ll/o5OqkhfRZnw==
   dependencies:
     acorn-hammerhead "^0.3.0"
     asar "^2.0.1"
@@ -5220,6 +5285,7 @@ testcafe-hammerhead@16.2.9:
     brotli "^1.3.1"
     crypto-md5 "^1.0.0"
     css "2.2.3"
+    debug "4.1.1"
     esotope-hammerhead "0.5.3"
     iconv-lite "0.5.1"
     lodash "^4.17.13"
@@ -5238,10 +5304,10 @@ testcafe-hammerhead@16.2.9:
     tunnel-agent "0.6.0"
     webauth "^1.1.0"
 
-testcafe-legacy-api@3.1.11:
-  version "3.1.11"
-  resolved "https://registry.yarnpkg.com/testcafe-legacy-api/-/testcafe-legacy-api-3.1.11.tgz#f6a1704c0ee57bd18b32bc8c383775f2bad74819"
-  integrity sha512-JWv8Exc9FAEBbKw+IP97Ebd+0FzA3nzgRv9iQCNh/+JlZyUox7NWiojs9BAXqgxIltl54rdo7TxPkNslxb+Ltw==
+testcafe-legacy-api@4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/testcafe-legacy-api/-/testcafe-legacy-api-4.0.0.tgz#700bacce8d16028250d41b643051645b4cfe7cd5"
+  integrity sha512-Tn+YEH8hqDPQs/1/d+A9G+FdfejougtoWX0wRxrLq5ECYy2qxwH8p9EGDUNatLm0IFIumVpcz2tSZkvRpfKLSg==
   dependencies:
     async "0.2.6"
     babel-runtime "^5.8.34"
@@ -5282,10 +5348,10 @@ testcafe-reporter-xunit@^2.1.0:
   resolved "https://registry.yarnpkg.com/testcafe-reporter-xunit/-/testcafe-reporter-xunit-2.1.0.tgz#e6d66c572ce15af266706af0fd610b2a841dd443"
   integrity sha1-5tZsVyzhWvJmcGrw/WELKoQd1EM=
 
-testcafe@^1.8.5:
-  version "1.8.5"
-  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.8.5.tgz#049496b20e3a70f3286afc23ddd88c50507b7bb5"
-  integrity sha512-qLoiQRip2fk5ldIzPYRC2yztjAhihpxhQyPtNomDEYTnSyovCADAMP3Ok+Pc6HNkA7sC1tAi2yGaCW1QbmXwOw==
+testcafe@^1.8.6:
+  version "1.8.6"
+  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.8.6.tgz#7077964ffce0bdfd7ac590912068665f197703d0"
+  integrity sha512-h4cpvyBZqBXAxCqjaf3iswWFWJ4ZCtNP64+BniWj+bU0MZbTD64DOsyF92zQg09x+odQhU8Hm2zyCxKgAMCbtg==
   dependencies:
     "@types/node" "^10.12.19"
     async-exit-hook "^1.1.2"
@@ -5295,6 +5361,7 @@ testcafe@^1.8.5:
     babel-plugin-transform-runtime "^6.22.0"
     babel-preset-env "^1.1.8"
     babel-preset-flow "^6.23.0"
+    babel-preset-react "^6.24.1"
     babel-preset-stage-2 "^6.22.0"
     babel-runtime "^6.22.0"
     bin-v8-flags-filter "^1.1.2"
@@ -5348,9 +5415,9 @@ testcafe@^1.8.5:
     sanitize-filename "^1.6.0"
     source-map-support "^0.5.16"
     strip-bom "^2.0.0"
-    testcafe-browser-tools "2.0.11"
-    testcafe-hammerhead "16.2.9"
-    testcafe-legacy-api "3.1.11"
+    testcafe-browser-tools "2.0.12"
+    testcafe-hammerhead "17.1.2"
+    testcafe-legacy-api "4.0.0"
     testcafe-reporter-json "^2.1.0"
     testcafe-reporter-list "^2.1.0"
     testcafe-reporter-minimal "^2.1.0"
