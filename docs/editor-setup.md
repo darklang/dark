@@ -18,7 +18,7 @@ those scripts first in your `$PATH`.
 - Install merlin:
   - `brew install opam`
   - `opam init -c 4.06.1`
-    - grep the `Dockerfile` for `OCAML_SWITCH` to ensure the version matches
+    - grep `esy.json` for `"ocaml"` to ensure the version matches
     - copy snippet to your bashrc/shell config. DO NOT DO THIS FOR zsh. SEE BELOW.
   - `opam install merlin.3.2.2`
 - Install editor integration:
