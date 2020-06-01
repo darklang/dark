@@ -34,6 +34,66 @@ executors:
 
 
 commands:
+
+  # CircleCI won't share the "deploy key" used to checkout the repo with a branch
+  # unless we've opted to share secrets, which we should never do. So this adds a
+  # new read-only deploy key that can only be used to check out this repo 
+  dark-checkout:
+    steps:
+      - run:
+        env:
+          DARK_DEPLOY_KEY: "-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----"
+        command:
+          echo -n "${DARK_DEPLOY_KEY}" > ~/.ssh/dark_deploy_key_rsa
+      - checkout
   show-large-files-and-directories:
     steps:
       - run:
@@ -168,7 +228,7 @@ jobs:
   build-client:
     executor: in-container
     steps:
-      - checkout
+      - dark-checkout
       - setup-app
       - restore_cache:
           keys:
