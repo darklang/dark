@@ -1481,7 +1481,7 @@ human-readable data."
                          "postgres_table_sizes"
                          ~jsonparams:
                            [ ("relation", `String ts.relation)
-                           ; ("disk", `Int ts.disk)
+                           ; ("disk", `Int ts.disk_bytes)
                            ; ("rows", `Int ts.rows)
                            ; ("disk_human", `String ts.disk_human)
                            ; ("rows_human", `String ts.rows_human) ]) ;
@@ -1500,7 +1500,7 @@ human-readable data."
                   table_stats
                   |> List.map ~f:(fun ts ->
                          ( ts.relation
-                         , [ ("disk", DInt (Dint.of_int ts.disk))
+                         , [ ("disk_bytes", DInt (Dint.of_int ts.disk_bytes))
                            ; ("rows", DInt (Dint.of_int ts.rows))
                            ; ( "disk_human"
                              , Dval.dstr_of_string_exn ts.disk_human )

@@ -522,7 +522,7 @@ let dbQueryExceptionToString = function
 
 type table_stats_row =
   { relation : string
-  ; disk : int
+  ; disk_bytes : int
   ; rows : int
   ; disk_human : string
   ; rows_human : string }
@@ -586,9 +586,10 @@ let table_stats () : table_stats_row list =
          ) as rows_human
      FROM with_total_row"
   |> List.map ~f:(function
-         | [relation; disk; rows; disk_human; rows_human] ->
+         | [relation; disk_bytes; rows; disk_human; rows_human] ->
              { relation
-             ; disk = disk |> int_of_string_opt |> Option.value ~default:0
+             ; disk_bytes =
+                 disk_bytes |> int_of_string_opt |> Option.value ~default:0
              ; rows = rows |> int_of_string_opt |> Option.value ~default:0
              ; disk_human
              ; rows_human }
