@@ -17,7 +17,7 @@ executors:
       AWS_ACCESS_KEY_ID: "AKIAXJAGP54V756YBAHZ"
       AWS_SECRET_ACCESS_KEY: "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"
     docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:c8654a8
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -28,7 +28,7 @@ executors:
       AWS_ACCESS_KEY_ID: "AKIAXJAGP54V756YBAHZ"
       AWS_SECRET_ACCESS_KEY: "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"
     docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-c8654a8
 
 
 commands:
