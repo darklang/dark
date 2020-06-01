@@ -187,6 +187,17 @@ let t_endsWith_works () =
     (DBool false)
 
 
+let t_toint_works () =
+  check_dval
+    "String::toInt works"
+    (exec_ast' (fn "String::toInt" [str "1"]))
+    (DInt Dint.one) ;
+  check_dval
+    "String::toInt works"
+    (exec_ast' (fn "String::toInt_v1" [str "1"]))
+    (DResult (ResOk (Dval.dint 1)))
+
+
 let suite =
   [ ( "String::length_v2 returns the correct length for a string containing an emoji"
     , `Quick
@@ -227,4 +238,5 @@ let suite =
   ; ("Slugify works", `Quick, t_slugify_works)
   ; ("substring works", `Quick, t_substring_works)
   ; ("startsWith works", `Quick, t_startsWith_works)
-  ; ("endsWith works", `Quick, t_endsWith_works) ]
+  ; ("endsWith works", `Quick, t_endsWith_works)
+  ; ("string_toint_works", `Quick, t_toint_works) ]
