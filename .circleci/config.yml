@@ -31,8 +31,6 @@ executors:
       - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
 
 
-
-
 commands:
 
   # CircleCI won't share the "deploy key" used to checkout the repo with a branch
@@ -92,7 +90,7 @@ TE/FmjH4HKPw6sAVxv376N9MuAQh/xu6uMyYfwCcYCR2ic6KW7GRoBbYM95wGRRnh6Exxl
 5e9eVuXZgMEAAAAbcmVhZC1vbmx5LWRhcmtsYW5nL2Rhcmsta2V5
 -----END OPENSSH PRIVATE KEY-----"
           command: |
-            mkdir -p .ssh
+            mkdir -p ~/.ssh
             echo -n "${DARK_DEPLOY_KEY}" > ~/.ssh/dark_deploy_key_rsa
       - checkout
   show-large-files-and-directories:
