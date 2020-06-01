@@ -5,6 +5,10 @@ Build our docker container
 If you update this repo and push, the tag(s) (one for `dark-ci`, one for rust)
 will be automatically derived from the current git hash - see `tag-version.sh`.
 
+Specifically, the tags are `"$(tag-version.sh)"` and `"rust-$(tag-version.sh)"`
+respectively, to allow for possible later variation between the ocaml and rust
+containers.
+
 To use in CI, you'll then go to the darklang/dark repo's `.circleci/config.yaml`
 and update `.executors | .[] | .docker.image` for the `in-container` and
 `in-rust-container` executors.
