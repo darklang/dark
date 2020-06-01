@@ -107,42 +107,49 @@ let htmlForTempTooltip (tooltip : tooltip) : msg Html.html =
     match tooltip with
     | Http ->
         let link = Some "https://darklang.github.io/docs/first-api-endpoint" in
-        ("Click the plus sign to create a REST API endpoint.", link)
+        (["Click the plus sign to create a REST API endpoint."], link)
     | Worker ->
         let link = Some "https://darklang.github.io/docs/first-worker" in
-        ( "Click the plus sign to create a worker to process asynchronous tasks."
+        ( [ "Click the plus sign to create a worker to process asynchronous tasks."
+          ]
         , link )
     | Cron ->
         let link = Some "https://darklang.github.io/docs/first-cron" in
-        ("Click the plus sign to create a scheduled job.", link)
+        (["Click the plus sign to create a scheduled job."], link)
     | Repl ->
         let link = Some "https://darklang.github.io/docs/first-repl" in
-        ("Click the plus sign to create a general purpose coding block.", link)
+        (["Click the plus sign to create a general purpose coding block."], link)
     | Datastore ->
         let link = Some "https://darklang.github.io/docs/first-datastore" in
-        ("Click to create a key-value store.", link)
+        (["Click to create a key-value store."], link)
     | Function ->
         let link = Some "https://darklang.github.io/docs/first-function" in
-        ("Click to create a reusable block of code.", link)
+        (["Click to create a reusable block of code."], link)
     | FourOhFour ->
         let link =
           Some "https://darklang.github.io/docs/trace-driven-development"
         in
-        ("Attempts to hit endpoints that do not exist are added here.", link)
+        ( [ "Attempts to hit endpoints that do not yet have handlers appear here."
+          ; "If you're looking for a 404 but not seeing it in this list, check the 'Deleted' section of the sidebar."
+          ]
+        , link )
     | Deleted ->
         let link = None in
-        ("Deleted handlers appear here.", link)
+        (["Deleted handlers appear here."], link)
     | PackageManager ->
         let link = None in
-        ( "A list of built-in Dark functions. Click on the name of the function to preview it. To use the function in your canvas, start typing its name in your handler and select it from autocomplete."
+        ( [ "A list of built-in Dark functions. Click on the name of the function to preview it."
+          ; "To use the function in your canvas, start typing its name in your handler and select it from autocomplete."
+          ]
         , link )
     | StaticAssets ->
         let link = Some "https://darklang.github.io/docs/static-assets" in
-        ("Learn more about hosting static assets here.", link)
+        (["Learn more about hosting static assets here."], link)
   in
   Html.div
     [Html.class' "tutorial-txt"]
-    [Html.p [] [Html.text content]; learnMoreLink link]
+    ( (content |> List.map ~f:(fun p -> Html.p [] [Html.text p]))
+    @ [learnMoreLink link] )
 
 
 let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
