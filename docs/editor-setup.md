@@ -1,5 +1,7 @@
 ## Setting up your editor
 
+**Note that this doc is incomplete and sometimes may require tinkering after doing the actions here. We welcome additions, clarifications, and instructions on how to set up other editors.**
+
 ### Merlin
 
 Merlin is an OCaml language server that provides things like autocompletion,
