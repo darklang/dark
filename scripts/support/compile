@@ -66,7 +66,7 @@ def sass_compile():
 def copy_static():
   # For changing static files (esp icons)
   start = time.time()
-  return run_frontend(start, "yarn run copy:static")
+  return run_frontend(start, "npm run copy:static")
 
 def client_build():
   if os.environ.get("CI"):
@@ -79,16 +79,13 @@ def client_build():
     start = time.time()
 
   start = time.time()
-  build = "unbuffer yarn run build"
+  build = "unbuffer npm run build"
   result = run_frontend(start, build)
   return result
 
 def npm_install():
   start = time.time()
-  flags = ""
-  if os.environ.get("CI"):
-    flags += " --frozen-lockfiles"
-  build = "unbuffer ./scripts/support/retrying-yarn-install" + flags
+  build = "unbuffer ./scripts/support/npm-install-with-retry"
   return run_frontend(start, build)
 
 def esy_install():

@@ -197,8 +197,8 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v2-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
-            - v2-client-{{ checksum "yarn.lock" }}
+            - v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v2-client-{{ checksum "package-lock.json" }}
             - v2-client
       - run: scripts/support/compile --test package.json client/src/styles/app.scss
       - assert-clean-worktree
@@ -207,7 +207,7 @@ jobs:
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "node_modules" ]
-          key: v2-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
+          key: v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -312,8 +312,8 @@ jobs:
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
-            - v1d-client-{{ checksum "yarn.lock" }}-{{ .Branch }}
-            - v1d-client-{{ checksum "yarn.lock" }}
+            - v1d-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
+            - v1d-client-{{ checksum "package-lock.json" }}
             - v1d-client
       - show-large-files-and-directories
       - run:
