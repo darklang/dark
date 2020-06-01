@@ -1473,7 +1473,7 @@ human-readable data."
                  * reasonable.
                  *
                  * The log statements all look like:
-                 * {"timestamp":"2020-05-29T00:20:08.769420000Z","level":"INFO","name":"postgres_table_sizes","relation":"Total","disk":835584.0,"rows":139.0,"disk_human":"816 kB","rows_human":"139"}
+                 * {"timestamp":"2020-05-29T00:20:08.769420000Z","level":"INFO","name":"postgres_table_sizes","relation":"Total","disk_bytes":835584,"rows":139,"disk_human":"816 kB","rows_human":"139"}
                  * *)
                 table_stats
                 |> List.iter ~f:(fun ts ->
