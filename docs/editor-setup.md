@@ -34,7 +34,7 @@ this in an alias or something).
 
 ### Formatting
 
-You will also want to support formatting in your client. Dark uses Prettier for Js/Html/CSS, and OCamlformat for OCaml and Bucklescript. The script `script/format` can be used to format or check formatting, and there is a pre-commit hook you can use to run it automatically.
+You will also want to support formatting in your client. Dark uses Prettier for JS/HTML/CSS, and OCamlformat for OCaml and Bucklescript. The script `script/format` can be used to format or check formatting, and there is a pre-commit hook you can use to run it automatically.
 
 For emacs, see [the
 readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
