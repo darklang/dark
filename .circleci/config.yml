@@ -5,8 +5,8 @@ jobs:
     docker:
       - image: docker:stable-git
     environment:
-      TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
-      RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest
+      TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest2
+      RUST_TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-latest2
     steps:
       - checkout
       - setup_remote_docker: { docker_layer_caching: true }
