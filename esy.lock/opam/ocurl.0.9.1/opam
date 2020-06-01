@@ -1,0 +1,36 @@
+opam-version: "2.0"
+maintainer: "ygrek@autistici.org"
+homepage: "https://ygrek.org/p/ocurl"
+license: "MIT"
+authors: [ "Lars Nilsson" "ygrek" ]
+doc: ["https://ygrek.org/p/ocurl/api/index.html"]
+dev-repo: "git://github.com/ygrek/ocurl.git"
+bug-reports: "https://github.com/ygrek/ocurl/issues"
+tags: ["org:ygrek" "clib:curl"]
+build: [
+  ["./configure"]
+  [make]
+  [make "doc"] {with-doc}
+  [make "test"] {with-test}
+]
+install: [
+  [make "install"]
+]
+depends: [
+  "ocaml" {>= "4.02.0"}
+  "ocamlfind" {build}
+  "base-unix"
+  "conf-libcurl"
+]
+depopts: ["lwt" "lwt_ppx"]
+synopsis: "Bindings to libcurl"
+description: "libcurl is a client-side URL transfer library, supporting HTTP and a multitude of other network protocols (FTP/SMTP/RTSP/etc). This library wrap easy synchronous API (Curl), synchronous parallel and generic asynchronous API (Curl.Multi), and provides an Lwt-enabled asynchronous interface (Curl_lwt)."
+url {
+  src: "https://ygrek.org/p/release/ocurl/ocurl-0.9.1.tar.gz"
+  checksum: [
+    "md5=1ff6b12803fa0c6e9a4358dd29b83910"
+    "sha256=c65f01913270b674a0ca0f278f91bc1e368d7110e8308084bc2280b43a0bc258"
+    "sha512=1ec21065f67ac227efb071ad696648ab4ac488ce77db091b4f212821b863fdcb2b23b6b9d579e8878fe8f1a6b2f0ec81c2751a72a1df201ea47f016012107429"
+  ]
+  mirrors: "https://github.com/ygrek/ocurl/releases/download/0.9.1/ocurl-0.9.1.tar.gz"
+}

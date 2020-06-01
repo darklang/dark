@@ -28,7 +28,7 @@
     "@opam/magic-mime": "1.1.2",
     "@opam/multipart-form-data": "*",
     "@opam/nocrypto": "*",
-    "@opam/ocurl": "0.8.2",
+    "@opam/ocurl": "0.9.1",
     "@opam/postgresql": "4.5.0",
     "@opam/ppx_deriving": "4.4",
     "@opam/ppx_deriving_yojson": "3.5.1",

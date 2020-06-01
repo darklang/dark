@@ -31,3 +31,4 @@ url {
     "https://ocaml.janestreet.com/ocaml-core/v0.11/files/configurator-v0.11.0.tar.gz"
   checksum: "md5=55511f3ea8e3d66439910b3324701218"
 }
+post-messages: [ "configurator is deprecated. Please use dune-configurator in new code and consider switching to it in existing projects." ]
