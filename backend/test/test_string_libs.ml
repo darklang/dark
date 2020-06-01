@@ -136,6 +136,34 @@ let t_slugify_works () =
   ()
 
 
+let t_string_append_works_for_ascii_range () =
+  check_dval
+    "stringAppendASCII"
+    (exec_ast "(String::append_v1 'hello' 'world')")
+    (Dval.dstr_of_string_exn "helloworld")
+
+
+let t_string_append_works_on_non_ascii_strings () =
+  check_dval
+    "stringAppendMixed"
+    (exec_ast "(String::append_v1 'żółw' '\xf0\x9f\x98\x84')")
+    (Dval.dstr_of_string_exn "żółw\xf0\x9f\x98\x84")
+
+
+let t_string_prepend_works_for_ascii_range () =
+  check_dval
+    "stringPrependASCII"
+    (exec_ast "(String::prepend 'hello' 'world')")
+    (Dval.dstr_of_string_exn "worldhello")
+
+
+let t_string_prepend_works_on_non_ascii_strings () =
+  check_dval
+    "stringPrependMixed"
+    (exec_ast "(String::prepend 'żółw' '\xf0\x9f\x98\x84')")
+    (Dval.dstr_of_string_exn "\xf0\x9f\x98\x84żółw")
+
+
 let t_uuid_string_roundtrip () =
   let ast =
     "(let i (Uuid::generate)
@@ -239,4 +267,16 @@ let suite =
   ; ("substring works", `Quick, t_substring_works)
   ; ("startsWith works", `Quick, t_startsWith_works)
   ; ("endsWith works", `Quick, t_endsWith_works)
-  ; ("string_toint_works", `Quick, t_toint_works) ]
+  ; ("string_toint_works", `Quick, t_toint_works)
+  ; ( "String::append_v1 works for ASCII range"
+    , `Quick
+    , t_string_append_works_for_ascii_range )
+  ; ( "String::append_v1 works on non-ascii strings"
+    , `Quick
+    , t_string_append_works_on_non_ascii_strings )
+  ; ( "String::prepend works for ASCII range"
+    , `Quick
+    , t_string_prepend_works_for_ascii_range )
+  ; ( "String::prepend works on non-ascii strings"
+    , `Quick
+    , t_string_prepend_works_on_non_ascii_strings ) ]

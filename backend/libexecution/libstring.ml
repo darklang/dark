@@ -317,12 +317,27 @@ let fns : expr fn list =
     ; parameters = [par "s1" TStr; par "s2" TStr]
     ; return_type = TStr
     ; description =
-        "Concatenates the two strings and returns the joined string."
+        "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
     ; func =
         InProcess
           (function
           | _, [DStr s1; DStr s2] ->
               DStr (Unicode_string.append s1 s2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["String::prepend"]
+    ; infix_names = []
+    ; parameters = [par "s1" TStr; par "s2" TStr]
+    ; return_type = TStr
+    ; description =
+        "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr s1; DStr s2] ->
+              DStr (Unicode_string.append s2 s1)
           | args ->
               fail args)
     ; preview_safety = Safe
