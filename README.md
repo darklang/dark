@@ -1,6 +1,14 @@
 # dockerfile
 Build our docker container
 
+# Usage
+If you update this repo and push, the tag(s) (one for `dark-ci`, one for rust)
+will be automatically derived from the current git hash - see `tag-version.sh`.
+
+To use in CI, you'll then go to the darklang/dark repo's `.circleci/config.yaml`
+and update `.executors | .[] | .docker.image` for the `in-container` and
+`in-rust-container` executors.
+
 # Garbage collection (manual)
 We decided against automated GCing of these images:
 1. AWS offers an age-since-pushed lifecycle policy, but if this repo is
