@@ -802,6 +802,10 @@ let t_list_stdlibs_work () =
     (DOption (OptJust (Dval.dint 1)))
     (* Can't check randomness deterministically in test so only 1 element*)
     (exec_ast' (fn "List::randomElement" [list [int 1]])) ;
+  check_dval
+    "List:member works for empty lists"
+    (DBool false)
+    (exec_ast' (fn "List::member" [list []; int 1])) ;
   ()
 
 
