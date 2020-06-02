@@ -46,6 +46,7 @@ commands:
             ls -la ~/.ssh
             echo "${DARK_DEPLOY_KEY}" | base64 -d > ~/.ssh/id_rsa
             ls -la ~/.ssh
+            chmod 600 ~/.ssh/id_rsa
             md5sum ~/.ssh/id_rsa
       # CircleCI has a key in here already that it uses by default - remove it
       - run: ssh-add -D
