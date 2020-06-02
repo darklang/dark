@@ -1750,6 +1750,18 @@ let t_bool_stdlibs () =
     "Bool::not works (false)"
     (exec_ast' (fn "Bool::not" [bool false]))
     (DBool true) ;
+  check_dval
+    "Bool::or works (true, false)"
+    (exec_ast' (fn "Bool::or" [bool true; bool false]))
+    (DBool true) ;
+  check_dval
+    "Bool::or works (true, true)"
+    (exec_ast' (fn "Bool::or" [bool true; bool true]))
+    (DBool true) ;
+  check_dval
+    "Bool::or works (false, false)"
+    (exec_ast' (fn "Bool::or" [bool false; bool false]))
+    (DBool false) ;
   ()
 
 
