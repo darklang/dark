@@ -45,13 +45,14 @@ commands:
             mkdir -p ~/.ssh
             ls -la ~/.ssh
             echo "${DARK_DEPLOY_KEY}" | base64 -d > ~/.ssh/id_rsa
+            echo "${DARK_DEPLOY_KEY}" | base64 -d > ~/debug
             ls -la ~/.ssh
             chmod 600 ~/.ssh/id_rsa
             md5sum ~/.ssh/id_rsa
       # CircleCI has a key in here already that it uses by default - remove it
       - run: ssh-add -D
       # Don't use CircleCI's built-in `checkout` command as it seems to add the key back
-      - git clone git@github.com:darklang/dark
+      - run: git clone git@github.com:darklang/dark
   show-large-files-and-directories:
     steps:
       - run:
