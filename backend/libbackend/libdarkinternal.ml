@@ -1481,7 +1481,7 @@ human-readable data."
                          "postgres_table_sizes"
                          ~jsonparams:
                            [ ("relation", `String ts.relation)
-                           ; ("disk", `Int ts.disk_bytes)
+                           ; ("disk_bytes", `Int ts.disk_bytes)
                            ; ("rows", `Int ts.rows)
                            ; ("disk_human", `String ts.disk_human)
                            ; ("rows_human", `String ts.rows_human) ]) ;
