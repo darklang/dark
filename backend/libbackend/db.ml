@@ -518,3 +518,80 @@ let dbQueryExceptionToString = function
       ^ str
   | _ ->
       ""
+
+
+type table_stats_row =
+  { relation : string
+  ; disk_bytes : int
+  ; rows : int
+  ; disk_human : string
+  ; rows_human : string }
+
+let table_stats () : table_stats_row list =
+  (* Sizes from the pg_class table are fast (vs, say, running `SELECT count` on a
+   * large table) but also are approximate, not precise. That's fine for purposes
+   * of "how big are my tables growing to be?"
+   *
+   * Three steps in the query in table_stats:
+   * 1) subquery "sizes" gets the data we want (size in bytes, number of rows)
+   * 2) subquery "with_total_row" appends a row to the resultset that SUM()s the contents of each
+   *    field
+   * 3) the final query provides both raw- and humanized- formatted columns
+   *)
+  fetch
+    ~name:"table_stats"
+    ~params:[]
+    "WITH sizes AS (
+         SELECT
+            relname as \"relation\",
+            pg_total_relation_size (C .oid) as disk,
+            reltuples::bigint AS \"rows\"
+         FROM pg_class C
+         LEFT JOIN pg_namespace N ON (N.oid = C .relnamespace)
+         WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+         AND C .relkind <> 'i'
+         AND nspname !~ '^pg_toast'
+         ORDER BY pg_total_relation_size (C .oid) DESC
+     ),
+
+     -- with_total_row is a subquery that appends a SUM() row to the bottom of our result set
+     with_total_row AS (
+         SELECT relation, disk, \"rows\" FROM sizes
+         UNION ALL
+         SELECT
+            'Total',
+            SUM(disk),
+            SUM(\"rows\")
+         FROM sizes
+     )
+
+     -- now we actually do our output, including both raw and humanized-number
+     -- columns for \"disk\" and \"rows\"
+     SELECT relation,
+         disk,
+         \"rows\",
+         pg_size_pretty(disk) as disk_human,
+         -- NOTE: below uses pg_size_pretty to get us something human readable
+         -- ('100M' is easier than '100000000', but it's _row count_, not bytes,
+         -- hence trimming those parts off.)
+         --
+         -- Examples for trim(from substring(...)):
+         -- 100 MB -> 100M
+         -- 100 kb -> 100k
+         -- 1 bytes -> 1
+         trim(from
+             substring(
+                 pg_size_pretty ( \"rows\"::bigint)
+                 from '[0-9]* [^b]?')
+         ) as rows_human
+     FROM with_total_row"
+  |> List.map ~f:(function
+         | [relation; disk_bytes; rows; disk_human; rows_human] ->
+             { relation
+             ; disk_bytes =
+                 disk_bytes |> int_of_string_opt |> Option.value ~default:0
+             ; rows = rows |> int_of_string_opt |> Option.value ~default:0
+             ; disk_human
+             ; rows_human }
+         | _ ->
+             Exception.internal "Wrong shape for table_stats query")
