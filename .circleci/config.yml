@@ -215,7 +215,7 @@ jobs:
   build-backend:
     executor: in-container
     steps:
-      - checkout
+      - dark-checkout
       - setup-app
       - restore_cache:
           keys:
@@ -268,7 +268,7 @@ jobs:
   build-stroller:
     executor: in-rust-container
     steps:
-      - checkout
+      - dark-checkout
       - rust-setup: { project: "stroller" }
       - run: scripts/support/compile stroller/Cargo.toml --test
       - assert-clean-worktree
@@ -277,7 +277,7 @@ jobs:
   build-queue-scheduler:
     executor: in-rust-container
     steps:
-      - checkout
+      - dark-checkout
       - rust-setup: { project: "queue-scheduler" }
       # tests are run in rust-integration-tests
       - run: scripts/support/compile queue-scheduler/Cargo.toml
@@ -287,14 +287,14 @@ jobs:
   build-postgres-honeytail:
     executor: my-executor
     steps:
-      - checkout
+      - dark-checkout
       - prep-container-creation
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
   validate-honeycomb-config:
     executor: my-executor
     steps:
-      - checkout
+      - dark-checkout
       - prep-container-creation
       - run: apk add --update bash jq python py-pip && pip install yq
       - run: bash -c scripts/support/test-honeycomb-config.sh
@@ -303,7 +303,7 @@ jobs:
     executor: in-container
     parallelism: 4
     steps:
-      - checkout
+      - dark-checkout
       - setup-app
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
@@ -336,7 +336,7 @@ jobs:
   rust-integration-tests:
     executor: in-rust-container
     steps:
-      - checkout
+      - dark-checkout
       - rust-setup: { project: "queue-scheduler" }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
@@ -356,7 +356,7 @@ jobs:
     executor: in-container
     steps:
       # Just test that we can build them for now
-      - checkout
+      - dark-checkout
       - setup-app
       - attach_workspace: { at: "." }
       - build-gcp-containers
@@ -364,7 +364,7 @@ jobs:
   push-to-gcp:
     executor: in-container
     steps:
-      - checkout
+      - dark-checkout
       - setup-app
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
@@ -392,7 +392,7 @@ jobs:
   deploy:
     executor: in-container
     steps:
-      - checkout
+      - dark-checkout
       - setup-app
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
