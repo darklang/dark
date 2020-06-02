@@ -59,9 +59,16 @@ let run () =
           let handlers = handlersByName handlers in
           let datastores = dbsByName dbs in
           let functions = StrDict.empty in
+          let packageFunctions = StrDict.empty in
           let usages =
             match
-              findUsagesInAST h2tlid datastores handlers functions h2data.ast
+              findUsagesInAST
+                h2tlid
+                ~datastores
+                ~handlers
+                ~functions
+                ~packageFunctions
+                h2data.ast
             with
             | [{refersTo; usedIn; id}] ->
                 refersTo = h2tlid && usedIn = dbtlid && id == dbRefID

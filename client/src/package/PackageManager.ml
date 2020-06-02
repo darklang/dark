@@ -23,6 +23,16 @@ let blankOrData (pmf : packageFn) : blankOrData list =
   [PFnName fnname] @ allParamData pmf
 
 
+let extendedName (pkgFn : packageFn) : string =
+  Printf.sprintf
+    "%s/%s/%s::%s_v%d"
+    pkgFn.user
+    pkgFn.package
+    pkgFn.module_
+    pkgFn.fnname
+    pkgFn.version
+
+
 let fn_of_packageFn (pkgFn : packageFn) : function_ =
   let paramOfPkgFnParam (pkgFnParam : packageFnParameter) : parameter =
     { paramName = pkgFnParam.name
@@ -34,16 +44,7 @@ let fn_of_packageFn (pkgFn : packageFn) : function_ =
                              fns *)
     ; paramOptional = false }
   in
-  let to_name (fn : packageFn) : string =
-    Printf.sprintf
-      "%s/%s/%s::%s_v%d"
-      fn.user
-      fn.package
-      fn.module_
-      fn.fnname
-      fn.version
-  in
-  { fnName = pkgFn |> to_name
+  { fnName = pkgFn |> extendedName
   ; fnParameters = pkgFn.parameters |> List.map ~f:paramOfPkgFnParam
   ; fnDescription = pkgFn.description
   ; fnReturnTipe = pkgFn.return_type
