@@ -111,6 +111,24 @@ let fns : expr fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
+  ; { prefix_names = ["Crypto::md5"]
+    ; infix_names = []
+    ; parameters = [par "data" TBytes]
+    ; return_type = TBytes
+    ; description =
+        "Computes the md5 digest of the given `data`. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
+    ; func =
+        InProcess
+          (function
+          | _, [DBytes data] ->
+              Cstruct.of_bytes data
+              |> Nocrypto.Hash.MD5.digest
+              |> digest_to_bytes
+              |> DBytes
+          | args ->
+              fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
   ; { prefix_names = ["Crypto::sha256hmac"]
     ; infix_names = []
     ; parameters = [par "key" TBytes; par "data" TBytes]
