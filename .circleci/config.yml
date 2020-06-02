@@ -39,7 +39,7 @@ commands:
   dark-checkout:
     steps:
       - run:
-          env:
+          environment:
             DARK_DEPLOY_KEY: "-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAACFwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAgEAwWv30uEGJOGiiy8p9PBCxwA30ynUV5LQf9EYNeVdQAYxUtJxxjy7
