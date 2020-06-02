@@ -50,7 +50,8 @@ commands:
             md5sum ~/.ssh/id_rsa
       # CircleCI has a key in here already that it uses by default - remove it
       - run: ssh-add -D
-      - checkout
+      # Don't use CircleCI's built-in `checkout` command as it seems to add the key back
+      - git clone git@github.com:darklang/dark
   show-large-files-and-directories:
     steps:
       - run:
