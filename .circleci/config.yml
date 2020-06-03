@@ -48,10 +48,14 @@ commands:
             chmod 600 ~/.ssh/id_rsa
             # CircleCI has a key in here already that it uses by default - remove it
             ssh-add -D
-            # Avoid "are you sure" prompt
+
+            # Don't use CircleCI's built-in `checkout` command as it seems to
+            # add the key back. These commands based on CircleCI's checkout
+            # script though
             echo "${GITHUB_KNOWN_HOSTS}" >> ~/.ssh/known_hosts
-            # Don't use CircleCI's built-in `checkout` command as it seems to add the key back
             git clone git@github.com:darklang/dark .
+            git fetch --force origin "${CIRCLE_BRANCH}/head:remotes/origin/${CIRCLE_BRANCH}"
+            git reset --hard "$CIRCLE_SHA1"
   show-large-files-and-directories:
     steps:
       - run:
