@@ -156,8 +156,6 @@ ENV LC_ALL en_US.UTF-8
 ############################
 USER root
 
-RUN npm install -g yarn@1.21.1
-
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
 RUN npm install -g esy@0.5.8 --unsafe-perm=true \
