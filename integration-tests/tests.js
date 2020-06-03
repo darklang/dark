@@ -1340,6 +1340,9 @@ test("record_consent_saved_across_canvases", async t => {
   await t.navigateTo(`${BASE_URL}${testname}?integration-test=true`);
 });
 
+// This test is flaky; last attempt to fix it added the 1000ms timeout, but that
+// didn't solve the problem
+/*
 test("exe_flow_fades", async t => {
   const timestamp = new Date();
   await t.click(".fluid-entry");
@@ -1349,6 +1352,7 @@ test("exe_flow_fades", async t => {
     .expect(Selector(".fluid-not-executed", { timeout: 1000 }).exists)
     .ok();
 });
+*/
 
 test("unexe_code_unfades_on_focus", async t => {
   const timestamp = new Date();
