@@ -152,13 +152,12 @@ let packageFnView
     [ViewUtils.fontAwesome "box-open"; Html.span [Html.class' "fnname"] [Html.text name]]
   in
   Html.div
-    (* TODO(JULIAN): Make this link to the correct function when you click on it! *)
     (* TODO(JULIAN): Make the icon color correct based on if you can edit it! *)
     ( [ Html.class' ("ref-block fn " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-fn-link" ^ TLID.toString tlid)
           "click"
-          (fun _ -> GoTo (FocusedFn (tlid, None))) ]
+          (fun _ -> GoTo (FocusedPackageManagerFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
     [Html.div [Html.class' "fnheader"] header; packageFnParamsView params]
 
