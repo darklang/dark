@@ -1308,8 +1308,7 @@ let t_crypto_sha () =
     (exec_ast "(Bytes::hexEncode (Crypto::sha384 (String::toBytes '')))") ;
   check_dval
     "Crypto::md5 produces the correct digest"
-    (Dval.dstr_of_string_exn
-      "D41D8CD98F00B204E9800998ECF8427E")
+    (Dval.dstr_of_string_exn "D41D8CD98F00B204E9800998ECF8427E")
     (exec_ast "(Bytes::hexEncode (Crypto::md5 (String::toBytes '')))") ;
   ()
 
