@@ -52,8 +52,9 @@ commands:
             echo "github.com ssh-rsa ${GITHUB_KNOWN_HOST}" >> ~/.ssh/known_hosts
             git config --global gc.auto 0 || true
             git clone git@github.com:darklang/dark .
-            if [[ "${CIRCLE_PR_USERNAME}" != "darklang" ]]; then
-                git fetch --force origin "${CIRCLE_BRANCH}/head:remotes/origin/${CIRCLE_BRANCH}"
+            # This is only available on forked PRs
+            if [[ -v CIRCLE_PR_USERNAME ]]; then
+              git fetch --force origin "${CIRCLE_BRANCH}/head:remotes/origin/${CIRCLE_BRANCH}"
             fi
             git checkout -q -B "$CIRCLE_BRANCH"
             git reset --hard "$CIRCLE_SHA1"
