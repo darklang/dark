@@ -149,7 +149,6 @@ let packageFnView
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
   in
   Html.div
-    (* TODO(JULIAN): Make the icon color correct based on if you can edit it! *)
     ( [ Html.class' ("ref-block fn " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-fn-link" ^ TLID.toString tlid)
