@@ -76,6 +76,10 @@ $arrow-height: 24px;
     i.di {
       color: $blue;
     }
+
+    i.fa {
+      color: darken($grey3, 15%);
+    }
   }
 
   .fnicon,
