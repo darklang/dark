@@ -223,8 +223,8 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v7-backend-{{ checksum "esy.json" }}
-            - v7-backend
+            - v8-backend-{{ checksum "esy.json" }}
+            - v8-backend
       # appsupport is needed for a unit test, but it is not needed as part
       # of the backend otherwise. It is compiled as part of the frontend
       # tests.
@@ -255,7 +255,6 @@ jobs:
             rm -f /home/dark/.esy/3/i/**/*.cmt
             rm -f /home/dark/.esy/3/i/**/*.cmti
             rm -f /home/dark/.esy/3/i/**/*.byte
-            rm -f /home/dark/.esy/3/i/**/*.cmxs
             # These can be very cheaply rebuilt, and are about 400MB
             rm -f /home/dark/app/_build/default/backend/*/*.exe
       - show-large-files-and-directories
@@ -264,7 +263,7 @@ jobs:
             - _build
             - node_modules
             - /home/dark/.esy
-          key: v7-backend-{{ checksum "esy.json" }}
+          key: v8-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
