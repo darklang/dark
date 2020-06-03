@@ -133,7 +133,7 @@ let fnView
           "click"
           (fun _ -> GoTo (FocusedFn (tlid, None))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
-    [Html.div [Html.class' "fnheader"] header; fnParamsView params]
+    [Html.div [Html.class' "fnheader fnheader-user"] header; fnParamsView params]
 
 
 let packageFnView
@@ -155,7 +155,7 @@ let packageFnView
           "click"
           (fun _ -> GoTo (FocusedPackageManagerFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
-    [Html.div [Html.class' "fnheader"] header; packageFnParamsView params]
+    [Html.div [Html.class' "fnheader fnheader-pkg"] header; packageFnParamsView params]
 
 
 let tipeView
