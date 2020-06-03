@@ -13,7 +13,7 @@ RUN apt-get update \
     && apt-get install \
       --no-install-recommends \
       -y \
-      libcurl4-gnutls-dev \
+      libcurl4-openssl-dev \
       locales \
       libpq-dev \
       libev-dev \
@@ -33,11 +33,6 @@ RUN adduser --disabled-password --gecos '' dark
 RUN echo "dark:dark" | chpasswd && adduser dark sudo
 RUN chown -R dark:dark /home/dark
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-# Disable expired AddTrust root, per
-# https://www.agwa.name/blog/post/fixing_the_addtrust_root_expiration
-RUN sed -i'' /etc/ca-certificates.conf -e 's|mozilla/AddTrust_External_Root.crt|!&|' \
-  && update-ca-certificates
 
 # Set up app
 USER dark

@@ -20,8 +20,17 @@ if [ -e "$HOME/.nix-profile/lib/pkgconfig/openssl.pc" ]; then
 fi
 
 if [ -e "/usr/local/opt/openssl/lib/pkgconfig/openssl.pc" ]; then
-  # Homebrew
+  # Homebrew (legacy try)
   res=$(env PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig pkg-config openssl)
+  if [ $? -eq 0 ]; then
+    echo $res
+    exit 0
+  fi
+fi
+
+if [ -e "$(brew --prefix openssl)/lib/pkgconfig/openssl.pc" ]; then
+  # Homebrew (new try)
+  res=$(env PKG_CONFIG_PATH=$(brew --prefix openssl)/lib/pkgconfig pkg-config openssl)
   if [ $? -eq 0 ]; then
     echo $res
     exit 0

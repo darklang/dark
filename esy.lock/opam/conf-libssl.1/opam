@@ -25,5 +25,5 @@ depexts: [
 synopsis: "Virtual package relying on an OpenSSL library system installation"
 description:
   "This package can only install if the OpenSSL library is installed on the system."
-extra-files: ["osx-build.sh" "md5=e216c6189d0dfb4185521c8ace09fe40"]
+extra-files: ["osx-build.sh" "md5=faf81a6bf30e346abe94610f136c6193"]
 flags: conf
