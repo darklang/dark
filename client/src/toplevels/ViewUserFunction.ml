@@ -146,7 +146,7 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
           in
           Html.div [Html.class' "fn-actions"] [viewExecuteBtn vp fn; menuView]
       | PackageFn _ ->
-          Html.div [Html.class' "fn-actions"] []
+          Html.span [Html.class' "fn-readonly"] [Html.text "Read Only"]
     in
     Html.div
       [Html.class' "spec-header"]
