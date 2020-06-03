@@ -96,6 +96,12 @@ let unary_op_to_sql op : tipe_ * tipe_ * string * string list =
       (TStr, TInt, "length", [])
   | "String::reverse" ->
       (TStr, TStr, "reverse", [])
+  | "String::trim" ->
+      (TStr, TStr, "trim", [])
+  | "String::trimStart" ->
+      (TStr, TStr, "ltrim", [])
+  | "String::trimEnd" ->
+      (TStr, TStr, "rtrim", [])
   | _ ->
       error2 "This function is not yet implemented" op
 
