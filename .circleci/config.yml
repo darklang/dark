@@ -44,18 +44,19 @@ commands:
             GITHUB_KNOWN_HOSTS: "github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="
           command: |
             mkdir -p ~/.ssh
-            echo "${DARK_DEPLOY_KEY}" | base64 -d > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
+            echo "${DARK_DEPLOY_KEY}" | base64 -d > ~/.ssh/id_other
+            chmod 600 ~/.ssh/id_other
             # CircleCI has a key in here already that it uses by default - remove it
-            ssh-add -D
+            # ssh-add -D
 
             # Don't use CircleCI's built-in `checkout` command as it seems to
             # add the key back. These commands based on CircleCI's checkout
             # script though
-            echo "${GITHUB_KNOWN_HOSTS}" >> ~/.ssh/known_hosts
-            git clone git@github.com:darklang/dark .
-            git fetch --force origin "${CIRCLE_BRANCH}/head:remotes/origin/${CIRCLE_BRANCH}"
-            git reset --hard "$CIRCLE_SHA1"
+            # echo "${GITHUB_KNOWN_HOSTS}" >> ~/.ssh/known_hosts
+            # git clone git@github.com:darklang/dark .
+            # git fetch --force origin "${CIRCLE_BRANCH}/head:remotes/origin/${CIRCLE_BRANCH}"
+            # git reset --hard "$CIRCLE_SHA1"
+      - checkout
   show-large-files-and-directories:
     steps:
       - run:
