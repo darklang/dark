@@ -53,7 +53,7 @@ commands:
             git config --global gc.auto 0 || true
             git clone git@github.com:darklang/dark .
             # This is only available on forked PRs
-            if [[ -v CIRCLE_PR_USERNAME ]]; then
+            if [[ -n "${CIRCLE_PR_USERNAME}" ]]; then
               git fetch --force origin "${CIRCLE_BRANCH}/head:remotes/origin/${CIRCLE_BRANCH}"
             fi
             git checkout -q -B "$CIRCLE_BRANCH"
