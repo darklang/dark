@@ -165,7 +165,7 @@ let fns : expr fn list =
             fail args)
   ; preview_safety = Unsafe
   ; deprecated = false }
-; { prefix_names = ["DB::getExisting_v1"]
+; { prefix_names = ["DB::getExisting"]
 ; infix_names = []
 ; parameters = [par "keys" TList; par "table" TDB]
 ; return_type = TList
