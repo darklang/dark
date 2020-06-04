@@ -881,6 +881,8 @@ let redo_analysis_on_toggle_erail (_m : model) : testResult = pass
 
 let redo_analysis_on_commit_ff (_m : model) : testResult = pass
 
+let package_function_references_work (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1043,5 +1045,7 @@ let trigger (test_name : string) : integrationTestState =
         redo_analysis_on_toggle_erail
     | "redo_analysis_on_commit_ff" ->
         redo_analysis_on_commit_ff
+    | "package_function_references_work" ->
+        package_function_references_work
     | n ->
         fun _ -> fail ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
