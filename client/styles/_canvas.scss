@@ -140,6 +140,19 @@ body #app * {
   i.di {
     @extend .dark-icon-font;
   }
+
+  a {
+    &,
+    &:link,
+    &:visited {
+      color: $blue;
+    }
+
+    &:hover,
+    &:active {
+      color: $purple;
+    }
+  }
 }
 
 #canvas {
