@@ -183,6 +183,11 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
 
 let view (vp : viewProps) (fn : functionTypes) : msg Html.html =
   Html.div
-    [Html.class' "user-fn-toplevel"]
+    [ Html.class'
+        ( match fn with
+        | UserFunction _ ->
+            "user-fn-toplevel"
+        | PackageFn _ ->
+            "pkg-fn-toplevel" ) ]
     [ Html.div [Html.class' "metadata"] [viewMetadata vp fn]
     ; Html.div [Html.class' "function-body expand"] (FluidView.view vp []) ]

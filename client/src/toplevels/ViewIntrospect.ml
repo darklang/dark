@@ -149,13 +149,14 @@ let packageFnView
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
   in
   Html.div
-    ( [ Html.class' ("ref-block fn " ^ direction)
+    ( [ Html.class' ("ref-block pkg-fn " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-fn-link" ^ TLID.toString tlid)
           "click"
           (fun _ -> GoTo (FocusedPackageManagerFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
-    [Html.div [Html.class' "fnheader fnheader-pkg"] header; packageFnParamsView params]
+    [ Html.div [Html.class' "fnheader fnheader-pkg"] header
+    ; packageFnParamsView params ]
 
 
 let tipeView
