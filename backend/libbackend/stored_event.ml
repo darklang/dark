@@ -187,6 +187,74 @@ let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
              Exception.internal "Bad DB format for stored_events")
 
 
+type trim_events_action =
+  | Count
+  | Delete
+
+let trim_events_for_handler
+    ?(action : trim_events_action = Count)
+    ~(limit : int)
+    ~(module_ : string)
+    ~(modifier : string)
+    ~(path : string)
+    ~(canvas_id : Uuidm.t) : int =
+  let start_time = Time.now () in
+  let db_fn trim_events_action =
+    match action with Count -> Db.fetch_count | Delete -> Db.delete
+  in
+  let action_str =
+    match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
+  in
+  let count =
+    try
+      (db_fn action)
+        ~name:"gc"
+        (Printf.sprintf
+           "WITH last_ten AS (
+                SELECT trace_id
+                FROM stored_events_v2
+                WHERE module = $1 AND modifier = $2 and path = $3
+                AND canvas_id = $4
+                AND timestamp < (NOW() - interval '1 week') LIMIT 10
+              )
+              %s FROM stored_events_v2
+              WHERE module = $1
+              AND modifier = $2
+              AND path = $3
+              AND canvas_id = $4
+              AND timestamp < (NOW() - interval '1 week')
+              AND trace_id NOT IN (SELECT trace_id FROM last_ten) LIMIT $5;"
+           action_str)
+        ~params:
+          [ Db.String module_
+          ; Db.String modifier
+          ; Db.String path
+          ; Db.Uuid canvas_id
+          ; Db.Int limit ]
+    with Exception.DarkException e ->
+      Log.erroR
+        "db error"
+        ~params:
+          [ ( "err"
+            , e |> Exception.exception_data_to_yojson |> Yojson.Safe.to_string
+            ) ] ;
+      Exception.reraise (Exception.DarkException e)
+  in
+  let duration_ms = start_time |> Time.diff (Time.now ()) |> Time.Span.to_ms in
+  Log.infO
+    "garbage_collect_handler"
+    ~jsonparams:
+      [ ("duration_ms", `Float duration_ms)
+      ; ("limit", `Int limit)
+      ; ("row_count", `Int count) ]
+    ~params:
+      [ ("module", module_)
+      ; ("modifier", modifier)
+      ; ("canvas_id", canvas_id |> Uuidm.to_string)
+      ; ("action", action_str) ] ;
+  count
+
+
 (** trim_events removes all stored_events_v2 records older than a week, leaving
  * at minimum 10 records for each unique handler on a canvas regardless of age.
  *
@@ -222,21 +290,52 @@ let trim_events () : int =
 (** trim_events_for_canvas is like trim_events but for a single canvas.
  *
  * All the comments and warnings there apply. Please read them. *)
-let trim_events_for_canvas (canvas_id : Uuidm.t) : int =
-  Db.delete
-    ~name:"stored_event.trim_events_for_canvas"
-    "WITH indexed_events AS (
-       SELECT trace_id, row_number() OVER (
-         PARTITION BY canvas_id, module, path, modifier
-         ORDER BY timestamp DESC
-       ) AS rownum
-       FROM stored_events_v2
-       WHERE canvas_id = $1
-       AND timestamp < (NOW() - interval '1 week')
-     )
-     DELETE FROM stored_events_v2 WHERE trace_id IN (
-       SELECT trace_id FROM indexed_events
-       WHERE rownum > 10
-       LIMIT 10000
-     )"
-    ~params:[Uuid canvas_id]
+let trim_events_for_canvas
+    ?(action : trim_events_action = Count) (canvas_id : Uuidm.t) (limit : int) :
+    int =
+  let start_time = Time.now () in
+  let handlers =
+    ( try
+        Db.fetch
+          ~name:"get_handlers_for_gc"
+          "SELECT module, modifier, name, canvas_id
+           FROM toplevel_oplists
+           WHERE canvas_id = $1;"
+          ~params:[Db.Uuid canvas_id]
+      with Exception.DarkException e ->
+        Log.erroR
+          "db error"
+          ~params:
+            [ ( "err"
+              , e |> Exception.exception_data_to_yojson |> Yojson.Safe.to_string
+              ) ] ;
+        Exception.reraise (Exception.DarkException e) )
+    |> List.map ~f:(function
+           | [module_; modifier; path; _canvas_id] ->
+               (module_, modifier, path)
+           | xs ->
+               Log.erroR
+                 "wrong shape"
+                 ~params:[("result", xs |> String.concat ~sep:",")] ;
+               Exception.internal "Wrong shape in get_handlers_for_db")
+  in
+  let duration_ms = start_time |> Time.diff (Time.now ()) |> Time.Span.to_ms in
+  Log.infO
+    "garbage_collect_canvas"
+    ~jsonparams:
+      [ ("duration_ms", `Float duration_ms)
+      ; ("handler_count", `Int (handlers |> List.length)) ]
+    ~params:[("canvas_id", canvas_id |> Uuidm.to_string)] ;
+  let row_count : int =
+    handlers
+    |> List.map ~f:(fun (module_, modifier, path) ->
+           trim_events_for_handler
+             ~action
+             ~module_
+             ~modifier
+             ~path
+             ~canvas_id
+             ~limit)
+    |> Tc.List.sum
+  in
+  row_count

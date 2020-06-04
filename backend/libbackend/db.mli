@@ -69,6 +69,18 @@ val fetch_one :
   -> string
   -> string list
 
+(** This is fetch_one, but with SQL returning a single int field. The intent is
+ * to make it easy to swap Db.fetch_count and Db.delete so we can evaluate the
+ * performance of GC queries using fetch_count, with basically the same code as
+ * we use for delete - see Stored_events.trim_events_for_handler for an example. *)
+val fetch_count :
+     params:'expr_type param list
+  -> ?result:result
+  -> name:string
+  -> ?subject:string
+  -> string
+  -> int
+
 val fetch_one_option :
      params:'expr_type param list
   -> ?result:result
