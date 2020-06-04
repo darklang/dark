@@ -3970,6 +3970,92 @@ let run () =
         (let' "a" veryLongList b)
         render
         "~let a = [56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78]\n___" ;
+      t
+        "inserting [ before int creates a singleton int list"
+        aShortInt
+        ~pos:0
+        (ins "[")
+        "[~1]" ;
+      t
+        "inserting [ before multiline string creates a singleton string list"
+        mlStrWSpace
+        ~pos:0
+        (ins "[")
+        ( "[~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "  123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ " ghi,\"]" ) ;
+      t
+        "inserting [ before true creates a singleton bool list"
+        trueBool
+        ~pos:0
+        (ins "[")
+        "[~true]" ;
+      t
+        "inserting [ before true creates a singleton bool list"
+        falseBool
+        ~pos:0
+        (ins "[")
+        "[~false]" ;
+      t
+        "inserting [ before true creates a singleton bool list"
+        aNull
+        ~pos:0
+        (ins "[")
+        "[~null]" ;
+      t
+        "inserting [ before float creates a singleton float list"
+        aFloat
+        ~pos:0
+        (ins "[")
+        "[~123.456]" ;
+      t
+        "inserting [ before function call creates a singleton function list"
+        aFullFnCall
+        ~pos:0
+        (ins "[")
+        "[~Int::add 5 5]" ;
+      t
+        "inserting [ before variable creates a singleton with variable"
+        aVar
+        ~pos:0
+        (ins "[")
+        "[~variable]" ;
+      t
+        "inserting [ before empty list open wraps it in another list"
+        emptyList
+        ~pos:0
+        (ins "[")
+        "[~[]]" ;
+      t
+        "inserting [ before list open wraps it in another list"
+        multi
+        ~pos:0
+        (ins "[")
+        "[~[56,78]]" ;
+      t
+        "inserting [ before record open wraps it in a list"
+        singleRowRecord
+        ~pos:0
+        (ins "[")
+        "[~{\n   f1 : 56\n }]" ;
+      t
+        "inserting [ before constructor creates a singleton of that type"
+        aConstructor
+        ~pos:0
+        (ins "[")
+        "[~Just ___]" ;
+      t
+        "deleting [ from a singleton remove a list wrapping"
+        single
+        ~pos:0
+        del
+        "~56" ;
+      t
+        "backspacing [ from a singleton remove a list wrapping"
+        single
+        ~pos:1
+        bs
+        "~56" ;
       ()) ;
   describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;

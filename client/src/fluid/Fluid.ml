@@ -2781,6 +2781,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
           |> List.removeAt ~index:(elemAndSepIdx + 1)
         in
         Some (Expr (EList (id, newExprs)), target)
+    (* Remove list wrapping from singleton *)
+    | ARList (_, LPOpen), EList (_, [item]) ->
+        Some (Expr item, caretTargetForStartOfExpr' item)
     | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
       when E.isEmpty expr ->
         mkEBlank ()
@@ -4358,6 +4361,27 @@ let rec updateKey
           exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) astInfo.ast
         in
         astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget target
+    (* Insert a singleton list *)
+    | InsertText "[", _, R (TInteger (id, _, _), _)
+    | InsertText "[", _, R (TString (id, _, _), _)
+    | InsertText "[", _, R (TStringMLStart (id, _, _, _), _)
+    | InsertText "[", _, R (TTrue (id, _), _)
+    | InsertText "[", _, R (TFalse (id, _), _)
+    | InsertText "[", _, R (TNullToken (id, _), _)
+    | InsertText "[", _, R (TFloatWhole (id, _, _), _)
+    | InsertText "[", _, R (TFnName (id, _, _, _, _), _)
+    | InsertText "[", _, R (TVariable (id, _, _), _)
+    | InsertText "[", _, R (TListOpen (id, _), _)
+    | InsertText "[", _, R (TRecordOpen (id, _), _)
+    | InsertText "[", _, R (TConstructorName (id, _), _) ->
+        let newID = gid () in
+        astInfo
+        |> ASTInfo.setAST
+             (FluidAST.update
+                ~f:(fun var -> E.EList (newID, [var]))
+                id
+                astInfo.ast)
+        |> moveToCaretTarget {astRef = ARList (newID, LPOpen); offset = 1}
     (* Infix symbol insertion to create partials *)
     | InsertText infixTxt, L (TPipe _, ti), _
     | InsertText infixTxt, _, R (TPlaceholder _, ti)
