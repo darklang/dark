@@ -7,7 +7,7 @@ open ViewUtils
 let defaultStep : tutorialStep option = Some Welcome
 
 let isGettingStartedCanvas ~(username : string) ~(canvasname : string) : bool =
-  canvasname = username ^ "-gettingstarted"
+  canvasname = username ^ "-crud"
 
 
 (** [currentStepFraction currentStep] returns a tuple of the form [(currentStepNumber, totalSteps)], given the [currentStep]. *)
@@ -211,14 +211,14 @@ let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
             ; Html.text "." ] ]
   | GettingStarted ->
       let btn =
-        let link = "https://darklang.com/a/" ^ username ^ "-gettingstarted" in
+        let link = "https://darklang.com/a/" ^ username ^ "-crud" in
         Html.div
           [ ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.nothingMouseEvent "mouseup"
           ; Html.class' "getting-started" ]
           [ Html.a
               [Html.href link; Html.target "_blank"]
-              [Html.text "Open my Getting Started canvas"] ]
+              [Html.text "Open my blog API canvas"] ]
       in
       Html.div
         [Html.class' "tutorial-txt"]
@@ -231,7 +231,7 @@ let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
         ; Html.p
             []
             [ Html.text
-                "To help you continue to learn, we've created a Getting Started canvas."
+                "To help you continue to learn, we've created a sample blog API canvas."
             ]
         ; btn ]
 
@@ -292,14 +292,14 @@ let viewNavigationBtns (step : tutorialStep) : msg Html.html =
 
 let viewGettingStarted : msg Html.html =
   let btn =
-    let link = "https://darklang.github.io/docs/introduction" in
+    let link = "https://darklang.github.io/docs/your-first" in
     Html.div
       [ ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; Html.class' "getting-started" ]
       [ Html.a
           [Html.href link; Html.target "_blank"]
-          [Html.text "Take me to the walkthrough"] ]
+          [Html.text "Getting Started tutorial"] ]
   in
   Html.div
     [ Html.id "sidebar-right"
@@ -319,14 +319,16 @@ let viewGettingStarted : msg Html.html =
             [ Html.p
                 []
                 [ Html.text
-                    "This is your Getting Started canvas, which showcases some basic functionality."
+                    "This is an example of a fully working CRUD application. It enables you to create, delete or edit a blog post, store the content and metadata in a datastore and access the blog posts via API endpoint."
                 ]
+            ; Html.br []
+            ; Html.br []
             ; Html.p
                 []
                 [ Html.text
-                    "If you'd like to go through the steps of building this canvas by hand, a full walkthrough is available in the documentation."
-                ] ]
-        ; btn ]
+                    "If you'd like to try building something complex, we've created a Getting Started tutorial in our documentation."
+                ]
+            ; btn ] ]
     ; closeTutorial "End tutorial" (TutorialMsg CloseTutorial) ]
 
 
