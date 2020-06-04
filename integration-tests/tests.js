@@ -1032,7 +1032,7 @@ test("empty_fn_never_called_result", async t => {
     .ok()
     .expect(Selector(".return-value").innerText)
     .contains(
-      "This function has not yet been called - please call this function",
+      "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler.",
     );
 });
 
@@ -1049,7 +1049,7 @@ test("empty_fn_been_called_result", async t => {
     .ok()
     .expect(Selector(".return-value").innerText)
     .contains(
-      "This function has not yet been called - please call this function",
+      "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler.",
     );
 });
 
