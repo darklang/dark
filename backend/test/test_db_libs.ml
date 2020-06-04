@@ -1122,15 +1122,23 @@ let t_db_query_works () =
   check_dval
     "string::trim"
     (DList [chandler])
-    ( queryv (binop "==" (fn "String::trim" [field "v" "name"]) (str "Chandler")) |> execs) ;
+    ( queryv (binop "==" (fn "String::trim" [field "v" "name"]) (str "Chandler"))
+    |> execs ) ;
   check_dval
     "string::trimStart"
     (DList [chandler])
-    ( queryv (binop "==" (fn "String::trimStart" [field "v" "name"]) (str "Chandler ")) |> execs) ;
+    ( queryv
+        (binop
+           "=="
+           (fn "String::trimStart" [field "v" "name"])
+           (str "Chandler "))
+    |> execs ) ;
   check_dval
     "string::trimEnd"
     (DList [chandler])
-    ( queryv (binop "==" (fn "String::trimEnd" [field "v" "name"]) (str " Chandler")) |> execs) ;
+    ( queryv
+        (binop "==" (fn "String::trimEnd" [field "v" "name"]) (str " Chandler"))
+    |> execs ) ;
   (* -------------- *)
   (* Test partial evaluation *)
   (* -------------- *)
