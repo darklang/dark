@@ -30,6 +30,14 @@ let commands : command list =
     ; doc =
         "Wrap the expression in an if, putting this expression in the `else` body"
     }
+  ; { commandName = "convert-if-to-match"
+    ; action = IfToMatch.refactor
+    ; shouldShow =
+        (fun _ tl e ->
+          Toplevel.getAST tl
+          |> Option.map ~f:(fun ast -> IfToMatch.findIf ast e |> Option.isSome)
+          |> Option.withDefault ~default:false)
+    ; doc = "Convert the if expression into a match expression" }
   ; { commandName = "insert-let-above"
     ; action = Refactor.wrap Refactor.WLetBody
     ; shouldShow = alwaysShow

@@ -67,4 +67,8 @@ let run () =
           let hasDiscard = hasCmd "discard-feature-flag" targetExpr ast in
           let hasCommit = hasCmd "commit-feature-flag" targetExpr ast in
           expect (hasDiscard, hasCommit) |> toEqual (false, false)) ;
+      test "has convert to if for if expression" (fun () ->
+          expectCmd "convert-if-to-match" emptyIf) ;
+      test "no convert to if for match expression" (fun () ->
+          expectNoCmd "convert-if-to-match" emptyMatch) ;
       ())

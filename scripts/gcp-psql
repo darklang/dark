@@ -34,13 +34,15 @@ cloud_sql_proxy \
 # Make sure it has time to come up before we try to connect to it
 sleep 1s
 
+PGUSERNAME=$(kubectl get secrets cloudsql-db-credentials -o json |  jq -r '.data.username' | base64 -d)
 PGPASSWORD=$(kubectl get secrets cloudsql-db-credentials -o json |  jq -r '.data.password' | base64 -d)
+export PGUSERNAME
 export PGPASSWORD
 
 # If we're in a terminal (not a pipe), use pgcli, which has nice interactive fea tures like autocomplete of columns.
 # If we're in a pipe, then use psql (pgcli doesn't let you pipe in a query, psql does)
 if [[ -t 0 ]]; then
-    pgcli -h /tmp/cloud_sql_proxy --username=postgres
+    pgcli -h /tmp/cloud_sql_proxy --username=${PGUSERNAME} postgres
 else
-    psql -h /tmp/cloud_sql_proxy --user=postgres
+    psql -h /tmp/cloud_sql_proxy --user=${PGUSERNAME} postgres
 fi

@@ -18,7 +18,7 @@ build: [
   ["dune" "build" "-p" name "-j" jobs]
 ]
 depends: [
-  "ocaml" {>= "4.06"}
+  "ocaml" {>= "4.06" & < "4.11"}
   "base" {>= "v0.11.0" & < "v0.14"}
   "base-unix"
   "cmdliner"

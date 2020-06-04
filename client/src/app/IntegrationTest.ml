@@ -869,7 +869,7 @@ let function_docstrings_are_valid (m : model) : testResult =
 
 let record_consent_saved_across_canvases (_m : model) : testResult = pass
 
-let exe_flow_fades (_m : model) : testResult = pass
+(* let exe_flow_fades (_m : model) : testResult = pass *)
 
 let unexe_code_unfades_on_focus (_m : model) : testResult = pass
 
@@ -1031,8 +1031,8 @@ let trigger (test_name : string) : integrationTestState =
         function_docstrings_are_valid
     | "record_consent_saved_across_canvases" ->
         record_consent_saved_across_canvases
-    | "exe_flow_fades" ->
-        exe_flow_fades
+    (* | "exe_flow_fades" ->
+        exe_flow_fades *)
     | "unexe_code_unfades_on_focus" ->
         unexe_code_unfades_on_focus
     | "create_from_404" ->

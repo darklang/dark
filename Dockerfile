@@ -94,7 +94,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libev-dev \
       libgmp-dev \
       pkg-config \
-      libcurl4-gnutls-dev \
+      libcurl4-openssl-dev \
       libpq-dev \
       postgresql-9.6 \
       postgresql-client-9.6 \
@@ -155,8 +155,6 @@ ENV LC_ALL en_US.UTF-8
 # Frontend
 ############################
 USER root
-
-RUN npm install -g yarn@1.21.1
 
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
@@ -330,11 +328,6 @@ RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
   && chmod +x /usr/bin/cloud_sql_proxy
 
 RUN apt update && apt install -y dnsutils && apt clean && rm -rf /var/lib/apt/lists/*
-
-# Disable expired AddTrust root, per
-# https://www.agwa.name/blog/post/fixing_the_addtrust_root_expiration
-RUN sed -i'' /etc/ca-certificates.conf -e 's|mozilla/AddTrust_External_Root.crt|!&|' \
-  && update-ca-certificates
 
 
 user dark

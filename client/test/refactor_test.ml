@@ -484,4 +484,88 @@ let run () =
             |> List.sortWith compare )
           |> toEqual ["callsUnsafeBuiltin"; "callsUnsafeUserfn"]) ;
       ()) ;
+  describe "convert-if-to-match" (fun () ->
+      let model hs =
+        { D.defaultModel with
+          functions = Functions.empty
+        ; handlers = Handlers.fromList hs }
+      in
+      let handlerWithPointer cond =
+        let id = ID.fromString "ast1" in
+        let ast =
+          FluidAST.ofExpr
+            (E.EIf
+               ( id
+               , cond
+               , EBool (ID.fromString "bool1", true)
+               , EBool (ID.fromString "bool2", false) ))
+        in
+        ({defaultHandler with ast}, id)
+      in
+      let binOp which lhs rhs =
+        E.EBinOp (ID.fromString "binop1", which, lhs, rhs, NoRail)
+      in
+      let init cond =
+        let h, pd = handlerWithPointer cond in
+        let m = model [h] in
+        (m, h, pd)
+      in
+      test "generic true false arms" (fun () ->
+          let m, h, id = init (binOp "<" (int 3) (int 4)) in
+          let mod' = IfToMatch.refactor m (TLHandler h) id in
+          let res =
+            match mod' with
+            | AddOps ([SetHandler (_, _, h)], _) ->
+              ( match FluidAST.toExpr h.ast with
+              | EMatch
+                  ( _
+                  , E.EBinOp (_, "<", _, _, _)
+                  , [ (FPBool (_, _, true), EBool (_, true))
+                    ; (FPBool (_, _, false), EBool (_, false)) ] ) ->
+                  true
+              | _ ->
+                  false )
+            | _ ->
+                false
+          in
+          expect res |> toEqual true) ;
+      test "fallback true false arms" (fun () ->
+          let m, h, id = init (binOp "==" aFnCall aFnCall) in
+          let mod' = IfToMatch.refactor m (TLHandler h) id in
+          let res =
+            match mod' with
+            | AddOps ([SetHandler (_, _, h)], _) ->
+              ( match FluidAST.toExpr h.ast with
+              | EMatch
+                  ( _
+                  , E.EBinOp (_, "==", _, _, _)
+                  , [ (FPBool (_, _, true), EBool (_, true))
+                    ; (FPBool (_, _, false), EBool (_, false)) ] ) ->
+                  true
+              | _ ->
+                  false )
+            | _ ->
+                false
+          in
+          expect res |> toEqual true) ;
+      test "pattern in arm" (fun () ->
+          let m, h, id = init (binOp "==" (int 3) aFnCall) in
+          let mod' = IfToMatch.refactor m (TLHandler h) id in
+          let res =
+            match mod' with
+            | AddOps ([SetHandler (_, _, h)], _) ->
+              ( match FluidAST.toExpr h.ast with
+              | EMatch
+                  ( _
+                  , EFnCall _
+                  , [ (FPInteger (_, _, "3"), EBool (_, true))
+                    ; (FPVariable (_, _, "_"), EBool (_, false)) ] ) ->
+                  true
+              | _ ->
+                  false )
+            | _ ->
+                false
+          in
+          expect res |> toEqual true) ;
+      ()) ;
   ()

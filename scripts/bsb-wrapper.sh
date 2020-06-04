@@ -29,7 +29,7 @@ if [[ "$error" == 1 ]]; then
   ./scripts/clear-bs-cache
   ./scripts/clear-node-modules
   echo "Running again"
-  ./scripts/retrying-yarn-install
+  ./scripts/npm-install-with-retry
   unbuffer bsb "$@"
 else
   exit $result

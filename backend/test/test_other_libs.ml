@@ -806,6 +806,45 @@ let t_list_stdlibs_work () =
     "List:member works for empty lists"
     (DBool false)
     (exec_ast' (fn "List::member" [list []; int 1])) ;
+  check_dval
+    "List::takeWhile works"
+    (DList [Dval.dint 1; Dval.dint 2])
+    (exec_ast'
+       (fn
+          "List::takeWhile"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["item"] (binop "<" (var "item") (int 3)) ])) ;
+  check_dval
+    "List::takeWhile stops upon false"
+    (DList [Dval.dint 1])
+    (exec_ast'
+       (fn
+          "List::takeWhile"
+          [ list [int 1; int 5; int 2; int 2]
+          ; lambda ["item"] (binop "<" (var "item") (int 3)) ])) ;
+  check_dval
+    "List::takeWhile works with empty input"
+    (DList [])
+    (exec_ast'
+       (fn
+          "List::takeWhile"
+          [list []; lambda ["item"] (binop "<" (var "item") (int 3))])) ;
+  check_dval
+    "List::takeWhile works with empty output"
+    (DList [])
+    (exec_ast'
+       (fn
+          "List::takeWhile"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["item"] (binop "<" (var "item") (int 1)) ])) ;
+  check_error_contains
+    "List::takeWhile gives error with incorrect return type"
+    (exec_ast'
+       (fn
+          "List::takeWhile"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["item"] (binop "-" (int 0) (int 1)) ]))
+    "Expected the argument `f` passed to `List::takeWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." ;
   ()
 
 
@@ -1308,8 +1347,7 @@ let t_crypto_sha () =
     (exec_ast "(Bytes::hexEncode (Crypto::sha384 (String::toBytes '')))") ;
   check_dval
     "Crypto::md5 produces the correct digest"
-    (Dval.dstr_of_string_exn
-      "D41D8CD98F00B204E9800998ECF8427E")
+    (Dval.dstr_of_string_exn "D41D8CD98F00B204E9800998ECF8427E")
     (exec_ast "(Bytes::hexEncode (Crypto::md5 (String::toBytes '')))") ;
   ()
 
