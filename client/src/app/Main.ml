@@ -1628,8 +1628,13 @@ let update_ (msg : msg) (m : model) : modification =
             |> TLIDDict.fromList
           in
           let props = {usedFns = m.usedFns; userFunctions = m.userFunctions} in
-          ( {m with functions = Functions.setPackages pkgs props m.functions}
-          , Cmd.none ))
+          let m =
+            {m with functions = Functions.setPackages pkgs props m.functions}
+          in
+          (* We need to update the list of usages due to package manager functions.
+           * Ideally we would make this dependency more explicit. *)
+          let m = Introspect.refreshUsages m (TLID.Dict.tlids m.handlers) in
+          (m, Cmd.none))
   | NewTracePush (traceID, tlids) ->
       let traces =
         List.map
