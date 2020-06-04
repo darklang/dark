@@ -10,7 +10,7 @@ let run () =
       let h1data =
         { ast = FluidAST.ofExpr (EBlank (gid ()))
         ; spec =
-            { space = B.newF "JOB"
+            { space = B.newF "WORKER"
             ; name = B.newF "processOrder"
             ; modifier = B.new_ () }
         ; hTLID = h1tlid
@@ -52,7 +52,7 @@ let run () =
           |> toEqual (StrDict.insert ~key:"Books" ~value:dbtlid StrDict.empty)) ;
       test "handlersByName" (fun () ->
           let v =
-            handlers |> handlersByName |> StrDict.get ~key:"JOB:processOrder"
+            handlers |> handlersByName |> StrDict.get ~key:"WORKER:processOrder"
           in
           expect v |> toEqual (Some h1tlid)) ;
       test "findUsagesInAST" (fun () ->
