@@ -183,6 +183,8 @@ let t_db_get_many_with_keys_v1_works () =
           ; ( "first"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ) ]))
     (exec_handler ~ops ast)
+
+
 let t_db_get_existing_works () =
   clear_test_data () ;
   let ops =
@@ -199,19 +201,20 @@ let t_db_get_existing_works () =
   in
   check_dval
     "equal_after_roundtrip"
-    (DList
-        [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])
+    (DList [DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar"))])
     (exec_handler ~ops ast)
+
+
 let t_db_get_many_v3_returns_nothing_if_none () =
   clear_test_data () ;
-  let ops = 
+  let ops =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
 
-  let ast = 
+  let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
                 (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
                   (let fetched (DB::getMany_v3 ('third' 'second') MyDB)
@@ -219,20 +222,20 @@ let t_db_get_many_v3_returns_nothing_if_none () =
   in
   check_dval
     "equal_after_roundtrip"
-    (DOption 
-      (OptNothing))
+    (DOption OptNothing)
     (exec_handler ~ops ast)
+
 
 let t_db_get_many_v3_works () =
   clear_test_data () ;
-  let ops = 
+  let ops =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
 
-  let ast = 
+  let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
                 (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
                   (let fetched (DB::getMany_v3 ('first' 'second') MyDB)
@@ -240,12 +243,13 @@ let t_db_get_many_v3_works () =
   in
   check_dval
     "equal_after_roundtrip"
-    (DOption 
-      (OptJust
-        (DList
-            [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
-            ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])))
+    (DOption
+       (OptJust
+          (DList
+             [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
+             ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])))
     (exec_handler ~ops ast)
+
 
 let t_db_get_many_v2_works () =
   clear_test_data () ;
@@ -1234,7 +1238,9 @@ let suite =
   ; ("DB::getMany_v1 works", `Quick, t_db_get_many_v1_works)
   ; ("DB::getMany_v2 works", `Quick, t_db_get_many_v2_works)
   ; ("DB::getMany_v3 works", `Quick, t_db_get_many_v3_works)
-  ; ("DB::getMany_v3 returns Nothing if any items are not found", `Quick, t_db_get_many_v3_returns_nothing_if_none)
+  ; ( "DB::getMany_v3 returns Nothing if any items are not found"
+    , `Quick
+    , t_db_get_many_v3_returns_nothing_if_none )
   ; ("DB::getExisting works", `Quick, t_db_get_existing_works)
   ; ( "DB::queryWithKey_v2 works with many items"
     , `Quick
