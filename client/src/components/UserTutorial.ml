@@ -218,7 +218,7 @@ let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
           ; Html.class' "getting-started" ]
           [ Html.a
               [Html.href link; Html.target "_blank"]
-              [Html.text "Open my blog API canvas"] ]
+              [Html.text "Open blog API canvas"] ]
       in
       Html.div
         [Html.class' "tutorial-txt"]
