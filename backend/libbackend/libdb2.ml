@@ -132,6 +132,64 @@ let fns : expr fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
+    ; deprecated = true }
+  ; { prefix_names = ["DB::getMany_v3"]
+    ; infix_names = []
+    ; parameters = [par "keys" TList; par "table" TDB]
+    ; return_type = TOption
+    ; description =
+        "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
+    ; func =
+        InProcess
+          (function
+          | state, [DList keys; DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              let skeys =
+                List.map
+                  ~f:(function
+                    | DStr s ->
+                        Unicode_string.to_string s
+                    | t ->
+                        Exception.code "Expected a string, got: "
+                        ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
+                  keys
+              in
+              let items = User_db.get_many ~state db skeys in
+              if List.length items = List.length skeys
+              then
+                List.map items (fun (_, v) -> v) |> DList |> OptJust |> DOption
+              else DOption OptNothing
+          | args ->
+              fail args)
+    ; preview_safety = Unsafe
+    ; deprecated = false }
+  ; { prefix_names = ["DB::getExisting"]
+    ; infix_names = []
+    ; parameters = [par "keys" TList; par "table" TDB]
+    ; return_type = TList
+    ; description =
+        "Finds many values in `table` by `keys` (ignoring any missing items), returning a [value] list of values"
+    ; func =
+        InProcess
+          (function
+          | state, [DList keys; DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              let skeys =
+                List.map
+                  ~f:(function
+                    | DStr s ->
+                        Unicode_string.to_string s
+                    | t ->
+                        Exception.code "Expected a string, got: "
+                        ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
+                  keys
+              in
+              User_db.get_many ~state db skeys
+              |> List.map ~f:(fun (_, v) -> v)
+              |> DList
+          | args ->
+              fail args)
+    ; preview_safety = Unsafe
     ; deprecated = false }
   ; { prefix_names = ["DB::getManyWithKeys"]
     ; infix_names = []
