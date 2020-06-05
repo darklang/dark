@@ -240,7 +240,7 @@ let viewReturnValue
               text "Your code needs to return a value in the last expression"
           | DIncomplete _, TLFunc f when onDefaultTrace f.ufTLID ->
               text
-                "This function has not yet been called - please call this function"
+                "This function has not yet been called, so there are no values assigned to the parameters. Call this function in another handler."
           | DIncomplete _, TLFunc _ ->
               text "Your code needs to return a value in the last expression"
           | _, TLFunc f ->
