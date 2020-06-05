@@ -8,18 +8,28 @@ module AT = Alcotest
 (* Language features *)
 (* ---------------- *)
 let t_int_add_works () =
+  let open Libshared.FluidShortcuts in
   (* Couldn't call Int::add *)
-  check_dval "int_add" (Dval.dint 8) (exec_ast "(+ 5 3)")
+  check_dval "int_add" (Dval.dint 8) (exec_ast' (binop "+" (int 5) (int 3)))
 
 
 let t_lambda_with_foreach () =
+  let open Libshared.FluidShortcuts in
   check_dval
     "lambda_with_foreach"
     (Dval.dstr_of_string_exn "SOME STRING")
-    (exec_ast
-       "(String::join
-       (List::foreach (String::toList_v1 'some string') (\\var ->
-(String::toUppercase (String::fromChar_v1 var)))) '')")
+    (exec_ast'
+       (fn
+          "String::join"
+          [ fn
+              "List::foreach"
+              [ fn "String::toList_v1" [str "some string"]
+              ; lambda
+                  ["var"]
+                  (fn
+                     "String::toUppercase"
+                     [fn "String::fromChar_v1" [var "var"]]) ]
+          ; str "" ]))
 
 
 let t_match_works () =
@@ -150,93 +160,111 @@ let t_shadowing_all_the_way_down () =
 
 
 let t_multiple_copies_of_same_name () =
+  let open Libshared.FluidShortcuts in
   check_error
     "record field names"
-    (exec_ast "(obj (col1 1) (col1 2))")
+    (exec_ast' (record [("col1", int 1); ("col1", int 2)]))
     "Duplicate key: col1" ;
   ()
 
 
 let t_feature_flags_work () =
+  let open Libshared.FluidShortcuts in
   check_dval
     "flag shows new for true"
     (Dval.dint 1)
-    (exec_ast "(flag _ true 2 1)") ;
+    (exec_ast' (flag (bool true) (int 2) (int 1))) ;
   check_dval
     "flag shows old for false"
     (Dval.dint 2)
-    (exec_ast "(flag _ false 2 1)") ;
+    (exec_ast' (flag (bool false) (int 2) (int 1))) ;
   check_dval
     "flag shows old for incomplete cond"
     (Dval.dint 2)
-    (exec_ast "(flag _ _ 2 1)") ;
+    (exec_ast' (flag (blank ()) (int 2) (int 1))) ;
   check_dval
     "flag shows old for null"
     (Dval.dint 2)
-    (exec_ast "(flag _ null 2 1)") ;
+    (exec_ast' (flag null (int 2) (int 1))) ;
   check_dval
     "flag shows old for error"
     (Dval.dint 2)
-    (exec_ast "(flag _ (List::head) 2 1)") ;
+    (exec_ast' (flag (fn "List::head" []) (int 2) (int 1))) ;
   check_dval
     "flag shows old for errorrail"
     (Dval.dint 2)
-    (exec_ast "(flag _ (`List::head []) 2 1)") ;
+    (exec_ast' (flag (fn "List::head" ~ster:Rail []) (int 2) (int 1))) ;
   check_dval
     "flag shows old for object"
     (Dval.dint 2)
-    (exec_ast "(flag _ (obj (x true)) 2 1)") ;
+    (exec_ast' (flag (record [("x", bool true)]) (int 2) (int 1))) ;
   check_dval
     "flag shows old for list"
     (Dval.dint 2)
-    (exec_ast "(flag _ [] 2 1)") ;
+    (exec_ast' (flag (list []) (int 2) (int 1))) ;
   ()
 
 
 let t_nothing () =
-  check_dval "can specifiy nothing" (DOption OptNothing) (exec_ast "(Nothing)") ;
+  let open Libshared.FluidShortcuts in
+  check_dval
+    "can specifiy nothing"
+    (DOption OptNothing)
+    (exec_ast' (nothing ())) ;
   check_dval
     "nothing works as expected"
     (DBool true)
-    (exec_ast "(== (List::head_v1 []) (Nothing))") ;
+    (exec_ast' (binop "==" (fn "List::head_v1" [list []]) (nothing ()))) ;
   ()
 
 
 let t_incomplete_propagation () =
+  let open Libshared.FluidShortcuts in
   check_incomplete
     "Fn with incomplete return incomplete"
-    (exec_ast "(List::head _)") ;
+    (exec_ast' (fn "List::head" [blank ()])) ;
   check_dval
     "Incompletes stripped from lists"
     (DList [Dval.dint 5; Dval.dint 6])
-    (exec_ast "(5 6 (List::head _))") ;
+    (exec_ast' (list [int 5; int 6; fn "List::head" [blank ()]])) ;
   check_dval
     "Blanks stripped from lists"
     (DList [Dval.dint 5; Dval.dint 6])
-    (exec_ast "(5 6 _)") ;
+    (exec_ast' (list [int 5; int 6; blank ()])) ;
   check_dval
     "Blanks stripped from objects"
     (DObj (DvalMap.from_list [("m", Dval.dint 5); ("n", Dval.dint 6)]))
-    (exec_ast "(obj (i _) (m 5) (j (List::head _)) (n 6))") ;
-  check_incomplete "incomplete if conds are incomplete" (exec_ast "(if _ 5 6)") ;
+    (exec_ast'
+       (record
+          [ ("i", blank ())
+          ; ("m", int 5)
+          ; ("j", fn "List::head" [blank ()])
+          ; ("n", int 6) ])) ;
+  check_incomplete
+    "incomplete if conds are incomplete"
+    (exec_ast' (if' (blank ()) (int 5) (int 6))) ;
   check_dval
     "blanks in threads are ignored"
     (Dval.dint 8)
-    (exec_ast "(| 5 _ (+ 3))") ;
+    (exec_ast' (pipe (int 5) [blank (); binop "+" pipeTarget (int 3)])) ;
   check_dval
     "incomplete in the middle of a thread is skipped"
     (Dval.dint 8)
-    (exec_ast "(| 5 (+ _) (+ 3))") ;
+    (exec_ast'
+       (pipe
+          (int 5)
+          [binop "+" pipeTarget (blank ()); binop "+" pipeTarget (int 3)])) ;
   check_dval
     "incomplete at the end of a thread is skipped"
     (Dval.dint 5)
-    (exec_ast "(| 5 (+ _))") ;
-  check_incomplete "empty thread is incomplete" (exec_ast "(|)") ;
+    (exec_ast' (pipe (int 5) [binop "+" pipeTarget (blank ())])) ;
+  check_incomplete "empty thread is incomplete" (exec_ast' (pipe (blank ()) [])) ;
   check_incomplete
     "incomplete obj in field access is incomplete"
-    (exec_ast "(. (List::head _) field)") ;
+    (exec_ast' (fieldAccess (fn "List::head" [blank ()]) "field")) ;
   check_incomplete
     "incomplete name in field access is incomplete"
+    (* TODO: add new shortcut to handle this case? Would this compile (should this be a run-time test)? *)
     (exec_ast "(. (obj (i 5)) _)") ;
   ()
 
