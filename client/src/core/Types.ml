@@ -3,7 +3,6 @@ open Tc
 (* == legacy aliases == *)
 module TLIDDict = TLID.Dict
 module TLIDSet = TLID.Set
-module IDSet = ID.Set
 
 type analysisID = ID.t [@@deriving show]
 
@@ -1746,7 +1745,7 @@ and model =
    *
    * which you can read as "repl2 refersTo myfunc". So a TLID.t points to the TLs
    * it uses. *)
-  ; tlRefersTo : IDPairSet.t TLIDDict.t
+  ; tlRefersTo : (TLID.t * ID.t) list TLIDDict.t
         (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
    * if myFunc was called in Repl2, the dict would
    *

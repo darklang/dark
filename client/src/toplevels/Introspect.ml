@@ -103,21 +103,31 @@ let tlidsToUpdateUsage (ops : op list) : TLID.t list =
   |> List.uniqueBy ~f:TLID.toString
 
 
+let rec updateAssocList
+    ~(key : 'k) ~(f : 'v option -> 'v option) (assoc : ('k * 'v) list) :
+    ('k * 'v) list =
+  match assoc with
+  | (k, v) :: xs ->
+      if key = k
+      then match f (Some v) with Some nw -> (key, nw) :: xs | None -> xs
+      else (k, v) :: updateAssocList ~key ~f xs
+  | [] ->
+    (match f None with Some nw -> [(key, nw)] | None -> [])
+
+
 let allRefersTo (tlid : TLID.t) (m : model) : (toplevel * ID.t list) list =
   m.tlRefersTo
   |> TLIDDict.get ~tlid
-  |> Option.withDefault ~default:IDPairSet.empty
-  |> IDPairSet.toList
-  |> List.foldl ~init:TLIDDict.empty ~f:(fun (tlid, id) dict ->
-         ( TLIDDict.update ~tlid dict ~f:(function
+  |> Option.withDefault ~default:[]
+  |> List.foldl ~init:[] ~f:(fun (tlid, id) assoc ->
+         ( updateAssocList ~key:tlid assoc ~f:(function
                | None ->
-                   Some (IDSet.fromList [id])
-               | Some set ->
-                   Some (IDSet.add ~value:id set))
-           : IDSet.t TLIDDict.t ))
-  |> TD.toList
+                   Some [id]
+               | Some lst ->
+                   Some (lst @ [id]))
+           : (TLID.t * ID.t list) list ))
   |> List.filterMap ~f:(fun (tlid, ids) ->
-         TL.get m tlid |> Option.map ~f:(fun tl -> (tl, IDSet.toList ids)))
+         TL.get m tlid |> Option.map ~f:(fun tl -> (tl, ids)))
 
 
 let allUsedIn (tlid : TLID.t) (m : model) : toplevel list =
@@ -240,10 +250,13 @@ let refreshUsages (m : model) (tlids : TLID.t list) : model =
          ~init:(tlUsedInDict, tlRefersToDict)
          ~f:(fun usage (usedIn, refersTo) ->
            let newRefersTo =
-             TD.get ~tlid:usage.refersTo refersTo
-             |> Option.withDefault ~default:TLIDSet.empty
-             |> IDPairSet.add ~value:(usage.usedIn, usage.id)
-             |> fun value -> TD.insert ~tlid:usage.refersTo ~value refersTo
+             TD.insert
+               ~tlid:usage.refersTo
+               ~value:
+                 ( ( TD.get ~tlid:usage.refersTo refersTo
+                   |> Option.withDefault ~default:[] )
+                 @ [(usage.usedIn, usage.id)] )
+               refersTo
            in
            let newUsedIn =
              TD.get ~tlid:usage.usedIn usedIn
