@@ -846,10 +846,6 @@ let t_list_stdlibs_work () =
           ; lambda ["item"] (binop "-" (int 0) (int 1)) ]))
     "Expected the argument `f` passed to `List::takeWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." ;
   check_dval
-    "List:member works for empty lists"
-    (DBool false)
-    (exec_ast' (fn "List::member" [list []; int 1])) ;
-  check_dval
     "List::flatten empty list works"
     (DList [])
     (exec_ast' (fn "List::flatten" [list []])) ;
@@ -870,6 +866,7 @@ let t_list_stdlibs_work () =
     (DList [Dval.dint 1; DList [Dval.dint 2; Dval.dint 3]])
     (exec_ast' (fn "List::flatten" [list [list[int 1]; list[list[int 2; int 3]]]])) ;
   ()
+
 
 let t_string_stdlibs_work () =
   let dstr = Dval.dstr_of_string_exn in
