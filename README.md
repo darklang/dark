@@ -74,11 +74,16 @@ dig testing.builtwithdark.localhost @127.0.0.1
 ### Building and running for the first time
 
 - Run `scripts/builder --compile --watch --test`
-- Wait until the terminal says "Finished initial compile" - this means the build server is ready
+- Wait until the terminal says "Finished initial compile" - this means the
+  build server is ready. The `builder` script will sit open, waiting for file
+  changes in order to recompile
 - If you see "initial compile failed", it may be a memory issue. Ensure you
-  have docker configured to provide 4GB of memory, then rerun the builder script
-- Open your browser to http://darklang.localhost:8000/a/dark/, username "dark", password "what"
-- Edit code normally - on each save to your filesystem, the app will be rebuilt and the browser will reload as necessary
+  have docker configured to provide 4GB of memory, then rerun the builder
+  script. (Sometimes just rerunning will work, too).
+- Open your browser to http://darklang.localhost:8000/a/dark/, username "dark",
+  password "what"
+- Edit code normally - on each save to your filesystem, the app will be rebuilt
+  and the browser will reload as necessary
 
 ## Read the contributor docs
 
