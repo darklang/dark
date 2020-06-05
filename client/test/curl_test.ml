@@ -119,7 +119,7 @@ let run () =
           expect (curlFromCurrentTrace m defaultTLID)
           |> toEqual
                (Some
-                  "curl -H 'Authorization:Bearer abc123' -H 'Content-Type:application/json' -X GET http://test-curl.builtwithdark.com/test")) ;
+                  "curl -H 'Authorization:Bearer abc123' -H 'Content-Type:application/json' -X GET 'http://test-curl.builtwithdark.com/test'")) ;
       test "returns command for /test POST with body" (fun () ->
           let input =
             StrDict.empty
@@ -147,5 +147,5 @@ let run () =
           expect (curlFromCurrentTrace m defaultTLID)
           |> toEqual
                (Some
-                  "curl -d '{\"a\":1,\"b\":false}' -X POST http://test-curl.builtwithdark.com/test"))) ;
+                  "curl -d '{\"a\":1,\"b\":false}' -X POST 'http://test-curl.builtwithdark.com/test'"))) ;
   ()

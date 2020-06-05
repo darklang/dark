@@ -146,7 +146,7 @@ let curlFromCurrentTrace (m : model) (tlid : TLID.t) : string option =
                    |> Option.andThen ~f:(fun s -> Some ("-X " ^ s))
                    |> wrapInList
                  in
-                 ("curl" :: headers) @ body @ meth @ [url]
+                 ("curl" :: headers) @ body @ meth @ ["'" ^ url ^ "'"]
                  |> String.join ~sep:" "
                  |> Option.some
              | _ ->
