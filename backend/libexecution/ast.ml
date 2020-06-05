@@ -580,11 +580,18 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
           | DErrorRail _ ->
               obj
           | x ->
+              let actualTipe =
+                match Dval.tipe_of x with
+                | TDB ->
+                    "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
+                | tipe ->
+                    "it's a " ^ Dval.tipe_to_string tipe
+              in
               DError
                 ( sourceId id
-                , "Attempting to access of a field of something that isn't an object but is a "
-                  ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)
-                  ^ "" )
+                , "Attempting to access a field of something that isn't a record or dict, ("
+                  ^ actualTipe
+                  ^ ")." )
         in
         result
     | Filled (id, Constructor (name, args)) ->
