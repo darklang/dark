@@ -428,6 +428,10 @@ let veryLongList =
 
 let listWithBlank = list [fiftySix; seventyEight; b; fiftySix]
 
+let listWithBlankAtStart = list [b; fiftySix; seventyEight; fiftySix]
+
+let listWithJustABlank = list [b]
+
 let listWithRecord = list [emptyRecord]
 
 let multiWithStrs = list [str "ab"; str "cd"; str "ef"]
