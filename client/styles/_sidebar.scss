@@ -42,7 +42,7 @@ $icSize: 1em;
   padding: 90px 25px;
   background-color: rgba(43, 41, 41, 0.8);
   .tutorial-txt {
-    min-height: 340px;
+    height: 340px;
     margin: 0px;
     .grey-highlight {
       background-color: $grey2;
@@ -103,7 +103,6 @@ $icSize: 1em;
     }
   }
   .close-btn {
-    margin-top: 50px;
     text-align: center;
     cursor: pointer;
     &:hover {

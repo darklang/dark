@@ -81,8 +81,8 @@ DARK_CONFIG_GCP_PSQL_REGION=us-west1
 DARK_CONFIG_GCP_PSQL_DB_INSTANCE=dark-west
 
 # Getting started canvas
-DARK_CONFIG_GETTING_STARTED_CANVAS_NAME=crud
-DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE=sample-crud
+DARK_CONFIG_GETTING_STARTED_CANVAS_NAME=gettingstarted
+DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE=sample-gettingstarted
 
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
