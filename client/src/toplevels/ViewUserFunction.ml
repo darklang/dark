@@ -85,8 +85,8 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
   let addParamBtn =
     match fn with
     | UserFunction fn ->
-        if vp.permission = Some ReadWrite
-        then
+      ( match vp.permission with
+      | Some ReadWrite ->
           let strTLID = TLID.toString fn.ufTLID in
           Html.div
             ~unique:("add-param-col-" ^ strTLID)
@@ -100,7 +100,8 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
                 [fontAwesome "plus-circle"]
             ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"]
             ]
-        else Vdom.noNode
+      | Some Read | None ->
+          Vdom.noNode )
     | PackageFn _ ->
         Vdom.noNode
   in
@@ -146,7 +147,7 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
           in
           Html.div [Html.class' "fn-actions"] [viewExecuteBtn vp fn; menuView]
       | PackageFn _ ->
-          Html.div [Html.class' "fn-actions"] []
+          Html.span [Html.class' "fn-readonly"] [Html.text "Read Only"]
     in
     Html.div
       [Html.class' "spec-header"]
@@ -182,6 +183,11 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
 
 let view (vp : viewProps) (fn : functionTypes) : msg Html.html =
   Html.div
-    [Html.class' "user-fn-toplevel"]
+    [ Html.class'
+        ( match fn with
+        | UserFunction _ ->
+            "user-fn-toplevel"
+        | PackageFn _ ->
+            "pkg-fn-toplevel" ) ]
     [ Html.div [Html.class' "metadata"] [viewMetadata vp fn]
     ; Html.div [Html.class' "function-body expand"] (FluidView.view vp []) ]

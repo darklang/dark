@@ -73,8 +73,12 @@ $arrow-height: 24px;
     width: 100%;
     align-items: center;
 
-    i.di {
+    &.fnheader-user i {
       color: $blue;
+    }
+
+    &.fnheader-pkg i {
+      color: darken($grey3, 15%);
     }
   }
 

@@ -43,6 +43,12 @@ let functionsByName (fns : userFunction TD.t) : TLID.t StrDict.t =
   |> StrDict.fromList
 
 
+let packageFunctionsByName (fns : packageFn TD.t) : TLID.t StrDict.t =
+  fns
+  |> TD.mapValues ~f:(fun fn -> (fn |> PackageManager.extendedName, fn.pfTLID))
+  |> StrDict.fromList
+
+
 let tipesByName (uts : userTipe TD.t) : TLID.t StrDict.t =
   uts
   |> TD.mapValues ~f:(fun ut ->
@@ -124,9 +130,10 @@ let allUsedIn (tlid : TLID.t) (m : model) : toplevel list =
 
 let findUsagesInAST
     (tlid : TLID.t)
-    (datastores : TLID.t StrDict.t)
-    (handlers : TLID.t StrDict.t)
-    (functions : TLID.t StrDict.t)
+    ~(datastores : TLID.t StrDict.t)
+    ~(handlers : TLID.t StrDict.t)
+    ~(functions : TLID.t StrDict.t)
+    ~(packageFunctions : TLID.t StrDict.t)
     (ast : FluidAST.t) : usage list =
   FluidAST.toExpr ast
   |> FluidExpression.filterMap ~f:(fun e ->
@@ -148,8 +155,11 @@ let findUsagesInAST
              StrDict.get ~key handlers
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | EFnCall (id, name, _, _) ->
-             StrDict.get ~key:name functions
-             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
+             Option.orElse
+               ( StrDict.get ~key:name functions
+               |> Option.map ~f:(fun fnTLID -> (fnTLID, id)) )
+               ( StrDict.get ~key:name packageFunctions
+               |> Option.map ~f:(fun fnTLID -> (fnTLID, id)) )
          | _ ->
              None)
   |> List.map ~f:(fun (usedIn, id) -> {refersTo = tlid; usedIn; id})
@@ -173,13 +183,21 @@ let findUsagesInFunctionParams (tipes : TLID.t StrDict.t) (fn : userFunction) :
 
 let getUsageFor
     (tl : toplevel)
-    (datastores : TLID.t StrDict.t)
-    (handlers : TLID.t StrDict.t)
-    (functions : TLID.t StrDict.t)
-    (tipes : TLID.t StrDict.t) : usage list =
+    ~(datastores : TLID.t StrDict.t)
+    ~(handlers : TLID.t StrDict.t)
+    ~(functions : TLID.t StrDict.t)
+    ~(packageFunctions : TLID.t StrDict.t)
+    ~(tipes : TLID.t StrDict.t) : usage list =
   let astUsages =
     TL.getAST tl
-    |> Option.map ~f:(findUsagesInAST (TL.id tl) datastores handlers functions)
+    |> Option.map
+         ~f:
+           (findUsagesInAST
+              (TL.id tl)
+              ~datastores
+              ~handlers
+              ~functions
+              ~packageFunctions)
     |> Option.withDefault ~default:[]
   in
   let fnUsages =
@@ -195,6 +213,7 @@ let refreshUsages (m : model) (tlids : TLID.t list) : model =
   let datastores = dbsByName m.dbs in
   let handlers = handlersByName m.handlers in
   let functions = functionsByName m.userFunctions in
+  let packageFunctions = packageFunctionsByName m.functions.packageFunctions in
   let tipes = tipesByName m.userTipes in
   (* We need to overwrite the already-stored results for the passed-in TLIDs.
    * So we clear tlRefers for these tlids, and remove them from the inner set
@@ -209,7 +228,13 @@ let refreshUsages (m : model) (tlids : TLID.t list) : model =
     |> List.filterMap ~f:(fun tlid ->
            let tl = TL.get m tlid in
            Option.map tl ~f:(fun tl ->
-               getUsageFor tl datastores handlers functions tipes))
+               getUsageFor
+                 tl
+                 ~datastores
+                 ~handlers
+                 ~functions
+                 ~packageFunctions
+                 ~tipes))
     |> List.concat
     |> List.foldl
          ~init:(tlUsedInDict, tlRefersToDict)

@@ -1534,3 +1534,33 @@ test("redo_analysis_on_commit_ff", async t => {
 
   await t.expect(returnValue.innerText).contains("farewell Dorian Gray");
 });
+
+test("package_function_references_work", async t => {
+  const repl = Selector(".toplevel.tl-92595864");
+  const refersTo = Selector(".ref-block.refers-to.pkg-fn");
+  const usedIn = Selector(".ref-block.used-in.handler");
+
+  await t
+    // Start at this specific repl handler
+    .navigateTo("#handler=92595864")
+    .expect(available(repl))
+    .ok()
+    // Test that the handler we navigated to has a reference to a package manager function
+    .expect(available(refersTo))
+    .ok()
+    .expect(Selector(".ref-block.refers-to .fnheader").textContent)
+    .eql("test_admin/stdlib/Test::one_v0")
+    .click(refersTo)
+    // Clicking on it should bring us to that function
+    .expect(available(".toplevel .pkg-fn-toplevel"))
+    .ok()
+    // which should contain a reference to where we just came from
+    .expect(available(usedIn))
+    .ok()
+    .expect(usedIn.textContent)
+    .eql("REPLpkgFnTest")
+    // and clicking on that should bring us back.
+    .click(usedIn)
+    .expect(available(repl))
+    .ok();
+});
