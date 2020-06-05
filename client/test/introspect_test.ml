@@ -85,5 +85,15 @@ let run () =
                 ; ufAST = FluidAST.ofExpr (FluidExpression.newB ()) } ]
           in
           expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid]) ;
+      test "updateAssocList from empty" (fun () ->
+          expect
+            (updateAssocList ~key:"a" [] ~f:(fun u ->
+                 match u with Some v -> Some v | None -> Some 1))
+          |> toEqual [("a", 1)]) ;
+      test "updateAssocList add non existing" (fun () ->
+          expect
+            (updateAssocList ~key:"b" [("a", 1)] ~f:(fun u ->
+                 match u with Some v -> Some v | None -> Some 1))
+          |> toEqual [("a", 1); ("b", 1)]) ;
       ()) ;
   ()
