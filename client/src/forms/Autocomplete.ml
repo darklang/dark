@@ -717,6 +717,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       | DBName
       | DBColName
       | FnName
+      | FnDescription
       | ParamName
       | TypeName
       | TypeFieldName

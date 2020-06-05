@@ -93,6 +93,8 @@ let placeHolderFor (vp : ViewUtils.viewProps) (pt : blankOrType) : string =
       "db type"
   | FnName ->
       "function name"
+  | FnDescription ->
+      "What does this function do?"
   | FnReturnTipe ->
       "return type"
   | ParamName ->

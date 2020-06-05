@@ -148,6 +148,7 @@ and blankOrData =
   | PDBColName of string blankOr
   | PDBColType of string blankOr
   | PFnName of string blankOr
+  | PFnDescription of string blankOr
   | PFnReturnTipe of tipe blankOr
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
@@ -164,6 +165,7 @@ and blankOrType =
   | DBColName
   | DBColType
   | FnName
+  | FnDescription
   | FnReturnTipe
   | ParamName
   | ParamTipe

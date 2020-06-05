@@ -368,6 +368,8 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       if String.startsWith ~prefix:"dark/" value
       then v AC.packageFnNameValidator "function name"
       else v AC.fnNameValidator "function name"
+  | PFnDescription _ ->
+      Some value
   | PFnReturnTipe _ ->
       v AC.paramTypeValidator "return type"
   | PParamName oldParam ->
