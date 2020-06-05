@@ -1,5 +1,6 @@
 open Core_kernel
 open Libexecution
+open Libshared.FluidShortcuts
 open Types.RuntimeT
 open Utils
 module AT = Alcotest
@@ -8,13 +9,11 @@ module AT = Alcotest
 (* Language features *)
 (* ---------------- *)
 let t_int_add_works () =
-  let open Libshared.FluidShortcuts in
   (* Couldn't call Int::add *)
   check_dval "int_add" (Dval.dint 8) (exec_ast' (binop "+" (int 5) (int 3)))
 
 
 let t_lambda_with_foreach () =
-  let open Libshared.FluidShortcuts in
   check_dval
     "lambda_with_foreach"
     (Dval.dstr_of_string_exn "SOME STRING")
@@ -33,7 +32,6 @@ let t_lambda_with_foreach () =
 
 
 let t_match_works () =
-  let open Libshared.FluidShortcuts in
   let check_match arg expected =
     check_dval
       ("match " ^ Libshared.FluidExpression.show arg)
@@ -68,18 +66,23 @@ let t_lambda_scopes_correctly () =
   check_dval
     "lambda uses scope at create time, not call time"
     (DList [Dval.dint 6; Dval.dint 7; Dval.dint 8; Dval.dint 9])
-    (exec_ast
-       "(let x 5
-         (let y (\\c -> (+ x c))
-          (let x 6
-           (|
-              (1 2 3 4)
-    (List::map y)))))") ;
+    (exec_ast'
+       (let'
+          "x"
+          (int 5)
+          (let'
+             "y"
+             (lambda ["c"] (binop "+" (var "x") (var "c")))
+             (let'
+                "x"
+                (int 6)
+                (pipe
+                   (list [int 1; int 2; int 3; int 4])
+                   [fn "List::map" [pipeTarget; var "y"]]))))) ;
   ()
 
 
 let t_shadowing_all_the_way_down () =
-  let open Libshared.FluidShortcuts in
   check_dval
     "simple let shadowing"
     (Dval.dint 6)
@@ -160,7 +163,6 @@ let t_shadowing_all_the_way_down () =
 
 
 let t_multiple_copies_of_same_name () =
-  let open Libshared.FluidShortcuts in
   check_error
     "record field names"
     (exec_ast' (record [("col1", int 1); ("col1", int 2)]))
@@ -169,7 +171,6 @@ let t_multiple_copies_of_same_name () =
 
 
 let t_feature_flags_work () =
-  let open Libshared.FluidShortcuts in
   check_dval
     "flag shows new for true"
     (Dval.dint 1)
@@ -206,7 +207,6 @@ let t_feature_flags_work () =
 
 
 let t_nothing () =
-  let open Libshared.FluidShortcuts in
   check_dval
     "can specifiy nothing"
     (DOption OptNothing)
@@ -219,7 +219,6 @@ let t_nothing () =
 
 
 let t_incomplete_propagation () =
-  let open Libshared.FluidShortcuts in
   check_incomplete
     "Fn with incomplete return incomplete"
     (exec_ast' (fn "List::head" [blank ()])) ;
@@ -264,7 +263,7 @@ let t_incomplete_propagation () =
     (exec_ast' (fieldAccess (fn "List::head" [blank ()]) "field")) ;
   check_incomplete
     "incomplete name in field access is incomplete"
-    (* TODO: add new shortcut to handle this case? Would this compile (should this be a run-time test)? *)
+    (* TODO: add new shortcut to handle this case? Would this compile/should this be a run-time test)? *)
     (exec_ast "(. (obj (i 5)) _)") ;
   ()
 
@@ -272,19 +271,24 @@ let t_incomplete_propagation () =
 let t_derror_propagation () =
   check_error
     "Mapping error results in error"
-    (exec_ast "(List::map (1 2 3 4 5) (\\x y -> x))")
+    (exec_ast'
+       (fn
+          "List::map"
+          [list [int 1; int 2; int 3; int 4; int 5]; lambda ["x"; "y"] (var "x")]))
     "Expected 2 arguments, got 1" ;
   check_incomplete
     "Incomplete in Just results in Incomplete"
-    (exec_ast "(Just _)") ;
-  check_incomplete "Incomplete in Ok results in Incomplete" (exec_ast "(Ok _)") ;
+    (exec_ast' (just (blank ()))) ;
+  check_incomplete
+    "Incomplete in Ok results in Incomplete"
+    (exec_ast' (ok (blank ()))) ;
   check_incomplete
     "Incomplete in Error results in Incomplete"
-    (exec_ast "(Error _)") ;
+    (exec_ast' (error (blank ()))) ;
   check_dval
     "ErrorRail in Error results in ErrorRail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(Error (`List::last_v1 []))") ;
+    (exec_ast' (error (fn "List::last_v1" ~ster:Rail [list []]))) ;
   ()
 
 
@@ -296,17 +300,25 @@ let t_errorrail_simple () =
   check_dval
     "rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(`List::last_v1 [])") ;
-  check_dval "no rail" (DOption OptNothing) (exec_ast "(Dict::get_v1 {} 'i')") ;
+    (exec_ast' (error (fn "List::last_v1" ~ster:Rail [list []]))) ;
+  check_dval
+    "no rail"
+    (DOption OptNothing)
+    (exec_ast' (fn "Dict::get_v1" [record []; str "i"])) ;
   check_dval
     "no rail deeply nested"
     (Dval.dint 8)
-    (exec_ast
-       "(| (5)
-                  (`List::head_v1)
-                  (+ 3)
-                  (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-               )") ;
+    (exec_ast'
+       (pipe
+          (list [int 5])
+          [ fn "List::head_v1" ~ster:Rail [pipeTarget]
+          ; binop "+" pipeTarget (int 3)
+          ; lambda
+              ["x"]
+              (if'
+                 (binop ">" (binop "+" (var "x") (int 4)) (int 1))
+                 (var "x")
+                 (binop "+" (int 1) (var "x"))) ])) ;
   check_dval
     "to rail deeply nested"
     (DErrorRail (DOption OptNothing))
@@ -340,28 +352,56 @@ let t_error_rail_is_propagated_by_functions () =
   check_dval
     "push"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(List::push (1 2 3 4) (`List::head_v1 []))") ;
+    (exec_ast'
+       (fn
+          "List::push"
+          [ list [int 1; int 2; int 3; int 4]
+          ; fn "List::head_v1" ~ster:Rail [list []] ])) ;
   check_incomplete
     "filter with incomplete"
-    (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> _))") ;
+    (exec_ast'
+       (fn
+          "List::filter_v1"
+          [list [int 1; int 2; int 3; int 4]; lambda ["x"] (blank ())])) ;
   check_incomplete
     "map with incomplete"
-    (exec_ast "(List::map (1 2 3 4) (\\x -> _))") ;
+    (exec_ast'
+       (fn
+          "List::map"
+          [list [int 1; int 2; int 3; int 4]; lambda ["x"] (blank ())])) ;
   check_incomplete
     "fold with incomplete"
-    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (+ x _)))") ;
+    (exec_ast'
+       (fn
+          "List::fold"
+          [ list [int 1; int 2; int 3; int 4]
+          ; int 1
+          ; lambda ["x"; "y"] (binop "+" (var "x") (blank ())) ])) ;
   check_dval
     "filter with error rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
+    (exec_ast'
+       (fn
+          "List::filter_v1"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["x"] (fn "List::head_v1" ~ster:Rail [list []]) ])) ;
   check_dval
     "map with error rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(List::map (1 2 3 4) (\\x -> (`List::head_v1 [])))") ;
+    (exec_ast'
+       (fn
+          "List::map"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["x"] (fn "List::head_v1" ~ster:Rail [list []]) ])) ;
   check_dval
     "fold with error rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (`List::head_v1 [])))")
+    (exec_ast'
+       (fn
+          "List::fold"
+          [ list [int 1; int 2; int 3; int 4]
+          ; int 1
+          ; lambda ["x"; "y"] (fn "List::head_v1" ~ster:Rail [list []]) ]))
 
 
 let t_errorrail_userfn () =
@@ -369,11 +409,16 @@ let t_errorrail_userfn () =
     "userfn unwraps"
     (DOption OptNothing)
     (exec_userfn
-       "(| ()
-                     (`List::head_v1)
-                     (+ 3)
-                     (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-                   )") ;
+       (pipe
+          (list [])
+          [ fn "List::head_v1" ~ster:Rail [pipeTarget]
+          ; binop "+" pipeTarget (int 3)
+          ; lambda
+              ["x"]
+              (if'
+                 (binop ">" (binop "+" (var "x") (int 4)) (int 1))
+                 (var "x")
+                 (binop "+" (int 1) (var "x"))) ])) ;
   ()
 
 
@@ -416,16 +461,11 @@ let t_typecheck_any () =
 let t_typechecker_error_isnt_wrapped_by_errorail () =
   check_condition
     "typechecker_error_dict_get"
-    (exec_ast "(Dict::get_v1 (List::empty) 'hello')")
-    ~f:(function
-      | DError _ ->
-          true
-      | _ ->
-          false)
+    (exec_ast' (fn "Dict::get_v1" [fn "List::empty" []; str "hello"]))
+    ~f:(function DError _ -> true | _ -> false)
 
 
 let t_typechecker_return_types () =
-  let open Libshared.FluidShortcuts in
   let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (f (Value "5")) in
   check_condition
     "typecheck userfn with bad return type"
@@ -456,7 +496,7 @@ let t_typechecker_return_types () =
 let t_int_functions_works () =
   check_condition
     "Int::random_v1 0 3 returns a number between [0,3]"
-    (exec_ast "(Int::random_v1 0 3)")
+    (exec_ast' (fn "Int::random_v1" [int 0; int 3]))
     ~f:(fun dv ->
       match dv with
       | DInt i ->
@@ -465,7 +505,7 @@ let t_int_functions_works () =
           false) ;
   check_condition
     "Int::random_v1 3 0, will swap 3 0 and returns a number between [0,3]"
-    (exec_ast "(Int::random_v1 3 0)")
+    (exec_ast' (fn "Int::random_v1" [int 3; int 0]))
     ~f:(fun dv ->
       match dv with
       | DInt i ->
@@ -479,9 +519,9 @@ let t_int_functions_works () =
 (* ---------------- *)
 
 let t_dark_internal_fns_are_internal () =
-  let ast = "(DarkInternal::checkAccess)" in
+  let ast = fn "DarkInternal::checkAccess" [] in
   let check_access canvas_name =
-    match exec_ast ~canvas_name ast with DError _ -> None | dval -> Some dval
+    match exec_ast' ~canvas_name ast with DError _ -> None | dval -> Some dval
   in
   AT.check
     (AT.list (AT.option at_dval))
