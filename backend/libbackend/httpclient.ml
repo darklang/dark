@@ -17,6 +17,17 @@ type verb =
 
 type headers = string list [@@deriving show]
 
+type http_result =
+  { body : string
+  ; code : int
+  ; headers : (string * string) list
+  ; error : string }
+
+type curl_error =
+  { url : string
+  ; error : string
+  ; code : int }
+
 (* Given ~regex, return Err if it doesn't match, or list of captures if
  * it does. First elem of the list is the first capture, not the whole
  * match. *)
@@ -99,52 +110,52 @@ let http_call_with_code
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string option) : string * int * (string * string) list * string =
-  let query_params =
-    url |> Uri.of_string |> Uri.query |> List.append query_params
-  in
-  let url =
-    url
-    |> Uri.of_string
-    |> Uri.with_uri ~query:(Some query_params)
-    |> Uri.to_string
-  in
-  let headers = headers |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v) in
-  let errorbuf = ref "" in
-  let responsebuf = Buffer.create 16384 in
-  (* uploads *)
-  (* let bodybuffer = ref body in *)
-  (* let putfn (count: int) : string = *)
-  (*   let len = String.length !bodybuffer in *)
-  (*   let this_body = !bodybuffer in *)
-  (*   if count < len *)
-  (*   then (bodybuffer := ""; this_body) *)
-  (*   else *)
-  (*     let result = String.sub ~pos:0 ~len:count this_body in *)
-  (*     let save = String.sub ~pos:count ~len:(len-count) this_body in *)
-  (*     bodybuffer := save; *)
-  (*     result *)
-  (*   in *)
-  let responsefn str : int =
-    Buffer.add_string responsebuf str ;
-    String.length str
-  in
-  (* headers *)
-  let result_headers = ref [] in
-  let headerfn (h : string) : int =
-    (* See comment about responsebody below before changing this. *)
-    let split = String.lsplit2 ~on:':' h in
-    match split with
-    | Some (l, r) ->
-        result_headers := List.cons (l, r) !result_headers ;
-        String.length h
-    | None ->
-        result_headers := List.cons (h, "") !result_headers ;
-        String.length h
-  in
-  let debug_bufs = new_debug_bufs () in
-  let code, error, body =
-    try
+    (body : string option) : (http_result, curl_error) Result.t =
+  try
+    let query_params =
+      url |> Uri.of_string |> Uri.query |> List.append query_params
+    in
+    let url =
+      url
+      |> Uri.of_string
+      |> Uri.with_uri ~query:(Some query_params)
+      |> Uri.to_string
+    in
+    let headers = headers |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v) in
+    let errorbuf = ref "" in
+    let responsebuf = Buffer.create 16384 in
+    (* uploads *)
+    (* let bodybuffer = ref body in *)
+    (* let putfn (count: int) : string = *)
+    (*   let len = String.length !bodybuffer in *)
+    (*   let this_body = !bodybuffer in *)
+    (*   if count < len *)
+    (*   then (bodybuffer := ""; this_body) *)
+    (*   else *)
+    (*     let result = String.sub ~pos:0 ~len:count this_body in *)
+    (*     let save = String.sub ~pos:count ~len:(len-count) this_body in *)
+    (*     bodybuffer := save; *)
+    (*     result *)
+    (*   in *)
+    let responsefn str : int =
+      Buffer.add_string responsebuf str ;
+      String.length str
+    in
+    (* headers *)
+    let result_headers = ref [] in
+    let headerfn (h : string) : int =
+      (* See comment about responsebody below before changing this. *)
+      let split = String.lsplit2 ~on:':' h in
+      match split with
+      | Some (l, r) ->
+          result_headers := List.cons (l, r) !result_headers ;
+          String.length h
+      | None ->
+          result_headers := List.cons (h, "") !result_headers ;
+          String.length h
+    in
+    let debug_bufs = new_debug_bufs () in
+    let code, error, body =
       let c = C.init () in
       C.set_url c url ;
       C.set_verbose c true ;
@@ -156,12 +167,12 @@ let http_call_with_code
       C.set_httpheader c headers ;
       C.set_headerfunction c headerfn ;
       (* This tells CURL to send an Accept-Encoding header including all
-       * of the encodings it supports *and* tells it to automagically decode
-       * responses in those encodings. This works even if someone manually specifies
-       * the encoding in the header, as libcurl will still appropriately decode it
-       *
-       * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
-       * *)
+        * of the encodings it supports *and* tells it to automagically decode
+        * responses in those encodings. This works even if someone manually specifies
+        * the encoding in the header, as libcurl will still appropriately decode it
+        *
+        * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
+        * *)
       if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY ;
       (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
       C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
@@ -212,13 +223,13 @@ let http_call_with_code
       (* Actually do the request *)
       C.perform c ;
       (* If we get a redirect back, then we may see the content-type
-       * header twice. Fortunately, because we push headers to the front
-       * above, and take the first in charset, we get the right
-       * answer. Whew. To do this correctly, we'd have to implement our
-       * own follow logic which would clear the header ref, which seems
-       * straightforward in theory but likely not practice.
-       * Alternatively, we could clear the headers ref when we receive a
-       * new `ok` header. *)
+        * header twice. Fortunately, because we push headers to the front
+        * above, and take the first in charset, we get the right
+        * answer. Whew. To do this correctly, we'd have to implement our
+        * own follow logic which would clear the header ref, which seems
+        * straightforward in theory but likely not practice.
+        * Alternatively, we could clear the headers ref when we receive a
+        * new `ok` header. *)
       let responsebody =
         if charset !result_headers = `Latin1
         then recode_latin1 (Buffer.contents responsebuf)
@@ -229,19 +240,12 @@ let http_call_with_code
       C.cleanup c ;
       log_debug_info debug_bufs (Some primaryip) ;
       response
-    with Curl.CurlException (curl_code, code, s) ->
-      log_debug_info debug_bufs None ;
-      let info =
-        [ ("url", url)
-        ; ("error", Curl.strerror curl_code)
-        ; ("curl_code", string_of_int code)
-        ; ("response", Buffer.contents responsebuf) ]
-      in
-      Exception.code
-        ~info
-        ("Internal HTTP-stack exception: " ^ Curl.strerror curl_code)
-  in
-  (body, code, !result_headers, error)
+    in
+    let obj = {body; code; headers = !result_headers; error} in
+    Ok obj
+  with Curl.CurlException (curl_code, code, s) ->
+    let info = {url; error = Curl.strerror curl_code; code} in
+    Error info
 
 
 let http_call
@@ -250,11 +254,8 @@ let http_call
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string option) : string * (string * string) list * int =
-  let resp_body, code, resp_headers, _ =
-    http_call_with_code ~raw_bytes url query_params verb headers body
-  in
-  (resp_body, resp_headers, code)
+    (body : string option) =
+  http_call_with_code ~raw_bytes url query_params verb headers body
 
 
 let init () : unit = C.global_init C.CURLINIT_GLOBALALL
