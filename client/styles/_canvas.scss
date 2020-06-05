@@ -131,16 +131,8 @@ body {
 }
 
 /* Body */
-body #app * {
-  &:not(.fa) {
-    // skip fontawesome
-    font-family: "Fira Mono", monospace;
-  }
 
-  i.di {
-    @extend .dark-icon-font;
-  }
-
+body {
   a {
     &,
     &:link,
@@ -152,6 +144,17 @@ body #app * {
     &:active {
       color: $purple;
     }
+  }
+}
+
+body #app * {
+  &:not(.fa) {
+    // skip fontawesome
+    font-family: "Fira Mono", monospace;
+  }
+
+  i.di {
+    @extend .dark-icon-font;
   }
 }
 
