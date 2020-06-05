@@ -860,11 +860,13 @@ let t_list_stdlibs_work () =
   check_dval
     "List::flatten flattens singly-nested lists"
     (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3])
-    (exec_ast' (fn "List::flatten" [list [list[int 1]; list[int 2]; list[int 3]]])) ;
+    (exec_ast'
+       (fn "List::flatten" [list [list [int 1]; list [int 2]; list [int 3]]])) ;
   check_dval
     "List::flatten flattens multi-nested lists properly"
     (DList [Dval.dint 1; DList [Dval.dint 2; Dval.dint 3]])
-    (exec_ast' (fn "List::flatten" [list [list[int 1]; list[list[int 2; int 3]]]])) ;
+    (exec_ast'
+       (fn "List::flatten" [list [list [int 1]; list [list [int 2; int 3]]]])) ;
   ()
 
 
