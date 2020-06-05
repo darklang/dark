@@ -6,7 +6,7 @@ open ViewUtils
 
 let defaultStep : tutorialStep option = Some Welcome
 
-let isGettingStartedCanvas ~(username : string) ~(canvasname : string) : bool =
+let isTutorialCanvas ~(username : string) ~(canvasname : string) : bool =
   canvasname = username ^ "-crud"
 
 
@@ -381,6 +381,6 @@ let view
     (tooltip : tooltip option) : msg Html.html =
   if Option.isSome tooltip
   then viewTempToolTip tooltip
-  else if firstVisitToThisCanvas && isGettingStartedCanvas ~username ~canvasname
+  else if firstVisitToThisCanvas && isTutorialCanvas ~username ~canvasname
   then viewGettingStarted
   else viewStep step username
