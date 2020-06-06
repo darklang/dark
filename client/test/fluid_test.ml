@@ -4056,6 +4056,18 @@ let run () =
         ~pos:1
         bs
         "~56" ;
+      t
+        "a delete with caret before a blank in front of a list will delete the blank"
+        listWithBlankAtStart
+        ~pos:1
+        del
+        "[~56,78,56]" ;
+      t
+        "a delete with caret before a list with just a blank removes the blank"
+        listWithJustABlank
+        ~pos:1
+        del
+        "[~]" ;
       ()) ;
   describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;

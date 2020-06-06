@@ -4206,6 +4206,21 @@ let rec updateKey
         doBackspace ~pos ti astInfo
     | DeleteContentBackward, L (_, ti), _ ->
         doBackspace ~pos ti astInfo
+    (* Special case for deleting blanks in front of a list *)
+    | DeleteContentForward, L (TListOpen _, _), R (TBlank _, rti) ->
+      (* If L is a TListOpen and R is a TBlank, mNext can be a comma or a list close. 
+       * In case of a list close, we just replace the expr with the empty list
+       *)
+      ( match mNext with
+      | Some {token = TListClose (id, _); _} ->
+          astInfo
+          |> ASTInfo.setAST
+               (FluidAST.update ~f:(fun _ -> E.EList (id, [])) id astInfo.ast)
+          |> moveToCaretTarget {astRef = ARList (id, LPOpen); offset = 1}
+      | Some ti ->
+          doDelete ~pos ti astInfo
+      | None ->
+          doDelete ~pos rti astInfo )
     | DeleteContentForward, _, R (_, ti) ->
         doDelete ~pos ti astInfo
     | DeleteSoftLineBackward, _, R (_, ti)
