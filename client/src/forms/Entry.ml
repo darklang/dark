@@ -687,7 +687,14 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
             | EventModifier ->
                 (* Does not accept freeform inputs, but goes to validation call for more specific error message displayed to user *)
                 Some (ACEventModifier value)
-            | _ ->
+            | DBColType
+            | EventName
+            | EventSpace
+            | DBName
+            | FnDescription
+            | FnReturnTipe
+            | ParamTipe
+            | TypeFieldTipe ->
                 None )
           | None ->
               None
