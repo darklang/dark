@@ -505,9 +505,9 @@ let exec_ast'
   result
 
 
-let exec_userfn (prog : string) : expr dval =
+let exec_userfn (ast : Libshared.FluidExpression.t) : expr dval =
   let name = "test_function" in
-  let ast = ast_for prog in
+  let ast = Fluid.fromFluidExpr ast in
   let fn = user_fn name [] ast in
   let c, state, _ = test_execution_data [SetFunction fn] in
   Ast.execute_fn ~state name execution_id []
