@@ -59,7 +59,11 @@ fi
 if [ -v CI ]; then
   # see "copy in data" in .circleci/config.yml
   MOUNTS="--volumes-from vols"
-else
+fi
+if [-v CODESPACE]; then
+  # when running inside codespace different directory needs to be mounted.
+  MOUNTS="--mount type=bind,src=/var/lib/docker/vsonlinemount/workspace,dst=/home/dark/app"
+else 
   MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
@@ -86,7 +90,7 @@ else
   fi
   # make sure this exists first, so it doesn't get created as a directory
   touch "$HOME/.dark_bash_history"
-  MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
+  # MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
 fi
 
 # --------------
