@@ -118,12 +118,23 @@ let calculateAllowedFunctionsList (props : props) (t : t) : function_ list =
         |> fun count -> count > 0
       else true
     in
+    let fnNameWithoutVersion (f : function_) : string =
+      f.fnName
+      |> String.to_lower
+      |> String.split ~on:"_v"
+      |> List.getAt ~index:0
+      |> Option.withDefault ~default:f.fnName
+    in
     fns
     |> List.filter ~f:isUsedOrIsNotDeprecated
     |> List.sortBy ~f:(fun f ->
            (* don't call List.head here - if we have DB::getAll_v1 and
             * DB::getAll_v2, we want those to sort accordingly! *)
            f.fnName |> String.to_lower |> String.split ~on:"_v")
+    |> List.groupWhile ~f:(fun f1 f2 ->
+           fnNameWithoutVersion f1 = fnNameWithoutVersion f2)
+    |> List.map ~f:List.reverse
+    |> List.flatten
   in
   let userFunctionMetadata =
     props.userFunctions

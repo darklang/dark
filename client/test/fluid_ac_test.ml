@@ -248,12 +248,12 @@ let run () =
           test "DB::get_v1 occurs before DB::getAll_v1" (fun () ->
               expect (acForQuery "DB::get" |> List.head)
               |> toEqual (Some "DB::get_v1")) ;
-          test "DB::getAll_v1 occurs before DB::getAll_v2" (fun () ->
+          test "DB::getAll_v2 occurs before DB::getAll_v1" (fun () ->
               expect (acForQuery "DB::getA" |> List.head)
-              |> toEqual (Some "DB::getAll_v1")) ;
-          test "DB::getAll_v2 is reachable" (fun () ->
+              |> toEqual (Some "DB::getAll_v2")) ;
+          test "DB::getAll_v1 is reachable" (fun () ->
               expect (acForQuery "DB::getA")
-              |> toEqual ["DB::getAll_v1"; "DB::getAll_v2"]) ;
+              |> toEqual ["DB::getAll_v2"; "DB::getAll_v1"]) ;
           test "search finds only prefixed" (fun () ->
               expect (acForQuery "twit::y") |> toEqual ["Twit::yetAnother"]) ;
           test "show results when the only option is the setQuery" (fun () ->
