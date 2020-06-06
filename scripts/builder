@@ -59,8 +59,7 @@ fi
 if [ -v CI ]; then
   # see "copy in data" in .circleci/config.yml
   MOUNTS="--volumes-from vols"
-fi
-if [-v CODESPACE]; then
+elif [ -v CODESPACE ]; then
   # when running inside codespace different directory needs to be mounted.
   MOUNTS="--mount type=bind,src=/var/lib/docker/vsonlinemount/workspace,dst=/home/dark/app"
 else 
