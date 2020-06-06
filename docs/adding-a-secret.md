@@ -15,18 +15,21 @@ data:
   password: MWYyZDFlMmU2N2Rm
 ```
 
-Note that the secret must be base64 encoded.
+Note that the secret must be base64 encoded, a k8s requirement
+(https://kubernetes.io/docs/concepts/configuration/secret/#creating-a-secret-manually).
 
-Add it to kuberneters with `kubectl apply -f secret/yaml`
+Add it to Kubernetes with `kubectl apply -f secret/yaml`
 
 ## Keep it somewhere safe
 
-If it's not available from the vendor's console, consider adding it to
-the Dark admin 1password vault. Ask IanS or Paul.
+If it's not available from the vendor's console, consider adding it to the Dark
+admin 1password vault, so that we can recover it if we lose the cluster. Ask
+IanS or Paul.
 
 ## Make it accessible to containers
 
-To add the secret to a container, go to (or add) an `env` stanza to the kubernetes templates in scripts/support/kubernetes.
+To add the secret to a container, add an `env` stanza to the kubernetes
+templates in scripts/support/kubernetes.
 
 For example:
 
@@ -35,7 +38,7 @@ For example:
               valueFrom:
                 secretKeyRef:
                   name: segment-account-credentials
-                  key: key
+                  key: segment-key
 ```
 
 Each template has multiple containers so make sure it ends up in all
@@ -44,12 +47,12 @@ the containers that need it.
 ## Make it accessible to the app
 
 Getting the production configuration into the OCaml app is handled in
-`config.ml` or `config.rs`. It typically makes it into the JS app via
-`ui.html`, which has values filled in from `webserver.ml`.
+`config.ml`/`config.mli` or `config.rs`. It typically makes it into the JS app
+via `ui.html`, which has values filled in from `webserver.ml`.
 
 ## Non-secret configuration
 
-Non-secret config should be stored in config/gke-builtwithdark, and
-passed from there into production. You should leave placeholders for
-the values loaded from kubernetes (the dynamic configs are loaded last,
-and will overwrite the config-file config).
+Non-secret config should be stored in `config/gke-builtwithdark` (substitude
+dev, etc, for gke-builtwithdark) , and passed from there into production. You
+should leave placeholders for the values loaded from kubernetes (the dynamic
+configs are loaded last, and will overwrite the config-file config).
