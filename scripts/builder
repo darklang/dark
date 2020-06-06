@@ -150,8 +150,13 @@ fi
 # --------------
 # create the network
 # --------------
-./scripts/support/create-dark-dev-network
-
+if [ -v CODESPACE ]; then
+  DNS=''
+else
+  ./scripts/support/create-dark-dev-network
+  DNS='--dns 8.8.8.8 \
+        --dns 8.8.4.4'
+fi
 # --------------
 # --------------
 echo "Run the build"
@@ -166,8 +171,7 @@ $FSWATCH | docker run \
              --init \
              --rm \
              -i \
-             --dns 8.8.8.8 \
-             --dns 8.8.4.4 \
+             $DNS \
              --name dark-dev \
              --hostname dark-dev \
              --env-file "$ENV_FILE" \
