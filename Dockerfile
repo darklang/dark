@@ -38,7 +38,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       && rm -rf /var/lib/apt/lists/*
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
-RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+RUN curl -ksSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
 RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
