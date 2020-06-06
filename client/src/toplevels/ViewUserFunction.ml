@@ -82,29 +82,6 @@ let viewExecuteBtn (vp : viewProps) (fn : userFunction) : msg Html.html =
 
 
 let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
-  let addParamBtn =
-    match fn with
-    | UserFunction fn ->
-      ( match vp.permission with
-      | Some ReadWrite ->
-          let strTLID = TLID.toString fn.ufTLID in
-          Html.div
-            ~unique:("add-param-col-" ^ strTLID)
-            [ Html.class' "col new-parameter"
-            ; ViewUtils.eventNoPropagation
-                ~key:("aufp-" ^ strTLID)
-                "click"
-                (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
-            [ Html.div
-                [Html.class' "parameter-btn allowed add"]
-                [fontAwesome "plus-circle"]
-            ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"]
-            ]
-      | Some Read | None ->
-          Vdom.noNode )
-    | PackageFn _ ->
-        Vdom.noNode
-  in
   let titleRow =
     let titleText =
       match fn with
@@ -112,6 +89,16 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
           fn.ufMetadata.ufmName
       | PackageFn fn ->
           BlankOr.newF (fn.fnname ^ "_v" ^ string_of_int fn.version)
+    in
+    let description =
+      let classes = ["fn-description"] in
+      ViewBlankOr.viewMultilineText
+        ~classes
+        ~enterable:
+          (match fn with UserFunction _ -> true | PackageFn _ -> false)
+        FnDescription
+        vp
+        (UserFunctions.descriptionBlankOr ~tlid:vp.tlid fn)
     in
     let executeBtn =
       match fn with
@@ -147,15 +134,42 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
           in
           Html.div [Html.class' "fn-actions"] [viewExecuteBtn vp fn; menuView]
       | PackageFn _ ->
-          Html.span [Html.class' "fn-readonly"] [Html.text "Read Only"]
+          Html.div [Html.class' "fn-actions"] []
     in
     Html.div
-      [Html.class' "spec-header"]
-      [ ViewUtils.darkIcon "fn"
-      ; viewUserFnName vp ~classes:["fn-name-content"] titleText
-      ; executeBtn ]
+      [Html.class' "fn-info"]
+      [ Html.div
+          [Html.class' "spec-header"]
+          [ ViewUtils.darkIcon "fn"
+          ; viewUserFnName vp ~classes:["fn-name-content"] titleText
+          ; executeBtn ]
+      ; description ]
   in
   let paramRows =
+    let addParamBtn =
+      match fn with
+      | UserFunction fn ->
+        ( match vp.permission with
+        | Some ReadWrite ->
+            let strTLID = TLID.toString fn.ufTLID in
+            Html.div
+              ~unique:("add-param-col-" ^ strTLID)
+              [ Html.class' "col new-parameter"
+              ; ViewUtils.eventNoPropagation
+                  ~key:("aufp-" ^ strTLID)
+                  "click"
+                  (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
+              [ Html.div
+                  [Html.class' "parameter-btn allowed add"]
+                  [fontAwesome "plus-circle"]
+              ; Html.span
+                  [Html.class' "btn-label"]
+                  [Html.text "add new parameter"] ]
+        | Some Read | None ->
+            Vdom.noNode )
+      | PackageFn _ ->
+          Vdom.noNode
+    in
     Html.div
       [Html.id "fnparams"; Html.class' "params"]
       (FnParams.view fn vp @ [addParamBtn])

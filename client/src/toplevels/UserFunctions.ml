@@ -77,8 +77,20 @@ let allParamData (uf : userFunction) : blankOrData list =
   List.concat (List.map ~f:paramData uf.ufMetadata.ufmParameters)
 
 
+let descriptionBlankOr ~(tlid : TLID.t) (fn : functionTypes) =
+  let descText =
+    match fn with
+    | UserFunction fn ->
+        fn.ufMetadata.ufmDescription
+    | PackageFn fn ->
+        fn.description
+  in
+  F (ID.fromString (TLID.toString tlid ^ "-fndesc"), descText)
+
+
 let blankOrData (uf : userFunction) : blankOrData list =
   PFnName uf.ufMetadata.ufmName
+  :: PFnDescription (descriptionBlankOr ~tlid:uf.ufTLID (UserFunction uf))
   :: PFnReturnTipe uf.ufMetadata.ufmReturnTipe
   :: allParamData uf
 
