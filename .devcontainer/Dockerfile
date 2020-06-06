@@ -1,10 +1,11 @@
+
 #-------------------------------------------------------------------------------------------------------------
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License. See https://go.microsoft.com/fwlink/?linkid=2090316 for license information.
 #-------------------------------------------------------------------------------------------------------------
 
 # Note: You can use any Debian/Ubuntu based image you want. 
-FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-debian-10
 
 # This Dockerfile adds a non-root user with sudo access. Use the "remoteUser"
 # property in devcontainer.json to use it. On Linux, the container user's GID/UIDs
@@ -14,60 +15,83 @@ ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-USER root
-RUN DEBIAN_FRONTEND=noninteractive \
-  apt update --allow-releaseinfo-change && \
-  DEBIAN_FRONTEND=noninteractive \
-  apt install \
-  -y \
-  --no-install-recommends \
-  curl \
-  apt-transport-https \
-  ca-certificates \
-  lsb-core \
-  less \
-  gpg \
-  gpg-agent \
-  && apt clean \
-  && rm -rf /var/lib/apt/lists/*
+# Docker script args, location, and expected SHA - SHA generated on release
+ARG DOCKER_SCRIPT_SOURCE="https://raw.githubusercontent.com/microsoft/vscode-dev-containers/v0.117.1/script-library/docker-debian.sh"
+ARG DOCKER_SCRIPT_SHA="23a9e56a563e66a7339c43a67719fda06e70ce4d1fa2a870392e32a57aa42136"
+ARG ENABLE_NONROOT_DOCKER="true"
+ARG SOURCE_SOCKET=/var/run/docker-host.sock
+ARG TARGET_SOCKET=/var/run/docker.sock
 
-RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+# ========= DOCKER CE INSTALLATION ==========
+# Avoid warnings by switching to noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Deps:
-# - apt-transport-https for npm
-# - expect for unbuffer
-# - most libs re for ocaml
-# - net-tools for netstat
-# - esy packages need texinfo
-RUN DEBIAN_FRONTEND=noninteractive \
-  apt update --allow-releaseinfo-change && \
-  DEBIAN_FRONTEND=noninteractive \
-  apt install \
-  --no-install-recommends \
-  -y \
-  software-properties-common \
-  make \
-  rsync \
-  git \
-  wget \
-  sudo \
-  locales \
-  expect \
-  tcl8.6 \
-  libev-dev \
-  libgmp-dev \
-  pkg-config \
-  libcurl4-gnutls-dev \
-  libpq-dev \
-  vim \
-  unzip \
-  docker-ce \
-  fswatch \
-  python3-pip \
-  python3-setuptools \
-  python3-dev \
-  ssh
+RUN apt-get update \
+    # Verify common dependencies and utilities are installed
+    && apt-get -y install --no-install-recommends apt-utils dialog git openssh-client curl less iproute2 procps 2>&1 \
+    #
+    # Create a non-root user to use if not already available - see https://aka.ms/vscode-remote/containers/non-root-user.
+    && if [ $(getent passwd $USERNAME) ]; then \
+    # If exists, see if we need to tweak the GID/UID
+    if [ "$USER_GID" != "1000" ] || [ "$USER_UID" != "1000" ]; then \
+    groupmod --gid $USER_GID $USERNAME \
+    && usermod --uid $USER_UID --gid $USER_GID $USERNAME \
+    && chown -R $USER_UID:$USER_GID /home/$USERNAME; \
+    fi; \
+    else \
+    # Otherwise ccreate the non-root user
+    groupadd --gid $USER_GID $USERNAME \
+    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    # Add sudo support for the non-root user
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
+    && chmod 0440 /etc/sudoers.d/$USERNAME; \
+    fi \
+    #
+    # Use Docker script from script library to set things up
+    && curl -sSL $DOCKER_SCRIPT_SOURCE -o /tmp/docker-setup.sh \
+    && if [ "$DOCKER_SCRIPT_SHA" != "dev-mode" ]; then echo "$DOCKER_SCRIPT_SHA /tmp/docker-setup.sh" | sha256sum -c - ; fi \
+    && /bin/bash /tmp/docker-setup.sh "${ENABLE_NONROOT_DOCKER}" "${SOURCE_SOCKET}" "${TARGET_SOCKET}" "${USERNAME}" \
+    && rm /tmp/docker-setup.sh \
+    #
+    # Clean up
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch back to dialog for any ad-hoc use of apt-get
+ENV DEBIAN_FRONTEND=dialog
+
+# Setting the ENTRYPOINT to docker-init.sh will configure non-root access to 
+# the Docker socket if "overrideCommand": false is set in devcontainer.json. 
+# The script will also execute CMD if you need to alter startup behaviors.
+ENTRYPOINT [ "/usr/local/share/docker-init.sh" ]
+CMD [ "sleep", "infinity" ]
+
+# ========= END DOCKER CE INSTALLATION ==========
+
+# Install required dependencies for dark
+RUN apt-get update \
+    && apt install \
+    --no-install-recommends \
+    -y \
+    software-properties-common \
+    make \
+    git \
+    wget \
+    locales \
+    expect \
+    tcl8.6 \
+    libev-dev \
+    libgmp-dev \
+    pkg-config \
+    vim \
+    python3-pip \
+    python3-setuptools \
+    fswatch \
+    # Clean up
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install livereload
