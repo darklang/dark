@@ -15,6 +15,7 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
   let allInts str = (TInt, TInt, TInt, str) in
   let allFloats str = (TFloat, TFloat, TFloat, str) in
   let boolOp tipe str = (tipe, tipe, TBool, str) in
+  let dateOp str = (TDate, TDate, TDate, str) in
   match op with
   | ">" | "<" | "<=" | ">=" ->
       boolOp TInt op
@@ -28,6 +29,10 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       boolOp TDate "<="
   | "Date::>=" | "Date::greaterThanOrEqualTo" ->
       boolOp TDate ">="
+  | "Date::subtract" ->
+      dateOp "-"
+  | "Date::add" ->
+      dateOp "+"
   | "Int::mod" ->
       allInts "%"
   | "Int::add" ->
