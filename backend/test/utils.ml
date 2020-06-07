@@ -259,8 +259,6 @@ let pos = {x = 0; y = 0}
 
 let execution_id = Int63.of_int 6542
 
-let ast_for = Expr_dsl.ast_for
-
 let handler ?(tlid = tlid) ast : 'expr_type HandlerT.handler =
   { tlid
   ; ast
@@ -472,15 +470,6 @@ let execute_ops
 
 
 (* already provided in execute_handler *)
-
-let exec_handler ?(ops = []) (prog : string) : expr dval =
-  prog
-  |> ast_for
-  (* |> Log.pp ~f:show_expr *)
-  |> handler
-  |> hop
-  |> fun h -> execute_ops (ops @ [h])
-
 
 let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
   ast
