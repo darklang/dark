@@ -160,7 +160,7 @@ let t_result_to_response_works () =
                "objects get application/json content-type"
                (Some "application/json; charset=utf-8")
                (Header.get (Resp.headers r) "Content-Type") )
-       ; ( exec_ast' (list [ (int 1); (int 2) ])
+       ; ( exec_ast' (list [int 1; int 2])
          , req
          , None
          , fun r ->
@@ -178,7 +178,7 @@ let t_result_to_response_works () =
                "other things get text/plain content-type"
                (Some "text/plain; charset=utf-8")
                (Header.get (Resp.headers r) "Content-Type") )
-       ; ( exec_ast' (fn "Http::success" [(record [])])
+       ; ( exec_ast' (fn "Http::success" [record []])
          , req
          , None
          , fun r ->
