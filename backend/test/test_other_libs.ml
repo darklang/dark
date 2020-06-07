@@ -1546,6 +1546,9 @@ let t_url_encode () =
 
 
 let t_float_stdlibs () =
+  let infinity' = binop "/" (float' 1 0) (float' 0 0) in
+  let neg_infinity' = binop "/" (float' (-1) 0) (float' 0 0) in
+  let nan' = binop "/" (float' 0 0) (float' 0 0) in
   check_dval
     "Float::sum works"
     (DFloat 1.2)
@@ -1587,12 +1590,12 @@ let t_float_stdlibs () =
     "Float::min works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.nan)
-    (exec_ast "(Float::min 10.0 NaN)") ;
+    (exec_ast' (fn "Float::min" [float' 10 0; nan'])) ;
   check_dval
     "Float::min works (infinity)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat 1.0)
-    (exec_ast "(Float::min Infinity 1.0)") ;
+    (exec_ast' (fn "Float::min" [infinity'; float' 1 0])) ;
   check_dval
     "Float::max works (neg)"
     (DFloat 1.0)
@@ -1605,12 +1608,12 @@ let t_float_stdlibs () =
     "Float::max works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.nan)
-    (exec_ast "(Float::max 10.0 NaN)") ;
+    (exec_ast' (fn "Float::max" [float' 10 0; nan'])) ;
   check_dval
     "Float::max works (infinity)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.infinity)
-    (exec_ast "(Float::max Infinity 1.0)") ;
+    (exec_ast' (fn "Float::max" [infinity'; float' 1 0])) ;
   check_dval
     "Float::clamp works (in bounds)"
     (DFloat (-2.0))
@@ -1635,31 +1638,31 @@ let t_float_stdlibs () =
     "Float::clamp works (val = infinity)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat 0.5)
-    (exec_ast "(Float::clamp Infinity -1.0 0.5)") ;
+    (exec_ast' (fn "Float::clamp" [infinity'; float' (-1) 0; float' 0 5])) ;
   check_dval
     "Float::clamp works (min = -infinity)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat 0.5)
-    (exec_ast "(Float::clamp 0.5 -Infinity 1.0)") ;
+    (exec_ast' (fn "Float::clamp" [float' 0 5; neg_infinity'; float' 1 0])) ;
   check_dval
     "Float::clamp works (val = infinity)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat 0.5)
-    (exec_ast "(Float::clamp Infinity -1.0 0.5)") ;
+    (exec_ast' (fn "Float::clamp" [infinity'; float' (-1) 0; float' 0 5])) ;
   check_dval
     "Float::clamp works (val = nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.nan)
-    (exec_ast "(Float::clamp NaN -1.0 1.0)") ;
+    (exec_ast' (fn "Float::clamp" [nan'; float' (-1) 0; float' 1 0])) ;
   check_error_contains
     "Float::clamp errors (limitA = nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
-    (exec_ast "(Float::clamp 0.5 NaN 1.0)")
+    (exec_ast' (fn "Float::clamp" [float' 0 5; nan'; float' 1 0]))
     "Internal Float.clamp exception" ;
   check_error_contains
     "Float::clamp errors (limitB = nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
-    (exec_ast "(Float::clamp 0.5 1.0 NaN)")
+    (exec_ast' (fn "Float::clamp" [float' 0 5; float' 1 0; nan']))
     "Internal Float.clamp exception" ;
   check_dval
     "Float::sqrt works"
@@ -1678,12 +1681,12 @@ let t_float_stdlibs () =
     "Float::absoluteValue works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.nan)
-    (exec_ast "(Float::absoluteValue NaN)") ;
+    (exec_ast' (fn "Float::absoluteValue" [nan'])) ;
   check_dval
     "Float::absoluteValue works (infinity)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.infinity)
-    (exec_ast "(Float::absoluteValue -Infinity)") ;
+    (exec_ast' (fn "Float::absoluteValue" [neg_infinity'])) ;
   check_dval
     "Float::absoluteValue works (neg)"
     (DFloat 5.6)
@@ -1696,12 +1699,12 @@ let t_float_stdlibs () =
     "Float::negate works (nan)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.nan)
-    (exec_ast "(Float::negate NaN)") ;
+    (exec_ast' (fn "Float::negate" [nan'])) ;
   check_dval
     "Float::negate works (infinity)"
     (* TODO: figure out the nan/infinity situation for floats *)
     (DFloat Float.neg_infinity)
-    (exec_ast "(Float::negate Infinity)") ;
+    (exec_ast' (fn "Float::negate" [infinity'])) ;
   check_dval
     "Float::negate works (neg)"
     (DFloat 5.6)
