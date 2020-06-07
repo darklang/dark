@@ -2,6 +2,7 @@ open Core_kernel
 open Libexecution
 open Libbackend
 open Libshared
+open Libshared.FluidShortcuts
 open Libcommon
 open Types
 open Types.RuntimeT
@@ -11,7 +12,7 @@ module SE = Stored_event
 
 let t_trace_tlids_exec_fn () =
   clear_test_data () ;
-  let value, tlids = exec_userfn_trace_tlids "5" in
+  let value, tlids = exec_userfn_trace_tlids (int 5) in
   check_dval "sanity check we executed the body" (Dval.dint 5) value ;
   AT.check (AT.list testable_id) "tlid of function is traced" [tlid] tlids
 

@@ -507,9 +507,10 @@ let exec_userfn (ast : Libshared.FluidExpression.t) : expr dval =
   Ast.execute_fn ~state name execution_id []
 
 
-let exec_userfn_trace_tlids (prog : string) : expr dval * tlid list =
+let exec_userfn_trace_tlids (fluid_expr : Libshared.FluidExpression.t) :
+    expr dval * tlid list =
   let name = "test_function" in
-  let ast = ast_for prog in
+  let ast = Fluid.fromFluidExpr fluid_expr in
   let fn = user_fn name [] ast in
   let c, state, _ = test_execution_data [SetFunction fn] in
   let { tlid
