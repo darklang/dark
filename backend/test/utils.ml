@@ -213,8 +213,6 @@ let b () = Blank (fid ())
 
 let f a = Filled (fid (), a)
 
-let fncall (a, b) = f (FnCall (a, b))
-
 let tlid = Int63.of_int 7
 
 let tlid2 = Int63.of_int 35
