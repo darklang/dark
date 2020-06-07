@@ -20,7 +20,9 @@ let t_trace_tlids_exec_fn () =
 let t_on_the_rail () =
   (* When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly.   *)
   clear_test_data () ;
-  let prog = ast_for "(`fake_test_fn 4 5)" in
+  let prog =
+    Fluid.fromFluidExpr (fn "fake_test_fn" ~ster:Rail [int 4; int 5])
+  in
   let id = Ast.blank_to_id prog in
   add_test_fn_result
     (tlid, "fake_test_fn", id)
