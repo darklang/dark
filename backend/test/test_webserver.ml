@@ -2,6 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Libbackend
+open Libshared.FluidShortcuts
 open Types
 open Types.RuntimeT
 open Lwt
@@ -128,7 +129,7 @@ let t_canonicalize_maintains_schemes () =
 let t_bad_ssl_cert _ =
   check_error_contains
     "should get bad_ssl"
-    (exec_ast "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
+    (exec_ast' (fn "HttpClient::get" [(str "https://self-signed.badssl.com"); record []; record []; record []]))
     "Internal HTTP-stack exception: Peer certificate cannot be authenticated with given CA certificates"
 
 
