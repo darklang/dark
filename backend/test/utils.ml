@@ -491,12 +491,6 @@ let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
   |> fun h -> execute_ops (ops @ [h])
 
 
-let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : expr dval =
-  let c, state, input_vars = test_execution_data ~canvas_name ops in
-  let result = Ast.execute_ast ~input_vars ~state (ast_for prog) in
-  result
-
-
 let exec_ast'
     ?(ops = []) ?(canvas_name = "test") (ast : Libshared.FluidExpression.t) :
     expr dval =
