@@ -8,23 +8,35 @@ open Libshared.FluidShortcuts
 let t_option_stdlibs_work () =
   check_dval
     "map just"
-    (exec_ast "(Option::map (Just 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Option::map"
+          [just (int 4); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DOption (OptJust (Dval.dint 2))) ;
   check_dval
     "map nothing"
-    (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Option::map"
+          [nothing (); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DOption OptNothing) ;
   check_dval
     "map  v1 just"
-    (exec_ast "(Option::map_v1 (Just 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Option::map_v1"
+          [just (int 4); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DOption (OptJust (Dval.dint 2))) ;
   check_dval
     "map v1 nothing"
-    (exec_ast "(Option::map_v1 (Nothing) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Option::map_v1"
+          [nothing (); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DOption OptNothing) ;
   check_incomplete
     "map just incomplete"
-    (exec_ast "(Option::map_v1 _ (\\x -> (x)))") ;
+    (exec_ast' (fn "Option::map_v1" [blank (); lambda ["x"] (list [var "x"])])) ;
   check_dval
     "Option::map2 works (Just, Just)"
     (DOption (OptJust (Dval.dint 9)))
@@ -63,32 +75,40 @@ let t_option_stdlibs_work () =
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "withDefault just"
-    (exec_ast "(Option::withDefault (Just 6) 5)")
+    (exec_ast' (fn "Option::withDefault" [just (int 6); int 5]))
     (Dval.dint 6) ;
   check_dval
     "withDefault nothing"
-    (exec_ast "(Option::withDefault (Nothing) 5)")
+    (exec_ast' (fn "Option::withDefault" [nothing (); int 5]))
     (Dval.dint 5) ;
   check_dval
     "andThen just,nothing"
-    (exec_ast "(Option::andThen (Just 5) (\\x -> (Nothing)))")
+    (exec_ast' (fn "Option::andThen" [just (int 5); lambda ["x"] (nothing ())]))
     (DOption OptNothing) ;
   check_dval
     "andThen just,just"
-    (exec_ast "(Option::andThen (Just 5) (\\x -> (Just (+ 1 x))))")
+    (exec_ast'
+       (fn
+          "Option::andThen"
+          [just (int 5); lambda ["x"] (just (binop "+" (int 1) (var "x")))]))
     (DOption (OptJust (Dval.dint 6))) ;
   check_dval
     "andThen nothing,just"
-    (exec_ast "(Option::andThen (Nothing) (\\x -> (Just 5)))")
+    (exec_ast' (fn "Option::andThen" [nothing (); lambda ["x"] (just (int 5))]))
     (DOption OptNothing) ;
   check_dval
     "andThen nothing,nothing"
-    (exec_ast "(Option::andThen (Nothing) (\\x -> (Nothing)))")
+    (exec_ast' (fn "Option::andThen" [nothing (); lambda ["x"] (nothing ())]))
     (DOption OptNothing) ;
   AT.check
     AT.bool
     "andThen wrong type"
-    ( match exec_ast "(Option::andThen (Just 8) (\\x -> (Int::divide x 2)))" with
+    ( match
+        exec_ast'
+          (fn
+             "Option::andThen"
+             [just (int 8); lambda ["x"] (fn "Int::divide" [var "x"; int 2])])
+      with
     | DError (_, msg) ->
         Prelude.String.contains
           ~substring:"Expected `f` to return an option"
@@ -104,23 +124,38 @@ let t_result_stdlibs_work () =
   let test_string = dstr "test" in
   check_dval
     "map ok"
-    (exec_ast "(Result::map (Ok 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Result::map"
+          [ok (int 4); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DResult (ResOk (Dval.dint 2))) ;
   check_dval
     "map error"
-    (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Result::map"
+          [error (str "test"); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DResult (ResError test_string)) ;
   check_dval
     "map v1 ok"
-    (exec_ast "(Result::map_v1 (Ok 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Result::map_v1"
+          [ok (int 4); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DResult (ResOk (Dval.dint 2))) ;
   check_dval
     "map v1 error"
-    (exec_ast "(Result::map_v1 (Error 'test') (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Result::map_v1"
+          [error (str "test"); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DResult (ResError test_string)) ;
   check_dval
     "map v1 incomplete"
-    (exec_ast "(Result::map_v1 _ (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Result::map_v1"
+          [blank (); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DIncomplete SourceNone) ;
   check_dval
     "Result::map2 works (Ok, Ok)"
@@ -160,80 +195,106 @@ let t_result_stdlibs_work () =
           ; lambda ["a"; "b"] (binop "-" (var "a") (var "b")) ])) ;
   check_dval
     "maperror ok"
-    (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Result::mapError"
+          [ok (int 4); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DResult (ResOk (Dval.dint 4))) ;
   check_dval
     "maperror error"
-    (exec_ast
-       "(Result::mapError (Error 'test') (\\x -> (String::append x '-appended')))")
+    (exec_ast'
+       (fn
+          "Result::mapError"
+          [ error (str "test")
+          ; lambda ["x"] (fn "String::append" [var "x"; str "-appended"]) ]))
     (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
   check_dval
     "maperror v1 ok"
-    (exec_ast "(Result::mapError_v1 (Ok 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast'
+       (fn
+          "Result::mapError_v1"
+          [ok (int 4); lambda ["x"] (fn "Int::divide" [var "x"; int 2])]))
     (DResult (ResOk (Dval.dint 4))) ;
   check_dval
     "maperror v1 error"
-    (exec_ast
-       "(Result::mapError_v1 (Error 'test') (\\x -> (String::append x '-appended')))")
+    (exec_ast'
+       (fn
+          "Result::mapError_v1"
+          [ error (str "test")
+          ; lambda ["x"] (fn "String::append" [var "x"; str "-appended"]) ]))
     (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
   check_dval
     "withDefault ok"
-    (exec_ast "(Result::withDefault (Ok 6) 5)")
+    (exec_ast' (fn "Result::withDefault" [ok (int 6); int 5]))
     (Dval.dint 6) ;
   check_dval
     "withDefault error"
-    (exec_ast "(Result::withDefault (Error 'test') 5)")
+    (exec_ast' (fn "Result::withDefault" [error (str "test"); int 5]))
     (Dval.dint 5) ;
   check_dval
     "fromOption just"
-    (exec_ast "(Result::fromOption (Just 6) 'test')")
+    (exec_ast' (fn "Result::fromOption" [just (int 6); str "test"]))
     (DResult (ResOk (Dval.dint 6))) ;
   check_dval
     "fromOption nothing"
-    (exec_ast "(Result::fromOption (Nothing) 'test')")
+    (exec_ast' (fn "Result::fromOption" [nothing (); str "test"]))
     (DResult (ResError test_string)) ;
   check_incomplete
     "fromOption_v1 propogates incomplete"
-    (exec_ast "(Result::fromOption_v1 (Just _) 'test')") ;
+    (exec_ast' (fn "Result::fromOption_v1" [just (blank ()); str "test"])) ;
   check_dval
     "fromOption_v1 propogates error"
-    (exec_ast "(Result::fromOption_v1 (Just (Error 'test')) 'test')")
+    (exec_ast'
+       (fn "Result::fromOption_v1" [just (error (str "test")); str "test"]))
     (DResult (ResOk (DResult (ResError test_string)))) ;
   check_dval
     "toOption ok"
-    (exec_ast "(Result::toOption (Ok 6))")
+    (exec_ast' (fn "Result::toOption" [ok (int 6)]))
     (DOption (OptJust (Dval.dint 6))) ;
   check_dval
     "toOption error"
-    (exec_ast "(Result::toOption (Error 'test'))")
+    (exec_ast' (fn "Result::toOption" [error (str "test")]))
     (DOption OptNothing) ;
   check_incomplete
     "toOption_v1 propogates incomplete"
-    (exec_ast "(Result::toOption_v1 (Ok _))") ;
+    (exec_ast' (fn "Result::toOption_v1" [ok (blank ())])) ;
   check_dval
     "toOption_v1 propogates errors"
-    (exec_ast "(Result::toOption_v1 (Error 'test'))")
+    (exec_ast' (fn "Result::toOption_v1" [error (str "test")]))
     (DOption OptNothing) ;
   check_dval
     "andThen ok,error"
-    (exec_ast "(Result::andThen (Ok 5) (\\x -> (Error 'test')))")
+    (exec_ast'
+       (fn "Result::andThen" [ok (int 5); lambda ["x"] (error (str "test"))]))
     (DResult (ResError test_string)) ;
   check_dval
     "andThen ok,ok"
-    (exec_ast "(Result::andThen (Ok 5) (\\x -> (Ok (+ 1 x))))")
+    (exec_ast'
+       (fn
+          "Result::andThen"
+          [ok (int 5); lambda ["x"] (ok (binop "+" (int 1) (var "x")))]))
     (DResult (ResOk (Dval.dint 6))) ;
   check_dval
     "andThen error,ok"
-    (exec_ast "(Result::andThen (Error 'test') (\\x -> (Ok 5)))")
+    (exec_ast'
+       (fn "Result::andThen" [error (str "test"); lambda ["x"] (ok (int 5))]))
     (DResult (ResError test_string)) ;
   check_dval
     "andThen error,error"
-    (exec_ast "(Result::andThen (Error 'test') (\\x -> (Error 'test')))")
+    (exec_ast'
+       (fn
+          "Result::andThen"
+          [error (str "test"); lambda ["x"] (error (str "test"))]))
     (DResult (ResError test_string)) ;
   AT.check
     AT.bool
     "andThen wrong type"
-    ( match exec_ast "(Result::andThen (Ok 8) (\\x -> (Int::divide x 2)))" with
+    ( match
+        exec_ast'
+          (fn
+             "Result::andThen"
+             [ok (int 8); lambda ["x"] (fn "Int::divide" [var "x"; int 2])])
+      with
     | DError (_, msg) ->
         Prelude.String.contains ~substring:"Expected `f` to return a result" msg
     | _ ->
@@ -241,25 +302,36 @@ let t_result_stdlibs_work () =
     true ;
   check_dval
     "andThen_v1 ok,error"
-    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (Error 'test')))")
+    (exec_ast'
+       (fn "Result::andThen_v1" [ok (int 5); lambda ["x"] (error (str "test"))]))
     (DResult (ResError test_string)) ;
   check_dval
     "andThen_v1 ok,ok"
-    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (Ok (+ 1 x))))")
+    (exec_ast'
+       (fn
+          "Result::andThen_v1"
+          [ok (int 5); lambda ["x"] (ok (binop "+" (int 1) (var "x")))]))
     (DResult (ResOk (Dval.dint 6))) ;
   check_dval
     "andThen_v1 error,ok"
-    (exec_ast "(Result::andThen_v1 (Error 'test') (\\x -> (Ok 5)))")
+    (exec_ast'
+       (fn "Result::andThen_v1" [error (str "test"); lambda ["x"] (ok (int 5))]))
     (DResult (ResError test_string)) ;
   check_dval
     "andThen_v1 error,error"
-    (exec_ast "(Result::andThen_v1 (Error 'test') (\\x -> (Error 'test')))")
+    (exec_ast'
+       (fn
+          "Result::andThen_v1"
+          [error (str "test"); lambda ["x"] (error (str "test"))]))
     (DResult (ResError test_string)) ;
   AT.check
     AT.bool
     "andThen_v1 wrong type"
     ( match
-        exec_ast "(Result::andThen_v1 (Ok 8) (\\x -> (Int::divide x 2)))"
+        exec_ast'
+          (fn
+             "Result::andThen_v1"
+             [ok (int 8); lambda ["x"] (fn "Int::divide" [var "x"; int 2])])
       with
     | DError (_, msg) ->
         Prelude.String.contains ~substring:"Expected `f` to return a result" msg
@@ -268,7 +340,8 @@ let t_result_stdlibs_work () =
     true ;
   check_condition
     "andThen_v1 propogates errors"
-    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (_)))")
+    (exec_ast'
+       (fn "Result::andThen_v1" [ok (int 5); lambda ["x"] (list [blank ()])]))
     ~f:(fun x -> match x with DError _ -> true | _ -> false) ;
   ()
 
@@ -295,11 +368,11 @@ let t_dict_stdlibs_work () =
   check_dval
     "dict keys"
     (DList [dstr "key1"])
-    (exec_ast "(Dict::keys (obj (key1 'val1')))") ;
+    (exec_ast' (fn "Dict::keys" [record [("key1", str "val1")]])) ;
   check_dval
     "dict values"
     (DList [dstr "val1"])
-    (exec_ast "(Dict::values (obj (key1 'val1')))") ;
+    (exec_ast' (fn "Dict::values" [record [("key1", str "val1")]])) ;
   check_dval
     "Dict::toList works (empty)"
     (DList [])
@@ -440,22 +513,28 @@ let t_dict_stdlibs_work () =
   check_dval
     "dict get"
     (DOption (OptJust (dstr "val1")))
-    (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')") ;
+    (exec_ast' (fn "Dict::get_v1" [record [("key1", str "val1")]; str "key1"])) ;
   check_dval
     "dict foreach"
     (DObj
        (DvalMap.from_list
           [("key1", dstr "val1_append"); ("key2", dstr "val2_append")]))
-    (exec_ast
-       "(Dict::foreach (obj (key1 'val1') (key2 'val2')) (\\x -> (++ x '_append')))") ;
+    (exec_ast'
+       (fn
+          "Dict::foreach"
+          [ record [("key1", str "val1"); ("key2", str "val2")]
+          ; lambda ["x"] (binop "++" (var "x") (str "_append")) ])) ;
   check_dval
     "dict map"
     (DObj
        (DvalMap.from_list
           [("key1", dstr "key1val1"); ("key2", dstr "key2val2")]))
-    (exec_ast
-       "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))") ;
-  check_dval "dict empty" (DObj DvalMap.empty) (exec_ast "(Dict::empty)") ;
+    (exec_ast'
+       (fn
+          "Dict::map"
+          [ record [("key1", str "val1"); ("key2", str "val2")]
+          ; lambda ["k"; "x"] (binop "++" (var "k") (var "x")) ])) ;
+  check_dval "dict empty" (DObj DvalMap.empty) (exec_ast' (fn "Dict::empty" [])) ;
   check_dval
     "Dict::isEmpty works (empty)"
     (DBool true)
@@ -467,30 +546,46 @@ let t_dict_stdlibs_work () =
   check_dval
     "dict merge"
     (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")]))
-    (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))") ;
+    (exec_ast'
+       (fn
+          "Dict::merge"
+          [record [("key1", str "val1")]; record [("key2", str "val2")]])) ;
   check_dval
     "dict toJSON"
     (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }")
-    (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))") ;
+    (exec_ast'
+       (fn "Dict::toJSON" [record [("key1", str "val1"); ("key2", str "val2")]])) ;
   check_dval
     "dict filter keeps val"
     (DObj (DvalMap.from_list [("key1", dstr "val1")]))
-    (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))") ;
+    (exec_ast'
+       (fn
+          "Dict::filter_v1"
+          [ record [("key1", str "val1"); ("key2", str "val2")]
+          ; lambda ["k"; "v"] (binop "==" (var "v") (str "val1")) ])) ;
   check_dval
     "dict filter keeps key"
     (DObj (DvalMap.from_list [("key1", dstr "val1")]))
-    (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))") ;
+    (exec_ast'
+       (fn
+          "Dict::filter_v1"
+          [ record [("key1", str "val1"); ("key2", str "val2")]
+          ; lambda ["k"; "v"] (binop "==" (var "k") (str "key1")) ])) ;
   check_incomplete
     "dict filter propagates incomplete from lambda"
-    (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k _)))") ;
+    (exec_ast'
+       (fn
+          "Dict::filter_v1"
+          [ record [("key1", str "val1"); ("key2", str "val2")]
+          ; lambda ["k"; "v"] (binop "==" (var "k") (blank ())) ])) ;
   check_dval
     "dict filter ignores incomplete from obj"
     (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))
-    (exec_ast
-       "(Dict::filter_v1 (obj (key1 1) (key2 _) (key3 3)) (\\k v -> (> v 0)))") ;
+    (exec_ast'
+       (fn
+          "Dict::filter_v1"
+          [ record [("key1", int 1); ("key2", blank ()); ("key3", int 3)]
+          ; lambda ["k"; "v"] (binop ">" (var "v") (int 0)) ])) ;
   check_dval
     "Dict::filterMap works (empty)"
     (DObj (DvalMap.from_list []))
@@ -1105,13 +1200,16 @@ let t_string_stdlibs_work () =
 
 let t_password_hashing_and_checking_works () =
   let ast =
-    "(let password 'password'
-               (Password::check (Password::hash password)
-               password))"
+    let'
+      "password"
+      (str "password")
+      (fn
+         "Password::check"
+         [fn "Password::hash" [var "password"]; var "password"])
   in
   check_dval
     "A `Password::hash'd string `Password::check's against itself."
-    (exec_ast ast)
+    (exec_ast' ast)
     (DBool true)
 
 
@@ -1144,7 +1242,6 @@ n8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9
 T/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I
 FW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=
 -----END RSA PRIVATE KEY-----"
-    |> Core.String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
   in
   let publickey =
     "-----BEGIN PUBLIC KEY-----
@@ -1156,35 +1253,50 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
 4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4
 4wIDAQAB
 -----END PUBLIC KEY-----"
-    |> Core.String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
   in
-  let ast_v0 (privkey : string) (pubkey : string) : string =
-    Printf.sprintf
-      "(let privatekey '%s'
-                 (let publickey '%s'
-                   (let payload (obj (abc 'def'))
-                     (let extraHeaders (obj (ghi 'jkl'))
-                       (JWT::verifyAndExtract publickey
-                         (JWT::signAndEncodeWithHeaders
-                           privatekey
-                           extraHeaders
-                           payload))))))"
-      privkey
-      pubkey
+  let ast_v0 (privkey : string) (pubkey : string) : Libshared.FluidExpression.t
+      =
+    let'
+      "privatekey"
+      (str privkey)
+      (let'
+         "publickey"
+         (str pubkey)
+         (let'
+            "payload"
+            (record [("abc", str "def")])
+            (let'
+               "extraHeaders"
+               (record [("ghi", str "jkl")])
+               (fn
+                  "JWT::verifyAndExtract"
+                  [ var "publickey"
+                  ; fn
+                      "JWT::signAndEncodeWithHeaders"
+                      [var "privatekey"; var "extraHeaders"; var "payload"] ]))))
   in
-  let ast_v1 (privkey : string) (pubkey : string) : string =
-    Printf.sprintf
-      "(let privatekey '%s'
-                 (let publickey '%s'
-                   (let payload (obj (abc 'def'))
-                     (let extraHeaders (obj (ghi 'jkl'))
-                       (`JWT::verifyAndExtract_v1 publickey
-                         (`JWT::signAndEncodeWithHeaders_v1
-                           privatekey
-                           extraHeaders
-                           payload))))))"
-      privkey
-      pubkey
+  let ast_v1 (privkey : string) (pubkey : string) : Libshared.FluidExpression.t
+      =
+    let'
+      "privatekey"
+      (str privkey)
+      (let'
+         "publickey"
+         (str pubkey)
+         (let'
+            "payload"
+            (record [("abc", str "def")])
+            (let'
+               "extraHeaders"
+               (record [("ghi", str "jkl")])
+               (fn
+                  "JWT::verifyAndExtract_v1"
+                  ~ster:Rail
+                  [ var "publickey"
+                  ; fn
+                      "JWT::signAndEncodeWithHeaders_v1"
+                      ~ster:Rail
+                      [var "privatekey"; var "extraHeaders"; var "payload"] ]))))
   in
   check_dval
     "JWT::verifyAndExtract works on output of JWT::signAndEncodeWithheaders"
@@ -1198,7 +1310,7 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
                ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
     |> DvalMap.from_list
     |> fun x -> DOption (OptJust (DObj x)) )
-    (exec_ast (ast_v0 privatekey publickey)) ;
+    (exec_ast' (ast_v0 privatekey publickey)) ;
   check_dval
     "JWT::verifyAndExtract_v1 works on output of JWT::signAndEncodeWithheaders"
     ( [ ( "payload"
@@ -1211,19 +1323,19 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
                ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
     |> DvalMap.from_list
     |> DObj )
-    (exec_ast (ast_v1 privatekey publickey)) ;
+    (exec_ast' (ast_v1 privatekey publickey)) ;
   check_dval
     "JWT::signAndEncodeWithheaders_v1 gives error for private key"
     (DErrorRail
        (DResult
           (ResError
              (Dval.dstr_of_string_exn "Invalid private key: not an RSA key"))))
-    (exec_ast (ast_v1 "invalid private key" publickey)) ;
+    (exec_ast' (ast_v1 "invalid private key" publickey)) ;
   check_dval
     "JWT::verifyAndExtract_v1 gives error for pubkey"
     (DErrorRail
        (DResult (ResError (Dval.dstr_of_string_exn "Invalid public key"))))
-    (exec_ast (ast_v1 privatekey "invalid public key"))
+    (exec_ast' (ast_v1 privatekey "invalid public key"))
 
 
 let t_date_functions_work () =
@@ -1361,16 +1473,25 @@ let t_crypto_sha () =
     "Crypto::sha256 produces the correct digest"
     (Dval.dstr_of_string_exn
        "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")
-    (exec_ast "(Bytes::hexEncode (Crypto::sha256 (String::toBytes '')))") ;
+    (exec_ast'
+       (fn
+          "Bytes::hexEncode"
+          [fn "Crypto::sha256" [fn "String::toBytes" [str ""]]])) ;
   check_dval
     "Crypto::sha384 produces the correct digest"
     (Dval.dstr_of_string_exn
        "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B")
-    (exec_ast "(Bytes::hexEncode (Crypto::sha384 (String::toBytes '')))") ;
+    (exec_ast'
+       (fn
+          "Bytes::hexEncode"
+          [fn "Crypto::sha384" [fn "String::toBytes" [str ""]]])) ;
   check_dval
     "Crypto::md5 produces the correct digest"
     (Dval.dstr_of_string_exn "D41D8CD98F00B204E9800998ECF8427E")
-    (exec_ast "(Bytes::hexEncode (Crypto::md5 (String::toBytes '')))") ;
+    (exec_ast'
+       (fn
+          "Bytes::hexEncode"
+          [fn "Crypto::md5" [fn "String::toBytes" [str ""]]])) ;
   ()
 
 
@@ -1390,8 +1511,12 @@ let t_internal_functions () =
        (ResError
           (Dval.dstr_of_string_exn
              "Invalid username 'Name with space', must match /^[a-z][a-z0-9_]{2,20}$/")))
-    (exec_ast
-       "(DarkInternal::upsertUser_v1 'Name with space' 'valid@email.com' 'accidentalusername')") ;
+    (exec_ast'
+       (fn
+          "DarkInternal::upsertUser_v1"
+          [ str "Name with space"
+          ; str "valid@email.com"
+          ; str "accidentalusername" ])) ;
   ()
 
 
@@ -1421,18 +1546,31 @@ let t_url_encode () =
 
 
 let t_float_stdlibs () =
-  check_dval "Float::sum works" (DFloat 1.2) (exec_ast "(Float::sum (1.0 0.2))") ;
+  check_dval
+    "Float::sum works"
+    (DFloat 1.2)
+    (exec_ast' (fn "Float::sum" [list [float' 1 0; float' 0 2]])) ;
   AT.check
     AT.bool
     "Float::sum fails on list elements that are not floats"
     true
-    (match exec_ast "(Float::sum (1.0 2))" with DError _ -> true | _ -> false) ;
+    ( match exec_ast' (fn "Float::sum" [list [float' 1 0; int 2]]) with
+    | DError _ ->
+        true
+    | _ ->
+        false ) ;
   check_dval
     "Float::ceiling works"
     (Dval.dint 2)
-    (exec_ast "(Float::ceiling 1.3)") ;
-  check_dval "Float::floor works" (Dval.dint 1) (exec_ast "(Float::floor 1.8)") ;
-  check_dval "Float::round works" (Dval.dint 2) (exec_ast "(Float::round 1.5)") ;
+    (exec_ast' (fn "Float::ceiling" [float' 1 3])) ;
+  check_dval
+    "Float::floor works"
+    (Dval.dint 1)
+    (exec_ast' (fn "Float::floor" [float' 1 8])) ;
+  check_dval
+    "Float::round works"
+    (Dval.dint 2)
+    (exec_ast' (fn "Float::round" [float' 1 5])) ;
   check_dval
     "Float::truncate works"
     (Dval.dint (-2367))
@@ -1523,7 +1661,10 @@ let t_float_stdlibs () =
     (* TODO: figure out the nan/infinity situation for floats *)
     (exec_ast "(Float::clamp 0.5 1.0 NaN)")
     "Internal Float.clamp exception" ;
-  check_dval "Float::sqrt works" (DFloat 5.0) (exec_ast "(Float::sqrt 25.0)") ;
+  check_dval
+    "Float::sqrt works"
+    (DFloat 5.0)
+    (exec_ast' (fn "Float::sqrt" [float' 25 0])) ;
   check_dval
     "Float::power works"
     (DFloat 2.0)
@@ -1572,32 +1713,35 @@ let t_float_stdlibs () =
   check_dval
     "Float::divide works"
     (DFloat 4.5)
-    (exec_ast "(Float::divide 9.0 2.0)") ;
-  check_dval "Float::add works" (DFloat 2.5) (exec_ast "(Float::add 1.2 1.3)") ;
+    (exec_ast' (fn "Float::divide" [float' 9 0; float' 2 0])) ;
+  check_dval
+    "Float::add works"
+    (DFloat 2.5)
+    (exec_ast' (fn "Float::add" [float' 1 2; float' 1 3])) ;
   check_dval
     "Float::multiply works"
     (DFloat 13.0)
-    (exec_ast "(Float::multiply 26.0 0.5)") ;
+    (exec_ast' (fn "Float::multiply" [float' 26 0; float' 0 5])) ;
   check_dval
     "Float::subtract works"
     (DFloat 0.8)
-    (exec_ast "(Float::subtract 1.0 0.2)") ;
+    (exec_ast' (fn "Float::subtract" [float' 1 0; float' 0 2])) ;
   check_dval
     "Float::greaterThan works"
     (DBool true)
-    (exec_ast "(Float::greaterThan 0.2 0.1)") ;
+    (exec_ast' (fn "Float::greaterThan" [float' 0 2; float' 0 1])) ;
   check_dval
     "Float::greaterThanOrEqualTo works"
     (DBool true)
-    (exec_ast "(Float::greaterThanOrEqualTo 0.1 0.1)") ;
+    (exec_ast' (fn "Float::greaterThanOrEqualTo" [float' 0 1; float' 0 1])) ;
   check_dval
     "Float::lessThan works"
     (DBool false)
-    (exec_ast "(Float::lessThan 0.2 0.1)") ;
+    (exec_ast' (fn "Float::lessThan" [float' 0 2; float' 0 1])) ;
   check_dval
     "Float::lessThanOrEqualTo works"
     (DBool true)
-    (exec_ast "(Float::lessThanOrEqualTo 0.1 0.1)") ;
+    (exec_ast' (fn "Float::lessThanOrEqualTo" [float' 0 1; float' 0 1])) ;
   ()
 
 

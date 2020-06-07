@@ -263,8 +263,7 @@ let t_incomplete_propagation () =
     (exec_ast' (fieldAccess (fn "List::head" [blank ()]) "field")) ;
   check_incomplete
     "incomplete name in field access is incomplete"
-    (* TODO: add new shortcut to handle this case? Would this compile/should this be a run-time test)? *)
-    (exec_ast "(. (obj (i 5)) _)") ;
+    (exec_ast' (fieldAccess (record [("i", int 5)]) "")) ;
   ()
 
 
