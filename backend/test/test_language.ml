@@ -321,12 +321,17 @@ let t_errorrail_simple () =
   check_dval
     "to rail deeply nested"
     (DErrorRail (DOption OptNothing))
-    (exec_ast
-       "(| ()
-                  (`List::head_v1)
-                  (+ 3)
-                  (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-               )") ;
+    (exec_ast'
+       (pipe
+          (list [])
+          [ fn "List::head_v1" ~ster:Rail [pipeTarget]
+          ; binop "+" pipeTarget (int 3)
+          ; lambda
+              ["x"]
+              (if'
+                 (binop ">" (binop "+" (var "x") (int 4)) (int 1))
+                 (var "x")
+                 (binop "+" (int 1) (var "x"))) ])) ;
   ()
 
 
