@@ -1186,6 +1186,24 @@ let t_db_query_works () =
     ( queryv (binop "Date::>" (field "v" "dob") (fn "Date::parse" [ross_dob]))
     |> execs ) ;
   check_dval
+    "Date::add"
+    (DList [cat; rachel; chandler; ross])
+    ( queryv
+        (binop
+           "Date::<="
+           (field "v" "dob")
+           (fn "Date::add" [fn "Date::now" []; int 1]))
+    |> execs ) ;
+  check_dval
+    "Date::subtract"
+    (DList [cat; rachel; chandler; ross])
+    ( queryv
+        (binop
+           "Date::<="
+           (field "v" "dob")
+           (fn "Date::subtract" [fn "Date::now" []; int 1]))
+    |> execs ) ;
+  check_dval
     "string::trim"
     (DList [chandler])
     ( queryv (binop "==" (fn "String::trim" [field "v" "name"]) (str "Chandler"))
