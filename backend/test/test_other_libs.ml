@@ -1451,20 +1451,66 @@ let t_sha256hmac_for_aws () =
     "Crypto::sha256hmac behaves as AWS' example expects (link in test)"
     (Dval.dstr_of_string_exn
        "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7")
-    (exec_ast
-       "(let scope '20150830/us-east-1/iam/aws4_request'
-       (let content 'f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59'
-       (let strs ('AWS4-HMAC-SHA256' '20150830T123600Z' scope content)
-       (let strToSign  (String::join strs (String::newline))
-       (let secret (String::toBytes 'AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY')
-       (let data (String::toBytes '20150830')
-       (let date (Crypto::sha256hmac secret data)
-       (let region (Crypto::sha256hmac date (String::toBytes 'us-east-1'))
-       (let service (Crypto::sha256hmac region (String::toBytes 'iam'))
-       (let signing (Crypto::sha256hmac service (String::toBytes 'aws4_request'))
-       (let signed (Crypto::sha256hmac signing (String::toBytes strToSign))
-        (String::toLowercase_v1 (Bytes::hexEncode signed))
-       ))))))))))) ") ;
+    (exec_ast'
+       (let'
+          "scope"
+          (str "20150830/us-east-1/iam/aws4_request")
+          (let'
+             "content"
+             (str
+                "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59")
+             (let'
+                "strs"
+                (list
+                   [ str "AWS4-HMAC-SHA256"
+                   ; str "20150830T123600Z"
+                   ; var "scope"
+                   ; var "content" ])
+                (let'
+                   "strToSign"
+                   (fn "String::join" [var "strs"; fn "String::newline" []])
+                   (let'
+                      "secret"
+                      (fn
+                         "String::toBytes"
+                         [str "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"])
+                      (let'
+                         "data"
+                         (fn "String::toBytes" [str "20150830"])
+                         (let'
+                            "date"
+                            (fn "Crypto::sha256hmac" [var "secret"; var "data"])
+                            (let'
+                               "region"
+                               (fn
+                                  "Crypto::sha256hmac"
+                                  [ var "date"
+                                  ; fn "String::toBytes" [str "us-east-1"] ])
+                               (let'
+                                  "service"
+                                  (fn
+                                     "Crypto::sha256hmac"
+                                     [ var "region"
+                                     ; fn "String::toBytes" [str "iam"] ])
+                                  (let'
+                                     "signing"
+                                     (fn
+                                        "Crypto::sha256hmac"
+                                        [ var "service"
+                                        ; fn
+                                            "String::toBytes"
+                                            [str "aws4_request"] ])
+                                     (let'
+                                        "signed"
+                                        (fn
+                                           "Crypto::sha256hmac"
+                                           [ var "signing"
+                                           ; fn
+                                               "String::toBytes"
+                                               [var "strToSign"] ])
+                                        (fn
+                                           "String::toLowercase_v1"
+                                           [fn "Bytes::hexEncode" [var "signed"]]))))))))))))) ;
   ()
 
 
