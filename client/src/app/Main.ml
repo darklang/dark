@@ -991,17 +991,16 @@ let update_ (msg : msg) (m : model) : modification =
         ; AutocompleteMod (ACSetVisible true)
         ; MakeCmd (CursorState.focusEntry m) ]
   | MultilineEntryInputMsg text ->
-      (* XXX(JULIAN): This is off by one character because the model passed to commit
-       * is from before the change *)
-      Many
-        [ AutocompleteMod (ACSetQuery text)
-        ; AutocompleteMod (ACSetVisible false)
-        ; MakeCmd (CursorState.focusEntry m)
-        ; ( match CursorState.unwrap m.cursorState with
-          | Entering (Filling _ as cursor) ->
-              Entry.commit m cursor
-          | _ ->
-              NoChange ) ]
+      (* For multiline text, we want to persist as you type so we commit right away *)
+      (* This is awkward because we need to commit the model with the autocomplete change *)
+      let m, acCmd =
+        processAutocompleteMods m [ACSetQuery text; ACSetVisible false]
+      in
+      ( match CursorState.unwrap m.cursorState with
+      | Entering (Filling _ as cursor) ->
+          Many [MakeCmd acCmd; Entry.commit m cursor]
+      | _ ->
+          MakeCmd acCmd )
   | EntrySubmitMsg ->
       NoChange
   | AutocompleteClick index ->

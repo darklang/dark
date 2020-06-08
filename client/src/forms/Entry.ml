@@ -605,7 +605,7 @@ let submitACItem
                 in
                 let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
-          | PFnDescription old, ACFnDescription desc, _ ->
+          | PFnDescription _, ACFnDescription desc, _ ->
               replace (PFnDescription (F (id, desc)))
           | PFnReturnTipe _, ACReturnTipe tipe, _ ->
               replace (PFnReturnTipe (F (id, tipe)))
