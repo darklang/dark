@@ -339,7 +339,7 @@ let t_errorrail_toplevel () =
   check_dval
     "Errorrail goes to 404"
     (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"))
-    (exec_handler'
+    (exec_handler
        (pipe
           (list [])
           [ fn "List::head_v1" ~ster:Rail [pipeTarget]
@@ -353,7 +353,7 @@ let t_errorrail_toplevel () =
   check_dval
     "No errorrail goes to option"
     (DOption OptNothing)
-    (exec_handler' (fn "List::head_v1" [list []])) ;
+    (exec_handler (fn "List::head_v1" [list []])) ;
   ()
 
 

@@ -469,7 +469,7 @@ let execute_ops
 
 (* already provided in execute_handler *)
 
-let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
+let exec_handler ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
   ast
   |> Fluid.fromFluidExpr
   (* |> Log.pp ~f:show_expr *)

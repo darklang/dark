@@ -25,7 +25,7 @@ let t_db_add_roundtrip () =
   check_dval
     "equal_after_roundtrip"
     (DObj (DvalMap.singleton "x" DNull))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_new_query_v1_works () =
@@ -60,7 +60,7 @@ let t_db_new_query_v1_works () =
                (list [list [str "findme"; var "hopetofind"]])
                (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_new_query_v2_works () =
@@ -92,7 +92,7 @@ let t_db_new_query_v2_works () =
             (fn "DB::query_v2" [record [("x", str "bar")]; var "MyDB"])
             (binop "==" (list [var "hopetofind"]) (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_new_query_v3_works () =
@@ -124,7 +124,7 @@ let t_db_new_query_v3_works () =
             (fn "DB::query_v3" [record [("x", str "bar")]; var "MyDB"])
             (binop "==" (list [var "hopetofind"]) (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_set_does_upsert () =
@@ -147,7 +147,7 @@ let t_db_set_does_upsert () =
             (fn "DB::getAllWithKeys_v1" [var "MyDB"])
             (binop "==" (list [list [str "hello"; var "new"]]) (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_get_all_with_keys_works () =
@@ -173,7 +173,7 @@ let t_db_get_all_with_keys_works () =
                (list [list [str "one"; var "one"]; list [str "two"; var "two"]])
                (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_get_all_with_keys_v2_works () =
@@ -204,7 +204,7 @@ let t_db_get_all_with_keys_v2_works () =
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
           ; ( "first"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ) ]))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_get_many_with_keys_works () =
@@ -233,7 +233,7 @@ let t_db_get_many_with_keys_works () =
                   [list [str "first"; var "one"]; list [str "second"; var "two"]])
                (var "fetched"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_get_many_with_keys_v1_works () =
@@ -266,7 +266,7 @@ let t_db_get_many_with_keys_v1_works () =
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
           ; ( "first"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ) ]))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_get_existing_works () =
@@ -294,7 +294,7 @@ let t_db_get_existing_works () =
   check_dval
     "equal_after_roundtrip"
     (DList [DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar"))])
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_get_many_v3_returns_nothing_if_none () =
@@ -321,7 +321,7 @@ let t_db_get_many_v3_returns_nothing_if_none () =
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_get_many_v3_works () =
@@ -352,7 +352,7 @@ let t_db_get_many_v3_works () =
           (DList
              [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
              ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_get_many_v2_works () =
@@ -380,7 +380,7 @@ let t_db_get_many_v2_works () =
     (DList
        [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
        ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_get_many_v1_works () =
@@ -409,7 +409,7 @@ let t_db_get_many_v1_works () =
                   [list [str "first"; var "one"]; list [str "second"; var "two"]])
                (var "fetched"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_queryWithKey_works_with_many () =
@@ -461,7 +461,7 @@ let t_db_queryWithKey_works_with_many () =
                      ; list [str "three"; var "three"] ])
                   (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_queryWithKey_v2_works_with_many () =
@@ -499,7 +499,7 @@ let t_db_queryWithKey_v2_works_with_many () =
           [ ("two", DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")))
           ; ( "three"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ) ]))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_get_returns_nothing () =
@@ -513,7 +513,7 @@ let t_db_get_returns_nothing () =
   check_dval
     "get_returns_nothing"
     (DOption OptNothing)
-    (exec_handler' ~ops (fn "DB::get_v1" [str "lol"; var "MyDB"]))
+    (exec_handler ~ops (fn "DB::get_v1" [str "lol"; var "MyDB"]))
 
 
 let t_db_queryOne_works () =
@@ -534,7 +534,7 @@ let t_db_queryOne_works () =
     "equal_after_roundtrip"
     (DOption
        (OptJust (DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")))))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOne_supports_Date_comparison () =
@@ -628,7 +628,7 @@ let t_db_queryOne_returns_nothing_if_none () =
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOne_returns_nothing_multiple () =
@@ -651,7 +651,7 @@ let t_db_queryOne_returns_nothing_multiple () =
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOneWithKey_works () =
@@ -675,7 +675,7 @@ let t_db_queryOneWithKey_works () =
           (DList
              [ Dval.dstr_of_string_exn "first"
              ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ])))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOneWithKey_v2_works () =
@@ -700,7 +700,7 @@ let t_db_queryOneWithKey_v2_works () =
              (DvalMap.singleton
                 "first"
                 (DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")))))))
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOneWithKey_returns_nothing_if_none () =
@@ -720,7 +720,7 @@ let t_db_queryOneWithKey_returns_nothing_if_none () =
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOneWithKey_v2_returns_nothing_if_none () =
@@ -740,7 +740,7 @@ let t_db_queryOneWithKey_v2_returns_nothing_if_none () =
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOneWithKey_returns_nothing_multiple () =
@@ -763,7 +763,7 @@ let t_db_queryOneWithKey_returns_nothing_multiple () =
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_queryOneWithKey_v2_returns_nothing_multiple () =
@@ -786,7 +786,7 @@ let t_db_queryOneWithKey_v2_returns_nothing_multiple () =
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_db_getAll_v1_works () =
@@ -835,7 +835,7 @@ let t_db_getAll_v1_works () =
                      ; list [str "two"; var "two"] ])
                   (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_getAll_v2_works () =
@@ -881,7 +881,7 @@ let t_db_getAll_v2_works () =
                   (list [var "one"; var "two"; var "three"])
                   (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_getAll_v3_works () =
@@ -927,7 +927,7 @@ let t_db_getAll_v3_works () =
                   (list [var "one"; var "two"; var "three"])
                   (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_db_getAllKeys_works () =
@@ -953,7 +953,7 @@ let t_db_getAllKeys_works () =
   check_dval
     "equal_after_roundtrip"
     (DList [Dval.dstr_of_string_exn "first"; Dval.dstr_of_string_exn "second"])
-    (exec_handler' ~ops ast)
+    (exec_handler ~ops ast)
 
 
 let t_sql_compiler_works () =
@@ -1125,7 +1125,7 @@ let t_db_query_works () =
   let cat = exec_ast cat_expr in
   let nullval = exec_ast null_expr in
   let expected =
-    exec_handler'
+    exec_handler
       ~ops
       (let'
          "_"
@@ -1151,7 +1151,7 @@ let t_db_query_works () =
   let sort expr =
     pipe expr [fn "List::sortBy" [pipeTarget; lambda ["v"] (field "v" "height")]]
   in
-  let exec expr = exec_handler' ~ops expr in
+  let exec expr = exec_handler ~ops expr in
   let execs expr = exec (expr |> sort) in
   let withvar (name : string) value ast = let' name value ast in
   check_dval
