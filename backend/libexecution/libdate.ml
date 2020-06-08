@@ -473,4 +473,22 @@ let fns : expr fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Date::atStartOfDay"]
+    ; infix_names = []
+    ; parameters = [par "date" TDate]
+    ; return_type = TDate
+    ; description = "Returns the Date with the time set to midnight"
+    ; func =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_date ~zone:Time.Zone.utc
+              |> (fun x ->
+                   Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
+              |> DDate
+          | args ->
+              fail args)
+    ; preview_safety = Safe
     ; deprecated = false } ]

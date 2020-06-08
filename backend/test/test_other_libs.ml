@@ -1442,6 +1442,13 @@ let t_date_functions_work () =
     "Date >= works - equality"
     (DBool true)
     (exec_ast' (binop "Date::>=" later_date later_date)) ;
+  check_dval
+    "Date::atStartOfDay works"
+    (Dval.dstr_of_string_exn "2019-07-28T00:00:00Z")
+    (exec_ast'
+       (pipe
+          date
+          [fn "Date::atStartOfDay" [pipeTarget]; fn "toString" [pipeTarget]])) ;
   ()
 
 
