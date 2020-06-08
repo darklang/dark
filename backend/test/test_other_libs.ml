@@ -2027,6 +2027,14 @@ let t_bool_stdlibs () =
     "Bool::or works (false, false)"
     (exec_ast' (fn "Bool::or" [bool false; bool false]))
     (DBool false) ;
+  check_dval
+    "Bool::isNull works (null)"
+    (exec_ast' (fn "Bool::isNull" [null]))
+    (DBool true) ;
+  check_dval
+    "Bool::isNull works (not null)"
+    (exec_ast' (fn "Bool::isNull" [bool true]))
+    (DBool false) ;
   ()
 
 
