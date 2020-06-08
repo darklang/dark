@@ -150,6 +150,10 @@ $ff-color: adjust-hue($purple, -40deg);
     border-bottom: 1px dashed grey;
     margin-bottom: $spacing-small;
   }
+
+  .value {
+    position: relative;
+  }
 }
 
 #fluid-status {
