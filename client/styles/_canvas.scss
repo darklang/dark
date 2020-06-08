@@ -283,13 +283,12 @@ body #app * {
   }
 
   .account-actions {
-    height: 0;
-    padding: 0;
+    display: none;
+    padding: 5px $spacing-medium;
     box-sizing: border-box;
     background: $black3;
     overflow: hidden;
 
-    display: flex;
     flex-direction: column;
     justify-content: space-around;
     text-align: right;
@@ -316,7 +315,6 @@ body #app * {
   }
 
   &:hover > .account-actions {
-    height: auto;
-    padding: 5px $spacing-medium;
+    display: flex;
   }
 }
