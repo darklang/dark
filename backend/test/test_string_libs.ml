@@ -7,77 +7,80 @@ open Libshared.FluidShortcuts
 let t_string_length_v1_works_on_emoji () =
   check_dval
     "stringLength"
-    (exec_ast "(String::length_v1 '\xef\xbf\xbd')")
+    (exec_ast' (fn "String::length_v1" [str "\xef\xbf\xbd"]))
     (DInt Dint.one)
 
 
 let t_string_uppercase_works_for_ascii_range () =
   check_dval
     "stringUppercaseASCII"
-    (exec_ast "(String::toUppercase_v1 'abcdef')")
+    (exec_ast' (fn "String::toUppercase_v1" [str "abcdef"]))
     (Dval.dstr_of_string_exn "ABCDEF")
 
 
 let t_string_lowercase_works_for_ascii_range () =
   check_dval
     "stringLowercaseASCII"
-    (exec_ast "(String::toLowercase_v1 'ABCDEF')")
+    (exec_ast' (fn "String::toLowercase_v1" [str "ABCDEF"]))
     (Dval.dstr_of_string_exn "abcdef")
 
 
 let t_string_uppercase_v1_works_on_mixed_strings () =
   check_dval
     "stringUpppercaseMixed"
-    (exec_ast "(String::toUppercase_v1 'hello\xf0\x9f\x98\x84world')")
+    (exec_ast' (fn "String::toUppercase_v1" [str "hello\xf0\x9f\x98\x84world"]))
     (Dval.dstr_of_string_exn "HELLO\xf0\x9f\x98\x84WORLD")
 
 
 let t_string_split_works_for_emoji () =
   check_dval
     "stringSplit"
-    (exec_ast "(String::split 'hello\xf0\x9f\x98\x84world' '\xf0\x9f\x98\x84')")
+    (exec_ast'
+       (fn
+          "String::split"
+          [str "hello\xf0\x9f\x98\x84world"; str "\xf0\x9f\x98\x84"]))
     (DList [Dval.dstr_of_string_exn "hello"; Dval.dstr_of_string_exn "world"])
 
 
 let t_string_uppercase_v1_works_on_non_ascii_strings () =
   check_dval
     "stringUpppercaseMixed"
-    (exec_ast "(String::toUppercase_v1 'żółw')")
+    (exec_ast' (fn "String::toUppercase_v1" [str "żółw"]))
     (Dval.dstr_of_string_exn "ŻÓŁW")
 
 
 let t_string_trim_noop () =
   check_dval
     "stringTrimNoop"
-    (exec_ast "(String::trim 'foo')")
+    (exec_ast' (fn "String::trim" [str "foo"]))
     (Dval.dstr_of_string_exn "foo")
 
 
 let t_string_trim_left_trivial () =
   check_dval
     "stringTrimLeftTrivial"
-    (exec_ast "(String::trim '  foo')")
+    (exec_ast' (fn "String::trim" [str "  foo"]))
     (Dval.dstr_of_string_exn "foo")
 
 
 let t_string_trim_right_trivial () =
   check_dval
     "stringTrimRightTrivial"
-    (exec_ast "(String::trim 'foo  ')")
+    (exec_ast' (fn "String::trim" [str "foo  "]))
     (Dval.dstr_of_string_exn "foo")
 
 
 let t_string_trim_both_trivial () =
   check_dval
     "stringTrimBothTrivial"
-    (exec_ast "(String::trim '  foo  ')")
+    (exec_ast' (fn "String::trim" [str "  foo  "]))
     (Dval.dstr_of_string_exn "foo")
 
 
 let t_string_trim_both_not_inner_trivial () =
   check_dval
     "stringTrimBothNotInnerTrivial"
-    (exec_ast "(String::trim '  foo bar  ')")
+    (exec_ast' (fn "String::trim" [str "  foo bar  "]))
     (Dval.dstr_of_string_exn "foo bar")
 
 
@@ -85,7 +88,7 @@ let t_string_trim_both_not_inner_unicode () =
   check_dval
     "stringTrimBothUnicode"
     (* Leading em-space, inner thin space, trailing space *)
-    (exec_ast "(String::trim ' \xe2\x80\x83foo\xe2\x80\x83bar ')")
+    (exec_ast' (fn "String::trim" [str " \xe2\x80\x83foo\xe2\x80\x83bar "]))
     (Dval.dstr_of_string_exn "foo\xe2\x80\x83bar")
 
 
@@ -99,7 +102,8 @@ let t_string_trim_all () =
 let t_string_trim_preserves_emoji () =
   check_dval
     "stringTrimPreservesEmoji"
-    (exec_ast "(String::trim ' \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 ')")
+    (exec_ast'
+       (fn "String::trim" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
     (Dval.dstr_of_string_exn "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84")
 
 
@@ -109,7 +113,7 @@ let t_html_escaping () =
     (* TODO: add back in check that `'` is correctly escaped. It didn't
      * play nice with our hacky `'` removal in the DSL parser *)
     (Dval.dstr_of_string_exn "test&lt;&gt;&amp;&quot;")
-    (exec_ast "(String::htmlEscape 'test<>&\\\"')")
+    (exec_ast' (fn "String::htmlEscape" [str "test<>&\\\""]))
 
 
 let t_slugify_works () =
@@ -139,43 +143,49 @@ let t_slugify_works () =
 let t_string_append_works_for_ascii_range () =
   check_dval
     "stringAppendASCII"
-    (exec_ast "(String::append_v1 'hello' 'world')")
+    (exec_ast' (fn "String::append_v1" [str "hello"; str "world"]))
     (Dval.dstr_of_string_exn "helloworld")
 
 
 let t_string_append_works_on_non_ascii_strings () =
   check_dval
     "stringAppendMixed"
-    (exec_ast "(String::append_v1 'żółw' '\xf0\x9f\x98\x84')")
+    (exec_ast' (fn "String::append_v1" [str "żółw"; str "\xf0\x9f\x98\x84"]))
     (Dval.dstr_of_string_exn "żółw\xf0\x9f\x98\x84")
 
 
 let t_string_prepend_works_for_ascii_range () =
   check_dval
     "stringPrependASCII"
-    (exec_ast "(String::prepend 'hello' 'world')")
+    (exec_ast' (fn "String::prepend" [str "hello"; str "world"]))
     (Dval.dstr_of_string_exn "worldhello")
 
 
 let t_string_prepend_works_on_non_ascii_strings () =
   check_dval
     "stringPrependMixed"
-    (exec_ast "(String::prepend 'żółw' '\xf0\x9f\x98\x84')")
+    (exec_ast' (fn "String::prepend" [str "żółw"; str "\xf0\x9f\x98\x84"]))
     (Dval.dstr_of_string_exn "\xf0\x9f\x98\x84żółw")
 
 
 let t_uuid_string_roundtrip () =
   let ast =
-    "(let i (Uuid::generate)
-               (let s (toString i)
-                 (let parsed (String::toUUID s)
-                   (i parsed))))"
+    let'
+      "i"
+      (fn "Uuid::generate" [])
+      (let'
+         "s"
+         (fn "toString" [var "i"])
+         (let'
+            "parsed"
+            (fn "String::toUUID" [var "s"])
+            (list [var "i"; var "parsed"])))
   in
   AT.check
     AT.int
     "A generated id can round-trip"
     0
-    ( match exec_ast ast with
+    ( match exec_ast' ast with
     | DList [p1; p2] ->
         compare_dval compare_expr p1 p2
     | _ ->

@@ -213,8 +213,6 @@ let b () = Blank (fid ())
 
 let f a = Filled (fid (), a)
 
-let fncall (a, b) = f (FnCall (a, b))
-
 let tlid = Int63.of_int 7
 
 let tlid2 = Int63.of_int 35
@@ -258,8 +256,6 @@ let nameid3 = Int63.of_int 327
 let pos = {x = 0; y = 0}
 
 let execution_id = Int63.of_int 6542
-
-let ast_for = Expr_dsl.ast_for
 
 let handler ?(tlid = tlid) ast : 'expr_type HandlerT.handler =
   { tlid
@@ -473,15 +469,6 @@ let execute_ops
 
 (* already provided in execute_handler *)
 
-let exec_handler ?(ops = []) (prog : string) : expr dval =
-  prog
-  |> ast_for
-  (* |> Log.pp ~f:show_expr *)
-  |> handler
-  |> hop
-  |> fun h -> execute_ops (ops @ [h])
-
-
 let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
   ast
   |> Fluid.fromFluidExpr
@@ -489,12 +476,6 @@ let exec_handler' ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
   |> handler
   |> hop
   |> fun h -> execute_ops (ops @ [h])
-
-
-let exec_ast ?(ops = []) ?(canvas_name = "test") (prog : string) : expr dval =
-  let c, state, input_vars = test_execution_data ~canvas_name ops in
-  let result = Ast.execute_ast ~input_vars ~state (ast_for prog) in
-  result
 
 
 let exec_ast'
@@ -513,9 +494,10 @@ let exec_userfn (ast : Libshared.FluidExpression.t) : expr dval =
   Ast.execute_fn ~state name execution_id []
 
 
-let exec_userfn_trace_tlids (prog : string) : expr dval * tlid list =
+let exec_userfn_trace_tlids (fluid_expr : Libshared.FluidExpression.t) :
+    expr dval * tlid list =
   let name = "test_function" in
-  let ast = ast_for prog in
+  let ast = Fluid.fromFluidExpr fluid_expr in
   let fn = user_fn name [] ast in
   let c, state, _ = test_execution_data [SetFunction fn] in
   let { tlid

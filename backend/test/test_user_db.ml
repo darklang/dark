@@ -2,6 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Libbackend
+open Libshared.FluidShortcuts
 open Types.RuntimeT
 open Utils
 module AT = Alcotest
@@ -17,11 +18,14 @@ let t_case_insensitive_db_roundtrip () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let _
-            (DB::add_v0 (obj (cOlUmNnAmE 'some value')) TestUnicode)
-            (DB::getAll_v2 TestUnicode))"
+    let'
+      "_"
+      (fn
+         "DB::add_v0"
+         [record [("cOlUmNnAmE", str "some value")]; var "TestUnicode"])
+      (fn "DB::getAll_v2" [var "TestUnicode"])
   in
-  match exec_handler ~ops ast with
+  match exec_handler' ~ops ast with
   | DList [DObj v] ->
       (let open AT in
       check bool)
@@ -46,19 +50,23 @@ let t_nulls_allowed_in_db () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let old (DB::set_v1 (obj (x null)) 'hello' MyDB)
-               (let new (`DB::get_v1 'hello' MyDB)
-                 (== old new)))"
+    let'
+      "old"
+      (fn "DB::set_v1" [record [("x", null)]; str "hello"; var "MyDB"])
+      (let'
+         "new"
+         (fn "DB::get_v1" ~ster:Rail [str "hello"; var "MyDB"])
+         (binop "==" (var "old") (var "new")))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_inserting_object_to_missing_col_gives_good_error () =
   clear_test_data () ;
   check_error_contains
     "error is expected"
-    (exec_handler
-       "(DB::add_v0 (obj (col (obj))) TestDB)"
+    (exec_handler'
+       (fn "DB::add_v0" [record [("col", record [])]; var "TestDB"])
        ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
     "Found but did not expect: [col]"
 
@@ -72,7 +80,10 @@ let t_nulls_added_to_missing_column () =
     ; Op.SetDBColName (dbid, colnameid, "x")
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
-  ignore (exec_handler ~ops "(DB::set_v1 (obj (x 'v')) 'i' MyDB)") ;
+  ignore
+    (exec_handler'
+       ~ops
+       (fn "DB::set_v1" [record [("x", str "v")]; str "i"; var "MyDB"])) ;
   let ops =
     ops
     @ [ Op.AddDBCol (dbid, colnameid2, coltypeid2)
@@ -86,7 +97,9 @@ let t_nulls_added_to_missing_column () =
        ; DObj
            (DvalMap.from_list
               [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)]) ])
-    (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
+    (exec_handler'
+       ~ops
+       (fn "List::head" [fn "DB::getAllWithKeys_v1" [var "MyDB"]]))
 
 
 let t_uuid_db_roundtrip () =
@@ -98,16 +111,24 @@ let t_uuid_db_roundtrip () =
     ; Op.SetDBColType (dbid, coltypeid, "UUID") ]
   in
   let ast =
-    "(let i (Uuid::generate)
-               (let _ (DB::add_v0 (obj (uu i)) Ids)
-                 (let fetched (. (List::head (DB::getAll_v2 Ids)) uu)
-                   (i fetched))))"
+    let'
+      "i"
+      (fn "Uuid::generate" [])
+      (let'
+         "_"
+         (fn "DB::add_v0" [record [("uu", var "i")]; var "Ids"])
+         (let'
+            "fetched"
+            (fieldAccess
+               (fn "List::head" [fn "DB::getAll_v2" [var "Ids"]])
+               "uu")
+            (list [var "i"; var "fetched"])))
   in
   AT.check
     AT.int
     "A generated UUID can round-trip from the DB"
     0
-    ( match exec_handler ~ops ast with
+    ( match exec_handler' ~ops ast with
     | DList [p1; p2] ->
         compare_dval compare_expr p1 p2
     | _ ->
@@ -123,16 +144,24 @@ let t_password_hash_db_roundtrip () =
     ; Op.SetDBColType (dbid, coltypeid, "Password") ]
   in
   let ast =
-    "(let pw (Password::hash 'password')
-               (let _ (DB::add_v0 (obj (password pw)) Passwords)
-                 (let fetched (. (List::head (DB::getAll_v2 Passwords)) password)
-                   (pw fetched))))"
+    let'
+      "pw"
+      (fn "Password::hash" [str "password"])
+      (let'
+         "_"
+         (fn "DB::add_v0" [record [("password", var "pw")]; var "Passwords"])
+         (let'
+            "fetched"
+            (fieldAccess
+               (fn "List::head" [fn "DB::getAll_v2" [var "Passwords"]])
+               "password")
+            (list [var "pw"; var "fetched"])))
   in
   AT.check
     AT.int
     "A Password::hash'd string can get stored in and retrieved from a user datastore."
     0
-    ( match exec_handler ~ops ast with
+    ( match exec_handler' ~ops ast with
     | DList [p1; p2] ->
         compare_dval compare_expr p1 p2
     | _ ->

@@ -2,6 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Libbackend
+open Libshared.FluidShortcuts
 open Types
 open Types.RuntimeT
 open Lwt
@@ -257,7 +258,7 @@ let t_path_gt_route_does_not_crash () =
 
 let t_incomplete_handler_doesnt_throw () =
   let filled = http_route_handler ~route:"/:foo" () in
-  let empty = handler (ast_for "5") in
+  let empty = handler (Fluid.fromFluidExpr (int 5)) in
   let ordered = Http.filter_matching_handlers "/a" [filled; empty] in
   AT.check
     (AT.list testable_handler)

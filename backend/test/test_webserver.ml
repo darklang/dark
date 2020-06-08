@@ -2,6 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Libbackend
+open Libshared.FluidShortcuts
 open Types
 open Types.RuntimeT
 open Lwt
@@ -128,7 +129,10 @@ let t_canonicalize_maintains_schemes () =
 let t_bad_ssl_cert _ =
   check_error_contains
     "should get bad_ssl"
-    (exec_ast "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
+    (exec_ast'
+       (fn
+          "HttpClient::get"
+          [str "https://self-signed.badssl.com"; record []; record []; record []]))
     "Internal HTTP-stack exception: Peer certificate cannot be authenticated with given CA certificates"
 
 
@@ -143,7 +147,7 @@ let t_sanitize_uri_path_with_repeated_slashes () =
 let t_head_and_get_requests_are_coalesced () =
   let test_name = "head-and-get-requests-are-coalsced" in
   let setup_canvas () =
-    let n1 = hop (http_handler (ast_for "'test_body'")) in
+    let n1 = hop (http_handler (Fluid.fromFluidExpr (str "test_body"))) in
     let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
     C.save_all !canvas ;
     canvas
@@ -392,7 +396,7 @@ let t_admin_handler_api () =
 let t_head_and_get_requests_are_coalesced () =
   let test_name = "head-and-get-requests-are-coalsced" in
   let setup_canvas () =
-    let n1 = hop (http_handler (ast_for "'test_body'")) in
+    let n1 = hop (http_handler (Fluid.fromFluidExpr (str "test_body"))) in
     let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
     C.save_all !canvas ;
     canvas
@@ -448,7 +452,7 @@ let t_head_and_get_requests_are_coalesced () =
 
 let t_http_request_redirects () =
   let setup_canvas () =
-    let n1 = hop (http_handler (ast_for "'test_body'")) in
+    let n1 = hop (http_handler (Fluid.fromFluidExpr (str "test_body"))) in
     let canvas = ops2c_exn "test" [n1] in
     C.save_all !canvas ;
     canvas

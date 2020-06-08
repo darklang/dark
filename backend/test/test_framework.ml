@@ -2,6 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Libbackend
+open Libshared.FluidShortcuts
 open Types
 open Types.RuntimeT
 open Ast
@@ -208,7 +209,9 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
  * event handler *)
 let t_event_queue_roundtrip () =
   clear_test_data () ;
-  let h = daily_cron (ast_for "(let date (Date::now) 123)") in
+  let h =
+    daily_cron (Fluid.fromFluidExpr (let' "date" (fn "Date::now" []) (int 123)))
+  in
   let c = ops2c_exn "test-event_queue" [hop h] in
   Canvas.save_all !c ;
   Event_queue.enqueue
@@ -248,7 +251,7 @@ let t_event_queue_roundtrip () =
 
 let t_cron_sanity () =
   clear_test_data () ;
-  let h = daily_cron (ast_for "(+ 5 3)") in
+  let h = daily_cron (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
   let c = ops2c_exn "test-cron_works" [hop h] in
   let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
     { canvas_id = !c.id
@@ -270,7 +273,7 @@ let t_cron_sanity () =
 
 let t_cron_just_ran () =
   clear_test_data () ;
-  let h = daily_cron (ast_for "(+ 5 3)") in
+  let h = daily_cron (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
   let c = ops2c_exn "test-cron_works" [hop h] in
   let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
     { canvas_id = !c.id
@@ -443,9 +446,11 @@ let t_encode_request_body () =
 let t_function_traces_are_stored () =
   clear_test_data () ;
   let fntlid : tlid = id_of_int 12312345234 in
-  let f = user_fn "test_fn" [] (ast_for "(DB::generateKey)") in
+  let f =
+    user_fn "test_fn" [] (Fluid.fromFluidExpr (fn "DB::generateKey" []))
+  in
   let f = {f with tlid = fntlid} in
-  let h = handler (ast_for "(test_fn)") in
+  let h = handler (Fluid.fromFluidExpr (fn "test_fn" [])) in
   let host = "test" in
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in

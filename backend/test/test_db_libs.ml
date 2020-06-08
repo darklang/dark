@@ -14,14 +14,18 @@ let t_db_add_roundtrip () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let old (obj (x null))
-       (let key (DB::add_v0 old MyDB)
-         (`DB::get_v1 key MyDB)))"
+    let'
+      "old"
+      (record [("x", null)])
+      (let'
+         "key"
+         (fn "DB::add_v0" [var "old"; var "MyDB"])
+         (fn "DB::get_v1" ~ster:Rail [var "key"; var "MyDB"]))
   in
   check_dval
     "equal_after_roundtrip"
     (DObj (DvalMap.singleton "x" DNull))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_new_query_v1_works () =
@@ -36,12 +40,27 @@ let t_db_new_query_v1_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
-    "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
-              (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
-              (let results (DB::query_v1 (obj (x 'bar')) MyDB)
-                (== (('findme' hopetofind)) results))))"
+    let'
+      "dontfind"
+      (fn
+         "DB::set_v1"
+         [record [("x", str "foo"); ("y", str "bar")]; str "hello"; var "MyDB"])
+      (let'
+         "hopetofind"
+         (fn
+            "DB::set_v1"
+            [ record [("x", str "bar"); ("y", str "foo")]
+            ; str "findme"
+            ; var "MyDB" ])
+         (let'
+            "results"
+            (fn "DB::query_v1" [record [("x", str "bar")]; var "MyDB"])
+            (binop
+               "=="
+               (list [list [str "findme"; var "hopetofind"]])
+               (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_new_query_v2_works () =
@@ -56,12 +75,24 @@ let t_db_new_query_v2_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
-    "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
-               (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
-                (let results (DB::query_v2 (obj (x 'bar')) MyDB)
-                 (== (hopetofind) results))))"
+    let'
+      "dontfind"
+      (fn
+         "DB::set_v1"
+         [record [("x", str "foo"); ("y", str "bar")]; str "hello"; var "MyDB"])
+      (let'
+         "hopetofind"
+         (fn
+            "DB::set_v1"
+            [ record [("x", str "bar"); ("y", str "foo")]
+            ; str "findme"
+            ; var "MyDB" ])
+         (let'
+            "results"
+            (fn "DB::query_v2" [record [("x", str "bar")]; var "MyDB"])
+            (binop "==" (list [var "hopetofind"]) (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_new_query_v3_works () =
@@ -76,12 +107,24 @@ let t_db_new_query_v3_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
-    "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
-                (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
-                (let results (DB::query_v3 (obj (x 'bar')) MyDB)
-                (== (hopetofind) results))))"
+    let'
+      "dontfind"
+      (fn
+         "DB::set_v1"
+         [record [("x", str "foo"); ("y", str "bar")]; str "hello"; var "MyDB"])
+      (let'
+         "hopetofind"
+         (fn
+            "DB::set_v1"
+            [ record [("x", str "bar"); ("y", str "foo")]
+            ; str "findme"
+            ; var "MyDB" ])
+         (let'
+            "results"
+            (fn "DB::query_v3" [record [("x", str "bar")]; var "MyDB"])
+            (binop "==" (list [var "hopetofind"]) (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_set_does_upsert () =
@@ -93,12 +136,18 @@ let t_db_set_does_upsert () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let old (DB::set_v1 (obj (x 'foo')) 'hello' MyDB)
-               (let new (DB::set_v1 (obj (x 'bar')) 'hello' MyDB)
-                (let results (DB::getAllWithKeys_v1 MyDB)
-                 (== (('hello' new)) results))))"
+    let'
+      "old"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "hello"; var "MyDB"])
+      (let'
+         "new"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "hello"; var "MyDB"])
+         (let'
+            "results"
+            (fn "DB::getAllWithKeys_v1" [var "MyDB"])
+            (binop "==" (list [list [str "hello"; var "new"]]) (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_get_all_with_keys_works () =
@@ -110,12 +159,21 @@ let t_db_get_all_with_keys_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
-               (let results (DB::getAllWithKeys_v1 MyDB)
-                (== (('one' one) ('two' two)) results))))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "one"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "two"; var "MyDB"])
+         (let'
+            "results"
+            (fn "DB::getAllWithKeys_v1" [var "MyDB"])
+            (binop
+               "=="
+               (list [list [str "one"; var "one"]; list [str "two"; var "two"]])
+               (var "results"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_get_all_with_keys_v2_works () =
@@ -127,10 +185,16 @@ let t_db_get_all_with_keys_v2_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-    (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-      (let results (DB::getAllWithKeys_v2 MyDB)
-      results)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "results"
+            (fn "DB::getAllWithKeys_v2" [var "MyDB"])
+            (var "results")))
   in
   check_dval
     "equal_after_roundtrip"
@@ -140,7 +204,7 @@ let t_db_get_all_with_keys_v2_works () =
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
           ; ( "first"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ) ]))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_get_many_with_keys_works () =
@@ -152,12 +216,24 @@ let t_db_get_many_with_keys_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-               (let fetched (DB::getManyWithKeys ('first' 'second') MyDB)
-                (== (('first' one) ('second' two)) fetched))))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "fetched"
+            (fn
+               "DB::getManyWithKeys"
+               [list [str "first"; str "second"]; var "MyDB"])
+            (binop
+               "=="
+               (list
+                  [list [str "first"; var "one"]; list [str "second"; var "two"]])
+               (var "fetched"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_get_many_with_keys_v1_works () =
@@ -169,10 +245,18 @@ let t_db_get_many_with_keys_v1_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-                (let fetched (DB::getManyWithKeys_v1 ('first' 'second') MyDB)
-                fetched)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "fetched"
+            (fn
+               "DB::getManyWithKeys_v1"
+               [list [str "first"; str "second"]; var "MyDB"])
+            (var "fetched")))
   in
   check_dval
     "equal_after_roundtrip"
@@ -182,7 +266,7 @@ let t_db_get_many_with_keys_v1_works () =
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
           ; ( "first"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ) ]))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_get_existing_works () =
@@ -194,15 +278,23 @@ let t_db_get_existing_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-                (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-                  (let fetched (DB::getExisting ('third' 'second') MyDB)
-                  fetched)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "fetched"
+            (fn
+               "DB::getExisting"
+               [list [str "third"; str "second"]; var "MyDB"])
+            (var "fetched")))
   in
   check_dval
     "equal_after_roundtrip"
     (DList [DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar"))])
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_get_many_v3_returns_nothing_if_none () =
@@ -215,15 +307,21 @@ let t_db_get_many_v3_returns_nothing_if_none () =
   in
 
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-                (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-                  (let fetched (DB::getMany_v3 ('third' 'second') MyDB)
-                  fetched)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "fetched"
+            (fn "DB::getMany_v3" [list [str "third"; str "second"]; var "MyDB"])
+            (var "fetched")))
   in
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_get_many_v3_works () =
@@ -236,10 +334,16 @@ let t_db_get_many_v3_works () =
   in
 
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-                (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-                  (let fetched (DB::getMany_v3 ('first' 'second') MyDB)
-                  fetched)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "fetched"
+            (fn "DB::getMany_v3" [list [str "first"; str "second"]; var "MyDB"])
+            (var "fetched")))
   in
   check_dval
     "equal_after_roundtrip"
@@ -248,7 +352,7 @@ let t_db_get_many_v3_works () =
           (DList
              [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
              ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_get_many_v2_works () =
@@ -260,17 +364,23 @@ let t_db_get_many_v2_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-                (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-                  (let fetched (DB::getMany_v2 ('first' 'second') MyDB)
-                  fetched)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "fetched"
+            (fn "DB::getMany_v2" [list [str "first"; str "second"]; var "MyDB"])
+            (var "fetched")))
   in
   check_dval
     "equal_after_roundtrip"
     (DList
        [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
        ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_get_many_v1_works () =
@@ -282,12 +392,24 @@ let t_db_get_many_v1_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-                (let fetched (DB::getManyWithKeys ('first' 'second') MyDB)
-                (== (('first' one) ('second' two)) fetched))))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "fetched"
+            (fn
+               "DB::getManyWithKeys"
+               [list [str "first"; str "second"]; var "MyDB"])
+            (binop
+               "=="
+               (list
+                  [list [str "first"; var "one"]; list [str "second"; var "two"]])
+               (var "fetched"))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_queryWithKey_works_with_many () =
@@ -303,13 +425,43 @@ let t_db_queryWithKey_works_with_many () =
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-               (let three (DB::set_v1 (obj (x 'bar') (sort_by 2)) 'three' MyDB)
-                (let fetched (List::sortBy (DB::queryWithKey_v1 (obj (x 'bar')) MyDB) (\\x -> (. (List::last x) sort_by)))
-                 (== (('two' two) ('three' three)) fetched)))))"
+    let'
+      "one"
+      (fn
+         "DB::set_v1"
+         [record [("x", str "foo"); ("sort_by", int 0)]; str "one"; var "MyDB"])
+      (let'
+         "two"
+         (fn
+            "DB::set_v1"
+            [ record [("x", str "bar"); ("sort_by", int 1)]
+            ; str "two"
+            ; var "MyDB" ])
+         (let'
+            "three"
+            (fn
+               "DB::set_v1"
+               [ record [("x", str "bar"); ("sort_by", int 2)]
+               ; str "three"
+               ; var "MyDB" ])
+            (let'
+               "fetched"
+               (fn
+                  "List::sortBy"
+                  [ fn
+                      "DB::queryWithKey_v1"
+                      [record [("x", str "bar")]; var "MyDB"]
+                  ; lambda
+                      ["x"]
+                      (fieldAccess (fn "List::last" [var "x"]) "sort_by") ])
+               (binop
+                  "=="
+                  (list
+                     [ list [str "two"; var "two"]
+                     ; list [str "three"; var "three"] ])
+                  (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_queryWithKey_v2_works_with_many () =
@@ -322,11 +474,23 @@ let t_db_queryWithKey_v2_works_with_many () =
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
-              (let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
-               (let three (DB::set_v1 (obj (x 'bar')) 'three' MyDB)
-                (let fetched (DB::queryWithKey_v2 (obj (x 'bar')) MyDB)
-                 fetched))))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "one"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "two"; var "MyDB"])
+         (let'
+            "three"
+            (fn
+               "DB::set_v1"
+               [record [("x", str "bar")]; str "three"; var "MyDB"])
+            (let'
+               "fetched"
+               (fn
+                  "DB::queryWithKey_v2"
+                  [record [("x", str "bar")]; var "MyDB"])
+               (var "fetched"))))
   in
   check_dval
     "equal_after_roundtrip"
@@ -335,7 +499,7 @@ let t_db_queryWithKey_v2_works_with_many () =
           [ ("two", DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")))
           ; ( "three"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ) ]))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_get_returns_nothing () =
@@ -349,7 +513,7 @@ let t_db_get_returns_nothing () =
   check_dval
     "get_returns_nothing"
     (DOption OptNothing)
-    (exec_handler ~ops "(DB::get_v1 'lol' MyDB)")
+    (exec_handler' ~ops (fn "DB::get_v1" [str "lol"; var "MyDB"]))
 
 
 let t_db_queryOne_works () =
@@ -361,14 +525,16 @@ let t_db_queryOne_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOne_v1 (obj (x 'foo')) MyDB))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (fn "DB::queryOne_v1" [record [("x", str "foo")]; var "MyDB"])
   in
   check_dval
     "equal_after_roundtrip"
     (DOption
        (OptJust (DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")))))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOne_supports_Date_comparison () =
@@ -454,13 +620,15 @@ let t_db_queryOne_returns_nothing_if_none () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOne_v1 (obj (x 'bar')) MyDB))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (fn "DB::queryOne_v1" [record [("x", str "bar")]; var "MyDB"])
   in
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOne_returns_nothing_multiple () =
@@ -472,14 +640,18 @@ let t_db_queryOne_returns_nothing_multiple () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
-               (DB::queryOne_v1 (obj (x 'foo')) MyDB)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "one"
+         (fn "DB::set_v1" [record [("x", str "foo")]; str "second"; var "MyDB"])
+         (fn "DB::queryOne_v1" [record [("x", str "foo")]; var "MyDB"]))
   in
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOneWithKey_works () =
@@ -491,8 +663,10 @@ let t_db_queryOneWithKey_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (fn "DB::queryOneWithKey_v1" [record [("x", str "foo")]; var "MyDB"])
   in
   check_dval
     "equal_after_roundtrip"
@@ -501,7 +675,7 @@ let t_db_queryOneWithKey_works () =
           (DList
              [ Dval.dstr_of_string_exn "first"
              ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ])))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOneWithKey_v2_works () =
@@ -513,8 +687,10 @@ let t_db_queryOneWithKey_v2_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOneWithKey_v2 (obj (x 'foo')) MyDB))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (fn "DB::queryOneWithKey_v2" [record [("x", str "foo")]; var "MyDB"])
   in
   check_dval
     "equal_after_roundtrip"
@@ -524,7 +700,7 @@ let t_db_queryOneWithKey_v2_works () =
              (DvalMap.singleton
                 "first"
                 (DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")))))))
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOneWithKey_returns_nothing_if_none () =
@@ -536,13 +712,15 @@ let t_db_queryOneWithKey_returns_nothing_if_none () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOneWithKey_v1 (obj (x 'bar')) MyDB))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (fn "DB::queryOneWithKey_v1" [record [("x", str "bar")]; var "MyDB"])
   in
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOneWithKey_v2_returns_nothing_if_none () =
@@ -554,13 +732,15 @@ let t_db_queryOneWithKey_v2_returns_nothing_if_none () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (DB::queryOneWithKey_v2 (obj (x 'bar')) MyDB))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (fn "DB::queryOneWithKey_v2" [record [("x", str "bar")]; var "MyDB"])
   in
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOneWithKey_returns_nothing_multiple () =
@@ -572,14 +752,18 @@ let t_db_queryOneWithKey_returns_nothing_multiple () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
-               (DB::queryOneWithKey_v1 (obj (x 'foo')) MyDB)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "one"
+         (fn "DB::set_v1" [record [("x", str "foo")]; str "second"; var "MyDB"])
+         (fn "DB::queryOneWithKey_v1" [record [("x", str "foo")]; var "MyDB"]))
   in
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_queryOneWithKey_v2_returns_nothing_multiple () =
@@ -591,14 +775,18 @@ let t_db_queryOneWithKey_v2_returns_nothing_multiple () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-              (let one (DB::set_v1 (obj (x 'foo')) 'second' MyDB)
-                (DB::queryOneWithKey_v2 (obj (x 'foo')) MyDB)))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "one"
+         (fn "DB::set_v1" [record [("x", str "foo")]; str "second"; var "MyDB"])
+         (fn "DB::queryOneWithKey_v2" [record [("x", str "foo")]; var "MyDB"]))
   in
   check_dval
     "equal_after_roundtrip"
     (DOption OptNothing)
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_db_getAll_v1_works () =
@@ -614,13 +802,40 @@ let t_db_getAll_v1_works () =
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-       (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-         (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
-            (let fetched (List::sortBy (DB::getAll_v1 MyDB) (\\x -> (. x sort_by)))
-            (== (('one' one) ('three' three) ('two' two)) fetched)))))"
+    let'
+      "one"
+      (fn
+         "DB::set_v1"
+         [record [("x", str "foo"); ("sort_by", int 0)]; str "one"; var "MyDB"])
+      (let'
+         "two"
+         (fn
+            "DB::set_v1"
+            [ record [("x", str "bar"); ("sort_by", int 1)]
+            ; str "two"
+            ; var "MyDB" ])
+         (let'
+            "three"
+            (fn
+               "DB::set_v1"
+               [ record [("x", str "baz"); ("sort_by", int 2)]
+               ; str "three"
+               ; var "MyDB" ])
+            (let'
+               "fetched"
+               (fn
+                  "List::sortBy"
+                  [ fn "DB::getAll_v1" [var "MyDB"]
+                  ; lambda ["x"] (fieldAccess (var "x") "sort_by") ])
+               (binop
+                  "=="
+                  (list
+                     [ list [str "one"; var "one"]
+                     ; list [str "three"; var "three"]
+                     ; list [str "two"; var "two"] ])
+                  (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_getAll_v2_works () =
@@ -636,13 +851,37 @@ let t_db_getAll_v2_works () =
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-        (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-          (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
-            (let fetched (List::sortBy (DB::getAll_v2 MyDB) (\\x -> (. x sort_by)))
-              (== (one two three) fetched)))))"
+    let'
+      "one"
+      (fn
+         "DB::set_v1"
+         [record [("x", str "foo"); ("sort_by", int 0)]; str "one"; var "MyDB"])
+      (let'
+         "two"
+         (fn
+            "DB::set_v1"
+            [ record [("x", str "bar"); ("sort_by", int 1)]
+            ; str "two"
+            ; var "MyDB" ])
+         (let'
+            "three"
+            (fn
+               "DB::set_v1"
+               [ record [("x", str "baz"); ("sort_by", int 2)]
+               ; str "three"
+               ; var "MyDB" ])
+            (let'
+               "fetched"
+               (fn
+                  "List::sortBy"
+                  [ fn "DB::getAll_v2" [var "MyDB"]
+                  ; lambda ["x"] (fieldAccess (var "x") "sort_by") ])
+               (binop
+                  "=="
+                  (list [var "one"; var "two"; var "three"])
+                  (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_getAll_v3_works () =
@@ -658,13 +897,37 @@ let t_db_getAll_v3_works () =
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo') (sort_by 0)) 'one' MyDB)
-          (let two (DB::set_v1 (obj (x 'bar') (sort_by 1)) 'two' MyDB)
-            (let three (DB::set_v1 (obj (x 'baz') (sort_by 2)) 'three' MyDB)
-              (let fetched (List::sortBy (DB::getAll_v3 MyDB) (\\x -> (. x sort_by)))
-                (== (one two three) fetched)))))"
+    let'
+      "one"
+      (fn
+         "DB::set_v1"
+         [record [("x", str "foo"); ("sort_by", int 0)]; str "one"; var "MyDB"])
+      (let'
+         "two"
+         (fn
+            "DB::set_v1"
+            [ record [("x", str "bar"); ("sort_by", int 1)]
+            ; str "two"
+            ; var "MyDB" ])
+         (let'
+            "three"
+            (fn
+               "DB::set_v1"
+               [ record [("x", str "baz"); ("sort_by", int 2)]
+               ; str "three"
+               ; var "MyDB" ])
+            (let'
+               "fetched"
+               (fn
+                  "List::sortBy"
+                  [ fn "DB::getAll_v3" [var "MyDB"]
+                  ; lambda ["x"] (fieldAccess (var "x") "sort_by") ])
+               (binop
+                  "=="
+                  (list [var "one"; var "two"; var "three"])
+                  (var "fetched")))))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
 
 
 let t_db_getAllKeys_works () =
@@ -676,15 +939,21 @@ let t_db_getAllKeys_works () =
     ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
-    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
-    (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-      (let results (DB::keys_v1 MyDB)
-      (List::sort results))))"
+    let'
+      "one"
+      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
+      (let'
+         "two"
+         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
+         (let'
+            "results"
+            (fn "DB::keys_v1" [var "MyDB"])
+            (fn "List::sort" [var "results"])))
   in
   check_dval
     "equal_after_roundtrip"
     (DList [Dval.dstr_of_string_exn "first"; Dval.dstr_of_string_exn "second"])
-    (exec_handler ~ops ast)
+    (exec_handler' ~ops ast)
 
 
 let t_sql_compiler_works () =

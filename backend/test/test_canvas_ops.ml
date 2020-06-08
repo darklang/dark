@@ -3,6 +3,7 @@
 open Core_kernel
 open Libexecution
 open Libbackend
+open Libshared.FluidShortcuts
 open Types
 open Types.RuntimeT
 open Utils
@@ -13,9 +14,11 @@ module AT = Alcotest
 let t_undo_fns () =
   clear_test_data () ;
   let n1 = Op.TLSavepoint tlid in
-  let n2 = hop (handler (ast_for "(- _ _)")) in
-  let n3 = hop (handler (ast_for "(- 3 _)")) in
-  let n4 = hop (handler (ast_for "(- 3 4)")) in
+  let n2 =
+    hop (handler (Fluid.fromFluidExpr (binop "-" (blank ()) (blank ()))))
+  in
+  let n3 = hop (handler (Fluid.fromFluidExpr (binop "-" (int 3) (blank ())))) in
+  let n4 = hop (handler (Fluid.fromFluidExpr (binop "-" (int 3) (int 4)))) in
   let u = Op.UndoTL tlid in
   let ops (c : RuntimeT.expr C.canvas ref) =
     !c.ops |> List.hd_exn |> Tuple.T2.get2
@@ -141,8 +144,20 @@ let t_http_load_ignores_deleted_fns () =
   clear_test_data () ;
   let host = "test-http_load_ignores_deleted_fns_and_dbs" in
   let handler = http_route_handler () in
-  let f = user_fn ~tlid:tlid2 "testfn" [] (ast_for "(+ 5 3)") in
-  let f2 = user_fn ~tlid:tlid3 "testfn" [] (ast_for "(+ 6 4)") in
+  let f =
+    user_fn
+      ~tlid:tlid2
+      "testfn"
+      []
+      (Fluid.fromFluidExpr (binop "+" (int 5) (int 3)))
+  in
+  let f2 =
+    user_fn
+      ~tlid:tlid3
+      "testfn"
+      []
+      (Fluid.fromFluidExpr (binop "+" (int 6) (int 4)))
+  in
   let oplist =
     [ Op.SetHandler (tlid, pos, handler)
     ; Op.SetFunction f
@@ -215,8 +230,8 @@ let t_set_after_delete () =
   let check_single msg tls = AT.check AT.int msg (IDMap.length tls) 1 in
   (* handlers *)
   clear_test_data () ;
-  let h1 = handler (ast_for "(+ 5 3)") in
-  let h2 = handler (ast_for "(+ 5 2)") in
+  let h1 = handler (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
+  let h2 = handler (Fluid.fromFluidExpr (binop "+" (int 5) (int 2))) in
   let op1 = Op.SetHandler (tlid, pos, h1) in
   let op2 = Op.DeleteTL tlid in
   let op3 = Op.SetHandler (tlid, pos, h2) in
@@ -237,8 +252,12 @@ let t_set_after_delete () =
     (Dval.dint 7) ;
   (* same thing for functions *)
   clear_test_data () ;
-  let h1 = user_fn "testfn" [] (ast_for "(+ 5 3)") in
-  let h2 = user_fn "testfn" [] (ast_for "(+ 5 2)") in
+  let h1 =
+    user_fn "testfn" [] (Fluid.fromFluidExpr (binop "+" (int 5) (int 3)))
+  in
+  let h2 =
+    user_fn "testfn" [] (Fluid.fromFluidExpr (binop "+" (int 5) (int 2)))
+  in
   let op1 = Op.SetFunction h1 in
   let op2 = Op.DeleteFunction tlid in
   let op3 = Op.SetFunction h2 in
