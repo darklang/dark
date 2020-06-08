@@ -549,7 +549,7 @@ let t_db_queryOne_supports_Date_comparison () =
   let before = "1900-01-01T00:00:00Z" in
   let middle = "2000-01-01T00:00:00Z" in
   (* The Result::map_v1 and Option::andThen calls are necessary because
-   * Date::parse_v2 returns a Result, and exec_ast' doesn't leave those on
+   * Date::parse_v2 returns a Result, and exec_ast doesn't leave those on
    * the rail. *)
   let ast op =
     let'
@@ -596,19 +596,19 @@ let t_db_queryOne_supports_Date_comparison () =
   check_dval
     "Date::< middle ts.value gets us the after date"
     (expected after)
-    (exec_ast' ~ops (ast "Date::<")) ;
+    (exec_ast ~ops (ast "Date::<")) ;
   check_dval
     "Date::> middle ts.value gets us the before date"
     (expected before)
-    (exec_ast' ~ops (ast "Date::>")) ;
+    (exec_ast ~ops (ast "Date::>")) ;
   check_dval
     "Date::lessThan middle ts.value gets us the after date"
     (expected after)
-    (exec_ast' ~ops (ast "Date::lessThan")) ;
+    (exec_ast ~ops (ast "Date::lessThan")) ;
   check_dval
     "Date::greaterThan middle ts.value gets us the before date"
     (expected before)
-    (exec_ast' ~ops (ast "Date::greaterThan"))
+    (exec_ast ~ops (ast "Date::greaterThan"))
 
 
 let t_db_queryOne_returns_nothing_if_none () =
@@ -1119,11 +1119,11 @@ let t_db_query_works () =
       ; ("dob", null)
       ; ("income", null) ]
   in
-  let ross = exec_ast' ross_expr in
-  let rachel = exec_ast' rachel_expr in
-  let chandler = exec_ast' chandler_expr in
-  let cat = exec_ast' cat_expr in
-  let nullval = exec_ast' null_expr in
+  let ross = exec_ast ross_expr in
+  let rachel = exec_ast rachel_expr in
+  let chandler = exec_ast chandler_expr in
+  let cat = exec_ast cat_expr in
+  let nullval = exec_ast null_expr in
   let expected =
     exec_handler'
       ~ops
