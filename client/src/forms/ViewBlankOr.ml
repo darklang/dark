@@ -182,8 +182,15 @@ let viewMultilineText
        * noProp to indicate that the property at idx N has changed. *)
       [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
-  (* TODO(JULIAN): fix the missing entry-box id when you click on the blankOr *)
-  let idAttr = Html.id (ID.toString id) in
+  let idAttr =
+    match vp.cursorState with
+    | Entering (Filling (_, thisID)) when thisID = id ->
+        (* Other blankors entirely change the HTML structure when being edited.
+         * Use the same id as other being-edited blankors for consistency. *)
+        Html.id Defaults.entryID
+    | _ ->
+        Html.id (ID.toString id)
+  in
   let readonly =
     (* Attribute.readonly is fixed in bstea 0.15.0 *)
     if enterable then Vdom.noProp else Vdom.attribute "" "readonly" "readonly"
