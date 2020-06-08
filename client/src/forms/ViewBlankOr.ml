@@ -157,7 +157,7 @@ let viewBlankOr
 let viewMultilineText
     ~(enterable : bool)
     ~(classes : string list)
-    (_pt : blankOrType)
+    (pt : blankOrType)
     (vp : ViewUtils.viewProps)
     (str : string blankOr) : msg Html.html =
   let id = B.toID str in
@@ -199,7 +199,7 @@ let viewMultilineText
   let attrs =
     idAttr
     :: readonly
-    :: Html.placeholder "What does this function do?"
+    :: Html.placeholder (placeHolderFor vp pt)
     :: Attributes.rows 3
     :: preventPanningOnScroll
     :: classAttr
