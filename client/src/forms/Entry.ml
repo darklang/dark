@@ -629,7 +629,21 @@ let submitACItem
               replace (PTypeFieldTipe (F (id, tipe)))
           | PGroupName _, ACGroupName name, _ ->
               replace (PGroupName (F (id, name)))
-          | pd, item, _ ->
+          | PDBName _, item, _
+          | PDBColType _, item, _
+          | PDBColName _, item, _
+          | PEventName _, item, _
+          | PEventModifier _, item, _
+          | PEventSpace _, item, _
+          | PFnName _, item, _
+          | PFnDescription _, item, _
+          | PFnReturnTipe _, item, _
+          | PParamName _, item, _
+          | PParamTipe _, item, _
+          | PTypeName _, item, _
+          | PTypeFieldName _, item, _
+          | PTypeFieldTipe _, item, _
+          | PGroupName _, item, _ ->
               ReplaceAllModificationsWithThisOne
                 (fun m ->
                   let custom =
