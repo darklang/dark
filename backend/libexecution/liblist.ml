@@ -667,6 +667,48 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["List::dropWhile"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; func ["val"]]
+    ; return_type = TList
+    ; description =
+        "Drops the longest prefix of `list` which satisfies the predicate `val`"
+    ; func =
+        InProcess
+          (function
+          | state, [DList l; DBlock b] ->
+              let abortReason = ref None in
+              let f (dv : 'expr_type dval) : bool =
+                !abortReason = None
+                &&
+                match Ast.execute_dblock ~state b [dv] with
+                | DBool true ->
+                    false
+                | DBool false ->
+                    true
+                | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+                    abortReason := Some dv ;
+                    false
+                | v ->
+                    abortReason :=
+                      Some
+                        (DError
+                           ( SourceNone
+                           , "Expected the argument `f` passed to `"
+                             ^ state.executing_fnname
+                             ^ "` to return a boolean value for every value in `list`. However, it returned `"
+                             ^ Dval.to_developer_repr_v0 v
+                             ^ "` for the input `"
+                             ^ Dval.to_developer_repr_v0 dv
+                             ^ "`." )) ;
+                    false
+              in
+              let result = List.filter ~f l in
+              (match !abortReason with None -> DList result | Some v -> v)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["List::take"]
     ; infix_names = []
     ; parameters = [par "list" TList; par "count" TInt]
