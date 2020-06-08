@@ -910,6 +910,7 @@ and autocompleteItem =
   | ACDBColName of string
   (* User functions *)
   | ACFnName of string
+  | ACFnDescription of string
   | ACParamName of string
   | ACParamTipe of tipe
   | ACReturnTipe of tipe
@@ -1286,6 +1287,7 @@ and msg =
   | ToplevelDeleteForever of TLID.t
   | DragToplevel of TLID.t * Tea.Mouse.position [@printer opaque "DragToplevel"]
   | EntryInputMsg of string
+  | MultilineEntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of int

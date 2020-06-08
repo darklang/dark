@@ -4,6 +4,7 @@ open Prelude
 module B = BlankOr
 module TL = Toplevel
 module Attributes = Tea.Html2.Attributes
+module Events = Tea.Html2.Events
 
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
 (* such as whether it's selected, appropriate events, mouseover, etc. *)
@@ -176,11 +177,14 @@ let viewMultilineText
       ; event "mouseenter" ~key:("me-" ^ keyStr) (fun x ->
             BlankOrMouseEnter (tlid, id, x))
       ; event "mouseleave" ~key:("ml-" ^ keyStr) (fun x ->
-            BlankOrMouseLeave (tlid, id, x)) ]
+            BlankOrMouseLeave (tlid, id, x))
+        (* This event updates the "autocomplete" value and persists it right away
+         * rather than waiting for you to click away. *)
+      ; Events.onInput (fun x -> MultilineEntryInputMsg x) ]
     else
       (* Rather than relying on property lengths changing, we should use
        * noProp to indicate that the property at idx N has changed. *)
-      [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
+      [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let idAttr =
     match vp.cursorState with

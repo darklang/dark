@@ -369,7 +369,7 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       then v AC.packageFnNameValidator "function name"
       else v AC.fnNameValidator "function name"
   | PFnDescription _ ->
-      Some value
+      None
   | PFnReturnTipe _ ->
       v AC.paramTypeValidator "return type"
   | PParamName oldParam ->
@@ -605,6 +605,8 @@ let submitACItem
                 in
                 let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
+          | PFnDescription old, ACFnDescription desc, _ ->
+              replace (PFnDescription (F (id, desc)))
           | PFnReturnTipe _, ACReturnTipe tipe, _ ->
               replace (PFnReturnTipe (F (id, tipe)))
           | PParamName _, ACParamName value, _ ->
@@ -676,6 +678,8 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
                 Some (ACDBColName value)
             | FnName ->
                 Some (ACFnName value)
+            | FnDescription ->
+                Some (ACFnDescription value)
             | ParamName ->
                 Some (ACParamName value)
             | TypeName ->
@@ -691,7 +695,6 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
             | EventName
             | EventSpace
             | DBName
-            | FnDescription
             | FnReturnTipe
             | ParamTipe
             | TypeFieldTipe ->

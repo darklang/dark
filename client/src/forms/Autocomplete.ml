@@ -106,6 +106,8 @@ let asName (aci : autocompleteItem) : string =
   | ACTypeFieldName name
   | ACGroupName name ->
       name
+  | ACFnDescription description ->
+      description
   | ACReturnTipe tipe | ACTypeFieldTipe tipe ->
       RT.tipe2str tipe
 
@@ -140,6 +142,8 @@ let asTypeString (item : autocompleteItem) : string =
       "event modifier"
   | ACFnName _ ->
       "function name"
+  | ACFnDescription _ ->
+      "function description"
   | ACParamName _ ->
       "param name"
   | ACTypeName _ ->
@@ -897,6 +901,8 @@ let documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
       simpleDoc ("Set event modifier to " ^ name)
   | ACFnName fnName ->
       simpleDoc ("Set function name to " ^ fnName)
+  | ACFnDescription fnDescription ->
+      simpleDoc ("Set function description to " ^ fnDescription)
   | ACParamName paramName ->
       simpleDoc ("Set param name to " ^ paramName)
   | ACTypeName typeName ->

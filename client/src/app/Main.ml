@@ -990,6 +990,18 @@ let update_ (msg : msg) (m : model) : modification =
         [ AutocompleteMod (ACSetQuery query)
         ; AutocompleteMod (ACSetVisible true)
         ; MakeCmd (CursorState.focusEntry m) ]
+  | MultilineEntryInputMsg text ->
+      (* XXX(JULIAN): This is off by one character because the model passed to commit
+       * is from before the change *)
+      Many
+        [ AutocompleteMod (ACSetQuery text)
+        ; AutocompleteMod (ACSetVisible false)
+        ; MakeCmd (CursorState.focusEntry m)
+        ; ( match CursorState.unwrap m.cursorState with
+          | Entering (Filling _ as cursor) ->
+              Entry.commit m cursor
+          | _ ->
+              NoChange ) ]
   | EntrySubmitMsg ->
       NoChange
   | AutocompleteClick index ->
