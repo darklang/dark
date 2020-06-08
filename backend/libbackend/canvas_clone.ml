@@ -4,6 +4,10 @@ open Util
 open Canvas
 open Tc
 
+let is_trival_op (op : 'expr_type Op.op) : bool =
+  match op with Op.TLSavepoint _ | Op.MoveTL _ -> true | _ -> false
+
+
 (** [only_ops_since_last_savepoint ops] When we clone a canvas, we sometimes
    * want to only copy over ops since the last TLSavepoint - this erases
    * history, which is invisible and we don't really know at clone-time what's
@@ -12,10 +16,16 @@ open Tc
    * ("git blame"). *)
 let only_ops_since_last_savepoint (ops : 'expr_type Op.op list) :
     'expr_type Op.op list =
-  (* From the end of the list, take ops until you hit the first savepoint *)
+  (* From the end of the list, take ops until you hit the first savepoint with non-trival ops  *)
+  let encountered_non_trival_op = ref false in
   ops
   |> List.reverse
-  |> List.take_while ~f:(function Op.TLSavepoint _ -> false | _ -> true)
+  |> List.take_while ~f:(fun op ->
+         if !encountered_non_trival_op
+         then match op with Op.TLSavepoint _ -> false | _ -> true
+         else (
+           encountered_non_trival_op := not (is_trival_op op) ;
+           true ))
   |> List.reverse
 
 

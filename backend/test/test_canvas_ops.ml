@@ -391,24 +391,15 @@ let t_canvas_clone () =
   in
   let just_trivial_ops (c : RuntimeT.expr Canvas.canvas) =
     List.map c.ops ~f:(fun (_, ops) ->
-      Canvas_clone.only_ops_since_last_savepoint ops
-      |> Tablecloth.List.all ~f:(fun op ->
-      match op with
-      | Op.TLSavepoint _
-      | Op.UndoTL _
-      | Op.RedoTL _
-      | Op.MoveTL _ -> true
-      | _ -> false
-      )
-    )
+        Canvas_clone.only_ops_since_last_savepoint ops
+        |> Tablecloth.List.all ~f:Canvas_clone.is_trival_op)
     |> Tablecloth.List.any ~f:(fun res -> res)
   in
   AT.check
     AT.bool
     "only_ops_since_last_savepoint ignores trivial ops to find the last savepoint"
     false
-    (just_trivial_ops !sample_canvas)
-  ;
+    (just_trivial_ops !sample_canvas) ;
   AT.check
     AT.bool
     "fewer ops means we removed old history"
