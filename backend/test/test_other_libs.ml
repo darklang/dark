@@ -942,7 +942,7 @@ let t_list_stdlibs_work () =
   check_dval
     "List::dropWhile works"
     (DList [Dval.dint 3; Dval.dint 4])
-    (exec_ast'
+    (exec_ast
        (fn
           "List::dropWhile"
           [ list [int 1; int 2; int 3; int 4]
@@ -950,7 +950,7 @@ let t_list_stdlibs_work () =
   check_dval
     "List::dropWhile stops upon false"
     (DList [Dval.dint 5; Dval.dint 2; Dval.dint 2])
-    (exec_ast'
+    (exec_ast
        (fn
           "List::dropWhile"
           [ list [int 1; int 5; int 2; int 2]
@@ -959,21 +959,21 @@ let t_list_stdlibs_work () =
   check_dval
     "List::dropWhile works with empty input"
     (DList [])
-    (exec_ast'
+    (exec_ast
        (fn
           "List::dropWhile"
           [list []; lambda ["item"] (binop "<" (var "item") (int 3))])) ;
   check_dval
     "List::dropWhile works with empty output"
     (DList [])
-    (exec_ast'
+    (exec_ast
        (fn
           "List::dropWhile"
           [ list [int 1; int 2; int 3; int 4]
           ; lambda ["item"] (binop ">=" (var "item") (int 1)) ])) ;
   check_error_contains
     "List::dropWhile gives error with incorrect return type"
-    (exec_ast'
+    (exec_ast
        (fn
           "List::dropWhile"
           [ list [int 1; int 2; int 3; int 4]
