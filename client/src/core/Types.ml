@@ -819,6 +819,7 @@ and initialLoadAPIResult =
   ; orgs : string list
   ; orgCanvasList : string list
   ; workerSchedules : string StrDict.t
+  ; secrets : secret list
   ; creationDate : Js.Date.t [@opaque] }
 
 and saveTestAPIResult = string

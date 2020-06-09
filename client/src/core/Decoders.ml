@@ -650,6 +650,12 @@ let fof j : fourOhFour =
   ; traceID = index 4 traceID j }
 
 
+let secret j : secret =
+  { secretName = field "secret_name" string j
+  ; secretValue = field "secret_value" string j
+  ; valueVersion = field "value_version" int j }
+
+
 let deployStatus j : deployStatus =
   let sumtypes =
     [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
@@ -895,6 +901,7 @@ let initialLoadAPIResult j : initialLoadAPIResult =
   ; orgs = field "orgs" (list string) j
   ; orgCanvasList = field "org_canvas_list" (list string) j
   ; workerSchedules = field "worker_schedules" (strDict string) j
+  ; secrets = field "secrets" (list secret) j
   ; creationDate = field "creation_date" jsDate j }
 
 

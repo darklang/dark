@@ -80,6 +80,17 @@ let humanReadableTimeElapsed (time : float) : string =
 external formatDate : Js.Date.t * string -> string = "formatDate"
   [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
 
+(* Obsucres string keeping only last n characters, and replacing everything else with X.
+ If string length < n, then returns X of string length  *)
+let obscureString ?(n : int = 4) (s : string) : string =
+  let len = String.length s in
+  if len < n
+  then String.repeat ~count:len "X"
+  else
+    let diff = len - n in
+    String.repeat ~count:diff "X" ^ String.dropLeft ~count:diff s
+
+
 module Regex = struct
   type t = Js.Re.t
 

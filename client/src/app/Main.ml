@@ -1556,7 +1556,11 @@ let update_ (msg : msg) (m : model) : modification =
                      , r.orgCanvasList
                      , r.creationDate ))
               in
-              ( {m with opCtrs = r.opCtrs; account = r.account; settingsView}
+              ( { m with
+                  opCtrs = r.opCtrs
+                ; account = r.account
+                ; settingsView
+                ; secrets = r.secrets }
               , Cmd.none ))
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)

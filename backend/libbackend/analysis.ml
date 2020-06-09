@@ -397,6 +397,7 @@ type initial_load_rpc_result =
   ; orgs : string list
   ; org_canvas_list : string list
   ; worker_schedules : Event_queue.Worker_states.t
+  ; secrets : RTT.secret list
   ; creation_date : time }
 [@@deriving to_yojson]
 
@@ -410,7 +411,8 @@ let to_initial_load_rpc_result
     (canvas_list : string list)
     (orgs : string list)
     (org_canvas_list : string list)
-    (worker_schedules : Event_queue.Worker_states.t) : string =
+    (worker_schedules : Event_queue.Worker_states.t)
+    (secrets : RTT.secret list) : string =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
   ; user_functions = IDMap.data c.user_functions
@@ -426,6 +428,7 @@ let to_initial_load_rpc_result
   ; orgs
   ; org_canvas_list
   ; worker_schedules
+  ; secrets
   ; creation_date = c.creation_date }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
