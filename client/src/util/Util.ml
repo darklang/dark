@@ -80,7 +80,7 @@ let humanReadableTimeElapsed (time : float) : string =
 external formatDate : Js.Date.t * string -> string = "formatDate"
   [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
 
-(* Obsucres string keeping only last n characters, and replacing everything else with X.
+(* Obscures string keeping only last n characters, and replacing everything else with X.
  If string length < n, then returns X of string length  *)
 let obscureString ?(n : int = 4) (s : string) : string =
   let len = String.length s in
