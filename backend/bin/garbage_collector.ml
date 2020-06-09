@@ -16,8 +16,8 @@ let usage () : unit =
 
 let () =
   Telemetry.with_root "garbage_collector" (fun span ->
-      let (action, limit, canvas_id)
-            : Stored_event.trim_events_action * int * Uuidm.t =
+      let (action, action_arg, limit, canvas_id)
+            : Stored_event.trim_events_action * string * int * Uuidm.t =
         match Sys.argv with
         | [|_argv0; action_arg; limit; canvas_id|] ->
             let action : Stored_event.trim_events_action =
@@ -31,6 +31,7 @@ let () =
                   Exception.internal "Can't happen, unreachable code"
             in
             ( action
+            , action_arg
             , limit |> int_of_string
             , canvas_id
               |> Uuidm.of_string
@@ -42,5 +43,6 @@ let () =
       Telemetry.Span.set_attrs
         span
         [ ("limit", `Int limit)
+        ; ("action_arg", `String action_arg)
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string)) ] ;
       Stored_event.trim_events_for_canvas ~action canvas_id limit |> ignore)
