@@ -175,6 +175,7 @@ let defaultModel : model =
   ; tooltip = None
   ; currentUserFn = defaultFnSpace
   ; firstVisitToThisCanvas = true
+  ; secrets = []
   ; settingsView =
       { opened = false
       ; tab = UserSettings

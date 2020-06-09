@@ -465,7 +465,13 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeHandler
-               {handler = h; traceID; traceData; dbs; userFns; userTipes}))
+               { handler = h
+               ; traceID
+               ; traceData
+               ; dbs
+               ; userFns
+               ; userTipes
+               ; secrets = m.secrets }))
   | Some (TLFunc f), Some (_, Ok traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send

@@ -314,6 +314,11 @@ and toplevel =
 
 and packageFns = packageFn TLIDDict.t
 
+and secret =
+  { secretName : string
+  ; secretValue : string
+  ; valueVersion : int }
+
 (* ---------------------- *)
 (* dvals *)
 (* ---------------------- *)
@@ -722,7 +727,8 @@ and performHandlerAnalysisParams =
   ; traceData : traceData
   ; dbs : db list
   ; userFns : userFunction list
-  ; userTipes : userTipe list }
+  ; userTipes : userTipe list
+  ; secrets : secret list }
 
 and performFunctionAnalysisParams =
   { func : userFunction
@@ -1782,7 +1788,8 @@ and model =
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState
   ; firstVisitToThisCanvas : bool
-        (* indicates if it is the users first time this canvas *) }
+        (* indicates if it is the users first time this canvas *)
+  ; secrets : secret list }
 
 and savedUserSettings =
   { showUserWelcomeModal : bool

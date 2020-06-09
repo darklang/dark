@@ -654,5 +654,5 @@ module RuntimeT = struct
     { secret_name : string
     ; secret_value : string
     ; value_version : int }
-  [@@deriving eq, yojson]
+  [@@deriving eq, show, yojson, bin_io]
 end

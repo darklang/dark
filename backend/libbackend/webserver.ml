@@ -1164,7 +1164,7 @@ let trigger_handler
                 ~user_tipes:(!c.user_tipes |> Map.data)
                 ~user_fns:(!c.user_functions |> Map.data)
                 ~package_fns:!c.package_fns
-                ~secrets:[]
+                ~secrets:(Secret.secrets_in_canvas !c.id)
                 ~account_id:!c.owner
                 ~canvas_id
                 ~store_fn_arguments:(fun tlid dvalmap ->

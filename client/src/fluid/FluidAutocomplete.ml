@@ -347,9 +347,7 @@ let generateExprs (m : model) (props : props) (tl : toplevel) ti =
   let literals =
     List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
   in
-  let secrets =
-    [FACVariable ("SUPER_HUSH_KEY", Some (DStr "XXX"))]
-  in
+  let secrets = [FACVariable ("SUPER_HUSH_KEY", Some (DStr "XXX"))] in
   varnames @ constructors @ literals @ keywords @ functions @ secrets
 
 

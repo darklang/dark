@@ -227,6 +227,7 @@ let analyse_ast
     ~user_fns
     ~user_tipes
     ~package_fns
+    ~secrets
     ~account_id
     ~canvas_id
     ?(load_fn_result = load_no_results)
@@ -242,7 +243,9 @@ let analyse_ast
         then ExecutedResult dval
         else NonExecutedResult dval )
   in
-  let input_vars = dbs_as_input_vars dbs @ input_vars in
+  let input_vars =
+    dbs_as_input_vars dbs @ secrets_as_input_vars secrets @ input_vars
+  in
   let state : 'expr_type exec_state =
     { tlid
     ; callstack = Tc.StrSet.empty
