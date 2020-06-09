@@ -5,8 +5,8 @@ type t =
   [@@deriving show]
 
 type msg =
-  | OpenCreateSecretView
-  | CloseCreateScretView
+  | OpenCreateModal
+  | CloseCreateModal
   | SaveNewSecret
   [@@deriving show]
 

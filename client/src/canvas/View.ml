@@ -645,6 +645,7 @@ let view (m : model) : msg Html.html =
       ; entry
       ; modal
       ; settingsModal
+      ; CreateSecret.view m.createSecretModal
       ; tutorial ]
     @ fluidStatus
     @ footer

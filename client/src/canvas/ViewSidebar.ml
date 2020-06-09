@@ -764,7 +764,7 @@ let viewSecretKeys (m : model) : msg Html.html =
         ~key:"plus-secret"
         ~icon:"plus-circle"
         ~classname:"create-tl-icon"
-        (IgnoreMsg "make new secret")
+        (SecretMsg OpenCreateModal)
     in
     let header =
       Html.div
@@ -790,7 +790,7 @@ let viewSecretKeys (m : model) : msg Html.html =
     Html.classList
       [("sidebar-category", true); ("secrets", true); ("empty", count = 0)]
   in
-  Html.details ~unique:"deploys" [classes; openAttr] [summary; content]
+  Html.details ~unique:"secrets" [classes; openAttr] [summary; content]
 
 
 let rec viewItem (m : model) (s : item) : msg Html.html =
