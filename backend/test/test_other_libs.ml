@@ -940,6 +940,47 @@ let t_list_stdlibs_work () =
           ; lambda ["item"] (binop "-" (int 0) (int 1)) ]))
     "Expected the argument `f` passed to `List::takeWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." ;
   check_dval
+    "List::dropWhile works"
+    (DList [Dval.dint 3; Dval.dint 4])
+    (exec_ast'
+       (fn
+          "List::dropWhile"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["item"] (binop "<" (var "item") (int 3)) ])) ;
+  check_dval
+    "List::dropWhile stops upon false"
+    (DList [Dval.dint 5; Dval.dint 2; Dval.dint 2])
+    (exec_ast'
+       (fn
+          "List::dropWhile"
+          [ list [int 1; int 5; int 2; int 2]
+          ; lambda ["item"] (binop "<" (var "item") (int 3)) ])) ;
+
+  check_dval
+    "List::dropWhile works with empty input"
+    (DList [])
+    (exec_ast'
+       (fn
+          "List::dropWhile"
+          [list []; lambda ["item"] (binop "<" (var "item") (int 3))])) ;
+  check_dval
+    "List::dropWhile works with empty output"
+    (DList [])
+    (exec_ast'
+       (fn
+          "List::dropWhile"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["item"] (binop ">=" (var "item") (int 1)) ])) ;
+  check_error_contains
+    "List::dropWhile gives error with incorrect return type"
+    (exec_ast'
+       (fn
+          "List::dropWhile"
+          [ list [int 1; int 2; int 3; int 4]
+          ; lambda ["item"] (binop "-" (int 0) (int 1)) ]))
+    "Expected the argument `f` passed to `List::dropWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." ;
+
+  check_dval
     "List::flatten empty list works"
     (DList [])
     (exec_ast (fn "List::flatten" [list []])) ;
