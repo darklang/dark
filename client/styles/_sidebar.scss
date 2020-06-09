@@ -666,9 +666,10 @@ $icSize: 1em;
     border: 1px solid $secondaryColor;
     padding: 2px;
     border-radius: 2px;
-    margin-top: 10px;
     color: $primaryColor;
     width: 90%;
+    margin: 0 4%;
+    margin-top: 10px;
 
     &:hover {
       color: $hoverColor;
@@ -713,6 +714,12 @@ $icSize: 1em;
         color: $hoverColor;
       }
     }
+  }
+
+  @at-root .abridged > & > .category-content {
+    background-color: $sidebarBgColor;
+    width: $sidebarFullWidth;
+    max-width: $sidebarFullWidth;
   }
 }
 
