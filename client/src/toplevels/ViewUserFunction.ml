@@ -95,7 +95,11 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
       ViewBlankOr.viewMultilineText
         ~classes
         ~enterable:
-          (match fn with UserFunction _ -> true | PackageFn _ -> false)
+          ( match fn with
+          | UserFunction _ ->
+              vp.permission = Some ReadWrite
+          | PackageFn _ ->
+              false )
         FnDescription
         vp
         (UserFunctions.descriptionBlankOr ~tlid:vp.tlid fn)
