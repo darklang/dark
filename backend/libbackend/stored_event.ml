@@ -214,7 +214,9 @@ let trim_events_for_handler
                "WITH last_ten AS (
                 SELECT trace_id
                 FROM stored_events_v2
-                WHERE module = $1 AND modifier = $2 and path = $3
+                WHERE module = $1
+                AND modifier = $2
+                AND path = $3
                 AND canvas_id = $4
                 AND timestamp < (NOW() - interval '1 week') LIMIT 10
               )
