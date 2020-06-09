@@ -1012,6 +1012,7 @@ and fnpMsg =
 and toolTipMsg =
   | Open of tooltip option
   | Close
+  | OpenLink of string
 
 (* Tutorial *)
 and tutorialMsg =
@@ -1033,6 +1034,13 @@ and sidebarMsg =
   | ToggleSidebarMode
   | ResetSidebar
   | MarkCategoryOpen of bool * string
+
+(* Tooltips *)
+and toolTipDirection =
+  | Left
+  | Right
+  | Top
+  | Bottom
 
 (* ------------------- *)
 (* Modifications *)

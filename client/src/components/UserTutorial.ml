@@ -93,65 +93,6 @@ let update (m : model) (msg : tutorialMsg) : modification =
             (fun m -> ({m with userTutorial}, Tea.Cmd.none)) ] )
 
 
-let htmlForTempTooltip (tooltip : tooltip) : msg Html.html =
-  let learnMoreLink (link : string option) : msg Html.html =
-    match link with
-    | Some link ->
-        Html.a
-          [Html.class' "learn-more-link"; Html.href link; Html.target "_blank"]
-          [Html.text "Learn More"]
-    | None ->
-        Vdom.noNode
-  in
-  let content, link =
-    match tooltip with
-    | Http ->
-        let link = Some "https://darklang.github.io/docs/first-api-endpoint" in
-        (["Click the plus sign to create a REST API endpoint."], link)
-    | Worker ->
-        let link = Some "https://darklang.github.io/docs/first-worker" in
-        ( [ "Click the plus sign to create a worker to process asynchronous tasks."
-          ]
-        , link )
-    | Cron ->
-        let link = Some "https://darklang.github.io/docs/first-cron" in
-        (["Click the plus sign to create a scheduled job."], link)
-    | Repl ->
-        let link = Some "https://darklang.github.io/docs/first-repl" in
-        (["Click the plus sign to create a general purpose coding block."], link)
-    | Datastore ->
-        let link = Some "https://darklang.github.io/docs/first-datastore" in
-        (["Click to create a key-value store."], link)
-    | Function ->
-        let link = Some "https://darklang.github.io/docs/first-function" in
-        (["Click to create a reusable block of code."], link)
-    | FourOhFour ->
-        let link =
-          Some "https://darklang.github.io/docs/trace-driven-development"
-        in
-        ( [ "Attempts to hit endpoints that do not yet have handlers appear here."
-          ; "If you're looking for a 404 but not seeing it in this list, check the 'Deleted' section of the sidebar."
-          ]
-        , link )
-    | Deleted ->
-        let link = None in
-        (["Deleted handlers appear here."], link)
-    | PackageManager ->
-        let link = None in
-        ( [ "A list of built-in Dark functions. Click on the name of the function to preview it."
-          ; "To use the function in your canvas, start typing its name in your handler and select it from autocomplete."
-          ]
-        , link )
-    | StaticAssets ->
-        let link = Some "https://darklang.github.io/docs/static-assets" in
-        (["Learn more about hosting static assets here."], link)
-  in
-  Html.div
-    [Html.class' "tutorial-txt"]
-    ( (content |> List.map ~f:(fun p -> Html.p [] [Html.text p]))
-    @ [learnMoreLink link] )
-
-
 let htmlForStep (step : tutorialStep) (username : string) : msg Html.html =
   let stepTitle =
     let current, total = currentStepFraction step in
@@ -354,33 +295,11 @@ let viewStep (step : tutorialStep option) (username : string) : msg Html.html =
       Vdom.noNode
 
 
-let viewTempToolTip (tooltip : tooltip option) : msg Html.html =
-  match tooltip with
-  | Some tooltip ->
-      Html.div
-        [ Html.id "sidebar-right"
-        ; nothingMouseEvent "mousedown"
-        ; ViewUtils.eventNoPropagation
-            ~key:"disable-panning-tutorial"
-            "mouseover"
-            (fun _ -> EnablePanning false)
-        ; ViewUtils.eventNoPropagation
-            ~key:"enableable-panning-tutorial"
-            "mouseout"
-            (fun _ -> EnablePanning true) ]
-        [htmlForTempTooltip tooltip; closeTutorial "Close" (ToolTipMsg Close)]
-  | None ->
-      Vdom.noNode
-
-
 let view
     (step : tutorialStep option)
     (username : string)
     (canvasname : string)
-    (firstVisitToThisCanvas : bool)
-    (tooltip : tooltip option) : msg Html.html =
-  if Option.isSome tooltip
-  then viewTempToolTip tooltip
-  else if firstVisitToThisCanvas && isTutorialCanvas ~username ~canvasname
+    (firstVisitToThisCanvas : bool) : msg Html.html =
+  if firstVisitToThisCanvas && isTutorialCanvas ~username ~canvasname
   then viewGettingStarted
   else viewStep step username

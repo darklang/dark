@@ -1073,7 +1073,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let clickBehavior =
         if Option.isSome m.tooltip
-        then Tooltips.update Close :: clickBehavior
+        then Tooltips.update m.tooltip Close :: clickBehavior
         else clickBehavior
       in
       ( match m.cursorState with
@@ -1451,7 +1451,7 @@ let update_ (msg : msg) (m : model) : modification =
       Entry.sendSegmentMessage msg ;
       NoChange
   | ToolTipMsg msg ->
-      Tooltips.update msg
+      Tooltips.update m.tooltip msg
   | TutorialMsg msg ->
       UserTutorial.update m msg
   | DeleteUserTypeForever tlid ->
