@@ -19,7 +19,7 @@ let () =
       let (action, limit, canvas_id)
             : Stored_event.trim_events_action * int * Uuidm.t =
         match Sys.argv with
-        | [|action_arg; limit; canvas_id|] ->
+        | [|_argv0; action_arg; limit; canvas_id|] ->
             let action : Stored_event.trim_events_action =
               match action_arg with
               | "count" ->
