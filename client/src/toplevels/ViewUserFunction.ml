@@ -91,6 +91,7 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
           BlankOr.newF (fn.fnname ^ "_v" ^ string_of_int fn.version)
     in
     let description =
+      (* Spec: https://www.notion.so/darklang/MVP-for-User-function-description-1c2d6540d3f94e52b45935e11d679b50 *)
       let classes = ["fn-description"] in
       ViewBlankOr.viewMultilineText
         ~classes
