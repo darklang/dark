@@ -45,4 +45,5 @@ let () =
         [ ("limit", `Int limit)
         ; ("action_arg", `String action_arg)
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string)) ] ;
-      Stored_event.trim_events_for_canvas ~action canvas_id limit |> ignore)
+      Stored_event.trim_events_for_canvas ~span ~action canvas_id limit
+      |> ignore)
