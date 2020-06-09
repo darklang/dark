@@ -298,9 +298,9 @@ let trim_events_for_canvas
         ( try
             Db.fetch
               ~name:"get_handlers_for_gc"
-              "SELECT module, modifier, name, canvas_id
-           FROM toplevel_oplists
-           WHERE canvas_id = $1;"
+              "SELECT module, modifier, name
+               FROM toplevel_oplists
+               WHERE canvas_id = $1;"
               ~params:[Db.Uuid canvas_id]
           with Exception.DarkException e ->
             Log.erroR
@@ -312,7 +312,7 @@ let trim_events_for_canvas
                     |> Yojson.Safe.to_string ) ] ;
             Exception.reraise (Exception.DarkException e) )
         |> List.map ~f:(function
-               | [module_; modifier; path; _canvas_id] ->
+               | [module_; modifier; path] ->
                    (module_, modifier, path)
                | xs ->
                    Log.erroR
