@@ -101,6 +101,8 @@ let categoryIcon_ (name : string) : msg Html.html list =
       [darkIcon "fof"]
   | "group" ->
       [fontAwesome "object-group"]
+  | "secrets" ->
+      [fontAwesome "user-secret"]
   | _ when String.contains ~substring:"pm-author" name ->
       [fontAwesome "user"]
   | _ when String.contains ~substring:"pm-package" name ->
@@ -714,6 +716,76 @@ let viewDeployStats (m : model) : msg Html.html =
   Html.details ~unique:"deploys" [classes; openAttr] [summary; content]
 
 
+let viewSecretItem (s : secret) : msg Html.html =
+  let copyMsg =
+    ViewUtils.eventNeither
+      "click"
+      ~key:("copy-secret-" ^ s.secretName)
+      (fun m -> ClipboardCopyLivevalue (s.secretName, m.mePos))
+  in
+  let copyBtn =
+    Html.div [Html.class' "icon-button copy-secret-name"] [fontAwesome "copy"]
+  in
+  Html.div
+    [ Html.class' "simple-item secret"
+    ; copyMsg
+    ; Html.title "Click to copy secret name" ]
+    [ Html.span [Html.class' "secret-name"] [Html.text s.secretName]
+    ; Html.span
+        [Html.class' "secret-value"]
+        [Html.text (Util.obscureString s.secretValue)]
+    ; copyBtn ]
+
+
+let viewSecrets (m : model) : msg Html.html =
+  let count = List.length m.secrets in
+  let openEventHandler, openAttr =
+    categoryOpenCloseHelpers m.sidebarState "secrets" count
+  in
+  let openAttr =
+    if m.sidebarState.mode = AbridgedMode
+    then Vdom.attribute "" "open" ""
+    else openAttr
+  in
+  let title = categoryName "Secret Keys" in
+  let summary =
+    let openTooltip =
+      if count = 0
+      then
+        ViewUtils.eventNoPropagation
+          ~key:"open-tooltip-secrets"
+          "click"
+          (fun _ -> IgnoreMsg "tooltip for secrets")
+        (* TODO(alice) make tooltip message for secret *)
+      else Vdom.noProp
+    in
+    let header =
+      Html.div
+        [Html.class' "category-header"; openTooltip]
+        [categoryButton "secrets" "Secret Keys"; title]
+    in
+    Html.summary [openEventHandler; Html.class' "category-summary"] [header]
+  in
+  let entries =
+    if count > 0
+    then List.map m.secrets ~f:viewSecretItem
+    else
+      [Html.div [Html.class' "simple-item empty"] [Html.text "No secret keys"]]
+  in
+  let content =
+    Html.div
+      [ Html.class' "category-content"
+      ; eventNoPropagation ~key:"cat-close-secret" "mouseleave" (fun _ ->
+            SidebarMsg ResetSidebar) ]
+      (title :: entries)
+  in
+  let classes =
+    Html.classList
+      [("sidebar-category", true); ("secrets", true); ("empty", count = 0)]
+  in
+  Html.details ~unique:"deploys" [classes; openAttr] [summary; content]
+
+
 let rec viewItem (m : model) (s : item) : msg Html.html =
   match s with
   | Category c ->
@@ -995,11 +1067,11 @@ let update (msg : sidebarMsg) : modification =
 
 
 let viewSidebar_ (m : model) : msg Html.html =
-  let packageManager = [packageManagerCategory m.functions.packageFunctions] in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
-    @ [f404Category m; deletedCategory m]
-    @ packageManager
+    @ [ f404Category m
+      ; deletedCategory m
+      ; packageManagerCategory m.functions.packageFunctions ]
   in
   let isDetailed =
     match m.sidebarState.mode with DetailedMode -> true | _ -> false
@@ -1009,7 +1081,8 @@ let viewSidebar_ (m : model) : msg Html.html =
   in
   let content =
     let categories =
-      List.map ~f:(viewCategory m) cats @ [viewDeployStats m; showAdminDebugger]
+      List.map ~f:(viewCategory m) cats
+      @ [viewSecrets m; viewDeployStats m; showAdminDebugger]
     in
     Html.div
       [ Html.classList
