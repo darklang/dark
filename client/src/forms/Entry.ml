@@ -412,14 +412,19 @@ let submitACItem
             let wasEditing = P.isBlank pd |> not in
             let focus =
               if wasEditing && move = StayHere
-              then
+              then (
                 match next with
                 | None ->
+                    Debug.loG "FOCUSSAME" () ;
                     FocusSame
                 | Some nextID ->
-                    FocusExact (tlid, nextID)
-              else FocusNext (tlid, next)
+                    Debug.loG "FocusExact" () ;
+                    FocusExact (tlid, nextID) )
+              else (
+                Debug.loG "FocusNext" () ;
+                FocusNext (tlid, next) )
             in
+            Debug.loG "AddOpsFocus" () ;
             AddOps (ops, focus)
           in
           let wrapID ops = wrap ops (Some id) in
@@ -606,7 +611,18 @@ let submitACItem
                 let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
           | PFnDescription _, ACFnDescription desc, _ ->
-              replace (PFnDescription (F (id, desc)))
+              (* We want to persist the cursorState since the function description
+              * sumbits while you type. *)
+              tl
+              |> TL.replace pd (PFnDescription (F (id, desc)))
+              |> fun newTL ->
+              ( match TL.asUserFunction newTL with
+              | Some _ when tl = newTL ->
+                  NoChange
+              | None ->
+                  NoChange
+              | Some f ->
+                  wrap [SetFunction f] None )
           | PFnReturnTipe _, ACReturnTipe tipe, _ ->
               replace (PFnReturnTipe (F (id, tipe)))
           | PParamName _, ACParamName value, _ ->

@@ -188,7 +188,8 @@ let viewMultilineText
   in
   let idAttr =
     match vp.cursorState with
-    | Entering (Filling (_, thisID)) when thisID = id ->
+    | (Selecting (_, Some thisID) | Entering (Filling (_, thisID)))
+      when thisID = id ->
         (* Other blankors entirely change the HTML structure when being edited.
          * Use the same id as other being-edited blankors for consistency. *)
         Html.id Defaults.entryID
