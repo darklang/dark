@@ -4,7 +4,7 @@ open Util
 open Canvas
 open Tc
 
-let is_create_op (op : 'expr_type Op.op) : bool =
+let is_op_that_creates_toplevel (op : 'expr_type Op.op) : bool =
   match op with
   | SetHandler _
   | CreateDB _
@@ -48,11 +48,15 @@ let is_create_op (op : 'expr_type Op.op) : bool =
    * ("git blame"). *)
 let only_ops_since_last_savepoint (ops : 'expr_type Op.op list) :
     'expr_type Op.op list =
-  match List.find_index ops ~f:is_create_op with
-  | Some count ->
-      if count > 0 then List.drop ~count ops else ops
-  | None ->
-      ops
+  let encountered_create_op = ref false in
+  List.reverse ops
+  |> List.take_while ~f:(fun op ->
+         if !encountered_create_op
+         then false
+         else (
+           encountered_create_op := is_op_that_creates_toplevel op ;
+           true ))
+  |> List.reverse
 
 
 (** [update_hosts_in_op op ~old_host ~new_host] Given an [op], and an

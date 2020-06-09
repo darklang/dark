@@ -392,7 +392,7 @@ let t_canvas_clone () =
   let has_creation_ops (c : RuntimeT.expr Canvas.canvas) =
     List.map c.ops ~f:(fun (_, ops) ->
         Canvas_clone.only_ops_since_last_savepoint ops
-        |> Tablecloth.List.any ~f:Canvas_clone.is_create_op)
+        |> Tablecloth.List.any ~f:Canvas_clone.is_op_that_creates_toplevel)
     |> Tablecloth.List.all ~f:(fun res -> res)
   in
   AT.check
