@@ -207,10 +207,7 @@ let t_feature_flags_work () =
 
 
 let t_nothing () =
-  check_dval
-    "can specifiy nothing"
-    (DOption OptNothing)
-    (exec_ast (nothing ())) ;
+  check_dval "can specify nothing" (DOption OptNothing) (exec_ast (nothing ())) ;
   check_dval
     "nothing works as expected"
     (DBool true)

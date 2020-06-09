@@ -356,8 +356,7 @@ let t_dict_stdlibs_work () =
   check_dval
     "Dict::member works (not present)"
     (DBool false)
-    (exec_ast
-       (fn "Dict::member" [record [("otherKey", int 5)]; str "someKey"])) ;
+    (exec_ast (fn "Dict::member" [record [("otherKey", int 5)]; str "someKey"])) ;
   check_dval
     "Dict::member works (present)"
     (DBool true)
@@ -991,8 +990,7 @@ let t_string_stdlibs_work () =
   check_dval
     "String::append_v1 works (normalizes hangul)"
     (dstr "\xea\xb0\x81") (* 각 *)
-    (exec_ast
-       (fn "String::append_v1" [str "\u{1100}"; str "\u{1161}\u{11A8}"])) ;
+    (exec_ast (fn "String::append_v1" [str "\u{1100}"; str "\u{1161}\u{11A8}"])) ;
   check_dval
     "++ works (multicharacter)"
     (dstr "hello world")
