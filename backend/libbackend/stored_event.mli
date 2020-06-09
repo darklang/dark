@@ -54,10 +54,16 @@ type trim_events_action =
   | Count
   | Delete
 
-val trim_events_for_canvas : ?action:trim_events_action -> Uuidm.t -> int -> int
+val trim_events_for_canvas :
+     span:Libcommon.Telemetry.Span.t
+  -> ?action:trim_events_action
+  -> Uuidm.t
+  -> int
+  -> int
 
 val trim_events_for_handler :
-     ?action:trim_events_action
+     span:Libcommon.Telemetry.Span.t
+  -> ?action:trim_events_action
   -> limit:int
   -> module_:string
   -> modifier:string

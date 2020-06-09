@@ -1233,7 +1233,12 @@ let cleanup_old_traces_for_canvas (cid : Uuidm.t) : float =
   let total_time, _ =
     time (fun _ ->
         let t_events, n_events =
-          time (fun _ -> Stored_event.trim_events_for_canvas cid 10000)
+          time (fun _ ->
+              (* Dummy root here - we don't yet thread traces through stdlib
+               * code, but in order for trim_events_for_canvas to use traces in
+               * contexts that do have traces, we'll set a root here. *)
+              Telemetry.with_root "cleanup_old_traces_for_canvas" (fun span ->
+                  Stored_event.trim_events_for_canvas ~span cid 10000))
         in
         let t_res, n_res =
           time (fun _ -> Stored_function_result.trim_results_for_canvas cid)
