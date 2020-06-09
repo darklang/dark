@@ -10,14 +10,14 @@ module AT = Alcotest
 (* ---------------- *)
 let t_int_add_works () =
   (* Couldn't call Int::add *)
-  check_dval "int_add" (Dval.dint 8) (exec_ast' (binop "+" (int 5) (int 3)))
+  check_dval "int_add" (Dval.dint 8) (exec_ast (binop "+" (int 5) (int 3)))
 
 
 let t_lambda_with_foreach () =
   check_dval
     "lambda_with_foreach"
     (Dval.dstr_of_string_exn "SOME STRING")
-    (exec_ast'
+    (exec_ast
        (fn
           "String::join"
           [ fn
@@ -36,7 +36,7 @@ let t_match_works () =
     check_dval
       ("match " ^ Libshared.FluidExpression.show arg)
       (Dval.dstr_of_string_exn expected)
-      (exec_ast'
+      (exec_ast
          (match'
             arg
             [ (pInt 5, str "int")
@@ -66,7 +66,7 @@ let t_lambda_scopes_correctly () =
   check_dval
     "lambda uses scope at create time, not call time"
     (DList [Dval.dint 6; Dval.dint 7; Dval.dint 8; Dval.dint 9])
-    (exec_ast'
+    (exec_ast
        (let'
           "x"
           (int 5)
@@ -86,19 +86,19 @@ let t_shadowing_all_the_way_down () =
   check_dval
     "simple let shadowing"
     (Dval.dint 6)
-    (exec_ast' (let' "x" (int 5) (let' "x" (int 6) (var "x")))) ;
+    (exec_ast (let' "x" (int 5) (let' "x" (int 6) (var "x")))) ;
   check_dval
     "match within let"
     (Dval.dint 6)
-    (exec_ast' (let' "x" (int 35) (match' (int 6) [(pVar "x", var "x")]))) ;
+    (exec_ast (let' "x" (int 35) (match' (int 6) [(pVar "x", var "x")]))) ;
   check_dval
     "var pattern within let"
     (Dval.dint 6)
-    (exec_ast' (let' "x" (int 35) (match' (int 6) [(pVar "x", var "x")]))) ;
+    (exec_ast (let' "x" (int 35) (match' (int 6) [(pVar "x", var "x")]))) ;
   check_dval
     "var pattern within var constructor within let"
     (Dval.dint 6)
-    (exec_ast'
+    (exec_ast
        (let'
           "x"
           (int 35)
@@ -108,7 +108,7 @@ let t_shadowing_all_the_way_down () =
   check_dval
     "lambda within let"
     (DList [Dval.dint 3; Dval.dint 4; Dval.dint 5; Dval.dint 6])
-    (exec_ast'
+    (exec_ast
        (let'
           "x"
           (int 35)
@@ -119,7 +119,7 @@ let t_shadowing_all_the_way_down () =
   check_dval
     "lambda within match within let"
     (DList [Dval.dint 3; Dval.dint 4; Dval.dint 5; Dval.dint 6])
-    (exec_ast'
+    (exec_ast
        (let'
           "x"
           (int 35)
@@ -133,7 +133,7 @@ let t_shadowing_all_the_way_down () =
   check_dval
     "match within let within lambda"
     (DList [Dval.dint 8; Dval.dint 8; Dval.dint 8; Dval.dint 8])
-    (exec_ast'
+    (exec_ast
        (fn
           "List::map"
           [ list [int 1; int 2; int 3; int 4]
@@ -149,7 +149,7 @@ let t_shadowing_all_the_way_down () =
   check_dval
     "let within match within lambda"
     (DList [Dval.dint 11; Dval.dint 11; Dval.dint 11; Dval.dint 11])
-    (exec_ast'
+    (exec_ast
        (fn
           "List::map"
           [ list [int 1; int 2; int 3; int 4]
@@ -165,7 +165,7 @@ let t_shadowing_all_the_way_down () =
 let t_multiple_copies_of_same_name () =
   check_error
     "record field names"
-    (exec_ast' (record [("col1", int 1); ("col1", int 2)]))
+    (exec_ast (record [("col1", int 1); ("col1", int 2)]))
     "Duplicate key: col1" ;
   ()
 
@@ -174,66 +174,63 @@ let t_feature_flags_work () =
   check_dval
     "flag shows new for true"
     (Dval.dint 1)
-    (exec_ast' (flag (bool true) (int 2) (int 1))) ;
+    (exec_ast (flag (bool true) (int 2) (int 1))) ;
   check_dval
     "flag shows old for false"
     (Dval.dint 2)
-    (exec_ast' (flag (bool false) (int 2) (int 1))) ;
+    (exec_ast (flag (bool false) (int 2) (int 1))) ;
   check_dval
     "flag shows old for incomplete cond"
     (Dval.dint 2)
-    (exec_ast' (flag (blank ()) (int 2) (int 1))) ;
+    (exec_ast (flag (blank ()) (int 2) (int 1))) ;
   check_dval
     "flag shows old for null"
     (Dval.dint 2)
-    (exec_ast' (flag null (int 2) (int 1))) ;
+    (exec_ast (flag null (int 2) (int 1))) ;
   check_dval
     "flag shows old for error"
     (Dval.dint 2)
-    (exec_ast' (flag (fn "List::head" []) (int 2) (int 1))) ;
+    (exec_ast (flag (fn "List::head" []) (int 2) (int 1))) ;
   check_dval
     "flag shows old for errorrail"
     (Dval.dint 2)
-    (exec_ast' (flag (fn "List::head" ~ster:Rail []) (int 2) (int 1))) ;
+    (exec_ast (flag (fn "List::head" ~ster:Rail []) (int 2) (int 1))) ;
   check_dval
     "flag shows old for object"
     (Dval.dint 2)
-    (exec_ast' (flag (record [("x", bool true)]) (int 2) (int 1))) ;
+    (exec_ast (flag (record [("x", bool true)]) (int 2) (int 1))) ;
   check_dval
     "flag shows old for list"
     (Dval.dint 2)
-    (exec_ast' (flag (list []) (int 2) (int 1))) ;
+    (exec_ast (flag (list []) (int 2) (int 1))) ;
   ()
 
 
 let t_nothing () =
-  check_dval
-    "can specifiy nothing"
-    (DOption OptNothing)
-    (exec_ast' (nothing ())) ;
+  check_dval "can specify nothing" (DOption OptNothing) (exec_ast (nothing ())) ;
   check_dval
     "nothing works as expected"
     (DBool true)
-    (exec_ast' (binop "==" (fn "List::head_v1" [list []]) (nothing ()))) ;
+    (exec_ast (binop "==" (fn "List::head_v1" [list []]) (nothing ()))) ;
   ()
 
 
 let t_incomplete_propagation () =
   check_incomplete
     "Fn with incomplete return incomplete"
-    (exec_ast' (fn "List::head" [blank ()])) ;
+    (exec_ast (fn "List::head" [blank ()])) ;
   check_dval
     "Incompletes stripped from lists"
     (DList [Dval.dint 5; Dval.dint 6])
-    (exec_ast' (list [int 5; int 6; fn "List::head" [blank ()]])) ;
+    (exec_ast (list [int 5; int 6; fn "List::head" [blank ()]])) ;
   check_dval
     "Blanks stripped from lists"
     (DList [Dval.dint 5; Dval.dint 6])
-    (exec_ast' (list [int 5; int 6; blank ()])) ;
+    (exec_ast (list [int 5; int 6; blank ()])) ;
   check_dval
     "Blanks stripped from objects"
     (DObj (DvalMap.from_list [("m", Dval.dint 5); ("n", Dval.dint 6)]))
-    (exec_ast'
+    (exec_ast
        (record
           [ ("i", blank ())
           ; ("m", int 5)
@@ -241,53 +238,53 @@ let t_incomplete_propagation () =
           ; ("n", int 6) ])) ;
   check_incomplete
     "incomplete if conds are incomplete"
-    (exec_ast' (if' (blank ()) (int 5) (int 6))) ;
+    (exec_ast (if' (blank ()) (int 5) (int 6))) ;
   check_dval
     "blanks in threads are ignored"
     (Dval.dint 8)
-    (exec_ast' (pipe (int 5) [blank (); binop "+" pipeTarget (int 3)])) ;
+    (exec_ast (pipe (int 5) [blank (); binop "+" pipeTarget (int 3)])) ;
   check_dval
     "incomplete in the middle of a thread is skipped"
     (Dval.dint 8)
-    (exec_ast'
+    (exec_ast
        (pipe
           (int 5)
           [binop "+" pipeTarget (blank ()); binop "+" pipeTarget (int 3)])) ;
   check_dval
     "incomplete at the end of a thread is skipped"
     (Dval.dint 5)
-    (exec_ast' (pipe (int 5) [binop "+" pipeTarget (blank ())])) ;
-  check_incomplete "empty thread is incomplete" (exec_ast' (pipe (blank ()) [])) ;
+    (exec_ast (pipe (int 5) [binop "+" pipeTarget (blank ())])) ;
+  check_incomplete "empty thread is incomplete" (exec_ast (pipe (blank ()) [])) ;
   check_incomplete
     "incomplete obj in field access is incomplete"
-    (exec_ast' (fieldAccess (fn "List::head" [blank ()]) "field")) ;
+    (exec_ast (fieldAccess (fn "List::head" [blank ()]) "field")) ;
   check_incomplete
     "incomplete name in field access is incomplete"
-    (exec_ast' (fieldAccess (record [("i", int 5)]) "")) ;
+    (exec_ast (fieldAccess (record [("i", int 5)]) "")) ;
   ()
 
 
 let t_derror_propagation () =
   check_error
     "Mapping error results in error"
-    (exec_ast'
+    (exec_ast
        (fn
           "List::map"
           [list [int 1; int 2; int 3; int 4; int 5]; lambda ["x"; "y"] (var "x")]))
     "Expected 2 arguments, got 1" ;
   check_incomplete
     "Incomplete in Just results in Incomplete"
-    (exec_ast' (just (blank ()))) ;
+    (exec_ast (just (blank ()))) ;
   check_incomplete
     "Incomplete in Ok results in Incomplete"
-    (exec_ast' (ok (blank ()))) ;
+    (exec_ast (ok (blank ()))) ;
   check_incomplete
     "Incomplete in Error results in Incomplete"
-    (exec_ast' (error (blank ()))) ;
+    (exec_ast (error (blank ()))) ;
   check_dval
     "ErrorRail in Error results in ErrorRail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast' (error (fn "List::last_v1" ~ster:Rail [list []]))) ;
+    (exec_ast (error (fn "List::last_v1" ~ster:Rail [list []]))) ;
   ()
 
 
@@ -299,15 +296,15 @@ let t_errorrail_simple () =
   check_dval
     "rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast' (error (fn "List::last_v1" ~ster:Rail [list []]))) ;
+    (exec_ast (error (fn "List::last_v1" ~ster:Rail [list []]))) ;
   check_dval
     "no rail"
     (DOption OptNothing)
-    (exec_ast' (fn "Dict::get_v1" [record []; str "i"])) ;
+    (exec_ast (fn "Dict::get_v1" [record []; str "i"])) ;
   check_dval
     "no rail deeply nested"
     (Dval.dint 8)
-    (exec_ast'
+    (exec_ast
        (pipe
           (list [int 5])
           [ fn "List::head_v1" ~ster:Rail [pipeTarget]
@@ -321,7 +318,7 @@ let t_errorrail_simple () =
   check_dval
     "to rail deeply nested"
     (DErrorRail (DOption OptNothing))
-    (exec_ast'
+    (exec_ast
        (pipe
           (list [])
           [ fn "List::head_v1" ~ster:Rail [pipeTarget]
@@ -339,7 +336,7 @@ let t_errorrail_toplevel () =
   check_dval
     "Errorrail goes to 404"
     (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"))
-    (exec_handler'
+    (exec_handler
        (pipe
           (list [])
           [ fn "List::head_v1" ~ster:Rail [pipeTarget]
@@ -353,7 +350,7 @@ let t_errorrail_toplevel () =
   check_dval
     "No errorrail goes to option"
     (DOption OptNothing)
-    (exec_handler' (fn "List::head_v1" [list []])) ;
+    (exec_handler (fn "List::head_v1" [list []])) ;
   ()
 
 
@@ -361,26 +358,26 @@ let t_error_rail_is_propagated_by_functions () =
   check_dval
     "push"
     (DErrorRail (DOption OptNothing))
-    (exec_ast'
+    (exec_ast
        (fn
           "List::push"
           [ list [int 1; int 2; int 3; int 4]
           ; fn "List::head_v1" ~ster:Rail [list []] ])) ;
   check_incomplete
     "filter with incomplete"
-    (exec_ast'
+    (exec_ast
        (fn
           "List::filter_v1"
           [list [int 1; int 2; int 3; int 4]; lambda ["x"] (blank ())])) ;
   check_incomplete
     "map with incomplete"
-    (exec_ast'
+    (exec_ast
        (fn
           "List::map"
           [list [int 1; int 2; int 3; int 4]; lambda ["x"] (blank ())])) ;
   check_incomplete
     "fold with incomplete"
-    (exec_ast'
+    (exec_ast
        (fn
           "List::fold"
           [ list [int 1; int 2; int 3; int 4]
@@ -389,7 +386,7 @@ let t_error_rail_is_propagated_by_functions () =
   check_dval
     "filter with error rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast'
+    (exec_ast
        (fn
           "List::filter_v1"
           [ list [int 1; int 2; int 3; int 4]
@@ -397,7 +394,7 @@ let t_error_rail_is_propagated_by_functions () =
   check_dval
     "map with error rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast'
+    (exec_ast
        (fn
           "List::map"
           [ list [int 1; int 2; int 3; int 4]
@@ -405,7 +402,7 @@ let t_error_rail_is_propagated_by_functions () =
   check_dval
     "fold with error rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast'
+    (exec_ast
        (fn
           "List::fold"
           [ list [int 1; int 2; int 3; int 4]
@@ -470,7 +467,7 @@ let t_typecheck_any () =
 let t_typechecker_error_isnt_wrapped_by_errorail () =
   check_condition
     "typechecker_error_dict_get"
-    (exec_ast' (fn "Dict::get_v1" [fn "List::empty" []; str "hello"]))
+    (exec_ast (fn "Dict::get_v1" [fn "List::empty" []; str "hello"]))
     ~f:(function DError _ -> true | _ -> false)
 
 
@@ -478,7 +475,7 @@ let t_typechecker_return_types () =
   let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (f (Value "5")) in
   check_condition
     "typecheck userfn with bad return type"
-    (exec_ast' ~ops:[fop myBadFn] (fn "myBadFn" []))
+    (exec_ast ~ops:[fop myBadFn] (fn "myBadFn" []))
     ~f:(function
       | DError
           ( SourceId _
@@ -492,12 +489,12 @@ let t_typechecker_return_types () =
   in
   check_dval
     "typecheck userfn with good return type"
-    (exec_ast' ~ops:[fop myGoodFn] (fn "myGoodFn" []))
+    (exec_ast ~ops:[fop myGoodFn] (fn "myGoodFn" []))
     (Dval.dstr_of_string_exn "str") ;
   let myAnyFn = user_fn "myAnyFn" ~return_type:TAny [] (f (Value "5")) in
   check_dval
     "typecheck userfn with any return type"
-    (exec_ast' ~ops:[fop myAnyFn] (fn "myAnyFn" []))
+    (exec_ast ~ops:[fop myAnyFn] (fn "myAnyFn" []))
     (Dval.dint 5) ;
   ()
 
@@ -505,7 +502,7 @@ let t_typechecker_return_types () =
 let t_int_functions_works () =
   check_condition
     "Int::random_v1 0 3 returns a number between [0,3]"
-    (exec_ast' (fn "Int::random_v1" [int 0; int 3]))
+    (exec_ast (fn "Int::random_v1" [int 0; int 3]))
     ~f:(fun dv ->
       match dv with
       | DInt i ->
@@ -514,7 +511,7 @@ let t_int_functions_works () =
           false) ;
   check_condition
     "Int::random_v1 3 0, will swap 3 0 and returns a number between [0,3]"
-    (exec_ast' (fn "Int::random_v1" [int 3; int 0]))
+    (exec_ast (fn "Int::random_v1" [int 3; int 0]))
     ~f:(fun dv ->
       match dv with
       | DInt i ->
@@ -530,7 +527,7 @@ let t_int_functions_works () =
 let t_dark_internal_fns_are_internal () =
   let ast = fn "DarkInternal::checkAccess" [] in
   let check_access canvas_name =
-    match exec_ast' ~canvas_name ast with DError _ -> None | dval -> Some dval
+    match exec_ast ~canvas_name ast with DError _ -> None | dval -> Some dval
   in
   AT.check
     (AT.list (AT.option at_dval))

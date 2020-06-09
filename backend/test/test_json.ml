@@ -151,7 +151,7 @@ let t_result_to_response_works () =
          |> Lwt_main.run
          |> fst
          |> check)
-       [ ( exec_ast' (record [])
+       [ ( exec_ast (record [])
          , req
          , None
          , fun r ->
@@ -160,7 +160,7 @@ let t_result_to_response_works () =
                "objects get application/json content-type"
                (Some "application/json; charset=utf-8")
                (Header.get (Resp.headers r) "Content-Type") )
-       ; ( exec_ast' (list [int 1; int 2])
+       ; ( exec_ast (list [int 1; int 2])
          , req
          , None
          , fun r ->
@@ -169,7 +169,7 @@ let t_result_to_response_works () =
                "lists get application/json content-type"
                (Some "application/json; charset=utf-8")
                (Header.get (Resp.headers r) "Content-Type") )
-       ; ( exec_ast' (int 2)
+       ; ( exec_ast (int 2)
          , req
          , None
          , fun r ->
@@ -178,7 +178,7 @@ let t_result_to_response_works () =
                "other things get text/plain content-type"
                (Some "text/plain; charset=utf-8")
                (Header.get (Resp.headers r) "Content-Type") )
-       ; ( exec_ast' (fn "Http::success" [record []])
+       ; ( exec_ast (fn "Http::success" [record []])
          , req
          , None
          , fun r ->
@@ -187,7 +187,7 @@ let t_result_to_response_works () =
                "Http::success gets application/json"
                (Some "application/json; charset=utf-8")
                (Header.get (Resp.headers r) "Content-Type") )
-       ; ( exec_ast' (int 1)
+       ; ( exec_ast (int 1)
          , req
          , None
          , fun r ->
@@ -214,7 +214,7 @@ let t_result_to_response_works () =
                "we get Access-Control-Allow-Origin: * even for incompletes."
                (Some "*")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-       ; ( exec_ast' (int 1)
+       ; ( exec_ast (int 1)
          , req
          , Some Canvas.AllOrigins
          , fun r ->
@@ -223,7 +223,7 @@ let t_result_to_response_works () =
                "with explicit wildcard setting, we get Access-Control-Allow-Origin: *."
                (Some "*")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-       ; ( exec_ast' (int 1)
+       ; ( exec_ast (int 1)
          , req
          , Some (Canvas.Origins ["https://example.com"])
          , fun r ->
@@ -232,7 +232,7 @@ let t_result_to_response_works () =
                "with whitelist setting and no Origin, we get no Access-Control-Allow-Origin"
                None
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-       ; ( exec_ast' (int 1)
+       ; ( exec_ast (int 1)
          , req_example_com
          , Some (Canvas.Origins ["https://example.com"])
          , fun r ->
@@ -241,7 +241,7 @@ let t_result_to_response_works () =
                "with whitelist setting and matching Origin, we get good Access-Control-Allow-Origin"
                (Some "https://example.com")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-       ; ( exec_ast' (int 1)
+       ; ( exec_ast (int 1)
          , req_google_com
          , Some (Canvas.Origins ["https://example.com"])
          , fun r ->

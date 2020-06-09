@@ -25,7 +25,7 @@ let t_case_insensitive_db_roundtrip () =
          [record [("cOlUmNnAmE", str "some value")]; var "TestUnicode"])
       (fn "DB::getAll_v2" [var "TestUnicode"])
   in
-  match exec_handler' ~ops ast with
+  match exec_handler ~ops ast with
   | DList [DObj v] ->
       (let open AT in
       check bool)
@@ -58,14 +58,14 @@ let t_nulls_allowed_in_db () =
          (fn "DB::get_v1" ~ster:Rail [str "hello"; var "MyDB"])
          (binop "==" (var "old") (var "new")))
   in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler' ~ops ast)
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
 let t_inserting_object_to_missing_col_gives_good_error () =
   clear_test_data () ;
   check_error_contains
     "error is expected"
-    (exec_handler'
+    (exec_handler
        (fn "DB::add_v0" [record [("col", record [])]; var "TestDB"])
        ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
     "Found but did not expect: [col]"
@@ -81,7 +81,7 @@ let t_nulls_added_to_missing_column () =
     ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   ignore
-    (exec_handler'
+    (exec_handler
        ~ops
        (fn "DB::set_v1" [record [("x", str "v")]; str "i"; var "MyDB"])) ;
   let ops =
@@ -97,7 +97,7 @@ let t_nulls_added_to_missing_column () =
        ; DObj
            (DvalMap.from_list
               [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)]) ])
-    (exec_handler'
+    (exec_handler
        ~ops
        (fn "List::head" [fn "DB::getAllWithKeys_v1" [var "MyDB"]]))
 
@@ -128,7 +128,7 @@ let t_uuid_db_roundtrip () =
     AT.int
     "A generated UUID can round-trip from the DB"
     0
-    ( match exec_handler' ~ops ast with
+    ( match exec_handler ~ops ast with
     | DList [p1; p2] ->
         compare_dval compare_expr p1 p2
     | _ ->
@@ -161,7 +161,7 @@ let t_password_hash_db_roundtrip () =
     AT.int
     "A Password::hash'd string can get stored in and retrieved from a user datastore."
     0
-    ( match exec_handler' ~ops ast with
+    ( match exec_handler ~ops ast with
     | DList [p1; p2] ->
         compare_dval compare_expr p1 p2
     | _ ->
