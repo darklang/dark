@@ -551,6 +551,7 @@ let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
     ~user_fns
     ~user_tipes
     ~package_fns
+    ~secrets:[]
     ~account_id
     ~canvas_id
     ~load_fn_result
