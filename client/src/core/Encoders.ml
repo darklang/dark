@@ -505,7 +505,7 @@ and secret (s : Types.secret) : Js.Json.t =
   object_
     [ ("secret_name", string s.secretName)
     ; ("secret_value", string s.secretValue)
-    ; ("value_version", int s.valueVersion) ]
+    ; ("secret_version", int s.secretVersion) ]
 
 
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams) :

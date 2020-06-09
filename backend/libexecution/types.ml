@@ -653,6 +653,6 @@ module RuntimeT = struct
   type secret =
     { secret_name : string
     ; secret_value : string
-    ; value_version : int }
+    ; secret_version : int }
   [@@deriving eq, show, yojson, bin_io]
 end
