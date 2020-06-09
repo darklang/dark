@@ -735,7 +735,9 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   let openTooltip, tooltipView =
     match c.tooltip with
     | Some tt ->
-        let description, details, action, tipClass = Tooltips.getTooltipViewInfo tt in
+        let description, details, action, tipClass =
+          Tooltips.getTooltipViewInfo tt
+        in
         let view =
           Tooltips.viewToolTipT
             ~direction:Bottom

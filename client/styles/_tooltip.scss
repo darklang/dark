@@ -27,7 +27,23 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
     }
 
     &.right-of {
-      right: 100%;
+      left: 20px;
+      bottom: -25px;
+
+      .tip {
+        left: -5px;
+        bottom: 25px;
+      }
+    }
+
+    &.left-of {
+      right: 50px;
+      top: -60px;
+
+      .tip {
+        right: -5px;
+        top: 25px;
+      }
     }
 
     &.above {
@@ -62,6 +78,7 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       letter-spacing: 0.02em;
       color: $black2;
       margin: 0px;
+      text-align: center;
     }
 
     .details {
@@ -113,19 +130,3 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
     }
   }
 }
-
-//   &.left-of {
-//     display: flex;
-//     align-items: center;
-//     flex-direction: row-reverse;
-
-//     .tip {
-//       right: 5px;
-//     }
-//   }
-
-//
-
-//
-
-// }

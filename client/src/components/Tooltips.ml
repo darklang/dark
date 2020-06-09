@@ -18,7 +18,7 @@ let update (currentTooltip : tooltip option) (msg : toolTipMsg) : modification =
 
 
 let getTooltipViewInfo (tooltip : tooltip) :
-  string * string option * (string * msg) option * string =
+    string * string option * (string * msg) option * string =
   match tooltip with
   | Http ->
       ( "Click the plus sign to create a REST API endpoint."
@@ -76,7 +76,7 @@ let getTooltipViewInfo (tooltip : tooltip) :
           ( "Learn More"
           , ToolTipMsg
               (OpenLink
-                  "https://darklang.github.io/docs/trace-driven-development") )
+                 "https://darklang.github.io/docs/trace-driven-development") )
       , "align-left" )
   | Deleted ->
       ("Deleted handlers appear here.", None, None, "align-left")
@@ -95,7 +95,7 @@ let getTooltipViewInfo (tooltip : tooltip) :
               (OpenLink "https://darklang.github.io/docs/static-assets") )
       , "align-left" )
 
-    
+
 let viewToolTipT
     ~(direction : toolTipDirection)
     ~(tipClass : string option)
