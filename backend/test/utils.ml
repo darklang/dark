@@ -456,6 +456,7 @@ let execute_ops
       ~user_fns
       ~user_tipes
       ~package_fns
+      ~secrets:[]
       ~account_id
       ~load_fn_result
       ~load_fn_arguments

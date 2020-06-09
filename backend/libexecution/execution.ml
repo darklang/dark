@@ -35,6 +35,12 @@ let http_route_input_vars
   Http.bind_route_variables_exn ~route request_path
 
 
+let secrets_as_input_vars (secrets : secret list) :
+    (string * 'expr_type dval) list =
+  List.map secrets ~f:(fun s ->
+      (s.secret_name, DStr (Unicode_string.of_string_exn s.secret_value)))
+
+
 (* -------------------- *)
 (* Sample input vars *)
 (* -------------------- *)
@@ -99,6 +105,7 @@ let execute_handler
     ~user_fns
     ~user_tipes
     ~package_fns
+    ~secrets
     ~account_id
     ~canvas_id
     ?(parent = (None : Span.t option))
@@ -108,7 +115,9 @@ let execute_handler
     ?(store_fn_arguments = store_no_arguments)
     (h : RuntimeT.expr HandlerT.handler) : RuntimeT.expr dval * tlid list =
   let f unit =
-    let input_vars = dbs_as_input_vars dbs @ input_vars in
+    let input_vars =
+      dbs_as_input_vars dbs @ secrets_as_input_vars secrets @ input_vars
+    in
     let tlid_store = TLIDTable.create () in
     let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
     let state : 'expr_type exec_state =

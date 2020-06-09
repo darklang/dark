@@ -648,4 +648,11 @@ module RuntimeT = struct
         |> Some
     | _ ->
         None
+
+
+  type secret =
+    { secret_name : string
+    ; secret_value : string
+    ; value_version : int }
+  [@@deriving eq, yojson]
 end

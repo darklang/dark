@@ -562,6 +562,7 @@ let user_page_handler
               ~user_fns:(Types.IDMap.data !c.user_functions)
               ~user_tipes:(Types.IDMap.data !c.user_tipes)
               ~package_fns:!c.package_fns
+              ~secrets:(Secret.secrets_in_canvas !c.id)
               ~tlid:page.tlid
               ~dbs:(TL.dbs !c.dbs)
               ~input_vars:
@@ -1163,6 +1164,7 @@ let trigger_handler
                 ~user_tipes:(!c.user_tipes |> Map.data)
                 ~user_fns:(!c.user_functions |> Map.data)
                 ~package_fns:!c.package_fns
+                ~secrets:[]
                 ~account_id:!c.owner
                 ~canvas_id
                 ~store_fn_arguments:(fun tlid dvalmap ->
@@ -1410,6 +1412,28 @@ let delete_404 ~(execution_id : Types.id) (parent : Span.t) (host : string) body
       "{ \"result\" : \"deleted\" } "
   with e -> raise e
 
+
+(* let get_secrets ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
+: (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+try
+let t1, unlocked =
+  time "1-analyze-unlocked-dbs" (fun _ ->
+      let canvas_id, account_id =
+        Canvas.id_and_account_id_for_name_exn host
+      in
+      Analysis.unlocked ~canvas_id ~account_id)
+in
+let t2, result =
+  time "2-to-frontend" (fun _ ->
+      Analysis.to_get_unlocked_dbs_rpc_result unlocked)
+in
+respond
+  ~execution_id
+  ~resp_headers:(server_timing [t1; t2])
+  parent
+  `OK
+  result
+with e -> raise e *)
 
 (* ------------------- *)
 (* Loading html pages *)

@@ -57,6 +57,7 @@ val execute_handler :
   -> user_fns:Types.RuntimeT.expr Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
   -> package_fns:Types.RuntimeT.expr Types.RuntimeT.fn list
+  -> secrets: Types.RuntimeT.secret list
   -> account_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> ?parent:Telemetry.Span.t option
