@@ -243,6 +243,20 @@ let get_user username =
              None)
 
 
+let get_user_created_at username =
+  Db.fetch_one_option
+    ~name:"get_user_and_created_at"
+    ~subject:username
+    "SELECT created_at from accounts
+     WHERE accounts.username = $1"
+    ~params:[String username]
+  |> Option.bind ~f:(function
+         | [created_at] ->
+             Some (created_at |> Db.date_of_sqlstring)
+         | _ ->
+             None)
+
+
 let get_user_and_created_at_and_segment_metadata username =
   Db.fetch_one_option
     ~name:"get_user_and_created_at"

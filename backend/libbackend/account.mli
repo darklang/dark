@@ -55,6 +55,10 @@ val set_admin : username:string -> bool -> unit
 (* Get a user's info *)
 val get_user : string -> user_info option
 
+(** [get_user_created_at username] returns the time that the account with the given username was created,
+* as an option. Returns None if the username does not exist. *)
+val get_user_created_at : string -> Core_kernel.Time.t option
+
 val get_user_and_created_at_and_segment_metadata :
   string -> (user_info_and_created_at * Yojson.Safe.t) option
 

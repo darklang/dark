@@ -1447,8 +1447,15 @@ let admin_ui_html
     ~(canvas_id : Uuidm.t)
     ~(csrf_token : string)
     ~(local : string option)
+    ~(account_created : Core_kernel.Time.t)
     (username : string)
     (admin : bool) =
+  let account_created_msts =
+    account_created
+    |> Core_kernel.Time.to_span_since_epoch
+    |> Core_kernel.Time.Span.to_ms
+    |> Float.iround_exn
+  in
   let static_host =
     match local with
     (* TODO: if you want access, we can make this more general *)
@@ -1472,6 +1479,9 @@ let admin_ui_html
        else "" )
   |> Util.string_replace "{{STATIC}}" static_host
   |> Util.string_replace "{{IS_ADMIN}}" (string_of_bool admin)
+  |> Util.string_replace
+       "{{ACCOUNT_CREATION_UNIX_MSTS}}"
+       (string_of_int account_created_msts)
   |> Util.string_replace "{{ROLLBARCONFIG}}" rollbar_js
   |> Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
   |> Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
@@ -1724,6 +1734,7 @@ let admin_ui_handler
     ~(path : string list)
     ~(canvasname : string)
     ~(body : string)
+    ~(account_created : Core_kernel.Time.t)
     ~(username : string)
     ~(csrf_token : string)
     ~(admin : bool)
@@ -1779,7 +1790,13 @@ let admin_ui_handler
       when_can_view ~canvas (fun canvas_id ->
           if integration_test then Canvas.load_and_resave_from_test_file canvas ;
           let html =
-            admin_ui_html ~canvas_id ~csrf_token ~local username admin
+            admin_ui_html
+              ~canvas_id
+              ~csrf_token
+              ~local
+              ~account_created
+              username
+              admin
           in
           respond ~resp_headers:html_hdrs ~execution_id parent `OK html)
   | `GET, ["a"; canvas] ->
@@ -1951,10 +1968,16 @@ let admin_handler
         req
   | "a" :: canvasname :: _ ->
       Span.set_attr parent "canvas" (`String canvasname) ;
+      let account_created =
+        Account.get_user_created_at username
+        (* If we get here, we know the username exists *)
+        |> Option.value_exn
+      in
       admin_ui_handler
         ~execution_id
         ~path
         ~body
+        ~account_created
         ~username
         ~canvasname
         ~csrf_token
