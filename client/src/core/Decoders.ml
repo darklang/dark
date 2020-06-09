@@ -650,7 +650,7 @@ let fof j : fourOhFour =
   ; traceID = index 4 traceID j }
 
 
-let secret j : secret =
+let secret j : SecretTypes.t =
   { secretName = field "secret_name" string j
   ; secretValue = field "secret_value" string j }
 

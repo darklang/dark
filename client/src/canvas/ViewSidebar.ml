@@ -716,7 +716,7 @@ let viewDeployStats (m : model) : msg Html.html =
   Html.details ~unique:"deploys" [classes; openAttr] [summary; content]
 
 
-let viewSecretItem (s : secret) : msg Html.html =
+let viewSecret (s : SecretTypes.t) : msg Html.html =
   let copyMsg =
     ViewUtils.eventNeither
       "click"
@@ -737,7 +737,7 @@ let viewSecretItem (s : secret) : msg Html.html =
     ; copyBtn ]
 
 
-let viewSecrets (m : model) : msg Html.html =
+let viewSecretKeys (m : model) : msg Html.html =
   let count = List.length m.secrets in
   let openEventHandler, openAttr =
     categoryOpenCloseHelpers m.sidebarState "secrets" count
@@ -759,16 +759,23 @@ let viewSecrets (m : model) : msg Html.html =
         (* TODO(alice) make tooltip message for secret *)
       else Vdom.noProp
     in
+    let plusBtn =
+      iconButton
+        ~key:"plus-secret"
+        ~icon:"plus-circle"
+        ~classname:"create-tl-icon"
+        (IgnoreMsg "make new secret")
+    in
     let header =
       Html.div
         [Html.class' "category-header"; openTooltip]
         [categoryButton "secrets" "Secret Keys"; title]
     in
-    Html.summary [openEventHandler; Html.class' "category-summary"] [header]
+    Html.summary [openEventHandler; Html.class' "category-summary"] [header; plusBtn]
   in
   let entries =
     if count > 0
-    then List.map m.secrets ~f:viewSecretItem
+    then List.map m.secrets ~f:viewSecret
     else
       [Html.div [Html.class' "simple-item empty"] [Html.text "No secret keys"]]
   in
@@ -1082,7 +1089,7 @@ let viewSidebar_ (m : model) : msg Html.html =
   let content =
     let categories =
       List.map ~f:(viewCategory m) cats
-      @ [viewSecrets m; viewDeployStats m; showAdminDebugger]
+      @ [viewSecretKeys m; viewDeployStats m; showAdminDebugger]
     in
     Html.div
       [ Html.classList

@@ -2163,6 +2163,9 @@ let update_ (msg : msg) (m : model) : modification =
            err)
   | UploadFnAPICallback (_, Ok _) ->
       Model.updateErrorMod (Error.set "Successfully uploaded function")
+  | SecretMsg msg ->
+      Debug.loG "secret msg" msg;
+      NoChange
 
 
 let rec filter_read_only (m : model) (modification : modification) =

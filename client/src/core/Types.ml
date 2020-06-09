@@ -314,10 +314,6 @@ and toplevel =
 
 and packageFns = packageFn TLIDDict.t
 
-and secret =
-  { secretName : string
-  ; secretValue : string }
-
 (* ---------------------- *)
 (* dvals *)
 (* ---------------------- *)
@@ -727,7 +723,7 @@ and performHandlerAnalysisParams =
   ; dbs : db list
   ; userFns : userFunction list
   ; userTipes : userTipe list
-  ; secrets : secret list }
+  ; secrets : SecretTypes.t list }
 
 and performFunctionAnalysisParams =
   { func : userFunction
@@ -818,7 +814,7 @@ and initialLoadAPIResult =
   ; orgs : string list
   ; orgCanvasList : string list
   ; workerSchedules : string StrDict.t
-  ; secrets : secret list
+  ; secrets : SecretTypes.t list
   ; creationDate : Js.Date.t [@opaque] }
 
 and saveTestAPIResult = string
@@ -1414,6 +1410,7 @@ and msg =
   | ToolTipMsg of toolTipMsg
   | UpdateSegment of segmentTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg
+  | SecretMsg of SecretTypes.msg
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1798,7 +1795,8 @@ and model =
   ; settingsView : SettingsViewTypes.settingsViewState
   ; firstVisitToThisCanvas : bool
         (* indicates if it is the users first time this canvas *)
-  ; secrets : secret list }
+  ; secrets : SecretTypes.t list
+  ; createSecretModal : SecretTypes.createModal }
 
 and savedUserSettings =
   { showUserWelcomeModal : bool
