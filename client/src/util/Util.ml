@@ -82,13 +82,13 @@ external formatDate : Js.Date.t * string -> string = "formatDate"
 
 (* Obscures string keeping only last n characters, and replacing everything else with X.
  If string length < n, then returns X of string length  *)
-let obscureString ?(n : int = 4) (s : string) : string =
+let obscureString (s : string) : string =
   let len = String.length s in
-  if len < n
-  then String.repeat ~count:len "X"
-  else
-    let diff = len - n in
-    String.repeat ~count:diff "X" ^ String.dropLeft ~count:diff s
+  let n = Int.minimum 4 (len / 4) in
+  let diff = len - n in
+  if diff > 0
+  then String.repeat ~count:diff "X" ^ String.dropLeft ~count:diff s
+  else String.repeat ~count:len "X"
 
 
 module Regex = struct
