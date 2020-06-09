@@ -18,7 +18,7 @@ let update (currentTooltip : tooltip option) (msg : toolTipMsg) : modification =
 
 
 let getTooltipViewInfo (tooltip : tooltip) :
-    string * string option * (string * msg) option * string =
+  string * string option * (string * msg) option * string =
   match tooltip with
   | Http ->
       ( "Click the plus sign to create a REST API endpoint."
@@ -76,7 +76,7 @@ let getTooltipViewInfo (tooltip : tooltip) :
           ( "Learn More"
           , ToolTipMsg
               (OpenLink
-                 "https://darklang.github.io/docs/trace-driven-development") )
+                  "https://darklang.github.io/docs/trace-driven-development") )
       , "align-left" )
   | Deleted ->
       ("Deleted handlers appear here.", None, None, "align-left")
@@ -95,17 +95,16 @@ let getTooltipViewInfo (tooltip : tooltip) :
               (OpenLink "https://darklang.github.io/docs/static-assets") )
       , "align-left" )
 
-
-let viewToolTip
+    
+let viewToolTipT
     ~(direction : toolTipDirection)
-    (currentTooltip : tooltip option)
-    (tooltip : tooltip) : msg Html.html =
-  let showTooltip =
-    match currentTooltip with Some tt when tt == tooltip -> true | _ -> false
-  in
-  if showTooltip
+    ~(tipClass : string option)
+    ~(shouldShow : bool)
+    (description : string)
+    (details : string option)
+    (action : (string * msg) option) : msg Html.html =
+  if shouldShow
   then
-    let description, details, action, tipClass = getTooltipViewInfo tooltip in
     let viewDesc =
       Html.h1 [Html.class' "description"] [Html.text description]
     in
@@ -138,6 +137,9 @@ let viewToolTip
           "left-of"
       | Right ->
           "right-of"
+    in
+    let tipClass =
+      match tipClass with Some classname -> classname | None -> ""
     in
     Html.div
       [Html.class' "tooltipWrapper"]
