@@ -949,6 +949,15 @@ let t_list_stdlibs_work () =
           [ list [int 1; int 2; int 3; int 4]
           ; lambda ["item"] (binop "<" (var "item") (int 3)) ])) ;
   check_dval
+    "List::dropWhile stops upon false"
+    (DList [Dval.dint 5; Dval.dint 2; Dval.dint 2])
+    (exec_ast'
+       (fn
+          "List::dropWhile"
+          [ list [int 1; int 5; int 2; int 2]
+          ; lambda ["item"] (binop "<" (var "item") (int 3)) ])) ;
+
+  check_dval
     "List::dropWhile works with empty input"
     (DList [])
     (exec_ast'
