@@ -4,29 +4,55 @@ open Util
 open Canvas
 open Tc
 
-let is_trival_op (op : 'expr_type Op.op) : bool =
-  match op with Op.TLSavepoint _ | Op.MoveTL _ -> true | _ -> false
+let is_create_op (op : 'expr_type Op.op) : bool =
+  match op with
+  | SetHandler _
+  | CreateDB _
+  | SetFunction _
+  | CreateDBWithBlankOr _
+  | SetType _ ->
+      true
+  | DeleteFunction _
+  | DeleteTLForever _
+  | DeleteFunctionForever _
+  | DeleteType _
+  | DeleteTypeForever _
+  | DeleteTL _
+  | DeleteDBCol _
+  | RenameDBname _
+  | ChangeDBColName _
+  | ChangeDBColType _
+  | SetExpr _
+  | AddDBCol _
+  | SetDBColName _
+  | SetDBColType _
+  | CreateDBMigration _
+  | AddDBColToDBMigration _
+  | SetDBColNameInDBMigration _
+  | SetDBColTypeInDBMigration _
+  | AbandonDBMigration _
+  | DeleteColInDBMigration _
+  | TLSavepoint _
+  | DeprecatedInitDbm _
+  | UndoTL _
+  | RedoTL _
+  | MoveTL _ ->
+      false
 
 
 (** [only_ops_since_last_savepoint ops] When we clone a canvas, we sometimes
-   * want to only copy over ops since the last TLSavepoint - this erases
+   * want to only copy over ops since the last toplevel definition (create) op - this erases
    * history, which is invisible and we don't really know at clone-time what's
    * in there, because we don't have any UI for inspecting history, nor do we
    * store timestamps or edited-by-user for ops
    * ("git blame"). *)
 let only_ops_since_last_savepoint (ops : 'expr_type Op.op list) :
     'expr_type Op.op list =
-  (* From the end of the list, take ops until you hit the first savepoint with non-trival ops  *)
-  let encountered_non_trival_op = ref false in
-  ops
-  |> List.reverse
-  |> List.take_while ~f:(fun op ->
-         if !encountered_non_trival_op
-         then match op with Op.TLSavepoint _ -> false | _ -> true
-         else (
-           encountered_non_trival_op := not (is_trival_op op) ;
-           true ))
-  |> List.reverse
+  match List.find_index ops ~f:is_create_op with
+  | Some count ->
+      if count > 0 then List.drop ~count ops else ops
+  | None ->
+      ops
 
 
 (** [update_hosts_in_op op ~old_host ~new_host] Given an [op], and an
