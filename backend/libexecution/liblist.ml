@@ -688,7 +688,7 @@ let fns =
                       | DBool true ->
                           f dvs
                       | DBool false ->
-					      dv :: dvs
+                          dv :: dvs
                       | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
                           abortReason := Some dv ;
                           []
@@ -713,7 +713,6 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-
   ; { prefix_names = ["List::take"]
     ; infix_names = []
     ; parameters = [par "list" TList; par "count" TInt]
