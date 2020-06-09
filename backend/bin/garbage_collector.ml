@@ -32,7 +32,9 @@ let () =
             in
             ( action
             , limit |> int_of_string
-            , Option.value_exn (canvas_id |> Uuidm.of_string) )
+            , canvas_id
+              |> Uuidm.of_string
+              |> (Option.value_exn : Uuidm.t option -> Uuidm.t) )
         | _ ->
             usage () ;
             Exception.internal "Can't happen, unreachable code"
