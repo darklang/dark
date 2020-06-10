@@ -664,16 +664,9 @@ let viewDeployStats (m : model) : msg Html.html =
   let title = categoryName "Static Assets" in
   let summary =
     let tooltip =
-      let description, details, action, tipClass =
-        Tooltips.getTooltipViewInfo StaticAssets
-      in
-      Tooltips.viewToolTipT
-        ~direction:Bottom
-        ~tipClass:(Some tipClass)
-        ~shouldShow:(m.tooltip = Some StaticAssets)
-        description
-        details
-        action
+      Tooltips.generateContent StaticAssets
+      |> Tooltips.viewToolTip
+           ~shouldShow:(m.tooltipState.tooltip = Some StaticAssets)
     in
     let openTooltip =
       if count = 0
@@ -681,7 +674,7 @@ let viewDeployStats (m : model) : msg Html.html =
         ViewUtils.eventNoPropagation
           ~key:"open-tooltip-deploys"
           "click"
-          (fun _ -> ToolTipMsg (Open StaticAssets))
+          (fun _ -> ToolTipMsg (OpenTooltip StaticAssets))
       else Vdom.noProp
     in
     let header =
@@ -735,22 +728,15 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   let openTooltip, tooltipView =
     match c.tooltip with
     | Some tt ->
-        let description, details, action, tipClass =
-          Tooltips.getTooltipViewInfo tt
-        in
         let view =
-          Tooltips.viewToolTipT
-            ~direction:Bottom
-            ~tipClass:(Some tipClass)
-            ~shouldShow:(m.tooltip = Some tt)
-            description
-            details
-            action
+          Tooltips.tooltipToTooltipSource tt
+          |> Tooltips.generateContent
+          |> Tooltips.viewToolTip ~shouldShow:(m.tooltipState.tooltip = Some tt)
         in
         ( ViewUtils.eventNoPropagation
             ~key:("open-tooltip-" ^ c.classname)
             "click"
-            (fun _ -> ToolTipMsg (Open tt))
+            (fun _ -> ToolTipMsg (OpenTooltip tt))
         , view )
     | None ->
         (Vdom.noProp, Vdom.noNode)
@@ -1073,7 +1059,7 @@ let rtCacheKey m =
   , m.permission
   , m.currentPage
   , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user)
-  , m.tooltip )
+  , m.tooltipState.tooltip )
   |> Option.some
 
 

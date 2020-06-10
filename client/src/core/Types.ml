@@ -1010,9 +1010,14 @@ and fnpMsg =
 
 (* Tool tips *)
 and toolTipMsg =
-  | Open of tooltip option
+  | OpenTooltip of tooltip
   | Close
   | OpenLink of string
+
+and tooltipState =
+  { tooltip : tooltip option
+        (* FOR USE IN NEAR FUTURE ; fnSpace : bool *)
+        (* FOR USE IN NEAR FUTURE ; userTutorial : tutorialStep option *) }
 
 (* Tutorial *)
 and tutorialMsg =
@@ -1034,13 +1039,6 @@ and sidebarMsg =
   | ToggleSidebarMode
   | ResetSidebar
   | MarkCategoryOpen of bool * string
-
-(* Tooltips *)
-and toolTipDirection =
-  | Left
-  | Right
-  | Top
-  | Bottom
 
 (* ------------------- *)
 (* Modifications *)
@@ -1792,7 +1790,7 @@ and model =
   ; showUserWelcomeModal : bool
         (* indicates if it is the users first time visiting any dark canvas *)
   ; userTutorial : tutorialStep option
-  ; tooltip : tooltip option
+  ; tooltipState : tooltipState (* ; tooltip : tooltip option *)
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState
   ; firstVisitToThisCanvas : bool
