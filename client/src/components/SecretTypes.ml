@@ -13,18 +13,20 @@ type msg =
   [@@deriving show]
 
 type createModal =
-  { secretName : string
+  { newSecretName : string
   ; isNameValid : bool
-  ; secretValue : string
+  ; newSecretValue : string
   ; isValueValid : bool
   ; error : string option
-  ; visible: bool }
+  ; visible: bool
+  ; usedNames : string list }
 [@@deriving show]
 
 let defaultCreateModal =
-  { secretName = ""
+  { newSecretName = ""
   ; isNameValid = true
-  ; secretValue = ""
+  ; newSecretValue = ""
   ; isValueValid = true
   ; error = None
-  ; visible = false}
+  ; visible = false
+  ; usedNames = []}

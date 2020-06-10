@@ -229,8 +229,7 @@ $icSize: 1em;
   @at-root .detailed & {
     &.fof > summary,
     &.deleted > summary,
-    &.package-manager > summary,
-    &.secrets > summary {
+    &.package-manager > summary {
       margin-left: -1 * $icSize;
     }
   }

@@ -1,3 +1,5 @@
+open Tc
+
 module Attr = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module Html = Tea_html_extended
@@ -9,23 +11,37 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let nameValidator = "[A-Z0-9_]+"
 
-let update (msg : msg) (m : createModal) : createModal =
+let update (msg : msg) (model : Types.model) : Types.modification =
+  let updateMod createSecretModal =
+    Types.ReplaceAllModificationsWithThisOne
+      (fun m -> ( {m with createSecretModal}, Cmd.none ))
+  in
+  let m = model.createSecretModal in
   match msg with
-  | OpenCreateModal -> {m with visible = true}
-  | CloseCreateModal -> {m with visible = false}
-  | OnUpdateName secretName ->
-    let isNameValid = Util.Regex.exactly ~re:nameValidator secretName in
-    let error = if isNameValid then None else Some "Secret name can only contain alphanumberic characters and underscores" in
-    {m with secretName; isNameValid; error}
-  | OnUpdateValue secretValue -> {m with secretValue}
-  | SaveNewSecret ->
-    let isValueValid = m.secretValue <> "" in
-    let isNameValid = Util.Regex.exactly ~re:nameValidator m.secretName in
-    if isValueValid && isNameValid
-    then SecretTypes.defaultCreateModal
-    else
-      let error = Some "Both secret name and secret values must be filled" in
-      {m with isValueValid; isNameValid; error}
+    | OpenCreateModal ->
+      let usedNames = List.map ~f:(fun s -> s.secretName) model.secrets in
+      updateMod {m with visible = true; usedNames}
+    | CloseCreateModal -> updateMod {m with visible = false}
+    | OnUpdateName newSecretName ->
+      let error =
+        if not (Util.Regex.exactly ~re:nameValidator newSecretName)
+        then Some "Secret name can only contain alphanumberic characters and underscores"
+        else if List.member ~value:newSecretName m.usedNames
+        then Some (newSecretName ^ " is already defined as a secret")
+        else None
+      in
+      let isNameValid = error = None in
+      updateMod {m with newSecretName; isNameValid; error}
+    | OnUpdateValue newSecretValue -> updateMod {m with newSecretValue}
+    | SaveNewSecret ->
+      let isValueValid = m.newSecretValue <> "" in
+      let isNameValid = Util.Regex.exactly ~re:nameValidator m.newSecretName in
+      if isValueValid && isNameValid
+      then
+        updateMod SecretTypes.defaultCreateModal
+      else
+        let error = Some "Both secret name and secret values must be filled" in
+        updateMod {m with isValueValid; isNameValid; error}
 
 let view (m : createModal) : Types.msg Html.html =
   if m.visible
@@ -45,12 +61,12 @@ let view (m : createModal) : Types.msg Html.html =
         let form =
           Html.form [Html.class' "create-secret-form"]
           [ Html.input'
-            [ Attr.placeholder "secret name"; Attr.name "secret-name" ; Attr.value m.secretName
+            [ Attr.placeholder "secret name"; Attr.name "secret-name" ; Attr.value m.newSecretName
             ; Html.classList [("modal-form-input", true);("error", not m.isNameValid)]
             ; Events.onInput (fun str -> Types.SecretMsg (OnUpdateName (Tc.String.toUpper str)))
             ] []
           ; Html.input'
-            [ Attr.placeholder "secret value"; Attr.name "secret-value" ;Attr.value m.secretValue
+            [ Attr.placeholder "secret value"; Attr.name "secret-value" ;Attr.value m.newSecretValue
             ; Html.classList [("modal-form-input", true);("error", not m.isValueValid)]
             ; Events.onInput (fun str -> Types.SecretMsg (OnUpdateValue str))] []
           ; Html.button

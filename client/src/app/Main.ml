@@ -2164,11 +2164,7 @@ let update_ (msg : msg) (m : model) : modification =
   | UploadFnAPICallback (_, Ok _) ->
       Model.updateErrorMod (Error.set "Successfully uploaded function")
   | SecretMsg msg ->
-      ReplaceAllModificationsWithThisOne
-      (fun m ->
-      let createSecretModal = CreateSecret.update msg m.createSecretModal in
-        ( {m with createSecretModal}
-        , Cmd.none ))
+    CreateSecret.update msg m
 
 
 let rec filter_read_only (m : model) (modification : modification) =
