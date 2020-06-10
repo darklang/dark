@@ -86,9 +86,9 @@ let obscureString (s : string) : string =
   let len = String.length s in
   let n = Int.minimum 4 (len / 4) in
   let diff = len - n in
-  if diff > 0
-  then String.repeat ~count:diff "X" ^ String.dropLeft ~count:diff s
-  else String.repeat ~count:len "X"
+  let redactedLeft = String.repeat ~count:diff "X" in
+  let visibleRight = String.dropLeft ~count:diff s
+  redactedLeft ^ visibleRight
 
 
 module Regex = struct
