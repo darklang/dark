@@ -12,7 +12,7 @@ type msg =
   | SaveNewSecret
 [@@deriving show]
 
-type createModal =
+type insertModal =
   { newSecretName : string
   ; isNameValid : bool
   ; newSecretValue : string
@@ -22,7 +22,7 @@ type createModal =
   ; usedNames : string list }
 [@@deriving show]
 
-let defaultCreateModal =
+let defaultInsertModal =
   { newSecretName = ""
   ; isNameValid = true
   ; newSecretValue = ""

@@ -53,11 +53,6 @@ type route_params =
   ; modifier : string }
 [@@deriving yojson]
 
-type insert_secret_params = RuntimeT.secret [@@deriving yojson]
-
-type secrets_list_results = {secrets : RuntimeT.secret list}
-[@@deriving to_yojson]
-
 let to_add_op_rpc_params (payload : string) : Types.fluid_expr add_op_rpc_params
     =
   let json = payload |> Yojson.Safe.from_string in
@@ -132,12 +127,17 @@ let to_route_params (payload : string) : route_params =
   |> Result.ok_or_failwith
 
 
+type insert_secret_params = RuntimeT.secret [@@deriving yojson]
+
 let to_insert_secret_params (payload : string) : insert_secret_params =
   payload
   |> Yojson.Safe.from_string
   |> insert_secret_params_of_yojson
   |> Result.ok_or_failwith
 
+
+type secrets_list_results = {secrets : RuntimeT.secret list}
+[@@deriving to_yojson]
 
 let to_secrets_list_results (secrets : RuntimeT.secret list) : string =
   {secrets} |> secrets_list_results_to_yojson |> Yojson.Safe.to_string ~std:true

@@ -1640,10 +1640,7 @@ let update_ (msg : msg) (m : model) : modification =
           let m = Introspect.refreshUsages m (TLID.Dict.tlids m.handlers) in
           (m, Cmd.none))
   | InsertSecretCallback (Ok secrets) ->
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          Debug.loG "InsertSecretCallback" secrets ;
-          ({m with secrets}, Cmd.none))
+      ReplaceAllModificationsWithThisOne (fun m -> ({m with secrets}, Cmd.none))
   | NewTracePush (traceID, tlids) ->
       let traces =
         List.map
@@ -2176,7 +2173,7 @@ let update_ (msg : msg) (m : model) : modification =
   | UploadFnAPICallback (_, Ok _) ->
       Model.updateErrorMod (Error.set "Successfully uploaded function")
   | SecretMsg msg ->
-      CreateSecret.update msg m
+      InsertSecret.update msg
 
 
 let rec filter_read_only (m : model) (modification : modification) =

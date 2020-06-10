@@ -9,48 +9,74 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let nameValidator = "[A-Z0-9_]+"
 
-let update (msg : msg) (model : Types.model) : Types.modification =
-  let updateMod ?(cmd = Cmd.none) createSecretModal =
-    Types.ReplaceAllModificationsWithThisOne
-      (fun m -> ({m with createSecretModal}, cmd))
-  in
-  let m = model.createSecretModal in
+let validateName (s : string) : bool = Util.Regex.exactly ~re:nameValidator s
+
+let validateValue (s : string) : bool = s <> ""
+
+let update (msg : msg) : Types.modification =
   match msg with
   | OpenCreateModal ->
-      let usedNames = List.map ~f:(fun s -> s.secretName) model.secrets in
-      updateMod {m with visible = true; usedNames}
+      Types.ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let usedNames = List.map ~f:(fun s -> s.secretName) m.secrets in
+          let insertSecretModal =
+            {m.insertSecretModal with visible = true; usedNames}
+          in
+          ({m with insertSecretModal}, Cmd.none))
   | CloseCreateModal ->
-      updateMod {m with visible = false}
+      Types.ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let insertSecretModal = SecretTypes.defaultInsertModal in
+          ({m with insertSecretModal}, Cmd.none))
   | OnUpdateName newSecretName ->
-      let error =
-        if not (Util.Regex.exactly ~re:nameValidator newSecretName)
-        then
-          Some
-            "Secret name can only contain alphanumberic characters and underscores"
-        else if List.member ~value:newSecretName m.usedNames
-        then Some (newSecretName ^ " is already defined as a secret")
-        else None
-      in
-      let isNameValid = error = None in
-      updateMod {m with newSecretName; isNameValid; error}
+      Types.ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let error =
+            if not (validateName newSecretName)
+            then
+              Some
+                "Secret name can only contain alphanumberic characters and underscores"
+            else if List.member
+                      ~value:newSecretName
+                      m.insertSecretModal.usedNames
+            then Some (newSecretName ^ " is already defined as a secret")
+            else None
+          in
+          let isNameValid = error = None in
+          let insertSecretModal =
+            {m.insertSecretModal with newSecretName; isNameValid; error}
+          in
+          ({m with insertSecretModal}, Cmd.none))
   | OnUpdateValue newSecretValue ->
-      updateMod {m with newSecretValue}
+      Types.ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let isValueValid = validateValue newSecretValue in
+          let insertSecretModal =
+            {m.insertSecretModal with newSecretValue; isValueValid}
+          in
+          ({m with insertSecretModal}, Cmd.none))
   | SaveNewSecret ->
-      let isValueValid = m.newSecretValue <> "" in
-      let isNameValid = Util.Regex.exactly ~re:nameValidator m.newSecretName in
-      if isValueValid && isNameValid
-      then
-        updateMod
-          ~cmd:
-            (API.insertSecret
-               model
-               { secretName = m.newSecretName
-               ; secretValue = m.newSecretValue
-               ; secretVersion = 0 })
-          SecretTypes.defaultCreateModal
-      else
-        let error = Some "Both secret name and secret values must be filled" in
-        updateMod {m with isValueValid; isNameValid; error}
+      Types.ReplaceAllModificationsWithThisOne
+        (fun m ->
+          let isValueValid = validateValue m.insertSecretModal.newSecretValue in
+          let isNameValid = validateName m.insertSecretModal.newSecretName in
+          let insertSecretModal, cmd =
+            if isValueValid && isNameValid
+            then
+              ( SecretTypes.defaultInsertModal
+              , API.insertSecret
+                  m
+                  { secretName = m.insertSecretModal.newSecretName
+                  ; secretValue = m.insertSecretModal.newSecretValue
+                  ; secretVersion = 0 } )
+            else
+              let error =
+                Some "Both secret name and secret values must be filled"
+              in
+              ( {m.insertSecretModal with isValueValid; isNameValid; error}
+              , Cmd.none )
+          in
+          ({m with insertSecretModal}, cmd))
 
 
 let onKeydown (evt : Web.Node.event) : Types.msg option =
@@ -63,7 +89,7 @@ let onKeydown (evt : Web.Node.event) : Types.msg option =
       None
 
 
-let view (m : createModal) : Types.msg Html.html =
+let view (m : insertModal) : Types.msg Html.html =
   if m.visible
   then
     let inside =

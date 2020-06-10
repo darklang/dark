@@ -1798,7 +1798,7 @@ and model =
   ; firstVisitToThisCanvas : bool
         (* indicates if it is the users first time this canvas *)
   ; secrets : SecretTypes.t list
-  ; createSecretModal : SecretTypes.createModal }
+  ; insertSecretModal : SecretTypes.insertModal }
 
 and savedUserSettings =
   { showUserWelcomeModal : bool

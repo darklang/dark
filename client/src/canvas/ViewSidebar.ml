@@ -756,7 +756,7 @@ let viewSecretKeys (m : model) : msg Html.html =
           ~key:"open-tooltip-secrets"
           "click"
           (fun _ -> IgnoreMsg "tooltip for secrets")
-        (* TODO(alice) make tooltip message for secret *)
+        (* TODO(alice) make tooltip message for secret, after tooltip merges *)
       else Vdom.noProp
     in
     let plusBtn =
