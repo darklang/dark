@@ -7,10 +7,24 @@ type t =
 type msg =
   | OpenCreateModal
   | CloseCreateModal
+  | OnUpdateName of string
+  | OnUpdateValue of string
   | SaveNewSecret
   [@@deriving show]
 
-type createModal = { newSecret: t ; visible: bool }
+type createModal =
+  { secretName : string
+  ; isNameValid : bool
+  ; secretValue : string
+  ; isValueValid : bool
+  ; error : string option
+  ; visible: bool }
 [@@deriving show]
 
-let defaultCreateModal = { newSecret = {secretName = "" ; secretValue = "" ;secretVersion = 0}; visible = false}
+let defaultCreateModal =
+  { secretName = ""
+  ; isNameValid = true
+  ; secretValue = ""
+  ; isValueValid = true
+  ; error = None
+  ; visible = false}

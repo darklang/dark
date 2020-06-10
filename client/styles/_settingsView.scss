@@ -129,25 +129,14 @@
       flex-wrap: wrap;
       margin-top: 25px;
       input {
-        background-color: $black3;
-        height: 35px;
-        width: 35ch;
-        padding: 0px 10px;
-        caret-color: $grey3;
-        color: $white1;
+        @extend .modal-form-input;
       }
     }
     .submit-btn {
-      width: 125px;
-      padding: 10px 15px;
-      background: $grey2;
-      border-radius: 3px;
-      margin-top: 35px;
-      cursor: pointer;
+      @extend .modal-form-button;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: $white1;
     }
   }
 }
