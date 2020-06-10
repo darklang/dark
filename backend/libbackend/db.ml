@@ -455,6 +455,15 @@ let fetch_one
           Exception.storage "Expected exactly one result, got many")
 
 
+let fetch_count
+    ~(params : 'expr_type param list)
+    ?(result = TextResult)
+    ~(name : string)
+    ?subject
+    (sql : string) : int =
+  fetch_one ~params ~result ~name ?subject sql |> List.hd_exn |> int_of_string
+
+
 let fetch_one_option
     ~(params : 'expr_type param list)
     ?(result = TextResult)
