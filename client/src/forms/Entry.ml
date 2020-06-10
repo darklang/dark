@@ -412,19 +412,14 @@ let submitACItem
             let wasEditing = P.isBlank pd |> not in
             let focus =
               if wasEditing && move = StayHere
-              then (
+              then
                 match next with
                 | None ->
-                    Debug.loG "FOCUSSAME" () ;
                     FocusSame
                 | Some nextID ->
-                    Debug.loG "FocusExact" () ;
-                    FocusExact (tlid, nextID) )
-              else (
-                Debug.loG "FocusNext" () ;
-                FocusNext (tlid, next) )
+                    FocusExact (tlid, nextID)
+              else FocusNext (tlid, next)
             in
-            Debug.loG "AddOpsFocus" () ;
             AddOps (ops, focus)
           in
           let wrapID ops = wrap ops (Some id) in
