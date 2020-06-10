@@ -1482,6 +1482,14 @@ let t_date_functions_work () =
     (DBool true)
     (exec_ast (binop "Date::>=" later_date later_date)) ;
   check_dval
+    "Date::today works"
+    (Dval.dstr_of_string_exn
+       (Core.Time.format
+          (Time.now ())
+          "%Y-%m-%dT00:00:00Z"
+          ~zone:Core.Time.Zone.utc))
+    (exec_ast (pipe (fn "Date::today" []) [fn "toString" [pipeTarget]])) ;
+  check_dval
     "Date::atStartOfDay works"
     (Dval.dstr_of_string_exn "2019-07-28T00:00:00Z")
     (exec_ast

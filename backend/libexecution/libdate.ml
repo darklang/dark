@@ -122,6 +122,24 @@ let fns : expr fn list =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
+  ; { prefix_names = ["Date::today"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TDate
+    ; description = "Returns the Date with the time set to midnight"
+    ; func =
+        InProcess
+          (function
+          | _, [] ->
+              Time.now ()
+              |> Time.to_date ~zone:Time.Zone.utc
+              |> (fun x ->
+                   Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
+              |> DDate
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Date::add"]
     ; infix_names = []
     ; parameters = [par "d" TDate; par "seconds" TInt]
