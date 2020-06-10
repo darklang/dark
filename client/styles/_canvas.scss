@@ -205,6 +205,14 @@ body #app * {
   }
 }
 
+.help-icon {
+  position: fixed;
+  bottom: 10px;
+  right: 230px;
+  font-size: 45px;
+  color: $cyan;
+}
+
 .minimap {
   position: fixed;
   bottom: 10px;
@@ -240,6 +248,10 @@ body #app * {
 
   &[src=""] {
     display: none;
+  }
+
+  .tooltips {
+    right: 0px;
   }
 
   .tooltips {
