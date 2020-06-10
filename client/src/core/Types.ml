@@ -1014,7 +1014,7 @@ and toolTipMsg =
 and tooltipState =
   { tooltipSource : tooltipSource option
   ; fnSpace : bool
-        (* FOR USE IN NEAR FUTURE ; userTutorial : tutorialStep option *) }
+  ; userTutorial : tutorialStep option }
 
 (* Tutorial *)
 and tutorialMsg =
@@ -1794,7 +1794,7 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
         (* indicates if it is the users first time visiting any dark canvas *)
-  ; userTutorial : tutorialStep option
+  (* ; userTutorial : tutorialStep option *)
   ; tooltipState : tooltipState
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState

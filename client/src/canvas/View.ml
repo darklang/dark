@@ -646,7 +646,6 @@ let view (m : model) : msg Html.html =
     if m.integrationTestState = NoIntegrationTest
     then
       UserTutorial.view
-        m.userTutorial
         m.username
         m.canvasName
         m.firstVisitToThisCanvas

@@ -32,7 +32,7 @@ let toModel (e : savedSettings) : model =
   ; sidebarState = e.sidebarState
   ; showTopbar = e.showTopbar
   ; firstVisitToThisCanvas = e.firstVisitToThisCanvas
-  ; userTutorial = e.userTutorial }
+  ; tooltipState = {m.tooltipState with userTutorial = e.userTutorial }}
 
 
 let model2editor (m : model) : savedSettings =
@@ -48,7 +48,7 @@ let model2editor (m : model) : savedSettings =
   ; sidebarState = m.sidebarState
   ; showTopbar = m.showTopbar
   ; firstVisitToThisCanvas = m.firstVisitToThisCanvas
-  ; userTutorial = m.userTutorial }
+  ; userTutorial = m.tooltipState.userTutorial }
 
 
 let fromString (json : string option) : savedSettings =
