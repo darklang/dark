@@ -367,6 +367,16 @@ let viewToolTip
       | Default ->
           Vdom.noNode
     in
+    let viewStepCount =
+      match t.tooltipStyle with
+      | Tutorial step ->
+          let current, total = currentStepFraction step in
+          Html.p
+            [Html.class' "step-title"]
+            [Html.text (Printf.sprintf "%d/%d" current total)]
+      | Default ->
+          Vdom.noNode
+    in
     let viewNextPrevBtns =
       match t.tooltipStyle with
       | Tutorial step ->
@@ -392,6 +402,11 @@ let viewToolTip
           [Html.class' ("tooltips " ^ directionToClass)]
           [ Html.div
               [Html.class' "content"]
-              [viewDesc; viewDetail; viewBtn; viewNextPrevBtns; closeBtn]
+              [ viewStepCount
+              ; viewDesc
+              ; viewDetail
+              ; viewBtn
+              ; viewNextPrevBtns
+              ; closeBtn ]
           ; Html.div [Html.class' ("tip " ^ t.tipAlignment)] [] ] ]
   else Vdom.noNode

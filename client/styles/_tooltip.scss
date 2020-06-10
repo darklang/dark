@@ -3,6 +3,7 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
 .tooltipWrapper {
   position: relative;
   .tooltips {
+    font-size: 14px;
     position: absolute;
     display: flex;
     width: max-content;
@@ -74,8 +75,13 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       padding: 8px;
     }
 
+    .step-title {
+      color: $black2;
+      text-align: center;
+    }
+
     .description {
-      font-size: 1.2em;
+      font-size: 18px;
       letter-spacing: 0.02em;
       color: $black2;
       margin: 0px;
@@ -84,7 +90,7 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
 
     .details {
       // font color for details text
-      font-size: 1em;
+      font-size: 16px;
       letter-spacing: 0.01em;
       color: darken(desaturate($tooltip-color, 30%), 50%);
       text-align: left;
@@ -99,7 +105,7 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
   }
 
   .btn-container {
-    display: flex;
+    display: flex !important;
     width: 100%;
     justify-content: space-evenly;
   }
@@ -120,7 +126,8 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
     &.page-btn {
       border: none;
       color: $black2;
-
+      width: 100%;
+      text-align: center;
       &[disabled] {
         color: darken($tooltip-color, 25%);
         cursor: default;

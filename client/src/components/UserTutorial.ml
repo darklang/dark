@@ -26,7 +26,7 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
       { title = "Select GET as the verb for your HTTP handler."
       ; details = None
       ; action = None
-      ; align = Top
+      ; align = Right
       ; tipAlignment = "align-left"
       ; tooltipStyle = Tutorial tutorialStep }
   | ReturnValue ->
@@ -34,7 +34,7 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
           "In the return value (the small light gray box inside your HTTP handler), type \"Hello World\". Make sure to include the quotes!"
       ; details = None
       ; action = None
-      ; align = Left
+      ; align = Right
       ; tipAlignment = "align-left"
       ; tooltipStyle = Tutorial tutorialStep }
   | OpenTab ->
