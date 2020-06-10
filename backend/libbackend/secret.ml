@@ -15,3 +15,13 @@ let secrets_in_canvas (canvas_id : Uuidm.t) : secret list =
              {secret_name; secret_value}
          | _ ->
              Exception.internal "Bad DB format for secrets")
+
+
+let insert_secret (canvas_id : Uuidm.t) (name : string) (value : string) : unit
+    =
+  Db.run
+    "INSERT INTO secrets
+    (canvas_id, secret_name, secret_value, secret_version)
+    VALUES ($1, $2, $3, 0)"
+    ~params:[Uuid canvas_id; String name; String value]
+    ~name:"insert secret for canvas"
