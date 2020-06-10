@@ -219,14 +219,17 @@ let trim_events_for_handler
                 AND path = $3
                 AND canvas_id = $4
                 AND timestamp < (NOW() - interval '1 week') LIMIT 10
-              )
+              ),
+              to_delete AS (SELECT trace_id FROM stored_events_v2
+                WHERE module = $1
+                AND modifier = $2
+                AND path = $3
+                AND canvas_id = $4
+                AND timestamp < (NOW() - interval '1 week')
+                AND trace_id NOT IN (SELECT trace_id FROM last_ten)
+                LIMIT $5)
               %s FROM stored_events_v2
-              WHERE module = $1
-              AND modifier = $2
-              AND path = $3
-              AND canvas_id = $4
-              AND timestamp < (NOW() - interval '1 week')
-              AND trace_id NOT IN (SELECT trace_id FROM last_ten) LIMIT $5;"
+              WHERE trace_id IN (SELECT trace_id FROM to_delete);"
                action_str)
             ~params:
               [ Db.String module_
