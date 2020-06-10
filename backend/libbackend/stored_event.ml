@@ -313,30 +313,43 @@ let trim_events_for_canvas
     (limit : int) : int =
   Telemetry.with_span span "trim_events_for_canvas" (fun span ->
       let handlers =
-        ( try
-            Db.fetch
-              ~name:"get_handlers_for_gc"
-              "SELECT module, modifier, name
-               FROM toplevel_oplists
-               WHERE canvas_id = $1;"
-              ~params:[Db.Uuid canvas_id]
-          with Exception.DarkException e ->
-            Log.erroR
-              "db error"
-              ~params:
-                [ ( "err"
-                  , e
-                    |> Exception.exception_data_to_yojson
-                    |> Yojson.Safe.to_string ) ] ;
-            Exception.reraise (Exception.DarkException e) )
-        |> List.map ~f:(function
-               | [module_; modifier; path] ->
-                   (module_, modifier, path)
-               | xs ->
-                   Log.erroR
-                     "wrong shape"
-                     ~params:[("result", xs |> String.concat ~sep:",")] ;
-                   Exception.internal "Wrong shape in get_handlers_for_db")
+        Telemetry.with_span
+          span
+          "get_handlers_for_canvas"
+          ~attrs:[("canvas_name", `String canvas_name)]
+          (fun span ->
+            ( try
+                (* modifier, module, name are IS NOT NULL here because the
+                 * equivalent fields in stored_events_v2 (modifier, module, path)
+                 * are all marked NOT NULL. In production, that cuts us down from
+                 * 102k rows (42k distinct) to 27k rows (and about the same #
+                 * distinct) *)
+                Db.fetch
+                  ~name:"get_handlers_for_gc"
+                  "SELECT module, modifier, name
+                   FROM toplevel_oplists
+                   WHERE canvas_id = $1
+                   AND modifier IS NOT NULL
+                   AND module IS NOT NULL
+                   AND name IS NOT NULL;"
+                  ~params:[Db.Uuid canvas_id]
+              with Exception.DarkException e ->
+                Log.erroR
+                  "db error"
+                  ~params:
+                    [ ( "err"
+                      , e
+                        |> Exception.exception_data_to_yojson
+                        |> Yojson.Safe.to_string ) ] ;
+                Exception.reraise (Exception.DarkException e) )
+            |> List.map ~f:(function
+                   | [module_; modifier; path] ->
+                       (module_, modifier, path)
+                   | xs ->
+                       Log.erroR
+                         "wrong shape"
+                         ~params:[("result", xs |> String.concat ~sep:",")] ;
+                       Exception.internal "Wrong shape in get_handlers_for_db"))
       in
       let row_count : int =
         handlers
