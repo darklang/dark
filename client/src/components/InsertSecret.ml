@@ -68,7 +68,7 @@ let update (msg : msg) : Types.modification =
                   m
                   { secretName = m.insertSecretModal.newSecretName
                   ; secretValue = m.insertSecretModal.newSecretValue
-                  ; secretVersion = 0 } )
+                  } )
             else
               let error =
                 Some "Both secret name and secret values must be filled"

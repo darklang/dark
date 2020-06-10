@@ -1,7 +1,7 @@
 type t =
   { secretName : string
   ; secretValue : string
-  ; secretVersion : int }
+  }
 [@@deriving show]
 
 type msg =
