@@ -8,7 +8,7 @@ open Types.RuntimeT
 let secrets_in_canvas (canvas_id : Uuidm.t) : secret list =
   Db.fetch
     ~name:"all secrets by canvas"
-    "SELECT secret_name, secret_value FROM secrets WHERE canvas_id=$1"
+    "SELECT secret_name, secret_value FROM secrets WHERE canvas_id=$1 ORDER BY created_at DESC"
     ~params:[Uuid canvas_id]
   |> List.map ~f:(function
          | [secret_name; secret_value] ->
