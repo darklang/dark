@@ -522,7 +522,7 @@ module RuntimeT = struct
   type secret =
     { secret_name : string
     ; secret_value : string }
-  [@@deriving eq, show, yojson, bin_io]
+  [@@deriving eq, show, yojson]
 
   type function_desc = tlid * string * id [@@deriving yojson]
 
