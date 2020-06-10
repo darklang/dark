@@ -218,6 +218,10 @@ let trim_events_for_handler
         try
           (db_fn action)
             ~name:"gc"
+            (* the WHERE conditions in the final query, prior to
+             * 'trace_id IN (... to_delete)', are logically redundant with the
+             * to_delete subquery, but they improve performance by allowing the
+             * query to make use of the index. *)
             (Printf.sprintf
                "WITH last_ten AS (
                 SELECT trace_id
@@ -237,7 +241,12 @@ let trim_events_for_handler
                 AND trace_id NOT IN (SELECT trace_id FROM last_ten)
                 LIMIT $5)
               %s FROM stored_events_v2
-              WHERE trace_id IN (SELECT trace_id FROM to_delete);"
+                WHERE module = $1
+                AND modifier = $2
+                AND path = $3
+                AND canvas_id = $4
+                AND timestamp < (NOW() - interval '1 week')
+                AND trace_id IN (SELECT trace_id FROM to_delete);"
                action_str)
             ~params:
               [ Db.String module_
