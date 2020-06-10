@@ -19,4 +19,14 @@ val load_traceids : canvas_id:Uuidm.t -> Types.tlid -> Uuidm.t list
 (* GC old function arguments *)
 val trim_arguments : unit -> int
 
-val trim_arguments_for_canvas : Uuidm.t -> int
+type trim_arguments_action =
+  | Count
+  | Delete
+
+val trim_arguments_for_canvas :
+     Libcommon.Telemetry.Span.t
+  -> trim_arguments_action
+  -> limit:int
+  -> ?canvas_name:string
+  -> Uuidm.t
+  -> int

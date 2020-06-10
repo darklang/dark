@@ -3,6 +3,7 @@ open Libexecution
 open Analysis_types
 open Types
 module RTT = Types.RuntimeT
+open Libcommon
 
 (* ------------------------- *)
 (* External *)
@@ -93,21 +94,60 @@ let trim_results () : int =
 (** trim_results_for_canvas is like trim_results but for a single canvas.
  *
  * All the comments and warnings there apply. Please read them. *)
-let trim_results_for_canvas (canvas_id : Uuidm.t) : int =
-  Db.delete
-    ~name:"stored_function_result.trim_results_for_canvas"
-    "WITH indexed_results AS (
-       SELECT trace_id, row_number() OVER (
-         PARTITION BY canvas_id, tlid
-         ORDER BY timestamp DESC
-       ) AS rownum
-       FROM function_results_v2
-       WHERE canvas_id = $1
-       AND timestamp < (NOW() - interval '1 week')
-    )
-    DELETE FROM function_results_v2 WHERE trace_id IN (
-      SELECT trace_id FROM indexed_results
-      WHERE rownum > 10
-      LIMIT 10000
-    )"
-    ~params:[Uuid canvas_id]
+type trim_results_action = Stored_function_arguments.trim_arguments_action
+
+let trim_results_for_canvas
+    (span : Libcommon.Telemetry.Span.t)
+    (action : trim_results_action)
+    ~(limit : int)
+    ?(canvas_name : string option)
+    (canvas_id : Uuidm.t) : int =
+  Telemetry.with_span span "trim_results_for_canvas" (fun span ->
+      let db_fn trim_events_action =
+        match action with Count -> Db.fetch_count | Delete -> Db.delete
+      in
+      let action_str =
+        match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
+      in
+      Option.map canvas_name ~f:(fun canvas_name ->
+          Telemetry.Span.set_attr span "canvas_name" (`String canvas_name))
+      |> ignore ;
+      Telemetry.Span.set_attrs
+        span
+        [ ("limit", `Int limit)
+        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
+        ; ("action", `String action_str) ] ;
+      let count =
+        try
+          (db_fn action)
+            ~name:"gc_function_results"
+            (Printf.sprintf
+               "WITH last_ten AS (
+                SELECT canvas_id, tlid, trace_id
+                FROM function_results_v2
+                WHERE canvas_id = $1
+                AND timestamp < (NOW() - interval '1 week') LIMIT 10
+              ),
+              to_delete AS (SELECT canvas_id, tlid, trace_id FROM function_results_v2
+                WHERE canvas_id = $1
+                AND timestamp < (NOW() - interval '1 week')
+                AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
+                LIMIT $2)
+              %s FROM function_results_v2
+                WHERE canvas_id = $1
+                AND timestamp < (NOW() - interval '1 week')
+                AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
+               action_str)
+            ~params:[Db.Uuid canvas_id; Db.Int limit]
+        with Exception.DarkException e ->
+          Log.erroR
+            "db error"
+            ~params:
+              [ ( "err"
+                , e
+                  |> Exception.exception_data_to_yojson
+                  |> Yojson.Safe.to_string ) ] ;
+          Exception.reraise (Exception.DarkException e)
+      in
+      Telemetry.Span.set_attr span "row_count" (`Int count) ;
+      count)

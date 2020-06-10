@@ -1231,35 +1231,44 @@ let cleanup_old_traces () : float =
 let cleanup_old_traces_for_canvas (cid : Uuidm.t) : float =
   let logdata = ref [] in
   let total_time, _ =
-    time (fun _ ->
-        let t_events, n_events =
-          time (fun _ ->
-              (* Dummy root here - we don't yet thread traces through stdlib
-               * code, but in order for trim_events_for_canvas to use traces in
-               * contexts that do have traces, we'll set a root here. *)
-              Telemetry.with_root "cleanup_old_traces_for_canvas" (fun span ->
+    Telemetry.with_root "cleanup_old_traces_for_canvas" (fun span ->
+        time (fun _ ->
+            let t_events, n_events =
+              time (fun _ ->
+                  (* Dummy root here - we don't yet thread traces through stdlib
+                   * code, but in order for trim_events_for_canvas to use traces in
+                   * contexts that do have traces, we'll set a root here. *)
                   let canvas_name = name_for_id cid in
                   Stored_event.trim_events_for_canvas
                     ~span
                     cid
                     canvas_name
-                    10000))
-        in
-        let t_res, n_res =
-          time (fun _ -> Stored_function_result.trim_results_for_canvas cid)
-        in
-        let t_args, n_args =
-          time (fun _ ->
-              Stored_function_arguments.trim_arguments_for_canvas cid)
-        in
-        logdata :=
-          [ ("trimmed_results", `Int n_res)
-          ; ("trimmed_events", `Int n_events)
-          ; ("trimmed_arguments", `Int n_args)
-          ; ("stored_events_time", `Float t_events)
-          ; ("function_results_time", `Float t_res)
-          ; ("function_arguments_time", `Float t_args) ] ;
-        ())
+                    10000)
+            in
+            let t_res, n_res =
+              time (fun _ ->
+                  Stored_function_result.trim_results_for_canvas
+                    span
+                    Delete
+                    cid
+                    ~limit:10000)
+            in
+            let t_args, n_args =
+              time (fun _ ->
+                  Stored_function_arguments.trim_arguments_for_canvas
+                    span
+                    Delete
+                    ~limit:10000
+                    cid)
+            in
+            logdata :=
+              [ ("trimmed_results", `Int n_res)
+              ; ("trimmed_events", `Int n_events)
+              ; ("trimmed_arguments", `Int n_args)
+              ; ("stored_events_time", `Float t_events)
+              ; ("function_results_time", `Float t_res)
+              ; ("function_arguments_time", `Float t_args) ] ;
+            ()))
   in
   Log.infO
     "cleanup_old_traces_for_canvas"
