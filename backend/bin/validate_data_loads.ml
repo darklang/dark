@@ -121,6 +121,7 @@ let () =
                    ; user_tipes = []
                    ; package_fns = []
                    ; dbs
+                   ; secrets = []
                    ; context = Real
                    ; trace = (fun ~on_execution_path _ _ -> ())
                    ; trace_tlid = (fun _ -> ())

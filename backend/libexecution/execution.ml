@@ -18,27 +18,11 @@ let input_vars_for_user_fn (ufn : 'expr_type user_fn) : 'expr_type dval_map =
   |> Analysis_types.Symtable.from_list_exn
 
 
-let dbs_as_input_vars (dbs : 'expr_type DbT.db list) :
-    (string * 'expr_type dval) list =
-  List.filter_map dbs ~f:(fun db ->
-      match db.name with
-      | Filled (_, name) ->
-          Some (name, DDB name)
-      | Partial _ | Blank _ ->
-          None)
-
-
 let http_route_input_vars
     (h : fluid_expr HandlerT.handler) (request_path : string) :
     fluid_expr input_vars =
   let route = Handler.event_name_for_exn h in
   Http.bind_route_variables_exn ~route request_path
-
-
-let secrets_as_input_vars (secrets : secret list) :
-    (string * 'expr_type dval) list =
-  List.map secrets ~f:(fun s ->
-      (s.secret_name, DStr (Unicode_string.of_string_exn s.secret_value)))
 
 
 (* -------------------- *)
@@ -115,9 +99,6 @@ let execute_handler
     ?(store_fn_arguments = store_no_arguments)
     (h : RuntimeT.expr HandlerT.handler) : RuntimeT.expr dval * tlid list =
   let f unit =
-    let input_vars =
-      dbs_as_input_vars dbs @ secrets_as_input_vars secrets @ input_vars
-    in
     let tlid_store = TLIDTable.create () in
     let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
     let state : 'expr_type exec_state =
@@ -129,6 +110,7 @@ let execute_handler
       ; user_tipes
       ; package_fns
       ; dbs
+      ; secrets
       ; trace = (fun ~on_execution_path _ _ -> ())
       ; trace_tlid
       ; on_execution_path = true
@@ -173,6 +155,7 @@ let execute_function
     ~user_fns
     ~user_tipes
     ~package_fns
+    ~secrets
     ~account_id
     ~canvas_id
     ~caller_id
@@ -191,6 +174,7 @@ let execute_function
     ; user_tipes
     ; package_fns
     ; dbs
+    ; secrets
     ; trace = (fun ~on_execution_path _ _ -> ())
     ; trace_tlid
     ; on_execution_path = true
@@ -243,9 +227,6 @@ let analyse_ast
         then ExecutedResult dval
         else NonExecutedResult dval )
   in
-  let input_vars =
-    dbs_as_input_vars dbs @ secrets_as_input_vars secrets @ input_vars
-  in
   let state : 'expr_type exec_state =
     { tlid
     ; callstack = Tc.StrSet.empty
@@ -255,6 +236,7 @@ let analyse_ast
     ; user_tipes
     ; package_fns
     ; dbs
+    ; secrets
     ; trace
     ; trace_tlid = (fun _ -> ())
     ; on_execution_path = true

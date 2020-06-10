@@ -202,6 +202,25 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
+let global_input_vars (state : expr exec_state) :
+    (string * 'expr_type dval) list =
+  let secrets =
+    state.secrets
+    |> List.map ~f:(fun s ->
+           (s.secret_name, DStr (Unicode_string.of_string_exn s.secret_value)))
+  in
+  let dbs =
+    state.dbs
+    |> List.filter_map ~f:(fun db ->
+           match db.name with
+           | Filled (_, name) ->
+               Some (name, DDB name)
+           | Partial _ | Blank _ ->
+               None)
+  in
+  secrets @ dbs
+
+
 let rec execute_dblock
     ~(state : expr exec_state) {symtable; body; params} (args : expr dval list)
     : expr dval =
@@ -752,18 +771,9 @@ and exec_fn
       |> List.map ~f:(fun (p : param) -> p.name)
       |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
     in
-    let args_with_dbs =
-      let db_dvals =
-        state.dbs
-        |> List.filter_map ~f:(fun db ->
-               match db.name with
-               | Filled (_, name) ->
-                   Some (name, DDB name)
-               | Partial _ | Blank _ ->
-                   None)
-        |> DvalMap.from_list
-      in
-      Util.merge_left db_dvals args
+    let args_with_globals =
+      let globals = state |> global_input_vars |> DvalMap.from_list in
+      Util.merge_left globals args
     in
     let sfr_desc = (state.tlid, fnname, id) in
     let badArg =
@@ -834,7 +844,7 @@ and exec_fn
                    * collisions either. tl;dr, executing a package function may result
                    * in trace data being associated with the wrong handler/call site.
                    * *)
-                  let result = exec ~state args_with_dbs body in
+                  let result = exec ~state args_with_globals body in
                   state.store_fn_result sfr_desc arglist result ;
                   result
                   |> Dval.unwrap_from_errorrail
@@ -868,7 +878,7 @@ and exec_fn
                  * But in Preview we might not have all the data we need *)
                 state.store_fn_arguments tlid args ;
                 let state = {state with tlid} in
-                let result = exec ~state args_with_dbs body in
+                let result = exec ~state args_with_globals body in
                 state.store_fn_result sfr_desc arglist result ;
 
                 result
@@ -890,7 +900,8 @@ and exec_fn
 let execute_ast ~(state : 'expr_type exec_state) ~input_vars expr :
     'expr_type dval =
   let state = {state with exec} in
-  exec ~state (input_vars2symtable input_vars) expr
+  let symtable = input_vars @ global_input_vars state |> input_vars2symtable in
+  exec ~state symtable expr
 
 
 let execute_fn

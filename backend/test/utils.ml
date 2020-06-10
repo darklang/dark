@@ -377,7 +377,7 @@ let test_execution_data
     (ops : expr Op.oplist) :
     expr C.canvas ref * expr exec_state * expr input_vars =
   let c = ops2c_exn canvas_name ops in
-  let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
+  let vars = [] in
   let canvas_id = !c.id in
   let state =
     { tlid
@@ -387,6 +387,7 @@ let test_execution_data
     ; user_fns = IDMap.data !c.user_functions
     ; user_tipes = IDMap.data !c.user_tipes
     ; package_fns = !c.package_fns
+    ; secrets = []
     ; fail_fn = None
     ; executing_fnname = ""
     ; dbs = TL.dbs !c.dbs
@@ -430,6 +431,7 @@ let execute_ops
         ; store_fn_arguments
         ; execution_id
         ; dbs
+        ; secrets
         ; trace
         ; trace_tlid
         ; on_execution_path = _
@@ -456,7 +458,7 @@ let execute_ops
       ~user_fns
       ~user_tipes
       ~package_fns
-      ~secrets:[]
+      ~secrets
       ~account_id
       ~load_fn_result
       ~load_fn_arguments
@@ -520,6 +522,7 @@ let exec_userfn_trace_tlids (fluid_expr : Libshared.FluidExpression.t) :
     ~user_fns
     ~user_tipes
     ~package_fns
+    ~secrets:[]
     ~account_id
     ~canvas_id
     ~caller_id:execution_id

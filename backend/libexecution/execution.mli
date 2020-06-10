@@ -8,12 +8,6 @@ val input_vars_for_user_fn :
      Types.fluid_expr Types.RuntimeT.user_fn
   -> Types.fluid_expr Types.RuntimeT.dval_map
 
-val dbs_as_input_vars :
-     'expr_type Types.RuntimeT.DbT.db list
-  -> (string * 'expr_type Types.RuntimeT.dval) list
-
-val secrets_as_input_vars : Types.RuntimeT.secret list -> (string * 'expr_type Types.RuntimeT.dval) list
-
 val http_route_input_vars :
      Types.fluid_expr Types.RuntimeT.HandlerT.handler
   -> string
@@ -80,6 +74,7 @@ val execute_function :
   -> user_fns:Types.RuntimeT.expr Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
   -> package_fns:Types.RuntimeT.expr Types.RuntimeT.fn list
+  -> secrets: Types.RuntimeT.secret list
   -> account_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> caller_id:Types.id

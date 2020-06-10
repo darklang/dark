@@ -183,6 +183,7 @@ let rec exec_state_of_fluid (s : Types.fluid_expr Types.RuntimeT.exec_state) :
   ; user_tipes = s.user_tipes
   ; package_fns = List.map ~f:fn_of_fluid s.package_fns
   ; dbs = s.dbs
+  ; secrets = s.secrets
   ; trace =
       (fun ~on_execution_path id dval ->
         let dval = Fluid.dval_to_fluid dval in
@@ -263,6 +264,7 @@ and exec_state_to_fluid (s : Types.RuntimeT.expr Types.RuntimeT.exec_state) :
   ; user_tipes = s.user_tipes
   ; package_fns = List.map ~f:fn_to_fluid s.package_fns
   ; dbs = s.dbs
+  ; secrets = s.secrets
   ; trace =
       (fun ~on_execution_path id dval ->
         let dval = Fluid.dval_of_fluid dval in
