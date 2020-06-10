@@ -1968,11 +1968,7 @@ let admin_handler
         req
   | "a" :: canvasname :: _ ->
       Span.set_attr parent "canvas" (`String canvasname) ;
-      let account_created =
-        Account.get_user_created_at username
-        (* If we get here, we know the username exists *)
-        |> Option.value_exn
-      in
+      let account_created = Account.get_user_created_at_exn username in
       admin_ui_handler
         ~execution_id
         ~path
