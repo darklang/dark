@@ -147,12 +147,15 @@ let processFocus (m : model) (focus : focus) : modification =
         ( match next with
         | Some id ->
             Enter (Filling (tlid, id))
+            Many [(AutocompleteMod ACReset); Enter (Filling (tlid, id))]
         | None ->
           ( match pred with
           | Some id ->
               Select (tlid, STID id)
+              Many [(AutocompleteMod ACReset); Select (tlid, STID id);]
           | None ->
               Select (tlid, STTopLevelRoot) ) ) )
+              Many [(AutocompleteMod ACReset); Select (tlid, STTopLevelRoot)] ) ) )
   | FocusExact (tlid, id) ->
     ( match TL.getPD m tlid id with
     | Some pd ->
