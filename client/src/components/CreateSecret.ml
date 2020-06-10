@@ -43,6 +43,13 @@ let update (msg : msg) (model : Types.model) : Types.modification =
         let error = Some "Both secret name and secret values must be filled" in
         updateMod {m with isValueValid; isNameValid; error}
 
+let onKeydown (evt : Web.Node.event) : Types.msg option =
+  match FluidKeyboard.eventToKeyEvent evt with
+  | Some {FluidKeyboard.key = FluidKeyboard.Enter; _} ->
+    evt##stopPropagation (); (* prevents omnibox from opening *)
+    Some (Types.SecretMsg SaveNewSecret)
+  | _ -> None
+
 let view (m : createModal) : Types.msg Html.html =
   if m.visible
   then
@@ -88,7 +95,9 @@ let view (m : createModal) : Types.msg Html.html =
     Html.div
       [ Html.class' "modal-overlay"
       ; ViewUtils.nothingMouseEvent "mousedown"
-      ; ViewUtils.nothingMouseEvent "mouseup" ]
+      ; ViewUtils.nothingMouseEvent "mouseup"
+      ; ViewUtils.nothingMouseEvent "click"
+      ; Html.onCB "keydown" "keydown" onKeydown ]
       [Html.div [Html.class' "modal"] inside]
   else Vdom.noNode
 
