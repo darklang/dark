@@ -5,7 +5,6 @@ open Util
 open Types
 open Types.RuntimeT
 
-(* We will later change it to get the entry with max(secret_version) *)
 let secrets_in_canvas (canvas_id : Uuidm.t) : secret list =
   Db.fetch
     ~name:"all secrets by canvas"
