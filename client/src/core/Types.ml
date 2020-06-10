@@ -316,8 +316,7 @@ and packageFns = packageFn TLIDDict.t
 
 and secret =
   { secretName : string
-  ; secretValue : string
-  ; secretVersion : int }
+  ; secretValue : string }
 
 (* ---------------------- *)
 (* dvals *)

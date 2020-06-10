@@ -504,8 +504,7 @@ and updateWorkerScheduleAPIParams (params : Types.updateWorkerScheduleAPIParams)
 and secret (s : Types.secret) : Js.Json.t =
   object_
     [ ("secret_name", string s.secretName)
-    ; ("secret_value", string s.secretValue)
-    ; ("secret_version", int s.secretVersion) ]
+    ; ("secret_value", string s.secretValue) ]
 
 
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams) :

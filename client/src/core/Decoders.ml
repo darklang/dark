@@ -652,8 +652,7 @@ let fof j : fourOhFour =
 
 let secret j : secret =
   { secretName = field "secret_name" string j
-  ; secretValue = field "secret_value" string j
-  ; secretVersion = field "secret_version" int j }
+  ; secretValue = field "secret_value" string j }
 
 
 let deployStatus j : deployStatus =
