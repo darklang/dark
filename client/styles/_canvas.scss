@@ -205,25 +205,14 @@ body #app * {
   }
 }
 
-.help-icon {
-  position: fixed;
-  bottom: 10px;
-  right: 230px;
-  font-size: 45px;
-  color: $cyan;
-}
-
 .minimap {
   position: fixed;
   bottom: 10px;
   right: 20px;
 
-  border: $cyan 2px solid;
-  width: 200px;
+  width: 260px;
   height: auto;
   max-height: 300px;
-
-  background-color: $grey1;
 
   cursor: pointer;
   text-align: center;
@@ -232,13 +221,25 @@ body #app * {
 
   transition: width 1s;
 
-  &[src=""] {
-    display: none;
+  .minimap-content {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+
+    .help-icon {
+      font-size: 45px;
+      color: $cyan;
+    }
+    img {
+      background-color: $grey1;
+      border: $cyan 2px solid;
+      width: 200px;
+      height: auto;
+    }
   }
 
-  img {
-    width: 100%;
-    height: 100%;
+  &[src=""] {
+    display: none;
   }
 
   .tooltips {

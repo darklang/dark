@@ -433,20 +433,42 @@ let viewCanvas (m : model) : msg Html.html =
     (overlay :: allDivs)
 
 
-let viewMinimap (data : string option) (showTooltip : bool) : msg Html.html =
+let viewMinimap (data : string option) (currentPage : page) (showTooltip : bool)
+    : msg Html.html =
   match data with
   | Some src ->
+      let helpIcon =
+        match currentPage with
+        | FocusedFn _ ->
+            Html.div
+              [ Html.class' "help-icon"
+              ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
+                    ToolTipMsg (OpenFnTooltip true))
+              ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
+                    ToolTipMsg (OpenFnTooltip false)) ]
+              [fontAwesome "question-circle"]
+        | _ ->
+            Vdom.noNode
+      in
       let tooltip =
         Tooltips.generateContent FnMiniMap
         |> Tooltips.viewToolTip ~shouldShow:showTooltip
       in
+
       Html.div
-        [ Html.id "minimap"
-        ; Html.class' "minimap"
-        ; ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
-              GoToArchitecturalView) ]
+        [Html.id "minimap"; Html.class' "minimap"]
         [ tooltip
-        ; Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] [] ]
+        ; Html.div
+            [Html.class' "minimap-content"]
+            [ helpIcon
+            ; Html.img
+                [ Html.src src
+                ; Vdom.prop "alt" "architecture preview"
+                ; ViewUtils.eventNoPropagation
+                    ~key:"return-to-arch"
+                    "click"
+                    (fun _ -> GoToArchitecturalView) ]
+                [] ] ]
   | None ->
       Vdom.noNode
 
@@ -566,24 +588,10 @@ let view (m : model) : msg Html.html =
     [Html.id appID; Html.class' ("app " ^ VariantTesting.activeCSSClasses m)]
     @ eventListeners
   in
-  let helpIcon =
-    match m.currentPage with
-    | FocusedFn _ ->
-        Html.div
-          [ Html.class' "help-icon"
-          ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
-                ToolTipMsg (OpenFnTooltip true))
-          ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
-                ToolTipMsg (OpenFnTooltip false)) ]
-          [fontAwesome "question-circle"]
-    | _ ->
-        Vdom.noNode
-  in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
     ; ViewScaffold.readOnlyMessage m
-    ; helpIcon
-    ; viewMinimap m.canvasProps.minimap m.tooltipState.fnSpace
+    ; viewMinimap m.canvasProps.minimap m.currentPage m.tooltipState.fnSpace
     ; ViewScaffold.viewError m.error ]
   in
   let sidebar = ViewSidebar.viewSidebar m in
