@@ -1040,13 +1040,6 @@ and sidebarMsg =
   | ResetSidebar
   | MarkCategoryOpen of bool * string
 
-(* Tooltips *)
-and toolTipDirection =
-  | Left
-  | Right
-  | Top
-  | Bottom
-
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
