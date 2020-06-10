@@ -1128,6 +1128,13 @@ test("fluid_creating_an_http_handler_focuses_the_verb", async t => {
     .ok();
 });
 
+/*
+* These tests seem to simulate tabbing differently than
+* what happens when you press tab in a real browser.
+* We're disabling them for now because they give the false
+* impression that tabbing currently works as intended, even though
+* it is broken.
+
 test("fluid_tabbing_from_an_http_handler_spec_to_ast", async t => {
   await createHTTPHandler(t);
   await t
@@ -1148,6 +1155,7 @@ test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async t => {
     .expect(acHighlightedText("GET"))
     .ok();
 });
+*/
 
 test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
   await createHTTPHandler(t);
