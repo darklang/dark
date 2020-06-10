@@ -206,6 +206,14 @@ let trim_events_for_handler
       let action_str =
         match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
       in
+      Telemetry.Span.set_attrs
+        span
+        [ ("limit", `Int limit)
+        ; ("module", `String module_)
+        ; ("modifier", `String modifier)
+        ; ("path", `String path)
+        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
+        ; ("action", `String action_str) ] ;
       let count =
         try
           (db_fn action)
@@ -247,14 +255,7 @@ let trim_events_for_handler
                   |> Yojson.Safe.to_string ) ] ;
           Exception.reraise (Exception.DarkException e)
       in
-      Telemetry.Span.set_attrs
-        span
-        [ ("limit", `Int limit)
-        ; ("row_count", `Int count)
-        ; ("module", `String module_)
-        ; ("modifier", `String modifier)
-        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
-        ; ("action", `String action_str) ] ;
+      Telemetry.Span.set_attr span "row_count" (`Int count) ;
       count)
 
 
