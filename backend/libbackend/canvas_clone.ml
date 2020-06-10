@@ -4,18 +4,58 @@ open Util
 open Canvas
 open Tc
 
+let is_op_that_creates_toplevel (op : 'expr_type Op.op) : bool =
+  match op with
+  | SetHandler _
+  | CreateDB _
+  | SetFunction _
+  | CreateDBWithBlankOr _
+  | SetType _ ->
+      true
+  | DeleteFunction _
+  | DeleteTLForever _
+  | DeleteFunctionForever _
+  | DeleteType _
+  | DeleteTypeForever _
+  | DeleteTL _
+  | DeleteDBCol _
+  | RenameDBname _
+  | ChangeDBColName _
+  | ChangeDBColType _
+  | SetExpr _
+  | AddDBCol _
+  | SetDBColName _
+  | SetDBColType _
+  | CreateDBMigration _
+  | AddDBColToDBMigration _
+  | SetDBColNameInDBMigration _
+  | SetDBColTypeInDBMigration _
+  | AbandonDBMigration _
+  | DeleteColInDBMigration _
+  | TLSavepoint _
+  | DeprecatedInitDbm _
+  | UndoTL _
+  | RedoTL _
+  | MoveTL _ ->
+      false
+
+
 (** [only_ops_since_last_savepoint ops] When we clone a canvas, we sometimes
-   * want to only copy over ops since the last TLSavepoint - this erases
+   * want to only copy over ops since the last toplevel definition (create) op - this erases
    * history, which is invisible and we don't really know at clone-time what's
    * in there, because we don't have any UI for inspecting history, nor do we
    * store timestamps or edited-by-user for ops
    * ("git blame"). *)
 let only_ops_since_last_savepoint (ops : 'expr_type Op.op list) :
     'expr_type Op.op list =
-  (* From the end of the list, take ops until you hit the first savepoint *)
-  ops
-  |> List.reverse
-  |> List.take_while ~f:(function Op.TLSavepoint _ -> false | _ -> true)
+  let encountered_create_op = ref false in
+  List.reverse ops
+  |> List.take_while ~f:(fun op ->
+         if !encountered_create_op
+         then false
+         else (
+           encountered_create_op := is_op_that_creates_toplevel op ;
+           true ))
   |> List.reverse
 
 

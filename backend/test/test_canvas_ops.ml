@@ -389,6 +389,17 @@ let t_canvas_clone () =
   let canvas_ops_length (c : RuntimeT.expr Canvas.canvas) =
     c.ops |> List.map ~f:snd |> List.join |> List.length
   in
+  let has_creation_ops (c : RuntimeT.expr Canvas.canvas) =
+    List.map c.ops ~f:(fun (_, ops) ->
+        Canvas_clone.only_ops_since_last_savepoint ops
+        |> Tablecloth.List.any ~f:Canvas_clone.is_op_that_creates_toplevel)
+    |> Tablecloth.List.all ~f:(fun res -> res)
+  in
+  AT.check
+    AT.bool
+    "only_ops_since_last_savepoint retrieve latest ops from the last complete op"
+    true
+    (has_creation_ops !sample_canvas) ;
   AT.check
     AT.bool
     "fewer ops means we removed old history"
