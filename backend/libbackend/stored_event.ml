@@ -198,6 +198,7 @@ let trim_events_for_handler
     ~(module_ : string)
     ~(modifier : string)
     ~(path : string)
+    ~(canvas_name : string)
     ~(canvas_id : Uuidm.t) : int =
   Telemetry.with_span span "trim_events_for_handler" (fun span ->
       let db_fn trim_events_action =
@@ -212,6 +213,7 @@ let trim_events_for_handler
         ; ("module", `String module_)
         ; ("modifier", `String modifier)
         ; ("path", `String path)
+        ; ("canvas_name", `String canvas_name)
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
         ; ("action", `String action_str) ] ;
       let count =
@@ -307,6 +309,7 @@ let trim_events_for_canvas
     ~(span : Telemetry.Span.t)
     ?(action : trim_events_action = Count)
     (canvas_id : Uuidm.t)
+    (canvas_name : string)
     (limit : int) : int =
   Telemetry.with_span span "trim_events_for_canvas" (fun span ->
       let handlers =
@@ -341,16 +344,18 @@ let trim_events_for_canvas
                trim_events_for_handler
                  ~span
                  ~action
+                 ~limit
                  ~module_
                  ~modifier
                  ~path
-                 ~canvas_id
-                 ~limit)
+                 ~canvas_name
+                 ~canvas_id)
         |> Tc.List.sum
       in
       Telemetry.Span.set_attrs
         span
         [ ("handler_count", `Int (handlers |> List.length))
         ; ("row_count", `Int row_count)
+        ; ("canvas_name", `String canvas_name)
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string)) ] ;
       row_count)

@@ -41,14 +41,21 @@ let () =
   (* Outer span - one per script invocation *)
   Telemetry.with_root "garbage_collector" (fun span ->
       (* Get all canvas ids *)
-      let canvas_ids : Uuidm.t list =
+      let canvas_ids_and_names : (Uuidm.t * string) list =
         ( match canvas_arg with
         | "all" ->
             Telemetry.with_span span "get_canvases_for_gc" (fun span ->
-                let canvas_ids : string list =
-                  Db.fetch ~name:"canvases" "SELECT id FROM canvases" ~params:[]
+                let canvas_ids : (string * string) list =
+                  Db.fetch
+                    ~name:"canvases"
+                    "SELECT id, name FROM canvases"
+                    ~params:[]
                   (* List.map over all the rows; then List.hd_exn each row, it's is a single field, canvases.id *)
-                  |> List.map ~f:List.hd_exn
+                  |> List.map ~f:(function
+                         | [id; name] ->
+                             (id, name)
+                         | _ ->
+                             Exception.internal "Wrong shape")
                 in
                 Telemetry.Span.set_attr
                   span
@@ -56,19 +63,28 @@ let () =
                   (`Int (List.length canvas_ids)) ;
                 canvas_ids)
         | canvas_arg ->
-            [canvas_arg] )
-        |> List.map ~f:(fun cid ->
-               cid |> Uuidm.of_string |> Tc.Option.value_exn)
+            let canvas_name =
+              Libbackend.Canvas.name_for_id
+                (canvas_arg |> Uuidm.of_string |> Tc.Option.value_exn)
+            in
+            [(canvas_arg, canvas_name)] )
+        |> List.map ~f:(fun (cid, canvas_name) ->
+               (cid |> Uuidm.of_string |> Tc.Option.value_exn, canvas_name))
       in
       Telemetry.Span.set_attr
         span
         "canvas_count"
-        (`Int (List.length canvas_ids)) ;
+        (`Int (List.length canvas_ids_and_names)) ;
       (* Map over canvases *)
       let row_count =
-        canvas_ids
-        |> List.map ~f:(fun canvas_id ->
-               Stored_event.trim_events_for_canvas ~span ~action canvas_id limit)
+        canvas_ids_and_names
+        |> List.map ~f:(fun (canvas_id, canvas_name) ->
+               Stored_event.trim_events_for_canvas
+                 ~span
+                 ~action
+                 canvas_id
+                 canvas_name
+                 limit)
         (* Sum the row_count returned for each canvas and put it in this outer
          * span *)
         |> Tc.List.sum
