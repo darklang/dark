@@ -172,7 +172,7 @@ let defaultModel : model =
   ; tlMenus = TLIDDict.empty
   ; showUserWelcomeModal = true
   ; userTutorial = Some Welcome
-  ; tooltipState = {tooltipSource = None}
+  ; tooltipState = {tooltipSource = None; fnSpace = false}
   ; currentUserFn = defaultFnSpace
   ; firstVisitToThisCanvas = true
   ; secrets = []

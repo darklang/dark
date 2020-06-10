@@ -20,12 +20,14 @@ let update (tooltipState : tooltipState) (msg : toolTipMsg) : modification =
     match msg with
     | OpenTooltip tt
       when (not (Option.isSome currentTooltip)) || Some tt <> currentTooltip ->
-        {tooltipSource = Some tt}
+        {tooltipState with tooltipSource = Some tt}
     | OpenTooltip _ | Close ->
-        {tooltipSource = None}
+        {tooltipState with tooltipSource = None}
     | OpenLink url ->
         Native.Window.openUrl url "_blank" ;
-        {tooltipSource = None}
+        {tooltipState with tooltipSource = None}
+    | OpenFnTooltip fnSpace ->
+        {tooltipState with fnSpace}
   in
   Many
     [ ReplaceAllModificationsWithThisOne
@@ -136,6 +138,20 @@ let generateContent (t : tooltipSource) : tooltipContent =
                 (OpenLink "https://darklang.github.io/docs/static-assets") )
       ; align = Bottom
       ; tipAlignment = "align-left" }
+  | FnParam ->
+      { title =
+          "If a function has parameters, it will need to be called once from another handler in order to assign values to the parameters and display live values. Until this happens, the function will display a warning."
+      ; details = None
+      ; action = None
+      ; align = Left
+      ; tipAlignment = "" }
+  | FnMiniMap ->
+      { title =
+          "Functions live in the function space, which is separate from your main canvas. You can return to your main canvas by clicking on the name of another handler in the sidebar or the minimap in the lower right."
+      ; details = None
+      ; action = None
+      ; align = Top
+      ; tipAlignment = "" }
 
 
 let viewToolTip ~(shouldShow : bool) (t : tooltipContent) : msg Html.html =

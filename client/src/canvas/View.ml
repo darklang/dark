@@ -32,9 +32,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [], true)
     | TLPmFunc f ->
-        ([ViewUserFunction.view vs (PackageFn f)], [], false)
+        ([ViewUserFunction.view vs (PackageFn f) false], [], false)
     | TLFunc f ->
-        ( [ViewUserFunction.view vs (UserFunction f)]
+        ( [ViewUserFunction.view vs (UserFunction f) m.tooltipState.fnSpace]
         , ViewData.viewData vs
         , false )
     | TLTipe t ->
@@ -433,15 +433,20 @@ let viewCanvas (m : model) : msg Html.html =
     (overlay :: allDivs)
 
 
-let viewMinimap (data : string option) : msg Html.html =
+let viewMinimap (data : string option) (showTooltip : bool) : msg Html.html =
   match data with
   | Some src ->
+      let tooltip =
+        Tooltips.generateContent FnMiniMap
+        |> Tooltips.viewToolTip ~shouldShow:showTooltip
+      in
       Html.div
         [ Html.id "minimap"
         ; Html.class' "minimap"
         ; ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
               GoToArchitecturalView) ]
-        [Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] []]
+        [ tooltip
+        ; Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] [] ]
   | None ->
       Vdom.noNode
 
@@ -561,10 +566,24 @@ let view (m : model) : msg Html.html =
     [Html.id appID; Html.class' ("app " ^ VariantTesting.activeCSSClasses m)]
     @ eventListeners
   in
+  let helpIcon =
+    match m.currentPage with
+    | FocusedFn _ ->
+        Html.div
+          [ Html.class' "help-icon"
+          ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
+                ToolTipMsg (OpenFnTooltip true))
+          ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
+                ToolTipMsg (OpenFnTooltip false)) ]
+          [fontAwesome "question-circle"]
+    | _ ->
+        Vdom.noNode
+  in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
     ; ViewScaffold.readOnlyMessage m
-    ; viewMinimap m.canvasProps.minimap
+    ; helpIcon
+    ; viewMinimap m.canvasProps.minimap m.tooltipState.fnSpace
     ; ViewScaffold.viewError m.error ]
   in
   let sidebar = ViewSidebar.viewSidebar m in
