@@ -67,8 +67,7 @@ let update (msg : msg) : Types.modification =
               , API.insertSecret
                   m
                   { secretName = m.insertSecretModal.newSecretName
-                  ; secretValue = m.insertSecretModal.newSecretValue
-                  } )
+                  ; secretValue = m.insertSecretModal.newSecretValue } )
             else
               let error =
                 Some "Both secret name and secret values must be filled"
@@ -108,7 +107,7 @@ let view (m : insertModal) : Types.msg Html.html =
         in
         let form =
           Html.form
-            [Html.class' "create-secret-form"]
+            [Html.class' "insert-secret-form"]
             [ Html.input'
                 [ Attr.placeholder "secret name"
                 ; Attr.name "secret-name"
@@ -150,5 +149,5 @@ let view (m : insertModal) : Types.msg Html.html =
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewUtils.nothingMouseEvent "click"
       ; Html.onCB "keydown" "keydown" onKeydown ]
-      [Html.div [Html.class' "modal"] inside]
+      [Html.div [Html.class' "modal insert-secret"] inside]
   else Vdom.noNode
