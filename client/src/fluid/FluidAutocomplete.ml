@@ -324,9 +324,10 @@ let init : t = Defaults.defaultModel.fluidState.ac
 (* Create the list *)
 (* ------------------------------------ *)
 
-let secretToACItem (s: SecretTypes.t) : fluidAutocompleteItem =
+let secretToACItem (s : SecretTypes.t) : fluidAutocompleteItem =
   let asDval = DStr (Util.obscureString s.secretValue) in
   FACVariable (s.secretName, Some asDval)
+
 
 let generateExprs (m : model) (props : props) (tl : toplevel) ti =
   let functions =
@@ -352,9 +353,7 @@ let generateExprs (m : model) (props : props) (tl : toplevel) ti =
   let literals =
     List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
   in
-  let secrets =
-    List.map m.secrets ~f:secretToACItem
-  in
+  let secrets = List.map m.secrets ~f:secretToACItem in
   varnames @ constructors @ literals @ keywords @ functions @ secrets
 
 

@@ -847,6 +847,10 @@ let getUnlockedDBsAPIResult j : getUnlockedDBsAPIResult =
 
 let get404sAPIResult j : get404sAPIResult = j |> field "f404s" (list fof)
 
+let insertSecretResult j : SecretTypes.t list =
+  j |> field "secrets" (list secret)
+
+
 let getTraceDataAPIResult j : getTraceDataAPIResult =
   {trace = field "trace" trace j}
 

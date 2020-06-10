@@ -162,6 +162,16 @@ let delete404 (m : model) (params : delete404APIParams) : msg Tea.Cmd.t =
     ~callback:(fun x -> Delete404APICallback (params, x))
 
 
+let insertSecret (m : model) (params : SecretTypes.t) : msg Tea.Cmd.t =
+  apiCall
+    m
+    "/insert_secret"
+    ~encoder:Encoders.secret
+    ~decoder:Decoders.insertSecretResult
+    ~params
+    ~callback:(fun x -> InsertSecretCallback x)
+
+
 let initialLoad (m : model) (focus : focus) : msg Tea.Cmd.t =
   apiCallNoParams
     m

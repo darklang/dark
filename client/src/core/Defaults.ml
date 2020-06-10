@@ -189,5 +189,5 @@ let defaultModel : model =
           ; shippedDate = None
           ; createdAt = None
           ; canvasName = "builtwithdark" }
-      ; privacy = {recordConsent = None} } 
+      ; privacy = {recordConsent = None} }
   ; createSecretModal = SecretTypes.defaultCreateModal }

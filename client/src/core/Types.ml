@@ -1331,6 +1331,8 @@ and msg =
       [@printer opaque "TriggerHandlerAPICallback"]
   | LoadPackagesAPICallback of (loadPackagesAPIResult, httpError) Tea.Result.t
       [@printer opaque "LoadPackagesAPICallback"]
+  | InsertSecretCallback of (SecretTypes.t list, httpError) Tea.Result.t
+      [@printer opaque "InsertSecretCallback"]
   | LogoutAPICallback [@printer opaque "LogoutAPICallback"]
   | Delete404APICall of fourOhFour
   | NewPresencePush of avatar list

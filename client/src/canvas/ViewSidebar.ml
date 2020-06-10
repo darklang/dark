@@ -771,7 +771,9 @@ let viewSecretKeys (m : model) : msg Html.html =
         [Html.class' "category-header"; openTooltip]
         [categoryButton "secrets" "Secret Keys"; title]
     in
-    Html.summary [openEventHandler; Html.class' "category-summary"] [header; plusBtn]
+    Html.summary
+      [openEventHandler; Html.class' "category-summary"]
+      [header; plusBtn]
   in
   let entries =
     if count > 0
@@ -1139,8 +1141,9 @@ let rtCacheKey m =
   , m.editorSettings
   , m.permission
   , m.currentPage
-  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user)
-  , m.tooltipState.tooltipSource )
+  , m.tooltipState.tooltipSource
+  , m.secrets
+  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user) )
   |> Option.some
 
 

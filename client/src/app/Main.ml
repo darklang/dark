@@ -1639,6 +1639,11 @@ let update_ (msg : msg) (m : model) : modification =
            * Ideally we would make this dependency more explicit. *)
           let m = Introspect.refreshUsages m (TLID.Dict.tlids m.handlers) in
           (m, Cmd.none))
+  | InsertSecretCallback (Ok secrets) ->
+      ReplaceAllModificationsWithThisOne
+        (fun m ->
+          Debug.loG "InsertSecretCallback" secrets ;
+          ({m with secrets}, Cmd.none))
   | NewTracePush (traceID, tlids) ->
       let traces =
         List.map
@@ -1885,6 +1890,13 @@ let update_ (msg : msg) (m : model) : modification =
       HandleAPIError
         (APIError.make
            ~context:"LoadPackages"
+           ~importance:ImportantError
+           ~reload:false
+           err)
+  | InsertSecretCallback (Error err) ->
+      HandleAPIError
+        (APIError.make
+           ~context:"InsertSecrets"
            ~importance:ImportantError
            ~reload:false
            err)
@@ -2164,7 +2176,7 @@ let update_ (msg : msg) (m : model) : modification =
   | UploadFnAPICallback (_, Ok _) ->
       Model.updateErrorMod (Error.set "Successfully uploaded function")
   | SecretMsg msg ->
-    CreateSecret.update msg m
+      CreateSecret.update msg m
 
 
 let rec filter_read_only (m : model) (modification : modification) =
