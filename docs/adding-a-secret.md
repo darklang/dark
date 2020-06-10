@@ -18,7 +18,7 @@ data:
 Note that the secret must be base64 encoded, a k8s requirement
 (https://kubernetes.io/docs/concepts/configuration/secret/#creating-a-secret-manually).
 
-Add it to Kubernetes with `kubectl apply -f secret/yaml`
+Add it to Kubernetes with `kubectl apply -f secret.yaml`
 
 ## Keep it somewhere safe
 
