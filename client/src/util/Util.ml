@@ -87,7 +87,7 @@ let obscureString (s : string) : string =
   let n = Int.minimum 4 (len / 4) in
   let diff = len - n in
   let redactedLeft = String.repeat ~count:diff "X" in
-  let visibleRight = String.dropLeft ~count:diff s
+  let visibleRight = String.dropLeft ~count:diff s in
   redactedLeft ^ visibleRight
 
 
