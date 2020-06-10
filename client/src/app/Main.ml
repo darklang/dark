@@ -1072,7 +1072,7 @@ let update_ (msg : msg) (m : model) : modification =
             []
       in
       let clickBehavior =
-        if Option.isSome m.tooltipState.tooltip
+        if Option.isSome m.tooltipState.tooltipSource
         then Tooltips.update m.tooltipState Close :: clickBehavior
         else clickBehavior
       in

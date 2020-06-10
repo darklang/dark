@@ -49,7 +49,7 @@ and category =
   ; plusButton : msg option
   ; iconAction : msg option
   ; classname : string
-  ; tooltip : tooltip option
+  ; tooltip : tooltipSource option
   ; entries : item list }
 
 and item =
@@ -120,7 +120,8 @@ let categoryButton ?(props = []) (name : string) (description : string) :
     (categoryIcon_ name)
 
 
-let setTooltips (tooltip : tooltip) (entries : 'a list) : tooltip option =
+let setTooltips (tooltip : tooltipSource) (entries : 'a list) :
+    tooltipSource option =
   if entries = [] then Some tooltip else None
 
 
@@ -129,7 +130,7 @@ let handlerCategory
     (name : string)
     (action : omniAction)
     (iconAction : msg option)
-    (tooltip : tooltip)
+    (tooltip : tooltipSource)
     (hs : handler list) : category =
   let handlers = hs |> List.filter ~f:(fun h -> filter (TLHandler h)) in
   { count = List.length handlers
@@ -666,7 +667,7 @@ let viewDeployStats (m : model) : msg Html.html =
     let tooltip =
       Tooltips.generateContent StaticAssets
       |> Tooltips.viewToolTip
-           ~shouldShow:(m.tooltipState.tooltip = Some StaticAssets)
+           ~shouldShow:(m.tooltipState.tooltipSource = Some StaticAssets)
     in
     let openTooltip =
       if count = 0
@@ -729,9 +730,9 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     match c.tooltip with
     | Some tt ->
         let view =
-          Tooltips.tooltipToTooltipSource tt
-          |> Tooltips.generateContent
-          |> Tooltips.viewToolTip ~shouldShow:(m.tooltipState.tooltip = Some tt)
+          Tooltips.generateContent tt
+          |> Tooltips.viewToolTip
+               ~shouldShow:(m.tooltipState.tooltipSource = Some tt)
         in
         ( ViewUtils.eventNoPropagation
             ~key:("open-tooltip-" ^ c.classname)
@@ -1059,7 +1060,7 @@ let rtCacheKey m =
   , m.permission
   , m.currentPage
   , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user)
-  , m.tooltipState.tooltip )
+  , m.tooltipState.tooltipSource )
   |> Option.some
 
 

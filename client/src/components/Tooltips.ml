@@ -1,19 +1,7 @@
 (* NOTE: This will change in the future to pretty tool tips, this is just an inbetween state *)
 open Prelude
 
-type tooltipSource =
-  | Http
-  | Worker
-  | Cron
-  | Repl
-  | Datastore
-  | Function
-  | FourOhFour
-  | Deleted
-  | PackageManager
-  | StaticAssets
-
-and toolTipDirection =
+type toolTipDirection =
   | Left
   | Right
   | Top
@@ -28,44 +16,20 @@ and tooltipContent =
 
 let update (tooltipState : tooltipState) (msg : toolTipMsg) : modification =
   let tooltipState =
-    let currentTooltip = tooltipState.tooltip in
+    let currentTooltip = tooltipState.tooltipSource in
     match msg with
     | OpenTooltip tt
       when (not (Option.isSome currentTooltip)) || Some tt <> currentTooltip ->
-        {tooltip = Some tt}
+        {tooltipSource = Some tt}
     | OpenTooltip _ | Close ->
-        {tooltip = None}
+        {tooltipSource = None}
     | OpenLink url ->
         Native.Window.openUrl url "_blank" ;
-        {tooltip = None}
+        {tooltipSource = None}
   in
   Many
     [ ReplaceAllModificationsWithThisOne
         (fun m -> ({m with tooltipState}, Tea.Cmd.none)) ]
-
-
-let tooltipToTooltipSource (t : tooltip) : tooltipSource =
-  match t with
-  | Http ->
-      Http
-  | Worker ->
-      Worker
-  | Cron ->
-      Cron
-  | Repl ->
-      Repl
-  | Datastore ->
-      Datastore
-  | Function ->
-      Function
-  | FourOhFour ->
-      FourOhFour
-  | Deleted ->
-      Deleted
-  | PackageManager ->
-      PackageManager
-  | StaticAssets ->
-      StaticAssets
 
 
 let generateContent (t : tooltipSource) : tooltipContent =
