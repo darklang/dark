@@ -50,6 +50,10 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   # there in an env with access to production postgres
   cp -f _build/default/backend/bin/emergency_login_script.exe "$DIR/bin/"
 
+  # We're still doing GC manually, but this means it's just there to be run
+  # instead of having to `kubectl cp` it in every time a deploy goes out.
+  cp -f _build/default/backend/bin/garbage_collector.exe "$DIR/bin/"
+
   mkdir -p "$DIR/webroot"
   cp -Rf backend/static "$DIR/webroot/"
 
