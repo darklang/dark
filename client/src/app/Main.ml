@@ -1451,9 +1451,9 @@ let update_ (msg : msg) (m : model) : modification =
       Entry.sendSegmentMessage msg ;
       NoChange
   | ToolTipMsg msg ->
+      if msg = UpdateTutorial CloseTutorial && m.showUserWelcomeModal
+      then Entry.sendSegmentMessage WelcomeModal ;
       Tooltips.update m.tooltipState msg
-  | TutorialMsg msg ->
-      UserTutorial.update m msg
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)

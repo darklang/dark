@@ -1010,6 +1010,7 @@ and toolTipMsg =
   | Close
   | OpenLink of string
   | OpenFnTooltip of bool
+  | UpdateTutorial of tutorialMsg
 
 and tooltipState =
   { tooltipSource : tooltipSource option
@@ -1410,7 +1411,6 @@ and msg =
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * TLID.t
   | FnParamMsg of fnpMsg
-  | TutorialMsg of tutorialMsg
   | ToolTipMsg of toolTipMsg
   | UpdateSegment of segmentTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg

@@ -19,24 +19,107 @@ and tooltipContent =
   ; tipAlignment : string
   ; tooltipStyle : tooltipStyle }
 
+(** [currentStepFraction currentStep] returns a tuple of the form [(currentStepNumber, totalSteps)], given the [currentStep]. *)
+let currentStepFraction (currentStep : tutorialStep) : int * int =
+  let currentStepNumber =
+    match currentStep with
+    | Welcome ->
+        1
+    | VerbChange ->
+        2
+    | ReturnValue ->
+        3
+    | OpenTab ->
+        4
+    | GettingStarted ->
+        5
+  in
+  let totalSteps = 5 in
+  (currentStepNumber, totalSteps)
+
+
+let stepNumToStep (currentStep : int) : tutorialStep option =
+  match currentStep with
+  | 1 ->
+      Some Welcome
+  | 2 ->
+      Some VerbChange
+  | 3 ->
+      Some ReturnValue
+  | 4 ->
+      Some OpenTab
+  | 5 ->
+      Some GettingStarted
+  | _ ->
+      None
+
+
+let getPrevStep (current : tutorialStep option) : tutorialStep option =
+  match current with
+  | Some step ->
+      let currentStepNumber, _ = currentStepFraction step in
+      stepNumToStep (currentStepNumber - 1)
+  | None ->
+      None
+
+
+let getNextStep (current : tutorialStep option) : tutorialStep option =
+  match current with
+  | Some step ->
+      let currentStepNumber, _ = currentStepFraction step in
+      stepNumToStep (currentStepNumber + 1)
+  | None ->
+      None
+
+
 let update (tooltipState : tooltipState) (msg : toolTipMsg) : modification =
-  let tooltipState =
+  let tooltipState, mods =
     let currentTooltip = tooltipState.tooltipSource in
     match msg with
     | OpenTooltip tt
       when (not (Option.isSome currentTooltip)) || Some tt <> currentTooltip ->
-        {tooltipState with tooltipSource = Some tt}
+        ({tooltipState with tooltipSource = Some tt}, [])
     | OpenTooltip _ | Close ->
-        {tooltipState with tooltipSource = None}
+        ({tooltipState with tooltipSource = None}, [])
     | OpenLink url ->
         Native.Window.openUrl url "_blank" ;
-        {tooltipState with tooltipSource = None}
+        ({tooltipState with tooltipSource = None}, [])
     | OpenFnTooltip fnSpace ->
-        {tooltipState with fnSpace}
+        ({tooltipState with fnSpace}, [])
+    | UpdateTutorial tutorialMsg ->
+        let userTutorial, mods =
+          match tutorialMsg with
+          | NextStep ->
+              Js.log
+                ( "HERE"
+                , tooltipState.userTutorial
+                , tooltipState.userTutorial = Some Welcome ) ;
+              (tooltipState.userTutorial, [])
+              (* (getNextStep tooltipState.userTutorial, []) *)
+          | PrevStep ->
+              (getPrevStep tooltipState.userTutorial, [])
+          | CloseTutorial ->
+              ( tooltipState.userTutorial
+              , [ ReplaceAllModificationsWithThisOne
+                    (fun m ->
+                      ( { m with
+                          showUserWelcomeModal = false
+                        ; firstVisitToThisCanvas = false }
+                      , Tea.Cmd.none )) ] )
+          | ReopenTutorial ->
+              (Some Welcome, [])
+        in
+        ({tooltipState with userTutorial}, mods)
   in
-  Many
-    [ ReplaceAllModificationsWithThisOne
-        (fun m -> ({m with tooltipState}, Tea.Cmd.none)) ]
+  if List.isEmpty mods
+  then
+    ReplaceAllModificationsWithThisOne
+      (fun m -> ({m with tooltipState}, Tea.Cmd.none))
+  else
+    Many
+      ( mods
+      @ [ ReplaceAllModificationsWithThisOne
+            (fun m -> ({m with tooltipState}, Tea.Cmd.none)) ] )
 
 
 let generateContent (t : tooltipSource) : tooltipContent =
@@ -171,59 +254,6 @@ let generateContent (t : tooltipSource) : tooltipContent =
       ; tooltipStyle = Default }
 
 
-(** [currentStepFraction currentStep] returns a tuple of the form [(currentStepNumber, totalSteps)], given the [currentStep]. *)
-let currentStepFraction (currentStep : tutorialStep) : int * int =
-  let currentStepNumber =
-    match currentStep with
-    | Welcome ->
-        1
-    | VerbChange ->
-        2
-    | ReturnValue ->
-        3
-    | OpenTab ->
-        4
-    | GettingStarted ->
-        5
-  in
-  let totalSteps = 5 in
-  (currentStepNumber, totalSteps)
-
-
-let stepNumToStep (currentStep : int) : tutorialStep option =
-  match currentStep with
-  | 1 ->
-      Some Welcome
-  | 2 ->
-      Some VerbChange
-  | 3 ->
-      Some ReturnValue
-  | 4 ->
-      Some OpenTab
-  | 5 ->
-      Some GettingStarted
-  | _ ->
-      None
-
-
-let getPrevStep (current : tutorialStep option) : tutorialStep option =
-  match current with
-  | Some step ->
-      let currentStepNumber, _ = currentStepFraction step in
-      stepNumToStep (currentStepNumber - 1)
-  | None ->
-      None
-
-
-let getNextStep (current : tutorialStep option) : tutorialStep option =
-  match current with
-  | Some step ->
-      let currentStepNumber, _ = currentStepFraction step in
-      stepNumToStep (currentStepNumber + 1)
-  | None ->
-      None
-
-
 let viewNavigationBtns (step : tutorialStep) : msg Html.html =
   let prevBtn =
     let clickEvent =
@@ -233,7 +263,7 @@ let viewNavigationBtns (step : tutorialStep) : msg Html.html =
           ViewUtils.eventNoPropagation
             ~key:("prev-step-" ^ string_of_int stepNum)
             "click"
-            (fun _ -> TutorialMsg PrevStep)
+            (fun _ -> ToolTipMsg (UpdateTutorial PrevStep))
       | None ->
           Vdom.noProp
     in
@@ -253,7 +283,7 @@ let viewNavigationBtns (step : tutorialStep) : msg Html.html =
           ViewUtils.eventNoPropagation
             ~key:("next-step-" ^ string_of_int stepNum)
             "click"
-            (fun _ -> TutorialMsg NextStep)
+            (fun _ -> ToolTipMsg (UpdateTutorial NextStep))
       | None ->
           Vdom.noProp
     in
@@ -302,7 +332,7 @@ let viewToolTip ~(shouldShow : bool) (t : tooltipContent) : msg Html.html =
             ; ViewUtils.eventNoPropagation
                 ~key:"close-tutorial"
                 "click"
-                (fun _ -> TutorialMsg CloseTutorial) ]
+                (fun _ -> ToolTipMsg (UpdateTutorial CloseTutorial)) ]
             [Html.text "End tutorial"]
       | Default ->
           Vdom.noNode

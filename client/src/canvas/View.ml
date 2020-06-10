@@ -536,7 +536,7 @@ let accountView (m : model) : msg Html.html =
     Html.p
       [ Html.class' "account-action-btn"
       ; ViewUtils.eventNoPropagation ~key:"tutorial" "click" (fun _ ->
-            TutorialMsg ReopenTutorial) ]
+            ToolTipMsg (UpdateTutorial ReopenTutorial)) ]
       [Html.text "Hello World tutorial"]
   in
   let spacer = Html.div [Html.class' "account-action-spacer"] [] in
@@ -578,7 +578,7 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Share Dark"]
   in
   let tooltip =
-    UserTutorial.generateTooltipContent Welcome m.username
+    UserTutorial.generateTutorialContent Welcome m.username
     |> Tooltips.viewToolTip
          ~shouldShow:(m.tooltipState.userTutorial = Some Welcome)
   in
@@ -647,11 +647,6 @@ let view (m : model) : msg Html.html =
         ; ViewUtils.eventNoPropagation ~key:"doc" "click" (fun _ ->
               UpdateSegment OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]
-  in
-  let tutorial =
-    if m.integrationTestState = NoIntegrationTest
-    then UserTutorial.view m.username m.canvasName m.firstVisitToThisCanvas
-    else Vdom.noNode
   in
   let modal =
     ViewModal.unsupportedBrowser
