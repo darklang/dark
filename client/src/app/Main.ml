@@ -112,7 +112,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; teaDebuggerEnabled = Url.isDebugging ()
     ; unsupportedBrowser = Entry.unsupportedBrowser ()
     ; fluidState = Fluid.initAC m.fluidState
-    ; tooltipState = {m.tooltipState with userTutorial }}
+    ; tooltipState = {m.tooltipState with userTutorial} }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =

@@ -32,7 +32,7 @@ let toModel (e : savedSettings) : model =
   ; sidebarState = e.sidebarState
   ; showTopbar = e.showTopbar
   ; firstVisitToThisCanvas = e.firstVisitToThisCanvas
-  ; tooltipState = {m.tooltipState with userTutorial = e.userTutorial }}
+  ; tooltipState = {m.tooltipState with userTutorial = e.userTutorial} }
 
 
 let model2editor (m : model) : savedSettings =

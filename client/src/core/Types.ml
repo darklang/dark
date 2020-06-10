@@ -1794,7 +1794,6 @@ and model =
   ; tlMenus : menuState TLIDDict.t
   ; showUserWelcomeModal : bool
         (* indicates if it is the users first time visiting any dark canvas *)
-  (* ; userTutorial : tutorialStep option *)
   ; tooltipState : tooltipState
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState

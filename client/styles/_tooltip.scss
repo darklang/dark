@@ -43,6 +43,7 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       .tip {
         right: -5px;
         top: 25px;
+        left: inherit;
       }
     }
 
@@ -86,29 +87,59 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       font-size: 1em;
       letter-spacing: 0.01em;
       color: darken(desaturate($tooltip-color, 30%), 50%);
+      text-align: left;
     }
   }
+  .close-btn {
+    text-align: center;
+    cursor: pointer;
+    &:hover {
+      color: $purple;
+    }
+  }
+
+  .btn-container {
+    display: flex;
+    width: 100%;
+    justify-content: space-evenly;
+  }
+
   button {
     border: 0;
     outline: 0;
-
     padding: 4px;
-    border-radius: 4px;
     font-weight: 500;
+    background-color: transparent;
+    text-decoration: none;
+    text-align: center;
 
-    transition: background-color 0.1s;
-
-    background-color: $white3;
-    color: darken($tooltip-color, 25%);
     width: max-content;
 
     margin-top: 10px;
+
+    &.page-btn {
+      border: none;
+      color: $black2;
+
+      &[disabled] {
+        color: darken($tooltip-color, 25%);
+        cursor: default;
+      }
+    }
+
+    &.action-button {
+      color: darken($tooltip-color, 25%);
+      background-color: $white3;
+      transition: background-color 0.1s;
+      border-radius: 4px;
+      &:hover {
+        color: $white3;
+        background-color: rgba(142, 234, 222, 1);
+      }
+    }
+
     p {
       margin: 0px;
-    }
-    &:hover {
-      background-color: rgba(142, 234, 222, 1);
-      color: $white3;
     }
   }
 

@@ -577,11 +577,17 @@ let accountView (m : model) : msg Html.html =
                  (InviteUser SettingsViewTypes.defaultInviteFields))) ]
       [Html.text "Share Dark"]
   in
+  let tooltip =
+    UserTutorial.generateTooltipContent Welcome m.username
+    |> Tooltips.viewToolTip
+         ~shouldShow:(m.tooltipState.userTutorial = Some Welcome)
+  in
   Html.div
     [ Html.class' "my-account"
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
+    ; tooltip
     ; Html.div
         [Html.class' "account-actions"]
         [ newCanvas
@@ -644,11 +650,7 @@ let view (m : model) : msg Html.html =
   in
   let tutorial =
     if m.integrationTestState = NoIntegrationTest
-    then
-      UserTutorial.view
-        m.username
-        m.canvasName
-        m.firstVisitToThisCanvas
+    then UserTutorial.view m.username m.canvasName m.firstVisitToThisCanvas
     else Vdom.noNode
   in
   let modal =
