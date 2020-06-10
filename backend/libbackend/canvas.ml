@@ -1238,7 +1238,12 @@ let cleanup_old_traces_for_canvas (cid : Uuidm.t) : float =
                * code, but in order for trim_events_for_canvas to use traces in
                * contexts that do have traces, we'll set a root here. *)
               Telemetry.with_root "cleanup_old_traces_for_canvas" (fun span ->
-                  Stored_event.trim_events_for_canvas ~span cid 10000))
+                  let canvas_name = name_for_id cid in
+                  Stored_event.trim_events_for_canvas
+                    ~span
+                    cid
+                    canvas_name
+                    10000))
         in
         let t_res, n_res =
           time (fun _ -> Stored_function_result.trim_results_for_canvas cid)
