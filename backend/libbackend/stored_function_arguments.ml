@@ -120,6 +120,7 @@ let trim_arguments_for_handler
         [ ("limit", `Int limit)
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
         ; ("canvas_name", `String canvas_name)
+        ; ("tlid", `String tlid)
         ; ("action", `String action_str) ] ;
       let count =
         try
