@@ -25,6 +25,15 @@ val trim_arguments_for_canvas :
      Libcommon.Telemetry.Span.t
   -> trim_arguments_action
   -> limit:int
-  -> ?canvas_name:string
+  -> canvas_name:string
+  -> Uuidm.t
+  -> int
+
+val trim_arguments_for_handler :
+     Libcommon.Telemetry.Span.t
+  -> trim_arguments_action
+  -> limit:int
+  -> canvas_name:string
+  -> tlid:string
   -> Uuidm.t
   -> int

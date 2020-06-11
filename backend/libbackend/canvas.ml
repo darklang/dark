@@ -1251,6 +1251,7 @@ let cleanup_old_traces_for_canvas (cid : Uuidm.t) : float =
                     span
                     Delete
                     cid
+                    ~canvas_name:""
                     ~limit:10000)
             in
             let t_args, n_args =
@@ -1259,6 +1260,7 @@ let cleanup_old_traces_for_canvas (cid : Uuidm.t) : float =
                     span
                     Delete
                     ~limit:10000
+                    ~canvas_name:""
                     cid)
             in
             logdata :=
