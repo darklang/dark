@@ -92,8 +92,8 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       // font color for details text
       font-size: 16px;
       letter-spacing: 0.01em;
-      color: darken(desaturate($tooltip-color, 30%), 50%);
-      text-align: left;
+      color: $black2;
+      text-align: center;
     }
   }
   .close-btn {
