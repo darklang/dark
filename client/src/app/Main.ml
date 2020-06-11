@@ -74,9 +74,9 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
   let userTutorial =
-    if m.showUserWelcomeModal && m.tooltipState.userTutorial = None
+    if m.showUserWelcomeModal && m.tooltipState.userTutorial.step = None
     then UserTutorial.defaultStep
-    else m.tooltipState.userTutorial
+    else m.tooltipState.userTutorial.step
   in
   let page =
     Url.parseLocation location
@@ -112,7 +112,10 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; teaDebuggerEnabled = Url.isDebugging ()
     ; unsupportedBrowser = Entry.unsupportedBrowser ()
     ; fluidState = Fluid.initAC m.fluidState
-    ; tooltipState = {m.tooltipState with userTutorial} }
+    ; tooltipState =
+        { m.tooltipState with
+          userTutorial = {m.tooltipState.userTutorial with step = userTutorial}
+        } }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =

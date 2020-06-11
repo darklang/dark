@@ -285,6 +285,9 @@ let newHandler m space name modifier pos =
     (* Fallback to ast if spec has no blanks *)
     handler.spec |> SpecHeaders.firstBlank |> Option.withDefault ~default:astID
   in
+  let tooltipState =
+    Tooltips.assignTutorialToHTTPHandler m.tooltipState (TLHandler handler) tlid
+  in
   let fluidMods =
     let s = m.fluidState in
     let newS = {s with newPos = 0} in
@@ -295,8 +298,8 @@ let newHandler m space name modifier pos =
     in
     [ ReplaceAllModificationsWithThisOne
         (fun m ->
-          {m with fluidState = newS} |> CursorState.setCursorState cursorState)
-    ]
+          {m with fluidState = newS; tooltipState}
+          |> CursorState.setCursorState cursorState) ]
   in
   let pageChanges = [SetPage (FocusedHandler (tlid, None, true))] in
   let rpc =

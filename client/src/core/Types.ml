@@ -1012,10 +1012,14 @@ and toolTipMsg =
   | OpenFnTooltip of bool
   | UpdateTutorial of tutorialMsg
 
+and userTutorial =
+  { step : tutorialStep option
+  ; tlid : TLID.t option }
+
 and tooltipState =
   { tooltipSource : tooltipSource option
   ; fnSpace : bool
-  ; userTutorial : tutorialStep option }
+  ; userTutorial : userTutorial }
 
 (* Tutorial *)
 and tutorialMsg =

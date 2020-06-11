@@ -193,6 +193,20 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         Defaults.centerPos
   in
   let hasFF = vs.astInfo.featureFlagTokenInfos <> [] in
+  let tooltip =
+    match m.tooltipState.userTutorial.step with
+    | Some step
+      when step = VerbChange
+           || step = ReturnValue
+           || step = OpenTab
+           || step = GettingStarted ->
+        UserTutorial.generateTutorialContent step m.username
+        |> Tooltips.viewToolTip
+             ~shouldShow:(m.tooltipState.userTutorial.tlid = Some tlid)
+             ~tlid:(Some tlid)
+    | _ ->
+        Vdom.noNode
+  in
   let html =
     [ Html.div
       (* this unique key ensures that when switching between toplevels the entire
@@ -207,7 +221,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         [ Html.classList [("use-wrapper", true); ("fade", hasFF)]
           (* Block opening the omnibox here by preventing canvas pan start *)
         ; ViewUtils.nothingMouseEvent "mousedown" ]
-        usages ]
+        usages
+    ; tooltip ]
   in
   ViewUtils.placeHtml pos boxClasses html
 
@@ -248,7 +263,8 @@ let tlCacheKey (m : model) tl =
       , props
       , menuIsOpen
       , workerSchedule
-      , m.editorSettings.showHandlerASTs )
+      , m.editorSettings.showHandlerASTs
+      , m.tooltipState.userTutorial )
 
 
 let tlCacheKeyDB (m : model) tl =
@@ -456,7 +472,7 @@ let viewMinimap (data : string option) (currentPage : page) (showTooltip : bool)
       in
       let tooltip =
         Tooltips.generateContent FnMiniMap
-        |> Tooltips.viewToolTip ~shouldShow:showTooltip
+        |> Tooltips.viewToolTip ~shouldShow:showTooltip ~tlid:None
       in
 
       Html.div
@@ -580,7 +596,8 @@ let accountView (m : model) : msg Html.html =
   let tooltip =
     UserTutorial.generateTutorialContent Welcome m.username
     |> Tooltips.viewToolTip
-         ~shouldShow:(m.tooltipState.userTutorial = Some Welcome)
+         ~shouldShow:(m.tooltipState.userTutorial.step = Some Welcome)
+         ~tlid:None
   in
   Html.div
     [ Html.class' "my-account"

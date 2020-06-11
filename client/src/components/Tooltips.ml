@@ -72,6 +72,18 @@ let getNextStep (current : tutorialStep option) : tutorialStep option =
       None
 
 
+let assignTutorialToHTTPHandler
+    (tooltipState : tooltipState) (tl : toplevel) (tlid : TLID.t) : tooltipState
+    =
+  if tooltipState.userTutorial.step = Some Welcome
+     && tooltipState.userTutorial.tlid = None
+     && Toplevel.isHTTPHandler tl
+  then
+    { tooltipState with
+      userTutorial = {tooltipState.userTutorial with tlid = Some tlid} }
+  else tooltipState
+
+
 let update (tooltipState : tooltipState) (msg : toolTipMsg) : modification =
   let tooltipState, mods =
     let currentTooltip = tooltipState.tooltipSource in
@@ -90,16 +102,28 @@ let update (tooltipState : tooltipState) (msg : toolTipMsg) : modification =
         let userTutorial, mods =
           match tutorialMsg with
           | NextStep ->
-              Js.log
-                ( "HERE"
-                , tooltipState.userTutorial
-                , tooltipState.userTutorial = Some Welcome ) ;
-              (tooltipState.userTutorial, [])
-              (* (getNextStep tooltipState.userTutorial, []) *)
+              if tooltipState.userTutorial.step = Some Welcome
+                 && tooltipState.userTutorial.tlid = None
+              then
+                ( tooltipState.userTutorial
+                , [ ReplaceAllModificationsWithThisOne
+                      (fun m ->
+                        ( { m with
+                            toast =
+                              { m.toast with
+                                toastMessage =
+                                  Some
+                                    "Create a new HTTP Handler to continue tutorial"
+                              } }
+                        , Tea.Cmd.none )) ] )
+              else
+                let step = getNextStep tooltipState.userTutorial.step in
+                ({tooltipState.userTutorial with step}, [])
           | PrevStep ->
-              (getPrevStep tooltipState.userTutorial, [])
+              let step = getPrevStep tooltipState.userTutorial.step in
+              ({tooltipState.userTutorial with step}, [])
           | CloseTutorial ->
-              ( tooltipState.userTutorial
+              ( {step = None; tlid = None}
               , [ ReplaceAllModificationsWithThisOne
                     (fun m ->
                       ( { m with
@@ -107,7 +131,7 @@ let update (tooltipState : tooltipState) (msg : toolTipMsg) : modification =
                         ; firstVisitToThisCanvas = false }
                       , Tea.Cmd.none )) ] )
           | ReopenTutorial ->
-              (Some Welcome, [])
+              ({step = Some Welcome; tlid = None}, [])
         in
         ({tooltipState with userTutorial}, mods)
   in
@@ -254,14 +278,15 @@ let generateContent (t : tooltipSource) : tooltipContent =
       ; tooltipStyle = Default }
 
 
-let viewNavigationBtns (step : tutorialStep) : msg Html.html =
+let viewNavigationBtns (step : tutorialStep) (uniqueStr : string) :
+    msg Html.html =
   let prevBtn =
     let clickEvent =
       match getPrevStep (Some step) with
       | Some _ ->
           let stepNum, _ = currentStepFraction step in
           ViewUtils.eventNoPropagation
-            ~key:("prev-step-" ^ string_of_int stepNum)
+            ~key:("prev-step-" ^ string_of_int stepNum ^ "-" ^ uniqueStr)
             "click"
             (fun _ -> ToolTipMsg (UpdateTutorial PrevStep))
       | None ->
@@ -281,7 +306,7 @@ let viewNavigationBtns (step : tutorialStep) : msg Html.html =
       | Some _ ->
           let stepNum, _ = currentStepFraction step in
           ViewUtils.eventNoPropagation
-            ~key:("next-step-" ^ string_of_int stepNum)
+            ~key:("next-step-" ^ string_of_int stepNum ^ "-" ^ uniqueStr)
             "click"
             (fun _ -> ToolTipMsg (UpdateTutorial NextStep))
       | None ->
@@ -298,9 +323,14 @@ let viewNavigationBtns (step : tutorialStep) : msg Html.html =
   Html.div [Html.class' "btn-container"] [prevBtn; nextBtn]
 
 
-let viewToolTip ~(shouldShow : bool) (t : tooltipContent) : msg Html.html =
+let viewToolTip
+    ~(shouldShow : bool) ~(tlid : TLID.t option) (t : tooltipContent) :
+    msg Html.html =
   if shouldShow
   then
+    let uniqueStr =
+      match tlid with Some id -> TLID.toString id | None -> t.title
+    in
     let viewDesc = Html.h1 [Html.class' "description"] [Html.text t.title] in
     let viewDetail =
       match t.details with
@@ -315,7 +345,7 @@ let viewToolTip ~(shouldShow : bool) (t : tooltipContent) : msg Html.html =
           Html.button
             [ Html.class' "action-button"
             ; ViewUtils.eventNoPropagation
-                ~key:("close-settings-" ^ text)
+                ~key:("close-settings" ^ text)
                 "click"
                 (fun _ -> action) ]
             [Html.p [] [Html.text text]]
@@ -330,7 +360,7 @@ let viewToolTip ~(shouldShow : bool) (t : tooltipContent) : msg Html.html =
             ; ViewUtils.nothingMouseEvent "mousedown"
             ; ViewUtils.nothingMouseEvent "mouseup"
             ; ViewUtils.eventNoPropagation
-                ~key:"close-tutorial"
+                ~key:("close-tutorial-" ^ uniqueStr)
                 "click"
                 (fun _ -> ToolTipMsg (UpdateTutorial CloseTutorial)) ]
             [Html.text "End tutorial"]
@@ -340,7 +370,7 @@ let viewToolTip ~(shouldShow : bool) (t : tooltipContent) : msg Html.html =
     let viewNextPrevBtns =
       match t.tooltipStyle with
       | Tutorial step ->
-          viewNavigationBtns step
+          viewNavigationBtns step uniqueStr
       | Default ->
           Vdom.noNode
     in
@@ -358,6 +388,7 @@ let viewToolTip ~(shouldShow : bool) (t : tooltipContent) : msg Html.html =
     Html.div
       [Html.class' "tooltipWrapper"]
       [ Html.div
+          ~unique:uniqueStr
           [Html.class' ("tooltips " ^ directionToClass)]
           [ Html.div
               [Html.class' "content"]
