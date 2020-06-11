@@ -13,6 +13,10 @@ let validateName (s : string) : bool = Util.Regex.exactly ~re:nameValidator s
 
 let validateValue (s : string) : bool = s <> ""
 
+let isNameAlreadyUsed (m : insertModal) (value : string) : bool =
+  List.member ~value m.usedNames
+
+
 let update (msg : msg) : Types.modification =
   match msg with
   | OpenCreateModal ->
@@ -36,9 +40,7 @@ let update (msg : msg) : Types.modification =
             then
               Some
                 "Secret name can only contain alphanumberic characters and underscores"
-            else if List.member
-                      ~value:newSecretName
-                      m.insertSecretModal.usedNames
+            else if isNameAlreadyUsed m.insertSecretModal newSecretName
             then Some (newSecretName ^ " is already defined as a secret")
             else None
           in
@@ -60,8 +62,14 @@ let update (msg : msg) : Types.modification =
         (fun m ->
           let isValueValid = validateValue m.insertSecretModal.newSecretValue in
           let isNameValid = validateName m.insertSecretModal.newSecretName in
+          let isNameUnique =
+            not
+              (isNameAlreadyUsed
+                 m.insertSecretModal
+                 m.insertSecretModal.newSecretName)
+          in
           let insertSecretModal, cmd =
-            if isValueValid && isNameValid
+            if isValueValid && isNameValid && isNameUnique
             then
               ( SecretTypes.defaultInsertModal
               , API.insertSecret
@@ -70,7 +78,8 @@ let update (msg : msg) : Types.modification =
                   ; secretValue = m.insertSecretModal.newSecretValue } )
             else
               let error =
-                Some "Both secret name and secret values must be filled"
+                Some
+                  "Both secret name and secret values must be filled. And secret name must be unique within this canvas."
               in
               ( {m.insertSecretModal with isValueValid; isNameValid; error}
               , Cmd.none )
