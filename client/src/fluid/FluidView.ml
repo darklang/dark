@@ -49,14 +49,7 @@ let viewArrow (curID : ID.t) (srcID : ID.t) : Types.msg Html.html =
 
 
 let viewDval tlid secrets dval ~(canCopy : bool) =
-  let dval, canCopy =
-    match dval with
-    | DStr s when List.member ~value:s secrets ->
-        (DStr (Util.obscureString s), false)
-    | _ ->
-        (dval, canCopy)
-  in
-  let text = Runtime.toRepr dval in
+  let text = Runtime.toRepr dval |> Util.hideSecrets secrets in
   [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
 
 
