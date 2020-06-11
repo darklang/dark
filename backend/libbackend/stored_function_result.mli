@@ -19,7 +19,7 @@ val trim_results : unit -> int
 
 val trim_results_for_canvas : Uuidm.t -> int
 
-type trim_results_action = Stored_function_arguments.trim_arguments_action
+type trim_results_action = Stored_event.trim_events_action
 
 val trim_results_for_canvas :
      Libcommon.Telemetry.Span.t

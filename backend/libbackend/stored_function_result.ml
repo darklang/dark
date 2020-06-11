@@ -94,7 +94,7 @@ let trim_results () : int =
 (** trim_results_for_canvas is like trim_results but for a single canvas.
  *
  * All the comments and warnings there apply. Please read them. *)
-type trim_results_action = Stored_function_arguments.trim_arguments_action
+type trim_results_action = Stored_event.trim_events_action
 
 let trim_results_for_canvas
     (span : Libcommon.Telemetry.Span.t)

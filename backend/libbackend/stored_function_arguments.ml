@@ -99,9 +99,7 @@ let trim_arguments () : int =
     ~params:[]
 
 
-type trim_arguments_action =
-  | Count
-  | Delete
+type trim_arguments_action = Stored_event.trim_events_action
 
 (** trim_arguments_for_canvas is like trim_arguments_for_canvas but for a single canvas.
  *
