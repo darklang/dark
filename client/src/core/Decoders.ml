@@ -146,6 +146,20 @@ let id = ID.fromString << wireIdentifier
 
 let tlid = TLID.fromString << wireIdentifier
 
+let wireIdentifierOption (j : Js.Json.t) : string option =
+  if Js.typeof j = "object"
+  then None
+  else Some (string_of_int (Obj.magic j : int))
+
+
+let tlidOption (j : Js.Json.t) : TLID.t option =
+  match wireIdentifierOption j with
+  | Some x ->
+      Some (TLID.fromString x)
+  | None ->
+      None
+
+
 let pos j : pos = {x = field "x" int j; y = field "y" int j}
 
 let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
@@ -478,7 +492,7 @@ and savedSettings (j : Js.Json.t) : savedSettings =
   ; userTutorialTLID =
       withDefault
         Defaults.defaultSavedSettings.userTutorialTLID
-        (field "userTutorialTLID" (optional tlid))
+        (field "userTutorialTLID" tlidOption)
         j }
 
 

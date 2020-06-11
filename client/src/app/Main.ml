@@ -75,8 +75,8 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
   let userTutorial =
     if m.firstVisitToDark && m.tooltipState.userTutorial.step = None
-    then UserTutorial.defaultStep
-    else m.tooltipState.userTutorial.step
+    then UserTutorial.defaultTutorial
+    else m.tooltipState.userTutorial
   in
   let page =
     Url.parseLocation location
@@ -112,10 +112,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; teaDebuggerEnabled = Url.isDebugging ()
     ; unsupportedBrowser = Entry.unsupportedBrowser ()
     ; fluidState = Fluid.initAC m.fluidState
-    ; tooltipState =
-        { m.tooltipState with
-          userTutorial = {m.tooltipState.userTutorial with step = userTutorial}
-        } }
+    ; tooltipState = {m.tooltipState with userTutorial} }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =

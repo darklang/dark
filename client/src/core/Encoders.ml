@@ -852,9 +852,7 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ( "userTutorial"
       , Option.map ~f:userTutorial se.userTutorial
         |> Option.withDefault ~default:null )
-    ; ( "userTutorialTLID"
-      , Option.map ~f:tlid se.userTutorialTLID
-        |> Option.withDefault ~default:null ) ]
+    ; ("userTutorialTLID", nullable tlid se.userTutorialTLID) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

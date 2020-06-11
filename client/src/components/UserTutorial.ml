@@ -3,7 +3,7 @@
 
 open Prelude
 
-let defaultStep : tutorialStep option = Some Welcome
+let defaultTutorial : userTutorial = {step = Some Welcome; tlid = None}
 
 let isTutorialCanvas ~(username : string) ~(canvasname : string) : bool =
   canvasname = username ^ "-crud"
