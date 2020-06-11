@@ -519,6 +519,11 @@ module RuntimeT = struct
 
   (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
+  type secret =
+    { secret_name : string
+    ; secret_value : string }
+  [@@deriving eq, show, yojson]
+
   type function_desc = tlid * string * id [@@deriving yojson]
 
   type 'expr_type load_fn_result_type =
@@ -559,6 +564,7 @@ module RuntimeT = struct
     ; user_tipes : user_tipe list
     ; package_fns : 'expr_type fn list
     ; dbs : expr DbT.db list
+    ; secrets : secret list
     ; trace : on_execution_path:bool -> id -> 'expr_type dval -> unit
     ; trace_tlid : tlid -> unit
     ; callstack :

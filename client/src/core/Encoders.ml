@@ -501,6 +501,12 @@ and updateWorkerScheduleAPIParams (params : Types.updateWorkerScheduleAPIParams)
     [("name", string params.workerName); ("schedule", string params.schedule)]
 
 
+and secret (s : Types.secret) : Js.Json.t =
+  object_
+    [ ("secret_name", string s.secretName)
+    ; ("secret_value", string s.secretValue) ]
+
+
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams) :
     Js.Json.t =
   object_
@@ -509,7 +515,8 @@ and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams) :
     ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
     ; ("user_fns", list userFunction params.userFns)
-    ; ("user_tipes", list userTipe params.userTipes) ]
+    ; ("user_tipes", list userTipe params.userTipes)
+    ; ("secrets", list secret params.secrets) ]
 
 
 and performFunctionAnalysisParams (params : Types.performFunctionAnalysisParams)

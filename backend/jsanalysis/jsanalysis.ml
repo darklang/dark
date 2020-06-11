@@ -68,7 +68,8 @@ type handler_analysis_param =
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : fluid_expr user_fn list
-  ; user_tipes : user_tipe list }
+  ; user_tipes : user_tipe list
+  ; secrets : secret list }
 [@@deriving of_yojson]
 
 type function_analysis_param =
@@ -110,6 +111,7 @@ let perform_analysis
     ~(dbs : our_db list)
     ~(user_fns : fluid_expr user_fn list)
     ~(user_tipes : user_tipe list)
+    ~(secrets : secret list)
     ~(trace_id : RuntimeT.uuid)
     ~(trace_data : fluid_expr Analysis_types.trace_data)
     ast =
@@ -138,6 +140,7 @@ let perform_analysis
           ~user_fns:(List.map ~f:Toplevel.user_fn_of_fluid user_fns)
           ~user_tipes
           ~package_fns:[]
+          ~secrets
           ~load_fn_result:(load_from_trace function_results)
           ~load_fn_arguments:Execution.load_no_arguments
         |> Hashtbl.map ~f:Fluid.execution_result_to_fluid )
@@ -146,7 +149,7 @@ let perform_analysis
 
 
 let perform_handler_analysis (str : string) : string =
-  let {handler; dbs; user_fns; user_tipes; trace_id; trace_data} =
+  let {handler; dbs; user_fns; user_tipes; trace_id; trace_data; secrets} =
     str
     |> Yojson.Safe.from_string
     |> handler_analysis_param_of_yojson
@@ -157,6 +160,7 @@ let perform_handler_analysis (str : string) : string =
     ~dbs
     ~user_fns
     ~user_tipes
+    ~secrets
     ~trace_id
     ~trace_data
     (Fluid.fromFluidExpr handler.ast)
@@ -174,6 +178,7 @@ let perform_function_analysis (str : string) : string =
     ~dbs
     ~user_fns
     ~user_tipes
+    ~secrets:[]
     ~trace_id
     ~trace_data
     (Fluid.fromFluidExpr func.ast)

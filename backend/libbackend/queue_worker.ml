@@ -149,6 +149,8 @@ let dequeue_and_process execution_id :
                                           ~user_fns:
                                             (!c.user_functions |> IDMap.data)
                                           ~package_fns:!c.package_fns
+                                          ~secrets:
+                                            (Secret.secrets_in_canvas !c.id)
                                           ~account_id:!c.owner
                                           ~store_fn_arguments:
                                             (fun tlid dvalmap ->

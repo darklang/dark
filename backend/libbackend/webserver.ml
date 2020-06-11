@@ -562,6 +562,7 @@ let user_page_handler
               ~user_fns:(Types.IDMap.data !c.user_functions)
               ~user_tipes:(Types.IDMap.data !c.user_tipes)
               ~package_fns:!c.package_fns
+              ~secrets:(Secret.secrets_in_canvas !c.id)
               ~tlid:page.tlid
               ~dbs:(TL.dbs !c.dbs)
               ~input_vars:
@@ -983,8 +984,11 @@ let initial_load
       time "8-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
     in
-    let t9, result =
-      time "9-to-frontend" (fun _ ->
+    let t9, secrets =
+      time "9-secrets" (fun _ -> Secret.secrets_in_canvas !c.id)
+    in
+    let t10, result =
+      time "10-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
@@ -995,11 +999,12 @@ let initial_load
             canvas_list
             orgs
             org_canvas_list
-            worker_schedules)
+            worker_schedules
+            secrets)
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10])
       parent
       `OK
       result
@@ -1163,6 +1168,7 @@ let trigger_handler
                 ~user_tipes:(!c.user_tipes |> Map.data)
                 ~user_fns:(!c.user_functions |> Map.data)
                 ~package_fns:!c.package_fns
+                ~secrets:(Secret.secrets_in_canvas !c.id)
                 ~account_id:!c.owner
                 ~canvas_id
                 ~store_fn_arguments:(fun tlid dvalmap ->
