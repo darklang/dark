@@ -1446,7 +1446,16 @@ let insert_secret
       parent
       `OK
       result
-  with e -> raise e
+  with e ->
+    let msg = Exception.exn_to_string e in
+    if Tc.String.contains
+         ~substring:"duplicate key value violates unique constraint"
+         msg
+    then
+      Exception.raise_
+        DarkStorage
+        "The secret's name is already defined for this canvas"
+    else raise e
 
 
 (* ------------------- *)
