@@ -318,7 +318,10 @@ window.Dark = {
     },
     setConsent: function (consent) {
       FullStory.consent(consent);
-      if (consent) {
+      const maxAccountAgeToRecordMs =
+        48 /* hrs */ * 60 /* min/hr */ * 60 /* sec/min */ * 1000; /* ms/sec */
+      const msSinceAccountCreated = new Date() - accountCreationDate;
+      if (consent && msSinceAccountCreated < maxAccountAgeToRecordMs) {
         FullStory.restart();
       } else {
         FullStory.shutdown();

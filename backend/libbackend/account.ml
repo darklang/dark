@@ -243,6 +243,17 @@ let get_user username =
              None)
 
 
+let get_user_created_at_exn username =
+  Db.fetch_one
+    ~name:"get_user_and_created_at"
+    ~subject:username
+    "SELECT created_at from accounts
+     WHERE accounts.username = $1"
+    ~params:[String username]
+  |> List.hd_exn
+  |> Db.date_of_sqlstring
+
+
 let get_user_and_created_at_and_segment_metadata username =
   Db.fetch_one_option
     ~name:"get_user_and_created_at"
