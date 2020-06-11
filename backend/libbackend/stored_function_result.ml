@@ -3,6 +3,7 @@ open Libexecution
 open Analysis_types
 open Types
 module RTT = Types.RuntimeT
+open Libcommon
 
 (* ------------------------- *)
 (* External *)
@@ -93,21 +94,119 @@ let trim_results () : int =
 (** trim_results_for_canvas is like trim_results but for a single canvas.
  *
  * All the comments and warnings there apply. Please read them. *)
-let trim_results_for_canvas (canvas_id : Uuidm.t) : int =
-  Db.delete
-    ~name:"stored_function_result.trim_results_for_canvas"
-    "WITH indexed_results AS (
-       SELECT trace_id, row_number() OVER (
-         PARTITION BY canvas_id, tlid
-         ORDER BY timestamp DESC
-       ) AS rownum
-       FROM function_results_v2
-       WHERE canvas_id = $1
-       AND timestamp < (NOW() - interval '1 week')
-    )
-    DELETE FROM function_results_v2 WHERE trace_id IN (
-      SELECT trace_id FROM indexed_results
-      WHERE rownum > 10
-      LIMIT 10000
-    )"
-    ~params:[Uuid canvas_id]
+type trim_results_action = Stored_event.trim_events_action
+
+let trim_results_for_handler
+    (span : Libcommon.Telemetry.Span.t)
+    (action : trim_results_action)
+    ~(limit : int)
+    ~(canvas_name : string)
+    ~(tlid : string)
+    (canvas_id : Uuidm.t) : int =
+  Telemetry.with_span span "trim_results_for_handler" (fun span ->
+      let db_fn trim_events_action =
+        match action with Count -> Db.fetch_count | Delete -> Db.delete
+      in
+      let action_str =
+        match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
+      in
+      Telemetry.Span.set_attrs
+        span
+        [ ("limit", `Int limit)
+        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
+        ; ("canvas_name", `String canvas_name)
+        ; ("tlid", `String tlid)
+        ; ("action", `String action_str) ] ;
+      let count =
+        try
+          (db_fn action)
+            ~name:"gc_function_results"
+            (Printf.sprintf
+               "
+              WITH last_ten AS (
+                SELECT canvas_id, tlid, trace_id
+                FROM function_results_v2
+                WHERE canvas_id = $1
+                AND tlid = $2
+                AND timestamp < (NOW() - interval '1 week') LIMIT 10
+              ),
+              to_delete AS (SELECT canvas_id, tlid, trace_id
+                FROM function_results_v2
+                WHERE canvas_id = $1
+                AND tlid = $2
+                AND timestamp < (NOW() - interval '1 week')
+                LIMIT $3)
+              %s FROM function_results_v2
+                WHERE canvas_id = $1
+                AND tlid = $2
+                AND timestamp < (NOW() - interval '1 week')
+                AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
+                AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
+               action_str)
+            ~params:[Db.Uuid canvas_id; Db.String tlid; Db.Int limit]
+        with Exception.DarkException e ->
+          Log.erroR
+            "db error"
+            ~params:
+              [ ( "err"
+                , e
+                  |> Exception.exception_data_to_yojson
+                  |> Yojson.Safe.to_string ) ] ;
+          Exception.reraise (Exception.DarkException e)
+      in
+      Telemetry.Span.set_attr span "row_count" (`Int count) ;
+      count)
+
+
+let trim_results_for_canvas
+    (span : Libcommon.Telemetry.Span.t)
+    (action : trim_results_action)
+    ~(limit : int)
+    ~(canvas_name : string)
+    (canvas_id : Uuidm.t) : int =
+  Telemetry.with_span span "trim_results_for_canvas" (fun span ->
+      let handlers =
+        Telemetry.with_span
+          span
+          "get_function_handlers_for_canvas"
+          ~attrs:[("canvas_name", `String canvas_name)]
+          (fun span ->
+            ( try
+                Db.fetch
+                  ~name:"get_function_handlers_for_gc"
+                  "SELECT tlid
+                   FROM toplevel_oplists
+                   WHERE canvas_id = $1
+                   AND tipe = 'user_function';"
+                  ~params:[Db.Uuid canvas_id]
+              with Exception.DarkException e ->
+                Log.erroR
+                  "db error"
+                  ~params:
+                    [ ( "err"
+                      , e
+                        |> Exception.exception_data_to_yojson
+                        |> Yojson.Safe.to_string ) ] ;
+                Exception.reraise (Exception.DarkException e) )
+            (* List.hd_exn - we're only returning one field from this query *)
+            |> List.map ~f:(fun tlid -> tlid |> List.hd_exn))
+      in
+      let row_count : int =
+        handlers
+        |> List.map ~f:(fun tlid ->
+               trim_results_for_handler
+                 span
+                 action
+                 ~tlid
+                 ~canvas_name
+                 ~limit
+                 canvas_id)
+        |> Tc.List.sum
+      in
+      Telemetry.Span.set_attrs
+        span
+        [ ("handler_count", `Int (handlers |> List.length))
+        ; ("row_count", `Int row_count)
+        ; ("canvas_name", `String canvas_name)
+        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string)) ] ;
+      row_count)

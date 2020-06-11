@@ -18,3 +18,22 @@ val load :
 val trim_results : unit -> int
 
 val trim_results_for_canvas : Uuidm.t -> int
+
+type trim_results_action = Stored_event.trim_events_action
+
+val trim_results_for_canvas :
+     Libcommon.Telemetry.Span.t
+  -> trim_results_action
+  -> limit:int
+  -> canvas_name:string
+  -> Uuidm.t
+  -> int
+
+val trim_results_for_handler :
+     Libcommon.Telemetry.Span.t
+  -> trim_results_action
+  -> limit:int
+  -> canvas_name:string
+  -> tlid:string
+  -> Uuidm.t
+  -> int
