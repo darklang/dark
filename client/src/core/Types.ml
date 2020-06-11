@@ -1796,7 +1796,7 @@ and model =
   ; teaDebuggerEnabled : bool
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
-  ; showUserWelcomeModal : bool
+  ; firstVisitToDark : bool
         (* indicates if it is the users first time visiting any dark canvas *)
   ; tooltipState : tooltipState
   ; currentUserFn : fnProps
@@ -1807,7 +1807,7 @@ and model =
   ; insertSecretModal : SecretTypes.insertModal }
 
 and savedUserSettings =
-  { showUserWelcomeModal : bool
+  { firstVisitToDark : bool
   ; recordConsent : bool option }
 
 and savedSettings =

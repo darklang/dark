@@ -2,13 +2,13 @@ open Prelude
 
 let toModel (m : model) (e : savedUserSettings) : model =
   { m with
-    showUserWelcomeModal = e.showUserWelcomeModal
+    firstVisitToDark = e.firstVisitToDark
   ; settingsView =
       {m.settingsView with privacy = {recordConsent = e.recordConsent}} }
 
 
 let model2editor (m : model) : savedUserSettings =
-  { showUserWelcomeModal = m.showUserWelcomeModal
+  { firstVisitToDark = m.firstVisitToDark
   ; recordConsent = m.settingsView.privacy.recordConsent }
 
 

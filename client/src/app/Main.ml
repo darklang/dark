@@ -74,7 +74,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
   let userTutorial =
-    if m.showUserWelcomeModal && m.tooltipState.userTutorial.step = None
+    if m.firstVisitToDark && m.tooltipState.userTutorial.step = None
     then UserTutorial.defaultStep
     else m.tooltipState.userTutorial.step
   in
@@ -1454,7 +1454,7 @@ let update_ (msg : msg) (m : model) : modification =
       Entry.sendSegmentMessage msg ;
       NoChange
   | ToolTipMsg msg ->
-      if msg = UpdateTutorial CloseTutorial && m.showUserWelcomeModal
+      if msg = UpdateTutorial CloseTutorial && m.firstVisitToDark
       then Entry.sendSegmentMessage WelcomeModal ;
       Tooltips.update m.tooltipState msg
   | DeleteUserTypeForever tlid ->

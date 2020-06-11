@@ -20,7 +20,7 @@ async function prepSettings(t) {
     t.testRun.test.name === "record_consent_saved_across_canvases"
       ? "null"
       : "false";
-  let value2 = `{"showUserWelcomeModal":false,"recordConsent":${recordConsent}}`;
+  let value2 = `{"firstVisitToDark":false,"recordConsent":${recordConsent},"unsupportedBrowser": false,"userTutorial": null}`;
   await setLocalStorageItem(key2, value2);
 }
 

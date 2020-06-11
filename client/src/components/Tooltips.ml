@@ -127,7 +127,7 @@ let update (tooltipState : tooltipState) (msg : toolTipMsg) : modification =
               , [ ReplaceAllModificationsWithThisOne
                     (fun m ->
                       ( { m with
-                          showUserWelcomeModal = false
+                          firstVisitToDark = false
                         ; firstVisitToThisCanvas = false }
                       , Tea.Cmd.none )) ] )
           | ReopenTutorial ->
