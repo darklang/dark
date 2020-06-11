@@ -9,6 +9,7 @@ type toolTipDirection =
 
 and tooltipStyle =
   | Tutorial of tutorialStep
+  | Crud
   | Default
 
 and tooltipContent =
@@ -354,7 +355,7 @@ let viewToolTip
     in
     let closeBtn =
       match t.tooltipStyle with
-      | Tutorial _ ->
+      | Tutorial _ | Crud ->
           Html.button
             [ Html.class' "page-btn"
             ; ViewUtils.nothingMouseEvent "mousedown"
@@ -374,14 +375,14 @@ let viewToolTip
           Html.p
             [Html.class' "step-title"]
             [Html.text (Printf.sprintf "%d/%d" current total)]
-      | Default ->
+      | Crud | Default ->
           Vdom.noNode
     in
     let viewNextPrevBtns =
       match t.tooltipStyle with
       | Tutorial step ->
           viewNavigationBtns step uniqueStr
-      | Default ->
+      | Crud | Default ->
           Vdom.noNode
     in
     let directionToClass =

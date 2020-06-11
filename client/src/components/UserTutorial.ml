@@ -9,6 +9,22 @@ let isTutorialCanvas ~(username : string) ~(canvasname : string) : bool =
   canvasname = username ^ "-crud"
 
 
+
+let generateCRUDContent : Tooltips.tooltipContent =
+  { title =
+      "This is an example of a fully working CRUD application. It enables you to create, delete or edit a blog post, store the content and metadata in a datastore and access the blog posts via API endpoint."
+  ; details =
+      Some
+        "If you'd like to try building something complex, we've created a Getting Started tutorial in our documentation."
+  ; action =
+      Some
+        ( "Open CRUD app canvas"
+        , ToolTipMsg (OpenLink "https://darklang.github.io/docs/your-first") )
+  ; align = Left
+  ; tipAlignment = "align-left"
+  ; tooltipStyle = Crud }
+
+
 let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
     Tooltips.tooltipContent =
   match tutorialStep with

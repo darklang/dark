@@ -594,10 +594,17 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Share Dark"]
   in
   let tooltip =
-    UserTutorial.generateTutorialContent Welcome m.username
-    |> Tooltips.viewToolTip
-         ~shouldShow:(m.tooltipState.userTutorial.step = Some Welcome)
-         ~tlid:None
+    let shouldShow, ttContent =
+      if m.firstVisitToThisCanvas
+         && UserTutorial.isTutorialCanvas
+              ~username:m.username
+              ~canvasname:m.canvasName
+      then (true, UserTutorial.generateCRUDContent)
+      else
+        ( m.tooltipState.userTutorial.step = Some Welcome
+        , UserTutorial.generateTutorialContent Welcome m.username )
+    in
+    ttContent |> Tooltips.viewToolTip ~shouldShow ~tlid:None
   in
   Html.div
     [ Html.class' "my-account"
