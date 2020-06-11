@@ -466,6 +466,11 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.userTutorial
         (field "userTutorial" (optional tutorialStep))
+        j
+  ; userTutorialTLID =
+      withDefault
+        Defaults.defaultSavedSettings.userTutorialTLID
+        (field "userTutorialTLID" (optional tlid))
         j }
 
 

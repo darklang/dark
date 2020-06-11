@@ -1821,7 +1821,8 @@ and savedSettings =
   ; sidebarState : sidebarState
   ; showTopbar : bool
   ; firstVisitToThisCanvas : bool
-  ; userTutorial : tutorialStep option }
+  ; userTutorial : tutorialStep option
+  ; userTutorialTLID : TLID.t option }
 [@@deriving show {with_path = false}]
 
 and permission =

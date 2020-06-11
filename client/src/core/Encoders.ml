@@ -850,6 +850,9 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ("firstVisitToThisCanvas", bool se.firstVisitToThisCanvas)
     ; ( "userTutorial"
       , Option.map ~f:userTutorial se.userTutorial
+        |> Option.withDefault ~default:null )
+    ; ( "userTutorialTLID"
+      , Option.map ~f:tlid se.userTutorialTLID
         |> Option.withDefault ~default:null ) ]
 
 
