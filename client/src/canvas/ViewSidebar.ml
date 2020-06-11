@@ -1088,10 +1088,15 @@ let viewSidebar_ (m : model) : msg Html.html =
   let showAdminDebugger =
     if (not isDetailed) && m.isAdmin then adminDebuggerView m else Vdom.noNode
   in
+  let secretsView =
+    if VariantTesting.variantIsActive m SecretsVariant
+    then viewSecretKeys m
+    else Vdom.noNode
+  in
   let content =
     let categories =
       List.map ~f:(viewCategory m) cats
-      @ [viewSecretKeys m; viewDeployStats m; showAdminDebugger]
+      @ [secretsView; viewDeployStats m; showAdminDebugger]
     in
     Html.div
       [ Html.classList
