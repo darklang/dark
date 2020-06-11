@@ -182,6 +182,8 @@ and blankOrData (pd : Types.blankOrData) : Js.Json.t =
       ev "PDBColType" [blankOr string coltype]
   | PFnName msg ->
       ev "PFnName" [blankOr string msg]
+  | PFnDescription msg ->
+      ev "PFnDescription" [blankOr string msg]
   | PFnReturnTipe msg ->
       ev "PFnReturnTipe" [blankOr tipe msg]
   | PParamName msg ->

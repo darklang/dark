@@ -368,6 +368,8 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       if String.startsWith ~prefix:"dark/" value
       then v AC.packageFnNameValidator "function name"
       else v AC.fnNameValidator "function name"
+  | PFnDescription _ ->
+      None
   | PFnReturnTipe _ ->
       v AC.paramTypeValidator "return type"
   | PParamName oldParam ->
@@ -603,6 +605,19 @@ let submitACItem
                 in
                 let changedNames = Refactor.renameFunction m old value in
                 wrapNew (SetFunction new_ :: changedNames) newPD
+          | PFnDescription _, ACFnDescription desc, _ ->
+              (* We want to persist the cursorState since the function description
+              * sumbits while you type. *)
+              tl
+              |> TL.replace pd (PFnDescription (F (id, desc)))
+              |> fun newTL ->
+              ( match TL.asUserFunction newTL with
+              | Some _ when tl = newTL ->
+                  NoChange
+              | None ->
+                  NoChange
+              | Some f ->
+                  wrap [SetFunction f] None )
           | PFnReturnTipe _, ACReturnTipe tipe, _ ->
               replace (PFnReturnTipe (F (id, tipe)))
           | PParamName _, ACParamName value, _ ->
@@ -625,7 +640,21 @@ let submitACItem
               replace (PTypeFieldTipe (F (id, tipe)))
           | PGroupName _, ACGroupName name, _ ->
               replace (PGroupName (F (id, name)))
-          | pd, item, _ ->
+          | PDBName _, item, _
+          | PDBColType _, item, _
+          | PDBColName _, item, _
+          | PEventName _, item, _
+          | PEventModifier _, item, _
+          | PEventSpace _, item, _
+          | PFnName _, item, _
+          | PFnDescription _, item, _
+          | PFnReturnTipe _, item, _
+          | PParamName _, item, _
+          | PParamTipe _, item, _
+          | PTypeName _, item, _
+          | PTypeFieldName _, item, _
+          | PTypeFieldTipe _, item, _
+          | PGroupName _, item, _ ->
               ReplaceAllModificationsWithThisOne
                 (fun m ->
                   let custom =
@@ -674,6 +703,8 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
                 Some (ACDBColName value)
             | FnName ->
                 Some (ACFnName value)
+            | FnDescription ->
+                Some (ACFnDescription value)
             | ParamName ->
                 Some (ACParamName value)
             | TypeName ->
@@ -685,7 +716,13 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
             | EventModifier ->
                 (* Does not accept freeform inputs, but goes to validation call for more specific error message displayed to user *)
                 Some (ACEventModifier value)
-            | _ ->
+            | DBColType
+            | EventName
+            | EventSpace
+            | DBName
+            | FnReturnTipe
+            | ParamTipe
+            | TypeFieldTipe ->
                 None )
           | None ->
               None

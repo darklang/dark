@@ -735,6 +735,34 @@ test("function_analysis_works", async t => {
     .eql("10", { timeout: 5000 });
 });
 
+test("change_fn_description", async t => {
+  const initialText = "always5 returns the value 5";
+  const nextText = "always5 returns the value 5!";
+  const expectedText = "always5 returns the value 5!?";
+  const fnDescription = Selector(".tl-86953439 .fn-description");
+  await t
+    .navigateTo("#fn=86953439")
+    .expect(fnDescription.textContent)
+    .eql(initialText)
+    // HACK: On first click, blankors misplace the caret
+    // so we click and then position the caret.
+    // Once we fix this behavior, we can get rid of the click call.
+    .click(fnDescription)
+    .typeText(fnDescription, "!?", { caretPos: initialText.length });
+
+  await t
+    // Navigate away and back to check for persistence
+    .navigateTo("#")
+    .navigateTo("#fn=86953439")
+    .expect(available(fnDescription))
+    .ok({ timeout: 1000 })
+    // Note that `value` is the appropriate JS property to use for dynamically-updated text,
+    // but we are using `textContent` because we want to check the contents after they have persisted
+    // and have become the default content of the textarea
+    .expect(fnDescription.textContent)
+    .eql(expectedText);
+});
+
 test("jump_to_error", async t => {
   await t
     .navigateTo("#handler=123")
@@ -1100,6 +1128,13 @@ test("fluid_creating_an_http_handler_focuses_the_verb", async t => {
     .ok();
 });
 
+/*
+* These tests seem to simulate tabbing differently than
+* what happens when you press tab in a real browser.
+* We're disabling them for now because they give the false
+* impression that tabbing currently works as intended, even though
+* it is broken.
+
 test("fluid_tabbing_from_an_http_handler_spec_to_ast", async t => {
   await createHTTPHandler(t);
   await t
@@ -1120,6 +1155,7 @@ test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async t => {
     .expect(acHighlightedText("GET"))
     .ok();
 });
+*/
 
 test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
   await createHTTPHandler(t);

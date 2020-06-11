@@ -293,6 +293,7 @@ let blankOrData j : blankOrData =
     ; ("PDBColName", dv1 (fun x -> PDBColName x) (blankOr string))
     ; ("PDBColType", dv1 (fun x -> PDBColType x) (blankOr string))
     ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
+    ; ("PFnDescription", dv1 (fun x -> PFnDescription x) (blankOr string))
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
     ; ("PTypeFieldName", dv1 (fun x -> PTypeFieldName x) (blankOr string))

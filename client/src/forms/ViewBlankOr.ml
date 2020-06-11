@@ -3,6 +3,8 @@ open Prelude
 (* Dark *)
 module B = BlankOr
 module TL = Toplevel
+module Attributes = Tea.Html2.Attributes
+module Events = Tea.Html2.Events
 
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
 (* such as whether it's selected, appropriate events, mouseover, etc. *)
@@ -93,6 +95,8 @@ let placeHolderFor (vp : ViewUtils.viewProps) (pt : blankOrType) : string =
       "db type"
   | FnName ->
       "function name"
+  | FnDescription ->
+      "What does this function do?"
   | FnReturnTipe ->
       "return type"
   | ParamName ->
@@ -149,6 +153,65 @@ let viewBlankOr
       else thisText
   | _ ->
       thisText
+
+
+let viewMultilineText
+    ~(enterable : bool)
+    ~(classes : string list)
+    (pt : blankOrType)
+    (vp : ViewUtils.viewProps)
+    (str : string blankOr) : msg Html.html =
+  let id = B.toID str in
+  let unique = ID.toString id in
+  let classAttr = Html.class' (String.join ~sep:" " classes) in
+  let events =
+    if enterable
+    then
+      let tlid = TL.id vp.tl in
+      let keyStr = TLID.toString tlid ^ "-" ^ ID.toString id in
+      let event = ViewUtils.eventNoPropagation in
+      [ event "click" ~key:("bcc-" ^ keyStr) (fun x ->
+            BlankOrClick (tlid, id, x))
+      ; event "dblclick" ~key:("bcdc-" ^ keyStr) (fun x ->
+            BlankOrDoubleClick (tlid, id, x))
+      ; event "mouseenter" ~key:("me-" ^ keyStr) (fun x ->
+            BlankOrMouseEnter (tlid, id, x))
+      ; event "mouseleave" ~key:("ml-" ^ keyStr) (fun x ->
+            BlankOrMouseLeave (tlid, id, x))
+        (* This event updates the "autocomplete" value and persists it right away
+         * rather than waiting for you to click away. *)
+      ; Events.onInput (fun x -> MultilineEntryInputMsg x) ]
+    else
+      (* Rather than relying on property lengths changing, we should use
+       * noProp to indicate that the property at idx N has changed. *)
+      [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
+  in
+  let idAttr =
+    match vp.cursorState with
+    | (Selecting (_, Some thisID) | Entering (Filling (_, thisID)))
+      when thisID = id ->
+        (* Other blankors entirely change the HTML structure when being edited.
+         * Use the same id as other being-edited blankors for consistency. *)
+        Html.id Defaults.entryID
+    | _ ->
+        Html.id (ID.toString id)
+  in
+  let readonly =
+    (* Attribute.readonly is fixed in bstea 0.15.0 *)
+    if enterable then Vdom.noProp else Vdom.attribute "" "readonly" "readonly"
+  in
+  let preventPanningOnScroll = ViewUtils.nothingMouseEvent "wheel" in
+  let attrs =
+    idAttr
+    :: readonly
+    :: Html.placeholder (placeHolderFor vp pt)
+    :: Attributes.rows 3
+    :: preventPanningOnScroll
+    :: classAttr
+    :: events
+  in
+  let txt = match str with F (_, str) -> str | Blank _ -> "" in
+  Html.textarea ~unique attrs [Html.text txt]
 
 
 let viewText

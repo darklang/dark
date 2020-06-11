@@ -43,6 +43,14 @@ let testInt ~(errMsg : string) ~(expected : int) ~(actual : int) : testResult =
       ^ ")" )
 
 
+let testString ~(errMsg : string) ~(expected : string) ~(actual : string) :
+    testResult =
+  if actual = expected
+  then pass
+  else
+    fail (Printf.sprintf "%s (Actual: %s, Expected: %s)" errMsg actual expected)
+
+
 let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
 
 let onlyTL (m : model) : toplevel option =
@@ -425,6 +433,17 @@ let select_route (m : model) : testResult =
 let function_analysis_works (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
+
+
+let change_fn_description (m : model) : testResult =
+  match UserFunctions.findByName m "always5" with
+  | Some fn ->
+      testString
+        ~errMsg:"wrong description"
+        ~expected:"always5 returns the value 5!?"
+        ~actual:fn.ufMetadata.ufmDescription
+  | None ->
+      fail "function does not exist"
 
 
 let jump_to_error (m : model) : testResult =
@@ -945,6 +964,8 @@ let trigger (test_name : string) : integrationTestState =
         select_route
     | "function_analysis_works" ->
         function_analysis_works
+    | "change_fn_description" ->
+        change_fn_description
     | "jump_to_error" ->
         jump_to_error
     | "fourohfours_parse" ->

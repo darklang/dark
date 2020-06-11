@@ -312,6 +312,14 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
     )
   | PDBName _ | PDBColType _ | PDBColName _ ->
       tl
+  | PFnDescription desc ->
+      let ufmDescription =
+        match desc with Blank _ -> "" | F (_, desc) -> desc
+      in
+      asUserFunction tl
+      |> Option.map ~f:(fun fn ->
+             TLFunc {fn with ufMetadata = {fn.ufMetadata with ufmDescription}})
+      |> recoverOpt "Changing fn description on non-fn" ~default:tl
   | PFnName _ | PFnReturnTipe _ | PParamName _ | PParamTipe _ ->
     ( match asUserFunction tl with
     | Some fn ->

@@ -147,12 +147,15 @@ let processFocus (m : model) (focus : focus) : modification =
         ( match next with
         | Some id ->
             Enter (Filling (tlid, id))
+            Many [(AutocompleteMod ACReset); Enter (Filling (tlid, id))]
         | None ->
           ( match pred with
           | Some id ->
               Select (tlid, STID id)
+              Many [(AutocompleteMod ACReset); Select (tlid, STID id);]
           | None ->
               Select (tlid, STTopLevelRoot) ) ) )
+              Many [(AutocompleteMod ACReset); Select (tlid, STTopLevelRoot)] ) ) )
   | FocusExact (tlid, id) ->
     ( match TL.getPD m tlid id with
     | Some pd ->
@@ -321,7 +324,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let withFocus, wfCmd =
           updateMod
-            (Many [AutocompleteMod ACReset; processFocus localM focus])
+            (* HACK: (ACSetQuery "") here ensures autocomplete queries don't persist after commit, but allow commit as you type.
+            Note that we should instead call ACReset as a final step in situations where you want to save and focus elsewhere.
+            The current approach is asynchronous and can lead to timing-related bugs. *)
+            (Many [AutocompleteMod (ACSetQuery ""); processFocus localM focus])
             (localM, Cmd.none)
         in
         (withFocus, Cmd.batch [wfCmd; API.addOp withFocus FocusNoChange params])
@@ -990,6 +996,17 @@ let update_ (msg : msg) (m : model) : modification =
         [ AutocompleteMod (ACSetQuery query)
         ; AutocompleteMod (ACSetVisible true)
         ; MakeCmd (CursorState.focusEntry m) ]
+  | MultilineEntryInputMsg text ->
+      (* For multiline text, we want to persist as you type so we commit right away *)
+      (* This is awkward because we need to commit the model with the autocomplete change *)
+      let m, acCmd =
+        processAutocompleteMods m [ACSetQuery text; ACSetVisible false]
+      in
+      ( match CursorState.unwrap m.cursorState with
+      | Entering (Filling _ as cursor) ->
+          Many [MakeCmd acCmd; Entry.commit m cursor]
+      | _ ->
+          MakeCmd acCmd )
   | EntrySubmitMsg ->
       NoChange
   | AutocompleteClick index ->

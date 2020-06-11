@@ -3,12 +3,26 @@
   border-bottom: 1px dashed darken($user-functions, 30%);
   margin-bottom: $spacing-small;
 
+  .fn-info {
+    border-bottom: 1px solid $user-functions;
+  }
+
+  .fn-description {
+    padding: 0.5rem;
+    width: calc(100% - 20px);
+    color: $grey3;
+    background-color: $black3;
+    font-size: $code-font-size;
+    resize: none;
+    margin: 10px 10px 15px 10px;
+  }
+
   .spec-header {
     display: flex;
     flex-wrap: nowrap;
     justify-content: space-between;
     flex-direction: row;
-    border-bottom: 1px solid $user-functions;
+    border-bottom: none;
     cursor: default;
 
     .di-fn {

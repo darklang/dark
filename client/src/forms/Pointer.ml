@@ -23,6 +23,8 @@ let typeOf (pd : blankOrData) : blankOrType =
       DBColType
   | PFnName _ ->
       FnName
+  | PFnDescription _ ->
+      FnDescription
   | PFnReturnTipe _ ->
       FnReturnTipe
   | PParamName _ ->
@@ -56,6 +58,8 @@ let emptyD (pt : blankOrType) : blankOrData =
       PDBColType (Blank id)
   | FnName ->
       PFnName (Blank id)
+  | FnDescription ->
+      PFnDescription (Blank id)
   | FnReturnTipe ->
       PFnReturnTipe (Blank id)
   | ParamName ->
@@ -74,33 +78,20 @@ let emptyD (pt : blankOrType) : blankOrData =
 
 let toID (pd : blankOrData) : ID.t =
   match pd with
-  | PEventModifier d ->
-      B.toID d
-  | PEventName d ->
-      B.toID d
-  | PEventSpace d ->
-      B.toID d
-  | PDBName d ->
-      B.toID d
-  | PDBColName d ->
-      B.toID d
-  | PDBColType d ->
-      B.toID d
-  | PFnName d ->
-      B.toID d
-  | PFnReturnTipe d ->
-      B.toID d
-  | PParamName d ->
-      B.toID d
-  | PParamTipe d ->
-      B.toID d
-  | PTypeName d ->
-      B.toID d
-  | PTypeFieldName d ->
-      B.toID d
-  | PTypeFieldTipe d ->
-      B.toID d
+  | PEventModifier d
+  | PEventName d
+  | PEventSpace d
+  | PDBName d
+  | PDBColName d
+  | PDBColType d
+  | PFnName d
+  | PFnDescription d
+  | PParamName d
+  | PTypeName d
+  | PTypeFieldName d
   | PGroupName d ->
+      B.toID d
+  | PTypeFieldTipe d | PFnReturnTipe d | PParamTipe d ->
       B.toID d
 
 
@@ -113,6 +104,7 @@ let isBlank (pd : blankOrData) : bool =
   | PDBColName str
   | PDBColType str
   | PFnName str
+  | PFnDescription str
   | PParamName str
   | PTypeName str
   | PTypeFieldName str
@@ -145,6 +137,8 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
       PDBColType (bf d)
   | PFnName d ->
       PFnName (bf d)
+  | PFnDescription d ->
+      PFnDescription (bf d)
   | PFnReturnTipe d ->
       PFnReturnTipe d
   | PParamName d ->
@@ -171,6 +165,7 @@ let toContent (pd : blankOrData) : string =
   | PDBColName d
   | PDBColType d
   | PFnName d
+  | PFnDescription d
   | PParamName d
   | PTypeName d
   | PTypeFieldName d

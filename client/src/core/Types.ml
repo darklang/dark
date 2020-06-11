@@ -148,6 +148,7 @@ and blankOrData =
   | PDBColName of string blankOr
   | PDBColType of string blankOr
   | PFnName of string blankOr
+  | PFnDescription of string blankOr
   | PFnReturnTipe of tipe blankOr
   | PParamName of string blankOr
   | PParamTipe of tipe blankOr
@@ -164,6 +165,7 @@ and blankOrType =
   | DBColName
   | DBColType
   | FnName
+  | FnDescription
   | FnReturnTipe
   | ParamName
   | ParamTipe
@@ -914,6 +916,7 @@ and autocompleteItem =
   | ACDBColName of string
   (* User functions *)
   | ACFnName of string
+  | ACFnDescription of string
   | ACParamName of string
   | ACParamTipe of tipe
   | ACReturnTipe of tipe
@@ -1290,6 +1293,7 @@ and msg =
   | ToplevelDeleteForever of TLID.t
   | DragToplevel of TLID.t * Tea.Mouse.position [@printer opaque "DragToplevel"]
   | EntryInputMsg of string
+  | MultilineEntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | AutocompleteClick of int
