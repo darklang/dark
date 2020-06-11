@@ -37,7 +37,8 @@ type viewProps =
   ; menuState : menuState
   ; isExecuting : bool
   ; fnProps : fnProps
-  ; showHandlerASTs : bool }
+  ; showHandlerASTs : bool
+  ; secretValues : string list }
 
 (* ----------------------------- *)
 (* Events *)
@@ -148,7 +149,8 @@ let createVS (m : model) (tl : toplevel) : viewProps =
       | TLPmFunc _ | TLDB _ | TLTipe _ | TLGroup _ ->
           false )
   ; fnProps = m.currentUserFn
-  ; showHandlerASTs = m.editorSettings.showHandlerASTs }
+  ; showHandlerASTs = m.editorSettings.showHandlerASTs
+  ; secretValues = m.secrets |> List.map ~f:(fun s -> s.secretValue) }
 
 
 let fontAwesome (name : string) : msg Html.html =

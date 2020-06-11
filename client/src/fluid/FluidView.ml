@@ -48,7 +48,14 @@ let viewArrow (curID : ID.t) (srcID : ID.t) : Types.msg Html.html =
       Vdom.noNode
 
 
-let viewDval tlid dval ~(canCopy : bool) =
+let viewDval tlid secrets dval ~(canCopy : bool) =
+  let dval, canCopy =
+    match dval with
+    | DStr s when List.member ~value:s secrets ->
+        (DStr (Util.obscureString s), false)
+    | _ ->
+        (dval, canCopy)
+  in
   let text = Runtime.toRepr dval in
   [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
 
@@ -140,7 +147,7 @@ let viewLiveValue (vp : viewProps) : Types.msg Html.html =
    * the live value content is ready and can be asserted on *)
   let isLoaded = ref true in
   (* Renders dval*)
-  let renderDval = viewDval vp.tlid in
+  let renderDval = viewDval vp.tlid vp.secretValues in
   (* Renders live value for token *)
   let renderTokenLv id =
     match lvResultForId vp id with
@@ -284,7 +291,7 @@ let viewReturnValue
           Html.div
             [Html.class' "value"]
             ( [Html.text "This trace returns: "; newLine]
-            @ viewDval vp.tlid dval ~canCopy:true )
+            @ viewDval vp.tlid vp.secretValues dval ~canCopy:true )
         in
         Html.div
           ( Html.classList
