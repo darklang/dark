@@ -61,6 +61,7 @@ let run () =
             ; workerStats = None
             ; menuState = {isOpen = false}
             ; isExecuting = false
+            ; secretValues = []
             ; fnProps =
                 { draggingParamIndex = None
                 ; dragOverSpaceIndex = None

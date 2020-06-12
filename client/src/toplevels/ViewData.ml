@@ -40,13 +40,14 @@ let pauseWorkerButton (vp : ViewUtils.viewProps) (name : string) : msg Html.html
 
 
 let viewTrace
-    (tl : toplevel)
+    (vp : ViewUtils.viewProps)
     (traceID : traceID)
     (value : inputValueDict option)
     (timestamp : string option)
     (isActive : bool)
     (isHover : bool)
     (isUnfetchable : bool) : msg Html.html =
+  let tl = vp.tl in
   let tlid = TL.id tl in
   let classes =
     [ ("active", isActive)
@@ -86,7 +87,7 @@ let viewTrace
           let asString =
             if String.length asString = 0
             then "No input parameters"
-            else asString
+            else Util.hideSecrets vp.secretValues asString
           in
           Html.div [Vdom.noProp] [Html.text asString]
   in
@@ -134,7 +135,7 @@ let viewTraces (vp : ViewUtils.viewProps) : msg Html.html list =
     let isUnfetchable =
       match traceData with Error MaximumCallStackError -> true | _ -> false
     in
-    viewTrace vp.tl traceID value timestamp isActive isHover isUnfetchable
+    viewTrace vp traceID value timestamp isActive isHover isUnfetchable
   in
   List.map ~f:traceToHtml vp.traces
 

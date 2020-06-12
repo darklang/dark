@@ -80,17 +80,6 @@ let humanReadableTimeElapsed (time : float) : string =
 external formatDate : Js.Date.t * string -> string = "formatDate"
   [@@bs.val] [@@bs.scope "window"] [@@bs.scope "Dark"]
 
-(* Obscures string keeping only last n characters, and replacing everything else with X.
- If string length < n, then returns X of string length  *)
-let obscureString (s : string) : string =
-  let len = String.length s in
-  let n = Int.minimum 4 (len / 4) in
-  let diff = len - n in
-  let redactedLeft = String.repeat ~count:diff "X" in
-  let visibleRight = String.dropLeft ~count:diff s in
-  redactedLeft ^ visibleRight
-
-
 module Regex = struct
   type t = Js.Re.t
 
@@ -284,3 +273,23 @@ let indefiniteArticleFor (subject : string) : string =
       "an"
   | _ ->
       "a"
+
+
+(* Obscures string keeping only last n characters, and replacing everything else with X.
+ If string length < n, then returns X of string length  *)
+let obscureString (s : string) : string =
+  let len = String.length s in
+  let n = Int.minimum 4 (len / 4) in
+  let diff = len - n in
+  let redactedLeft = String.repeat ~count:diff "X" in
+  let visibleRight = String.dropLeft ~count:diff s in
+  redactedLeft ^ visibleRight
+
+
+let hideSecrets (secretValues : string list) (s : string) : string =
+  List.foldl secretValues ~init:s ~f:(fun secretVal buildingStr ->
+      (* We are doing this instead of Regex.replace because it fails secretValues with regex characters
+    And Js.String.replace only replaces the first found string. *)
+      buildingStr
+      |> String.split ~on:secretVal
+      |> String.join ~sep:(obscureString secretVal))

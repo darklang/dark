@@ -19,4 +19,29 @@ let run () =
           expect (obscureString "abc-123-def-456-ghi-789-xyz")
           |> toEqual "XXXXXXXXXXXXXXXXXXXXXXX-xyz") ;
       ()) ;
+  describe "hideSecrets" (fun () ->
+      let secrets = ["abc[123]-\\bunnies"; "XSUYD-JFKJWD-NKFADS"] in
+      test "replaces a secret" (fun () ->
+          expect (hideSecrets secrets "XSUYD-JFKJWD-NKFADS")
+          |> toEqual "XXXXXXXXXXXXXXXFADS") ;
+      test "replaces a in substring" (fun () ->
+          expect (hideSecrets secrets "Bearer XSUYD-JFKJWD-NKFADS")
+          |> toEqual "Bearer XXXXXXXXXXXXXXXFADS") ;
+      test "replaces secret with regex like characters" (fun () ->
+          expect (hideSecrets secrets "abc[123]-\\bunnies")
+          |> toEqual "XXXXXXXXXXXXXnies") ;
+      test "replaces all of the same secret" (fun () ->
+          expect
+            (hideSecrets
+               secrets
+               "{ \"token\" : \"XSUYD-JFKJWD-NKFADS\", \"auth\" : \"XSUYD-JFKJWD-NKFADS\" }")
+          |> toEqual
+               "{ \"token\" : \"XXXXXXXXXXXXXXXFADS\", \"auth\" : \"XXXXXXXXXXXXXXXFADS\" }") ;
+      test "replaces multiple different secrets" (fun () ->
+          expect
+            (hideSecrets
+               secrets
+               "{ \"token\" : \"XSUYD-JFKJWD-NKFADS\", \"secret\" : \"abc[123]-\\bunnies\" }")
+          |> toEqual
+               "{ \"token\" : \"XXXXXXXXXXXXXXXFADS\", \"secret\" : \"XXXXXXXXXXXXXnies\" }")) ;
   ()
