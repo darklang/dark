@@ -17,6 +17,7 @@ type err_ctx =
   | Remote of request_data
   | EventQueue
   | CronChecker
+  | GarbageCollector
   | Push of string
   | Segment of string
   | Other of string
@@ -27,6 +28,8 @@ let string_of_ctx (ctx : err_ctx) =
       "queue_worker"
   | CronChecker ->
       "cron_checker"
+  | GarbageCollector ->
+      "garbage_collector"
   | Remote _ ->
       "remote"
   | Push _ ->
@@ -96,6 +99,8 @@ let error_to_payload
         `String "event queue worker"
     | CronChecker ->
         `String "cron event emitter"
+    | GarbageCollector ->
+        `String "garbage collector worker"
     | Push _ ->
         `String "server push"
     | Other str ->
@@ -129,7 +134,7 @@ let error_to_payload
         ; ("context", context)
         ; ("execution_id", `String execution_id)
         ; ("request", request) ]
-    | EventQueue | CronChecker ->
+    | EventQueue | CronChecker | GarbageCollector ->
         [ ("body", message)
         ; ("level", level)
         ; ("environment", env)

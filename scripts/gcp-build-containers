@@ -92,22 +92,26 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
 
   docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-qw:latest" "$NDIR"
 
+
   #################################
-  ## cronchecker
+  #################################
+  ## garbage collector
   #################################
 
-  CDIR=$(mktemp -d --suffix _gcp-cron-builddir)
+  CDIR=$(mktemp -d --suffix _gcp-gc-builddir)
 
-  cp scripts/support/gcp-cronchecker-Dockerfile "$CDIR/Dockerfile"
+  cp scripts/support/gcp-garbagecollector-Dockerfile "$CDIR/Dockerfile"
 
-  cp -f scripts/support/gcp-run-cronchecker "$CDIR/"
+  cp -f scripts/support/gcp-run-garbagecollector "$CDIR/"
   cp -f scripts/support/check-linked-libs "$CDIR/"
   cp -Rf backend/templates "$CDIR/"
   cp -Rf scripts "$CDIR/"
 
   mkdir -p "$CDIR/bin"
-  cp -f _build/default/backend/bin/cron_checker.exe "$CDIR/bin/"
+  cp -f _build/default/backend/bin/garbage_collector_worker.exe "$CDIR/bin/"
 
+  # I don't think we need all of the below files for the gc image, but copying
+  # them in here is easier than confirming that
   mkdir -p "$CDIR/webroot"
   cp -Rf backend/static "$CDIR/webroot/"
 
@@ -117,7 +121,7 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   mkdir -p "$CDIR/migrations"
   cp -Rf backend/migrations/* "$CDIR/migrations/"
 
-  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-cron:latest" "$CDIR"
+  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-garbagecollector:latest" "$CDIR"
 fi
 
 

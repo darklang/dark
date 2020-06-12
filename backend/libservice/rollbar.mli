@@ -16,6 +16,7 @@ type err_ctx =
   | Remote of request_data
   | EventQueue
   | CronChecker
+  | GarbageCollector
   | Push of string
   | Segment of string
   | Other of string

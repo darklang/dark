@@ -71,8 +71,16 @@ data:
         processors:
         - sample:
             type: static
-            rate: 100
+            rate: 100 # 1/100 sample rate
         parser: json
+      - labelSelector: "app=garbagecollector"
+        containerName: garbagecollector-ctr
+        dataset: kubernetes-garbagecollector
+        parser: json
+        processors:
+        - sample:
+            type: static
+            rate: 10 # 1/10 sample rate
       - labelSelector: "app=scheduler-worker"
         containerName: scheduler-ctr
         dataset: kubernetes-scheduler

@@ -242,6 +242,7 @@ jobs:
             - _build/default/backend/bin/server.exe
             - _build/default/backend/bin/emergency_login_script.exe
             - _build/default/backend/bin/garbage_collector.exe
+            - _build/default/backend/bin/garbage_collector_worker.exe
             - _build/default/backend/bin/queue_worker.exe
             - _build/default/backend/bin/cron_checker.exe
             - backend/static/analysis.js
