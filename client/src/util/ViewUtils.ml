@@ -150,7 +150,7 @@ let createVS (m : model) (tl : toplevel) : viewProps =
           false )
   ; fnProps = m.currentUserFn
   ; showHandlerASTs = m.editorSettings.showHandlerASTs
-  ; secretValues = m.secrets |> List.map ~f:(fun s -> s.secretValue) }
+  ; secretValues = m.secrets |> List.map ~f:SecretTypes.getSecretValue }
 
 
 let fontAwesome (name : string) : msg Html.html =

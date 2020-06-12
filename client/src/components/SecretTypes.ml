@@ -29,3 +29,6 @@ let defaultInsertModal =
   ; error = None
   ; visible = false
   ; usedNames = [] }
+
+
+let getSecretValue (s : t) : string = s.secretValue
