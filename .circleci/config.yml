@@ -385,6 +385,7 @@ jobs:
             time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
             time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
             time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-garbagecollector -q | head -n 1 > gcr-image-ids/garbagecollector
             time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
             time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
             time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
@@ -407,6 +408,7 @@ jobs:
             --server-image-id=`cat gcr-image-ids/server` \
             --qw-image-id=`    cat gcr-image-ids/qw`     \
             --cron-image-id=`  cat gcr-image-ids/cron`   \
+            --garbagecollector-image-id=`  cat gcr-image-ids/garbagecollector`   \
             --stroller-image-id=`cat gcr-image-ids/stroller` \
             --queue-scheduler-image-id=`cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`cat gcr-image-ids/tunnel` \
