@@ -32,6 +32,8 @@ spec:
             - configMapRef:
                 name: gke-dark-prod
           env:
+            - name: DARK_CONFIG_RUNNING_IN_GKE
+              value: "true"
 #########################
 # Postgres proxy config
 # To connect to postgres from kubernetes, we need to add a proxy. See
