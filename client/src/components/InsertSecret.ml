@@ -39,7 +39,7 @@ let update (msg : msg) : Types.modification =
             if not (validateName newSecretName)
             then
               Some
-                "Secret name can only contain alphanumberic characters and underscores"
+                "Secret name can only contain uppercase alphanumeric characters and underscores"
             else if isNameAlreadyUsed m.insertSecretModal newSecretName
             then Some (newSecretName ^ " is already defined as a secret")
             else None
