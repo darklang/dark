@@ -79,7 +79,7 @@ let update (msg : msg) : Types.modification =
             else
               let error =
                 Some
-                  "Both secret name and secret values must be filled. And secret name must be unique within this canvas."
+                  "Both secret name and secret values must be filled, and secret name must be unique within this canvas."
               in
               ( {m.insertSecretModal with isValueValid; isNameValid; error}
               , Cmd.none )
