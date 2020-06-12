@@ -2307,7 +2307,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
   in
   let clipboardSubs =
     (* We want the default copy/paste behaviors on the settings modal *)
-    if m.settingsView.opened
+    if m.settingsView.opened || m.insertSecretModal.visible
     then []
     else
       [ BrowserListeners.Clipboard.copyListener ~key:"copy_event" (fun e ->
