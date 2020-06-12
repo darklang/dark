@@ -42,7 +42,9 @@ let nameOf (vt : variantTest) : string =
 
 let toCSSClass (vt : variantTest) : string = nameOf vt ^ "-variant"
 
-let availableAdminVariants : variantTest list = [NgrokVariant; GroupVariant]
+let availableAdminVariants : variantTest list =
+  [NgrokVariant; GroupVariant; SecretsVariant]
+
 
 let activeCSSClasses (m : model) : string =
   m.tests |> List.map ~f:toCSSClass |> String.join ~sep:" "

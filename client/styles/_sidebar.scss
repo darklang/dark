@@ -662,52 +662,54 @@ $icSize: 1em;
   .simple-item.secret {
     position: relative;
     display: inline-block;
-    border: 1px solid $secondaryColor;
-    padding: 2px;
-    border-radius: 2px;
-    color: $primaryColor;
-    width: 90%;
+    width: 100%;
     margin: 0 4%;
     margin-top: 10px;
 
-    &:hover {
-      color: $hoverColor;
-      border-color: $hoverColor;
-      cursor: pointer;
+    .key-block {
+      border: 1px solid $secondaryColor;
+      padding: 2px;
+      border-radius: 2px;
+      color: $primaryColor;
+      width: calc(100% - 50px);
+
+      &:hover {
+        color: $hoverColor;
+        border-color: $hoverColor;
+        cursor: pointer;
+
+        .secret-name {
+          display: none;
+        }
+
+        .secret-value {
+          display: inline-block;
+        }
+      }
+
+      .secret-name,
+      .secret-value {
+        text-decoration: none;
+        font-size: 0.7em;
+        box-sizing: border-box;
+        padding: 0 8px;
+        width: 100%;
+        overflow: hidden;
+      }
 
       .secret-name {
-        display: none;
+        display: inline-block;
       }
 
       .secret-value {
-        display: inline-block;
+        display: none;
       }
     }
 
-    .secret-name,
-    .secret-value {
-      text-decoration: none;
-      font-size: 0.7em;
-      box-sizing: border-box;
-      padding: 0 8px;
-      width: 100%;
-      overflow: hidden;
-      direction: rtl;
-    }
-
-    .secret-name {
-      display: inline-block;
-    }
-
-    .secret-value {
-      display: none;
-    }
-
     .copy-secret-name {
-      font-size: 12px;
-      position: absolute;
-      top: -8px;
-      right: -6px;
+      font-size: 16px;
+      width: 32px;
+      margin-left: 8px;
 
       &:hover {
         color: $hoverColor;

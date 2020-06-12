@@ -724,16 +724,20 @@ let viewSecret (s : SecretTypes.t) : msg Html.html =
       (fun m -> ClipboardCopyLivevalue (s.secretName, m.mePos))
   in
   let copyBtn =
-    Html.div [Html.class' "icon-button copy-secret-name"] [fontAwesome "copy"]
+    Html.div
+      [ Html.class' "icon-button copy-secret-name"
+      ; copyMsg
+      ; Html.title "Click to copy secret name" ]
+      [fontAwesome "copy"]
   in
   Html.div
-    [ Html.class' "simple-item secret"
-    ; copyMsg
-    ; Html.title "Click to copy secret name" ]
-    [ Html.span [Html.class' "secret-name"] [Html.text s.secretName]
-    ; Html.span
-        [Html.class' "secret-value"]
-        [Html.text (Util.obscureString s.secretValue)]
+    [Html.class' "simple-item secret"]
+    [ Html.div
+        [Html.class' "key-block"]
+        [ Html.span [Html.class' "secret-name"] [Html.text s.secretName]
+        ; Html.span
+            [Html.class' "secret-value"]
+            [Html.text (Util.obscureString s.secretValue)] ]
     ; copyBtn ]
 
 
