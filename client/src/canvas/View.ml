@@ -604,7 +604,8 @@ let accountView (m : model) : msg Html.html =
         ( m.tooltipState.userTutorial.step = Some Welcome
         , UserTutorial.generateTutorialContent Welcome m.username )
     in
-    ttContent |> Tooltips.viewToolTip ~shouldShow ~tlid:None
+    ttContent
+    |> Tooltips.viewToolTip ~shouldShow ~tlid:m.tooltipState.userTutorial.tlid
   in
   Html.div
     [ Html.class' "my-account"

@@ -32,7 +32,7 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
           "Welcome to Dark! Let's get started by creating a \"Hello World\" endpoint."
       ; details =
           Some
-            "Click anywhere on the canvas (the large light gray region in the center of the screen), type \"hello\" and choose (by clicking or pressing enter) \"New HTTP handler named /hello\". This will create a handler for the /hello endpoint of your app."
+            "To continue, Click anywhere on the canvas (the large light gray region in the center of the screen), type \"hello\" and choose (by clicking or pressing enter) \"New HTTP handler named /hello\". This will create a handler for the /hello endpoint of your app."
       ; action = None
       ; align = Left
       ; tipAlignment = "align-left"

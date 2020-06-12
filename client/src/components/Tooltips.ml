@@ -279,7 +279,8 @@ let generateContent (t : tooltipSource) : tooltipContent =
       ; tooltipStyle = Default }
 
 
-let viewNavigationBtns (step : tutorialStep) (uniqueStr : string) :
+let viewNavigationBtns
+    (tlid : TLID.t option) (step : tutorialStep) (uniqueStr : string) :
     msg Html.html =
   let prevBtn =
     let clickEvent =
@@ -304,13 +305,13 @@ let viewNavigationBtns (step : tutorialStep) (uniqueStr : string) :
   let nextBtn =
     let clickEvent =
       match getNextStep (Some step) with
-      | Some _ ->
+      | Some _ when Option.isSome tlid ->
           let stepNum, _ = currentStepFraction step in
           ViewUtils.eventNoPropagation
             ~key:("next-step-" ^ string_of_int stepNum ^ "-" ^ uniqueStr)
             "click"
             (fun _ -> ToolTipMsg (UpdateTutorial NextStep))
-      | None ->
+      | Some _ | None ->
           Vdom.noProp
     in
     Html.button
@@ -381,7 +382,7 @@ let viewToolTip
     let viewNextPrevBtns =
       match t.tooltipStyle with
       | Tutorial step ->
-          viewNavigationBtns step uniqueStr
+          viewNavigationBtns tlid step uniqueStr
       | Crud | Default ->
           Vdom.noNode
     in
