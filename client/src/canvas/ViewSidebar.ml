@@ -717,27 +717,29 @@ let viewDeployStats (m : model) : msg Html.html =
 
 
 let viewSecret (s : SecretTypes.t) : msg Html.html =
-  let copyMsg =
-    ViewUtils.eventNeither
-      "click"
-      ~key:("copy-secret-" ^ s.secretName)
-      (fun m -> ClipboardCopyLivevalue (s.secretName, m.mePos))
-  in
   let copyBtn =
     Html.div
       [ Html.class' "icon-button copy-secret-name"
-      ; copyMsg
+      ; ViewUtils.eventNeither
+          "click"
+          ~key:("copy-secret-" ^ s.secretName)
+          (fun m -> ClipboardCopyLivevalue (s.secretName, m.mePos))
       ; Html.title "Click to copy secret name" ]
       [fontAwesome "copy"]
+  in
+  let secretValue = Util.obscureString s.secretValue in
+  let secretValue =
+    (* If str length > 16 chars, we just want to keep the last 16 chars *)
+    let len = String.length secretValue in
+    let count = len - 16 in
+    if count > 0 then String.dropLeft ~count secretValue else secretValue
   in
   Html.div
     [Html.class' "simple-item secret"]
     [ Html.div
         [Html.class' "key-block"]
         [ Html.span [Html.class' "secret-name"] [Html.text s.secretName]
-        ; Html.span
-            [Html.class' "secret-value"]
-            [Html.text (Util.obscureString s.secretValue)] ]
+        ; Html.span [Html.class' "secret-value"] [Html.text secretValue] ]
     ; copyBtn ]
 
 
