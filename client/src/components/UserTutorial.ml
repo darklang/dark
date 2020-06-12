@@ -14,7 +14,8 @@ let generateCRUDContent : Tooltips.tooltipContent =
       "This is an example of a fully working CRUD application. It enables you to create, delete or edit a blog post, store the content and metadata in a datastore and access the blog posts via API endpoint."
   ; details =
       Some
-        "If you'd like to try building something complex, we've created a Getting Started tutorial in our documentation."
+        [ "If you'd like to try building something complex, we've created a Getting Started tutorial in our documentation."
+        ]
   ; action =
       Some
         ( "Getting Started tutorial"
@@ -32,7 +33,10 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
           "Welcome to Dark! Let's get started by creating a \"Hello World\" endpoint."
       ; details =
           Some
-            "To continue, Click anywhere on the canvas (the large light gray region in the center of the screen), type \"hello\" and choose (by clicking or pressing enter) \"New HTTP handler named /hello\". This will create a handler for the /hello endpoint of your app."
+            [ "To continue, click anywhere on the canvas (the large light gray region in the center of the screen).      "
+            ; "Type \"hello\", then choose (arrow down and hit enter, or click on) \"New HTTP handler named /hello\"."
+            ; "This will create a handler for the /hello endpoint of your app."
+            ]
       ; action = None
       ; align = Left
       ; tipAlignment = "align-left"
@@ -64,7 +68,8 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
       { title = "Congratulations, you've created your first Hello World in Dark!"
       ; details =
           Some
-            "To help you continue to learn, we've created a sample CRUD app canvas."
+            [ "To help you continue to learn, we've created a sample CRUD app canvas."
+            ]
       ; action =
           Some
             ( "Open CRUD app canvas"

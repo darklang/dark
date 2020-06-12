@@ -14,7 +14,7 @@ and tooltipStyle =
 
 and tooltipContent =
   { title : string
-  ; details : string option
+  ; details : string list option
   ; action : (string * msg) option
   ; align : toolTipDirection
   ; tipAlignment : string
@@ -222,7 +222,8 @@ let generateContent (t : tooltipSource) : tooltipContent =
           "Attempts to hit endpoints that do not yet have handlers appear here."
       ; details =
           Some
-            "If you're looking for a 404 but not seeing it in this list, check the 'Deleted' section of the sidebar."
+            [ "If you're looking for a 404 but not seeing it in this list, check the 'Deleted' section of the sidebar."
+            ]
       ; action =
           Some
             ( "Learn More"
@@ -245,7 +246,8 @@ let generateContent (t : tooltipSource) : tooltipContent =
           "A list of built-in Dark functions. Click on the name of the function to preview it."
       ; details =
           Some
-            "To use the function in your canvas, start typing its name in your handler and select it from autocomplete."
+            [ "To use the function in your canvas, start typing its name in your handler and select it from autocomplete."
+            ]
       ; action = None
       ; align = Bottom
       ; tipAlignment = "align-left"
@@ -336,8 +338,14 @@ let viewToolTip
     let viewDesc = Html.h1 [Html.class' "description"] [Html.text t.title] in
     let viewDetail =
       match t.details with
-      | Some txt ->
-          Html.p [Html.class' "details"] [Html.text txt]
+      | Some txtList ->
+          let txtview =
+            List.map
+              ~f:(fun txt -> Html.p [Html.class' "details"] [Html.text txt])
+              txtList
+          in
+          Html.div [] txtview
+          (* Html.p [Html.class' "details"] [Html.text txt] *)
       | None ->
           Vdom.noNode
     in
