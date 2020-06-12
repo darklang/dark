@@ -49,11 +49,6 @@ fixture`Integration Tests`
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
     var url = `${BASE_URL}${testname}?integration-test=true`;
 
-    /* TODO take away this injection after we remove secrets variant flag */
-    if (testname === "focus_on_secret_field_on_insert_modal_open") {
-      url += "&secrets=1";
-    }
-
     var username = "test";
     if (testname.match(/_as_admin/)) {
       username = "test_admin";

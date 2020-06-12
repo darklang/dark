@@ -1430,7 +1430,6 @@ and variantTest =
   | GroupVariant
   | NgrokVariant
   | LeftPartialVariant
-  | SecretsVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1716,6 +1715,7 @@ and tooltipSource =
   | StaticAssets
   | FnParam
   | FnMiniMap
+  | Secrets
 
 and model =
   { error : Error.t
