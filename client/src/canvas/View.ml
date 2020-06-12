@@ -690,8 +690,7 @@ let view (m : model) : msg Html.html =
       ; entry
       ; modal
       ; settingsModal
-      ; InsertSecret.view m.insertSecretModal
-      ; tutorial ]
+      ; InsertSecret.view m.insertSecretModal ]
     @ fluidStatus
     @ footer
     @ viewDocs
