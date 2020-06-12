@@ -27,6 +27,7 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM function_arguments WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM static_asset_deploys WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases WHERE id = '$cid';";
+  SCRIPT+="DELETE FROM secrets WHERE canvas_id = '$cid';";
 done
 
 SCRIPT+="DELETE FROM packages_v0 WHERE author_id IN (SELECT id FROM accounts

@@ -17,6 +17,8 @@ let isNameAlreadyUsed (m : insertModal) (value : string) : bool =
   List.member ~value m.usedNames
 
 
+let secretNameInputID = "new-secret-name-input"
+
 let update (msg : msg) : Types.modification =
   match msg with
   | OpenCreateModal ->
@@ -26,7 +28,8 @@ let update (msg : msg) : Types.modification =
           let insertSecretModal =
             {m.insertSecretModal with visible = true; usedNames}
           in
-          ({m with insertSecretModal}, Cmd.none))
+          ( {m with insertSecretModal; cursorState = Deselected}
+          , Tea_html_cmds.focus secretNameInputID ))
   | CloseCreateModal ->
       Types.ReplaceAllModificationsWithThisOne
         (fun m ->
@@ -118,7 +121,9 @@ let view (m : insertModal) : Types.msg Html.html =
           Html.form
             [Html.class' "insert-secret-form"]
             [ Html.input'
-                [ Attr.placeholder "secret name"
+                [ Html.id secretNameInputID
+                ; Html.autofocus true
+                ; Attr.placeholder "secret name"
                 ; Attr.name "secret-name"
                 ; Attr.value m.newSecretName
                 ; Html.classList
