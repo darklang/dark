@@ -12,6 +12,10 @@ let fontAwesome = ViewUtils.fontAwesome
 
 let docsURL = "https://ops-documentation.builtwithdark.com/user-manual"
 
+let functionRefsURL = "https://ops-documentation.builtwithdark.com/?pretty=1"
+
+let keyboardRefsURL = "https://darklang.github.io/docs/keyboard-mapping"
+
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
@@ -510,6 +514,24 @@ let accountView (m : model) : msg Html.html =
             UpdateSegment OpenDocs) ]
       [Html.text "Documentation"]
   in
+  let functionRefs =
+    Html.a
+      [ Html.class' "account-action-btn"
+      ; Html.href functionRefsURL
+      ; Html.target "_blank"
+      ; ViewUtils.eventNoPropagation ~key:"account-fn-ref" "click" (fun _ ->
+            UpdateSegment OpenFnRef) ]
+      [Html.text "Function Reference"]
+  in
+  let keyboardRefs =
+    Html.a
+      [ Html.class' "account-action-btn"
+      ; Html.href keyboardRefsURL
+      ; Html.target "_blank"
+      ; ViewUtils.eventNoPropagation ~key:"account-fn-ref" "click" (fun _ ->
+            UpdateSegment OpenKeyboardRef) ]
+      [Html.text "Keyboard Reference"]
+  in
   let tutorial =
     Html.p
       [ Html.class' "account-action-btn"
@@ -570,6 +592,8 @@ let accountView (m : model) : msg Html.html =
         ; logout
         ; spacer
         ; docs
+        ; functionRefs
+        ; keyboardRefs
         ; tutorial ] ]
 
 

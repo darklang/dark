@@ -245,6 +245,10 @@ let string_of_segment_track (e : segmentTrack) : string =
       "Canvas is shipped as of " ^ date
   | MarkCanvasAsInDevelopment date ->
       "Canvas is back in development as of " ^ date
+  | OpenFnRef ->
+      "Open function refs"
+  | OpenKeyboardRef ->
+      "Open keyboard refs"
 
 
 let sendSegmentMessage (event : segmentTrack) : unit =

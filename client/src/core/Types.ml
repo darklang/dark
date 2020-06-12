@@ -1279,6 +1279,8 @@ and segmentTrack =
   | InviteUser
   | MarkCanvasAsShipped of string
   | MarkCanvasAsInDevelopment of string
+  | OpenFnRef
+  | OpenKeyboardRef
 
 and msg =
   | IgnoreMsg of (* debug string so you know where it came from *) string
