@@ -299,18 +299,21 @@ window.Dark = {
         48 /* hrs */ * 60 /* min/hr */ * 60 /* sec/min */ * 1000; /* ms/sec */
       const msSinceAccountCreated = new Date() - accountCreationDate;
 
-      const isOlderThanWeWantToRecord = msSinceAccountCreated > maxAccountAgeToRecordMs;
+      const isOlderThanWeWantToRecord =
+        msSinceAccountCreated > maxAccountAgeToRecordMs;
 
       // the actual behavior is in FullStory.init's devMode flag, but this log
       // is here in hopes of reassuring users who look in console.
       if (isAdmin || isOlderThanWeWantToRecord) {
-        console.log("FullStory is not enabled for this user because the account is too old; console warnings that it is in dev mode may be safely ignored.");
+        console.log(
+          "FullStory is not enabled for this user because the account is too old; console warnings that it is in dev mode may be safely ignored.",
+        );
       }
 
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
       FullStory.init({
         orgId: "TMVRZ",
-        devMode: (isAdmin || isOlderThanWeWantToRecord),
+        devMode: isAdmin || isOlderThanWeWantToRecord,
       });
       FullStory.identify(username, {
         displayName: username,
