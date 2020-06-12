@@ -92,6 +92,7 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
 
   docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-qw:latest" "$NDIR"
 
+
   #################################
   ## cronchecker
   #################################
@@ -118,6 +119,35 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
   cp -Rf backend/migrations/* "$CDIR/migrations/"
 
   docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-cron:latest" "$CDIR"
+
+  #################################
+  ## garbage collector
+  #################################
+
+  CDIR=$(mktemp -d --suffix _gcp-gc-builddir)
+
+  cp scripts/support/gcp-garbagecollector-Dockerfile "$CDIR/Dockerfile"
+
+  cp -f scripts/support/gcp-run-garbagecollector "$CDIR/"
+  cp -f scripts/support/check-linked-libs "$CDIR/"
+  cp -Rf backend/templates "$CDIR/"
+  cp -Rf scripts "$CDIR/"
+
+  mkdir -p "$CDIR/bin"
+  cp -f _build/default/backend/bin/garbage_collector_worker.exe "$CDIR/bin/"
+
+  # I don't think we need all of the below files for the gc image, but copying
+  # them in here is easier than confirming that
+  mkdir -p "$CDIR/webroot"
+  cp -Rf backend/static "$CDIR/webroot/"
+
+  mkdir -p "$CDIR/swagger"
+  cp -Rf backend/swagger/*  "$CDIR/swagger/"
+
+  mkdir -p "$CDIR/migrations"
+  cp -Rf backend/migrations/* "$CDIR/migrations/"
+
+  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-garbagecollector:latest" "$CDIR"
 fi
 
 

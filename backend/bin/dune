@@ -59,6 +59,15 @@
   (preprocess (pps lwt_ppx))
 )
 
+
+(executable
+  (name garbage_collector_worker)
+  (modules garbage_collector_worker)
+  (flags (-warn-error +A -w +9))
+  (libraries libbackend libexecution libcommon)
+  (preprocess (pps lwt_ppx))
+)
+
 (executable
   (name emergency_login_script)
   (modules emergency_login_script)

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ -v DARK_CONFIG_RUNNING_IN_GKE ]]; then
+  sudo mkdir -p "$DARK_CONFIG_RUNDIR"
+fi
+
+sudo chown dark "$DARK_CONFIG_RUNDIR"
+
+./scripts/support/write-config-file
+./scripts/support/create-app-directories
+
+echo "Starting garbage collector"
+sudo --preserve-env ./bin/garbage_collector_worker.exe
