@@ -101,6 +101,8 @@ let categoryIcon_ (name : string) : msg Html.html list =
       [darkIcon "fof"]
   | "group" ->
       [fontAwesome "object-group"]
+  | "secrets" ->
+      [fontAwesome "user-secret"]
   | _ when String.contains ~substring:"pm-author" name ->
       [fontAwesome "user"]
   | _ when String.contains ~substring:"pm-package" name ->
@@ -714,6 +716,91 @@ let viewDeployStats (m : model) : msg Html.html =
   Html.details ~unique:"deploys" [classes; openAttr] [summary; content]
 
 
+let viewSecret (s : SecretTypes.t) : msg Html.html =
+  let copyBtn =
+    Html.div
+      [ Html.class' "icon-button copy-secret-name"
+      ; ViewUtils.eventNeither
+          "click"
+          ~key:("copy-secret-" ^ s.secretName)
+          (fun m -> ClipboardCopyLivevalue (s.secretName, m.mePos))
+      ; Html.title "Click to copy secret name" ]
+      [fontAwesome "copy"]
+  in
+  let secretValue = Util.obscureString s.secretValue in
+  let secretValue =
+    (* If str length > 16 chars, we just want to keep the last 16 chars *)
+    let len = String.length secretValue in
+    let count = len - 16 in
+    if count > 0 then String.dropLeft ~count secretValue else secretValue
+  in
+  Html.div
+    [Html.class' "simple-item secret"]
+    [ Html.div
+        [Html.class' "key-block"]
+        [ Html.span [Html.class' "secret-name"] [Html.text s.secretName]
+        ; Html.span [Html.class' "secret-value"] [Html.text secretValue] ]
+    ; copyBtn ]
+
+
+let viewSecretKeys (m : model) : msg Html.html =
+  let count = List.length m.secrets in
+  let openEventHandler, openAttr =
+    categoryOpenCloseHelpers m.sidebarState "secrets" count
+  in
+  let openAttr =
+    if m.sidebarState.mode = AbridgedMode
+    then Vdom.attribute "" "open" ""
+    else openAttr
+  in
+  let title = categoryName "Secret Keys" in
+  let summary =
+    let openTooltip =
+      if count = 0
+      then
+        ViewUtils.eventNoPropagation
+          ~key:"open-tooltip-secrets"
+          "click"
+          (fun _ -> IgnoreMsg "tooltip for secrets")
+        (* TODO(alice) make tooltip message for secret, after tooltip merges *)
+      else Vdom.noProp
+    in
+    let plusBtn =
+      iconButton
+        ~key:"plus-secret"
+        ~icon:"plus-circle"
+        ~classname:"create-tl-icon"
+        (SecretMsg OpenCreateModal)
+    in
+    let header =
+      Html.div
+        [Html.class' "category-header"; openTooltip]
+        [categoryButton "secrets" "Secret Keys"; title]
+    in
+    Html.summary
+      [openEventHandler; Html.class' "category-summary"]
+      [header; plusBtn]
+  in
+  let entries =
+    if count > 0
+    then List.map m.secrets ~f:viewSecret
+    else
+      [Html.div [Html.class' "simple-item empty"] [Html.text "No secret keys"]]
+  in
+  let content =
+    Html.div
+      [ Html.class' "category-content"
+      ; eventNoPropagation ~key:"cat-close-secret" "mouseleave" (fun _ ->
+            SidebarMsg ResetSidebar) ]
+      (title :: entries)
+  in
+  let classes =
+    Html.classList
+      [("sidebar-category", true); ("secrets", true); ("empty", count = 0)]
+  in
+  Html.details ~unique:"secrets" [classes; openAttr] [summary; content]
+
+
 let rec viewItem (m : model) (s : item) : msg Html.html =
   match s with
   | Category c ->
@@ -995,11 +1082,11 @@ let update (msg : sidebarMsg) : modification =
 
 
 let viewSidebar_ (m : model) : msg Html.html =
-  let packageManager = [packageManagerCategory m.functions.packageFunctions] in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
-    @ [f404Category m; deletedCategory m]
-    @ packageManager
+    @ [ f404Category m
+      ; deletedCategory m
+      ; packageManagerCategory m.functions.packageFunctions ]
   in
   let isDetailed =
     match m.sidebarState.mode with DetailedMode -> true | _ -> false
@@ -1007,9 +1094,15 @@ let viewSidebar_ (m : model) : msg Html.html =
   let showAdminDebugger =
     if (not isDetailed) && m.isAdmin then adminDebuggerView m else Vdom.noNode
   in
+  let secretsView =
+    if VariantTesting.variantIsActive m SecretsVariant
+    then viewSecretKeys m
+    else Vdom.noNode
+  in
   let content =
     let categories =
-      List.map ~f:(viewCategory m) cats @ [viewDeployStats m; showAdminDebugger]
+      List.map ~f:(viewCategory m) cats
+      @ [secretsView; viewDeployStats m; showAdminDebugger]
     in
     Html.div
       [ Html.classList
@@ -1059,8 +1152,9 @@ let rtCacheKey m =
   , m.editorSettings
   , m.permission
   , m.currentPage
-  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user)
-  , m.tooltipState.tooltipSource )
+  , m.tooltipState.tooltipSource
+  , m.secrets
+  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user) )
   |> Option.some
 
 

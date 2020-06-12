@@ -4,6 +4,29 @@ $radius: 7px;
 $light-back: $white1;
 $light-grey: $grey2;
 
+.modal-form-input {
+  background-color: $black3;
+  height: 35px;
+  width: 35ch;
+  padding: 0px 10px;
+  caret-color: $grey3;
+  color: $white1;
+}
+
+.modal-form-button {
+  width: 125px;
+  padding: 10px 15px;
+  background: $grey2;
+  border-radius: 3px;
+  margin-top: 35px;
+  cursor: pointer;
+  color: $white1;
+
+  &:hover {
+    background-color: $grey1;
+  }
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -44,6 +67,10 @@ $light-grey: $grey2;
     .title {
       font-size: $title-size;
       text-align: center;
+    }
+    .modal-content {
+      width: calc(100% - 30px);
+      padding: 10px 20px;
     }
   }
 }

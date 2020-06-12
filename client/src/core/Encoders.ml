@@ -501,7 +501,7 @@ and updateWorkerScheduleAPIParams (params : Types.updateWorkerScheduleAPIParams)
     [("name", string params.workerName); ("schedule", string params.schedule)]
 
 
-and secret (s : Types.secret) : Js.Json.t =
+and secret (s : SecretTypes.t) : Js.Json.t =
   object_
     [ ("secret_name", string s.secretName)
     ; ("secret_value", string s.secretValue) ]

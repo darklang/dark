@@ -1417,6 +1417,47 @@ let delete_404 ~(execution_id : Types.id) (parent : Span.t) (host : string) body
   with e -> raise e
 
 
+let insert_secret
+    ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
+    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, p =
+      time "1-to-insert-secret-params" (fun _ ->
+          Api.to_insert_secret_params body)
+    in
+    let t2, canvas_id =
+      time "2-get-canvas-id" (fun _ ->
+          let owner = Account.for_host_exn host in
+          Serialize.fetch_canvas_id owner host)
+    in
+    let t3, _ =
+      time "3-insert-secret" (fun _ ->
+          Secret.insert_secret canvas_id p.secret_name p.secret_value)
+    in
+    let t4, secrets =
+      time "4-get-secrets" (fun _ -> Secret.secrets_in_canvas canvas_id)
+    in
+    let t5, result =
+      time "5-to-frontend" (fun _ -> Api.to_secrets_list_results secrets)
+    in
+    respond
+      ~execution_id
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+      parent
+      `OK
+      result
+  with e ->
+    let msg = Exception.exn_to_string e in
+    if Tc.String.contains
+         ~substring:"duplicate key value violates unique constraint"
+         msg
+    then
+      Exception.raise_
+        DarkStorage
+        "The secret's name is already defined for this canvas"
+    else raise e
+
+
 (* ------------------- *)
 (* Loading html pages *)
 (* ------------------- *)
@@ -1940,6 +1981,10 @@ let admin_api_handler
                username
                req
                body))
+  | `POST, ["api"; canvas; "insert_secret"] ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_editor_api_headers
+            (insert_secret ~execution_id parent canvas body))
   | _ ->
       respond ~execution_id parent `Not_found "Not found"
 
