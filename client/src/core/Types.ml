@@ -1010,8 +1010,14 @@ and fnpMsg =
 
 (* Tool tips *)
 and toolTipMsg =
-  | Open of tooltip option
+  | OpenTooltip of tooltipSource
   | Close
+  | OpenLink of string
+
+and tooltipState =
+  { tooltipSource : tooltipSource option
+        (* FOR USE IN NEAR FUTURE ; fnSpace : bool *)
+        (* FOR USE IN NEAR FUTURE ; userTutorial : tutorialStep option *) }
 
 (* Tutorial *)
 and tutorialMsg =
@@ -1690,7 +1696,7 @@ and tutorialStep =
   | OpenTab
   | GettingStarted
 
-and tooltip =
+and tooltipSource =
   | Http
   | Worker
   | Cron
@@ -1784,7 +1790,7 @@ and model =
   ; showUserWelcomeModal : bool
         (* indicates if it is the users first time visiting any dark canvas *)
   ; userTutorial : tutorialStep option
-  ; tooltip : tooltip option
+  ; tooltipState : tooltipState
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState
   ; firstVisitToThisCanvas : bool

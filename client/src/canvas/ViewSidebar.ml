@@ -49,7 +49,7 @@ and category =
   ; plusButton : msg option
   ; iconAction : msg option
   ; classname : string
-  ; tooltip : tooltip option
+  ; tooltip : tooltipSource option
   ; entries : item list }
 
 and item =
@@ -120,7 +120,8 @@ let categoryButton ?(props = []) (name : string) (description : string) :
     (categoryIcon_ name)
 
 
-let setTooltips (tooltip : tooltip) (entries : 'a list) : tooltip option =
+let setTooltips (tooltip : tooltipSource) (entries : 'a list) :
+    tooltipSource option =
   if entries = [] then Some tooltip else None
 
 
@@ -129,7 +130,7 @@ let handlerCategory
     (name : string)
     (action : omniAction)
     (iconAction : msg option)
-    (tooltip : tooltip)
+    (tooltip : tooltipSource)
     (hs : handler list) : category =
   let handlers = hs |> List.filter ~f:(fun h -> filter (TLHandler h)) in
   { count = List.length handlers
@@ -663,13 +664,18 @@ let viewDeployStats (m : model) : msg Html.html =
   in
   let title = categoryName "Static Assets" in
   let summary =
+    let tooltip =
+      Tooltips.generateContent StaticAssets
+      |> Tooltips.viewToolTip
+           ~shouldShow:(m.tooltipState.tooltipSource = Some StaticAssets)
+    in
     let openTooltip =
       if count = 0
       then
         ViewUtils.eventNoPropagation
           ~key:"open-tooltip-deploys"
           "click"
-          (fun _ -> ToolTipMsg (Open (Some StaticAssets)))
+          (fun _ -> ToolTipMsg (OpenTooltip StaticAssets))
       else Vdom.noProp
     in
     let header =
@@ -684,7 +690,7 @@ let viewDeployStats (m : model) : msg Html.html =
     in
     Html.summary
       [openEventHandler; Html.class' "category-summary"]
-      (header :: deployLatest)
+      (tooltip :: header :: deployLatest)
   in
   let deploys =
     if List.length entries > 0
@@ -720,14 +726,21 @@ and viewCategory (m : model) (c : category) : msg Html.html =
   let openEventHandler, openAttr =
     categoryOpenCloseHelpers m.sidebarState c.classname c.count
   in
-  let openTooltip =
-    if Option.isSome c.tooltip
-    then
-      ViewUtils.eventNoPropagation
-        ~key:("open-tooltip-" ^ c.classname)
-        "click"
-        (fun _ -> ToolTipMsg (Open c.tooltip))
-    else Vdom.noProp
+  let openTooltip, tooltipView =
+    match c.tooltip with
+    | Some tt ->
+        let view =
+          Tooltips.generateContent tt
+          |> Tooltips.viewToolTip
+               ~shouldShow:(m.tooltipState.tooltipSource = Some tt)
+        in
+        ( ViewUtils.eventNoPropagation
+            ~key:("open-tooltip-" ^ c.classname)
+            "click"
+            (fun _ -> ToolTipMsg (OpenTooltip tt))
+        , view )
+    | None ->
+        (Vdom.noProp, Vdom.noNode)
   in
   let openAttr =
     if m.sidebarState.mode = AbridgedMode
@@ -766,7 +779,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
     in
     Html.summary
       [Html.class' "category-summary"; openEventHandler]
-      [header; plusButton]
+      [tooltipView; header; plusButton]
   in
   let content =
     let entries =
@@ -1009,6 +1022,8 @@ let viewSidebar_ (m : model) : msg Html.html =
     [ Html.id "sidebar-left"
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; nothingMouseEvent "mousedown"
+    ; ViewUtils.eventNoPropagation ~key:"click-sidebar" "click" (fun _ ->
+          ToolTipMsg Close)
     ; ViewUtils.eventNoPropagation ~key:"ept" "mouseover" (fun _ ->
           EnablePanning false)
     ; ViewUtils.eventNoPropagation ~key:"epf" "mouseout" (fun _ ->
@@ -1044,7 +1059,8 @@ let rtCacheKey m =
   , m.editorSettings
   , m.permission
   , m.currentPage
-  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user) )
+  , m.functions.packageFunctions |> TD.mapValues ~f:(fun t -> t.user)
+  , m.tooltipState.tooltipSource )
   |> Option.some
 
 
