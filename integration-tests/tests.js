@@ -48,6 +48,12 @@ fixture`Integration Tests`
     const testname = t.testRun.test.name;
     const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
     var url = `${BASE_URL}${testname}?integration-test=true`;
+
+    /* TODO take away this injection after we remove secrets variant flag */
+    if (testname === "focus_on_secret_field_on_insert_modal_open") {
+      url += "&secrets=1";
+    }
+
     var username = "test";
     if (testname.match(/_as_admin/)) {
       username = "test_admin";
@@ -1563,4 +1569,24 @@ test("package_function_references_work", async t => {
     .click(usedIn)
     .expect(available(repl))
     .ok();
+});
+
+test("focus_on_secret_field_on_insert_modal_open", async t => {
+  await t
+    .expect(
+      Selector(".sidebar-category.secrets .create-tl-icon", { timeout: 1500 })
+        .exists,
+    )
+    .ok();
+
+  await createRepl(t);
+  await t.typeText("#active-editor", '"Hello world!"');
+
+  await t.click(".sidebar-category.secrets .create-tl-icon");
+
+  const nameInput = Selector("#new-secret-name-input");
+
+  await t.expect(nameInput.focused).ok();
+
+  await t.click(".modal.insert-secret .close-btn");
 });

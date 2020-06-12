@@ -883,6 +883,8 @@ let redo_analysis_on_commit_ff (_m : model) : testResult = pass
 
 let package_function_references_work (_m : model) : testResult = pass
 
+let focus_on_secret_field_on_insert_modal_open (_m : model) : testResult = pass
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1047,5 +1049,7 @@ let trigger (test_name : string) : integrationTestState =
         redo_analysis_on_commit_ff
     | "package_function_references_work" ->
         package_function_references_work
+    | "focus_on_secret_field_on_insert_modal_open" ->
+        focus_on_secret_field_on_insert_modal_open
     | n ->
         fun _ -> fail ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
