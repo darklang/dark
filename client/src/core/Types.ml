@@ -1715,6 +1715,7 @@ and tooltipSource =
   | StaticAssets
   | FnParam
   | FnMiniMap
+  | Secrets
 
 and model =
   { error : Error.t

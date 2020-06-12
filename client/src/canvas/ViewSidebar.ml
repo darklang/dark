@@ -756,14 +756,19 @@ let viewSecretKeys (m : model) : msg Html.html =
   in
   let title = categoryName "Secret Keys" in
   let summary =
+    let tooltip =
+      Tooltips.generateContent Secrets
+      |> Tooltips.viewToolTip
+           ~shouldShow:(m.tooltipState.tooltipSource = Some Secrets)
+           ~tlid:None
+    in
     let openTooltip =
       if count = 0
       then
         ViewUtils.eventNoPropagation
           ~key:"open-tooltip-secrets"
           "click"
-          (fun _ -> IgnoreMsg "tooltip for secrets")
-        (* TODO(alice) make tooltip message for secret, after tooltip merges *)
+          (fun _ -> ToolTipMsg (OpenTooltip Secrets))
       else Vdom.noProp
     in
     let plusBtn =
@@ -780,7 +785,7 @@ let viewSecretKeys (m : model) : msg Html.html =
     in
     Html.summary
       [openEventHandler; Html.class' "category-summary"]
-      [header; plusBtn]
+      [tooltip; header; plusBtn]
   in
   let entries =
     if count > 0

@@ -279,6 +279,16 @@ let generateContent (t : tooltipSource) : tooltipContent =
       ; align = Top
       ; tipAlignment = ""
       ; tooltipStyle = Default }
+  | Secrets ->
+      { title = "Store API keys, passwords or other secrets here."
+      ; details =
+          Some
+            [ "Secret names will appear in your autocomplete, but their values will be redacted from live values and traces."
+            ]
+      ; action = None
+      ; align = Bottom
+      ; tipAlignment = "align-left"
+      ; tooltipStyle = Default }
 
 
 let viewNavigationBtns
