@@ -3,6 +3,7 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
 .tooltipWrapper {
   position: relative;
   .tooltips {
+    font-size: 14px;
     position: absolute;
     display: flex;
     width: max-content;
@@ -24,11 +25,15 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       &.align-left {
         left: 45px;
       }
+      &.align-top {
+        top: 15px;
+      }
     }
 
     &.right-of {
       left: 20px;
-      bottom: -25px;
+      top: 0px;
+      bottom: initial;
 
       .tip {
         left: -5px;
@@ -43,6 +48,7 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       .tip {
         right: -5px;
         top: 25px;
+        left: inherit;
       }
     }
 
@@ -73,8 +79,13 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       padding: 8px;
     }
 
+    .step-title {
+      color: $black2;
+      text-align: center;
+    }
+
     .description {
-      font-size: 1.2em;
+      font-size: 18px;
       letter-spacing: 0.02em;
       color: $black2;
       margin: 0px;
@@ -83,32 +94,63 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
 
     .details {
       // font color for details text
-      font-size: 1em;
+      font-size: 16px;
       letter-spacing: 0.01em;
-      color: darken(desaturate($tooltip-color, 30%), 50%);
+      color: $black2;
+      text-align: center;
     }
   }
+  .close-btn {
+    text-align: center;
+    cursor: pointer;
+    &:hover {
+      color: $purple;
+    }
+  }
+
+  .btn-container {
+    display: flex !important;
+    width: 100%;
+    justify-content: space-evenly;
+  }
+
   button {
     border: 0;
     outline: 0;
-
     padding: 4px;
-    border-radius: 4px;
     font-weight: 500;
+    background-color: transparent;
+    text-decoration: none;
+    text-align: center;
 
-    transition: background-color 0.1s;
-
-    background-color: $white3;
-    color: darken($tooltip-color, 25%);
     width: max-content;
 
     margin-top: 10px;
+
+    &.page-btn {
+      border: none;
+      color: $black2;
+      width: 100%;
+      text-align: center;
+      &[disabled] {
+        color: darken($tooltip-color, 25%);
+        cursor: default;
+      }
+    }
+
+    &.action-button {
+      color: darken($tooltip-color, 25%);
+      background-color: $white3;
+      transition: background-color 0.1s;
+      border-radius: 4px;
+      &:hover {
+        color: $white3;
+        background-color: rgba(142, 234, 222, 1);
+      }
+    }
+
     p {
       margin: 0px;
-    }
-    &:hover {
-      background-color: rgba(142, 234, 222, 1);
-      color: $white3;
     }
   }
 

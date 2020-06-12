@@ -146,6 +146,20 @@ let id = ID.fromString << wireIdentifier
 
 let tlid = TLID.fromString << wireIdentifier
 
+let wireIdentifierOption (j : Js.Json.t) : string option =
+  if Js.typeof j = "object"
+  then None
+  else Some (string_of_int (Obj.magic j : int))
+
+
+let tlidOption (j : Js.Json.t) : TLID.t option =
+  match wireIdentifierOption j with
+  | Some x ->
+      Some (TLID.fromString x)
+  | None ->
+      None
+
+
 let pos j : pos = {x = field "x" int j; y = field "y" int j}
 
 let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
@@ -393,11 +407,19 @@ and handlerProp j : handlerProp =
 
 
 and savedUserSettings (j : Js.Json.t) : savedUserSettings =
-  { showUserWelcomeModal =
-      withDefault
-        Defaults.defaultUserSettings.showUserWelcomeModal
-        (field "showUserWelcomeModal" bool)
-        j
+  let oldFirstVisitToDark =
+    withDefault
+      Defaults.defaultUserSettings.firstVisitToDark
+      (field "showUserWelcomeModal" bool)
+      j
+  in
+  let newFirstVisitToDark =
+    withDefault
+      Defaults.defaultUserSettings.firstVisitToDark
+      (field "firstVisitToDark" bool)
+      j
+  in
+  { firstVisitToDark = oldFirstVisitToDark || newFirstVisitToDark
   ; recordConsent = withDefault None (field "recordConsent" (optional bool)) j
   }
 
@@ -466,6 +488,11 @@ and savedSettings (j : Js.Json.t) : savedSettings =
       withDefault
         Defaults.defaultSavedSettings.userTutorial
         (field "userTutorial" (optional tutorialStep))
+        j
+  ; userTutorialTLID =
+      withDefault
+        Defaults.defaultSavedSettings.userTutorialTLID
+        (field "userTutorialTLID" tlidOption)
         j }
 
 

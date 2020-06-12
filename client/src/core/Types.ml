@@ -1010,11 +1010,16 @@ and toolTipMsg =
   | Close
   | OpenLink of string
   | OpenFnTooltip of bool
+  | UpdateTutorial of tutorialMsg
+
+and userTutorial =
+  { step : tutorialStep option
+  ; tlid : TLID.t option }
 
 and tooltipState =
   { tooltipSource : tooltipSource option
   ; fnSpace : bool
-        (* FOR USE IN NEAR FUTURE ; userTutorial : tutorialStep option *) }
+  ; userTutorial : userTutorial }
 
 (* Tutorial *)
 and tutorialMsg =
@@ -1410,7 +1415,6 @@ and msg =
       [@printer opaque "UpdateWorkerScheduleCallback"]
   | NewTabFromTLMenu of string * TLID.t
   | FnParamMsg of fnpMsg
-  | TutorialMsg of tutorialMsg
   | ToolTipMsg of toolTipMsg
   | UpdateSegment of segmentTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg
@@ -1792,9 +1796,8 @@ and model =
   ; teaDebuggerEnabled : bool
   ; unsupportedBrowser : bool
   ; tlMenus : menuState TLIDDict.t
-  ; showUserWelcomeModal : bool
+  ; firstVisitToDark : bool
         (* indicates if it is the users first time visiting any dark canvas *)
-  ; userTutorial : tutorialStep option
   ; tooltipState : tooltipState
   ; currentUserFn : fnProps
   ; settingsView : SettingsViewTypes.settingsViewState
@@ -1804,7 +1807,7 @@ and model =
   ; insertSecretModal : SecretTypes.insertModal }
 
 and savedUserSettings =
-  { showUserWelcomeModal : bool
+  { firstVisitToDark : bool
   ; recordConsent : bool option }
 
 and savedSettings =
@@ -1818,7 +1821,8 @@ and savedSettings =
   ; sidebarState : sidebarState
   ; showTopbar : bool
   ; firstVisitToThisCanvas : bool
-  ; userTutorial : tutorialStep option }
+  ; userTutorial : tutorialStep option
+  ; userTutorialTLID : TLID.t option }
 [@@deriving show {with_path = false}]
 
 and permission =

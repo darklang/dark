@@ -829,7 +829,8 @@ let editorSettings (es : Types.editorSettings) : Js.Json.t =
 
 let savedUserSettings (se : Types.savedUserSettings) : Js.Json.t =
   object_
-    [ ("showUserWelcomeModal", bool se.showUserWelcomeModal)
+    [ ("showUserWelcomeModal", bool se.firstVisitToDark)
+    ; ("firstVisitToDark", bool se.firstVisitToDark)
     ; ( "recordConsent"
       , Option.map ~f:bool se.recordConsent |> Option.withDefault ~default:null
       ) ]
@@ -850,7 +851,8 @@ let savedSettings (se : Types.savedSettings) : Js.Json.t =
     ; ("firstVisitToThisCanvas", bool se.firstVisitToThisCanvas)
     ; ( "userTutorial"
       , Option.map ~f:userTutorial se.userTutorial
-        |> Option.withDefault ~default:null ) ]
+        |> Option.withDefault ~default:null )
+    ; ("userTutorialTLID", nullable tlid se.userTutorialTLID) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

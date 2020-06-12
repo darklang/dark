@@ -19,7 +19,7 @@ let pageWidth : int = 500
 let unsetCSRF : string = "UNSET_CSRF"
 
 let defaultUserSettings : savedUserSettings =
-  {showUserWelcomeModal = true; recordConsent = None}
+  {firstVisitToDark = true; recordConsent = None}
 
 
 let defaultSidebar : sidebarState =
@@ -38,7 +38,8 @@ let defaultSavedSettings : savedSettings =
   ; sidebarState = defaultSidebar
   ; showTopbar = false
   ; firstVisitToThisCanvas = true
-  ; userTutorial = None }
+  ; userTutorial = None
+  ; userTutorialTLID = None }
 
 
 let defaultFluidState : fluidState =
@@ -170,9 +171,11 @@ let defaultModel : model =
   ; teaDebuggerEnabled = false
   ; unsupportedBrowser = false
   ; tlMenus = TLIDDict.empty
-  ; showUserWelcomeModal = true
-  ; userTutorial = Some Welcome
-  ; tooltipState = {tooltipSource = None; fnSpace = false}
+  ; firstVisitToDark = true
+  ; tooltipState =
+      { tooltipSource = None
+      ; fnSpace = false
+      ; userTutorial = {step = Some Welcome; tlid = None} }
   ; currentUserFn = defaultFnSpace
   ; firstVisitToThisCanvas = true
   ; secrets = []

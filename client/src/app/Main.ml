@@ -74,9 +74,9 @@ let init (encodedParamString : string) (location : Web.Location.location) =
   let m = SavedSettings.load canvasName |> SavedSettings.toModel in
   let m = SavedUserSettings.load username |> SavedUserSettings.toModel m in
   let userTutorial =
-    if m.showUserWelcomeModal && m.userTutorial = None
-    then UserTutorial.defaultStep
-    else m.userTutorial
+    if m.firstVisitToDark && m.tooltipState.userTutorial.step = None
+    then UserTutorial.defaultTutorial
+    else m.tooltipState.userTutorial
   in
   let page =
     Url.parseLocation location
@@ -112,7 +112,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     ; teaDebuggerEnabled = Url.isDebugging ()
     ; unsupportedBrowser = Entry.unsupportedBrowser ()
     ; fluidState = Fluid.initAC m.fluidState
-    ; userTutorial }
+    ; tooltipState = {m.tooltipState with userTutorial} }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
@@ -1451,9 +1451,9 @@ let update_ (msg : msg) (m : model) : modification =
       Entry.sendSegmentMessage msg ;
       NoChange
   | ToolTipMsg msg ->
+      if msg = UpdateTutorial CloseTutorial && m.firstVisitToDark
+      then Entry.sendSegmentMessage WelcomeModal ;
       Tooltips.update m.tooltipState msg
-  | TutorialMsg msg ->
-      UserTutorial.update m msg
   | DeleteUserTypeForever tlid ->
       Many
         [ AddOps ([DeleteTypeForever tlid], FocusSame)

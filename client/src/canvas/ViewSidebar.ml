@@ -670,6 +670,7 @@ let viewDeployStats (m : model) : msg Html.html =
       Tooltips.generateContent StaticAssets
       |> Tooltips.viewToolTip
            ~shouldShow:(m.tooltipState.tooltipSource = Some StaticAssets)
+           ~tlid:None
     in
     let openTooltip =
       if count = 0
@@ -820,6 +821,7 @@ and viewCategory (m : model) (c : category) : msg Html.html =
           Tooltips.generateContent tt
           |> Tooltips.viewToolTip
                ~shouldShow:(m.tooltipState.tooltipSource = Some tt)
+               ~tlid:None
         in
         ( ViewUtils.eventNoPropagation
             ~key:("open-tooltip-" ^ c.classname)

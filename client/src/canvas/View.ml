@@ -193,6 +193,20 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         Defaults.centerPos
   in
   let hasFF = vs.astInfo.featureFlagTokenInfos <> [] in
+  let tooltip =
+    match m.tooltipState.userTutorial.step with
+    | Some step
+      when step = VerbChange
+           || step = ReturnValue
+           || step = OpenTab
+           || step = GettingStarted ->
+        UserTutorial.generateTutorialContent step m.username
+        |> Tooltips.viewToolTip
+             ~shouldShow:(m.tooltipState.userTutorial.tlid = Some tlid)
+             ~tlid:(Some tlid)
+    | _ ->
+        Vdom.noNode
+  in
   let html =
     [ Html.div
       (* this unique key ensures that when switching between toplevels the entire
@@ -207,7 +221,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         [ Html.classList [("use-wrapper", true); ("fade", hasFF)]
           (* Block opening the omnibox here by preventing canvas pan start *)
         ; ViewUtils.nothingMouseEvent "mousedown" ]
-        usages ]
+        usages
+    ; tooltip ]
   in
   ViewUtils.placeHtml pos boxClasses html
 
@@ -248,7 +263,8 @@ let tlCacheKey (m : model) tl =
       , props
       , menuIsOpen
       , workerSchedule
-      , m.editorSettings.showHandlerASTs )
+      , m.editorSettings.showHandlerASTs
+      , m.tooltipState.userTutorial )
 
 
 let tlCacheKeyDB (m : model) tl =
@@ -456,7 +472,7 @@ let viewMinimap (data : string option) (currentPage : page) (showTooltip : bool)
       in
       let tooltip =
         Tooltips.generateContent FnMiniMap
-        |> Tooltips.viewToolTip ~shouldShow:showTooltip
+        |> Tooltips.viewToolTip ~shouldShow:showTooltip ~tlid:None
       in
 
       Html.div
@@ -536,7 +552,7 @@ let accountView (m : model) : msg Html.html =
     Html.p
       [ Html.class' "account-action-btn"
       ; ViewUtils.eventNoPropagation ~key:"tutorial" "click" (fun _ ->
-            TutorialMsg ReopenTutorial) ]
+            ToolTipMsg (UpdateTutorial ReopenTutorial)) ]
       [Html.text "Hello World tutorial"]
   in
   let spacer = Html.div [Html.class' "account-action-spacer"] [] in
@@ -577,11 +593,26 @@ let accountView (m : model) : msg Html.html =
                  (InviteUser SettingsViewTypes.defaultInviteFields))) ]
       [Html.text "Share Dark"]
   in
+  let tooltip =
+    let shouldShow, ttContent =
+      if m.firstVisitToThisCanvas
+         && UserTutorial.isTutorialCanvas
+              ~username:m.username
+              ~canvasname:m.canvasName
+      then (true, UserTutorial.generateCRUDContent)
+      else
+        ( m.tooltipState.userTutorial.step = Some Welcome
+        , UserTutorial.generateTutorialContent Welcome m.username )
+    in
+    ttContent
+    |> Tooltips.viewToolTip ~shouldShow ~tlid:m.tooltipState.userTutorial.tlid
+  in
   Html.div
     [ Html.class' "my-account"
       (* Block opening the omnibox here by preventing canvas pan start *)
     ; ViewUtils.nothingMouseEvent "mousedown" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
+    ; tooltip
     ; Html.div
         [Html.class' "account-actions"]
         [ newCanvas
@@ -642,16 +673,6 @@ let view (m : model) : msg Html.html =
               UpdateSegment OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]
   in
-  let tutorial =
-    if m.integrationTestState = NoIntegrationTest
-    then
-      UserTutorial.view
-        m.userTutorial
-        m.username
-        m.canvasName
-        m.firstVisitToThisCanvas
-    else Vdom.noNode
-  in
   let modal =
     ViewModal.unsupportedBrowser
       ~show:(m.integrationTestState = NoIntegrationTest && m.unsupportedBrowser)
@@ -669,8 +690,7 @@ let view (m : model) : msg Html.html =
       ; entry
       ; modal
       ; settingsModal
-      ; InsertSecret.view m.insertSecretModal
-      ; tutorial ]
+      ; InsertSecret.view m.insertSecretModal ]
     @ fluidStatus
     @ footer
     @ viewDocs
