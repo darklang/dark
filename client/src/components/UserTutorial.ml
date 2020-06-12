@@ -42,7 +42,7 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
       ; details = None
       ; action = None
       ; align = Right
-      ; tipAlignment = "align-left"
+      ; tipAlignment = "align-top"
       ; tooltipStyle = Tutorial tutorialStep }
   | ReturnValue ->
       { title =
@@ -50,7 +50,7 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
       ; details = None
       ; action = None
       ; align = Right
-      ; tipAlignment = "align-left"
+      ; tipAlignment = "align-top"
       ; tooltipStyle = Tutorial tutorialStep }
   | OpenTab ->
       { title =
@@ -58,7 +58,7 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
       ; details = None
       ; action = None
       ; align = Right
-      ; tipAlignment = "align-left"
+      ; tipAlignment = "align-top"
       ; tooltipStyle = Tutorial tutorialStep }
   | GettingStarted ->
       { title = "Congratulations, you've created your first Hello World in Dark!"
@@ -71,5 +71,5 @@ let generateTutorialContent (tutorialStep : tutorialStep) (username : string) :
             , ToolTipMsg
                 (OpenLink ("https://darklang.com/a/" ^ username ^ "-crud")) )
       ; align = Right
-      ; tipAlignment = "align-left"
+      ; tipAlignment = "align-top"
       ; tooltipStyle = Tutorial tutorialStep }

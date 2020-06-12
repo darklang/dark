@@ -25,11 +25,15 @@ $tooltip-color: lighten(saturate($cyan, 20%), 10%);
       &.align-left {
         left: 45px;
       }
+      &.align-top {
+        top: 15px;
+      }
     }
 
     &.right-of {
       left: 20px;
-      bottom: -25px;
+      top: 0px;
+      bottom: initial;
 
       .tip {
         left: -5px;
