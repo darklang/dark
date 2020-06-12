@@ -1430,7 +1430,6 @@ and variantTest =
   | GroupVariant
   | NgrokVariant
   | LeftPartialVariant
-  | SecretsVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
