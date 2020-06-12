@@ -60,6 +60,9 @@ do
     --cron-image-id=*)
       CRON_IMAGE_ID="${i/--cron-image-id=/''}"
       ;;
+    --garbagecollector-image-id=*)
+      GARBAGE_COLLECTOR_IMAGE_ID="${i/--garbagecollector-image-id=/''}"
+      ;;
     --stroller-image-id=*)
       STROLLER_IMAGE_ID="${i/--stroller-image-id=/''}"
       ;;
@@ -180,6 +183,9 @@ fi
 if [[ ! -v CRON_IMAGE_ID ]]; then
   CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
 fi
+if [[ ! -v GARBAGE_COLLECTOR_IMAGE_ID ]]; then
+  GARBAGE_COLLECTOR_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-garbagecollector -q | head -n 1)"
+fi
 if [[ ! -v STROLLER_IMAGE_ID ]]; then
   STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-stroller -q | head -n 1)"
 fi
@@ -237,6 +243,11 @@ sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
   scripts/support/kubernetes/cronchecker/cron-deployment.yaml.template > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 
+sed -e "s!{GARBAGE_COLLECTOR_IMAGE}!${GARBAGE_COLLECTOR_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  scripts/support/kubernetes/garbagecollectorchecker/garbagecollector-deployment.yaml.template > scripts/support/kubernetes/garbagecollectorchecker/garbagecollector-deployment.yaml
+
 sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   scripts/support/kubernetes/tunnel/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
@@ -248,6 +259,7 @@ sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
 
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml
+kubectl apply -f scripts/support/kubernetes/garbagecollectorchecker/garbagecollector-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/cronchecker/cc-network-policy.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
