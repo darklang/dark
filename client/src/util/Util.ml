@@ -288,6 +288,8 @@ let obscureString (s : string) : string =
 
 let hideSecrets (secretValues : string list) (s : string) : string =
   List.foldl secretValues ~init:s ~f:(fun secretVal buildingStr ->
-      let repl = obscureString secretVal in
-      let re = Regex.regex secretVal in
-      buildingStr |> Regex.replace ~re ~repl)
+      (* We are doing this instead of Regex.replace because it fails secretValues with regex characters
+    And Js.String.replace only replaces the first found string. *)
+      buildingStr
+      |> String.split ~on:secretVal
+      |> String.join ~sep:(obscureString secretVal))
