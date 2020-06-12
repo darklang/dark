@@ -81,7 +81,8 @@ let viewExecuteBtn (vp : viewProps) (fn : userFunction) : msg Html.html =
     [fontAwesome "redo"]
 
 
-let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
+let viewMetadata (vp : viewProps) (fn : functionTypes) (showFnTooltips : bool) :
+    msg Html.html =
   let addParamBtn =
     match fn with
     | UserFunction fn ->
@@ -156,9 +157,13 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
       ; executeBtn ]
   in
   let paramRows =
+    let fnParamTooltip =
+      Tooltips.generateContent FnParam
+      |> Tooltips.viewToolTip ~shouldShow:showFnTooltips
+    in
     Html.div
       [Html.id "fnparams"; Html.class' "params"]
-      (FnParams.view fn vp @ [addParamBtn])
+      (FnParams.view fn vp @ [addParamBtn; fnParamTooltip])
   in
   let returnRow =
     let returnType =
@@ -181,7 +186,8 @@ let viewMetadata (vp : viewProps) (fn : functionTypes) : msg Html.html =
   Html.div [Html.class' "fn-header"] [titleRow; paramRows; returnRow]
 
 
-let view (vp : viewProps) (fn : functionTypes) : msg Html.html =
+let view (vp : viewProps) (fn : functionTypes) (showFnTooltips : bool) :
+    msg Html.html =
   Html.div
     [ Html.class'
         ( match fn with
@@ -189,5 +195,5 @@ let view (vp : viewProps) (fn : functionTypes) : msg Html.html =
             "user-fn-toplevel"
         | PackageFn _ ->
             "pkg-fn-toplevel" ) ]
-    [ Html.div [Html.class' "metadata"] [viewMetadata vp fn]
+    [ Html.div [Html.class' "metadata"] [viewMetadata vp fn showFnTooltips]
     ; Html.div [Html.class' "function-body expand"] (FluidView.view vp []) ]

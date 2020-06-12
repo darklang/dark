@@ -1013,10 +1013,11 @@ and toolTipMsg =
   | OpenTooltip of tooltipSource
   | Close
   | OpenLink of string
+  | OpenFnTooltip of bool
 
 and tooltipState =
   { tooltipSource : tooltipSource option
-        (* FOR USE IN NEAR FUTURE ; fnSpace : bool *)
+  ; fnSpace : bool
         (* FOR USE IN NEAR FUTURE ; userTutorial : tutorialStep option *) }
 
 (* Tutorial *)
@@ -1707,6 +1708,8 @@ and tooltipSource =
   | Deleted
   | PackageManager
   | StaticAssets
+  | FnParam
+  | FnMiniMap
 
 and model =
   { error : Error.t
