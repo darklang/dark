@@ -94,6 +94,32 @@ if [[ "${SKIP_OCAML}" == "" ]]; then
 
 
   #################################
+  ## cronchecker
+  #################################
+
+  CDIR=$(mktemp -d --suffix _gcp-cron-builddir)
+
+  cp scripts/support/gcp-cronchecker-Dockerfile "$CDIR/Dockerfile"
+
+  cp -f scripts/support/gcp-run-cronchecker "$CDIR/"
+  cp -f scripts/support/check-linked-libs "$CDIR/"
+  cp -Rf backend/templates "$CDIR/"
+  cp -Rf scripts "$CDIR/"
+
+  mkdir -p "$CDIR/bin"
+  cp -f _build/default/backend/bin/cron_checker.exe "$CDIR/bin/"
+
+  mkdir -p "$CDIR/webroot"
+  cp -Rf backend/static "$CDIR/webroot/"
+
+  mkdir -p "$CDIR/swagger"
+  cp -Rf backend/swagger/*  "$CDIR/swagger/"
+
+  mkdir -p "$CDIR/migrations"
+  cp -Rf backend/migrations/* "$CDIR/migrations/"
+
+  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-cron:latest" "$CDIR"
+
   #################################
   ## garbage collector
   #################################
