@@ -2343,6 +2343,17 @@ let t_libhttp () =
   ()
 
 
+let t_libhttpclient () =
+  check_error_contains
+    "HttpClient::get_v5 illegal urls"
+    (exec_ast
+       (fn
+          "HttpClient::get_v5"
+          [str "http://thenonexistingurlforsure.com"; record []; record []]))
+    "Couldn't resolve host name" ;
+  ()
+
+
 (* This test doesn't bother to destructure + examine the contents of the dobj;
  * it's just intended to ensure that the thing runs and doesn't DError. Esp
  * since the contents of the DObj depend on the database's stats and those
@@ -2383,4 +2394,4 @@ let suite =
   ; ("Math stdlibs work", `Quick, t_math_stdlibs)
   ; ("HTTP stdlibs work", `Quick, t_libhttp)
   ; ("DarkInternal::table_stats works", `Quick, t_darkinternal_table_stats_works)
-  ]
+  ; ("HttpClient error handling", `Quick, t_libhttpclient) ]

@@ -2,6 +2,8 @@ open Core_kernel
 open Libexecution.Runtime
 open Libexecution.Lib
 open Libexecution.Types.RuntimeT
+open Libcommon
+open Libexecution.Exception
 module Dval = Libexecution.Dval
 module Dint = Libexecution.Dint
 module Unicode_string = Libexecution.Unicode_string
@@ -98,62 +100,65 @@ let send_request
     (request_body : 'expr_type dval option)
     (query : 'expr_type dval)
     (request_headers : 'expr_type dval) : 'expr_type dval =
-  let raw_response_body, raw_response_headers, response_code =
-    let encoded_query = Dval.dval_to_query query in
-    let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
-    let encoded_request_body, munged_encoded_request_headers =
-      (* We use the user-provided Content-Type headers to make ~magic~ decisions
-       * about how to encode the the outgoing request
-       *
-       * We also _munge_ the headers, specifically to add a Content-Type if none
-       * was provided. This is to ensure we're being good HTTP citizens.
-       * *)
-      encode_request_body encoded_request_headers request_body
-    in
+  let encoded_query = Dval.dval_to_query query in
+  let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
+  let encoded_request_body, munged_encoded_request_headers =
+    (* We use the user-provided Content-Type headers to make ~magic~ decisions
+    * about how to encode the the outgoing request
+    *
+    * We also _munge_ the headers, specifically to add a Content-Type if none
+    * was provided. This is to ensure we're being good HTTP citizens.
+    * *)
+    encode_request_body encoded_request_headers request_body
+  in
+  match
     Httpclient.http_call
       uri
       encoded_query
       verb
       munged_encoded_request_headers
       encoded_request_body
-  in
-  let parsed_response_body =
-    if has_form_header raw_response_headers
-    then
-      try Dval.of_form_encoding raw_response_body
-      with _ -> Dval.dstr_of_string_exn "form decoding error"
-    else if has_json_header raw_response_headers
-    then
-      try
-        Dval.of_unknown_json_v0 raw_response_body
-        |> Libexecution.Fluid.dval_of_fluid
-      with _ -> Dval.dstr_of_string_exn "json decoding error"
-    else
-      try Dval.dstr_of_string_exn raw_response_body
-      with _ -> Dval.dstr_of_string_exn "utf-8 decoding error"
-  in
-  let parsed_response_headers =
-    raw_response_headers
-    |> List.map ~f:(fun (k, v) ->
-           (String.strip k, Dval.dstr_of_string_exn (String.strip v)))
-    |> List.filter ~f:(fun (k, _) -> String.length k > 0)
-    |> DvalMap.from_list
-    |> fun dm -> DObj dm
-  in
-  let obj =
-    Dval.to_dobj_exn
-      [ ("body", parsed_response_body)
-      ; ("headers", parsed_response_headers)
-      ; ( "raw"
-        , raw_response_body
-          |> Dval.dstr_of_string
-          |> Option.value
-               ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
-      ; ("code", DInt (Dint.of_int response_code)) ]
-  in
-  if response_code >= 200 && response_code <= 299
-  then DResult (ResOk obj)
-  else DResult (ResError obj)
+  with
+  | Ok res ->
+      let parsed_response_body =
+        if has_form_header res.headers
+        then
+          try Dval.of_form_encoding res.body
+          with _ -> Dval.dstr_of_string_exn "form decoding error"
+        else if has_json_header res.headers
+        then
+          try
+            Dval.of_unknown_json_v0 res.body |> Libexecution.Fluid.dval_of_fluid
+          with _ -> Dval.dstr_of_string_exn "json decoding error"
+        else
+          try Dval.dstr_of_string_exn res.body
+          with _ -> Dval.dstr_of_string_exn "utf-8 decoding error"
+      in
+      let parsed_response_headers =
+        res.headers
+        |> List.map ~f:(fun (k, v) ->
+               (String.strip k, Dval.dstr_of_string_exn (String.strip v)))
+        |> List.filter ~f:(fun (k, _) -> String.length k > 0)
+        |> DvalMap.from_list
+        |> fun dm -> DObj dm
+      in
+      let obj =
+        Dval.to_dobj_exn
+          [ ("body", parsed_response_body)
+          ; ("headers", parsed_response_headers)
+          ; ( "raw"
+            , res.body
+              |> Dval.dstr_of_string
+              |> Option.value
+                   ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
+          ; ("code", DInt (Dint.of_int res.code))
+          ; ("error", Dval.dstr_of_string_exn res.error) ]
+      in
+      if res.code >= 200 && res.code <= 299
+      then DResult (ResOk obj)
+      else DResult (ResError obj)
+  | Error err ->
+      DResult (ResError (Dval.dstr_of_string_exn err.error))
 
 
 (* This is deprecated in favor of [encode_basic_auth u p]
