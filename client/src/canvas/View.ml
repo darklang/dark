@@ -147,22 +147,30 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
               None
         in
         let selectedParamDocString =
-          let param =
+          let paramAndFnDesc =
             TL.get m tlid
             |> Option.andThen ~f:TL.getAST
             |> Option.andThen ~f:(AST.getParamIndex id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.functions
                    |> Functions.find name
-                   |> Option.map ~f:(fun x -> x.fnParameters)
-                   |> Option.andThen ~f:(List.getAt ~index))
+                   |> Option.map ~f:(fun f ->
+                          let param = f.fnParameters |> List.getAt ~index in
+                          (param, f.fnDescription)))
           in
-          match param with
-          | Some pm ->
-              let header =
-                pm.paramName ^ " : " ^ Runtime.tipe2str pm.paramTipe
-              in
-              Some (viewDoc [p header; p pm.paramDescription])
+          match paramAndFnDesc with
+          | Some (param, fnDesc) ->
+            ( match param with
+            | Some pm ->
+                let header =
+                  pm.paramName ^ " : " ^ Runtime.tipe2str pm.paramTipe
+                in
+                Some
+                  (viewDoc
+                     ( PrettyDocs.convert fnDesc
+                     @ [p header; p pm.paramDescription] ))
+            | None ->
+                None )
           | _ ->
               None
         in
