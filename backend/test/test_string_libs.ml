@@ -113,7 +113,7 @@ let t_html_escaping () =
     (* TODO: add back in check that `'` is correctly escaped. It didn't
      * play nice with our hacky `'` removal in the DSL parser *)
     (Dval.dstr_of_string_exn "test&lt;&gt;&amp;&quot;")
-    (exec_ast (fn "String::htmlEscape" [str "test<>&\\\""]))
+    (exec_ast (fn "String::htmlEscape" [str "test<>&\""]))
 
 
 let t_slugify_works () =
