@@ -536,9 +536,7 @@ and exec
           trace ~on_execution_path:false id value
         in
         let rec matchAndExecute
-            dv
-            (builtUpTraces : (id * 'expr_type dval) list)
-            (fluid_pattern, fluid_expr) =
+            dv (builtUpTraces : (id * 'expr_type dval) list) (pattern, expr) =
           (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
            * matches. Tracks whether a branch has already been executed and
            * will exceute later matches in preview mode.  Ensures all patterns
@@ -546,7 +544,7 @@ and exec
            * (constructors); builtUpTraces is the set of traces that have been
            * built up by recursing: they can only be matched when the pattern
            * is ready to match. *)
-          match fluid_pattern with
+          match pattern with
           | Libshared.FluidPattern.FPInteger (_, pid, int) ->
               let v = DInt (Dint.of_string_exn int) in
               if v = dv
