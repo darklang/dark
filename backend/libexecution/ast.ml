@@ -58,119 +58,113 @@ let rec pattern2expr p : expr =
 (* Dangerous and deprecated, do not use: this function is co-recursive which
  * means you have to use it perfectly which is very hard to do. The example
  * below demonstrates, but you should use post_traverse instead. *)
-let rec deprecated_traverse ~(f : expr -> expr) (expr : expr) : expr =
+let rec deprecated_traverse ~(f : fluid_expr -> fluid_expr) (expr : fluid_expr)
+    : fluid_expr =
   match expr with
-  | Partial _ | Blank _ ->
+  | EPipeTarget _
+  | EInteger _
+  | EBool _
+  | ENull _
+  | EBlank _
+  | EFloat _
+  | EString _ ->
       expr
-  | Filled (id, nexpr) ->
-      Filled
-        ( id
-        , match nexpr with
-          | Value _ ->
-              nexpr
-          | Variable _ ->
-              nexpr
-          | Let (lhs, rhs, body) ->
-              Let (lhs, f rhs, f body)
-          | If (cond, ifbody, elsebody) ->
-              If (f cond, f ifbody, f elsebody)
-          | FnCall (name, exprs) ->
-              FnCall (name, List.map ~f exprs)
-          | FnCallSendToRail (name, exprs) ->
-              FnCallSendToRail (name, List.map ~f exprs)
-          | Lambda (vars, lexpr) ->
-              Lambda (vars, f lexpr)
-          | Thread exprs ->
-              Thread (List.map ~f exprs)
-          | FieldAccess (obj, field) ->
-              FieldAccess (f obj, field)
-          | ListLiteral exprs ->
-              ListLiteral (List.map ~f exprs)
-          | ObjectLiteral pairs ->
-              ObjectLiteral (List.map ~f:(fun (k, v) -> (k, f v)) pairs)
-          | FeatureFlag (msg, cond, a, b) ->
-              FeatureFlag (msg, f cond, f a, f b)
-          | Match (matchExpr, cases) ->
-              Match (f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
-          | Constructor (name, args) ->
-              Constructor (name, List.map ~f args)
-          | FluidPartial (name, old_val) ->
-              FluidPartial (name, f old_val)
-          | FluidRightPartial (name, old_val) ->
-              FluidRightPartial (name, f old_val)
-          | FluidLeftPartial (name, old_val) ->
-              FluidLeftPartial (name, f old_val) )
-
-
-(* Example usage of deprecated_traverse. See also AST.ml *)
-let rec example_traversal expr =
-  match expr with
-  | Partial _ | Blank _ ->
-      Filled (Util.create_id (), Value "\"example\"")
-  | expr ->
-      deprecated_traverse ~f:example_traversal expr
+  | EVariable _ ->
+      expr
+  | ELet (id, lhs, rhs, body) ->
+      ELet (id, lhs, f rhs, f body)
+  | EIf (id, cond, ifbody, elsebody) ->
+      EIf (id, f cond, f ifbody, f elsebody)
+  | EBinOp (id, name, left, right, ster) ->
+      EBinOp (id, name, f left, f right, ster)
+  | EFnCall (id, name, exprs, ster) ->
+      EFnCall (id, name, List.map ~f exprs, ster)
+  | ELambda (id, vars, lexpr) ->
+      ELambda (id, vars, f lexpr)
+  | EPipe (id, exprs) ->
+      EPipe (id, List.map ~f exprs)
+  | EFieldAccess (id, obj, field) ->
+      EFieldAccess (id, f obj, field)
+  | EList (id, exprs) ->
+      EList (id, List.map ~f exprs)
+  | ERecord (id, pairs) ->
+      ERecord (id, List.map ~f:(fun (k, v) -> (k, f v)) pairs)
+  | EFeatureFlag (id, msg, cond, a, b) ->
+      EFeatureFlag (id, msg, f cond, f a, f b)
+  | EMatch (id, matchExpr, cases) ->
+      EMatch (id, f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
+  | EConstructor (id, name, args) ->
+      EConstructor (id, name, List.map ~f args)
+  | EPartial (id, name, old_val) ->
+      EPartial (id, name, f old_val)
+  | ERightPartial (id, name, old_val) ->
+      ERightPartial (id, name, f old_val)
+  | ELeftPartial (id, name, old_val) ->
+      ELeftPartial (id, name, f old_val)
 
 
 (** [post_traverse f ast] walks the entire AST from bottom to top, calling f on
  * each function. It returns a new AST with every subexpression e replaced by
  * [f e]. Unlike traverse, it does not require you to call traverse again (this
  * is not corecursive).  After calling [f], the result is NOT recursed into. *)
-let rec post_traverse ~(f : expr -> expr) (expr : expr) : expr =
+let rec post_traverse ~(f : fluid_expr -> fluid_expr) (expr : fluid_expr) :
+    fluid_expr =
   let r = post_traverse ~f in
   let result =
     match expr with
-    | Partial _ | Blank _ ->
+    | EPipeTarget _
+    | EInteger _
+    | EBool _
+    | ENull _
+    | EBlank _
+    | EFloat _
+    | EString _ ->
         expr
-    | Filled (id, nexpr) ->
-        Filled
-          ( id
-          , match nexpr with
-            | Value _ ->
-                nexpr
-            | Variable _ ->
-                nexpr
-            | Let (lhs, rhs, body) ->
-                Let (lhs, r rhs, r body)
-            | If (cond, ifbody, elsebody) ->
-                If (r cond, r ifbody, r elsebody)
-            | FnCall (name, exprs) ->
-                FnCall (name, List.map ~f:r exprs)
-            | FnCallSendToRail (name, exprs) ->
-                FnCallSendToRail (name, List.map ~f:r exprs)
-            | Lambda (vars, lexpr) ->
-                Lambda (vars, r lexpr)
-            | Thread exprs ->
-                Thread (List.map ~f:r exprs)
-            | FieldAccess (obj, field) ->
-                FieldAccess (r obj, field)
-            | ListLiteral exprs ->
-                ListLiteral (List.map ~f:r exprs)
-            | ObjectLiteral pairs ->
-                ObjectLiteral (List.map ~f:(fun (k, v) -> (k, r v)) pairs)
-            | FeatureFlag (msg, cond, a, b) ->
-                FeatureFlag (msg, r cond, r a, r b)
-            | Match (matchExpr, cases) ->
-                Match (r matchExpr, List.map ~f:(fun (k, v) -> (k, r v)) cases)
-            | Constructor (name, args) ->
-                Constructor (name, List.map ~f:r args)
-            | FluidPartial (name, old_val) ->
-                FluidPartial (name, r old_val)
-            | FluidRightPartial (name, old_val) ->
-                FluidRightPartial (name, r old_val)
-            | FluidLeftPartial (name, old_val) ->
-                FluidLeftPartial (name, r old_val) )
+    | EVariable _ ->
+        expr
+    | ELet (id, lhs, rhs, body) ->
+        ELet (id, lhs, r rhs, r body)
+    | EIf (id, cond, ifbody, elsebody) ->
+        EIf (id, r cond, r ifbody, r elsebody)
+    | EBinOp (id, name, left, right, ster) ->
+        EBinOp (id, name, r left, r right, ster)
+    | EFnCall (id, name, exprs, ster) ->
+        EFnCall (id, name, List.map ~f:r exprs, ster)
+    | ELambda (id, vars, lexpr) ->
+        ELambda (id, vars, r lexpr)
+    | EPipe (id, exprs) ->
+        EPipe (id, List.map ~f:r exprs)
+    | EFieldAccess (id, obj, field) ->
+        EFieldAccess (id, r obj, field)
+    | EList (id, exprs) ->
+        EList (id, List.map ~f:r exprs)
+    | ERecord (id, pairs) ->
+        ERecord (id, List.map ~f:(fun (k, v) -> (k, r v)) pairs)
+    | EFeatureFlag (id, msg, cond, a, b) ->
+        EFeatureFlag (id, msg, r cond, r a, r b)
+    | EMatch (id, matchExpr, cases) ->
+        EMatch (id, r matchExpr, List.map ~f:(fun (k, v) -> (k, r v)) cases)
+    | EConstructor (id, name, args) ->
+        EConstructor (id, name, List.map ~f:r args)
+    | EPartial (id, name, old_val) ->
+        EPartial (id, name, r old_val)
+    | ERightPartial (id, name, old_val) ->
+        ERightPartial (id, name, r old_val)
+    | ELeftPartial (id, name, old_val) ->
+        ELeftPartial (id, name, r old_val)
   in
   f result
 
 
-let rec set_expr ~(search : id) ~(replacement : expr) (expr : expr) : expr =
+let rec set_expr ~(search : id) ~(replacement : fluid_expr) (expr : fluid_expr)
+    : fluid_expr =
   let replace = set_expr ~search ~replacement in
-  if search = blank_to_id expr
+  if search = Libshared.FluidExpression.toID expr
   then replacement
   else deprecated_traverse ~f:replace expr
 
 
-let rec iter ~(f : expr -> unit) (expr : expr) : unit =
+let rec iter ~(f : fluid_expr -> unit) (expr : fluid_expr) : unit =
   let rec recurse e =
     f e ;
     deprecated_traverse ~f:recurse e
@@ -183,7 +177,7 @@ let rec iter ~(f : expr -> unit) (expr : expr) : unit =
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
-let find_db (dbs : expr DbT.db list) (name : string) : expr DbT.db =
+let find_db (dbs : fluid_expr DbT.db list) (name : string) : fluid_expr DbT.db =
   dbs
   |> List.filter ~f:(fun db ->
          match db.name with
@@ -202,7 +196,7 @@ let should_send_to_rail (expr : nexpr) : bool =
   match expr with FnCallSendToRail _ -> true | _ -> false
 
 
-let global_input_vars (state : expr exec_state) :
+let global_input_vars (state : fluid_expr exec_state) :
     (string * 'expr_type dval) list =
   let secrets =
     state.secrets
@@ -222,8 +216,9 @@ let global_input_vars (state : expr exec_state) :
 
 
 let rec execute_dblock
-    ~(state : expr exec_state) {symtable; body; params} (args : expr dval list)
-    : expr dval =
+    ~(state : fluid_expr exec_state)
+    {symtable; body; params}
+    (args : fluid_expr dval list) : fluid_expr dval =
   (* If one of the args is fake value used as a marker, return it instead of
    * executing. This is the same behaviour as in fn calls. *)
   let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
@@ -256,8 +251,10 @@ let rec execute_dblock
         exec ~state new_st body
 
 
-and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
-    expr dval =
+and exec
+    ~(state : fluid_expr exec_state)
+    (st : fluid_expr symtable)
+    (expr : fluid_expr) : fluid_expr dval =
   (* Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e *)
   let on_execution_path = state.on_execution_path in
   let ctx = state.context in
@@ -286,10 +283,11 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
    * as a first-class concept sooner rather than later.
    *)
   let inject_param_and_execute
-      (st : expr symtable) (arg : expr dval) (exp : expr) : expr dval =
+      (st : fluid_expr symtable) (arg : fluid_expr dval) (exp : fluid_expr) :
+      fluid_expr dval =
     let result =
       match exp with
-      | Filled (id, Lambda _) ->
+      | ELambda (id, _, _) ->
           let result = exe st exp in
           ( match result with
           | DBlock b ->
@@ -300,33 +298,32 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
               DError
                 ( sourceId id
                 , "Internal type error: lambda did not produce a block" ) )
-      | Filled (id, (FnCall (name, exprs) as fncall))
-      | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
-          let send_to_rail = should_send_to_rail fncall in
+      | EFnCall (id, name, exprs, ster) ->
+          let send_to_rail = ster = Rail in
           call name id (arg :: List.map ~f:(exe st) exprs) send_to_rail
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
-      | Partial _ | Blank _ ->
+      | EBlank _ ->
           arg
       | _ ->
           (* calculate the results inside this regardless *)
           DIncomplete SourceNone
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
-    trace ~on_execution_path (blank_to_id exp) result ;
+    trace ~on_execution_path (Libshared.FluidExpression.toID exp) result ;
     result
   in
   let value _ =
     match expr with
-    | Blank id ->
+    | EBlank id ->
         DIncomplete (sourceId id)
-    | Partial (id, _) ->
-        DIncomplete (sourceId id)
-    | Filled (_, FluidPartial (_, expr))
-    | Filled (_, FluidRightPartial (_, expr))
-    | Filled (_, FluidLeftPartial (_, expr)) ->
+    | EPartial (_, _, expr)
+    | ERightPartial (_, _, expr)
+    | ELeftPartial (_, _, expr) ->
         exe st expr
-    | Filled (_, Let (lhs, rhs, body)) ->
+    | EPipeTarget id ->
+        DIncomplete (sourceId id)
+    | ELet (id, lhs, rhs, body) ->
         let data = exe st rhs in
         ( match data with
         | DErrorRail _ ->
@@ -334,43 +331,56 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
         | _ ->
             let bound =
               match lhs with
-              | Filled (_, name) ->
-                  DvalMap.insert ~key:name ~value:data st
-              | Partial _ | Blank _ ->
+              | "" ->
                   st
+              | name ->
+                  DvalMap.insert ~key:name ~value:data st
             in
             exe bound body )
-    | Filled (id, Value s) ->
-        Dval.parse_literal s
-        |> Option.value ~default:(DError (sourceId id, "Unparsable value"))
-    | Filled (_, ListLiteral exprs) ->
+    | EString (_, value) ->
+        Dval.dstr_of_string_exn value
+    | EBool (_, value) ->
+        DBool value
+    | EInteger (_, value) ->
+        DInt (Dint.of_string_exn value)
+    | EFloat (id, whole, fraction) ->
+        let float = whole ^ "." ^ fraction in
+        float
+        |> float_of_string_opt
+        |> Option.map ~f:(fun v -> DFloat v)
+        |> Tc.Option.withDefault
+             ~default:
+               (DError (SourceId (state.tlid, id), "Invalid float: " ^ float))
+    | ENull id ->
+        DNull
+    | EList (id, exprs) ->
         (* We ignore incompletes but not error rail. Other places that lists
-     are created propagate incompletes instead of ignoring *)
+         are created propagate incompletes instead of ignoring *)
         exprs
         |> List.filter_map ~f:(fun e ->
                (* exe each list item to store their values, but don't count the incompletes as list items *)
                match exe st e with DIncomplete _ -> None | dv -> Some dv)
         |> fun l -> find_derrorrail l |> Option.value ~default:(DList l)
-    | Filled (_, ObjectLiteral pairs) ->
+    | ERecord (id, pairs) ->
         pairs
         |> List.filter_map ~f:(fun (k, v) ->
                match (k, v) with
-               | Filled (_, keyname), v ->
+               | "", v ->
+                   ignore (exe st v) ;
+                   None
+               | keyname, v ->
                    let value = exe st v in
                    ( match value with
                    | DIncomplete _ ->
                        None
                    | _ ->
-                       Some (keyname, value) )
-               | _, v ->
-                   ignore (exe st v) ;
-                   None)
+                       Some (keyname, value) ))
         |> fun ps ->
         ps
         |> List.map ~f:Tuple.T2.get2
         |> find_derrorrail
         |> Option.value ~default:(Dval.to_dobj_exn ps)
-    | Filled (id, Variable name) ->
+    | EVariable (id, name) ->
       ( match (Symtable.get st ~key:name, ctx) with
       | None, Preview ->
           (* The trace is wrong/we have a bug --
@@ -382,13 +392,12 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
           DError (sourceId id, "There is no variable named: " ^ name)
       | Some other, _ ->
           other )
-    | Filled (id, FnCallSendToRail (name, exprs)) ->
+    | EBinOp (id, name, left, right, ster) ->
+        call name id [exe st left; exe st right] (ster = Rail)
+    | EFnCall (id, name, exprs, ster) ->
         let argvals = List.map ~f:(exe st) exprs in
-        call name id argvals true
-    | Filled (id, FnCall (name, exprs)) ->
-        let argvals = List.map ~f:(exe st) exprs in
-        call name id argvals false
-    | Filled (id, If (cond, ifbody, elsebody)) ->
+        call name id argvals (ster = Rail)
+    | EIf (id, cond, ifbody, elsebody) ->
       ( match exe st cond with
       (* only false and 'null' are falsey *)
       | DBool false | DNull ->
@@ -409,7 +418,7 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
       | _ ->
           preview st elsebody ;
           exe st ifbody )
-    | Filled (id, FeatureFlag (_, cond, oldcode, newcode)) ->
+    | EFeatureFlag (id, _, cond, oldcode, newcode) ->
         (* True gives newexpr, unlike in If statements
          *
          * In If statements, we use a false/null as false, and anything else is
@@ -427,10 +436,8 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
          * start serving the new code to all your traffic? No. So only `true`
          * gets new code. *)
         let condresult =
-          try
-            (* under no circumstances should this cause code to fail *)
-            exe st cond
-          with e -> DBool false
+          (* under no circumstances should this cause code to fail *)
+          try exe st cond with e -> DBool false
         in
         ( match condresult with
         (* only false and 'null' are falsey *)
@@ -449,12 +456,12 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
         | _ ->
             preview st newcode ;
             exe st oldcode )
-    | Filled (id, Lambda (params, body)) ->
+    | ELambda (id, params, body) ->
         ( if ctx = Preview
         then
           (* Since we return a DBlock, it's contents may never be
-          * executed. So first we execute with no context to get some
-          * live values. *)
+           * executed. So first we execute with no context to get some
+           * live values. *)
           let fake_st =
             Util.merge_left
               (Symtable.singleton "var" (DIncomplete SourceNone))
@@ -463,17 +470,15 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
           preview fake_st body ) ;
         let params =
           List.filter_map params ~f:(function
-              | Blank _ ->
+              | _, "" ->
                   None
-              | Partial _ ->
-                  None
-              | Filled (id, name) ->
+              | id, name ->
                   Some (id, name))
         in
         (* It is the responsibility of wherever executes the DBlock to pass in
          * args and execute the body. *)
         DBlock {symtable = st; params; body}
-    | Filled (id, Thread exprs) ->
+    | EPipe (id, exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with
       | e :: es ->
@@ -489,14 +494,14 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
                   result)
       | [] ->
           DIncomplete (sourceId id) )
-    | Filled (id, Match (matchExpr, cases)) ->
+    | EMatch (id, matchExpr, cases) ->
         let hasMatched = ref false in
         let matchResult = ref (DIncomplete (sourceId id)) in
         let executeMatch
-            (new_defs : (string * 'expr_type dval) list)
-            (traces : (id * 'expr_type dval) list)
-            (st : 'expr_type dval_map)
-            (expr : expr) : unit =
+            (new_defs : (string * fluid_expr dval) list)
+            (traces : (id * fluid_expr dval) list)
+            (st : fluid_expr dval_map)
+            (expr : fluid_expr) : unit =
           (* Once a pattern is matched, this function is called to execute its
            * `expr`. It tracks whether this is the first pattern to execute,
            * and calls preview if it is not. Handles calling trace on the
@@ -522,7 +527,7 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
         in
         let traceNonMatch
             (st : 'expr_type dval_map)
-            (expr : expr)
+            (expr : fluid_expr)
             (traces : (id * 'expr_type dval) list)
             (id : id)
             (value : 'expr_type dval) : unit =
@@ -531,7 +536,9 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
           trace ~on_execution_path:false id value
         in
         let rec matchAndExecute
-            dv (builtUpTraces : (id * 'expr_type dval) list) (pattern, expr) =
+            dv
+            (builtUpTraces : (id * 'expr_type dval) list)
+            (fluid_pattern, fluid_expr) =
           (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
            * matches. Tracks whether a branch has already been executed and
            * will exceute later matches in preview mode.  Ensures all patterns
@@ -539,23 +546,51 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
            * (constructors); builtUpTraces is the set of traces that have been
            * built up by recursing: they can only be matched when the pattern
            * is ready to match. *)
-          match pattern with
-          | Filled (pid, PLiteral l) ->
-            ( match Dval.parse_literal l with
-            | Some v when v = dv ->
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-            | v ->
-                let value = Option.value v ~default:(incomplete pid) in
-                traceNonMatch st expr builtUpTraces pid value )
-          | Filled (pid, PVariable v) ->
+          match fluid_pattern with
+          | Libshared.FluidPattern.FPInteger (_, pid, int) ->
+              let v = DInt (Dint.of_string_exn int) in
+              if v = dv
+              then executeMatch [] ((pid, v) :: builtUpTraces) st expr
+              else traceNonMatch st expr builtUpTraces pid v
+          | Libshared.FluidPattern.FPBool (_, pid, bool) ->
+              let v = DBool bool in
+              if v = dv
+              then executeMatch [] ((pid, v) :: builtUpTraces) st expr
+              else traceNonMatch st expr builtUpTraces pid v
+          | Libshared.FluidPattern.FPString {patternID = pid; str; matchID = _}
+            ->
+              let v = Dval.dstr_of_string_exn str in
+              if v = dv
+              then executeMatch [] ((pid, v) :: builtUpTraces) st expr
+              else traceNonMatch st expr builtUpTraces pid v
+          | Libshared.FluidPattern.FPFloat (_, pid, whole, fraction) ->
+              let v =
+                let float = whole ^ "." ^ fraction in
+                float
+                |> float_of_string_opt
+                |> Option.map ~f:(fun v -> DFloat v)
+                |> Tc.Option.withDefault
+                     ~default:
+                       (DError
+                          (SourceId (state.tlid, id), "Invalid float: " ^ float))
+              in
+              if v = dv
+              then executeMatch [] ((pid, v) :: builtUpTraces) st expr
+              else traceNonMatch st expr builtUpTraces pid v
+          | Libshared.FluidPattern.FPNull (_, pid) ->
+              let v = DNull in
+              if v = dv
+              then executeMatch [] ((pid, v) :: builtUpTraces) st expr
+              else traceNonMatch st expr builtUpTraces pid v
+          | Libshared.FluidPattern.FPVariable (_, pid, v) ->
               (* only matches allowed values *)
               if Dval.is_fake_marker_dval dv
               then traceNonMatch st expr builtUpTraces pid dv
               else executeMatch [(v, dv)] ((pid, dv) :: builtUpTraces) st expr
-          | Blank pid | Partial (pid, _) ->
+          | Libshared.FluidPattern.FPBlank (_, pid) ->
               (* never matches *)
               traceNonMatch st expr builtUpTraces pid (incomplete pid)
-          | Filled (pid, PConstructor (name, args)) ->
+          | Libshared.FluidPattern.FPConstructor (_, pid, name, args) ->
             ( match (name, args, dv) with
             | "Just", [p], DOption (OptJust v)
             | "Ok", [p], DResult (ResOk v)
@@ -576,7 +611,7 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
                 traceNonMatch st expr builtUpTraces pid error ;
                 (* Trace each argument too. TODO: recurse *)
                 List.iter args ~f:(fun pat ->
-                    let id = blank_to_id pat in
+                    let id = Libshared.FluidPattern.toID pat in
                     trace ~on_execution_path:false id (incomplete id)) ;
                 () )
         in
@@ -584,15 +619,15 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
         List.iter cases ~f:(fun (pattern, expr) ->
             matchAndExecute matchVal [] (pattern, expr)) ;
         !matchResult
-    | Filled (id, FieldAccess (e, field)) ->
+    | EFieldAccess (id, e, field) ->
         let obj = exe st e in
         let result =
           match obj with
           | DObj o ->
             ( match field with
-            | Partial (id, _) | Blank id ->
+            | "" ->
                 DIncomplete (sourceId id)
-            | Filled (_, f) ->
+            | f ->
               (match Map.find o f with Some v -> v | None -> DNull) )
           | DIncomplete _ as i ->
               i
@@ -613,21 +648,21 @@ and exec ~(state : expr exec_state) (st : expr symtable) (expr : expr) :
                   ^ ")." )
         in
         result
-    | Filled (id, Constructor (name, args)) ->
+    | EConstructor (id, name, args) ->
       ( match (name, args) with
-      | Filled (_, "Nothing"), [] ->
+      | "Nothing", [] ->
           DOption OptNothing
-      | Filled (_, "Just"), [arg] ->
+      | "Just", [arg] ->
           Dval.to_opt_just (exe st arg)
-      | Filled (_, "Ok"), [arg] ->
+      | "Ok", [arg] ->
           Dval.to_res_ok (exe st arg)
-      | Filled (_, "Error"), [arg] ->
+      | "Error", [arg] ->
           Dval.to_res_err (exe st arg)
       | _ ->
           DError (sourceId id, "Invalid construction option") )
   in
   let execed_value = value () in
-  trace ~on_execution_path (blank_to_id expr) execed_value ;
+  trace ~on_execution_path (Libshared.FluidExpression.toID expr) execed_value ;
   execed_value
 
 
@@ -728,7 +763,7 @@ and call_fn
         | DError _ as e ->
             e
         (* There should only be DOptions and DResults here, but hypothetically we got
-        * something else, they would go on the error rail too.  *)
+         * something else, they would go on the error rail too. *)
         | other ->
             DErrorRail other
       else result
@@ -752,7 +787,6 @@ and exec_fn
           , "Type error(s) in return type: "
             ^ Type_checker.Error.list_to_string errs )
   in
-
   if state.context = Preview
      && (not state.on_execution_path)
      && Tc.StrSet.member state.callstack ~value:fnname
@@ -808,16 +842,16 @@ and exec_fn
               try f (state, arglist) with
               | Exception.DarkException de as e when de.tipe = Code ->
                   (* These are exceptions that come from an RT.error, which is all
-            * usercode problems. Non user-code problems should use different
-            * exception types.
-            *)
+                   * usercode problems. Non user-code problems should use different
+                   * exception types.
+                   *)
                   Dval.exception_to_dval e (sourceId id)
               | e ->
                   (* After the rethrow, this gets eventually caught then shown to the
-            * user as a Dark Internal Exception. It's an internal exception
-            * because we didn't anticipate the problem, give it a nice error
-            * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
-            * this, give it a nice exception via RT.error.  *)
+                   * user as a Dark Internal Exception. It's an internal exception
+                   * because we didn't anticipate the problem, give it a nice error
+                   * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
+                   * this, give it a nice exception via RT.error. *)
                   Exception.reraise e
             in
             (* there's no point storing data we'll never ask for *)
@@ -850,7 +884,6 @@ and exec_fn
                   |> Dval.unwrap_from_errorrail
                   |> type_error_or_value ~user_tipes:[]
             in
-
             (* there's no point storing data we'll never ask for *)
             if fn.preview_safety <> Safe
             then state.store_fn_result sfr_desc arglist result ;
@@ -880,7 +913,6 @@ and exec_fn
                 let state = {state with tlid} in
                 let result = exec ~state args_with_globals body in
                 state.store_fn_result sfr_desc arglist result ;
-
                 result
                 |> Dval.unwrap_from_errorrail
                 |> type_error_or_value ~user_tipes:state.user_tipes )

@@ -71,8 +71,8 @@ let dbs (tls : 'expr_type toplevels) : 'expr_type RuntimeT.DbT.db list =
   tls |> IDMap.data |> List.filter_map ~f:as_db
 
 
-let set_expr (id : id) (expr : RuntimeT.expr) (tl : RuntimeT.expr toplevel) :
-    RuntimeT.expr toplevel =
+let set_expr (id : id) (expr : fluid_expr) (tl : fluid_expr toplevel) :
+    fluid_expr toplevel =
   match tl.data with
   | DB db ->
       let newdb =

@@ -4,7 +4,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : expr fn list =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["emit"]
     ; infix_names = []
     ; parameters = [par "Data" TAny; par "Space" TStr; par "Name" TStr]

@@ -1,4 +1,5 @@
 open Libexecution.Types.RuntimeT
+open Libexecution.Types
 
 module HttpclientV0 : sig
   val http_call :
@@ -69,43 +70,47 @@ end
  * throw an exception on a non-2xx error code, or
  * those that simply wrap the exception in a Result *)
 module LibhttpclientV0 : sig
-  val call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+  val call : Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 
-  val call_no_body : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+  val call_no_body :
+    Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 
   val wrapped_send_request :
        string
     -> Httpclient.verb
-    -> (expr dval -> string)
-    -> expr_dval
-    -> expr_dval
-    -> expr_dval
-    -> expr_dval
+    -> (fluid_expr dval -> string)
+    -> fluid_dval
+    -> fluid_dval
+    -> fluid_dval
+    -> fluid_dval
 
-  val wrapped_call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+  val wrapped_call :
+    Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 
   val wrapped_call_no_body :
-    Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+    Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 end
 
 (*These functions call the bugged HttpclientV1 impls *)
 module LibhttpclientV1 : sig
-  val call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+  val call : Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 
-  val call_no_body : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+  val call_no_body :
+    Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 end
 
 module LibhttpclientV2 : sig
   val send_request :
        string
     -> Httpclient.verb
-    -> (expr_dval -> string)
-    -> expr_dval
-    -> expr_dval
-    -> expr_dval
-    -> expr_dval
+    -> (fluid_dval -> string)
+    -> fluid_dval
+    -> fluid_dval
+    -> fluid_dval
+    -> fluid_dval
 
-  val call : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+  val call : Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 
-  val call_no_body : Httpclient.verb -> (expr_dval -> string) -> expr funcimpl
+  val call_no_body :
+    Httpclient.verb -> (fluid_dval -> string) -> fluid_expr funcimpl
 end

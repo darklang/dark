@@ -224,7 +224,7 @@ let traceids_for_user_fn
 (* function execution *)
 (* ------------------------- *)
 let execute_function
-    (c : RTT.expr Canvas.canvas)
+    (c : fluid_expr Canvas.canvas)
     ~execution_id
     ~tlid
     ~trace_id
@@ -245,18 +245,14 @@ let execute_function
     ~caller_id
     ~args
     ~store_fn_arguments:(fun tlid dvalmap ->
-      Stored_function_arguments.store
-        ~canvas_id:c.id
-        ~trace_id
-        tlid
-        (Fluid.dval_map_to_fluid dvalmap))
+      Stored_function_arguments.store ~canvas_id:c.id ~trace_id tlid dvalmap)
     ~store_fn_result:(fun funcdesc args result ->
       Stored_function_result.store
         ~canvas_id:c.id
         ~trace_id
         funcdesc
-        (List.map ~f:Fluid.dval_to_fluid args)
-        (Fluid.dval_to_fluid result))
+        args
+        result)
     fnname
 
 

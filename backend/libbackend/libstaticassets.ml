@@ -6,7 +6,7 @@ open Libexecution.Lib
 module Unicode_string = Libexecution.Unicode_string
 module Dval = Libexecution.Dval
 
-let fns : expr fn list =
+let fns : Libexecution.Types.fluid_expr fn list =
   [ { prefix_names = ["StaticAssets::baseUrlFor"]
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr]

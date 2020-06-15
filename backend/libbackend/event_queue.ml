@@ -7,9 +7,9 @@ module Span = Telemetry.Span
 
 type transaction = id
 
-type 'expr_type t =
+type t =
   { id : int
-  ; value : 'expr_type dval
+  ; value : Types.fluid_expr dval
   ; retries : int
   ; canvas_id : Uuidm.t
   ; host : string
@@ -188,7 +188,7 @@ let enqueue
       ; RoundtrippableDval data ]
 
 
-let dequeue (parent : Span.t) (transaction : Int63.t) : expr t option =
+let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
   Telemetry.with_span parent "dequeue" (fun parent ->
       let fetched =
         Db.fetch_one_option
@@ -204,7 +204,7 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : expr t option =
           ~params:[]
       in
       (* This let is just here for type annotation *)
-      let result : expr t option =
+      let result : t option =
         match fetched with
         | None ->
             None
@@ -232,10 +232,7 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : expr t option =
                 ; ("modifier", `String modifier) ] ) ;
             Some
               { id = int_of_string id
-              ; value =
-                  value
-                  |> Dval.of_internal_roundtrippable_v0
-                  |> Fluid.dval_of_fluid
+              ; value = value |> Dval.of_internal_roundtrippable_v0
               ; retries = int_of_string retries
               ; canvas_id = Util.uuid_of_string canvas_id
               ; host
@@ -399,7 +396,7 @@ let with_transaction (parent : Span.t) f =
   result
 
 
-let put_back transaction (item : 'expr_type t) ~status : unit =
+let put_back transaction (item : t) ~status : unit =
   let show_status s =
     match s with `OK -> "Ok" | `Err -> "Err" | `Incomplete -> "Incomplete"
   in
@@ -447,5 +444,4 @@ let put_back transaction (item : 'expr_type t) ~status : unit =
         ~params:[Int item.id]
 
 
-let finish transaction (item : 'expr_type t) : unit =
-  put_back transaction ~status:`OK item
+let finish transaction (item : t) : unit = put_back transaction ~status:`OK item

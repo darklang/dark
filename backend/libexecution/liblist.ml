@@ -5,7 +5,7 @@ module RT = Runtime
 
 let list_repeat = Stdlib_util.list_repeat
 
-let fns =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["List::singleton"]
     ; infix_names = []
     ; parameters = [par "val" TAny]
@@ -229,7 +229,7 @@ let fns =
         InProcess
           (function
           | state, [DList l; DBlock b] ->
-              let f (dv : 'expr_type dval) : bool =
+              let f (dv : Types.fluid_expr dval) : bool =
                 DBool true = Ast.execute_dblock ~state b [dv]
               in
               ( match List.find ~f l with
@@ -250,7 +250,7 @@ let fns =
         InProcess
           (function
           | _, [DList l; i] ->
-              DBool (List.mem ~equal:(equal_dval equal_expr) l i)
+              DBool (List.mem ~equal:(equal_dval Types.equal_fluid_expr) l i)
           | args ->
               fail args)
     ; preview_safety =
@@ -266,7 +266,7 @@ let fns =
         InProcess
           (function
           | _, [DList l; i] ->
-              DBool (List.mem ~equal:(equal_dval equal_expr) l i)
+              DBool (List.mem ~equal:(equal_dval Types.equal_fluid_expr) l i)
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -371,7 +371,7 @@ let fns =
               let fn dv = Ast.execute_dblock ~state b [dv] in
               DList
                 (List.dedup_and_sort l ~compare:(fun a b ->
-                     compare_dval compare_expr (fn a) (fn b)))
+                     compare_dval Types.compare_fluid_expr (fn a) (fn b)))
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -398,7 +398,9 @@ let fns =
         InProcess
           (function
           | _, [DList list] ->
-              list |> List.sort ~compare:(compare_dval compare_expr) |> DList
+              list
+              |> List.sort ~compare:(compare_dval Types.compare_fluid_expr)
+              |> DList
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -418,7 +420,7 @@ let fns =
               let fn dv = Ast.execute_dblock ~state b [dv] in
               list
               |> List.sort ~compare:(fun a b ->
-                     compare_dval compare_expr (fn a) (fn b))
+                     compare_dval Types.compare_fluid_expr (fn a) (fn b))
               |> DList
           | args ->
               fail args)

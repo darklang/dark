@@ -45,7 +45,7 @@ val insert_user :
      username:string
   -> email:string
   -> name:string
-  -> ?segment_metadata:Libexecution.Types.RuntimeT.expr_dval_map
+  -> ?segment_metadata:Libexecution.Types.RuntimeT.fluid_dval_map
   -> unit
   -> (unit, string) Result.t
 

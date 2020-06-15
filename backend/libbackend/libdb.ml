@@ -4,7 +4,7 @@ open Lib
 open Runtime
 open Types.RuntimeT
 
-let fns : expr fn list =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["DB::insert"]
     ; infix_names = []
     ; parameters = [par "val" TObj; par "table" TDB]

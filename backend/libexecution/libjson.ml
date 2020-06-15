@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : expr fn list =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["JSON::read"]
     ; infix_names = []
     ; parameters = [par "json" TStr]
@@ -14,11 +14,7 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DStr json] ->
-            ( try
-                json
-                |> Unicode_string.to_string
-                |> Dval.of_unknown_json_v0
-                |> Fluid.dval_of_fluid
+            ( try json |> Unicode_string.to_string |> Dval.of_unknown_json_v0
               with _ -> DNull )
           | args ->
               fail args)
@@ -34,10 +30,7 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DStr json] ->
-              json
-              |> Unicode_string.to_string
-              |> Dval.of_unknown_json_v1
-              |> Fluid.dval_of_fluid
+              json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -52,10 +45,7 @@ let fns : expr fn list =
         InProcess
           (function
           | _, [DStr json] ->
-              json
-              |> Unicode_string.to_string
-              |> Dval.of_unknown_json_v1
-              |> Fluid.dval_of_fluid
+              json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
               fail args)
     ; preview_safety = Safe
@@ -72,10 +62,7 @@ let fns : expr fn list =
           | _, [DStr json] ->
             ( try
                 let dval =
-                  json
-                  |> Unicode_string.to_string
-                  |> Dval.of_unknown_json_v1
-                  |> Fluid.dval_of_fluid
+                  json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
                 in
                 DResult (ResOk dval)
               with e ->

@@ -127,8 +127,7 @@ let send_request
           with _ -> Dval.dstr_of_string_exn "form decoding error"
         else if has_json_header res.headers
         then
-          try
-            Dval.of_unknown_json_v0 res.body |> Libexecution.Fluid.dval_of_fluid
+          try Dval.of_unknown_json_v0 res.body
           with _ -> Dval.dstr_of_string_exn "json decoding error"
         else
           try Dval.dstr_of_string_exn res.body
@@ -229,7 +228,7 @@ let call_no_body verb =
         fail args)
 
 
-let fns : expr fn list =
+let fns : Libexecution.Types.fluid_expr fn list =
   [ { prefix_names = ["HttpClient::post"]
     ; infix_names = []
     ; parameters = params

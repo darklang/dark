@@ -21,26 +21,26 @@ let add_fn (m : 'expr_type fnmap) (f : 'expr_type RuntimeT.fn) :
     (f.prefix_names @ f.infix_names)
 
 
-let static_fns : 'expr_type fnmap ref = ref FnMap.empty
+let static_fns : fluid_expr fnmap ref = ref FnMap.empty
 
 let add_static_fn (s : 'expr_type RTT.fn) : unit =
   static_fns := add_fn !static_fns s
 
 
-let fns (user_fns : RuntimeT.expr RuntimeT.user_fn list) : 'expr_type fnmap =
+let fns (user_fns : fluid_expr RuntimeT.user_fn list) : 'expr_type fnmap =
   user_fns
   |> List.filter_map ~f:RuntimeT.user_fn_to_fn
   |> List.fold_left ~init:!static_fns ~f:(fun map uf -> add_fn map uf)
 
 
 (* Give access to other modules *)
-let get_fn ~(user_fns : RuntimeT.expr RuntimeT.user_fn list) (name : string) :
+let get_fn ~(user_fns : fluid_expr RuntimeT.user_fn list) (name : string) :
     'expr_type RuntimeT.fn option =
   FnMap.find (fns user_fns) name
 
 
-let get_fn_exn ~(user_fns : RuntimeT.expr RuntimeT.user_fn list) (name : string)
-    : 'expr_type RuntimeT.fn =
+let get_fn_exn ~(user_fns : fluid_expr RuntimeT.user_fn list) (name : string) :
+    'expr_type RuntimeT.fn =
   match get_fn ~user_fns name with
   | Some fn ->
       fn

@@ -12,51 +12,8 @@ let flatmap ~(f : 'a -> 'b list) : 'a list -> 'b list =
   List.fold ~init:[] ~f:(fun acc e -> f e @ acc)
 
 
-let rec fnnames_of_expr (expr : RTT.expr) : RTT.fnname list =
-  match expr with
-  | Partial _ | Blank _ ->
-      []
-  | Filled (_, nexpr) ->
-    ( match nexpr with
-    | If (expr1, expr2, expr3) ->
-        [expr1; expr2; expr3] |> flatmap ~f:fnnames_of_expr
-    | Thread exprs ->
-        exprs |> List.fold ~init:[] ~f:(fun acc e -> acc @ fnnames_of_expr e)
-    | FnCall (fnname, exprs) ->
-        fnname :: (exprs |> flatmap ~f:fnnames_of_expr)
-    | Variable _ ->
-        []
-    | Let (_, expr1, expr2) ->
-        [expr1; expr2] |> flatmap ~f:fnnames_of_expr
-    | Lambda (_, expr) ->
-        fnnames_of_expr expr
-    | Value _ ->
-        []
-    | FieldAccess (expr, _) ->
-        fnnames_of_expr expr
-    | ObjectLiteral pairs ->
-        pairs
-        |> List.map ~f:(fun (key, expr) -> expr)
-        |> flatmap ~f:fnnames_of_expr
-    | ListLiteral exprs ->
-        exprs |> flatmap ~f:fnnames_of_expr
-    | FeatureFlag (_, expr1, expr2, expr3) ->
-        [expr1; expr2; expr3] |> flatmap ~f:fnnames_of_expr
-    | FnCallSendToRail (fnname, exprs) ->
-        fnname :: (exprs |> flatmap ~f:fnnames_of_expr)
-    | Match (expr, matches) ->
-        fnnames_of_expr expr
-        @ ( matches
-          |> List.map ~f:(fun (pattern, expr) -> expr)
-          |> flatmap ~f:fnnames_of_expr )
-    | Constructor (_, exprs) ->
-        exprs |> flatmap ~f:fnnames_of_expr
-    | FluidPartial (_, expr) ->
-        fnnames_of_expr expr
-    | FluidRightPartial (_, expr) ->
-        fnnames_of_expr expr
-    | FluidLeftPartial (_, expr) ->
-        fnnames_of_expr expr )
+let fnnames_of_expr (expr : fluid_expr) : RTT.fnname list =
+  Internal_analysis.find_functions expr
 
 
 let usage () =
@@ -85,8 +42,8 @@ let pairs_of_fn (fn : fn) : (string * string) list =
   ; ("fnname", fn.fnname) ]
 
 
-let process_canvas (canvas : RTT.expr Canvas.canvas ref) : fn list =
-  let handler_name (handler : RuntimeT.expr handler) =
+let process_canvas (canvas : fluid_expr Canvas.canvas ref) : fn list =
+  let handler_name (handler : fluid_expr handler) =
     let spec = handler.spec in
     String.concat
       ( [spec.module_; spec.name; spec.modifier]
@@ -95,7 +52,7 @@ let process_canvas (canvas : RTT.expr Canvas.canvas ref) : fn list =
       ~sep:"-"
   in
   let handlers =
-    !(canvas : RuntimeT.expr Canvas.canvas ref).handlers
+    !(canvas : fluid_expr Canvas.canvas ref).handlers
     |> IDMap.data
     |> List.filter_map ~f:Toplevel.as_handler
   in
@@ -118,14 +75,14 @@ let () =
   *)
 
 let filterFnsNotInStaticFns (fn : fn) =
-  let (realfn : RuntimeT.expr RuntimeT.fn option) =
+  let (realfn : fluid_expr RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some _ -> false | None -> true
 
 
 let isDeprecated (fn : fn) =
-  let (realfn : RuntimeT.expr RuntimeT.fn option) =
+  let (realfn : fluid_expr RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some realfn -> realfn.deprecated | None -> false

@@ -214,8 +214,10 @@ let move_toplevel (tlid : tlid) (pos : pos) (c : 'expr_type canvas) :
 (* Build *)
 (* ------------------------- *)
 
-let apply_op (is_new : bool) (op : 'expr_type Op.op) (c : 'expr_type canvas ref)
-    : unit =
+let apply_op
+    (is_new : bool)
+    (op : Types.fluid_expr Op.op)
+    (c : Types.fluid_expr canvas ref) : unit =
   try
     c :=
       !c
@@ -342,9 +344,9 @@ let verify (c : 'expr_type canvas ref) : (unit, string list) Result.t =
 
 
 let add_ops
-    (c : 'expr_type canvas ref)
-    (oldops : 'expr_type Op.op list)
-    (newops : 'expr_type Op.op list) : unit =
+    (c : fluid_expr canvas ref)
+    (oldops : fluid_expr Op.op list)
+    (newops : fluid_expr Op.op list) : unit =
   let oldops = List.map ~f:(fun op -> (false, op)) oldops in
   let newops = List.map ~f:(fun op -> (true, op)) newops in
   let reduced_ops = Undo.preprocess (oldops @ newops) in
@@ -502,10 +504,10 @@ let url_for (id : Uuidm.t) : string =
 let load_from
     (host : string)
     (owner : Uuidm.t)
-    (newops : 'expr_type Op.op list)
+    (newops : fluid_expr Op.op list)
     ~(f :
-       host:string -> canvas_id:Uuidm.t -> unit -> 'expr_type Op.tlid_oplists) :
-    ('expr_type canvas ref, string list) Result.t =
+       host:string -> canvas_id:Uuidm.t -> unit -> fluid_expr Op.tlid_oplists) :
+    (fluid_expr canvas ref, string list) Result.t =
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
@@ -517,23 +519,24 @@ let load_from
       Package_manager.all_functions ()
       |> List.map ~f:Package_manager.runtime_fn_of_package_fn
     in
-    let c =
+    let c : fluid_expr canvas ref =
       ref
-        { host
-        ; owner
-        ; id = canvas_id
-        ; creation_date
-        ; ops = []
-        ; cors_setting = cors
-        ; handlers = IDMap.empty
-        ; dbs = IDMap.empty
-        ; user_functions = IDMap.empty
-        ; user_tipes = IDMap.empty
-        ; package_fns
-        ; deleted_handlers = IDMap.empty
-        ; deleted_dbs = IDMap.empty
-        ; deleted_user_functions = IDMap.empty
-        ; deleted_user_tipes = IDMap.empty }
+        ( { host
+          ; owner
+          ; id = canvas_id
+          ; creation_date
+          ; ops = []
+          ; cors_setting = cors
+          ; handlers = IDMap.empty
+          ; dbs = IDMap.empty
+          ; user_functions = IDMap.empty
+          ; user_tipes = IDMap.empty
+          ; package_fns
+          ; deleted_handlers = IDMap.empty
+          ; deleted_dbs = IDMap.empty
+          ; deleted_user_functions = IDMap.empty
+          ; deleted_user_tipes = IDMap.empty }
+          : fluid_expr canvas )
     in
     add_ops c (Op.tlid_oplists2oplist oldops) newops ;
     c |> verify |> Result.map ~f:(fun _ -> c)
@@ -545,28 +548,28 @@ let load_without_tls host : ('expr_type canvas ref, string list) Result.t =
   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 
 
-let load_all host (newops : RTT.expr Op.op list) :
-    (RTT.expr canvas ref, string list) Result.t =
+let load_all host (newops : Types.fluid_expr Op.op list) :
+    (Types.fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
-let load_only_tlids ~tlids host (newops : RTT.expr Op.op list) :
-    (RTT.expr canvas ref, string list) Result.t =
+let load_only_tlids ~tlids host (newops : fluid_expr Op.op list) :
+    (Types.fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
 
 
 (* Same as `load_only_tlids` but filters out deleted tlids via
  * the denormalized `deleted` attributed on toplevel_oplists *)
-let load_only_undeleted_tlids ~tlids host (newops : RTT.expr Op.op list) :
-    (RTT.expr canvas ref, string list) Result.t =
+let load_only_undeleted_tlids ~tlids host (newops : fluid_expr Op.op list) :
+    (fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
 
 
-let load_with_dbs ~tlids host (newops : RTT.expr Op.op list) :
-    (RTT.expr canvas ref, string list) Result.t =
+let load_with_dbs ~tlids host (newops : fluid_expr Op.op list) :
+    (fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
@@ -585,7 +588,7 @@ let load_with_dbs ~tlids host (newops : RTT.expr Op.op list) :
  *)
 let load_from_cache
     ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner :
-    (RTT.expr canvas ref, string list) Result.t =
+    (fluid_expr canvas ref, string list) Result.t =
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let ( fast_loaded_handlers
       , fast_loaded_dbs
@@ -643,7 +646,7 @@ let load_from_cache
          canvas)
 
 
-let load_all_from_cache host : (RTT.expr canvas ref, string list) Result.t =
+let load_all_from_cache host : (fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -656,7 +659,7 @@ let load_all_from_cache host : (RTT.expr canvas ref, string list) Result.t =
 
 
 let load_http_from_cache ~verb ~path host :
-    (RTT.expr canvas ref, string list) Result.t =
+    (fluid_expr canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their
    * cached repr, and then go and fetch whatever we were missing*)
   let owner = Account.for_host_exn host in
@@ -669,13 +672,13 @@ let load_http_from_cache ~verb ~path host :
 
 
 let load_tlids_from_cache ~tlids host :
-    (RTT.expr canvas ref, string list) Result.t =
+    (fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from_cache ~tlids host owner
 
 
 let load_tlids_with_context_from_cache ~tlids host :
-    (RTT.expr canvas ref, string list) Result.t =
+    (fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let tlids =
@@ -687,8 +690,8 @@ let load_tlids_with_context_from_cache ~tlids host :
   load_from_cache ~tlids host owner
 
 
-let load_for_event_from_cache (event : RTT.expr Event_queue.t) :
-    (RTT.expr canvas ref, string list) Result.t =
+let load_for_event_from_cache (event : Event_queue.t) :
+    (fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn event.host in
   let canvas_id = Serialize.fetch_canvas_id owner event.host in
   load_from_cache
@@ -697,7 +700,8 @@ let load_for_event_from_cache (event : RTT.expr Event_queue.t) :
     owner
 
 
-let load_all_dbs_from_cache host : (RTT.expr canvas ref, string list) Result.t =
+let load_all_dbs_from_cache host : (fluid_expr canvas ref, string list) Result.t
+    =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -707,7 +711,7 @@ let load_all_dbs_from_cache host : (RTT.expr canvas ref, string list) Result.t =
 
 
 let load_for_cron_checker_from_cache host :
-    (RTT.expr canvas ref, string list) Result.t =
+    (fluid_expr canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -716,14 +720,14 @@ let load_for_cron_checker_from_cache host :
     owner
 
 
-let serialize_only (tlids : tlid list) (c : RTT.expr canvas) : unit =
+let serialize_only (tlids : tlid list) (c : fluid_expr canvas) : unit =
   try
     let munge_name module_ n =
       if Ast.blank_to_option module_ = Some "HTTP"
       then Http.route_to_postgres_pattern n
       else n
     in
-    let handler_metadata (h : RTT.expr RTT.HandlerT.handler) =
+    let handler_metadata (h : fluid_expr RTT.HandlerT.handler) =
       ( Ast.blank_to_option h.spec.name
         |> Option.map ~f:(munge_name h.spec.module_)
       , Ast.blank_to_option h.spec.module_
@@ -841,11 +845,11 @@ let serialize_only (tlids : tlid list) (c : RTT.expr canvas) : unit =
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let save_tlids (c : RTT.expr canvas) (tlids : tlid list) : unit =
+let save_tlids (c : fluid_expr canvas) (tlids : tlid list) : unit =
   serialize_only tlids c
 
 
-let save_all (c : RTT.expr canvas) : unit =
+let save_all (c : fluid_expr canvas) : unit =
   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
   save_tlids c tlids
 
@@ -885,7 +889,7 @@ let minimize (c : 'expr_type canvas) : 'expr_type canvas =
   c
 
 
-let save_test (c : 'expr_type canvas) : string =
+let save_test (c : fluid_expr canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
   let file = Serialize.json_filename host in
@@ -1020,8 +1024,8 @@ let validate_host host : (unit, string) Result.t =
             load_tlids_from_cache ~tlids host
             |> Tc.Result.map_error String.concat
             |> Tc.Result.andThen ~f:(fun c ->
-                   let roundtripped = !c |> to_fluid |> of_fluid in
-                   if equal_id_insensitive_expr_canvas !c roundtripped
+                   let roundtripped = !c |> of_fluid |> to_fluid in
+                   if equal_id_insensitive_fluid_expr_canvas !c roundtripped
                    then Ok ()
                    else Error ("cache roundtrip not valid: " ^ host))
           with e -> Error "couldn't load cache"
@@ -1068,57 +1072,53 @@ let migrate_or_blank (ob : 'a or_blank) : 'a or_blank =
   match ob with Blank _ -> ob | Partial (id, _) -> Blank id | Filled _ -> ob
 
 
-let rec migrate_expr (expr : RuntimeT.expr) =
-  let f e = migrate_expr e in
+let rec migrate_fluid_expr (expr : fluid_expr) =
+  let f e = migrate_fluid_expr e in
   match expr with
-  | Partial (id, _) ->
-      Blank id
-  | Blank _ ->
+  | EPipeTarget _
+  | EInteger _
+  | EBool _
+  | ENull _
+  | EBlank _
+  | EFloat _
+  | EString _
+  | EVariable _ ->
       expr
-  | Filled (id, nexpr) ->
-      Filled
-        ( id
-        , match nexpr with
-          | Value _ | Variable _ ->
-              nexpr
-          | Let (lhs, rhs, body) ->
-              Let (migrate_or_blank lhs, f rhs, f body)
-          | If (cond, ifbody, elsebody) ->
-              If (f cond, f ifbody, f elsebody)
-          | FnCall (name, exprs) ->
-              FnCall (name, List.map ~f exprs)
-          | FnCallSendToRail (name, exprs) ->
-              FnCallSendToRail (name, List.map ~f exprs)
-          | Lambda (vars, lexpr) ->
-              Lambda (List.map ~f:migrate_or_blank vars, f lexpr)
-          | Thread exprs ->
-              Thread (List.map ~f exprs)
-          | FieldAccess (obj, field) ->
-              FieldAccess (f obj, migrate_or_blank field)
-          | ListLiteral exprs ->
-              ListLiteral (List.map ~f exprs)
-          | ObjectLiteral pairs ->
-              ObjectLiteral
-                (List.map ~f:(fun (k, v) -> (migrate_or_blank k, f v)) pairs)
-          | FeatureFlag (msg, cond, a, b) ->
-              FeatureFlag (migrate_or_blank msg, f cond, f a, f b)
-          | Match (matchExpr, cases) ->
-              Match
-                ( f matchExpr
-                , List.map ~f:(fun (k, v) -> (migrate_or_blank k, f v)) cases )
-          | Constructor (name, args) ->
-              Constructor (name, List.map ~f args)
-          | FluidPartial (name, old_val) ->
-              FluidPartial (name, f old_val)
-          | FluidRightPartial (name, old_val) ->
-              FluidRightPartial (name, f old_val)
-          | FluidLeftPartial (name, old_val) ->
-              FluidLeftPartial (name, f old_val) )
+  | ELet (id, lhs, rhs, body) ->
+      ELet (id, lhs, f rhs, f body)
+  | EIf (id, cond, ifbody, elsebody) ->
+      EIf (id, f cond, f ifbody, f elsebody)
+  | EBinOp (id, name, left, right, ster) ->
+      EBinOp (id, name, f left, f right, ster)
+  | EFnCall (id, name, exprs, ster) ->
+      EFnCall (id, name, List.map ~f exprs, ster)
+  | ELambda (id, vars, lexpr) ->
+      ELambda (id, vars, f lexpr)
+  | EPipe (id, exprs) ->
+      EPipe (id, List.map ~f exprs)
+  | EFieldAccess (id, obj, field) ->
+      EFieldAccess (id, f obj, field)
+  | EList (id, exprs) ->
+      EList (id, List.map ~f exprs)
+  | ERecord (id, pairs) ->
+      ERecord (id, List.map ~f:(fun (k, v) -> (k, f v)) pairs)
+  | EFeatureFlag (id, msg, cond, a, b) ->
+      EFeatureFlag (id, msg, f cond, f a, f b)
+  | EMatch (id, matchExpr, cases) ->
+      EMatch (id, f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
+  | EConstructor (id, name, args) ->
+      EConstructor (id, name, List.map ~f args)
+  | EPartial (id, name, old_val) ->
+      EPartial (id, name, f old_val)
+  | ERightPartial (id, name, old_val) ->
+      ERightPartial (id, name, f old_val)
+  | ELeftPartial (id, name, old_val) ->
+      ELeftPartial (id, name, f old_val)
 
 
 let migrate_handler (h : 'expr_type RuntimeT.HandlerT.handler) :
     'expr_type RuntimeT.HandlerT.handler =
-  {h with ast = migrate_expr h.ast}
+  {h with ast = migrate_fluid_expr h.ast}
 
 
 let migrate_user_function (fn : 'expr_type RuntimeT.user_fn) =
@@ -1131,7 +1131,9 @@ let migrate_user_function (fn : 'expr_type RuntimeT.user_fn) =
     ; parameters = List.map m.parameters ~f:migrate_bo_ufn_param
     ; return_type = migrate_or_blank m.return_type }
   in
-  {fn with ast = migrate_expr fn.ast; metadata = migrate_bo_metadata fn.metadata}
+  { fn with
+    ast = migrate_fluid_expr fn.ast
+  ; metadata = migrate_bo_metadata fn.metadata }
 
 
 let migrate_user_tipe (tipe : RuntimeT.user_tipe) : RuntimeT.user_tipe =
@@ -1161,7 +1163,7 @@ let migrate_op (op : 'expr_type Op.op) : 'expr_type Op.op =
   | SetFunction fn ->
       SetFunction (migrate_user_function fn)
   | SetExpr (tlid, id, expr) ->
-      SetExpr (tlid, id, migrate_expr expr)
+      SetExpr (tlid, id, migrate_fluid_expr expr)
   | CreateDBMigration (tlid, id1, id2, list) ->
       CreateDBMigration (tlid, id1, id2, List.map list ~f:migrate_col)
   | SetType tipe ->
@@ -1279,38 +1281,3 @@ let cleanup_old_traces_for_canvas (cid : Uuidm.t) : float =
         ; ("total_time", `Float total_time) ]
       @ !logdata ) ;
   total_time
-
-
-let to_string (host : string) : string =
-  (* TODO: user_tipes *)
-  let c =
-    load_all host []
-    |> Result.map_error ~f:(String.concat ~sep:", ")
-    |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-  in
-  let handlers = !c.handlers |> IDMap.data |> List.map ~f:TL.to_string in
-  let dbs = !c.dbs |> IDMap.data |> List.map ~f:TL.to_string in
-  let user_fns =
-    !c.user_functions |> IDMap.data |> List.map ~f:TL.user_fn_to_string
-  in
-  let deleted_handlers =
-    !c.handlers |> IDMap.data |> List.map ~f:TL.to_string
-  in
-  let deleted_dbs = !c.dbs |> IDMap.data |> List.map ~f:TL.to_string in
-  let deleted_user_functions =
-    !c.deleted_user_functions |> IDMap.data |> List.map ~f:TL.user_fn_to_string
-  in
-  String.concat
-    ~sep:"\n\n\n"
-    ( [" ------------- Handlers ------------- "]
-    @ handlers
-    @ [" ------------- DBs ------------- "]
-    @ dbs
-    @ [" ------------- Functions ------------- "]
-    @ user_fns
-    @ [" ------------- Deleted Handlers ------------- "]
-    @ deleted_handlers
-    @ [" ------------- Deleted DBs ------------- "]
-    @ deleted_dbs
-    @ [" ------------- Deleted Functions ------------- "]
-    @ deleted_user_functions )

@@ -466,16 +466,13 @@ let partially_evaluate
 
 
 let compile_lambda
-    ~(state : expr exec_state)
-    (symtable : expr dval_map)
+    ~(state : fluid_expr exec_state)
+    (symtable : fluid_expr dval_map)
     (param_name : string)
     (db_fields : tipe_ Prelude.StrDict.t)
-    (body : expr) : string =
-  let symtable = Fluid.dval_map_to_fluid symtable in
-  let state = Toplevel.exec_state_to_fluid state in
+    (body : fluid_expr) : string =
   let symtable, body =
     body
-    |> Fluid.toFluidExpr
     (* Replace threads with nested function calls - simplifies all later passes *)
     |> canonicalize
     (* Inline the rhs of any let within the lambda body. See comment for more

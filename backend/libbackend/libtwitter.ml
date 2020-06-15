@@ -114,7 +114,7 @@ let auth_param : param =
   }
 
 
-let fns : expr fn list =
+let fns : Libexecution.Types.fluid_expr fn list =
   schema.apis
   |> List.filter ~f:(fun (api : Swagger.api) ->
          (* There are a bunch of apis that have "{id}" or "{format}" in their

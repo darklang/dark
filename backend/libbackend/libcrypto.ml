@@ -13,7 +13,7 @@ let digest_to_bytes (digest : Nocrypto.Hash.digest) :
   bytes
 
 
-let fns : expr fn list =
+let fns : Types.fluid_expr fn list =
   [ (* ====================================== *)
     (* Password *)
     (* ====================================== *)

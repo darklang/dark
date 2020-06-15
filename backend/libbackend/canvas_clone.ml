@@ -172,11 +172,11 @@ let update_hosts_in_op
   |> Option.map ~f:(fun new_ast ->
          match op with
          | SetFunction userfn ->
-             Op.SetFunction {userfn with ast = new_ast}
+             Op.SetFunction { userfn with ast = new_ast }
          | SetExpr (tlid, id, _) ->
              SetExpr (tlid, id, new_ast)
          | SetHandler (tlid, id, handler) ->
-             SetHandler (tlid, id, {handler with ast = new_ast})
+             SetHandler (tlid, id, { handler with ast = new_ast })
          | CreateDB (_, _, _)
          | AddDBCol (_, _, _)
          | SetDBColName (_, _, _)
@@ -206,8 +206,7 @@ let update_hosts_in_op
          | DeleteTypeForever _ ->
              Exception.internal
                (Printf.sprintf
-                  "Can't copy canvas %s, got an
-unexpected ast-containing op."
+                  "Can't copy canvas %s, got an unexpected ast-containing op."
                   old_host))
   |> Option.with_default ~default:op
 
@@ -263,11 +262,13 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
            |> List.map ~f:(fun (tlid, ops) ->
                   let new_ops =
                     ops
+                    |> Op.oplist_of_fluid
                     |> List.map
                          ~f:
                            (update_hosts_in_op
                               ~old_host:from_canvas_name
                               ~new_host:to_canvas_name)
+                    |> Op.oplist_to_fluid
                   in
                   (tlid, new_ops))
          in

@@ -86,9 +86,9 @@ type analysis_envelope = uuid * fluid_expr Analysis_types.analysis
 [@@deriving to_yojson]
 
 let load_from_trace
-    (results : expr Analysis_types.function_result list)
+    (results : fluid_expr Analysis_types.function_result list)
     (tlid, fnname, caller_id)
-    (args : expr dval list) : (expr dval * Time.t) option =
+    (args : fluid_expr dval list) : (fluid_expr dval * Time.t) option =
   let hashes =
     Dval.supported_hash_versions
     |> List.map ~f:(fun key -> (id_of_int key, Dval.hash key args))
@@ -117,13 +117,8 @@ let perform_analysis
     ast =
   let dbs : fluid_expr DbT.db list = List.map ~f:convert_db dbs in
   let execution_id = Types.id_of_int 1 in
-  let input_vars =
-    trace_data.input |> List.map ~f:(fun (a, b) -> (a, Fluid.dval_of_fluid b))
-  in
-  let function_results =
-    List.map trace_data.function_results ~f:(fun (a, b, c, d, e) ->
-        (a, b, c, d, Fluid.dval_of_fluid e))
-  in
+  let input_vars = trace_data.input in
+  let function_results = trace_data.function_results in
   Log.add_log_annotations
     [ ("execution_id", `String (Types.string_of_id execution_id))
     ; ("tlid", `String (Types.string_of_id tlid)) ]
@@ -136,14 +131,13 @@ let perform_analysis
           ~account_id:(Util.create_uuid ())
           ~canvas_id:(Util.create_uuid ())
           ~input_vars
-          ~dbs:(List.map ~f:Toplevel.db_of_fluid dbs)
-          ~user_fns:(List.map ~f:Toplevel.user_fn_of_fluid user_fns)
+          ~dbs
+          ~user_fns
           ~user_tipes
           ~package_fns:[]
           ~secrets
           ~load_fn_result:(load_from_trace function_results)
-          ~load_fn_arguments:Execution.load_no_arguments
-        |> Hashtbl.map ~f:Fluid.execution_result_to_fluid )
+          ~load_fn_arguments:Execution.load_no_arguments )
       |> analysis_envelope_to_yojson
       |> Yojson.Safe.to_string)
 
@@ -163,7 +157,7 @@ let perform_handler_analysis (str : string) : string =
     ~secrets
     ~trace_id
     ~trace_data
-    (Fluid.fromFluidExpr handler.ast)
+    handler.ast
 
 
 let perform_function_analysis (str : string) : string =
@@ -181,7 +175,7 @@ let perform_function_analysis (str : string) : string =
     ~secrets:[]
     ~trace_id
     ~trace_data
-    (Fluid.fromFluidExpr func.ast)
+    func.ast
 
 
 open Js_of_ocaml

@@ -1005,7 +1005,7 @@ let to_pretty_machine_yojson_v1 dval =
   recurse dval
 
 
-let to_pretty_machine_json_v1 dval =
+let to_pretty_machine_json_v1 dval : string =
   to_pretty_machine_yojson_v1 dval |> Yojson.Safe.pretty_to_string
 
 

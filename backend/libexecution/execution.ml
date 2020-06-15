@@ -10,8 +10,8 @@ module Telemetry = Libcommon.Telemetry
 (* -------------------- *)
 (* Input_vars *)
 (* -------------------- *)
-let input_vars_for_user_fn (ufn : 'expr_type user_fn) : 'expr_type dval_map =
-  let param_to_dval (p : param) : 'expr_type dval = DIncomplete SourceNone in
+let input_vars_for_user_fn (ufn : fluid_expr user_fn) : fluid_expr dval_map =
+  let param_to_dval (p : param) : fluid_expr dval = DIncomplete SourceNone in
   ufn.metadata.parameters
   |> List.filter_map ~f:ufn_param_to_param
   |> List.map ~f:(fun f -> (f.name, param_to_dval f))
@@ -36,7 +36,7 @@ let sample_unknown_handler_input_vars =
   sample_request_input_vars @ sample_event_input_vars
 
 
-let sample_module_input_vars h : 'expr_type input_vars =
+let sample_module_input_vars h : fluid_expr input_vars =
   match Handler.module_type h with
   | `Http ->
       sample_request_input_vars
@@ -50,8 +50,8 @@ let sample_module_input_vars h : 'expr_type input_vars =
       sample_unknown_handler_input_vars
 
 
-let sample_route_input_vars (h : 'expr_type HandlerT.handler) :
-    'expr_type input_vars =
+let sample_route_input_vars (h : fluid_expr HandlerT.handler) :
+    fluid_expr input_vars =
   match Handler.event_name_for h with
   | Some n ->
       n
@@ -85,7 +85,7 @@ let execute_handler
     ~tlid
     ~execution_id
     ~input_vars
-    ~dbs
+    ~(dbs : fluid_expr RuntimeT.DbT.db list)
     ~user_fns
     ~user_tipes
     ~package_fns
@@ -97,11 +97,11 @@ let execute_handler
     ?(load_fn_arguments = load_no_arguments)
     ?(store_fn_result = store_no_results)
     ?(store_fn_arguments = store_no_arguments)
-    (h : RuntimeT.expr HandlerT.handler) : RuntimeT.expr dval * tlid list =
+    (h : fluid_expr HandlerT.handler) : fluid_expr dval * tlid list =
   let f unit =
     let tlid_store = TLIDTable.create () in
     let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-    let state : 'expr_type exec_state =
+    let state : fluid_expr exec_state =
       { tlid
       ; callstack = Tc.StrSet.empty
       ; account_id
@@ -165,7 +165,7 @@ let execute_function
     fnname =
   let tlid_store = TLIDTable.create () in
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  let state : 'expr_type exec_state =
+  let state : fluid_expr exec_state =
     { tlid
     ; callstack = Tc.StrSet.empty
     ; account_id
@@ -216,7 +216,7 @@ let analyse_ast
     ~canvas_id
     ?(load_fn_result = load_no_results)
     ?(load_fn_arguments = load_no_arguments)
-    (ast : expr) : 'expr_type analysis =
+    (ast : fluid_expr) : fluid_expr analysis =
   let value_store = IDTable.create () in
   let trace ~on_execution_path id dval =
     Hashtbl.set
@@ -227,7 +227,7 @@ let analyse_ast
         then ExecutedResult dval
         else NonExecutedResult dval )
   in
-  let state : 'expr_type exec_state =
+  let state : fluid_expr exec_state =
     { tlid
     ; callstack = Tc.StrSet.empty
     ; account_id

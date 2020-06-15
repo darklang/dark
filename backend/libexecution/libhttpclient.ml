@@ -3,7 +3,7 @@ open Runtime
 open Lib
 open Types.RuntimeT
 
-let fns : expr fn list =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["HttpClient::formContentType"]
     ; infix_names = []
     ; parameters = []

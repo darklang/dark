@@ -8,7 +8,7 @@ module TL = Toplevel
 module Span = Telemetry.Span
 
 let dequeue_and_process execution_id :
-    (RTT.expr RTT.dval option, Exception.captured) Result.t =
+    (Types.fluid_expr RTT.dval option, Exception.captured) Result.t =
   Telemetry.with_root
     "dequeue_and_process"
     ~attrs:[("meta.process_id", `Intlit (execution_id |> Int63.to_string))]
@@ -92,7 +92,7 @@ let dequeue_and_process execution_id :
                                       ~trace_id
                                       ~canvas_id
                                       desc
-                                      (Fluid.dval_to_fluid event.value)
+                                      event.value
                                   in
                                   let h =
                                     !c.handlers
@@ -153,22 +153,13 @@ let dequeue_and_process execution_id :
                                             (Secret.secrets_in_canvas !c.id)
                                           ~account_id:!c.owner
                                           ~store_fn_arguments:
-                                            (fun tlid dvalmap ->
-                                            Stored_function_arguments.store
-                                              ~canvas_id
-                                              ~trace_id
-                                              tlid
-                                              (Fluid.dval_map_to_fluid dvalmap))
+                                            (Stored_function_arguments.store
+                                               ~canvas_id
+                                               ~trace_id)
                                           ~store_fn_result:
-                                            (fun funcdesc args result ->
-                                            Stored_function_result.store
-                                              ~canvas_id
-                                              ~trace_id
-                                              funcdesc
-                                              (List.map
-                                                 ~f:Fluid.dval_to_fluid
-                                                 args)
-                                              (Fluid.dval_to_fluid result))
+                                            (Stored_function_result.store
+                                               ~canvas_id
+                                               ~trace_id)
                                           ~canvas_id
                                       in
                                       Stroller.push_new_trace_id
@@ -176,7 +167,8 @@ let dequeue_and_process execution_id :
                                         ~canvas_id
                                         trace_id
                                         (h.tlid :: touched_tlids) ;
-                                      let result_tipe (r : RTT.expr RTT.dval) =
+                                      let result_tipe (r : fluid_expr RTT.dval)
+                                          =
                                         match r with
                                         | DResult (ResOk _) ->
                                             "ResOk"
@@ -229,7 +221,7 @@ let dequeue_and_process execution_id :
 
 
 let run (execution_id : Types.id) :
-    (RTT.expr RTT.dval option, Exception.captured) Result.t =
+    (Types.fluid_expr RTT.dval option, Exception.captured) Result.t =
   if String.Caseless.equal
        Libservice.Config.postgres_settings.dbname
        "prodclone"

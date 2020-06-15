@@ -330,8 +330,8 @@ let get_db_fields (db : 'expr_type db) : (string * tipe_) list =
           None)
 
 
-let query ~state (db : expr db) (b : expr dblock_args) :
-    (string * expr dval) list =
+let query ~state (db : fluid_expr db) (b : fluid_expr dblock_args) :
+    (string * fluid_expr dval) list =
   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
   let param_name =
     match b.params with
@@ -377,7 +377,7 @@ let query ~state (db : expr db) (b : expr dblock_args) :
              Exception.internal "bad format received in get_all")
 
 
-let query_count ~state (db : expr db) (b : expr dblock_args) : int =
+let query_count ~state (db : fluid_expr db) (b : fluid_expr dblock_args) : int =
   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
   let param_name =
     match b.params with
@@ -694,8 +694,8 @@ let create_migration rbid rfid cols db =
             ; version = max_version + 1
             ; cols
             ; state = DBMigrationInitialized
-            ; rollback = Blank rbid
-            ; rollforward = Blank rfid } }
+            ; rollback = Libshared.FluidExpression.EBlank rbid
+            ; rollforward = Libshared.FluidExpression.EBlank rfid } }
 
 
 let add_col_to_migration nameid typeid db =

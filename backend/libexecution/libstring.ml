@@ -16,7 +16,7 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : expr fn list =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["String::isEmpty"]
     ; infix_names = []
     ; parameters = [par "s" TStr]

@@ -174,7 +174,7 @@ let functions ~username =
   |> List.filter ~f:(fun (k, _) ->
          Account.can_access_operations username
          || not (String.is_prefix ~prefix:"DarkInternal::" k))
-  |> List.map ~f:(fun (k, (v : RuntimeT.expr RuntimeT.fn)) ->
+  |> List.map ~f:(fun (k, (v : Types.fluid_expr RuntimeT.fn)) ->
          { name = k
          ; parameters =
              List.map

@@ -563,7 +563,7 @@ module RuntimeT = struct
     ; user_fns : 'expr_type user_fn list
     ; user_tipes : user_tipe list
     ; package_fns : 'expr_type fn list
-    ; dbs : expr DbT.db list
+    ; dbs : fluid_expr DbT.db list
     ; secrets : secret list
     ; trace : on_execution_path:bool -> id -> 'expr_type dval -> unit
     ; trace_tlid : tlid -> unit

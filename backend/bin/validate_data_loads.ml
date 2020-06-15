@@ -104,7 +104,9 @@ let () =
           let dbs = !c.dbs |> Toplevel.dbs in
           dbs
           |> List.iter
-               ~f:(fun (db : RTT.expr Libexecution.Types.RuntimeT.DbT.db) ->
+               ~f:(fun (db :
+                         Types.fluid_expr Libexecution.Types.RuntimeT.DbT.db)
+                       ->
                  let dbname =
                    match db.name with
                    | Filled (id, str) | Partial (id, str) ->
@@ -112,7 +114,7 @@ let () =
                    | Blank _ ->
                        "no name"
                  in
-                 let state : RTT.expr RTT.exec_state =
+                 let state : Types.fluid_expr RTT.exec_state =
                    { tlid = db.tlid
                    ; callstack = Tc.StrSet.empty
                    ; account_id = !c.owner

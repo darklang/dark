@@ -16,7 +16,7 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 
 let ( >>| ) = Result.( >>| )
 
-let fns : 'expr_type fn list =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["toString"]
     ; infix_names = []
     ; parameters = [par "v" TAny]
@@ -55,7 +55,10 @@ let fns : 'expr_type fn list =
     ; func =
         InProcess
           (function
-          | _, [a; b] -> DBool (equal_dval equal_expr a b) | args -> fail args)
+          | _, [a; b] ->
+              DBool (equal_dval Types.equal_fluid_expr a b)
+          | args ->
+              fail args)
     ; preview_safety = Safe
     ; deprecated = false }
   ; { prefix_names = ["notEquals"]
@@ -67,7 +70,7 @@ let fns : 'expr_type fn list =
         InProcess
           (function
           | _, [a; b] ->
-              DBool (not (equal_dval equal_expr a b))
+              DBool (not (equal_dval Types.equal_fluid_expr a b))
           | args ->
               fail args)
     ; preview_safety = Safe

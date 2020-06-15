@@ -14,7 +14,7 @@ let list_coerce ~(f : 'expr_type dval -> 'a option) (l : 'expr_type dval list) :
 
 let ( >>| ) = Result.( >>| )
 
-let fns : expr fn list =
+let fns : Types.fluid_expr fn list =
   [ { prefix_names = ["Int::mod"]
     ; infix_names = ["%"]
     ; parameters = [par "a" TInt; par "b" TInt]
