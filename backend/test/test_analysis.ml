@@ -20,10 +20,8 @@ let t_trace_tlids_exec_fn () =
 let t_on_the_rail () =
   (* When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly.   *)
   clear_test_data () ;
-  let prog =
-    Fluid.fromFluidExpr (fn "fake_test_fn" ~ster:Rail [int 4; int 5])
-  in
-  let id = Ast.blank_to_id prog in
+  let prog = fn "fake_test_fn" ~ster:Rail [int 4; int 5] in
+  let id = FluidExpression.toID prog in
   add_test_fn_result
     (tlid, "fake_test_fn", id)
     [Dval.dint 4; Dval.dint 5]
@@ -39,8 +37,8 @@ let t_test_filter_slash () =
   let host = "test-test_filter_slash" in
   let route = "/:rest" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
-  let c = ops2c_exn host oplist |> C.to_fluid_ref in
-  Canvas.serialize_only [tlid] (C.of_fluid !c) ;
+  let c = ops2c_exn host oplist in
+  Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", "/", "GET") in
   let at_trace_id = AT.of_pp Uuidm.pp_string in
@@ -64,7 +62,6 @@ let t_other_db_query_functions_have_analysis () =
   let f () =
     (* The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends. *)
     let dbTLID = fid () in
-    let fieldID = fid () in
     let declID = fid () in
     let faID = fid () in
     let lambdaID = fid () in
@@ -73,19 +70,13 @@ let t_other_db_query_functions_have_analysis () =
     let colNameID = fid () in
     let colTypeID = fid () in
     let ast =
-      f
-        (FnCall
-           ( "DB::queryOne_v4"
-           , [ Filled (dbID, Variable "MyDB")
-             ; Filled
-                 ( lambdaID
-                 , Lambda
-                     ( [Filled (declID, "value")]
-                     , Filled
-                         ( faID
-                         , FieldAccess
-                             ( Filled (varID, Variable "value")
-                             , Filled (fieldID, "age") ) ) ) ) ] ))
+      fn
+        "DB::queryOne_v4"
+        [ var ~id:dbID "MyDB"
+        ; ELambda
+            ( lambdaID
+            , [(declID, "value")]
+            , fieldAccess ~id:faID (var ~id:varID "value") "age" ) ]
     in
     let ops =
       [ Op.CreateDB (dbTLID, pos, "MyDB")
@@ -108,7 +99,7 @@ let t_other_db_query_functions_have_analysis () =
 
 let t_list_literals () =
   let blankId = fid () in
-  let ast = f (ListLiteral [f (Value "1"); Blank blankId]) in
+  let ast = list [int 1; EBlank blankId] in
   let dvalStore = exec_save_dvals ast in
   check_condition
     "Blank in a list evaluates to Incomplete"
@@ -135,7 +126,7 @@ let t_recursion_in_editor () =
          (fn ~id:skipped_caller_id "recurse" [int 2]))
   in
   let ast = fn ~id:caller_id "recurse" [int 0] in
-  let ops = [Op.SetFunction (Toplevel.user_fn_of_fluid recurse)] in
+  let ops = [Op.SetFunction recurse] in
   let dvalStore = exec_save_dvals' ~ops ast in
   check_execution_result
     "result is there as expected"
@@ -152,14 +143,7 @@ let t_if_not_executed () =
   let trueid = fid () in
   let falseid = fid () in
   let ifid = fid () in
-  let ast =
-    Filled
-      ( ifid
-      , If
-          ( f (Value "true")
-          , Filled (trueid, Value "5")
-          , Filled (falseid, Value "6") ) )
-  in
+  let ast = if' ~id:ifid (bool true) (int ~id:trueid 5) (int ~id:falseid 6) in
   let dvalStore = exec_save_dvals ast in
   check_execution_result
     "if is ok"
@@ -233,7 +217,7 @@ let t_match_evaluation () =
   let check_match
       (msg : string)
       (arg : E.t)
-      (expected : (id * string * expr execution_result) list) =
+      (expected : (id * string * fluid_expr execution_result) list) =
     let ast = astFor arg in
     Log.inspecT "ast" ~f:E.show ast ;
     let dvalStore = exec_save_dvals' ast in

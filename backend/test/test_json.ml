@@ -72,7 +72,7 @@ let t_dval_user_db_json_roundtrips () =
     |> Dval.to_internal_queryable_v1
     |> Dval.of_internal_queryable_v1
   in
-  let check name (v : expr dval) =
+  let check name (v : Types.fluid_expr dval) =
     check_dval ("queryable: " ^ name) v (queryable_rt v) ;
     ()
   in

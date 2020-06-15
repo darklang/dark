@@ -187,7 +187,7 @@ let t_uuid_string_roundtrip () =
     0
     ( match exec_ast ast with
     | DList [p1; p2] ->
-        compare_dval compare_expr p1 p2
+        compare_dval Types.compare_fluid_expr p1 p2
     | _ ->
         1 )
 

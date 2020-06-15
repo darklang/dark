@@ -2090,7 +2090,7 @@ let t_bool_stdlibs () =
  * - a basic happy-path works
  * - guards for returning non-int or invalid int (not in {-1,0,1}) error *)
 let t_liblist_sort_by_comparator_works () =
-  let dlist_of_intlist (is : int list) : expr dval =
+  let dlist_of_intlist (is : int list) : Types.fluid_expr dval =
     is
     |> List.map ~f:(fun i -> Dint.of_int i |> DInt)
     |> DList

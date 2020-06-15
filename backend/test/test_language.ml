@@ -472,7 +472,7 @@ let t_typechecker_error_isnt_wrapped_by_errorail () =
 
 
 let t_typechecker_return_types () =
-  let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (f (Value "5")) in
+  let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (int 5) in
   check_condition
     "typecheck userfn with bad return type"
     (exec_ast ~ops:[fop myBadFn] (fn "myBadFn" []))
@@ -484,14 +484,12 @@ let t_typechecker_return_types () =
           true
       | _ ->
           false) ;
-  let myGoodFn =
-    user_fn "myGoodFn" ~return_type:TStr [] (f (Value "\"str\""))
-  in
+  let myGoodFn = user_fn "myGoodFn" ~return_type:TStr [] (str "str") in
   check_dval
     "typecheck userfn with good return type"
     (exec_ast ~ops:[fop myGoodFn] (fn "myGoodFn" []))
     (Dval.dstr_of_string_exn "str") ;
-  let myAnyFn = user_fn "myAnyFn" ~return_type:TAny [] (f (Value "5")) in
+  let myAnyFn = user_fn "myAnyFn" ~return_type:TAny [] (int 5) in
   check_dval
     "typecheck userfn with any return type"
     (exec_ast ~ops:[fop myAnyFn] (fn "myAnyFn" []))

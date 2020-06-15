@@ -130,7 +130,7 @@ let t_uuid_db_roundtrip () =
     0
     ( match exec_handler ~ops ast with
     | DList [p1; p2] ->
-        compare_dval compare_expr p1 p2
+        compare_dval Types.compare_fluid_expr p1 p2
     | _ ->
         1 )
 
@@ -163,7 +163,7 @@ let t_password_hash_db_roundtrip () =
     0
     ( match exec_handler ~ops ast with
     | DList [p1; p2] ->
-        compare_dval compare_expr p1 p2
+        compare_dval Types.compare_fluid_expr p1 p2
     | _ ->
         1 )
 

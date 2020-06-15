@@ -14,13 +14,11 @@ module AT = Alcotest
 let t_undo_fns () =
   clear_test_data () ;
   let n1 = Op.TLSavepoint tlid in
-  let n2 =
-    hop (handler (Fluid.fromFluidExpr (binop "-" (blank ()) (blank ()))))
-  in
-  let n3 = hop (handler (Fluid.fromFluidExpr (binop "-" (int 3) (blank ())))) in
-  let n4 = hop (handler (Fluid.fromFluidExpr (binop "-" (int 3) (int 4)))) in
+  let n2 = hop (handler (binop "-" (blank ()) (blank ()))) in
+  let n3 = hop (handler (binop "-" (int 3) (blank ()))) in
+  let n4 = hop (handler (binop "-" (int 3) (int 4))) in
   let u = Op.UndoTL tlid in
-  let ops (c : RuntimeT.expr C.canvas ref) =
+  let ops (c : fluid_expr C.canvas ref) =
     !c.ops |> List.hd_exn |> Tuple.T2.get2
   in
   AT.check
@@ -38,11 +36,11 @@ let t_undo () =
   let sp = Op.TLSavepoint tlid in
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
-  let o1 = v "1" in
-  let o2 = v "2" in
-  let o3 = v "3" in
-  let o4 = v "4" in
-  let o5 = v "5" in
+  let o1 = int 1 in
+  let o2 = int 2 in
+  let o3 = int 3 in
+  let o4 = int 4 in
+  let o5 = int 5 in
   let ops = [sp; ha o1; sp; ha o2; sp; ha o3; sp; ha o4; sp; ha o5] in
   (* Check assumptions *)
   execute_ops ops |> check_dval "t_undo_1" (Dval.dint 5) ;
@@ -144,20 +142,8 @@ let t_http_load_ignores_deleted_fns () =
   clear_test_data () ;
   let host = "test-http_load_ignores_deleted_fns_and_dbs" in
   let handler = http_route_handler () in
-  let f =
-    user_fn
-      ~tlid:tlid2
-      "testfn"
-      []
-      (Fluid.fromFluidExpr (binop "+" (int 5) (int 3)))
-  in
-  let f2 =
-    user_fn
-      ~tlid:tlid3
-      "testfn"
-      []
-      (Fluid.fromFluidExpr (binop "+" (int 6) (int 4)))
-  in
+  let f = user_fn ~tlid:tlid2 "testfn" [] (binop "+" (int 5) (int 3)) in
+  let f2 = user_fn ~tlid:tlid3 "testfn" [] (binop "+" (int 6) (int 4)) in
   let oplist =
     [ Op.SetHandler (tlid, pos, handler)
     ; Op.SetFunction f
@@ -230,8 +216,8 @@ let t_set_after_delete () =
   let check_single msg tls = AT.check AT.int msg (IDMap.length tls) 1 in
   (* handlers *)
   clear_test_data () ;
-  let h1 = handler (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
-  let h2 = handler (Fluid.fromFluidExpr (binop "+" (int 5) (int 2))) in
+  let h1 = handler (binop "+" (int 5) (int 3)) in
+  let h2 = handler (binop "+" (int 5) (int 2)) in
   let op1 = Op.SetHandler (tlid, pos, h1) in
   let op2 = Op.DeleteTL tlid in
   let op3 = Op.SetHandler (tlid, pos, h2) in
@@ -252,12 +238,8 @@ let t_set_after_delete () =
     (Dval.dint 7) ;
   (* same thing for functions *)
   clear_test_data () ;
-  let h1 =
-    user_fn "testfn" [] (Fluid.fromFluidExpr (binop "+" (int 5) (int 3)))
-  in
-  let h2 =
-    user_fn "testfn" [] (Fluid.fromFluidExpr (binop "+" (int 5) (int 2)))
-  in
+  let h1 = user_fn "testfn" [] (binop "+" (int 5) (int 3)) in
+  let h2 = user_fn "testfn" [] (binop "+" (int 5) (int 2)) in
   let op1 = Op.SetFunction h1 in
   let op2 = Op.DeleteFunction tlid in
   let op3 = Op.SetFunction h2 in
@@ -375,21 +357,21 @@ let t_canvas_clone () =
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas : RuntimeT.expr Canvas.canvas ref =
+  let cloned_canvas : fluid_expr Canvas.canvas ref =
     Canvas.load_all "clone-gettingstarted" []
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas_from_cache : RuntimeT.expr Canvas.canvas ref =
+  let cloned_canvas_from_cache : fluid_expr Canvas.canvas ref =
     Canvas.load_all_from_cache "clone-gettingstarted"
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
   (* canvas.ops is not [op list], it is [(tlid, op list) list] *)
-  let canvas_ops_length (c : RuntimeT.expr Canvas.canvas) =
+  let canvas_ops_length (c : fluid_expr Canvas.canvas) =
     c.ops |> List.map ~f:snd |> List.join |> List.length
   in
-  let has_creation_ops (c : RuntimeT.expr Canvas.canvas) =
+  let has_creation_ops (c : fluid_expr Canvas.canvas) =
     List.map c.ops ~f:(fun (_, ops) ->
         Canvas_clone.only_ops_since_last_savepoint ops
         |> Tablecloth.List.any ~f:Canvas_clone.is_op_that_creates_toplevel)
@@ -410,14 +392,14 @@ let t_canvas_clone () =
     "Same DBs when loading from db"
     true
     (Toplevel.equal_toplevels
-       RuntimeT.equal_expr
+       Types.equal_fluid_expr
        !sample_canvas.dbs
        !cloned_canvas.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -425,21 +407,21 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
     |> Yojson.Safe.to_string ) ;
   AT.check
     AT.bool
     "Same DBs when loading from cache"
     true
     (Toplevel.equal_toplevels
-       RuntimeT.equal_expr
+       equal_fluid_expr
        !sample_canvas.dbs
        !cloned_canvas_from_cache.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from cache, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -447,7 +429,7 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas_from_cache.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
     |> Yojson.Safe.to_string )
 
 

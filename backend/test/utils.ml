@@ -22,12 +22,13 @@ module AT = Alcotest
 
 (* Allows us to mock analysis *)
 let test_fn_results :
-    ((function_desc * expr dval list) * (expr dval * Time.t)) list ref =
+    ((function_desc * fluid_expr dval list) * (fluid_expr dval * Time.t)) list
+    ref =
   ref []
 
 
 (* Not wired up yet *)
-let test_fn_arguments : (expr dval_map * Time.t) list list ref = ref []
+let test_fn_arguments : (fluid_expr dval_map * Time.t) list list ref = ref []
 
 let clear_test_data () : unit =
   test_fn_results := [] ;
@@ -99,7 +100,7 @@ let at_dval =
       | DIncomplete _, DIncomplete _ ->
           true
       | _, _ ->
-          compare_dval compare_expr a b = 0)
+          compare_dval compare_fluid_expr a b = 0)
 
 
 let check_dval = AT.check at_dval
@@ -117,15 +118,15 @@ let at_dval' =
 
 let check_dval' = AT.check at_dval'
 
-let check_execution_result = AT.check (AT.of_pp (pp_execution_result pp_expr))
+let check_execution_result =
+  AT.check (AT.of_pp (pp_execution_result pp_fluid_expr))
+
 
 let check_dval_list = AT.check (AT.list at_dval)
 
 let check_dval_list' = AT.check (AT.list at_dval')
 
-let check_tlid_oplists =
-  AT.check (AT.of_pp (Op.pp_tlid_oplists RuntimeT.pp_expr))
-
+let check_tlid_oplists = AT.check (AT.of_pp (Op.pp_tlid_oplists pp_fluid_expr))
 
 let check_condition msg (v : 'a) ~(f : 'a -> bool) =
   AT.check AT.bool msg true (f v)
@@ -156,16 +157,21 @@ let check_incomplete msg dval =
 
 
 let testable_handler =
-  AT.testable (HandlerT.pp_handler pp_expr) (HandlerT.equal_handler equal_expr)
+  AT.testable
+    (HandlerT.pp_handler pp_fluid_expr)
+    (HandlerT.equal_handler equal_fluid_expr)
 
 
 let testable_id = AT.testable pp_id equal_id
 
 let testable_string_dval_pair =
-  AT.testable (pp_string_dval_pair pp_expr) (equal_string_dval_pair equal_expr)
+  AT.testable
+    (pp_string_dval_pair pp_fluid_expr)
+    (equal_string_dval_pair equal_fluid_expr)
 
 
-let check_exception ?(check = fun _ -> true) ~(f : unit -> expr dval) msg =
+let check_exception ?(check = fun _ -> true) ~(f : unit -> fluid_expr dval) msg
+    =
   let e =
     try
       let r = f () in
@@ -192,7 +198,7 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> expr dval) msg =
 let _ = check_exception
 
 let check_error_contains
-    (name : string) (result : expr dval) (substring : string) =
+    (name : string) (result : fluid_expr dval) (substring : string) =
   let strresult = Dval.to_developer_repr_v0 result in
   (let open AT in
   check bool)
@@ -282,9 +288,9 @@ let http_request_path = "/some/vars/and/such"
 let http_route = "/some/:vars/:and/such"
 
 let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
-    RuntimeT.expr HandlerT.handler =
+    Types.fluid_expr HandlerT.handler =
   { tlid
-  ; ast = f (Value "5")
+  ; ast = Libshared.FluidShortcuts.int 5
   ; spec =
       { module_ = f "HTTP"
       ; name = f route
@@ -345,27 +351,28 @@ let t4_get4th (_, _, _, x) = x
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
-let ops2c (host : string) (ops : 'expr_type Op.op list) :
-    ('expr_type C.canvas ref, string list) Result.t =
+let ops2c (host : string) (ops : Types.fluid_expr Op.op list) :
+    (Types.fluid_expr C.canvas ref, string list) Result.t =
   C.init host ops
 
 
-let ops2c_exn (host : string) (ops : 'expr_type Op.op list) :
-    'expr_type C.canvas ref =
+let ops2c_exn (host : string) (ops : Types.fluid_expr Op.op list) :
+    Types.fluid_expr C.canvas ref =
   C.init host ops
   |> Result.map_error ~f:(String.concat ~sep:", ")
   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
 
 
 let add_test_fn_result
-    (desc : function_desc) (args : expr dval list) (result : expr dval * Time.t)
-    : unit =
+    (desc : function_desc)
+    (args : fluid_expr dval list)
+    (result : fluid_expr dval * Time.t) : unit =
   test_fn_results := ((desc, args), result) :: !test_fn_results ;
   ()
 
 
-let load_test_fn_results (desc : function_desc) (args : expr dval list) :
-    (expr dval * Time.t) option =
+let load_test_fn_results (desc : function_desc) (args : fluid_expr dval list) :
+    (fluid_expr dval * Time.t) option =
   List.find !test_fn_results ~f:(fun ((desc', args'), result) ->
       (desc, args) = (desc', args'))
   |> Option.map ~f:Tuple2.get2
@@ -374,8 +381,8 @@ let load_test_fn_results (desc : function_desc) (args : expr dval list) :
 let test_execution_data
     ?(trace_id = Util.create_uuid ())
     ?(canvas_name = "test")
-    (ops : expr Op.oplist) :
-    expr C.canvas ref * expr exec_state * expr input_vars =
+    (ops : fluid_expr Op.oplist) :
+    fluid_expr C.canvas ref * fluid_expr exec_state * fluid_expr input_vars =
   let c = ops2c_exn canvas_name ops in
   let vars = [] in
   let canvas_id = !c.id in
@@ -399,22 +406,11 @@ let test_execution_data
     ; context = Real
     ; load_fn_result = load_test_fn_results
     ; store_fn_result =
-        (fun funcdesc args result ->
-          Stored_function_result.store
-            ~canvas_id
-            ~trace_id
-            funcdesc
-            (List.map ~f:Fluid.dval_to_fluid args)
-            (Fluid.dval_to_fluid result))
+        Stored_function_result.store ~canvas_id ~trace_id
         (* TODO: expose this too *)
     ; load_fn_arguments = Execution.load_no_arguments
-    ; store_fn_arguments =
-        (fun tlid dvalmap ->
-          Stored_function_arguments.store
-            ~canvas_id
-            ~trace_id
-            tlid
-            (Fluid.dval_map_to_fluid dvalmap)) }
+    ; store_fn_arguments = Stored_function_arguments.store ~canvas_id ~trace_id
+    }
   in
   (c, state, vars)
 
@@ -422,7 +418,7 @@ let test_execution_data
 let execute_ops
     ?(trace_id = Util.create_uuid ())
     ?(canvas_name = "test")
-    (ops : 'expr_type Op.op list) : expr dval =
+    (ops : 'expr_type Op.op list) : fluid_expr dval =
   let ( c
       , { tlid
         ; load_fn_result
@@ -472,9 +468,9 @@ let execute_ops
 
 (* already provided in execute_handler *)
 
-let exec_handler ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
+let exec_handler ?(ops = []) (ast : Libshared.FluidExpression.t) :
+    fluid_expr dval =
   ast
-  |> Fluid.fromFluidExpr
   (* |> Log.pp ~f:show_expr *)
   |> handler
   |> hop
@@ -483,25 +479,23 @@ let exec_handler ?(ops = []) (ast : Libshared.FluidExpression.t) : expr dval =
 
 let exec_ast
     ?(ops = []) ?(canvas_name = "test") (ast : Libshared.FluidExpression.t) :
-    expr dval =
+    fluid_expr dval =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
-  let result = Ast.execute_ast ~input_vars ~state (Fluid.fromFluidExpr ast) in
+  let result = Ast.execute_ast ~input_vars ~state ast in
   result
 
 
-let exec_userfn (ast : Libshared.FluidExpression.t) : expr dval =
+let exec_userfn (ast : Libshared.FluidExpression.t) : fluid_expr dval =
   let name = "test_function" in
-  let ast = Fluid.fromFluidExpr ast in
   let fn = user_fn name [] ast in
   let c, state, _ = test_execution_data [SetFunction fn] in
   Ast.execute_fn ~state name execution_id []
 
 
-let exec_userfn_trace_tlids (fluid_expr : Libshared.FluidExpression.t) :
-    expr dval * tlid list =
+let exec_userfn_trace_tlids (expr : Libshared.FluidExpression.t) :
+    fluid_expr dval * tlid list =
   let name = "test_function" in
-  let ast = Fluid.fromFluidExpr fluid_expr in
-  let fn = user_fn name [] ast in
+  let fn = user_fn name [] expr in
   let c, state, _ = test_execution_data [SetFunction fn] in
   let { tlid
       ; execution_id
@@ -530,8 +524,8 @@ let exec_userfn_trace_tlids (fluid_expr : Libshared.FluidExpression.t) :
     "test_function"
 
 
-let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
-    expr Analysis_types.intermediate_result_store =
+let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : fluid_expr) :
+    fluid_expr Analysis_types.intermediate_result_store =
   let c, state, input_vars = test_execution_data ~canvas_name ops in
   let { tlid
       ; execution_id
@@ -564,8 +558,8 @@ let exec_save_dvals ?(ops = []) ?(canvas_name = "test") (ast : expr) :
 
 let exec_save_dvals'
     ?(ops = []) ?(canvas_name = "test") (ast : Libshared.FluidExpression.t) :
-    expr Analysis_types.intermediate_result_store =
-  exec_save_dvals ~ops ~canvas_name (Fluid.fromFluidExpr ast)
+    fluid_expr Analysis_types.intermediate_result_store =
+  exec_save_dvals ~ops ~canvas_name ast
 
 
 (* Sample values *)

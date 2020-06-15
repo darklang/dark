@@ -109,7 +109,7 @@ let t_stored_event_roundtrip () =
 
 let t_trace_data_json_format_redacts_passwords () =
   let id = fid () in
-  let trace_data : expr Analysis_types.trace_data =
+  let trace_data : Types.fluid_expr Analysis_types.trace_data =
     { input = [("event", DPassword (PasswordBytes.of_string "redactme1"))]
     ; timestamp = Time.epoch
     ; function_results =
@@ -119,7 +119,7 @@ let t_trace_data_json_format_redacts_passwords () =
           , 0
           , DPassword (PasswordBytes.of_string "redactme2") ) ] }
   in
-  let expected : expr Analysis_types.trace_data =
+  let expected : Types.fluid_expr Analysis_types.trace_data =
     { input = [("event", DPassword (PasswordBytes.of_string "Redacted"))]
     ; timestamp = Time.epoch
     ; function_results =
@@ -130,13 +130,13 @@ let t_trace_data_json_format_redacts_passwords () =
           , DPassword (PasswordBytes.of_string "Redacted") ) ] }
   in
   trace_data
-  |> Analysis_types.trace_data_to_yojson expr_to_yojson
-  |> Analysis_types.trace_data_of_yojson expr_of_yojson
+  |> Analysis_types.trace_data_to_yojson Types.fluid_expr_to_yojson
+  |> Analysis_types.trace_data_of_yojson Types.fluid_expr_of_yojson
   |> Result.ok_or_failwith
   |> AT.check
        (AT.testable
-          (Analysis_types.pp_trace_data pp_expr)
-          (Analysis_types.equal_trace_data equal_expr))
+          (Analysis_types.pp_trace_data Types.pp_fluid_expr)
+          (Analysis_types.equal_trace_data Types.equal_fluid_expr))
        "trace_data round trip"
        expected
 
@@ -146,8 +146,8 @@ let t_route_variables_work_with_stored_events () =
   clear_test_data () ;
   let host = "test-route_variables_works" in
   let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
-  let c = ops2c_exn host oplist |> C.to_fluid_ref in
-  Canvas.serialize_only [tlid] (C.of_fluid !c) ;
+  let c = ops2c_exn host oplist in
+  Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", http_request_path, "GET") in
   let route = ("HTTP", http_route, "GET") in
@@ -209,9 +209,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
  * event handler *)
 let t_event_queue_roundtrip () =
   clear_test_data () ;
-  let h =
-    daily_cron (Fluid.fromFluidExpr (let' "date" (fn "Date::now" []) (int 123)))
-  in
+  let h = daily_cron (let' "date" (fn "Date::now" []) (int 123)) in
   let c = ops2c_exn "test-event_queue" [hop h] in
   Canvas.save_all !c ;
   Event_queue.enqueue
@@ -251,7 +249,7 @@ let t_event_queue_roundtrip () =
 
 let t_cron_sanity () =
   clear_test_data () ;
-  let h = daily_cron (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
+  let h = daily_cron (binop "+" (int 5) (int 3)) in
   let c = ops2c_exn "test-cron_works" [hop h] in
   let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
     { canvas_id = !c.id
@@ -273,7 +271,7 @@ let t_cron_sanity () =
 
 let t_cron_just_ran () =
   clear_test_data () ;
-  let h = daily_cron (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
+  let h = daily_cron (binop "+" (int 5) (int 3)) in
   let c = ops2c_exn "test-cron_works" [hop h] in
   let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
     { canvas_id = !c.id
@@ -446,11 +444,9 @@ let t_encode_request_body () =
 let t_function_traces_are_stored () =
   clear_test_data () ;
   let fntlid : tlid = id_of_int 12312345234 in
-  let f =
-    user_fn "test_fn" [] (Fluid.fromFluidExpr (fn "DB::generateKey" []))
-  in
+  let f = user_fn "test_fn" [] (fn "DB::generateKey" []) in
   let f = {f with tlid = fntlid} in
-  let h = handler (Fluid.fromFluidExpr (fn "test_fn" [])) in
+  let h = handler (fn "test_fn" []) in
   let host = "test" in
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in

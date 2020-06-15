@@ -588,7 +588,7 @@ let t_db_queryOne_supports_Date_comparison () =
                           (fn op [var "middle"; fieldAccess (var "value") "ts"])
                       ]) ])))
   in
-  let expected (date : string) : expr dval =
+  let expected (date : string) : Types.fluid_expr dval =
     DOption
       (OptJust
          (DObj (DvalMap.singleton "ts" (DDate (date |> Util.date_of_isostring)))))
@@ -970,7 +970,6 @@ let t_sql_compiler_works () =
     let dbFields = StrDict.from_list dbFields in
     let symtable = StrDict.from_list symtable in
     let result =
-      let body = Fluid.fromFluidExpr body in
       Sql_compiler.compile_lambda ~state symtable paramName dbFields body
     in
     AT.check AT.string msg result generated
