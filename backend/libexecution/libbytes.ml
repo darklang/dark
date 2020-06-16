@@ -19,6 +19,39 @@ let fns : expr fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Bytes::base64Decode"]
+    ; infix_names = []
+    ; parameters = [par "str" TStr]
+    ; return_type = TResult
+    ; description =
+        "Base64URL decodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
+    ; func =
+        InProcess
+          (function
+          | _, [DStr str] ->
+              let str = str |> Unicode_string.to_string in
+              ( try
+                  str
+                  |> Libtarget.bytes_from_base64url
+                  |> fun bytes -> DResult (ResOk (DBytes bytes))
+                with
+              (* This Not_found case should only happen if we get a string
+               * with an invalid alphabet, and we check for that in Libtarget
+               * and raise an Invalid_B64 exception. *)
+              (* | (Not_found[@ocaml.warning "-3"]) -> *)
+              | Libtarget.Invalid_B64 s ->
+                  DResult (ResError (Dval.dstr_of_string_exn s))
+              | e ->
+                  Libcommon.Log.erroR
+                    "Not valid Base64 input"
+                    ~params:[("exn", Exn.to_string e)] ;
+                  DResult
+                    (ResError
+                       (Dval.dstr_of_string_exn "Not valid base64 input.")) )
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["Bytes::hexEncode"]
     ; infix_names = []
     ; parameters = [par "bytes" TBytes]

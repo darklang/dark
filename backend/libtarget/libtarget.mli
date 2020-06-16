@@ -4,6 +4,8 @@ val digest384 : string -> string
 (* Returns base64 encoding of the sha384 of the bytes *)
 val digest384_bytes : Bytes.t -> string
 
+exception Invalid_B64 of string
+
 val valid_rfc4648_b64_or_exn : string -> string
 
 (* Returns base64url encoding of the bytes using the uri-safe alphabet from RFC 4648 section 5 *)
