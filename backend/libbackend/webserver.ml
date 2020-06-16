@@ -414,25 +414,42 @@ let result_to_response
       let resp_headers =
         Header.of_list resp_headers |> maybe_infer_ct value |> maybe_infer_cors
       in
+      let content_type_prefix =
+        Header.get resp_headers "Content-Type"
+        |> Option.map ~f:(fun ct -> ct |> String.split ~on:';')
+        |> Option.bind ~f:List.hd
+      in
       let body =
-        match value with
-        | DBytes body ->
+        match (value, content_type_prefix) with
+        | DBytes body, _ ->
             (* If the body is a DBytes, don't re-encode it *)
             body |> RTT.RawBytes.to_string
-        | _ ->
-            let content_type_prefix =
-              Header.get resp_headers "Content-Type"
-              |> Option.map ~f:(fun ct -> ct |> String.split ~on:';')
-              |> Option.bind ~f:List.hd
-            in
-            ( match content_type_prefix with
             (* TODO: only pretty print for a webbrowser *)
-            | Some "text/plain" | Some "application/xml" ->
-                Dval.to_enduser_readable_text_v0 value
-            | Some "text/html" ->
-                Dval.to_enduser_readable_html_v0 value
-            | Some "application/json" | _ ->
-                Dval.to_pretty_machine_json_v1 value )
+        | _, Some "text/plain" | _, Some "application/xml" ->
+            Dval.to_enduser_readable_text_v0 value
+        | _, Some "text/html" ->
+            Dval.to_enduser_readable_html_v0 value
+        | DStr strbody, Some ct when String.is_prefix ~prefix:"text/" ct ->
+            (* If we're returning a DStr, and the content type is text/*,
+             * don't encode it as json. Arguably this is still pretty
+             * aggressively "assume everything is json"; we could consider not
+             * re-encoding strings (as we already do above for bytes, see
+             * above), but this is an improvement.
+             *
+             * There's a tradeoff here. On the one hand, doing this here (and
+             * not merging this arm with the match arm below that is `_` instead
+             * of `RTT.DResp (Response (code, resp_headers), value`) requires
+             * that you know that Http::response* functions exist, and handling
+             * that behavior differently from raw objects, and additionally
+             * requiring a text/ content type, is a bit hidden-magic. On the
+             * other hand, it's possible people are already using the existing
+             * behavior (no content type -> assume json, even with
+             * Http::response), and so a change here might be breaking.
+             * Until/unless we do some analysis of user code, I think this is
+             * the safest option. *)
+            Libexecution.Unicode_string.to_string strbody
+        | _, Some "application/json" | _, _ ->
+            Dval.to_pretty_machine_json_v1 value
       in
       let status = Cohttp.Code.status_of_code code in
       Respond {resp_headers; execution_id; status; body}
