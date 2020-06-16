@@ -14,6 +14,21 @@ What's not done:
 - we could automate this - there is an API, we could add a button to our
 UI that says "yes please turn on MFA for me"
 
+## How to automate enrollment
+I believe this can be done using `/api/v2/guardian/enrollments/ticket`; some
+testing required. It's documented at
+https://auth0.com/docs/api/management/v2/#!/Guardian/post_ticket; the samples
+show the body requiring a `user_id` value, which we can get from the management
+api (it's `auth0|some_string`, not the username or email address), and I think
+we also want to set `send_mail` to true. The ops-login canvas is probably a good
+place to start looking - it already does some auth against Auth0 in `/callback`, though I'm not
+sure whether t he particular `grant_type: authorization_code` is the right one
+for the management API.
+
+Anyway, that'd get us the ability to hit the API from Dark; we'd then wantn to
+expose an API of our own that accepts requests from a user and hook it up to a
+button on a user's canvas, probably in the my-account menu somewhere.
+
 How to turn on/off MFA for a given user
 =======================================
 ## To enroll a user in MFA
