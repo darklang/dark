@@ -298,7 +298,10 @@ and exec
               DError
                 ( sourceId id
                 , "Internal type error: lambda did not produce a block" ) )
-      | EFnCall (id, name, exprs, ster) ->
+      | EBinOp (id, name, EPipeTarget _, right, ster) ->
+          let send_to_rail = ster = Rail in
+          call name id [arg; exe st right] send_to_rail
+      | EFnCall (id, name, EPipeTarget _ :: exprs, ster) ->
           let send_to_rail = ster = Rail in
           call name id (arg :: List.map ~f:(exe st) exprs) send_to_rail
       (* If there's a hole, just run the computation straight through, as

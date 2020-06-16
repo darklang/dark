@@ -31,6 +31,23 @@ let t_lambda_with_foreach () =
           ; str "" ]))
 
 
+let t_pipe_works () =
+  check_dval
+    "pipe in function and binop works"
+    (Dval.dint 8)
+    (exec_ast
+       (pipe
+          (list [int 5])
+          [ fn "List::head_v1" ~ster:Rail [pipeTarget]
+          ; binop "+" pipeTarget (int 3)
+          ; lambda
+              ["x"]
+              (if'
+                 (binop ">" (binop "+" (var "x") (int 4)) (int 1))
+                 (var "x")
+                 (binop "+" (int 1) (var "x"))) ]))
+
+
 let t_match_works () =
   let check_match arg expected =
     check_dval
@@ -639,6 +656,7 @@ let suite =
   [ ("int_add_works", `Quick, t_int_add_works)
   ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
   ; ("match_works", `Quick, t_match_works)
+  ; ("pipe works", `Quick, t_pipe_works)
   ; ( "Multiple copies of same name don't crash"
     , `Quick
     , t_multiple_copies_of_same_name )
