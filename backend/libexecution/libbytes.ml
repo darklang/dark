@@ -24,12 +24,20 @@ let fns : expr fn list =
     ; parameters = [par "str" TStr]
     ; return_type = TResult
     ; description =
-        "Base64URL decodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
+        "Base64URL decodes `bytes`. Can use URL-safe encoding with `-` and `_`
+instead of `+` and `/`, as defined in RFC 4648 section 5, or the non-URL-safe
+variant with `+` and `/`."
     ; func =
         InProcess
           (function
           | _, [DStr str] ->
-              let str = str |> Unicode_string.to_string in
+              let str =
+                str
+                |> Unicode_string.to_string
+                (* Make this work with both base64url and base64 inputs *)
+                |> String.substr_replace_all ~pattern:"+" ~with_:"-"
+                |> String.substr_replace_all ~pattern:"/" ~with_:"_"
+              in
               ( try
                   str
                   |> Libtarget.bytes_from_base64url
