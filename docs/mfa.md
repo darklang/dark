@@ -25,7 +25,7 @@ place to start looking - it already does some auth against Auth0 in `/callback`,
 sure whether t he particular `grant_type: authorization_code` is the right one
 for the management API.
 
-Anyway, that'd get us the ability to hit the API from Dark; we'd then wantn to
+Anyway, that'd get us the ability to hit the API from Dark; we'd then want to
 expose an API of our own that accepts requests from a user and hook it up to a
 button on a user's canvas, probably in the my-account menu somewhere.
 
@@ -102,7 +102,8 @@ function multifactorAuthentication(user, context, callback) {
 
     callback(null, user, context);
   });
-}```
+}
+```
 
 We have Real-time Webtask Logs on, and that's where console logs from the above
 rule will show up. I'm not sure how to deep-link to it, but you can get there
