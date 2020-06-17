@@ -415,7 +415,7 @@ let all_functions () : fn list =
   functions
 
 
-let runtime_fn_of_package_fn (fn : fn) : Types.fluid_expr RuntimeT.fn =
+let runtime_fn_of_package_fn (fn : fn) : RuntimeT.fn =
   ( { prefix_names = [to_name fn]
     ; infix_names = []
     ; parameters = fn.parameters |> List.map ~f:runtime_param_of_parameter
@@ -424,7 +424,7 @@ let runtime_fn_of_package_fn (fn : fn) : Types.fluid_expr RuntimeT.fn =
     ; func = PackageFunction fn.body
     ; preview_safety = Unsafe
     ; deprecated = fn.deprecated }
-    : Types.fluid_expr RuntimeT.fn )
+    : RuntimeT.fn )
 
 
 let to_get_packages_rpc_result packages : string =

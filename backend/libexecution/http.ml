@@ -37,7 +37,7 @@ let route_variables (route : string) : string list =
 
 
 let bind_route_variables ~(route : string) (request_path : string) :
-    (string * 'expr_type RT.dval) list option =
+    (string * RT.dval) list option =
   let do_binding route path =
     (* assumes route length = path length *)
     List.zip_exn route path
@@ -86,7 +86,7 @@ let bind_route_variables ~(route : string) (request_path : string) :
 
 
 let bind_route_variables_exn ~(route : string) (request_path : string) :
-    (string * 'expr_type RT.dval) list =
+    (string * RT.dval) list =
   Option.value_exn
     ~message:"request/route mismatch"
     (bind_route_variables ~route request_path)

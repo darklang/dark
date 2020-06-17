@@ -13,7 +13,7 @@ let tau =
   6.283185307179586
 
 
-let fns : Types.fluid_expr fn list =
+let fns : fn list =
   [ { prefix_names = ["Math::pi"]
     ; infix_names = []
     ; parameters = []

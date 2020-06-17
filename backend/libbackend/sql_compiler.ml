@@ -168,7 +168,7 @@ let rec canonicalize (expr : E.t) : E.t =
           e)
 
 
-let dval_to_sql (dval : E.t dval) : string =
+let dval_to_sql (dval : dval) : string =
   match dval with
   | DObj _
   | DList _
@@ -212,8 +212,7 @@ let dval_to_sql (dval : E.t dval) : string =
 (* TODO: support characters, floats, dates, and uuids. And maybe lists and
  * bytes. Probably something can be done with options and results. *)
 
-let typecheckDval (name : string) (dval : E.t dval) (expected_tipe : tipe_) :
-    unit =
+let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
   if Dval.tipe_of dval = expected_tipe || expected_tipe = TAny
   then ()
   else
@@ -301,7 +300,7 @@ let rec inline
 (* Generate SQL from an Expr. This expects that all the hard stuff has been
  * removed by previous passes, and should only be called as the final pass. *)
 let rec lambda_to_sql
-    (symtable : E.t dval_map)
+    (symtable : dval_map)
     (paramName : string)
     (dbFields : tipe_ Prelude.StrDict.t)
     (expected_tipe : tipe_)
@@ -421,10 +420,10 @@ let rec lambda_to_sql
  * Expects inlining to have finished first, so that it has all the values it
  * needs in the right place. *)
 let partially_evaluate
-    (state : E.t exec_state)
+    (state : exec_state)
     (param_name : string)
-    (symtable : E.t dval_map)
-    (body : E.t) : E.t dval_map * E.t =
+    (symtable : dval_map)
+    (body : E.t) : dval_map * E.t =
   (* This isn't really a good implementation, but right now we only do
    * straight-line code here, so it should work *)
   let open E in
@@ -466,8 +465,8 @@ let partially_evaluate
 
 
 let compile_lambda
-    ~(state : fluid_expr exec_state)
-    (symtable : fluid_expr dval_map)
+    ~(state : exec_state)
+    (symtable : dval_map)
     (param_name : string)
     (db_fields : tipe_ Prelude.StrDict.t)
     (body : fluid_expr) : string =

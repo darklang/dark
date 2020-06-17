@@ -9,7 +9,7 @@ type transaction = id
 
 type t =
   { id : int
-  ; value : Types.fluid_expr dval
+  ; value : dval
   ; retries : int
   ; canvas_id : Uuidm.t
   ; host : string
@@ -171,7 +171,7 @@ let enqueue
     (space : string)
     (name : string)
     (modifier : string)
-    (data : 'expr_type dval) : unit =
+    (data : dval) : unit =
   log_queue_size Enqueue (canvas_id |> Uuidm.to_string) space name modifier ;
   Db.run
     ~name:"enqueue"

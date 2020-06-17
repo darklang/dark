@@ -120,7 +120,7 @@ let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
       Error "Invalid token format"
 
 
-let handle_error (fn : unit -> Types.fluid_expr dval) =
+let handle_error (fn : unit -> dval) =
   try DResult (ResOk (fn ()))
   with Invalid_argument msg ->
     let msg =
@@ -129,7 +129,7 @@ let handle_error (fn : unit -> Types.fluid_expr dval) =
     DResult (ResError (Dval.dstr_of_string_exn msg))
 
 
-let fns : Types.fluid_expr fn list =
+let fns : fn list =
   [ { prefix_names = ["JWT::signAndEncode"]
     ; infix_names = []
     ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]

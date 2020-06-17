@@ -11,8 +11,7 @@ let init () =
 
 type handler_list = fluid_expr HandlerT.handler list [@@deriving yojson]
 
-type input_vars = (string * fluid_expr dval) list (* list of vars *)
-[@@deriving of_yojson]
+type input_vars = (string * dval) list (* list of vars *) [@@deriving of_yojson]
 
 (* We bring in our own definition because the deserializer is in Dval but the
  * definition is in Types, and that's challenging *)
@@ -64,7 +63,7 @@ let convert_db (db : our_db) : fluid_expr DbT.db =
 type handler_analysis_param =
   { handler : fluid_expr HandlerT.handler
   ; trace_id : Analysis_types.traceid
-  ; trace_data : fluid_expr Analysis_types.trace_data
+  ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : fluid_expr user_fn list
@@ -75,20 +74,19 @@ type handler_analysis_param =
 type function_analysis_param =
   { func : fluid_expr user_fn
   ; trace_id : Analysis_types.traceid
-  ; trace_data : fluid_expr Analysis_types.trace_data
+  ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : fluid_expr user_fn list
   ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
-type analysis_envelope = uuid * fluid_expr Analysis_types.analysis
-[@@deriving to_yojson]
+type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
 
 let load_from_trace
-    (results : fluid_expr Analysis_types.function_result list)
+    (results : Analysis_types.function_result list)
     (tlid, fnname, caller_id)
-    (args : fluid_expr dval list) : (fluid_expr dval * Time.t) option =
+    (args : dval list) : (dval * Time.t) option =
   let hashes =
     Dval.supported_hash_versions
     |> List.map ~f:(fun key -> (id_of_int key, Dval.hash key args))
@@ -113,7 +111,7 @@ let perform_analysis
     ~(user_tipes : user_tipe list)
     ~(secrets : secret list)
     ~(trace_id : RuntimeT.uuid)
-    ~(trace_data : fluid_expr Analysis_types.trace_data)
+    ~(trace_data : Analysis_types.trace_data)
     ast =
   let dbs : fluid_expr DbT.db list = List.map ~f:convert_db dbs in
   let execution_id = Types.id_of_int 1 in

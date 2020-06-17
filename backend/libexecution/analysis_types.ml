@@ -12,7 +12,7 @@ module PReq = Parsed_request
 
 module Symtable = DvalMap
 
-type 'expr_type symtable = 'expr_type dval_map [@@deriving show]
+type symtable = dval_map [@@deriving show]
 
 let input_vars2symtable vars = Symtable.from_list vars
 
@@ -24,23 +24,19 @@ let ht_to_json_dict ds ~f =
   `Assoc (List.map ~f:(fun (id, v) -> (string_of_id id, f v)) alist)
 
 
-type 'expr_type intermediate_result_store =
-  'expr_type execution_result IDTable.t
+type intermediate_result_store = execution_result IDTable.t
 
-let intermediate_result_store_to_yojson
-    (f : 'expr_type -> Yojson.Safe.t)
-    (ds : 'expr_type intermediate_result_store) : Yojson.Safe.t =
-  ht_to_json_dict ds ~f:(execution_result_to_yojson f)
+let intermediate_result_store_to_yojson (ds : intermediate_result_store) :
+    Yojson.Safe.t =
+  ht_to_json_dict ds ~f:execution_result_to_yojson
 
 
 (* -------------------- *)
 (* Analysis result *)
 (* -------------------- *)
-type 'expr_type analysis = 'expr_type intermediate_result_store
-[@@deriving to_yojson]
+type analysis = intermediate_result_store [@@deriving to_yojson]
 
-type 'expr_type input_vars = (string * 'expr_type dval) list
-[@@deriving eq, show, yojson]
+type input_vars = (string * dval) list [@@deriving eq, show, yojson]
 
 type function_arg_hash = string [@@deriving eq, show, yojson]
 
@@ -48,23 +44,20 @@ type hash_version = int [@@deriving eq, show, yojson]
 
 type fnname = string [@@deriving yojson]
 
-type 'expr_type function_result =
-  fnname * id * function_arg_hash * hash_version * 'expr_type dval
+type function_result = fnname * id * function_arg_hash * hash_version * dval
 [@@deriving eq, show, yojson]
 
 type traceid = uuid [@@deriving show, yojson]
 
-type 'expr_type trace_data =
-  { input : 'expr_type input_vars
+type trace_data =
+  { input : input_vars
   ; timestamp : time
-  ; function_results : 'expr_type function_result list }
+  ; function_results : function_result list }
 [@@deriving eq, show, yojson]
 
-type 'expr_type trace = traceid * 'expr_type trace_data option
-[@@deriving yojson]
+type trace = traceid * trace_data option [@@deriving yojson]
 
-type 'expr_type tlid_traces = tlid * 'expr_type trace list
-[@@deriving to_yojson]
+type tlid_traces = tlid * trace list [@@deriving to_yojson]
 
 type tlid_traceid = tlid * traceid [@@deriving to_yojson]
 

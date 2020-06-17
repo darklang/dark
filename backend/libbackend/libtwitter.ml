@@ -4,8 +4,7 @@ open Libexecution.Types
 open Libexecution.Types.RuntimeT
 module Dval = Libexecution.Dval
 
-let call (endpoint : string) (verb : string) (args : 'expr_type dval_map) :
-    'expr_type dval =
+let call (endpoint : string) (verb : string) (args : dval_map) : dval =
   let prefix = "https://api.twitter.com" in
   let url = prefix ^ endpoint in
   let auth : Twitter.auth =
@@ -114,7 +113,7 @@ let auth_param : param =
   }
 
 
-let fns : Libexecution.Types.fluid_expr fn list =
+let fns : fn list =
   schema.apis
   |> List.filter ~f:(fun (api : Swagger.api) ->
          (* There are a bunch of apis that have "{id}" or "{format}" in their

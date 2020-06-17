@@ -8,7 +8,7 @@ module TL = Toplevel
 module Span = Telemetry.Span
 
 let dequeue_and_process execution_id :
-    (Types.fluid_expr RTT.dval option, Exception.captured) Result.t =
+    (RTT.dval option, Exception.captured) Result.t =
   Telemetry.with_root
     "dequeue_and_process"
     ~attrs:[("meta.process_id", `Intlit (execution_id |> Int63.to_string))]
@@ -167,8 +167,7 @@ let dequeue_and_process execution_id :
                                         ~canvas_id
                                         trace_id
                                         (h.tlid :: touched_tlids) ;
-                                      let result_tipe (r : fluid_expr RTT.dval)
-                                          =
+                                      let result_tipe (r : RTT.dval) =
                                         match r with
                                         | DResult (ResOk _) ->
                                             "ResOk"
@@ -221,7 +220,7 @@ let dequeue_and_process execution_id :
 
 
 let run (execution_id : Types.id) :
-    (Types.fluid_expr RTT.dval option, Exception.captured) Result.t =
+    (RTT.dval option, Exception.captured) Result.t =
   if String.Caseless.equal
        Libservice.Config.postgres_settings.dbname
        "prodclone"

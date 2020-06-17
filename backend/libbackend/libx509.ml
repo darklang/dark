@@ -3,7 +3,7 @@ open Libexecution
 open Libexecution.Lib
 module U = Libexecution.Unicode_string
 
-let fns : Types.fluid_expr Types.RuntimeT.fn list =
+let fns : Types.RuntimeT.fn list =
   [ { prefix_names = ["X509::pemCertificatePublicKey"]
     ; infix_names = []
     ; parameters = [par "pemCert" TStr]

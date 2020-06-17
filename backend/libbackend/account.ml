@@ -105,7 +105,7 @@ let validate_account (account : account) : (unit, string) Result.t =
 
 let insert_account
     ?(validate : bool = true)
-    ~(segment_metadata : Types.RuntimeT.fluid_dval_map option)
+    ~(segment_metadata : Types.RuntimeT.dval_map option)
     (account : account) : (unit, string) Result.t =
   let result = if validate then validate_account account else Ok () in
   let segment_metadata =
@@ -388,7 +388,7 @@ let insert_user
     ~(username : string)
     ~(email : string)
     ~(name : string)
-    ?(segment_metadata : Types.RuntimeT.fluid_dval_map option)
+    ?(segment_metadata : Types.RuntimeT.dval_map option)
     () : (unit, string) Result.t =
   (* As of the move to auth0, we  no longer store passwords in postgres. We do
    * still use postgres locally, which is why we're not removing the field

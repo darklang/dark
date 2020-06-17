@@ -4,8 +4,7 @@ open Types.RuntimeT
 
 module PrettyResponseJsonV0 = struct
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
-  let rec unsafe_dval_to_yojson ?(redact = true) (dv : 'expr_type dval) :
-      Yojson.Safe.t =
+  let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
     let tipe = dv |> Dval.tipe_of |> Dval.unsafe_tipe_to_yojson in
     let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
     let wrap_constructed_type cons values =
@@ -76,7 +75,7 @@ end
 
 module PrettyRequestJsonV0 = struct
   (* Returns the string within string-ish values, without adornment. *)
-  let as_string (dv : 'expr_type dval) : string =
+  let as_string (dv : dval) : string =
     match dv with
     | DInt i ->
         Dint.to_string i
@@ -104,7 +103,7 @@ module PrettyRequestJsonV0 = struct
         "<" ^ (dv |> Dval.tipename) ^ ">"
 
 
-  let as_literal (dv : 'expr_type dval) : string =
+  let as_literal (dv : dval) : string =
     match dv with
     | DStr s ->
         "\"" ^ Unicode_string.to_string s ^ "\""
@@ -114,7 +113,7 @@ module PrettyRequestJsonV0 = struct
         as_string dv
 
 
-  let is_primitive (dv : 'expr_type dval) : bool =
+  let is_primitive (dv : dval) : bool =
     match dv with
     | DInt _ | DFloat _ | DBool _ | DNull | DCharacter _ | DStr _ ->
         true
@@ -122,7 +121,7 @@ module PrettyRequestJsonV0 = struct
         false
 
 
-  let is_stringable (dv : 'expr_type dval) : bool =
+  let is_stringable (dv : dval) : bool =
     match dv with
     | DBlock _
     | DIncomplete _
@@ -139,8 +138,7 @@ module PrettyRequestJsonV0 = struct
   (* A simple representation, showing primitives as their expected literal
    * syntax, and odd types get type info in a readable format. Compund
    * types are listed as their type only *)
-  let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : 'expr_type dval) :
-      string =
+  let to_simple_repr ?(open_ = "<") ?(close_ = ">") (dv : dval) : string =
     let wrap value = open_ ^ (dv |> Dval.tipename) ^ ": " ^ value ^ close_ in
     match dv with
     | dv when is_primitive dv ->
@@ -167,13 +165,12 @@ module PrettyRequestJsonV0 = struct
 
   (* A full representation, building on to_simple_repr, but including
  * lists and objects. *)
-  let rec to_pretty_request_json_v0 (dv : 'expr_type dval) : string =
+  let rec to_pretty_request_json_v0 (dv : dval) : string =
     let pp = true in
     let open_ = "<" in
     let close_ = ">" in
     let reprfn = to_simple_repr ~open_ ~close_ in
-    let rec to_repr_ (indent : int) (pp : bool) (dv : 'expr_type dval) : string
-        =
+    let rec to_repr_ (indent : int) (pp : bool) (dv : dval) : string =
       let nl = if pp then "\n" ^ String.make indent ' ' else " " in
       let inl = if pp then "\n" ^ String.make (indent + 2) ' ' else "" in
       let indent = indent + 2 in

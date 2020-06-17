@@ -23,12 +23,12 @@ let unlocked ~(canvas_id : Uuidm.t) ~(account_id : Uuidm.t) : tlid list =
 
 type db_stat =
   { count : int
-  ; example : (fluid_expr RTT.dval * string) option }
+  ; example : (RTT.dval * string) option }
 [@@deriving eq, show, yojson]
 
 type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
 
-let db_stats (c : fluid_expr Canvas.canvas) (tlids : tlid list) : db_stat_map =
+let db_stats (c : Canvas.canvas) (tlids : tlid list) : db_stat_map =
   List.fold
     ~init:IDMap.empty
     ~f:(fun map tlid ->
@@ -67,8 +67,7 @@ let worker_stats (canvas_id : Uuidm.t) (tlid : tlid) : worker_stat =
   {count}
 
 
-let get_404s ~(since : RTT.time) (c : fluid_expr Canvas.canvas) :
-    SE.four_oh_four list =
+let get_404s ~(since : RTT.time) (c : Canvas.canvas) : SE.four_oh_four list =
   let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
     Db.fetch
@@ -117,7 +116,7 @@ let delete_404s
 let saved_input_vars
     (h : fluid_expr RTT.HandlerT.handler)
     (request_path : string)
-    (event : fluid_expr RTT.dval) : fluid_expr input_vars =
+    (event : RTT.dval) : input_vars =
   match Handler.module_type h with
   | `Http ->
       let with_r = [("request", event)] in
@@ -148,9 +147,9 @@ let saved_input_vars
 
 
 let handler_trace
-    (c : fluid_expr Canvas.canvas)
+    (c : Canvas.canvas)
     (h : Types.fluid_expr RTT.HandlerT.handler)
-    (trace_id : traceid) : fluid_expr trace =
+    (trace_id : traceid) : trace =
   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
   let input, timestamp =
     match event with
@@ -166,9 +165,8 @@ let handler_trace
 
 
 let user_fn_trace
-    (c : fluid_expr Canvas.canvas)
-    (fn : fluid_expr RTT.user_fn)
-    (trace_id : traceid) : fluid_expr trace =
+    (c : Canvas.canvas) (fn : fluid_expr RTT.user_fn) (trace_id : traceid) :
+    trace =
   let event =
     Stored_function_arguments.load_for_analysis ~canvas_id:c.id fn.tlid trace_id
   in
@@ -186,8 +184,7 @@ let user_fn_trace
 
 
 let traceids_for_handler
-    (c : fluid_expr Canvas.canvas) (h : 'expr_type RTT.HandlerT.handler) :
-    traceid list =
+    (c : Canvas.canvas) (h : 'expr_type RTT.HandlerT.handler) : traceid list =
   match Handler.event_desc_for h with
   | Some ((hmodule, _, _) as desc) ->
       let events = SE.load_event_ids ~canvas_id:c.id desc in
@@ -214,9 +211,8 @@ let traceids_for_handler
       [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
 
 
-let traceids_for_user_fn
-    (c : fluid_expr Canvas.canvas) (fn : 'expr_type RTT.user_fn) : traceid list
-    =
+let traceids_for_user_fn (c : Canvas.canvas) (fn : 'expr_type RTT.user_fn) :
+    traceid list =
   Stored_function_arguments.load_traceids c.id fn.tlid
 
 
@@ -224,13 +220,7 @@ let traceids_for_user_fn
 (* function execution *)
 (* ------------------------- *)
 let execute_function
-    (c : fluid_expr Canvas.canvas)
-    ~execution_id
-    ~tlid
-    ~trace_id
-    ~caller_id
-    ~args
-    fnname =
+    (c : Canvas.canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
   Execution.execute_function
     ~tlid
     ~execution_id
@@ -244,15 +234,9 @@ let execute_function
     ~canvas_id:c.id
     ~caller_id
     ~args
-    ~store_fn_arguments:(fun tlid dvalmap ->
-      Stored_function_arguments.store ~canvas_id:c.id ~trace_id tlid dvalmap)
-    ~store_fn_result:(fun funcdesc args result ->
-      Stored_function_result.store
-        ~canvas_id:c.id
-        ~trace_id
-        funcdesc
-        args
-        result)
+    ~store_fn_arguments:
+      (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
+    ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
     fnname
 
 
@@ -264,11 +248,9 @@ let execute_function
 
 type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
-type get_trace_data_rpc_result = {trace : fluid_expr trace}
-[@@deriving to_yojson]
+type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
 
-let to_get_trace_data_rpc_result
-    (c : fluid_expr Canvas.canvas) (trace : fluid_expr trace) : string =
+let to_get_trace_data_rpc_result (c : Canvas.canvas) (trace : trace) : string =
   {trace}
   |> get_trace_data_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
@@ -339,10 +321,10 @@ let empty_to_add_op_rpc_result =
 
 type add_op_stroller_msg =
   { result : add_op_rpc_result
-  ; params : fluid_expr Api.add_op_rpc_params }
+  ; params : Api.add_op_rpc_params }
 [@@deriving to_yojson]
 
-let to_add_op_rpc_result (c : fluid_expr Canvas.canvas) : add_op_rpc_result =
+let to_add_op_rpc_result (c : Canvas.canvas) : add_op_rpc_result =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
   ; user_functions = IDMap.data c.user_functions
@@ -399,7 +381,7 @@ type initial_load_rpc_result =
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
-    (c : fluid_expr Canvas.canvas)
+    (c : Canvas.canvas)
     (op_ctrs : (string * int) list)
     (permission : Authorization.permission option)
     (unlocked_dbs : tlid list)
@@ -433,7 +415,7 @@ let to_initial_load_rpc_result
 
 (* Execute function *)
 type execute_function_rpc_result =
-  { result : fluid_expr RTT.dval
+  { result : RTT.dval
   ; hash : string
   ; hashVersion : int
   ; touched_tlids : tlid list

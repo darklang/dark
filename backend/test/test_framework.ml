@@ -94,22 +94,22 @@ let t_stored_event_roundtrip () =
     (List.sort ~compare [t6])
     (List.sort ~compare loaded) ;
   let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
-  check_dval_list'
+  check_dval_list
     "load GET events"
     [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
     loaded1 ;
   let loaded2 = SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:t4_get4th in
-  check_dval_list' "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
+  check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
   let loaded3 = SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:t4_get4th in
-  check_dval_list' "load no host2 events" [] loaded3 ;
+  check_dval_list "load no host2 events" [] loaded3 ;
   let loaded4 = SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:t4_get4th in
-  check_dval_list' "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
+  check_dval_list "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
   ()
 
 
 let t_trace_data_json_format_redacts_passwords () =
   let id = fid () in
-  let trace_data : Types.fluid_expr Analysis_types.trace_data =
+  let trace_data : Analysis_types.trace_data =
     { input = [("event", DPassword (PasswordBytes.of_string "redactme1"))]
     ; timestamp = Time.epoch
     ; function_results =
@@ -119,7 +119,7 @@ let t_trace_data_json_format_redacts_passwords () =
           , 0
           , DPassword (PasswordBytes.of_string "redactme2") ) ] }
   in
-  let expected : Types.fluid_expr Analysis_types.trace_data =
+  let expected : Analysis_types.trace_data =
     { input = [("event", DPassword (PasswordBytes.of_string "Redacted"))]
     ; timestamp = Time.epoch
     ; function_results =
@@ -130,13 +130,13 @@ let t_trace_data_json_format_redacts_passwords () =
           , DPassword (PasswordBytes.of_string "Redacted") ) ] }
   in
   trace_data
-  |> Analysis_types.trace_data_to_yojson Types.fluid_expr_to_yojson
-  |> Analysis_types.trace_data_of_yojson Types.fluid_expr_of_yojson
+  |> Analysis_types.trace_data_to_yojson
+  |> Analysis_types.trace_data_of_yojson
   |> Result.ok_or_failwith
   |> AT.check
        (AT.testable
-          (Analysis_types.pp_trace_data Types.pp_fluid_expr)
-          (Analysis_types.equal_trace_data Types.equal_fluid_expr))
+          Analysis_types.pp_trace_data
+          Analysis_types.equal_trace_data)
        "trace_data round trip"
        expected
 
@@ -160,7 +160,7 @@ let t_route_variables_work_with_stored_events () =
        (Dval.dstr_of_string_exn "1")) ;
   (* check we get back the path for a route with a variable in it *)
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
-  check_dval_list'
+  check_dval_list
     "load GET events"
     [Dval.dstr_of_string_exn "1"]
     (loaded1 |> List.map ~f:t4_get4th) ;
@@ -197,7 +197,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
        (Dval.dstr_of_string_exn "1")) ;
   (* check we get back the path for a route with a variable in it *)
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
-  check_dval_list' "load GET events" [] (loaded1 |> List.map ~f:t4_get4th) ;
+  check_dval_list "load GET events" [] (loaded1 |> List.map ~f:t4_get4th) ;
   ()
 
 

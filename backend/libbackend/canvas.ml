@@ -11,72 +11,23 @@ type cors_setting =
   | Origins of string list
 [@@deriving eq, show]
 
-type 'expr_type canvas =
+type canvas =
   { host : string
   ; owner : Uuidm.t
   ; id : Uuidm.t
   ; creation_date : Time.t [@opaque]
-  ; ops : (tlid * 'expr_type Op.oplist) list
+  ; ops : (tlid * fluid_expr Op.oplist) list
   ; cors_setting : cors_setting option
-  ; handlers : 'expr_type TL.toplevels
-  ; dbs : 'expr_type TL.toplevels
-  ; user_functions : 'expr_type RTT.user_fn IDMap.t
+  ; handlers : fluid_expr TL.toplevels
+  ; dbs : fluid_expr TL.toplevels
+  ; user_functions : fluid_expr RTT.user_fn IDMap.t
   ; user_tipes : RTT.user_tipe IDMap.t
-  ; package_fns : 'expr_type RTT.fn list [@opaque]
-  ; deleted_handlers : 'expr_type TL.toplevels
-  ; deleted_dbs : 'expr_type TL.toplevels
-  ; deleted_user_functions : 'expr_type RTT.user_fn IDMap.t
+  ; package_fns : RTT.fn list [@opaque]
+  ; deleted_handlers : fluid_expr TL.toplevels
+  ; deleted_dbs : fluid_expr TL.toplevels
+  ; deleted_user_functions : fluid_expr RTT.user_fn IDMap.t
   ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
-
-(* --------------- *)
-(* Convert to fluid *)
-(* --------------- *)
-let to_fluid (c : RTT.expr canvas) : Types.fluid_expr canvas =
-  { host = c.host
-  ; owner = c.owner
-  ; id = c.id
-  ; creation_date = c.creation_date
-  ; cors_setting = c.cors_setting
-  ; package_fns = List.map ~f:Toplevel.fn_to_fluid c.package_fns
-  ; ops =
-      List.map c.ops ~f:(fun (tlid, oplist) ->
-          (tlid, Op.oplist_to_fluid oplist))
-  ; handlers = IDMap.map ~f:Toplevel.to_fluid c.handlers
-  ; dbs = IDMap.map ~f:Toplevel.to_fluid c.dbs
-  ; user_functions = IDMap.map ~f:Toplevel.user_fn_to_fluid c.user_functions
-  ; user_tipes = c.user_tipes
-  ; deleted_handlers = IDMap.map ~f:Toplevel.to_fluid c.deleted_handlers
-  ; deleted_dbs = IDMap.map ~f:Toplevel.to_fluid c.deleted_dbs
-  ; deleted_user_functions =
-      IDMap.map ~f:Toplevel.user_fn_to_fluid c.deleted_user_functions
-  ; deleted_user_tipes = c.deleted_user_tipes }
-
-
-let to_fluid_ref (c : RTT.expr canvas ref) : Types.fluid_expr canvas ref =
-  ref (to_fluid !c)
-
-
-let of_fluid (c : Types.fluid_expr canvas) : RTT.expr canvas =
-  { host = c.host
-  ; owner = c.owner
-  ; id = c.id
-  ; creation_date = c.creation_date
-  ; cors_setting = c.cors_setting
-  ; package_fns = List.map ~f:Toplevel.fn_of_fluid c.package_fns
-  ; ops =
-      List.map c.ops ~f:(fun (tlid, oplist) ->
-          (tlid, Op.oplist_of_fluid oplist))
-  ; handlers = IDMap.map ~f:Toplevel.of_fluid c.handlers
-  ; dbs = IDMap.map ~f:Toplevel.of_fluid c.dbs
-  ; user_functions = IDMap.map ~f:Toplevel.user_fn_of_fluid c.user_functions
-  ; user_tipes = c.user_tipes
-  ; deleted_handlers = IDMap.map ~f:Toplevel.of_fluid c.deleted_handlers
-  ; deleted_dbs = IDMap.map ~f:Toplevel.of_fluid c.deleted_dbs
-  ; deleted_user_functions =
-      IDMap.map ~f:Toplevel.user_fn_of_fluid c.deleted_user_functions
-  ; deleted_user_tipes = c.deleted_user_tipes }
-
 
 (* ------------------------- *)
 (* Toplevel *)
@@ -98,8 +49,7 @@ let set_handler tlid pos data c =
   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let set_function (user_fn : 'expr_type RuntimeT.user_fn) (c : 'expr_type canvas)
-    : 'expr_type canvas =
+let set_function (user_fn : 'expr_type RuntimeT.user_fn) (c : canvas) : canvas =
   (* if the fn had been deleted, remove it from the deleted set. This handles
    * a data race where a Set comes in after a Delete. *)
   { c with
@@ -108,8 +58,7 @@ let set_function (user_fn : 'expr_type RuntimeT.user_fn) (c : 'expr_type canvas)
   }
 
 
-let set_tipe (user_tipe : RuntimeT.user_tipe) (c : 'expr_type canvas) :
-    'expr_type canvas =
+let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
   (* if the tipe had been deleted, remove it from the deleted set. This handles
    * a data race where a Set comes in after a Delete. *)
   { c with
@@ -117,7 +66,7 @@ let set_tipe (user_tipe : RuntimeT.user_tipe) (c : 'expr_type canvas) :
   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid }
 
 
-let delete_function (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
+let delete_function (tlid : tlid) (c : canvas) : canvas =
   match IDMap.find c.user_functions tlid with
   | None ->
       c
@@ -128,14 +77,13 @@ let delete_function (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
       }
 
 
-let delete_function_forever (tlid : tlid) (c : 'expr_type canvas) :
-    'expr_type canvas =
+let delete_function_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     user_functions = IDMap.remove c.user_functions tlid
   ; deleted_user_functions = IDMap.remove c.deleted_user_functions tlid }
 
 
-let delete_tipe (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
+let delete_tipe (tlid : tlid) (c : canvas) : canvas =
   match IDMap.find c.user_tipes tlid with
   | None ->
       c
@@ -145,15 +93,13 @@ let delete_tipe (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
       ; deleted_user_tipes = IDMap.set c.deleted_user_tipes tlid user_tipe }
 
 
-let delete_tipe_forever (tlid : tlid) (c : 'expr_type canvas) :
-    'expr_type canvas =
+let delete_tipe_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     user_tipes = IDMap.remove c.user_tipes tlid
   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes tlid }
 
 
-let delete_tl_forever (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas
-    =
+let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     dbs = IDMap.remove c.dbs tlid
   ; handlers = IDMap.remove c.handlers tlid
@@ -161,7 +107,7 @@ let delete_tl_forever (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas
   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let delete_toplevel (tlid : tlid) (c : 'expr_type canvas) : 'expr_type canvas =
+let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
   let db = IDMap.find c.dbs tlid in
   let handler = IDMap.find c.handlers tlid in
   { c with
@@ -182,7 +128,7 @@ let apply_to_toplevel
 let apply_to_all_toplevels
     ~(f : 'expr_type TL.toplevel -> 'expr_type TL.toplevel)
     (tlid : tlid)
-    (c : 'expr_type canvas) : 'expr_type canvas =
+    (c : canvas) : canvas =
   { c with
     handlers = apply_to_toplevel ~f tlid c.handlers
   ; dbs = apply_to_toplevel ~f tlid c.dbs }
@@ -191,7 +137,7 @@ let apply_to_all_toplevels
 let apply_to_db
     ~(f : 'expr_type RTT.DbT.db -> 'expr_type RTT.DbT.db)
     (tlid : tlid)
-    (c : 'expr_type canvas) : 'expr_type canvas =
+    (c : canvas) : canvas =
   let tlf (tl : 'expr_type TL.toplevel) =
     let data =
       match tl.data with
@@ -205,8 +151,7 @@ let apply_to_db
   {c with dbs = apply_to_toplevel tlid ~f:tlf c.dbs}
 
 
-let move_toplevel (tlid : tlid) (pos : pos) (c : 'expr_type canvas) :
-    'expr_type canvas =
+let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
   apply_to_all_toplevels ~f:(fun tl -> {tl with pos}) tlid c
 
 
@@ -214,10 +159,8 @@ let move_toplevel (tlid : tlid) (pos : pos) (c : 'expr_type canvas) :
 (* Build *)
 (* ------------------------- *)
 
-let apply_op
-    (is_new : bool)
-    (op : Types.fluid_expr Op.op)
-    (c : Types.fluid_expr canvas ref) : unit =
+let apply_op (is_new : bool) (op : Types.fluid_expr Op.op) (c : canvas ref) :
+    unit =
   try
     c :=
       !c
@@ -321,7 +264,7 @@ let apply_op
  * context to be loaded to appropriately verify.
  *
  * *)
-let verify (c : 'expr_type canvas ref) : (unit, string list) Result.t =
+let verify (c : canvas ref) : (unit, string list) Result.t =
   let duped_db_names =
     !c.dbs
     |> TL.dbs
@@ -344,7 +287,7 @@ let verify (c : 'expr_type canvas ref) : (unit, string list) Result.t =
 
 
 let add_ops
-    (c : fluid_expr canvas ref)
+    (c : canvas ref)
     (oldops : fluid_expr Op.op list)
     (newops : fluid_expr Op.op list) : unit =
   let oldops = List.map ~f:(fun op -> (false, op)) oldops in
@@ -393,15 +336,14 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
 let canvas_creation_date canvas_id : Core_kernel.Time.t =
   Db.fetch_one
     ~name:"canvas_creation_date"
-    "SELECT created_at from canvases
-      WHERE canvases.id = $1"
+    "SELECT created_at from canvases\n      WHERE canvases.id = $1"
     ~params:[Uuid canvas_id]
   |> List.hd_exn
   |> Db.date_of_sqlstring
 
 
 let init (host : string) (ops : 'expr_type Op.op list) :
-    ('expr_type canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let creation_date = canvas_creation_date canvas_id in
@@ -467,8 +409,8 @@ let id_and_account_id_for_name_exn (name : string) : Uuidm.t * Uuidm.t =
       Exception.internal "Wrong db shape in Canvas.id_and_account_id"
 
 
-let update_cors_setting
-    (c : 'expr_type canvas ref) (setting : cors_setting option) : unit =
+let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
+    =
   let cors_setting_to_db (setting : cors_setting option) : 'expr_type Db.param =
     match setting with
     | None ->
@@ -507,7 +449,7 @@ let load_from
     (newops : fluid_expr Op.op list)
     ~(f :
        host:string -> canvas_id:Uuidm.t -> unit -> fluid_expr Op.tlid_oplists) :
-    (fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
     let cors = fetch_cors_setting canvas_id in
@@ -519,7 +461,7 @@ let load_from
       Package_manager.all_functions ()
       |> List.map ~f:Package_manager.runtime_fn_of_package_fn
     in
-    let c : fluid_expr canvas ref =
+    let c : canvas ref =
       ref
         ( { host
           ; owner
@@ -536,26 +478,26 @@ let load_from
           ; deleted_dbs = IDMap.empty
           ; deleted_user_functions = IDMap.empty
           ; deleted_user_tipes = IDMap.empty }
-          : fluid_expr canvas )
+          : canvas )
     in
     add_ops c (Op.tlid_oplists2oplist oldops) newops ;
     c |> verify |> Result.map ~f:(fun _ -> c)
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let load_without_tls host : ('expr_type canvas ref, string list) Result.t =
+let load_without_tls host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 
 
 let load_all host (newops : Types.fluid_expr Op.op list) :
-    (Types.fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
 let load_only_tlids ~tlids host (newops : fluid_expr Op.op list) :
-    (Types.fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
 
@@ -563,13 +505,13 @@ let load_only_tlids ~tlids host (newops : fluid_expr Op.op list) :
 (* Same as `load_only_tlids` but filters out deleted tlids via
  * the denormalized `deleted` attributed on toplevel_oplists *)
 let load_only_undeleted_tlids ~tlids host (newops : fluid_expr Op.op list) :
-    (fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
 
 
 let load_with_dbs ~tlids host (newops : fluid_expr Op.op list) :
-    (fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
@@ -588,7 +530,7 @@ let load_with_dbs ~tlids host (newops : fluid_expr Op.op list) :
  *)
 let load_from_cache
     ?(uncached_loader = load_only_undeleted_tlids) ~tlids host owner :
-    (fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let ( fast_loaded_handlers
       , fast_loaded_dbs
@@ -646,7 +588,7 @@ let load_from_cache
          canvas)
 
 
-let load_all_from_cache host : (fluid_expr canvas ref, string list) Result.t =
+let load_all_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -658,8 +600,7 @@ let load_all_from_cache host : (fluid_expr canvas ref, string list) Result.t =
     owner
 
 
-let load_http_from_cache ~verb ~path host :
-    (fluid_expr canvas ref, string list) Result.t =
+let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their
    * cached repr, and then go and fetch whatever we were missing*)
   let owner = Account.for_host_exn host in
@@ -671,14 +612,13 @@ let load_http_from_cache ~verb ~path host :
     owner
 
 
-let load_tlids_from_cache ~tlids host :
-    (fluid_expr canvas ref, string list) Result.t =
+let load_tlids_from_cache ~tlids host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from_cache ~tlids host owner
 
 
 let load_tlids_with_context_from_cache ~tlids host :
-    (fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let tlids =
@@ -691,7 +631,7 @@ let load_tlids_with_context_from_cache ~tlids host :
 
 
 let load_for_event_from_cache (event : Event_queue.t) :
-    (fluid_expr canvas ref, string list) Result.t =
+    (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn event.host in
   let canvas_id = Serialize.fetch_canvas_id owner event.host in
   load_from_cache
@@ -700,8 +640,7 @@ let load_for_event_from_cache (event : Event_queue.t) :
     owner
 
 
-let load_all_dbs_from_cache host : (fluid_expr canvas ref, string list) Result.t
-    =
+let load_all_dbs_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -710,8 +649,7 @@ let load_all_dbs_from_cache host : (fluid_expr canvas ref, string list) Result.t
     owner
 
 
-let load_for_cron_checker_from_cache host :
-    (fluid_expr canvas ref, string list) Result.t =
+let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
@@ -720,7 +658,7 @@ let load_for_cron_checker_from_cache host :
     owner
 
 
-let serialize_only (tlids : tlid list) (c : fluid_expr canvas) : unit =
+let serialize_only (tlids : tlid list) (c : canvas) : unit =
   try
     let munge_name module_ n =
       if Ast.blank_to_option module_ = Some "HTTP"
@@ -845,11 +783,9 @@ let serialize_only (tlids : tlid list) (c : fluid_expr canvas) : unit =
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let save_tlids (c : fluid_expr canvas) (tlids : tlid list) : unit =
-  serialize_only tlids c
+let save_tlids (c : canvas) (tlids : tlid list) : unit = serialize_only tlids c
 
-
-let save_all (c : fluid_expr canvas) : unit =
+let save_all (c : canvas) : unit =
   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
   save_tlids c tlids
 
@@ -879,7 +815,7 @@ let load_and_resave_from_test_file (host : string) : unit =
   save_all !c
 
 
-let minimize (c : 'expr_type canvas) : 'expr_type canvas =
+let minimize (c : canvas) : canvas =
   (* TODO *)
   (* let ops = *)
   (*   c.ops *)
@@ -889,7 +825,7 @@ let minimize (c : 'expr_type canvas) : 'expr_type canvas =
   c
 
 
-let save_test (c : fluid_expr canvas) : string =
+let save_test (c : canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
   let file = Serialize.json_filename host in
@@ -901,84 +837,6 @@ let save_test (c : fluid_expr canvas) : string =
   let file = Serialize.json_filename host in
   Serialize.save_json_to_disk ~root:Testdata file c.ops ;
   file
-
-
-(* --------------- *)
-(* Validate fluid *)
-(* --------------- *)
-(* Types for fluid validation which have an `equal` function that papers over
- * superficial differences that occur as part of the conversion process (eg ids
- * don't need to be equal). It's done this way so that we can inject the
- * non-derived equality function, but use all the other derived equality
- * functions. *)
-type id_insensitive_expr = RTT.expr [@@deriving show]
-
-let equal_id_insensitive_expr
-    (e1 : id_insensitive_expr) (e2 : id_insensitive_expr) =
-  Fluid.testExprEqualIgnoringIds e1 e2
-
-
-type id_insensitive_fluid_expr = fluid_expr [@@deriving show]
-
-let equal_id_insensitive_fluid_expr
-    (e1 : id_insensitive_fluid_expr) (e2 : id_insensitive_fluid_expr) =
-  Libshared.FluidExpression.testEqualIgnoringIds e1 e2
-
-
-type id_insensitive_expr_canvas = id_insensitive_expr canvas
-[@@deriving show, eq]
-
-type id_insensitive_fluid_expr_canvas = id_insensitive_fluid_expr canvas
-[@@deriving show, eq]
-
-type id_insensitive_expr_oplist = id_insensitive_expr Op.oplist
-[@@deriving show, eq]
-
-type id_insensitive_fluid_expr_oplist = id_insensitive_fluid_expr Op.oplist
-[@@deriving show, eq]
-
-let validate_roundtrip_to_fluid (c : RTT.expr canvas) : (unit, string) Result.t
-    =
-  (* fluid to expr creates new ids, but so does expr to fluid. Check
-   * structure of both identical, ignoring ids *)
-  let all_ops = c.ops |> Op.tlid_oplists2oplist in
-  let all_roundtripped_ops =
-    all_ops |> Op.oplist_to_fluid |> Op.oplist_of_fluid
-  in
-  let roundtrip_valid =
-    equal_id_insensitive_expr_oplist all_ops all_roundtripped_ops
-  in
-  if roundtrip_valid
-  then Ok ()
-  else
-    (* Log.inspecT "all_ops" ~f:show_expr_oplist all_ops ; *)
-    (* Log.inspecT *)
-    (*   "all_roundtripped_ops" *)
-    (*   ~f:show_expr_oplist *)
-    (*   all_roundtripped_ops ; *)
-    Error ("roundtrip not valid: " ^ c.host)
-
-
-let is_valid_roundtrip_of_fluid (c : Types.fluid_expr canvas) :
-    (unit, string) Result.t =
-  (* fluid to expr creates new ids, but so does expr to fluid. Check
-   * structure of both identical, ignoring ids *)
-  let all_ops = c.ops |> Op.tlid_oplists2oplist in
-  let all_roundtripped_ops =
-    all_ops |> Op.oplist_of_fluid |> Op.oplist_to_fluid
-  in
-  let roundtrip_valid =
-    equal_id_insensitive_fluid_expr_oplist all_ops all_roundtripped_ops
-  in
-  if roundtrip_valid
-  then Ok ()
-  else
-    (* Log.inspecT "all_ops" ~f:show_expr_oplist all_ops ; *)
-    (* Log.inspecT *)
-    (*   "all_roundtripped_ops" *)
-    (*   ~f:show_expr_oplist *)
-    (*   all_roundtripped_ops ; *)
-    Error ("fluid roundtrip not valid: " ^ c.host)
 
 
 (* --------------- *)
@@ -1023,11 +881,7 @@ let validate_host host : (unit, string) Result.t =
             in
             load_tlids_from_cache ~tlids host
             |> Tc.Result.map_error String.concat
-            |> Tc.Result.andThen ~f:(fun c ->
-                   let roundtripped = !c |> of_fluid |> to_fluid in
-                   if equal_id_insensitive_fluid_expr_canvas !c roundtripped
-                   then Ok ()
-                   else Error ("cache roundtrip not valid: " ^ host))
+            |> Tc.Result.map (fun _ -> ())
           with e -> Error "couldn't load cache"
         in
         Tc.Result.combine [ops_valid; cache_valid]

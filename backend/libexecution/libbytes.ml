@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Types.fluid_expr fn list =
+let fns : fn list =
   [ { prefix_names = ["Bytes::base64Encode"]
     ; infix_names = []
     ; parameters = [par "bytes" TBytes]

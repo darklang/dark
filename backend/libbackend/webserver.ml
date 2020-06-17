@@ -321,8 +321,8 @@ let infer_cors_header
       Some "null"
 
 
-let options_handler
-    ~(execution_id : Types.id) (c : 'expr_type C.canvas) (req : CRequest.t) =
+let options_handler ~(execution_id : Types.id) (c : C.canvas) (req : CRequest.t)
+    =
   (* When javascript in a browser tries to make an unusual cross-origin
      request (for example, a POST with a weird content-type or something with
      weird headers), the browser first makes an OPTIONS request to the
@@ -365,10 +365,10 @@ let options_handler
 
 
 let result_to_response
-    ~(c : Types.fluid_expr Canvas.canvas ref)
+    ~(c : Canvas.canvas ref)
     ~(execution_id : Types.id)
     ~(req : CRequest.t)
-    (result : Types.fluid_expr RTT.dval) =
+    (result : RTT.dval) =
   let maybe_infer_cors headers =
     (* Add the Access-Control-ALlow-Origin, if it doens't exist
        and if infer_cors_header tells us to. *)
@@ -782,7 +782,7 @@ let admin_add_op_handler
         | AllDatastores ->
             C.load_with_dbs ~tlids host ops)
   in
-  let params : Types.fluid_expr Api.add_op_rpc_params =
+  let params : Api.add_op_rpc_params =
     { ops = params.ops
     ; opCtr = params.opCtr
     ; clientOpCtrId = params.clientOpCtrId }

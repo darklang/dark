@@ -8,62 +8,38 @@ val cols_for : fluid_expr DbT.db -> (string * tipe) list
 
 (* DB runtime functions *)
 val set :
-     state:fluid_expr exec_state
+     state:exec_state
   -> upsert:bool
   -> fluid_expr DbT.db
   -> string
-  -> fluid_expr dval_map
+  -> dval_map
   -> Uuidm.t
 
-val get_option :
-     state:fluid_expr exec_state
-  -> fluid_expr DbT.db
-  -> string
-  -> fluid_expr dval option
+val get_option : state:exec_state -> fluid_expr DbT.db -> string -> dval option
 
 val get_many :
-     state:fluid_expr exec_state
-  -> fluid_expr DbT.db
-  -> string list
-  -> (string * fluid_expr dval) list
+  state:exec_state -> fluid_expr DbT.db -> string list -> (string * dval) list
 
 val get_many_with_keys :
-     state:fluid_expr exec_state
-  -> fluid_expr DbT.db
-  -> string list
-  -> (string * fluid_expr dval) list
+  state:exec_state -> fluid_expr DbT.db -> string list -> (string * dval) list
 
-val get_all :
-     state:fluid_expr exec_state
-  -> fluid_expr DbT.db
-  -> (string * fluid_expr dval) list
+val get_all : state:exec_state -> fluid_expr DbT.db -> (string * dval) list
 
-val get_all_keys :
-  state:fluid_expr exec_state -> fluid_expr DbT.db -> string list
+val get_all_keys : state:exec_state -> fluid_expr DbT.db -> string list
 
 val query_exact_fields :
-     state:fluid_expr exec_state
-  -> fluid_expr DbT.db
-  -> fluid_expr dval
-  -> (string * fluid_expr dval) list
+  state:exec_state -> fluid_expr DbT.db -> dval -> (string * dval) list
 
 val query :
-     state:Types.fluid_expr exec_state
-  -> Types.fluid_expr DbT.db
-  -> Types.fluid_expr dblock_args
-  -> (string * Types.fluid_expr dval) list
+  state:exec_state -> fluid_expr DbT.db -> dblock_args -> (string * dval) list
 
-val query_count :
-     state:Types.fluid_expr exec_state
-  -> Types.fluid_expr DbT.db
-  -> Types.fluid_expr dblock_args
-  -> int
+val query_count : state:exec_state -> fluid_expr DbT.db -> dblock_args -> int
 
-val count : state:fluid_expr exec_state -> fluid_expr DbT.db -> int
+val count : state:exec_state -> fluid_expr DbT.db -> int
 
-val delete : state:fluid_expr exec_state -> fluid_expr DbT.db -> string -> unit
+val delete : state:exec_state -> fluid_expr DbT.db -> string -> unit
 
-val delete_all : state:fluid_expr exec_state -> fluid_expr DbT.db -> unit
+val delete_all : state:exec_state -> fluid_expr DbT.db -> unit
 
 (* Stats fns *)
 
@@ -74,7 +50,7 @@ val stats_pluck :
      account_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> fluid_expr DbT.db
-  -> (fluid_expr dval * string) option
+  -> (dval * string) option
 
 (* DB schema modifications *)
 val create : string -> tlid -> fluid_expr DbT.db

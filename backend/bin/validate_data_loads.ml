@@ -25,9 +25,7 @@ let validate_row (table : string) (values : string list) : unit =
         [("table", table); ("canvas", canvas_name); ("trace_id", trace_id)]
       in
       ( try
-          let (_ : Types.fluid_expr RTT.dval) =
-            Dval.of_internal_roundtrippable_v0 value
-          in
+          let (_ : RTT.dval) = Dval.of_internal_roundtrippable_v0 value in
           Log.infO "successful roundtrip" ~params
         with _ ->
           let params = ("value", value) :: params in
@@ -114,7 +112,7 @@ let () =
                    | Blank _ ->
                        "no name"
                  in
-                 let state : Types.fluid_expr RTT.exec_state =
+                 let state : RTT.exec_state =
                    { tlid = db.tlid
                    ; callstack = Tc.StrSet.empty
                    ; account_id = !c.owner

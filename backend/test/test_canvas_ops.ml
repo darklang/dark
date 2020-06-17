@@ -18,9 +18,7 @@ let t_undo_fns () =
   let n3 = hop (handler (binop "-" (int 3) (blank ()))) in
   let n4 = hop (handler (binop "-" (int 3) (int 4))) in
   let u = Op.UndoTL tlid in
-  let ops (c : fluid_expr C.canvas ref) =
-    !c.ops |> List.hd_exn |> Tuple.T2.get2
-  in
+  let ops (c : C.canvas ref) = !c.ops |> List.hd_exn |> Tuple.T2.get2 in
   AT.check
     AT.int
     "undocount"
@@ -357,21 +355,21 @@ let t_canvas_clone () =
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas : fluid_expr Canvas.canvas ref =
+  let cloned_canvas : Canvas.canvas ref =
     Canvas.load_all "clone-gettingstarted" []
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas_from_cache : fluid_expr Canvas.canvas ref =
+  let cloned_canvas_from_cache : Canvas.canvas ref =
     Canvas.load_all_from_cache "clone-gettingstarted"
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
   (* canvas.ops is not [op list], it is [(tlid, op list) list] *)
-  let canvas_ops_length (c : fluid_expr Canvas.canvas) =
+  let canvas_ops_length (c : Canvas.canvas) =
     c.ops |> List.map ~f:snd |> List.join |> List.length
   in
-  let has_creation_ops (c : fluid_expr Canvas.canvas) =
+  let has_creation_ops (c : Canvas.canvas) =
     List.map c.ops ~f:(fun (_, ops) ->
         Canvas_clone.only_ops_since_last_savepoint ops
         |> Tablecloth.List.any ~f:Canvas_clone.is_op_that_creates_toplevel)

@@ -35,10 +35,10 @@ type 'expr_type param =
   | Binary of string
   (* only works for passed params *)
   | Secret of string
-  | RoundtrippableDval of 'expr_type Types.RuntimeT.dval
-  | RoundtrippableDvalmap of 'expr_type Types.RuntimeT.dval_map
-  | QueryableDval of 'expr_type Types.RuntimeT.dval
-  | QueryableDvalmap of 'expr_type Types.RuntimeT.dval_map
+  | RoundtrippableDval of Types.RuntimeT.dval
+  | RoundtrippableDvalmap of Types.RuntimeT.dval_map
+  | QueryableDval of Types.RuntimeT.dval
+  | QueryableDvalmap of Types.RuntimeT.dval_map
   | Time of Types.RuntimeT.time
   | Null
   | List of 'expr_type param list

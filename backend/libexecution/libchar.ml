@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : Types.fluid_expr fn list =
+let fns : fn list =
   [ { prefix_names = ["Char::toASCIICode"]
     ; infix_names = []
     ; parameters = [par "c" TCharacter]

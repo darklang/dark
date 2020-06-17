@@ -10,9 +10,7 @@ let func ?(d : string = "") ?(name : string = "f") args : param =
   par name TBlock ~args ~d
 
 
-let fail_fn
-    (fnname : string) (fn : 'expr_type fn) (args : 'expr_type dval list) ?msg ()
-    : 'expr_type dval =
+let fail_fn (fnname : string) (fn : fn) (args : dval list) ?msg () : dval =
   let bt = Exception.get_backtrace () in
   let all = List.zip_exn fn.parameters args in
   let invalid =
@@ -34,6 +32,5 @@ let fail_fn
         (fnname ^ " was called with the wrong type to parameter: " ^ p.name)
 
 
-let fail ?msg ((state, args) : 'expr_type exec_state * 'expr_type dval list) :
-    'expr_type dval =
+let fail ?msg ((state, args) : exec_state * dval list) : dval =
   match state.fail_fn with Some fn -> fn ?msg () | None -> DNull

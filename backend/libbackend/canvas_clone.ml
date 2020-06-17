@@ -172,11 +172,11 @@ let update_hosts_in_op
   |> Option.map ~f:(fun new_ast ->
          match op with
          | SetFunction userfn ->
-             Op.SetFunction { userfn with ast = new_ast }
+             Op.SetFunction {userfn with ast = new_ast}
          | SetExpr (tlid, id, _) ->
              SetExpr (tlid, id, new_ast)
          | SetHandler (tlid, id, handler) ->
-             SetHandler (tlid, id, { handler with ast = new_ast })
+             SetHandler (tlid, id, {handler with ast = new_ast})
          | CreateDB (_, _, _)
          | AddDBCol (_, _, _)
          | SetDBColName (_, _, _)
@@ -246,7 +246,7 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
          (* Load from_canvas *)
          let from_canvas = load_all from_canvas_name [] in
          from_canvas |> Result.map_error (String.join ~sep:", "))
-  |> Result.map (fun (from_canvas : 'expr_type canvas ref) ->
+  |> Result.map (fun (from_canvas : canvas ref) ->
          (* Transform the ops - remove pre-savepoint ops and update hosts
           * (canvas names) in string literals *)
          let to_ops =
@@ -282,7 +282,7 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
              (* fetch_canvas_id is what actually creates the canvas record,
               * which must preceed save_all *)
              Serialize.fetch_canvas_id owner to_canvas_name |> ignore ;
-             let to_canvas : 'expr_type canvas ref =
+             let to_canvas : canvas ref =
                Canvas.init to_canvas_name (to_ops |> Op.tlid_oplists2oplist)
                |> Core_kernel__Result.map_error
                     ~f:(Core_kernel__.String.concat ~sep:", ")

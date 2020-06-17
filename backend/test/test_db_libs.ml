@@ -588,7 +588,7 @@ let t_db_queryOne_supports_Date_comparison () =
                           (fn op [var "middle"; fieldAccess (var "value") "ts"])
                       ]) ])))
   in
-  let expected (date : string) : Types.fluid_expr dval =
+  let expected (date : string) : dval =
     DOption
       (OptJust
          (DObj (DvalMap.singleton "ts" (DDate (date |> Util.date_of_isostring)))))

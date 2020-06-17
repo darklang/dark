@@ -19,7 +19,7 @@ let store_event
     ~(trace_id : Uuidm.t)
     ~(canvas_id : Uuidm.t)
     ((module_, path, modifier) : event_desc)
-    (event : Types.fluid_expr RTT.dval) : RTT.time =
+    (event : RTT.dval) : RTT.time =
   Db.fetch_one
     ~name:"stored_event.store_event"
     ~subject:(event_subject module_ path modifier)
@@ -81,7 +81,7 @@ let list_events ~(limit : [`All | `Since of RTT.time]) ~(canvas_id : Uuidm.t) ()
 
 
 let load_events ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc)
-    : (string * Uuidm.t * RTT.time * Types.fluid_expr RTT.dval) list =
+    : (string * Uuidm.t * RTT.time * RTT.dval) list =
   let route = Http.route_to_postgres_pattern route in
   Db.fetch
     ~name:"load_events"
@@ -107,7 +107,7 @@ let load_events ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc)
 
 
 let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
-    (string * RTT.time * Types.fluid_expr RTT.dval) option =
+    (string * RTT.time * RTT.dval) option =
   Db.fetch
     ~name:"load_event_for_trace"
     ~subject:(Uuidm.to_string trace_id)

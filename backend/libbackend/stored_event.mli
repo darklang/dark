@@ -17,23 +17,18 @@ val store_event :
      trace_id:Uuidm.t
   -> canvas_id:Uuidm.t
   -> event_desc
-  -> Types.fluid_expr Types.RuntimeT.dval
+  -> Types.RuntimeT.dval
   -> Types.RuntimeT.time
 
 val load_event_for_trace :
      canvas_id:Uuidm.t
   -> Uuidm.t
-  -> (string * Types.RuntimeT.time * Types.fluid_expr Types.RuntimeT.dval)
-     option
+  -> (string * Types.RuntimeT.time * Types.RuntimeT.dval) option
 
 val load_events :
      canvas_id:Uuidm.t
   -> event_desc
-  -> ( string
-     * Uuidm.t
-     * Types.RuntimeT.time
-     * Types.fluid_expr Types.RuntimeT.dval )
-     list
+  -> (string * Uuidm.t * Types.RuntimeT.time * Types.RuntimeT.dval) list
 
 val load_event_ids : canvas_id:Uuidm.t -> event_desc -> (Uuidm.t * string) list
 

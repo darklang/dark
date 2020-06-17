@@ -42,7 +42,7 @@ let pairs_of_fn (fn : fn) : (string * string) list =
   ; ("fnname", fn.fnname) ]
 
 
-let process_canvas (canvas : fluid_expr Canvas.canvas ref) : fn list =
+let process_canvas (canvas : Canvas.canvas ref) : fn list =
   let handler_name (handler : fluid_expr handler) =
     let spec = handler.spec in
     String.concat
@@ -52,7 +52,7 @@ let process_canvas (canvas : fluid_expr Canvas.canvas ref) : fn list =
       ~sep:"-"
   in
   let handlers =
-    !(canvas : fluid_expr Canvas.canvas ref).handlers
+    !(canvas : Canvas.canvas ref).handlers
     |> IDMap.data
     |> List.filter_map ~f:Toplevel.as_handler
   in
@@ -75,14 +75,14 @@ let () =
   *)
 
 let filterFnsNotInStaticFns (fn : fn) =
-  let (realfn : fluid_expr RuntimeT.fn option) =
+  let (realfn : RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some _ -> false | None -> true
 
 
 let isDeprecated (fn : fn) =
-  let (realfn : fluid_expr RuntimeT.fn option) =
+  let (realfn : RuntimeT.fn option) =
     Libs.FnMap.find !Libs.static_fns fn.fnname
   in
   match realfn with Some realfn -> realfn.deprecated | None -> false

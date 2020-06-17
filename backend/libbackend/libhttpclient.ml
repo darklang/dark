@@ -47,7 +47,7 @@ let with_default_content_type ~(ct : string) (headers : headers) : headers =
  * the `Content-Type` header provided by the user in [headers] to make ~magic~ decisions about
  * how to encode said body. Returns a tuple of the encoded body, and the passed headers that
  * have potentially had a Content-Type added to them based on the magic decision we've made. *)
-let encode_request_body (headers : headers) (body : 'expr_type dval option) :
+let encode_request_body (headers : headers) (body : dval option) :
     string option * headers =
   match body with
   | Some dv ->
@@ -97,9 +97,9 @@ let encode_request_body (headers : headers) (body : 'expr_type dval option) :
 let send_request
     (uri : string)
     (verb : Httpclient.verb)
-    (request_body : 'expr_type dval option)
-    (query : 'expr_type dval)
-    (request_headers : 'expr_type dval) : 'expr_type dval =
+    (request_body : dval option)
+    (query : dval)
+    (request_headers : dval) : dval =
   let encoded_query = Dval.dval_to_query query in
   let encoded_request_headers = Dval.to_string_pairs_exn request_headers in
   let encoded_request_body, munged_encoded_request_headers =
@@ -228,7 +228,7 @@ let call_no_body verb =
         fail args)
 
 
-let fns : Libexecution.Types.fluid_expr fn list =
+let fns : fn list =
   [ { prefix_names = ["HttpClient::post"]
     ; infix_names = []
     ; parameters = params

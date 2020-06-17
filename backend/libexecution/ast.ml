@@ -188,16 +188,11 @@ let find_db (dbs : fluid_expr DbT.db list) (name : string) : fluid_expr DbT.db =
   |> List.hd_exn
 
 
-let find_derrorrail (dvals : 'expr_type dval list) : 'expr_type dval option =
+let find_derrorrail (dvals : dval list) : dval option =
   List.find dvals ~f:Dval.is_errorrail
 
 
-let should_send_to_rail (expr : nexpr) : bool =
-  match expr with FnCallSendToRail _ -> true | _ -> false
-
-
-let global_input_vars (state : fluid_expr exec_state) :
-    (string * 'expr_type dval) list =
+let global_input_vars (state : exec_state) : (string * dval) list =
   let secrets =
     state.secrets
     |> List.map ~f:(fun s ->
@@ -216,9 +211,7 @@ let global_input_vars (state : fluid_expr exec_state) :
 
 
 let rec execute_dblock
-    ~(state : fluid_expr exec_state)
-    {symtable; body; params}
-    (args : fluid_expr dval list) : fluid_expr dval =
+    ~(state : exec_state) {symtable; body; params} (args : dval list) : dval =
   (* If one of the args is fake value used as a marker, return it instead of
    * executing. This is the same behaviour as in fn calls. *)
   let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
@@ -251,10 +244,7 @@ let rec execute_dblock
         exec ~state new_st body
 
 
-and exec
-    ~(state : fluid_expr exec_state)
-    (st : fluid_expr symtable)
-    (expr : fluid_expr) : fluid_expr dval =
+and exec ~(state : exec_state) (st : symtable) (expr : fluid_expr) : dval =
   (* Design doc for execution results and previews: https://www.notion.so/darklang/Live-Value-Branching-44ee705af61e416abed90917e34da48e *)
   let on_execution_path = state.on_execution_path in
   let ctx = state.context in
@@ -282,9 +272,8 @@ and exec
    * this a functional language with functions-as-values and application
    * as a first-class concept sooner rather than later.
    *)
-  let inject_param_and_execute
-      (st : fluid_expr symtable) (arg : fluid_expr dval) (exp : fluid_expr) :
-      fluid_expr dval =
+  let inject_param_and_execute (st : symtable) (arg : dval) (exp : fluid_expr) :
+      dval =
     let result =
       match exp with
       | ELambda (id, _, _) ->
@@ -501,9 +490,9 @@ and exec
         let hasMatched = ref false in
         let matchResult = ref (DIncomplete (sourceId id)) in
         let executeMatch
-            (new_defs : (string * fluid_expr dval) list)
-            (traces : (id * fluid_expr dval) list)
-            (st : fluid_expr dval_map)
+            (new_defs : (string * dval) list)
+            (traces : (id * dval) list)
+            (st : dval_map)
             (expr : fluid_expr) : unit =
           (* Once a pattern is matched, this function is called to execute its
            * `expr`. It tracks whether this is the first pattern to execute,
@@ -529,17 +518,17 @@ and exec
               trace ~on_execution_path:false id (incomplete id))
         in
         let traceNonMatch
-            (st : 'expr_type dval_map)
+            (st : dval_map)
             (expr : fluid_expr)
-            (traces : (id * 'expr_type dval) list)
+            (traces : (id * dval) list)
             (id : id)
-            (value : 'expr_type dval) : unit =
+            (value : dval) : unit =
           preview st expr ;
           traceIncompletes traces ;
           trace ~on_execution_path:false id value
         in
         let rec matchAndExecute
-            dv (builtUpTraces : (id * 'expr_type dval) list) (pattern, expr) =
+            dv (builtUpTraces : (id * dval) list) (pattern, expr) =
           (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
            * matches. Tracks whether a branch has already been executed and
            * will exceute later matches in preview mode.  Ensures all patterns
@@ -670,11 +659,11 @@ and exec
 (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv *)
 (* |> Sexp.to_string) *)
 and call_fn
-    ~(state : 'expr_type exec_state)
+    ~(state : exec_state)
     (name : string)
     (id : id)
-    (argvals : 'expr_type dval list)
-    (send_to_rail : bool) : 'expr_type dval =
+    (argvals : dval list)
+    (send_to_rail : bool) : dval =
   let sourceId id = SourceId (state.tlid, id) in
   let fn =
     Libs.get_fn state.user_fns name
@@ -771,11 +760,11 @@ and call_fn
 
 
 and exec_fn
-    ~(state : 'expr_type exec_state)
+    ~(state : exec_state)
     (fnname : string)
     (id : id)
-    (fn : 'expr_type fn)
-    (args : 'expr_type dval_map) : 'expr_type dval =
+    (fn : fn)
+    (args : dval_map) : dval =
   let sourceId id = SourceId (state.tlid, id) in
   let type_error_or_value ~user_tipes result =
     (* https://www.notion.so/darklang/What-should-happen-when-the-return-type-is-wrong-533f274f94754549867fefc554f9f4e3 *)
@@ -930,17 +919,13 @@ and exec_fn
 (* Execution *)
 (* -------------------- *)
 
-let execute_ast ~(state : 'expr_type exec_state) ~input_vars expr :
-    'expr_type dval =
+let execute_ast ~(state : exec_state) ~input_vars expr : dval =
   let state = {state with exec} in
   let symtable = input_vars @ global_input_vars state |> input_vars2symtable in
   exec ~state symtable expr
 
 
 let execute_fn
-    ~(state : 'expr_type exec_state)
-    (name : string)
-    (id : id)
-    (args : 'expr_type dval list) : 'expr_type dval =
+    ~(state : exec_state) (name : string) (id : id) (args : dval list) : dval =
   let state = {state with exec} in
   call_fn name id args false ~state

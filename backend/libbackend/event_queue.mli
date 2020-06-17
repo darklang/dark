@@ -10,7 +10,7 @@ type transaction
 
 type t =
   { id : int
-  ; value : Types.fluid_expr RuntimeT.dval
+  ; value : RuntimeT.dval
   ; retries : int
   ; canvas_id : Uuidm.t
   ; host : string
@@ -26,15 +26,15 @@ val enqueue :
   -> string
   -> string
   -> string
-  -> Types.fluid_expr RuntimeT.dval
+  -> RuntimeT.dval
   -> unit
 
 val with_transaction :
      Span.t
   -> (   Span.t
       -> transaction
-      -> (Types.fluid_expr RuntimeT.dval option, Exception.captured) Result.t)
-  -> (Types.fluid_expr RuntimeT.dval option, Exception.captured) Result.t
+      -> (RuntimeT.dval option, Exception.captured) Result.t)
+  -> (RuntimeT.dval option, Exception.captured) Result.t
 
 val dequeue : Span.t -> transaction -> t option
 
@@ -61,7 +61,7 @@ module Scheduling_rule : sig
 
   val rule_type_to_string : rule_type -> string
 
-  val to_dval : t -> Types.fluid_expr dval
+  val to_dval : t -> RuntimeT.dval
 end
 
 module Worker_states : sig
