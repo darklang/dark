@@ -77,7 +77,7 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
 
 let schema = Swagger.parse "twitter.json"
 
-let sw_type2dark tipe =
+let sw_type2dark (tipe : string) =
   match tipe with
   | "string" ->
       TStr

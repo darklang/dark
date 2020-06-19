@@ -73,8 +73,8 @@ let parseString str :
   |> Tc.Option.withDefault ~default:`Unknown
 
 
-let rec fromFluidPattern (p : Libshared.FluidPattern.t) : Types.RuntimeT.pattern
-    =
+let rec fromFluidPattern (p : Libshared.FluidPattern.t) :
+    Serialization_format.RuntimeT.pattern =
   match p with
   | FPVariable (_, id, var) ->
       Filled (id, PVariable var)
@@ -94,11 +94,12 @@ let rec fromFluidPattern (p : Libshared.FluidPattern.t) : Types.RuntimeT.pattern
       Blank id
 
 
-and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
-  let open Types in
-  let open Types.RuntimeT in
+and fromFluidExpr (expr : Libshared.FluidExpression.t) :
+    Serialization_format.RuntimeT.expr =
+  let open Serialization_format in
+  let open Serialization_format.RuntimeT in
   let open Libshared.FluidExpression in
-  let newB () = Types.Blank (gid ()) in
+  let newB () = Blank (gid ()) in
   let rec fromFluidExpr ?(inPipe = false) expr =
     (* inPipe is whether it's the immediate child of a pipe. *)
     let r = fromFluidExpr ~inPipe:false in
@@ -157,7 +158,7 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
         Filled
           ( id
           , Lambda
-              ( List.map vars ~f:(fun (vid, var) -> Types.Filled (vid, var))
+              ( List.map vars ~f:(fun (vid, var) -> Filled (vid, var))
               , fromFluidExpr body ) )
     | EBlank id ->
         Blank id
@@ -218,7 +219,8 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) : Types.RuntimeT.expr =
   fromFluidExpr expr
 
 
-let rec toFluidPattern (mid : Types.id) (p : Types.RuntimeT.pattern) :
+let rec toFluidPattern
+    (mid : Types.id) (p : Serialization_format.RuntimeT.pattern) :
     Libshared.FluidPattern.t =
   match p with
   | Partial (id, _) | Blank id ->
@@ -245,10 +247,11 @@ let rec toFluidPattern (mid : Types.id) (p : Types.RuntimeT.pattern) :
           FPBlank (mid, id) ) )
 
 
-let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
+let rec toFluidExpr
+    ?(inPipe = false) (expr : Serialization_format.RuntimeT.expr) :
     Libshared.FluidExpression.t =
-  let open Types in
-  let open RuntimeT in
+  let open Serialization_format in
+  let open Serialization_format.RuntimeT in
   let open Libshared.FluidExpression in
   let f = toFluidExpr ~inPipe:false in
   let varToName var =
@@ -350,111 +353,76 @@ let rec toFluidExpr ?(inPipe = false) (expr : Types.RuntimeT.expr) :
         ELeftPartial (id, str, toFluidExpr ~inPipe oldExpr) )
 
 
-let expr_json_to_fluid (j : Yojson.Safe.t) : (Types.fluid_expr, string) Result.t
-    =
-  j |> Types.RuntimeT.expr_of_yojson |> Result.map ~f:toFluidExpr
+let handler_to_fluid
+    (h :
+      Serialization_format.RuntimeT.expr
+      Serialization_format.RuntimeT.HandlerT.handler) :
+    Types.RuntimeT.HandlerT.handler =
+  {ast = toFluidExpr h.ast; spec = h.spec; tlid = h.tlid}
 
 
-(* included here as part of killing old exprs, based on
- * FluidExpression.testEqualIgnoringIds *)
-let rec testExprEqualIgnoringIds
-    (a : Types.RuntimeT.expr) (b : Types.RuntimeT.expr) : bool =
-  let open Tc in
-  let boeq (a : string Types.or_blank) (b : string Types.or_blank) =
-    (* The old expr shouldn't have Filled "", but of course it does. *)
-    match (a, b) with
-    | (Blank _ | Partial _), (Blank _ | Partial _)
-    | Filled (_, ""), (Blank _ | Partial _)
-    | (Blank _ | Partial _), Filled (_, "") ->
-        true
-    | Filled _, (Blank _ | Partial _) ->
-        false
-    | (Blank _ | Partial _), Filled _ ->
-        false
-    | Filled (_, a), Filled (_, b) ->
-        a = b
-  in
-  let rec peq (a : Types.RuntimeT.pattern) (b : Types.RuntimeT.pattern) =
-    let peqList l1 l2 =
-      List.length l1 = List.length l2
-      && List.map2 ~f:peq l1 l2 |> List.all ~f:identity
-    in
-    match (a, b) with
-    | (Blank _ | Partial _), (Blank _ | Partial _) ->
-        true
-    | Filled _, (Blank _ | Partial _) ->
-        false
-    | (Blank _ | Partial _), Filled _ ->
-        false
-    | Filled (_, a), Filled (_, b) ->
-      ( match (a, b) with
-      | PVariable name, PVariable name' ->
-          name = name'
-      | PConstructor (name, patterns), PConstructor (name', patterns') ->
-          name = name' && peqList patterns patterns'
-      | PLiteral l, PLiteral l' ->
-          l = l'
-      | _ ->
-          false )
-  in
-  (* helpers for recursive calls *)
-  let eq = testExprEqualIgnoringIds in
-  let eq2 (e, e') (f, f') = eq e e' && eq f f' in
-  let eq3 (e, e') (f, f') (g, g') = eq e e' && eq f f' && eq g g' in
-  let eqList l1 l2 =
-    List.length l1 = List.length l2
-    && List.map2 ~f:eq l1 l2 |> List.all ~f:identity
-  in
-  match (a, b) with
-  | (Blank _ | Partial _), (Blank _ | Partial _) ->
-      true
-  | (Blank _, Filled (_, Value v) | Filled (_, Value v), Blank _)
-    when parseString v = `Unknown ->
-      (* there are some invalid strings which won't roundtrip *)
-      true
-  | Filled _, (Blank _ | Partial _) ->
-      false
-  | (Blank _ | Partial _), Filled _ ->
-      false
-  | Filled (_, a), Filled (_, b) ->
-    ( match (a, b) with
-    | Value v, Value v' ->
-        v = v'
-    | Variable v, Variable v' ->
-        v = v'
-    | Let (lhs, rhs, body), Let (lhs', rhs', body') ->
-        boeq lhs lhs' && eq2 (rhs, rhs') (body, body')
-    | If (con, thn, els), If (con', thn', els') ->
-        eq3 (con, con') (thn, thn') (els, els')
-    | ListLiteral l, ListLiteral l' ->
-        eqList l l'
-    | FnCall (name, args), FnCall (name', args') ->
-        name = name' && eqList args args'
-    | FnCallSendToRail (name, args), FnCallSendToRail (name', args') ->
-        name = name' && eqList args args'
-    | ObjectLiteral pairs, ObjectLiteral pairs' ->
-        List.map2 ~f:(fun (k, v) (k', v') -> boeq k k' && eq v v') pairs pairs'
-        |> List.all ~f:identity
-    | FieldAccess (e, f), FieldAccess (e', f') ->
-        eq e e' && boeq f f'
-    | Thread l, Thread l' ->
-        eqList l l'
-    | ( FeatureFlag (name, cond, old, knew)
-      , FeatureFlag (name', cond', old', knew') ) ->
-        boeq name name' && eq3 (cond, cond') (old, old') (knew, knew')
-    | Constructor (s, ts), Constructor (s', ts') ->
-        boeq s s' && eqList ts ts'
-    | FluidRightPartial (str, e), FluidRightPartial (str', e')
-    | FluidPartial (str, e), FluidPartial (str', e') ->
-        str = str' && eq e e'
-    | Lambda (vars, e), Lambda (vars', e') ->
-        eq e e' && List.all ~f:identity (List.map2 boeq vars vars')
-    | Match (e, branches), Match (e', branches') ->
-        eq e e'
-        && List.map2
-             ~f:(fun (p, v) (p', v') -> peq p p' && eq v v')
-             branches
-             branches'
-           |> List.all ~f:identity
-    | _ ->
-        failwith "impossible" )
+let handler_of_fluid (h : Types.RuntimeT.HandlerT.handler) :
+    Serialization_format.RuntimeT.expr
+    Serialization_format.RuntimeT.HandlerT.handler =
+  {ast = fromFluidExpr h.ast; spec = h.spec; tlid = h.tlid}
+
+
+let db_migration_to_fluid
+    (dbm :
+      Serialization_format.RuntimeT.expr
+      Serialization_format.RuntimeT.DbT.db_migration) :
+    Types.RuntimeT.DbT.db_migration =
+  { starting_version = dbm.starting_version
+  ; version = dbm.version
+  ; state = dbm.state
+  ; rollforward = toFluidExpr dbm.rollforward
+  ; rollback = toFluidExpr dbm.rollback
+  ; cols = dbm.cols }
+
+
+let db_migration_of_fluid (dbm : Types.RuntimeT.DbT.db_migration) :
+    Serialization_format.RuntimeT.expr
+    Serialization_format.RuntimeT.DbT.db_migration =
+  { starting_version = dbm.starting_version
+  ; version = dbm.version
+  ; state = dbm.state
+  ; rollforward = fromFluidExpr dbm.rollforward
+  ; rollback = fromFluidExpr dbm.rollback
+  ; cols = dbm.cols }
+
+
+let db_to_fluid
+    (db :
+      Serialization_format.RuntimeT.expr Serialization_format.RuntimeT.DbT.db) :
+    Types.RuntimeT.DbT.db =
+  { cols = db.cols
+  ; name = db.name
+  ; tlid = db.tlid
+  ; version = db.version
+  ; old_migrations = List.map ~f:db_migration_to_fluid db.old_migrations
+  ; active_migration = Option.map ~f:db_migration_to_fluid db.active_migration
+  }
+
+
+let db_of_fluid (db : Types.RuntimeT.DbT.db) :
+    Serialization_format.RuntimeT.expr Serialization_format.RuntimeT.DbT.db =
+  { cols = db.cols
+  ; name = db.name
+  ; tlid = db.tlid
+  ; version = db.version
+  ; old_migrations = List.map ~f:db_migration_of_fluid db.old_migrations
+  ; active_migration = Option.map ~f:db_migration_of_fluid db.active_migration
+  }
+
+
+let user_fn_to_fluid
+    (fn :
+      Serialization_format.RuntimeT.expr Serialization_format.RuntimeT.user_fn)
+    : Types.fluid_expr Serialization_format.RuntimeT.user_fn =
+  {tlid = fn.tlid; metadata = fn.metadata; ast = toFluidExpr fn.ast}
+
+
+let user_fn_of_fluid
+    (fn : Types.fluid_expr Serialization_format.RuntimeT.user_fn) :
+    Serialization_format.RuntimeT.expr Serialization_format.RuntimeT.user_fn =
+  {tlid = fn.tlid; metadata = fn.metadata; ast = fromFluidExpr fn.ast}

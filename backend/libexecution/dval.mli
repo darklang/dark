@@ -15,11 +15,11 @@ val dstr_of_string_exn : string -> Types.RuntimeT.dval
 (* ------------------------- *)
 (* Types *)
 (* ------------------------- *)
-val tipe_to_string : Types.tipe_ -> string
+val tipe_to_string : Types.RuntimeT.tipe -> string
 
-val tipe_of_string : Core_kernel.String.t -> Types.tipe_
+val tipe_of_string : Core_kernel.String.t -> Types.RuntimeT.tipe
 
-val tipe_of : Types.RuntimeT.dval -> Types.tipe_
+val tipe_of : Types.RuntimeT.dval -> Types.RuntimeT.tipe
 
 (** [tipename dval] produces a non-user-facing name for the type of the given [dval]. *)
 val tipename : Types.RuntimeT.dval -> string
@@ -94,7 +94,7 @@ val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 
 (* For printing types for the developer to read, in live-values, error
  * messages, etc. Customers should not come to rely on this format. *)
-val tipe_to_developer_repr_v0 : Types.tipe_ -> string
+val tipe_to_developer_repr_v0 : Types.RuntimeT.tipe -> string
 
 (* For passing to Dark functions that operate on JSON, such as the JWT fns.
  * This turns Option and Result into plain values, or null/error. String-like

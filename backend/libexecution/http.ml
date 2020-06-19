@@ -104,8 +104,8 @@ let request_path_matches_route ~(route : string) (request_path : string) : bool
   * set.
   * *)
 let filter_invalid_handler_matches
-    ~(path : string) (handlers : 'expr_type RT.HandlerT.handler list) :
-    'expr_type RT.HandlerT.handler list =
+    ~(path : string) (handlers : RT.HandlerT.handler list) :
+    RT.HandlerT.handler list =
   List.filter
     ~f:(fun h ->
       let route = Handler.event_name_for_exn h in
@@ -135,8 +135,7 @@ let rec compare_route_specificity (left : string list) (right : string list) :
 
 
 let compare_page_route_specificity
-    (left : 'expr_type RT.HandlerT.handler)
-    (right : 'expr_type RT.HandlerT.handler) : int =
+    (left : RT.HandlerT.handler) (right : RT.HandlerT.handler) : int =
   compare_route_specificity
     (left |> Handler.event_name_for_exn |> split_uri_path)
     (right |> Handler.event_name_for_exn |> split_uri_path)
@@ -148,9 +147,8 @@ let compare_page_route_specificity
  * It looks purely at the handler's definition for its specificity relation.
  *
  * *)
-let filter_matching_handlers_by_specificity
-    (pages : 'expr_type RT.HandlerT.handler list) :
-    'expr_type RT.HandlerT.handler list =
+let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list) :
+    RT.HandlerT.handler list =
   let ordered_pages =
     pages
     |> List.sort ~compare:(fun left right ->
@@ -185,9 +183,8 @@ let filter_matching_handlers_by_specificity
       a :: same_specificity
 
 
-let filter_matching_handlers
-    ~(path : string) (pages : 'expr_type RT.HandlerT.handler list) :
-    'expr_type RT.HandlerT.handler list =
+let filter_matching_handlers ~(path : string) (pages : RT.HandlerT.handler list)
+    : RT.HandlerT.handler list =
   pages
   |> List.filter ~f:Handler.is_complete
   |> filter_invalid_handler_matches ~path

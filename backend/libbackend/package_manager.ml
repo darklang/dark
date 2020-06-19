@@ -55,8 +55,8 @@ let to_name (fn : fn) : string =
 (* ------------------ *)
 exception InvalidFunction of string
 
-let extract_metadata (fn : 'expr_type RuntimeT.user_fn) :
-    string * parameter list * tipe_ * string =
+let extract_metadata (fn : RuntimeT.user_fn) :
+    string * parameter list * RuntimeT.tipe * string =
   let name =
     match fn.metadata.name with
     | Filled (_, name) ->
@@ -130,11 +130,12 @@ let parse_fnname (name : string) : string * string * string * string * int =
 
 
 type expr_with_id =
-  { tlid : tlid
-  ; expr : RuntimeT.expr }
+  { tlid : Serialization_format.tlid
+  ; expr : Serialization_format.RuntimeT.expr }
 [@@deriving bin_io, show]
 
-let expr_to_string (tlid : tlid) (expr : RuntimeT.expr) : string =
+let expr_to_string (tlid : tlid) (expr : Serialization_format.RuntimeT.expr) :
+    string =
   {expr; tlid}
   |> Core_extended.Bin_io_utils.to_line bin_expr_with_id
   |> Bigstring.to_string
@@ -252,8 +253,7 @@ let add_function (fn : fn) : unit =
         ~result:TextResult)
 
 
-let save (author : string) (fn : Types.fluid_expr RuntimeT.user_fn) :
-    (unit, string) Result.t =
+let save (author : string) (fn : RuntimeT.user_fn) : (unit, string) Result.t =
   (* First let's be very sure we have a correct function *)
   let metadata =
     try extract_metadata fn |> Result.return

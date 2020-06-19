@@ -35,23 +35,6 @@ let blank_to_string (bo : string or_blank) : string =
 
 
 (* -------------------- *)
-(* Patterns *)
-(* -------------------- *)
-let rec pattern2expr p : expr =
-  match p with
-  | Partial (id, v) ->
-      Partial (id, v)
-  | Blank id ->
-      Blank id
-  | Filled (id, PLiteral p) ->
-      Filled (id, Value p)
-  | Filled (id, PVariable p) ->
-      Filled (id, Variable p)
-  | Filled (id, PConstructor (_, _)) ->
-      Blank id
-
-
-(* -------------------- *)
 (* AST traversal *)
 (* -------------------- *)
 
@@ -177,7 +160,7 @@ let rec iter ~(f : fluid_expr -> unit) (expr : fluid_expr) : unit =
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
-let find_db (dbs : fluid_expr DbT.db list) (name : string) : fluid_expr DbT.db =
+let find_db (dbs : DbT.db list) (name : string) : DbT.db =
   dbs
   |> List.filter ~f:(fun db ->
          match db.name with
@@ -703,7 +686,7 @@ and call_fn
                         sample
                     | _ ->
                         find_db state.dbs dbname
-                        |> (fun (db : 'expr_type DbT.db) -> db.cols)
+                        |> (fun (db : DbT.db) -> db.cols)
                         |> List.filter_map ~f:(function
                                | Filled (_, field), Filled _ ->
                                    Some (field, DIncomplete SourceNone)

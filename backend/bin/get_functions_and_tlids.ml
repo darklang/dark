@@ -43,7 +43,7 @@ let pairs_of_fn (fn : fn) : (string * string) list =
 
 
 let process_canvas (canvas : Canvas.canvas ref) : fn list =
-  let handler_name (handler : fluid_expr handler) =
+  let handler_name (handler : handler) =
     let spec = handler.spec in
     String.concat
       ( [spec.module_; spec.name; spec.modifier]
@@ -57,7 +57,9 @@ let process_canvas (canvas : Canvas.canvas ref) : fn list =
     |> List.filter_map ~f:Toplevel.as_handler
   in
   handlers
-  |> List.fold ~init:[] ~f:(fun acc handler ->
+  |> List.fold
+       ~init:[]
+       ~f:(fun acc (handler : Types.RuntimeT.HandlerT.handler) ->
          acc
          @ ( fnnames_of_expr handler.ast
            |> List.map ~f:(fun fnname ->

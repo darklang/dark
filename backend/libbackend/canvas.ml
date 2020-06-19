@@ -18,14 +18,14 @@ type canvas =
   ; creation_date : Time.t [@opaque]
   ; ops : (tlid * fluid_expr Op.oplist) list
   ; cors_setting : cors_setting option
-  ; handlers : fluid_expr TL.toplevels
-  ; dbs : fluid_expr TL.toplevels
-  ; user_functions : fluid_expr RTT.user_fn IDMap.t
+  ; handlers : TL.toplevels
+  ; dbs : TL.toplevels
+  ; user_functions : RTT.user_fn IDMap.t
   ; user_tipes : RTT.user_tipe IDMap.t
   ; package_fns : RTT.fn list [@opaque]
-  ; deleted_handlers : fluid_expr TL.toplevels
-  ; deleted_dbs : fluid_expr TL.toplevels
-  ; deleted_user_functions : fluid_expr RTT.user_fn IDMap.t
+  ; deleted_handlers : TL.toplevels
+  ; deleted_dbs : TL.toplevels
+  ; deleted_user_functions : RTT.user_fn IDMap.t
   ; deleted_user_tipes : RTT.user_tipe IDMap.t }
 [@@deriving eq, show]
 
@@ -49,7 +49,7 @@ let set_handler tlid pos data c =
   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
 
 
-let set_function (user_fn : 'expr_type RuntimeT.user_fn) (c : canvas) : canvas =
+let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
   (* if the fn had been deleted, remove it from the deleted set. This handles
    * a data race where a Set comes in after a Delete. *)
   { c with
@@ -119,26 +119,20 @@ let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
 
 
 let apply_to_toplevel
-    ~(f : 'expr_type TL.toplevel -> 'expr_type TL.toplevel)
-    (tlid : tlid)
-    (tls : 'expr_type TL.toplevels) =
+    ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (tls : TL.toplevels) =
   IDMap.change tls tlid ~f:(Option.map ~f)
 
 
 let apply_to_all_toplevels
-    ~(f : 'expr_type TL.toplevel -> 'expr_type TL.toplevel)
-    (tlid : tlid)
-    (c : canvas) : canvas =
+    ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (c : canvas) : canvas =
   { c with
     handlers = apply_to_toplevel ~f tlid c.handlers
   ; dbs = apply_to_toplevel ~f tlid c.dbs }
 
 
-let apply_to_db
-    ~(f : 'expr_type RTT.DbT.db -> 'expr_type RTT.DbT.db)
-    (tlid : tlid)
-    (c : canvas) : canvas =
-  let tlf (tl : 'expr_type TL.toplevel) =
+let apply_to_db ~(f : RTT.DbT.db -> RTT.DbT.db) (tlid : tlid) (c : canvas) :
+    canvas =
+  let tlf (tl : TL.toplevel) =
     let data =
       match tl.data with
       | TL.DB db ->
@@ -342,7 +336,7 @@ let canvas_creation_date canvas_id : Core_kernel.Time.t =
   |> Db.date_of_sqlstring
 
 
-let init (host : string) (ops : 'expr_type Op.op list) :
+let init (host : string) (ops : Types.fluid_expr Op.op list) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
@@ -411,7 +405,7 @@ let id_and_account_id_for_name_exn (name : string) : Uuidm.t * Uuidm.t =
 
 let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
     =
-  let cors_setting_to_db (setting : cors_setting option) : 'expr_type Db.param =
+  let cors_setting_to_db (setting : cors_setting option) : Db.param =
     match setting with
     | None ->
         Db.Null
@@ -665,7 +659,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
       then Http.route_to_postgres_pattern n
       else n
     in
-    let handler_metadata (h : fluid_expr RTT.HandlerT.handler) =
+    let handler_metadata (h : RTT.HandlerT.handler) =
       ( Ast.blank_to_option h.spec.name
         |> Option.map ~f:(munge_name h.spec.module_)
       , Ast.blank_to_option h.spec.module_
@@ -916,133 +910,24 @@ let check_tier_one_hosts () : unit =
             "Bad canvas state")
 
 
-(* --------------- *)
-(* Migrate canvases *)
-(* --------------- *)
-
-let migrate_or_blank (ob : 'a or_blank) : 'a or_blank =
-  (* Remove Partial: this implementation of partials didn't solve the problem
-   * and so didn't get use. *)
-  match ob with Blank _ -> ob | Partial (id, _) -> Blank id | Filled _ -> ob
-
-
-let rec migrate_fluid_expr (expr : fluid_expr) =
-  let f e = migrate_fluid_expr e in
-  match expr with
-  | EPipeTarget _
-  | EInteger _
-  | EBool _
-  | ENull _
-  | EBlank _
-  | EFloat _
-  | EString _
-  | EVariable _ ->
-      expr
-  | ELet (id, lhs, rhs, body) ->
-      ELet (id, lhs, f rhs, f body)
-  | EIf (id, cond, ifbody, elsebody) ->
-      EIf (id, f cond, f ifbody, f elsebody)
-  | EBinOp (id, name, left, right, ster) ->
-      EBinOp (id, name, f left, f right, ster)
-  | EFnCall (id, name, exprs, ster) ->
-      EFnCall (id, name, List.map ~f exprs, ster)
-  | ELambda (id, vars, lexpr) ->
-      ELambda (id, vars, f lexpr)
-  | EPipe (id, exprs) ->
-      EPipe (id, List.map ~f exprs)
-  | EFieldAccess (id, obj, field) ->
-      EFieldAccess (id, f obj, field)
-  | EList (id, exprs) ->
-      EList (id, List.map ~f exprs)
-  | ERecord (id, pairs) ->
-      ERecord (id, List.map ~f:(fun (k, v) -> (k, f v)) pairs)
-  | EFeatureFlag (id, msg, cond, a, b) ->
-      EFeatureFlag (id, msg, f cond, f a, f b)
-  | EMatch (id, matchExpr, cases) ->
-      EMatch (id, f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
-  | EConstructor (id, name, args) ->
-      EConstructor (id, name, List.map ~f args)
-  | EPartial (id, name, old_val) ->
-      EPartial (id, name, f old_val)
-  | ERightPartial (id, name, old_val) ->
-      ERightPartial (id, name, f old_val)
-  | ELeftPartial (id, name, old_val) ->
-      ELeftPartial (id, name, f old_val)
-
-
-let migrate_handler (h : 'expr_type RuntimeT.HandlerT.handler) :
-    'expr_type RuntimeT.HandlerT.handler =
-  {h with ast = migrate_fluid_expr h.ast}
-
-
-let migrate_user_function (fn : 'expr_type RuntimeT.user_fn) =
-  let migrate_bo_ufn_param (p : RuntimeT.ufn_param) : RuntimeT.ufn_param =
-    {p with name = migrate_or_blank p.name; tipe = migrate_or_blank p.tipe}
-  in
-  let migrate_bo_metadata (m : RuntimeT.ufn_metadata) : RuntimeT.ufn_metadata =
-    { m with
-      name = migrate_or_blank m.name
-    ; parameters = List.map m.parameters ~f:migrate_bo_ufn_param
-    ; return_type = migrate_or_blank m.return_type }
-  in
-  { fn with
-    ast = migrate_fluid_expr fn.ast
-  ; metadata = migrate_bo_metadata fn.metadata }
-
-
-let migrate_user_tipe (tipe : RuntimeT.user_tipe) : RuntimeT.user_tipe =
-  let open RuntimeT in
-  let migrate_bo_definition (UTRecord fields) =
-    UTRecord
-      (List.map fields ~f:(fun {name; tipe} ->
-           {name = migrate_or_blank name; tipe = migrate_or_blank tipe}))
-  in
-  { tipe with
-    name = migrate_or_blank tipe.name
-  ; definition = migrate_bo_definition tipe.definition }
-
-
-let migrate_col (k, v) = (migrate_or_blank k, migrate_or_blank v)
-
-let migrate_db (db : 'expr_type RuntimeT.DbT.db) : 'expr_type RuntimeT.DbT.db =
-  { db with
-    cols = List.map ~f:migrate_col db.cols
-  ; name = migrate_or_blank db.name }
-
-
-let migrate_op (op : 'expr_type Op.op) : 'expr_type Op.op =
-  match op with
-  | SetHandler (tlid, pos, handler) ->
-      SetHandler (tlid, pos, migrate_handler handler)
-  | SetFunction fn ->
-      SetFunction (migrate_user_function fn)
-  | SetExpr (tlid, id, expr) ->
-      SetExpr (tlid, id, migrate_fluid_expr expr)
-  | CreateDBMigration (tlid, id1, id2, list) ->
-      CreateDBMigration (tlid, id1, id2, List.map list ~f:migrate_col)
-  | SetType tipe ->
-      SetType (migrate_user_tipe tipe)
-  | _ ->
-      op
-
-
-let migrate_host (host : string) : (string, unit) Tc.Result.t =
+let migrate_host (_host : string) : (string, unit) Tc.Result.t =
   try
-    let canvas_id = id_for_name host in
-    Serialize.fetch_all_tlids ~canvas_id ()
-    |> List.map ~f:(fun tlid ->
-           Serialize.transactionally_migrate_oplist
-             ~canvas_id
-             ~tlid
-             ~host
-             ~handler_f:migrate_handler
-             ~db_f:migrate_db
-             ~user_fn_f:migrate_user_function
-             ~user_tipe_f:migrate_user_tipe
-             ~oplist_f:(List.map ~f:migrate_op)
-             ())
-    |> Tc.Result.combine
-    |> Tc.Result.map (fun _ -> ())
+    Ok ()
+    (*   let canvas_id = id_for_name host in *)
+    (*   Serialize.fetch_all_tlids ~canvas_id () *)
+    (*   |> List.map ~f:(fun tlid -> *)
+    (*          Serialize.transactionally_migrate_oplist *)
+    (*            ~canvas_id *)
+    (*            ~tlid *)
+    (*            ~host *)
+    (*            ~handler_f:migrate_handler *)
+    (*            ~db_f:migrate_db *)
+    (*            ~user_fn_f:migrate_user_function *)
+    (*            ~user_tipe_f:migrate_user_tipe *)
+    (*            ~oplist_f:(List.map ~f:migrate_op) *)
+    (*            ()) *)
+    (*   |> Tc.Result.combine *)
+    (*   |> Tc.Result.map (fun _ -> ()) *)
   with e -> Error (Exception.to_string e)
 
 

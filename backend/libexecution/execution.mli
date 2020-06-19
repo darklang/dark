@@ -5,21 +5,21 @@ module Telemetry = Libcommon.Telemetry
 (* Input vars *)
 (* ----------------- *)
 val input_vars_for_user_fn :
-  Types.fluid_expr Types.RuntimeT.user_fn -> Types.RuntimeT.dval_map
+  Types.RuntimeT.user_fn -> Types.RuntimeT.dval_map
 
 val http_route_input_vars :
-     Types.fluid_expr Types.RuntimeT.HandlerT.handler
+     Types.RuntimeT.HandlerT.handler
   -> string
   -> Types.RuntimeT.input_vars
 
 val sample_route_input_vars :
-  Types.fluid_expr Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
+  Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
 
 val sample_input_vars :
-  Types.fluid_expr Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
+  Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
 
 val sample_function_input_vars :
-  Types.fluid_expr Types.RuntimeT.user_fn -> Types.RuntimeT.input_vars
+  Types.RuntimeT.user_fn -> Types.RuntimeT.input_vars
 
 val sample_unknown_handler_input_vars : Types.RuntimeT.input_vars
 
@@ -42,8 +42,8 @@ val execute_handler :
      tlid:Types.tlid
   -> execution_id:Types.tlid
   -> input_vars:Types.RuntimeT.input_vars
-  -> dbs:Types.fluid_expr Types.RuntimeT.DbT.db list
-  -> user_fns:Types.fluid_expr Types.RuntimeT.user_fn list
+  -> dbs:Types.RuntimeT.DbT.db list
+  -> user_fns:Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
   -> package_fns:Types.RuntimeT.fn list
   -> secrets:Types.RuntimeT.secret list
@@ -54,15 +54,15 @@ val execute_handler :
   -> ?load_fn_arguments:Types.RuntimeT.load_fn_arguments_type
   -> ?store_fn_result:Types.RuntimeT.store_fn_result_type
   -> ?store_fn_arguments:Types.RuntimeT.store_fn_arguments_type
-  -> Types.fluid_expr Types.RuntimeT.HandlerT.handler
+  -> Types.RuntimeT.HandlerT.handler
   -> Types.RuntimeT.dval * Types.tlid list
 
 val execute_function :
      tlid:Types.tlid
   -> execution_id:Types.tlid
   -> trace_id:Uuidm.t
-  -> dbs:Types.fluid_expr Types.RuntimeT.DbT.db list
-  -> user_fns:Types.fluid_expr Types.RuntimeT.user_fn list
+  -> dbs:Types.RuntimeT.DbT.db list
+  -> user_fns:Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
   -> package_fns:Types.RuntimeT.fn list
   -> secrets:Types.RuntimeT.secret list
@@ -82,8 +82,8 @@ val analyse_ast :
      tlid:Types.tlid
   -> execution_id:Types.tlid
   -> input_vars:Types.RuntimeT.input_vars
-  -> dbs:Types.fluid_expr Types.RuntimeT.DbT.db list
-  -> user_fns:Types.fluid_expr Types.RuntimeT.user_fn list
+  -> dbs:Types.RuntimeT.DbT.db list
+  -> user_fns:Types.RuntimeT.user_fn list
   -> user_tipes:Types.RuntimeT.user_tipe list
   -> package_fns:Types.RuntimeT.fn list
   -> secrets:Types.RuntimeT.secret list

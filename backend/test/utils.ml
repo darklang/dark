@@ -135,11 +135,7 @@ let check_incomplete msg dval =
   AT.check at_incomplete msg (DIncomplete SourceNone) dval
 
 
-let testable_handler =
-  AT.testable
-    (HandlerT.pp_handler pp_fluid_expr)
-    (HandlerT.equal_handler equal_fluid_expr)
-
+let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
 
 let testable_id = AT.testable pp_id equal_id
 
@@ -186,13 +182,11 @@ let check_error_contains (name : string) (result : dval) (substring : string) =
 (* Set up test data *)
 (* ------------------- *)
 
-let fid = Util.create_id
+let fid () : Types.id = Util.create_id ()
 
-let v str = Filled (fid (), Value str)
+let b () : 'a or_blank = Blank (fid ())
 
-let b () = Blank (fid ())
-
-let f a = Filled (fid (), a)
+let f (a : 'a) : 'a or_blank = Types.Filled (fid (), a)
 
 let tlid = Int63.of_int 7
 
@@ -234,11 +228,11 @@ let nameid2 = Int63.of_int 227
 
 let nameid3 = Int63.of_int 327
 
-let pos = {x = 0; y = 0}
+let pos : Types.pos = {x = 0; y = 0}
 
 let execution_id = Int63.of_int 6542
 
-let handler ?(tlid = tlid) ast : 'expr_type HandlerT.handler =
+let handler ?(tlid = tlid) ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -248,7 +242,7 @@ let handler ?(tlid = tlid) ast : 'expr_type HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let http_handler ?(tlid = tlid) ast : 'expr_type HandlerT.handler =
+let http_handler ?(tlid = tlid) ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -263,7 +257,7 @@ let http_request_path = "/some/vars/and/such"
 let http_route = "/some/:vars/:and/such"
 
 let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
-    Types.fluid_expr HandlerT.handler =
+    Types.RuntimeT.HandlerT.handler =
   { tlid
   ; ast = Libshared.FluidShortcuts.int 5
   ; spec =
@@ -273,7 +267,7 @@ let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
       ; types = {input = b (); output = b ()} } }
 
 
-let daily_cron ast : 'expr_type HandlerT.handler =
+let daily_cron ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -283,7 +277,7 @@ let daily_cron ast : 'expr_type HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let worker name ast : 'expr_type HandlerT.handler =
+let worker name ast : HandlerT.handler =
   { tlid
   ; ast
   ; spec =
@@ -295,14 +289,18 @@ let worker name ast : 'expr_type HandlerT.handler =
 
 let hop h = Op.SetHandler (tlid, pos, h)
 
-let user_fn ?(tlid = tlid) ?(return_type = TAny) name params ast :
-    'expr_type user_fn =
+let user_fn
+    ?(tlid = tlid)
+    ?(return_type = TAny)
+    (name : string)
+    (params : string list)
+    (ast : Types.fluid_expr) : user_fn =
   { tlid
   ; ast
   ; metadata =
       { name = f name
       ; parameters =
-          List.map params ~f:(fun p ->
+          List.map params ~f:(fun (p : string) ->
               { name = f p
               ; tipe = f TAny
               ; block_args = []
@@ -390,7 +388,7 @@ let test_execution_data
 let execute_ops
     ?(trace_id = Util.create_uuid ())
     ?(canvas_name = "test")
-    (ops : 'expr_type Op.op list) : dval =
+    (ops : Types.fluid_expr Op.op list) : dval =
   let ( c
       , { tlid
         ; load_fn_result

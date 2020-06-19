@@ -389,15 +389,12 @@ let t_canvas_clone () =
     AT.bool
     "Same DBs when loading from db"
     true
-    (Toplevel.equal_toplevels
-       Types.equal_fluid_expr
-       !sample_canvas.dbs
-       !cloned_canvas.dbs) ;
+    (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -405,21 +402,18 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas.handlers
-    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string ) ;
   AT.check
     AT.bool
     "Same DBs when loading from cache"
     true
-    (Toplevel.equal_toplevels
-       equal_fluid_expr
-       !sample_canvas.dbs
-       !cloned_canvas_from_cache.dbs) ;
+    (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas_from_cache.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from cache, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -427,7 +421,7 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas_from_cache.handlers
-    |> Toplevel.toplevels_to_yojson fluid_expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string )
 
 

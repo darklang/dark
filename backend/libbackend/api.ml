@@ -28,7 +28,7 @@ type execute_function_rpc_params =
   ; fnname : string }
 [@@deriving yojson]
 
-type upload_function_rpc_params = {fn : Types.fluid_expr RuntimeT.user_fn}
+type upload_function_rpc_params = {fn : RuntimeT.user_fn}
 [@@deriving yojson]
 
 let to_upload_function_rpc_params (payload : string) :

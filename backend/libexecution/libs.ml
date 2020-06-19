@@ -24,20 +24,20 @@ let static_fns : fnmap ref = ref FnMap.empty
 
 let add_static_fn (s : RTT.fn) : unit = static_fns := add_fn !static_fns s
 
-let fns (user_fns : fluid_expr RuntimeT.user_fn list) : fnmap =
+let fns (user_fns : RuntimeT.user_fn list) : fnmap =
   user_fns
   |> List.filter_map ~f:RuntimeT.user_fn_to_fn
   |> List.fold_left ~init:!static_fns ~f:(fun map uf -> add_fn map uf)
 
 
 (* Give access to other modules *)
-let get_fn ~(user_fns : fluid_expr RuntimeT.user_fn list) (name : string) :
+let get_fn ~(user_fns : RuntimeT.user_fn list) (name : string) :
     RuntimeT.fn option =
   FnMap.find (fns user_fns) name
 
 
-let get_fn_exn ~(user_fns : fluid_expr RuntimeT.user_fn list) (name : string) :
-    RuntimeT.fn =
+let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) : RuntimeT.fn
+    =
   match get_fn ~user_fns name with
   | Some fn ->
       fn

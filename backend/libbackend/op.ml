@@ -1,48 +1,49 @@
 open Core_kernel
 open Libexecution
-open Types
+module SF = Serialization_format
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type 'expr_type op =
-  | SetHandler of tlid * pos * 'expr_type RuntimeT.HandlerT.handler
-  | CreateDB of tlid * pos * string
-  | AddDBCol of tlid * id * id
-  | SetDBColName of tlid * id * string
-  | SetDBColType of tlid * id * string
-  | DeleteTL of tlid
-  | MoveTL of tlid * pos
-  | SetFunction of 'expr_type RuntimeT.user_fn
-  | ChangeDBColName of tlid * id * string
-  | ChangeDBColType of tlid * id * string
-  | UndoTL of tlid
-  | RedoTL of tlid
-  | DeprecatedInitDbm of tlid * id * id * id * RuntimeT.DbT.migration_kind
-  | SetExpr of tlid * id * 'expr_type
-  | TLSavepoint of tlid
-  | DeleteFunction of tlid
+  | SetHandler of SF.tlid * SF.pos * 'expr_type SF.RuntimeT.HandlerT.handler
+  | CreateDB of SF.tlid * SF.pos * string
+  | AddDBCol of SF.tlid * SF.id * SF.id
+  | SetDBColName of SF.tlid * SF.id * string
+  | SetDBColType of SF.tlid * SF.id * string
+  | DeleteTL of SF.tlid
+  | MoveTL of SF.tlid * SF.pos
+  | SetFunction of 'expr_type SF.RuntimeT.user_fn
+  | ChangeDBColName of SF.tlid * SF.id * string
+  | ChangeDBColType of SF.tlid * SF.id * string
+  | UndoTL of SF.tlid
+  | RedoTL of SF.tlid
+  | DeprecatedInitDbm of
+      SF.tlid * SF.id * SF.id * SF.id * SF.RuntimeT.DbT.migration_kind
+  | SetExpr of SF.tlid * SF.id * 'expr_type
+  | TLSavepoint of SF.tlid
+  | DeleteFunction of SF.tlid
   | CreateDBMigration of
-      tlid * id * id * (string or_blank * string or_blank) list
-  | AddDBColToDBMigration of tlid * id * id
-  | SetDBColNameInDBMigration of tlid * id * string
-  | SetDBColTypeInDBMigration of tlid * id * string
-  | AbandonDBMigration of tlid
-  | DeleteColInDBMigration of tlid * id
-  | DeleteDBCol of tlid * id
-  | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * pos * id * string
-  | DeleteTLForever of tlid
-  | DeleteFunctionForever of tlid
-  | SetType of RuntimeT.user_tipe
-  | DeleteType of tlid
-  | DeleteTypeForever of tlid
+      SF.tlid * SF.id * SF.id * (string SF.or_blank * string SF.or_blank) list
+  | AddDBColToDBMigration of SF.tlid * SF.id * SF.id
+  | SetDBColNameInDBMigration of SF.tlid * SF.id * string
+  | SetDBColTypeInDBMigration of SF.tlid * SF.id * string
+  | AbandonDBMigration of SF.tlid
+  | DeleteColInDBMigration of SF.tlid * SF.id
+  | DeleteDBCol of SF.tlid * SF.id
+  | RenameDBname of SF.tlid * string
+  | CreateDBWithBlankOr of SF.tlid * SF.pos * SF.id * string
+  | DeleteTLForever of SF.tlid
+  | DeleteFunctionForever of SF.tlid
+  | SetType of SF.RuntimeT.user_tipe
+  | DeleteType of SF.tlid
+  | DeleteTypeForever of SF.tlid
 [@@deriving eq, yojson, show, bin_io]
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
-let op_to_fluid_op (op : RuntimeT.expr op) : Types.fluid_expr op =
+let op_to_fluid_op (op : SF.RuntimeT.expr op) : Types.fluid_expr op =
   match op with
   | SetHandler (tlid, pos, h) ->
-      SetHandler (tlid, pos, Toplevel.handler_to_fluid h)
+      SetHandler (tlid, pos, Fluid.handler_to_fluid h)
   | CreateDB (tlid, pos, str) ->
       CreateDB (tlid, pos, str)
   | AddDBCol (tlid, id1, id2) ->
@@ -70,7 +71,7 @@ let op_to_fluid_op (op : RuntimeT.expr op) : Types.fluid_expr op =
   | MoveTL (tlid, pos) ->
       MoveTL (tlid, pos)
   | SetFunction f ->
-      SetFunction (Toplevel.user_fn_to_fluid f)
+      SetFunction (Fluid.user_fn_to_fluid f)
   | DeleteFunction tlid ->
       DeleteFunction tlid
   | CreateDBMigration (tlid, id1, id2, l) ->
@@ -103,10 +104,11 @@ let op_to_fluid_op (op : RuntimeT.expr op) : Types.fluid_expr op =
       DeleteTypeForever tlid
 
 
-let op_of_fluid_op (op : Types.fluid_expr op) : RuntimeT.expr op =
+let op_of_fluid_op (op : Types.fluid_expr op) :
+    Serialization_format.RuntimeT.expr op =
   match op with
   | SetHandler (tlid, pos, h) ->
-      SetHandler (tlid, pos, Toplevel.handler_of_fluid h)
+      SetHandler (tlid, pos, Fluid.handler_of_fluid h)
   | CreateDB (tlid, pos, str) ->
       CreateDB (tlid, pos, str)
   | AddDBCol (tlid, id1, id2) ->
@@ -134,7 +136,7 @@ let op_of_fluid_op (op : Types.fluid_expr op) : RuntimeT.expr op =
   | MoveTL (tlid, pos) ->
       MoveTL (tlid, pos)
   | SetFunction f ->
-      SetFunction (Toplevel.user_fn_of_fluid f)
+      SetFunction (Fluid.user_fn_of_fluid f)
   | DeleteFunction tlid ->
       DeleteFunction tlid
   | CreateDBMigration (tlid, id1, id2, l) ->
@@ -309,11 +311,13 @@ let required_context_to_validate (op : 'expr_type op) : required_context =
 type 'expr_type oplist = 'expr_type op list
 [@@deriving eq, yojson, show, bin_io]
 
-let oplist_to_fluid (oplist : RuntimeT.expr oplist) : Types.fluid_expr oplist =
+let oplist_to_fluid (oplist : SF.RuntimeT.expr oplist) : Types.fluid_expr oplist
+    =
   List.map oplist ~f:op_to_fluid_op
 
 
-let oplist_of_fluid (oplist : Types.fluid_expr oplist) : RuntimeT.expr oplist =
+let oplist_of_fluid (oplist : Types.fluid_expr oplist) : SF.RuntimeT.expr oplist
+    =
   List.map oplist ~f:op_of_fluid_op
 
 
@@ -325,7 +329,7 @@ let required_context_to_validate_oplist (oplist : 'expr_type oplist) :
   |> Option.value ~default:NoContext
 
 
-type 'expr_type tlid_oplists = (tlid * 'expr_type oplist) list
+type 'expr_type tlid_oplists = (SF.tlid * 'expr_type oplist) list
 [@@deriving eq, yojson, show, bin_io]
 
 let is_deprecated (op : 'expr_type op) : bool = false
@@ -334,7 +338,7 @@ let has_effect (op : 'expr_type op) : bool =
   match op with TLSavepoint _ -> false | _ -> true
 
 
-let tlidOf (op : 'expr_type op) : tlid =
+let tlidOf (op : 'expr_type op) : Types.tlid =
   match op with
   | SetHandler (tlid, _, _) ->
       tlid

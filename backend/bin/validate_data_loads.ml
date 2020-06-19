@@ -103,7 +103,7 @@ let () =
           dbs
           |> List.iter
                ~f:(fun (db :
-                         Types.fluid_expr Libexecution.Types.RuntimeT.DbT.db)
+                         Libexecution.Types.RuntimeT.DbT.db)
                        ->
                  let dbname =
                    match db.name with

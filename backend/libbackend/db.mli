@@ -3,7 +3,7 @@ open Libexecution
 
 (* Low-level API *)
 
-type 'expr_type param =
+type param =
   | Int of int
   | Int63 of Int63.t
   | ID of Types.id
@@ -20,7 +20,7 @@ type 'expr_type param =
   | QueryableDvalmap of Types.RuntimeT.dval_map
   | Time of Types.RuntimeT.time
   | Null
-  | List of 'expr_type param list
+  | List of param list
   | Bool of bool
 [@@deriving show]
 
@@ -36,7 +36,7 @@ type result =
 (* NOTE: run is not allowed to receive multiple commands. If you
  * want multiple statements, use [transaction] *)
 val run :
-     params:'expr_type param list
+     params:param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -46,7 +46,7 @@ val run :
 val transaction : name:string -> (unit -> unit) -> unit
 
 val delete :
-     params:'expr_type param list
+     params:param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -54,7 +54,7 @@ val delete :
   -> int
 
 val fetch :
-     params:'expr_type param list
+     params:param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -62,7 +62,7 @@ val fetch :
   -> string list list
 
 val fetch_one :
-     params:'expr_type param list
+     params:param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -74,7 +74,7 @@ val fetch_one :
  * performance of GC queries using fetch_count, with basically the same code as
  * we use for delete - see Stored_events.trim_events_for_handler for an example. *)
 val fetch_count :
-     params:'expr_type param list
+     params:param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -82,7 +82,7 @@ val fetch_count :
   -> int
 
 val fetch_one_option :
-     params:'expr_type param list
+     params:param list
   -> ?result:result
   -> name:string
   -> ?subject:string
@@ -91,23 +91,19 @@ val fetch_one_option :
 
 val iter_with_cursor :
      name:string
-  -> params:'expr_type param list
+  -> params:param list
   -> ?result:result
   -> f:(string list -> unit)
   -> string
   -> unit
 
 val exists :
-     params:'expr_type param list
-  -> name:string
-  -> ?subject:string
-  -> string
-  -> bool
+  params:param list -> name:string -> ?subject:string -> string -> bool
 
 (* Occasionally, we're trying to do something dynamic, or maybe multiple
  * things in a single sql statement and then the above statements don't
  * work, so we need to escape manually *)
-val escape : 'expr_type param -> string
+val escape : param -> string
 
 val escape_string : string -> string
 

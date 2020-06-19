@@ -114,9 +114,8 @@ let delete_404s
 (* Input vars *)
 (* ------------------------- *)
 let saved_input_vars
-    (h : fluid_expr RTT.HandlerT.handler)
-    (request_path : string)
-    (event : RTT.dval) : input_vars =
+    (h : RTT.HandlerT.handler) (request_path : string) (event : RTT.dval) :
+    input_vars =
   match Handler.module_type h with
   | `Http ->
       let with_r = [("request", event)] in
@@ -147,9 +146,8 @@ let saved_input_vars
 
 
 let handler_trace
-    (c : Canvas.canvas)
-    (h : Types.fluid_expr RTT.HandlerT.handler)
-    (trace_id : traceid) : trace =
+    (c : Canvas.canvas) (h : RTT.HandlerT.handler) (trace_id : traceid) : trace
+    =
   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
   let input, timestamp =
     match event with
@@ -164,8 +162,7 @@ let handler_trace
   (trace_id, Some {input; timestamp; function_results})
 
 
-let user_fn_trace
-    (c : Canvas.canvas) (fn : fluid_expr RTT.user_fn) (trace_id : traceid) :
+let user_fn_trace (c : Canvas.canvas) (fn : RTT.user_fn) (trace_id : traceid) :
     trace =
   let event =
     Stored_function_arguments.load_for_analysis ~canvas_id:c.id fn.tlid trace_id
@@ -183,8 +180,8 @@ let user_fn_trace
   (trace_id, Some {input = ivs; timestamp; function_results})
 
 
-let traceids_for_handler
-    (c : Canvas.canvas) (h : 'expr_type RTT.HandlerT.handler) : traceid list =
+let traceids_for_handler (c : Canvas.canvas) (h : RTT.HandlerT.handler) :
+    traceid list =
   match Handler.event_desc_for h with
   | Some ((hmodule, _, _) as desc) ->
       let events = SE.load_event_ids ~canvas_id:c.id desc in
@@ -211,8 +208,7 @@ let traceids_for_handler
       [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
 
 
-let traceids_for_user_fn (c : Canvas.canvas) (fn : 'expr_type RTT.user_fn) :
-    traceid list =
+let traceids_for_user_fn (c : Canvas.canvas) (fn : RTT.user_fn) : traceid list =
   Stored_function_arguments.load_traceids c.id fn.tlid
 
 
@@ -300,11 +296,10 @@ let to_worker_schedules_push (ws : Event_queue.Worker_states.t) : string =
 
 (* A subset of responses to be merged in *)
 type add_op_rpc_result =
-  { toplevels : Types.fluid_expr TL.toplevel list (* replace *)
-  ; deleted_toplevels : Types.fluid_expr TL.toplevel list
-        (* replace, see note above *)
-  ; user_functions : Types.fluid_expr RTT.user_fn list (* replace *)
-  ; deleted_user_functions : Types.fluid_expr RTT.user_fn list
+  { toplevels : TL.toplevel list (* replace *)
+  ; deleted_toplevels : TL.toplevel list (* replace, see note above *)
+  ; user_functions : RTT.user_fn list (* replace *)
+  ; deleted_user_functions : RTT.user_fn list
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list (* replace, see deleted_toplevels *)
   }
@@ -361,10 +356,10 @@ let time_to_yojson (time : time) : Yojson.Safe.t =
 
 (* Initial load *)
 type initial_load_rpc_result =
-  { toplevels : Types.fluid_expr TL.toplevel list
-  ; deleted_toplevels : Types.fluid_expr TL.toplevel list
-  ; user_functions : Types.fluid_expr RTT.user_fn list
-  ; deleted_user_functions : Types.fluid_expr RTT.user_fn list
+  { toplevels : TL.toplevel list
+  ; deleted_toplevels : TL.toplevel list
+  ; user_functions : RTT.user_fn list
+  ; deleted_user_functions : RTT.user_fn list
   ; unlocked_dbs : tlid list
   ; assets : SA.static_deploy list
   ; user_tipes : RTT.user_tipe list

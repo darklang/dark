@@ -1,6 +1,6 @@
 open Core_kernel
 
-type 'expr_type t
+type t
 
 type header = string * string
 
@@ -12,11 +12,11 @@ val from_request :
   -> header list
   -> query_val list
   -> string
-  -> Types.fluid_expr t
+  -> t
 
-val to_dval : 'expr_type t -> Types.RuntimeT.dval
+val to_dval : t -> Types.RuntimeT.dval
 
-val sample_request : 'expr_type t
+val sample_request : t
 
 (* For testing *)
 

@@ -27,9 +27,9 @@ val post_traverse :
 val iter : f:(Types.fluid_expr -> unit) -> Types.fluid_expr -> unit
 
 val find_db :
-     Types.fluid_expr Types.RuntimeT.DbT.db list
+     Types.RuntimeT.DbT.db list
   -> string
-  -> Types.fluid_expr Types.RuntimeT.DbT.db
+  -> Types.RuntimeT.DbT.db
 
 val execute_dblock :
      state:Types.RuntimeT.exec_state

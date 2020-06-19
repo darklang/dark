@@ -2,7 +2,7 @@ open Core_kernel
 open Types.RuntimeT
 
 (* Internal invariant, _must_ be a DObj *)
-type 'expr_type t = dval
+type t = dval
 
 (* ------------------------- *)
 (* Internal *)

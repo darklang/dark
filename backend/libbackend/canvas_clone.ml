@@ -3,8 +3,9 @@ open Libexecution
 open Util
 open Canvas
 open Tc
+module SF = Serialization_format
 
-let is_op_that_creates_toplevel (op : 'expr_type Op.op) : bool =
+let is_op_that_creates_toplevel (op : Types.fluid_expr Op.op) : bool =
   match op with
   | SetHandler _
   | CreateDB _
@@ -46,8 +47,8 @@ let is_op_that_creates_toplevel (op : 'expr_type Op.op) : bool =
    * in there, because we don't have any UI for inspecting history, nor do we
    * store timestamps or edited-by-user for ops
    * ("git blame"). *)
-let only_ops_since_last_savepoint (ops : 'expr_type Op.op list) :
-    'expr_type Op.op list =
+let only_ops_since_last_savepoint (ops : Types.fluid_expr Op.op list) :
+    Types.fluid_expr Op.op list =
   let encountered_create_op = ref false in
   List.reverse ops
   |> List.take_while ~f:(fun op ->
@@ -66,11 +67,11 @@ let only_ops_since_last_savepoint (ops : 'expr_type Op.op list) :
    * ("://oldhost.builtwithdark.com/stuff", or its localhost equivalent), the
    * [op] will be transformed to refer to the [new_host] *)
 let update_hosts_in_op
-    (op : 'expr_type Op.op) ~(old_host : string) ~(new_host : string) :
-    'expr_type Op.op =
+    (op : SF.RuntimeT.expr Op.op) ~(old_host : string) ~(new_host : string) :
+    SF.RuntimeT.expr Op.op =
   (* It might be nice if expr had an equivalent of FluidExpression.walk *)
-  let rec update_hosts_in_pattern (pattern : Types.RuntimeT.pattern) :
-      Types.RuntimeT.pattern =
+  let rec update_hosts_in_pattern (pattern : SF.RuntimeT.pattern) :
+      SF.RuntimeT.pattern =
     let literal_is_dstr s : bool =
       match Dval.parse_literal s with Some (DStr _) -> true | _ -> false
     in
@@ -97,11 +98,11 @@ let update_hosts_in_op
                   , patterns |> List.map ~f:update_hosts_in_pattern ) )
   in
   let rec update_hosts_in_expr
-      (expr : Types.RuntimeT.expr) ~(old_host : string) ~(new_host : string) :
-      Types.RuntimeT.expr =
+      (expr : SF.RuntimeT.expr) ~(old_host : string) ~(new_host : string) :
+      SF.RuntimeT.expr =
     (* Helper function; its only purpose is to not have to pass ~old_host and
      * ~new_host around anymore *)
-    let rec f (expr : Types.RuntimeT.expr) : Types.RuntimeT.expr =
+    let rec f (expr : SF.RuntimeT.expr) : SF.RuntimeT.expr =
       let literal_is_dstr s : bool =
         match Dval.parse_literal s with Some (DStr _) -> true | _ -> false
       in
@@ -251,7 +252,9 @@ let clone_canvas ~from_canvas_name ~to_canvas_name ~(preserve_history : bool) :
           * (canvas names) in string literals *)
          let to_ops =
            !from_canvas.ops
-           |> List.map ~f:(fun (tlid, ops) ->
+           |> List.map
+                ~f:(fun ((tlid, ops) : Types.tlid * Types.fluid_expr Op.oplist)
+                        ->
                   (* We always "preserve history" for DBs because their ops are
                    * cumulative *)
                   if preserve_history

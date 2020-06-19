@@ -16,7 +16,7 @@ let dstr_of_string_exn (s : string) : dval =
 (* ------------------------- *)
 (* Types *)
 (* ------------------------- *)
-let rec tipe_to_string t : string =
+let rec tipe_to_string (t : tipe) : string =
   match t with
   | TAny ->
       "Any"
@@ -73,7 +73,7 @@ let rec tipe_to_string t : string =
       Exception.internal "Deprecated type"
 
 
-let rec tipe_to_developer_repr_v0 t : string =
+let rec tipe_to_developer_repr_v0 (t : tipe) : string =
   match t with
   | TAny ->
       "Any"

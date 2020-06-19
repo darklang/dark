@@ -15,7 +15,7 @@ type position =
   | First
   | Last
 
-let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
+let binop_to_sql (op : string) : tipe * tipe * tipe * string =
   let allInts str = (TInt, TInt, TInt, str) in
   let allFloats str = (TFloat, TFloat, TFloat, str) in
   let boolOp tipe str = (tipe, tipe, TBool, str) in
@@ -89,7 +89,7 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       error2 "This function is not yet implemented" op
 
 
-let unary_op_to_sql op : tipe_ * tipe_ * string * string list * position =
+let unary_op_to_sql op : tipe * tipe * string * string list * position =
   (* Returns a postgres function name, and arguments to the function. The
    * argument the user provides will be inserted as the First or Last argument. *)
   match op with
@@ -117,7 +117,7 @@ let unary_op_to_sql op : tipe_ * tipe_ * string * string list * position =
       error2 "This function is not yet implemented" op
 
 
-let tipe_to_sql_tipe (t : tipe_) : string =
+let tipe_to_sql_tipe (t : tipe) : string =
   match t with
   | TStr ->
       "text"
@@ -130,7 +130,7 @@ let tipe_to_sql_tipe (t : tipe_) : string =
   | TDate ->
       "timestamp with time zone"
   | _ ->
-      error2 "We do not support this type of DB field yet" (show_tipe_ t)
+      error2 "We do not support this type of DB field yet" (show_tipe t)
 
 
 (* This canonicalizes an expression, meaning it removes multiple ways of
@@ -212,7 +212,7 @@ let dval_to_sql (dval : dval) : string =
 (* TODO: support characters, floats, dates, and uuids. And maybe lists and
  * bytes. Probably something can be done with options and results. *)
 
-let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
+let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe) : unit =
   if Dval.tipe_of dval = expected_tipe || expected_tipe = TAny
   then ()
   else
@@ -227,8 +227,8 @@ let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe_) : unit =
       ^ Dval.to_developer_repr_v0 dval )
 
 
-let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
-    unit =
+let typecheck (name : string) (actual_tipe : tipe) (expected_tipe : tipe) : unit
+    =
   if actual_tipe = expected_tipe || expected_tipe = TAny
   then ()
   else
@@ -302,8 +302,8 @@ let rec inline
 let rec lambda_to_sql
     (symtable : dval_map)
     (paramName : string)
-    (dbFields : tipe_ Prelude.StrDict.t)
-    (expected_tipe : tipe_)
+    (dbFields : tipe Prelude.StrDict.t)
+    (expected_tipe : tipe)
     (expr : E.t) : string =
   let lts tipe e = lambda_to_sql symtable paramName dbFields tipe e in
   match expr with
@@ -468,7 +468,7 @@ let compile_lambda
     ~(state : exec_state)
     (symtable : dval_map)
     (param_name : string)
-    (db_fields : tipe_ Prelude.StrDict.t)
+    (db_fields : tipe Prelude.StrDict.t)
     (body : fluid_expr) : string =
   let symtable, body =
     body
