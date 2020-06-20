@@ -31,3 +31,15 @@ val hasVariableNamed : string -> t -> bool
 (** [findPattern patID within] returns Some pattern
   with Shared.id = [patID] in the [within] tree, or None. *)
 val findPattern : Shared.id -> t -> t option
+
+(** [preTraversal f pattern] walks the entire pattern from top to bottom,
+  * calling f on each pattern. It returns a new patterm with every subpattern p
+  * replaced by [f p]. After calling [f], the result is then recursed into; if
+  * this isn't what you want call postTraversal. *)
+val preTraversal : f:(t -> t) -> t -> t
+
+(** [postTraversal f pattern] walks the entire pattern from bottom to top,
+  * calling f on each pattern. It returns a new pattern with every subpattern p
+  * replaced by [f p]. After calling [f], the result is NOT recursed into; if
+  * this isn't what you want call preTraversal. *)
+val postTraversal : f:(t -> t) -> t -> t

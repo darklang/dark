@@ -130,6 +130,9 @@ module RuntimeT = struct
       fluid_expr Serialization_format.RuntimeT.DbT.db_migration
     [@@deriving eq, show, yojson]
 
+    type migration_kind = Serialization_format.RuntimeT.DbT.migration_kind
+    [@@deriving eq, show, yojson]
+
     type db_migration_state =
       Serialization_format.RuntimeT.DbT.db_migration_state
     [@@deriving eq, show, yojson]
@@ -495,3 +498,41 @@ module RuntimeT = struct
     | _ ->
         None
 end
+
+type op =
+  | SetHandler of tlid * pos * RuntimeT.HandlerT.handler
+  | CreateDB of tlid * pos * string
+  | AddDBCol of tlid * id * id
+  | SetDBColName of tlid * id * string
+  | SetDBColType of tlid * id * string
+  | DeleteTL of tlid
+  | MoveTL of tlid * pos
+  | SetFunction of RuntimeT.user_fn
+  | ChangeDBColName of tlid * id * string
+  | ChangeDBColType of tlid * id * string
+  | UndoTL of tlid
+  | RedoTL of tlid
+  | DeprecatedInitDbm of tlid * id * id * id * RuntimeT.DbT.migration_kind
+  | SetExpr of tlid * id * fluid_expr
+  | TLSavepoint of tlid
+  | DeleteFunction of tlid
+  | CreateDBMigration of
+      tlid * id * id * (string or_blank * string or_blank) list
+  | AddDBColToDBMigration of tlid * id * id
+  | SetDBColNameInDBMigration of tlid * id * string
+  | SetDBColTypeInDBMigration of tlid * id * string
+  | AbandonDBMigration of tlid
+  | DeleteColInDBMigration of tlid * id
+  | DeleteDBCol of tlid * id
+  | RenameDBname of tlid * string
+  | CreateDBWithBlankOr of tlid * pos * id * string
+  | DeleteTLForever of tlid
+  | DeleteFunctionForever of tlid
+  | SetType of RuntimeT.user_tipe
+  | DeleteType of tlid
+  | DeleteTypeForever of tlid
+[@@deriving eq, yojson, show]
+
+type oplist = op list [@@deriving eq, yojson, show]
+
+type tlid_oplists = (tlid * oplist) list [@@deriving eq, yojson, show]

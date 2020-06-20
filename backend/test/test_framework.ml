@@ -145,7 +145,7 @@ let t_route_variables_work_with_stored_events () =
   (* set up test *)
   clear_test_data () ;
   let host = "test-route_variables_works" in
-  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
+  let oplist = [SetHandler (tlid, pos, http_route_handler ())] in
   let c = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
@@ -182,7 +182,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
   let route = "/api/create_token" in
   let request_path = "/api/create-token" in
   (* note hyphen vs undeerscore *)
-  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
+  let oplist = [SetHandler (tlid, pos, http_route_handler ~route ())] in
   let c = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in

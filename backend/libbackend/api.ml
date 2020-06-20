@@ -3,10 +3,8 @@ open Libexecution
 open Types
 open Analysis_types
 
-type 'expr_type oplist = 'expr_type Op.op list [@@deriving yojson]
-
 type add_op_rpc_params =
-  { ops : Types.fluid_expr oplist
+  { ops : oplist
   ; opCtr : int
         (* option means that we can still deserialize if this field is null, as
          * doc'd at https://github.com/ocaml-ppx/ppx_deriving_yojson *)
@@ -28,8 +26,7 @@ type execute_function_rpc_params =
   ; fnname : string }
 [@@deriving yojson]
 
-type upload_function_rpc_params = {fn : RuntimeT.user_fn}
-[@@deriving yojson]
+type upload_function_rpc_params = {fn : RuntimeT.user_fn} [@@deriving yojson]
 
 let to_upload_function_rpc_params (payload : string) :
     upload_function_rpc_params =

@@ -107,3 +107,39 @@ let rec findPattern (patID : id) (within : t) : t option =
       if patID = pid
       then Some within
       else List.findMap pats ~f:(fun p -> findPattern patID p)
+
+
+let rec preTraversal ~(f : t -> t) (pattern : t) : t =
+  let r = preTraversal ~f in
+  let pattern = f pattern in
+  match pattern with
+  | FPVariable _
+  | FPInteger _
+  | FPBool _
+  | FPString _
+  | FPBlank _
+  | FPNull _
+  | FPFloat _ ->
+      pattern
+  | FPConstructor (matchID, patternID, name, patterns) ->
+      FPConstructor
+        (matchID, patternID, name, List.map patterns ~f:(fun p -> r p))
+
+
+let rec postTraversal ~(f : t -> t) (pattern : t) : t =
+  let r = postTraversal ~f in
+  let result =
+    match pattern with
+    | FPVariable _
+    | FPInteger _
+    | FPBool _
+    | FPString _
+    | FPBlank _
+    | FPNull _
+    | FPFloat _ ->
+        pattern
+    | FPConstructor (matchID, patternID, name, patterns) ->
+        FPConstructor
+          (matchID, patternID, name, List.map patterns ~f:(fun p -> r p))
+  in
+  f result

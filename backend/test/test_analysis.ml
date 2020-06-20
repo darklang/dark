@@ -36,7 +36,7 @@ let t_test_filter_slash () =
   clear_test_data () ;
   let host = "test-test_filter_slash" in
   let route = "/:rest" in
-  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
+  let oplist = [SetHandler (tlid, pos, http_route_handler ~route ())] in
   let c = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
@@ -79,10 +79,10 @@ let t_other_db_query_functions_have_analysis () =
             , fieldAccess ~id:faID (var ~id:varID "value") "age" ) ]
     in
     let ops =
-      [ Op.CreateDB (dbTLID, pos, "MyDB")
-      ; Op.AddDBCol (dbTLID, colNameID, colTypeID)
-      ; Op.SetDBColName (dbTLID, colNameID, "age")
-      ; Op.SetDBColType (dbTLID, colTypeID, "int") ]
+      [ CreateDB (dbTLID, pos, "MyDB")
+      ; AddDBCol (dbTLID, colNameID, colTypeID)
+      ; SetDBColName (dbTLID, colNameID, "age")
+      ; SetDBColType (dbTLID, colTypeID, "int") ]
     in
     let dvalStore = exec_save_dvals ~ops ast in
     check_condition
@@ -126,7 +126,7 @@ let t_recursion_in_editor () =
          (fn ~id:skipped_caller_id "recurse" [int 2]))
   in
   let ast = fn ~id:caller_id "recurse" [int 0] in
-  let ops = [Op.SetFunction recurse] in
+  let ops = [SetFunction recurse] in
   let dvalStore = exec_save_dvals' ~ops ast in
   check_execution_result
     "result is there as expected"

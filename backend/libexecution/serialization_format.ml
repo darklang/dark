@@ -211,3 +211,45 @@ module RuntimeT = struct
 end
 
 (* DO NOT CHANGE ANYTHING IN THIS FILE WITHOUT READING docs/oplist-serialization.md *)
+
+type 'expr_type op =
+  | SetHandler of tlid * pos * 'expr_type RuntimeT.HandlerT.handler
+  | CreateDB of tlid * pos * string
+  | AddDBCol of tlid * id * id
+  | SetDBColName of tlid * id * string
+  | SetDBColType of tlid * id * string
+  | DeleteTL of tlid
+  | MoveTL of tlid * pos
+  | SetFunction of 'expr_type RuntimeT.user_fn
+  | ChangeDBColName of tlid * id * string
+  | ChangeDBColType of tlid * id * string
+  | UndoTL of tlid
+  | RedoTL of tlid
+  | DeprecatedInitDbm of tlid * id * id * id * RuntimeT.DbT.migration_kind
+  | SetExpr of tlid * id * 'expr_type
+  | TLSavepoint of tlid
+  | DeleteFunction of tlid
+  | CreateDBMigration of
+      tlid * id * id * (string or_blank * string or_blank) list
+  | AddDBColToDBMigration of tlid * id * id
+  | SetDBColNameInDBMigration of tlid * id * string
+  | SetDBColTypeInDBMigration of tlid * id * string
+  | AbandonDBMigration of tlid
+  | DeleteColInDBMigration of tlid * id
+  | DeleteDBCol of tlid * id
+  | RenameDBname of tlid * string
+  | CreateDBWithBlankOr of tlid * pos * id * string
+  | DeleteTLForever of tlid
+  | DeleteFunctionForever of tlid
+  | SetType of RuntimeT.user_tipe
+  | DeleteType of tlid
+  | DeleteTypeForever of tlid
+[@@deriving eq, yojson, show, bin_io]
+
+type 'expr_type oplist = 'expr_type op list
+[@@deriving eq, yojson, show, bin_io]
+
+type 'expr_type tlid_oplists = (tlid * 'expr_type oplist) list
+[@@deriving eq, yojson, show, bin_io]
+
+(* DO NOT CHANGE ANYTHING IN THIS FILE WITHOUT READING docs/oplist-serialization.md *)

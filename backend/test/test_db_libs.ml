@@ -1,6 +1,7 @@
 open Core_kernel
 open Libexecution
 open Libbackend
+open Types
 open Types.RuntimeT
 open Utils
 open Libshared.FluidShortcuts
@@ -8,10 +9,10 @@ open Libshared.FluidShortcuts
 let t_db_add_roundtrip () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -31,13 +32,13 @@ let t_db_add_roundtrip () =
 let t_db_new_query_v1_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "y")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "y")
+    ; SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
     let'
@@ -66,13 +67,13 @@ let t_db_new_query_v1_works () =
 let t_db_new_query_v2_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "y")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "y")
+    ; SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
     let'
@@ -98,13 +99,13 @@ let t_db_new_query_v2_works () =
 let t_db_new_query_v3_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "y")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "y")
+    ; SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
     let'
@@ -130,10 +131,10 @@ let t_db_new_query_v3_works () =
 let t_db_set_does_upsert () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -153,10 +154,10 @@ let t_db_set_does_upsert () =
 let t_db_get_all_with_keys_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid2)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
     let'
@@ -179,10 +180,10 @@ let t_db_get_all_with_keys_works () =
 let t_db_get_all_with_keys_v2_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid2)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
     let'
@@ -210,10 +211,10 @@ let t_db_get_all_with_keys_v2_works () =
 let t_db_get_many_with_keys_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -239,10 +240,10 @@ let t_db_get_many_with_keys_works () =
 let t_db_get_many_with_keys_v1_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -272,10 +273,10 @@ let t_db_get_many_with_keys_v1_works () =
 let t_db_get_existing_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -300,10 +301,10 @@ let t_db_get_existing_works () =
 let t_db_get_many_v3_returns_nothing_if_none () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
 
   let ast =
@@ -327,10 +328,10 @@ let t_db_get_many_v3_returns_nothing_if_none () =
 let t_db_get_many_v3_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
 
   let ast =
@@ -358,10 +359,10 @@ let t_db_get_many_v3_works () =
 let t_db_get_many_v2_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -386,10 +387,10 @@ let t_db_get_many_v2_works () =
 let t_db_get_many_v1_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -415,13 +416,13 @@ let t_db_get_many_v1_works () =
 let t_db_queryWithKey_works_with_many () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "sort_by")
+    ; SetDBColType (dbid, coltypeid2, "Int") ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -467,10 +468,10 @@ let t_db_queryWithKey_works_with_many () =
 let t_db_queryWithKey_v2_works_with_many () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -505,10 +506,10 @@ let t_db_queryWithKey_v2_works_with_many () =
 let t_db_get_returns_nothing () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   check_dval
     "get_returns_nothing"
@@ -519,10 +520,10 @@ let t_db_get_returns_nothing () =
 let t_db_queryOne_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -540,10 +541,10 @@ let t_db_queryOne_works () =
 let t_db_queryOne_supports_Date_comparison () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "ts")
-    ; Op.SetDBColType (dbid, coltypeid, "Date") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "ts")
+    ; SetDBColType (dbid, coltypeid, "Date") ]
   in
   let after = "2100-01-01T00:00:00Z" in
   let before = "1900-01-01T00:00:00Z" in
@@ -614,10 +615,10 @@ let t_db_queryOne_supports_Date_comparison () =
 let t_db_queryOne_returns_nothing_if_none () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -634,10 +635,10 @@ let t_db_queryOne_returns_nothing_if_none () =
 let t_db_queryOne_returns_nothing_multiple () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -657,10 +658,10 @@ let t_db_queryOne_returns_nothing_multiple () =
 let t_db_queryOneWithKey_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -681,10 +682,10 @@ let t_db_queryOneWithKey_works () =
 let t_db_queryOneWithKey_v2_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -706,10 +707,10 @@ let t_db_queryOneWithKey_v2_works () =
 let t_db_queryOneWithKey_returns_nothing_if_none () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -726,10 +727,10 @@ let t_db_queryOneWithKey_returns_nothing_if_none () =
 let t_db_queryOneWithKey_v2_returns_nothing_if_none () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -746,10 +747,10 @@ let t_db_queryOneWithKey_v2_returns_nothing_if_none () =
 let t_db_queryOneWithKey_returns_nothing_multiple () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -769,10 +770,10 @@ let t_db_queryOneWithKey_returns_nothing_multiple () =
 let t_db_queryOneWithKey_v2_returns_nothing_multiple () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     let'
@@ -792,13 +793,13 @@ let t_db_queryOneWithKey_v2_returns_nothing_multiple () =
 let t_db_getAll_v1_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "sort_by")
+    ; SetDBColType (dbid, coltypeid2, "Int") ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -841,13 +842,13 @@ let t_db_getAll_v1_works () =
 let t_db_getAll_v2_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "sort_by")
+    ; SetDBColType (dbid, coltypeid2, "Int") ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -887,13 +888,13 @@ let t_db_getAll_v2_works () =
 let t_db_getAll_v3_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "sort_by")
+    ; SetDBColType (dbid, coltypeid2, "Int") ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -933,10 +934,10 @@ let t_db_getAll_v3_works () =
 let t_db_getAllKeys_works () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "MyDB")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    [ CreateDB (dbid, pos, "MyDB")
+    ; AddDBCol (dbid, colnameid, coltypeid2)
+    ; SetDBColName (dbid, colnameid, "x")
+    ; SetDBColType (dbid, coltypeid2, "Str") ]
   in
   let ast =
     let'
@@ -1059,22 +1060,22 @@ let t_db_query_works () =
   let open Libshared.FluidShortcuts in
   clear_test_data () ;
   let ops =
-    [ Op.CreateDB (dbid, pos, "Person")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "name")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
-    ; Op.SetDBColName (dbid, colnameid2, "human")
-    ; Op.SetDBColType (dbid, coltypeid2, "Bool")
-    ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
-    ; Op.SetDBColName (dbid, colnameid3, "height")
-    ; Op.SetDBColType (dbid, coltypeid3, "Int")
-    ; Op.AddDBCol (dbid, colnameid4, coltypeid4)
-    ; Op.SetDBColName (dbid, colnameid4, "income")
-    ; Op.SetDBColType (dbid, coltypeid4, "Float")
-    ; Op.AddDBCol (dbid, colnameid5, coltypeid5)
-    ; Op.SetDBColName (dbid, colnameid5, "dob")
-    ; Op.SetDBColType (dbid, coltypeid5, "Date") ]
+    [ CreateDB (dbid, pos, "Person")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; SetDBColName (dbid, colnameid, "name")
+    ; SetDBColType (dbid, coltypeid, "Str")
+    ; AddDBCol (dbid, colnameid2, coltypeid2)
+    ; SetDBColName (dbid, colnameid2, "human")
+    ; SetDBColType (dbid, coltypeid2, "Bool")
+    ; AddDBCol (dbid, colnameid3, coltypeid3)
+    ; SetDBColName (dbid, colnameid3, "height")
+    ; SetDBColType (dbid, coltypeid3, "Int")
+    ; AddDBCol (dbid, colnameid4, coltypeid4)
+    ; SetDBColName (dbid, colnameid4, "income")
+    ; SetDBColType (dbid, coltypeid4, "Float")
+    ; AddDBCol (dbid, colnameid5, coltypeid5)
+    ; SetDBColName (dbid, colnameid5, "dob")
+    ; SetDBColType (dbid, coltypeid5, "Date") ]
   in
   (* Prepopulate the DB for tests *)
   let ross_dob = str "1967-05-12T00:00:00Z" in

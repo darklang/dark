@@ -105,7 +105,7 @@ let check_execution_result = AT.check (AT.of_pp pp_execution_result)
 
 let check_dval_list = AT.check (AT.list at_dval)
 
-let check_tlid_oplists = AT.check (AT.of_pp (Op.pp_tlid_oplists pp_fluid_expr))
+let check_tlid_oplists = AT.check (AT.of_pp Types.pp_tlid_oplists)
 
 let check_condition msg (v : 'a) ~(f : 'a -> bool) =
   AT.check AT.bool msg true (f v)
@@ -287,7 +287,7 @@ let worker name ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
-let hop h = Op.SetHandler (tlid, pos, h)
+let hop h = Types.SetHandler (tlid, pos, h)
 
 let user_fn
     ?(tlid = tlid)
@@ -311,7 +311,7 @@ let user_fn
       ; infix = false } }
 
 
-let fop f = Op.SetFunction f
+let fop f = Types.SetFunction f
 
 let user_record name fields : user_tipe =
   {tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields}
@@ -324,13 +324,12 @@ let t4_get4th (_, _, _, x) = x
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
-let ops2c (host : string) (ops : Types.fluid_expr Op.op list) :
+let ops2c (host : string) (ops : Types.oplist) :
     (C.canvas ref, string list) Result.t =
   C.init host ops
 
 
-let ops2c_exn (host : string) (ops : Types.fluid_expr Op.op list) : C.canvas ref
-    =
+let ops2c_exn (host : string) (ops : Types.oplist) : C.canvas ref =
   C.init host ops
   |> Result.map_error ~f:(String.concat ~sep:", ")
   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
@@ -352,7 +351,7 @@ let load_test_fn_results (desc : function_desc) (args : dval list) :
 let test_execution_data
     ?(trace_id = Util.create_uuid ())
     ?(canvas_name = "test")
-    (ops : fluid_expr Op.oplist) : C.canvas ref * exec_state * input_vars =
+    (ops : Types.oplist) : C.canvas ref * exec_state * input_vars =
   let c = ops2c_exn canvas_name ops in
   let vars = [] in
   let canvas_id = !c.id in
@@ -388,7 +387,7 @@ let test_execution_data
 let execute_ops
     ?(trace_id = Util.create_uuid ())
     ?(canvas_name = "test")
-    (ops : Types.fluid_expr Op.op list) : dval =
+    (ops : Types.oplist) : dval =
   let ( c
       , { tlid
         ; load_fn_result

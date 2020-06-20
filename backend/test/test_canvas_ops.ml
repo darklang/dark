@@ -13,11 +13,11 @@ module AT = Alcotest
 
 let t_undo_fns () =
   clear_test_data () ;
-  let n1 = Op.TLSavepoint tlid in
+  let n1 = TLSavepoint tlid in
   let n2 = hop (handler (binop "-" (blank ()) (blank ()))) in
   let n3 = hop (handler (binop "-" (int 3) (blank ()))) in
   let n4 = hop (handler (binop "-" (int 3) (int 4))) in
-  let u = Op.UndoTL tlid in
+  let u = UndoTL tlid in
   let ops (c : C.canvas ref) = !c.ops |> List.hd_exn |> Tuple.T2.get2 in
   AT.check
     AT.int
@@ -31,9 +31,9 @@ let t_undo_fns () =
 let t_undo () =
   clear_test_data () ;
   let ha ast = hop (handler ast) in
-  let sp = Op.TLSavepoint tlid in
-  let u = Op.UndoTL tlid in
-  let r = Op.RedoTL tlid in
+  let sp = TLSavepoint tlid in
+  let u = UndoTL tlid in
+  let r = RedoTL tlid in
   let o1 = int 1 in
   let o2 = int 2 in
   let o3 = int 3 in
@@ -65,9 +65,7 @@ let t_db_oplist_roundtrip () =
   let host = "test-db_oplist_roundtrip" in
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
-  let oplist =
-    [Op.UndoTL tlid; Op.RedoTL tlid; Op.UndoTL tlid; Op.RedoTL tlid]
-  in
+  let oplist = [UndoTL tlid; RedoTL tlid; UndoTL tlid; RedoTL tlid] in
   Serialize.save_toplevel_oplist
     oplist
     ~binary_repr:None
@@ -88,7 +86,7 @@ let t_http_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-http_oplist_roundtrip" in
   let handler = http_route_handler () in
-  let oplist = [Op.SetHandler (tlid, pos, handler)] in
+  let oplist = [SetHandler (tlid, pos, handler)] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c1 ;
   let c2 =
@@ -114,9 +112,7 @@ let t_http_oplist_loads_user_tipes () =
   clear_test_data () ;
   let host = "test-http_oplist_loads_user_tipes" in
   let tipe = user_record "test-tipe" [] in
-  let oplist =
-    [Op.SetHandler (tlid, pos, http_route_handler ()); Op.SetType tipe]
-  in
+  let oplist = [SetHandler (tlid, pos, http_route_handler ()); SetType tipe] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
   let c2 =
@@ -143,10 +139,10 @@ let t_http_load_ignores_deleted_fns () =
   let f = user_fn ~tlid:tlid2 "testfn" [] (binop "+" (int 5) (int 3)) in
   let f2 = user_fn ~tlid:tlid3 "testfn" [] (binop "+" (int 6) (int 4)) in
   let oplist =
-    [ Op.SetHandler (tlid, pos, handler)
-    ; Op.SetFunction f
-    ; Op.DeleteFunction tlid2
-    ; Op.SetFunction f2 ]
+    [ SetHandler (tlid, pos, handler)
+    ; SetFunction f
+    ; DeleteFunction tlid2
+    ; SetFunction f2 ]
   in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tlid2; tlid3] !c1 ;
@@ -180,8 +176,8 @@ let t_http_load_ignores_deleted_fns () =
 let t_db_create_with_orblank_name () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid) ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; AddDBCol (dbid, colnameid, coltypeid) ]
   in
   let _, state, _ = test_execution_data ops in
   AT.check AT.bool "datastore is created" true (state.dbs <> [])
@@ -190,9 +186,9 @@ let t_db_create_with_orblank_name () =
 let t_db_rename () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "ElmCode")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.RenameDBname (dbid, "BsCode") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "ElmCode")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; RenameDBname (dbid, "BsCode") ]
   in
   let _, state, _ = test_execution_data ops in
   match List.hd state.dbs with
@@ -216,9 +212,9 @@ let t_set_after_delete () =
   clear_test_data () ;
   let h1 = handler (binop "+" (int 5) (int 3)) in
   let h2 = handler (binop "+" (int 5) (int 2)) in
-  let op1 = Op.SetHandler (tlid, pos, h1) in
-  let op2 = Op.DeleteTL tlid in
-  let op3 = Op.SetHandler (tlid, pos, h2) in
+  let op1 = SetHandler (tlid, pos, h1) in
+  let op2 = DeleteTL tlid in
+  let op3 = SetHandler (tlid, pos, h2) in
   check_dval "first handler is right" (execute_ops [op1]) (Dval.dint 8) ;
   check_empty "deleted not in handlers" !(ops2c_exn "test" [op1; op2]).handlers ;
   check_single
@@ -238,9 +234,9 @@ let t_set_after_delete () =
   clear_test_data () ;
   let h1 = user_fn "testfn" [] (binop "+" (int 5) (int 3)) in
   let h2 = user_fn "testfn" [] (binop "+" (int 5) (int 2)) in
-  let op1 = Op.SetFunction h1 in
-  let op2 = Op.DeleteFunction tlid in
-  let op3 = Op.SetFunction h2 in
+  let op1 = SetFunction h1 in
+  let op2 = DeleteFunction tlid in
+  let op3 = SetFunction h2 in
   check_empty "deleted not in fns" !(ops2c_exn "test" [op1; op2]).user_functions ;
   check_single
     "delete in deleted"
@@ -258,10 +254,10 @@ let t_load_all_dbs_from_cache () =
   clear_test_data () ;
   let host = "test-http_oplist_loads_user_tipes" in
   let oplist =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
-    ; Op.CreateDBWithBlankOr (dbid3, pos, nameid3, "Books3")
-    ; Op.DeleteTL dbid ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
+    ; CreateDBWithBlankOr (dbid3, pos, nameid3, "Books3")
+    ; DeleteTL dbid ]
   in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [dbid; dbid2; dbid3] !c1 ;
@@ -280,8 +276,8 @@ let t_load_all_dbs_from_cache () =
 
 let t_canvas_verification_duplicate_creation () =
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
   in
   let c = ops2c "test-verify_create" ops in
   AT.check AT.bool "should not verify" false (Result.is_ok c)
@@ -290,11 +286,11 @@ let t_canvas_verification_duplicate_creation () =
 let t_canvas_verification_duplicate_creation_off_disk () =
   clear_test_data () ;
   let host = "test-verify_rename" in
-  let ops = [Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")] in
+  let ops = [CreateDBWithBlankOr (dbid, pos, nameid, "Books")] in
   let c1 = ops2c_exn host ops in
   Canvas.serialize_only [dbid] !c1 ;
   let c2 =
-    let ops = [Op.CreateDBWithBlankOr (dbid2, pos, nameid, "Books")] in
+    let ops = [CreateDBWithBlankOr (dbid2, pos, nameid, "Books")] in
     match Op.required_context_to_validate_oplist ops with
     | NoContext ->
         Canvas.load_only_tlids ~tlids:[dbid2] host ops
@@ -306,9 +302,9 @@ let t_canvas_verification_duplicate_creation_off_disk () =
 
 let t_canvas_verification_duplicate_renaming () =
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
-    ; Op.RenameDBname (dbid2, "Books") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
+    ; RenameDBname (dbid2, "Books") ]
   in
   let c = ops2c "test-verify_rename" ops in
   AT.check AT.bool "should not verify" false (Result.is_ok c)
@@ -316,8 +312,8 @@ let t_canvas_verification_duplicate_renaming () =
 
 let t_canvas_verification_no_error () =
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
   in
   let c = ops2c "test-verify_okay" ops in
   AT.check AT.bool "should verify" true (Result.is_ok c)
@@ -325,10 +321,10 @@ let t_canvas_verification_no_error () =
 
 let t_canvas_verification_undo_rename_duped_name () =
   let ops1 =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.TLSavepoint dbid
-    ; Op.DeleteTL dbid
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; TLSavepoint dbid
+    ; DeleteTL dbid
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
   in
   let c = ops2c "test-verify_undo_1" ops1 in
   AT.check AT.bool "should initially verify" true (Result.is_ok c) ;

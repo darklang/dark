@@ -16,7 +16,7 @@ type canvas =
   ; owner : Uuidm.t
   ; id : Uuidm.t
   ; creation_date : Time.t [@opaque]
-  ; ops : (tlid * fluid_expr Op.oplist) list
+  ; ops : (tlid * Types.oplist) list
   ; cors_setting : cors_setting option
   ; handlers : TL.toplevels
   ; dbs : TL.toplevels
@@ -153,8 +153,7 @@ let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
 (* Build *)
 (* ------------------------- *)
 
-let apply_op (is_new : bool) (op : Types.fluid_expr Op.op) (c : canvas ref) :
-    unit =
+let apply_op (is_new : bool) (op : Types.op) (c : canvas ref) : unit =
   try
     c :=
       !c
@@ -222,8 +221,7 @@ let apply_op (is_new : bool) (op : Types.fluid_expr Op.op) (c : canvas ref) :
           ident
       | UndoTL _ | RedoTL _ ->
           Exception.internal
-            ( "This should have been preprocessed out! "
-            ^ Op.show_op (fun _ _ -> ()) op )
+            ("This should have been preprocessed out! " ^ Types.show_op op)
       | RenameDBname (tlid, name) ->
           apply_to_db ~f:(User_db.rename_db name) tlid
       | CreateDBWithBlankOr (tlid, pos, id, name) ->
@@ -245,7 +243,7 @@ let apply_op (is_new : bool) (op : Types.fluid_expr Op.op) (c : canvas ref) :
       "apply_op failure"
       ~params:
         [ ("host", !c.host)
-        ; ("op", Op.show_op (fun _ _ -> ()) op)
+        ; ("op", Types.show_op op)
         ; ("exn", Exception.to_string e) ] ;
     Exception.reraise e
 
@@ -280,10 +278,8 @@ let verify (c : canvas ref) : (unit, string list) Result.t =
   match duped_db_names with [] -> Ok () | dupes -> Error dupes
 
 
-let add_ops
-    (c : canvas ref)
-    (oldops : fluid_expr Op.op list)
-    (newops : fluid_expr Op.op list) : unit =
+let add_ops (c : canvas ref) (oldops : Types.op list) (newops : Types.op list) :
+    unit =
   let oldops = List.map ~f:(fun op -> (false, op)) oldops in
   let newops = List.map ~f:(fun op -> (true, op)) newops in
   let reduced_ops = Undo.preprocess (oldops @ newops) in
@@ -336,7 +332,7 @@ let canvas_creation_date canvas_id : Core_kernel.Time.t =
   |> Db.date_of_sqlstring
 
 
-let init (host : string) (ops : Types.fluid_expr Op.op list) :
+let init (host : string) (ops : Types.oplist) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
@@ -440,9 +436,8 @@ let url_for (id : Uuidm.t) : string =
 let load_from
     (host : string)
     (owner : Uuidm.t)
-    (newops : fluid_expr Op.op list)
-    ~(f :
-       host:string -> canvas_id:Uuidm.t -> unit -> fluid_expr Op.tlid_oplists) :
+    (newops : Types.oplist)
+    ~(f : host:string -> canvas_id:Uuidm.t -> unit -> Types.tlid_oplists) :
     (canvas ref, string list) Result.t =
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
@@ -484,13 +479,12 @@ let load_without_tls host : (canvas ref, string list) Result.t =
   load_from ~f:(fun ~host ~canvas_id () -> []) host owner []
 
 
-let load_all host (newops : Types.fluid_expr Op.op list) :
-    (canvas ref, string list) Result.t =
+let load_all host (newops : Types.oplist) : (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_from_db host owner newops
 
 
-let load_only_tlids ~tlids host (newops : fluid_expr Op.op list) :
+let load_only_tlids ~tlids host (newops : Types.oplist) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
@@ -498,13 +492,13 @@ let load_only_tlids ~tlids host (newops : fluid_expr Op.op list) :
 
 (* Same as `load_only_tlids` but filters out deleted tlids via
  * the denormalized `deleted` attributed on toplevel_oplists *)
-let load_only_undeleted_tlids ~tlids host (newops : fluid_expr Op.op list) :
+let load_only_undeleted_tlids ~tlids host (newops : Types.oplist) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
 
 
-let load_with_dbs ~tlids host (newops : fluid_expr Op.op list) :
+let load_with_dbs ~tlids host (newops : Types.oplist) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
