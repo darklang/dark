@@ -129,20 +129,25 @@ let parse_fnname (name : string) : string * string * string * string * int =
            "Invalid function name, missing part of the name. It should match {user_or_org}/{package}/{module}::{fnname}_v{number}")
 
 
-type expr_with_id =
+type expr_with_tlid =
   { tlid : Serialization_format.tlid
   ; expr : Serialization_format.RuntimeT.expr }
 [@@deriving bin_io, show]
 
-let expr_to_string (tlid : tlid) (expr : Serialization_format.RuntimeT.expr) :
-    string =
+type expr_tlid_pair = Types.fluid_expr * tlid [@@deriving show]
+
+let expr_tlid_pair_to_binary_string ((expr, tlid) : expr_tlid_pair) : string =
+  let expr = Serialization_converters.fromFluidExpr expr in
   {expr; tlid}
-  |> Core_extended.Bin_io_utils.to_line bin_expr_with_id
+  |> Core_extended.Bin_io_utils.to_line bin_expr_with_tlid
   |> Bigstring.to_string
 
 
-let string_to_expr (str : string) : expr_with_id =
-  Core_extended.Bin_io_utils.of_line str bin_expr_with_id
+let binary_string_to_expr_tlid_pair (str : string) : expr_tlid_pair =
+  let {expr; tlid} =
+    Core_extended.Bin_io_utils.of_line str bin_expr_with_tlid
+  in
+  (Serialization_converters.toFluidExpr expr, tlid)
 
 
 let function_name (fn : fn) : string =
@@ -223,10 +228,7 @@ let add_function (fn : fn) : unit =
           ; Db.String fn.fnname
           ; Db.Int version
           ; Db.String fn.description
-          ; Db.Binary
-              (expr_to_string
-                 fn.tlid
-                 (Serialization_converters.fromFluidExpr fn.body))
+          ; Db.Binary (expr_tlid_pair_to_binary_string (fn.body, fn.tlid))
           ; Db.String (Dval.tipe_to_string fn.return_type)
           ; Db.String
               (fn.parameters |> parameters_to_yojson |> Yojson.Safe.to_string)
@@ -374,10 +376,8 @@ let all_functions () : fn list =
     |> List.filter_map ~f:(function
            | [user_id; package; module_; fnname; version; body] ->
              ( try
-                 let body = string_to_expr body in
-                 Some
-                   ( string_of_id body.tlid
-                   , Serialization_converters.toFluidExpr body.expr )
+                 let expr, tlid = binary_string_to_expr_tlid_pair body in
+                 Some (string_of_id tlid, expr)
                with _ ->
                  let fnkey =
                    Printf.sprintf
