@@ -244,7 +244,8 @@ let hasEmptyWithId (id : id) (expr : t) : bool =
 
 let rec preTraversal ~(f : t -> t) (expr : t) : t =
   let r = preTraversal ~f in
-  match f expr with
+  let expr = f expr in
+  match expr with
   | EInteger _
   | EBlank _
   | EString _
