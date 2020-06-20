@@ -4,13 +4,10 @@ module Telemetry = Libcommon.Telemetry
 (* ----------------- *)
 (* Input vars *)
 (* ----------------- *)
-val input_vars_for_user_fn :
-  Types.RuntimeT.user_fn -> Types.RuntimeT.dval_map
+val input_vars_for_user_fn : Types.RuntimeT.user_fn -> Types.RuntimeT.dval_map
 
 val http_route_input_vars :
-     Types.RuntimeT.HandlerT.handler
-  -> string
-  -> Types.RuntimeT.input_vars
+  Types.RuntimeT.HandlerT.handler -> string -> Types.RuntimeT.input_vars
 
 val sample_route_input_vars :
   Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars

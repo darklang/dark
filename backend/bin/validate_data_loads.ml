@@ -101,10 +101,7 @@ let () =
           in
           let dbs = !c.dbs |> Toplevel.dbs in
           dbs
-          |> List.iter
-               ~f:(fun (db :
-                         Libexecution.Types.RuntimeT.DbT.db)
-                       ->
+          |> List.iter ~f:(fun (db : Libexecution.Types.RuntimeT.DbT.db) ->
                  let dbname =
                    match db.name with
                    | Filled (id, str) | Partial (id, str) ->
