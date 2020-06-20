@@ -79,7 +79,6 @@ let t_match_works () =
 
 
 let t_lambda_scopes_correctly () =
-  let open Fluid in
   check_dval
     "lambda uses scope at create time, not call time"
     (DList [Dval.dint 6; Dval.dint 7; Dval.dint 8; Dval.dint 9])

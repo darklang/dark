@@ -223,7 +223,10 @@ let add_function (fn : fn) : unit =
           ; Db.String fn.fnname
           ; Db.Int version
           ; Db.String fn.description
-          ; Db.Binary (expr_to_string fn.tlid (Fluid.fromFluidExpr fn.body))
+          ; Db.Binary
+              (expr_to_string
+                 fn.tlid
+                 (Serialization_converters.fromFluidExpr fn.body))
           ; Db.String (Dval.tipe_to_string fn.return_type)
           ; Db.String
               (fn.parameters |> parameters_to_yojson |> Yojson.Safe.to_string)
@@ -372,7 +375,9 @@ let all_functions () : fn list =
            | [user_id; package; module_; fnname; version; body] ->
              ( try
                  let body = string_to_expr body in
-                 Some (string_of_id body.tlid, Fluid.toFluidExpr body.expr)
+                 Some
+                   ( string_of_id body.tlid
+                   , Serialization_converters.toFluidExpr body.expr )
                with _ ->
                  let fnkey =
                    Printf.sprintf
