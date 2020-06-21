@@ -16,6 +16,18 @@ let addOpsError =
   ; reload = false
   ; importance = IgnorableError }
 
+let other502Error =
+  { context = "Error context"
+  ; originalError =
+      Http.BadStatus
+        { url = "url"
+        ; headers = StringMap.empty
+        ; body = StringResponse "body response"
+        ; status = {code = 502; message = "Error msg"} }
+  ; requestParams = None
+  ; reload = false
+  ; importance = IgnorableError }
+
 
 let networkError =
   { context = "Network error context"
@@ -27,10 +39,14 @@ let networkError =
 
 let run () =
   describe "msg" (fun () ->
-      test " 502 AddOps msg" (fun () ->
+      test "502 AddOps" (fun () ->
           expect (APIError.msg addOpsError)
           |> toEqual
                "We're sorry, but we were unable to save your most recent edit. Please refresh and try again.") ;
+      test "502 other than AddOps" (fun () ->
+          expect (APIError.msg other502Error)
+          |> toEqual
+               "Bad status: Error msg - body response (Error context)") ;
       test "NetworkError msg" (fun () ->
           expect (APIError.msg networkError)
           |> toEqual

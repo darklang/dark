@@ -132,7 +132,7 @@ let msg (e : apiError) : string =
     | Http.NetworkError ->
         ("Network error - is the server running?", e.context)
     | Http.BadStatus response ->
-        if response.status.code = 502
+        if response.status.code = 502 && e.context = "AddOps"
         then
           ( "We're sorry, but we were unable to save your most recent edit. Please refresh and try again."
           , "" )
