@@ -155,10 +155,8 @@ let processFocus (m : model) (focus : focus) : modification =
               Select (tlid, STTopLevelRoot) ) ) )
   | FocusExact (tlid, id) ->
     ( match TL.getPD m tlid id with
-    | Some pd ->
-        if P.isBlank pd || P.toContent pd = ""
-        then Enter (Filling (tlid, id))
-        else Select (tlid, STID id)
+    | Some _ ->
+        Enter (Filling (tlid, id))
     | _ ->
         NoChange )
   | FocusSame ->
