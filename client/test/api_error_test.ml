@@ -16,6 +16,7 @@ let addOpsError =
   ; reload = false
   ; importance = IgnorableError }
 
+
 let other502Error =
   { context = "Error context"
   ; originalError =
@@ -45,8 +46,7 @@ let run () =
                "We're sorry, but we were unable to save your most recent edit. Please refresh and try again.") ;
       test "502 other than AddOps" (fun () ->
           expect (APIError.msg other502Error)
-          |> toEqual
-               "Bad status: Error msg - body response (Error context)") ;
+          |> toEqual "Bad status: Error msg - body response (Error context)") ;
       test "NetworkError msg" (fun () ->
           expect (APIError.msg networkError)
           |> toEqual
