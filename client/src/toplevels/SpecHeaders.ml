@@ -60,12 +60,20 @@ let blankOrData (spec : handlerSpec) : blankOrData list =
   [PEventSpace spec.space; PEventModifier spec.modifier; PEventName spec.name]
 
 
+let firstBlankOrData (spec : handlerSpec) : ID.t option =
+  spec |> blankOrData |> List.head |> Option.map ~f:Pointer.toID
+
+
 let firstBlank (spec : handlerSpec) : ID.t option =
   spec
   |> blankOrData
   |> List.filter ~f:Pointer.isBlank
   |> List.head
   |> Option.map ~f:Pointer.toID
+
+
+let lastBlankOrData (spec : handlerSpec) : ID.t option =
+  spec |> blankOrData |> List.reverse |> List.head |> Option.map ~f:Pointer.toID
 
 
 let lastBlank (spec : handlerSpec) : ID.t option =

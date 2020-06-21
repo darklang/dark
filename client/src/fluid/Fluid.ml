@@ -5827,10 +5827,10 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                && lastKey = Some K.Tab
                && newState.newPos <= newState.oldPos
             then
-              (* get the first blank spec header, or fall back to NoChange *)
+              (* get the first blankOrData spec header, or fall back to NoChange *)
               match tl with
               | TLHandler {spec; _} ->
-                ( match SpecHeaders.firstBlank spec with
+                ( match SpecHeaders.firstBlankOrData spec with
                 | Some id ->
                     (enter id, ast, s)
                 | None ->
@@ -5841,10 +5841,10 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                     && lastKey = Some K.ShiftTab
                     && newState.newPos >= newState.oldPos
             then
-              (* get the last blank spec header, or fall back to NoChange *)
+              (* get the last blankOrData spec header, or fall back to NoChange *)
               match tl with
               | TLHandler {spec; _} ->
-                ( match SpecHeaders.lastBlank spec with
+                ( match SpecHeaders.lastBlankOrData spec with
                 | Some id ->
                     (enter id, ast, s)
                 | None ->
