@@ -85,28 +85,30 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       error2 "This function is not yet implemented" op
 
 
-let unary_op_to_sql op : tipe_ * tipe_ * string * string list =
+let unary_op_to_sql op : tipe_ * tipe_ * string * string list * bool =
   (* Returns a postgres function name, and arguments to the function. The
    * argument the user provides will be inserted as the first argument. *)
   match op with
   | "Bool::not" ->
-      (TBool, TBool, "not", [])
+      (TBool, TBool, "not", [], false)
   (* Not sure if any of the string functions are strictly correct for unicode *)
   | "String::toLowercase" | "String::toLowercase_v1" ->
-      (TStr, TStr, "lower", [])
+      (TStr, TStr, "lower", [], false)
   | "String::toUppercase" | "String::toUppercase_v1" ->
-      (TStr, TStr, "upper", [])
+      (TStr, TStr, "upper", [], false)
   | "String::length" ->
       (* There is a unicode version of length but it only works on bytea data *)
-      (TStr, TInt, "length", [])
+      (TStr, TInt, "length", [], false)
   | "String::reverse" ->
-      (TStr, TStr, "reverse", [])
+      (TStr, TStr, "reverse", [], false)
   | "String::trim" ->
-      (TStr, TStr, "trim", [])
+      (TStr, TStr, "trim", [], false)
   | "String::trimStart" ->
-      (TStr, TStr, "ltrim", [])
+      (TStr, TStr, "ltrim", [], false)
   | "String::trimEnd" ->
-      (TStr, TStr, "rtrim", [])
+      (TStr, TStr, "rtrim", [], false)
+  | "Date::hour_v1" ->
+      (TDate, TInt, "date_part", ["'hour'"], true)
   | _ ->
       error2 "This function is not yet implemented" op
 
@@ -319,9 +321,13 @@ let rec lambda_to_sql
       typecheck op result_tipe expected_tipe ;
       "(" ^ lts ltipe l ^ " " ^ opname ^ " " ^ lts rtipe r ^ ")"
   | EFnCall (_, op, [e], NoRail) ->
-      let arg_tipe, result_tipe, opname, args = unary_op_to_sql op in
+      let arg_tipe, result_tipe, opname, args, append = unary_op_to_sql op in
       typecheck op result_tipe expected_tipe ;
-      let args = Tc.String.join ~sep:", " (lts arg_tipe e :: args) in
+      let args =
+        if append
+        then Tc.String.join ~sep:", " (List.append args [lts arg_tipe e])
+        else Tc.String.join ~sep:", " (lts arg_tipe e :: args)
+      in
       "(" ^ opname ^ " (" ^ args ^ "))"
   | EVariable (_, name) ->
     ( match DvalMap.get ~key:name symtable with
