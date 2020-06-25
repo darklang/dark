@@ -34,6 +34,7 @@ let () =
   let open Tester in
   process_cmdline_args () ;
   describe "Analysis_test" Analysis_test.run ;
+  describe "APIError test" Api_error_test.run ;
   describe "Ast_test" Ast_test.run ;
   describe "Autocomplete_test" Autocomplete_test.run ;
   describe "Curl_test" Curl_test.run ;
