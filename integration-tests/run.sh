@@ -63,13 +63,17 @@ CONCURRENCY=1
 # Run testcafe
 ######################
 
+# Check the testcafe version (matters when running outside the container)
+extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
+expected_version=$(grep testcafe package.json | extract_version)
+
 if [[ -v IN_DEV_CONTAINER ]]; then
   set +e # Dont fail immediately so that the sed is run
 
   echo "Starting testcafe"
-  npx testcafe --version
+  npx "testcafe@${expected_version}" --version
   # shellcheck disable=SC2016
-  unbuffer npx testcafe \
+  unbuffer npx "testcafe@${expected_version}" \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
     --video rundir/videos \
@@ -87,10 +91,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   fi
   exit $RESULT
 else
-  # Check the testcafe version (matters when running outside the container)
-  extract_version() { grep -Eo '[0-9].[-.0-9rc]+'; }
   version=$(testcafe --version | extract_version)
-  expected_version=$(grep testcafe package.json | extract_version)
   if [[ "$version" != "$expected_version" ]]
   then
     echo "Incorrect version of testcafe: '$version' (expected '$expected_version')"
