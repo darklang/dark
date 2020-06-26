@@ -1,14 +1,12 @@
-- [ ] Trello link included
-- [ ] Discussed goals, problem and solution
-- [ ] Information from this description is also in comments
-  - [ ] No useful information
-- [ ] Before/after screenshots are included
-  - [ ] Screenshots aren't useful
-- [ ] Intended followups are trelloed
-  - [ ] No followups
-- [ ] Reversion plan exists
-  - [ ] Standard git revert is fine
-- [ ] Tests are included (required for regressions)
-  - [ ] The type system will catch it
-- [ ] Specs (docs/trello) are linked in code 
-  - [ ] No spec exists
+## What is the problem/goal being addressed?
+
+## What is the solution to this problem?
+
+## What are the changes here? How do they solve the problem and what other product impacts do they cause?
+*Please include before/after screenshots/gifs if appropriate*
+
+## How are you sure this works/how was this tested?
+
+## What is the reversion plan if this fails after shipping?
+
+## Has this information been included in the comments?
