@@ -6,7 +6,7 @@ The docs in this directory are used by Dark employees to run the production Dark
 
 We're running in kubernetes on GKE.
 
-The production containers are deployed as part of the CI build on master.
+The production containers are deployed as part of the CI build on the main branch.
 
 ### How to build production containers
 
