@@ -76,10 +76,6 @@ DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN=n
 # (Also not exposing these values in config.ml/config.mli because they are not
 # and should not be used in ocaml - they're only here to get them into the env
 # vars available to scripts/gcp-psql.)
-DARK_CONFIG_GCP_PSQL_MY_PROJECT=balmy-ground-195100
-DARK_CONFIG_GCP_PSQL_REGION=us-west1
-DARK_CONFIG_GCP_PSQL_DB_INSTANCE=dark-west
-
 # Getting started canvas
 DARK_CONFIG_GETTING_STARTED_CANVAS_NAME=crud
 DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE=sample-crud
