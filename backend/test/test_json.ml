@@ -229,7 +229,7 @@ let t_result_to_response_works () =
          , fun r ->
              AT.check
                (AT.option AT.string)
-               "with whitelist setting and no Origin, we get no Access-Control-Allow-Origin"
+               "with allowlist setting and no Origin, we get no Access-Control-Allow-Origin"
                None
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
        ; ( exec_ast (int 1)
@@ -238,7 +238,7 @@ let t_result_to_response_works () =
          , fun r ->
              AT.check
                (AT.option AT.string)
-               "with whitelist setting and matching Origin, we get good Access-Control-Allow-Origin"
+               "with allowlist setting and matching Origin, we get good Access-Control-Allow-Origin"
                (Some "https://example.com")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
        ; ( exec_ast (int 1)
@@ -247,7 +247,7 @@ let t_result_to_response_works () =
          , fun r ->
              AT.check
                (AT.option AT.string)
-               "with whitelist setting and mismatched Origin, we get null Access-Control-Allow-Origin"
+               "with allowlist setting and mismatched Origin, we get null Access-Control-Allow-Origin"
                (Some "null")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") ) ]) ;
   ()
