@@ -68,14 +68,6 @@ DARK_CONFIG_GCLOUD_APPLICATION_CREDENTIALS=balmy-ground-195100-d9b0f3de3013.json
 DARK_CONFIG_STATIC_ASSETS_BUCKET=dark-static-assets-dev
 DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN=n
 
-# Cloud SQL proxy
-## ONLY IN DEV because if you're in prod, k8s provides a cloud sql proxy using a
-# docker container. In any other env (gke-benchmarking, circleci), there's no
-# reason to expose the prod db this way.
-#
-# (Also not exposing these values in config.ml/config.mli because they are not
-# and should not be used in ocaml - they're only here to get them into the env
-# vars available to scripts/gcp-psql.)
 # Getting started canvas
 DARK_CONFIG_GETTING_STARTED_CANVAS_NAME=crud
 DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE=sample-crud
