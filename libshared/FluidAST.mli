@@ -42,6 +42,8 @@ val map : f:(FluidExpression.t -> FluidExpression.t) -> t -> t
   * See FluidExpression.replace *)
 val replace : replacement:FluidExpression.t -> Shared.id -> t -> t
 
+val replace2 : replacement:FluidExpression.t -> Shared.id -> t -> t
+
 (** [update f target ast] recursively searches [ast] for the expression having
   * an id of [target].
   *
