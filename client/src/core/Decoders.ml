@@ -356,7 +356,7 @@ let rec dval j : dval =
     ; ("DObj", dv1 (fun x -> DObj x) (strDict dd))
     ; ( "DIncomplete"
         (* catch decoding errors for backwards compatibility. if you see this
-         * comment in master, the withDefault can be removed *)
+         * comment in main branch, the withDefault can be removed *)
       , withDefault (DIncomplete SourceNone) (dv1 (fun x -> DIncomplete x) srcT)
       )
     ; ( "DError"

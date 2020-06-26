@@ -449,7 +449,7 @@ workflows:
       - push-to-gcp:
           filters:
             branches:
-              only: master
+              only: main
           requires:
             - build-backend
             - build-client
@@ -461,7 +461,7 @@ workflows:
       - deploy:
           filters:
             branches:
-              only: master
+              only: main
           requires:
             - validate-honeycomb-config
             - integration-tests
