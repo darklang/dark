@@ -2267,7 +2267,7 @@ let canvas_handler
         ~canvas_id:Uuidm.nil
         ~canvas
         ~execution_id (* TODO should username be the canvas owner, or the ip? *)
-        ~username:ip
+        ~username:("canvas::" ^ canvas)
         ~event:"canvas_traffic"
         Track
         (`Assoc

@@ -121,30 +121,33 @@ let isBadAuth (e : apiError) : bool =
 
 
 let msg (e : apiError) : string =
-  let withoutContext =
+  let withoutContext, context =
     match e.originalError with
     | Http.BadUrl str ->
-        "Bad url: " ^ str
+        ("Bad url: " ^ str, e.context)
     | Http.Timeout ->
-        "Timeout"
+        ("Timeout", e.context)
     | Http.NetworkError when e.context = "TriggerSendInviteCallback" ->
-        "Network error - Please contact Dark"
+        ("Network error - Please contact Dark", e.context)
     | Http.NetworkError ->
-        "Network error - is the server running?"
+        ("Network error - is the server running?", e.context)
     | Http.BadStatus response ->
-        if response.status.code = 502
-        then "502"
+        if response.status.code = 502 && e.context = "AddOps"
+        then
+          ( "We're sorry, but we were unable to save your most recent edit. Please refresh and try again."
+          , "" )
         else
-          "Bad status: "
-          ^ response.status.message
-          ^ " - "
-          ^ parseResponse response.body
+          ( "Bad status: "
+            ^ response.status.message
+            ^ " - "
+            ^ parseResponse response.body
+          , e.context )
     | Http.BadPayload (msg, _) ->
-        "Bad payload : " ^ msg
+        ("Bad payload : " ^ msg, e.context)
     | Http.Aborted ->
-        "Request Aborted"
+        ("Request Aborted", e.context)
   in
-  withoutContext ^ " (" ^ e.context ^ ")"
+  if context = "" then withoutContext else withoutContext ^ " (" ^ context ^ ")"
 
 
 let make ?requestParams ~reload ~context ~importance originalError =

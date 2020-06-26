@@ -9,40 +9,23 @@ set -euo pipefail
 # cluster, this will break that.
 # ./scripts/gcp-authorize-kubectl
 
-# cloud_sql_proxy notes:
-# 1) `cloud_sql_proxy` is a google thing
-# (https://cloud.google.com/sql/docs/postgres/sql-proxy) that takes your gcloud
-# creds and uses them to open a proxy to the specified db and exposes it using
-# either a tcp port or a unix socket. (We're using the latter, it's not exposed
-# to the docker host so no need to use a port.)
-#
-# 2) In theory we could block until this connects and then continue - perhaps
-# using `expect` - but in practice, the proxy is quick enough to launch that
-# this doesn't seem necessary
-#
-# 3) This does leave around a cloud_sql_proxy process per invoke of this script.
-# If that ends up being a problem, we could try reaping them periodically, or
-# perhaps if `ps | grep cloud_sql_proxy | wc -l` is greater than some threshold.
-#
-# 4) -verbose=false because we don't need to know about non-error'ing client
-# connection open/close events
-cloud_sql_proxy \
-    -verbose=false \
-    -dir /tmp \
-    -instances "${DARK_CONFIG_GCP_PSQL_MY_PROJECT}:${DARK_CONFIG_GCP_PSQL_REGION}:${DARK_CONFIG_GCP_PSQL_DB_INSTANCE}=unix:cloud_sql_proxy" &
+arg="${1:-}"
 
+./scripts/gcp-proxy-db "$arg" &
 # Make sure it has time to come up before we try to connect to it
 sleep 1s
 
-PGUSERNAME=$(kubectl get secrets cloudsql-db-credentials -o json |  jq -r '.data.username' | base64 -d)
-PGPASSWORD=$(kubectl get secrets cloudsql-db-credentials -o json |  jq -r '.data.password' | base64 -d)
+SECRET=$(kubectl get secrets cloudsql-db-credentials -o json)
+
+PGUSERNAME=$(echo "${SECRET}" |  jq -r '.data.username' | base64 -d)
+PGPASSWORD=$(echo "${SECRET}" |  jq -r '.data.password' | base64 -d)
 export PGUSERNAME
 export PGPASSWORD
 
 # If we're in a terminal (not a pipe), use pgcli, which has nice interactive fea tures like autocomplete of columns.
 # If we're in a pipe, then use psql (pgcli doesn't let you pipe in a query, psql does)
 if [[ -t 0 ]]; then
-    pgcli -h /tmp/cloud_sql_proxy --username=${PGUSERNAME} postgres
+    pgcli -p 2345 --username=${PGUSERNAME} postgres
 else
-    psql -h /tmp/cloud_sql_proxy --user=${PGUSERNAME} postgres
+    psql -p 2345 --user=${PGUSERNAME} postgres
 fi
