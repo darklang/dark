@@ -17,7 +17,7 @@ depends: [
   "ocaml" {>= "4.03.0"}
   "jbuilder" {>= "1.0+beta10"}
   "ocplib-endian"
-  "sexplib" {< "v0.14"}
+  "sexplib" {< "v0.15"}
   "base-bytes"
   "ounit" {with-test}
 ]
