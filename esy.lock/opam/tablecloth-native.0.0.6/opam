@@ -10,7 +10,7 @@ bug-reports: "https://github.com/darklang/tablecloth/issues"
 depends: [
   "ocaml"
   "dune"
-  "base" {>= "v0.10.0" & < "v0.14"}
+  "base" {>= "v0.10.0" & < "v0.15"}
 ]
 build: [
   ["mv" "native/dune-project" "."]
