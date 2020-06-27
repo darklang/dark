@@ -11,6 +11,10 @@ let error str = raise (DBQueryException str)
 
 let error2 msg str = error (msg ^ ": " ^ str)
 
+type position =
+  | First
+  | Last
+
 let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
   let allInts str = (TInt, TInt, TInt, str) in
   let allFloats str = (TFloat, TFloat, TFloat, str) in
@@ -85,28 +89,30 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       error2 "This function is not yet implemented" op
 
 
-let unary_op_to_sql op : tipe_ * tipe_ * string * string list =
+let unary_op_to_sql op : tipe_ * tipe_ * string * string list * position =
   (* Returns a postgres function name, and arguments to the function. The
-   * argument the user provides will be inserted as the first argument. *)
+   * argument the user provides will be inserted as the First or Last argument. *)
   match op with
   | "Bool::not" ->
-      (TBool, TBool, "not", [])
+      (TBool, TBool, "not", [], First)
   (* Not sure if any of the string functions are strictly correct for unicode *)
   | "String::toLowercase" | "String::toLowercase_v1" ->
-      (TStr, TStr, "lower", [])
+      (TStr, TStr, "lower", [], First)
   | "String::toUppercase" | "String::toUppercase_v1" ->
-      (TStr, TStr, "upper", [])
+      (TStr, TStr, "upper", [], First)
   | "String::length" ->
       (* There is a unicode version of length but it only works on bytea data *)
-      (TStr, TInt, "length", [])
+      (TStr, TInt, "length", [], First)
   | "String::reverse" ->
-      (TStr, TStr, "reverse", [])
+      (TStr, TStr, "reverse", [], First)
   | "String::trim" ->
-      (TStr, TStr, "trim", [])
+      (TStr, TStr, "trim", [], First)
   | "String::trimStart" ->
-      (TStr, TStr, "ltrim", [])
+      (TStr, TStr, "ltrim", [], First)
   | "String::trimEnd" ->
-      (TStr, TStr, "rtrim", [])
+      (TStr, TStr, "rtrim", [], First)
+  | "Date::hour_v1" ->
+      (TDate, TInt, "date_part", ["'hour'"], Last)
   | _ ->
       error2 "This function is not yet implemented" op
 
@@ -319,9 +325,15 @@ let rec lambda_to_sql
       typecheck op result_tipe expected_tipe ;
       "(" ^ lts ltipe l ^ " " ^ opname ^ " " ^ lts rtipe r ^ ")"
   | EFnCall (_, op, [e], NoRail) ->
-      let arg_tipe, result_tipe, opname, args = unary_op_to_sql op in
+      let arg_tipe, result_tipe, opname, args, position = unary_op_to_sql op in
       typecheck op result_tipe expected_tipe ;
-      let args = Tc.String.join ~sep:", " (lts arg_tipe e :: args) in
+      let args =
+        match position with
+        | First ->
+            Tc.String.join ~sep:", " (lts arg_tipe e :: args)
+        | Last ->
+            Tc.String.join ~sep:", " (List.append args [lts arg_tipe e])
+      in
       "(" ^ opname ^ " (" ^ args ^ "))"
   | EVariable (_, name) ->
     ( match DvalMap.get ~key:name symtable with

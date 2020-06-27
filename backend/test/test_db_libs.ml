@@ -1100,7 +1100,7 @@ let t_db_query_works () =
       [ ("height", int 72)
       ; ("name", str " Chandler ")
       ; ("human", bool true)
-      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1969-08-19T00:00:00Z"])
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1969-08-19T10:00:00Z"])
       ; ("income", float' 83 00) ]
   in
   let cat_expr =
@@ -1491,6 +1491,11 @@ let t_db_query_works () =
     (DList [chandler])
     ( queryv
         (binop "==" (fn "String::trimEnd" [field "v" "name"]) (str " Chandler"))
+    |> execs ) ;
+  check_dval
+    "date::hour"
+    (DList [chandler])
+    ( queryv (binop "==" (fn "Date::hour_v1" [field "v" "dob"]) (int 10))
     |> execs ) ;
   (* -------------- *)
   (* Test partial evaluation *)
