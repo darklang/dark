@@ -1,5 +1,7 @@
 ## Setting up your editor
 
+**Note that this doc is incomplete and sometimes may require tinkering after doing the actions here. We welcome additions, clarifications, and instructions on how to set up other editors.**
+
 ### Merlin
 
 Merlin is an OCaml language server that provides things like autocompletion,
@@ -18,7 +20,7 @@ those scripts first in your `$PATH`.
 - Install merlin:
   - `brew install opam`
   - `opam init -c 4.06.1`
-    - grep the `Dockerfile` for `OCAML_SWITCH` to ensure the version matches
+    - grep `esy.json` for `"ocaml"` to ensure the version matches
     - copy snippet to your bashrc/shell config. DO NOT DO THIS FOR zsh. SEE BELOW.
   - `opam install merlin.3.2.2`
 - Install editor integration:
@@ -34,7 +36,7 @@ this in an alias or something).
 
 ### Formatting
 
-You will also want to support formatting in your client. Dark uses Prettier for Js/Html/CSS, and OCamlformat for OCaml and Bucklescript. The script `script/format` can be used to format or check formatting, and there is a pre-commit hook you can use to run it automatically.
+You will also want to support formatting in your client. Dark uses Prettier for JS/HTML/CSS, and OCamlformat for OCaml and Bucklescript. The script `script/format` can be used to format or check formatting, and there is a pre-commit hook you can use to run it automatically.
 
 For emacs, see [the
 readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
