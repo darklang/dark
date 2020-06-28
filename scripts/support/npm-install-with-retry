@@ -16,7 +16,7 @@ for i in 1 2 3 4 5; do
   if [ $i -ne 1 ]; then
     echo "NPM install failed; retrying"
   fi
-  if [ $CI = 'true' ]; then
+  if [ "${CI}x" = "truex" ]; then
     npm ci
   else
     npm install

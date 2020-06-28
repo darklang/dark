@@ -14,6 +14,18 @@ if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
   exit 1
 fi
 
+if [ ! -v CI ]; then
+  # Sometimes these dirs leak out of the container, causing confusion and
+  # slowness
+  rm -Rf _build
+  rm -Rf _esy
+  rm -Rf .esy
+  rm -Rf node_modules
+  rm -Rf lib
+  rm -Rf stroller/target
+  rm -Rf queue-scheduler/target
+fi
+
 # --------------
 # Build image from clean start
 # --------------
@@ -71,15 +83,6 @@ else
   MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
   MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/queue-scheduler/target"
   MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
-
-  # Sometimes these dirs leak out of the container, causing confusion and slowness
-  rm -Rf _build
-  rm -Rf _esy
-  rm -Rf .esy
-  rm -Rf node_modules
-  rm -Rf lib
-  rm -Rf stroller/target
-  rm -Rf queue-scheduler/target
 
   if [[ -e "$HOME/.config/gcloud" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
