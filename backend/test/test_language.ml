@@ -57,7 +57,7 @@ let t_match_works () =
          (match'
             arg
             [ (pInt 5, str "int")
-            ; (pFloat "5" "6", str "float")
+            ; (pFloat 5 6, str "float")
             ; (pBool false, str "bool")
             ; (pString "myStr", str "string")
             ; (pNull (), str "null")
@@ -95,6 +95,57 @@ let t_lambda_scopes_correctly () =
                 (pipe
                    (list [int 1; int 2; int 3; int 4])
                    [fn "List::map" [pipeTarget; var "y"]]))))) ;
+  ()
+
+
+let t_pattern_matches_work () =
+  check_dval
+    "int pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (int 6)
+          [(pInt 5, str "fail"); (pInt 6, str "pass"); (pVar "var", str "fail")])) ;
+  check_dval
+    "str pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (str "x")
+          [ (pString "y", str "fail")
+          ; (pString "x", str "pass")
+          ; (pVar "var", str "fail") ])) ;
+  check_dval
+    "bool pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (bool true)
+          [ (pBool false, str "fail")
+          ; (pBool true, str "pass")
+          ; (pVar "var", str "fail") ])) ;
+  check_dval
+    "float pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (float' 2 0)
+          [ (pFloat 1 0, str "fail")
+          ; (pFloat 2 0, str "pass")
+          ; (pVar "var", str "fail") ])) ;
+  check_dval
+    "null pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast (match' null [(pNull (), str "pass"); (pVar "var", str "fail")])) ;
+  check_dval
+    "blank doesnt match"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (float' 2 0)
+          [ (pBlank (), str "fail")
+          ; (pFloat 2 0, str "pass")
+          ; (pVar "var", str "fail") ])) ;
   ()
 
 
@@ -711,4 +762,5 @@ let suite =
   ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1)
   ; ("t_int_functions_works", `Quick, t_int_functions_works)
   ; ("lambda scopes correctly", `Quick, t_lambda_scopes_correctly)
+  ; ("pattern matches work", `Quick, t_pattern_matches_work)
   ; ("shadowing all the way down", `Quick, t_shadowing_all_the_way_down) ]

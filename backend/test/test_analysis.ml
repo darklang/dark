@@ -194,7 +194,7 @@ let t_match_evaluation () =
       ~id:mid
       arg
       [ (pInt ~mid ~id:pIntId 5, int ~id:intRhsId 17)
-      ; (pFloat ~mid ~id:pFloatId "5" "6", str ~id:floatRhsId "float")
+      ; (pFloat ~mid ~id:pFloatId 5 6, str ~id:floatRhsId "float")
       ; (pBool ~mid ~id:pBoolId false, str ~id:boolRhsId "bool")
       ; (pString ~mid ~id:pStrId "myStr", str ~id:strRhsId "str")
       ; (pNull ~mid ~id:pNullId (), str ~id:nullRhsId "null")

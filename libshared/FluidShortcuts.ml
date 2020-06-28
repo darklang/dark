@@ -133,9 +133,15 @@ let pString ?(mid = gid ()) ?(id = gid ()) (str : string) : FluidPattern.t =
   FPString {matchID = mid; patternID = id; str}
 
 
-let pFloat ?(mid = gid ()) ?(id = gid ()) (whole : string) (fraction : string) :
+let pFloatStr
+    ?(mid = gid ()) ?(id = gid ()) (whole : string) (fraction : string) :
     FluidPattern.t =
   FPFloat (mid, id, whole, fraction)
+
+
+let pFloat ?(mid = gid ()) ?(id = gid ()) (whole : int) (fraction : int) :
+    FluidPattern.t =
+  FPFloat (mid, id, string_of_int whole, string_of_int fraction)
 
 
 let pNull ?(mid = gid ()) ?(id = gid ()) () : FluidPattern.t = FPNull (mid, id)
