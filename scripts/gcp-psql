@@ -25,7 +25,7 @@ export PGPASSWORD
 # If we're in a terminal (not a pipe), use pgcli, which has nice interactive fea tures like autocomplete of columns.
 # If we're in a pipe, then use psql (pgcli doesn't let you pipe in a query, psql does)
 if [[ -t 0 ]]; then
-    pgcli -p 2345 --username=${PGUSERNAME} postgres
+    pgcli -h localhost -p 2345 --username=${PGUSERNAME} postgres
 else
-    psql -p 2345 --user=${PGUSERNAME} postgres
+    psql -h localhost -p 2345 --user=${PGUSERNAME} postgres
 fi

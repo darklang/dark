@@ -166,6 +166,8 @@ echo "Run the build"
 # docker, and
 # https://docs.docker.com/engine/reference/run/#specify-an-init-process
 # for documentation of --init.
+# -p 5433:5432 to expose the postgres DB to outside the container
+# -p 2345:2345 to expose the cloud_sql_proxy to outside the container
 $FSWATCH | docker run \
              --init \
              --rm \
@@ -186,6 +188,8 @@ $FSWATCH | docker run \
              -v pgdata:/var/lib/postgresql \
              -v /var/run/docker.sock:/var/run/docker.sock \
              -p 8000:8000 \
+             -p 5433:5432 \
+             -p 2345:2345 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
              -w /home/dark/app \
              $MOUNTS \

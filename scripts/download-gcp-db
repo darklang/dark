@@ -3,68 +3,30 @@
 
 set -euo pipefail
 
-GENERATE=false
+# Exports are created directly by https://darklang.com/a/ops-gcpdb
 DB=prodclone
-TEMPDB=prodcloneclone
 
-for i in "$@"
-do
-  case "${i}" in
-    --generate)
-    GENERATE=true
-    shift
-    ;;
-    *)
-    echo "Unexpected argument: $i"
-    exit 1
-    ;;
-  esac
-done
-
-
-if [[ "${GENERATE}" == "true" ]]; then
-  DATE=$(date --utc +%Y-%m-%dT%H-%M-%SZ)
-  GSFILENAME="gs://download-gcp-db/sqldump_${DATE}.gz"
-  echo "Creating new DB export in ${GSFILENAME}. This takes a long time, like 20m at least."
-
-  ID=$(gcloud sql export sql dark-west "$GSFILENAME" --async --database=postgres)
-  gcloud beta sql operations wait --timeout=unlimited "$ID"
-else
-  # get list | drop last file | drop all columns except filename | sort to get latest | get first | trim whitespace
-  GSFILENAME="$(gsutil ls -l gs://download-gcp-db/sqldump_*.gz | head -n-1 | cut -d" " -f5- | sort -r | head -n1 | awk '{$1=$1;print}')"
-  echo "Using latest DB export: ${GSFILENAME}"
-  echo "Use --generate to create and download a new DB dump."
-fi
-
+# get list | drop last file | drop all columns except filename | sort to get latest | get first | trim whitespace
+GSFILENAME="$(gsutil ls -l gs://download-gcp-db/sqldump_*.gz | head -n-1 | cut -d" " -f5- | sort -r | head -n1 | awk '{$1=$1;print}')"
+echo "Using latest DB export: ${GSFILENAME}"
 
 FILENAME="${GSFILENAME//gs:\/\/download-gcp-db\//}"
 LOGFILE="${FILENAME}.log"
 
 ###########################
-echo "Downloading DB from $GSFILENAME"
-###########################
-gsutil cp "$GSFILENAME" .
-
-###########################
 echo "Dropping existing DB $DB (killing existing connections)"
 ###########################
-dropdb --if-exists $TEMPDB
-createdb "$TEMPDB"
+killall psql || true
+killall server.exe || true
+killall queue_worker.exe || true
+killall cron_checker.exe || true
+dropdb --if-exists $DB
+createdb "$DB"
 
 ###########################
-echo "Loading DB $TEMPDB (logging to $LOGFILE)"
+echo "Loading DB $DB (logging to $LOGFILE)"
 ###########################
 # There are some permission statements for cloudsql that are not relevant
-gunzip --stdout "$FILENAME" | grep -v cloudsql | pv | psql -d "$TEMPDB" > "$LOGFILE"
+gsutil cp "$GSFILENAME" - | gunzip --stdout | grep -v cloudsql | pv | psql -d "$DB" > "$LOGFILE"
 
-###########################
-echo "Download complete. If this fails from here, restart your container and run ./scripts/reset-prodclone"
-###########################
-rm "$FILENAME"
-
-###########################
-echo "Stopping procs, copying into $DB, restarting"
-###########################
-./scripts/reset-prodclone
-
-echo "Done. To reset prodclone again, run ./scripts/reset-prodclone"
+echo "Done"
