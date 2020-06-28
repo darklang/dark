@@ -1,6 +1,8 @@
-## Get a Dark account for yourself 
+## Get a Dark account for yourself
 
 (note: this appears to be broken at the moment)
+
+Most contributors can use the `dark` account (password `what`) instead of this.
 
 To add your account to local dev for yourself, run:
 ```

@@ -25,7 +25,6 @@ The app and its dependencies are all held within the container. While code is ed
 
 Ensure that docker:
 - set to use 4 CPUs, 4.0 GiB of Memory, and 4.0 GiB of Swap (under the Advanced preferences tab).
-- more than that significantly increases build time
 
 Ignore the other tabs (for example you don't need to enable Kubernetes).
 
@@ -78,7 +77,7 @@ dig testing.builtwithdark.localhost @127.0.0.1
   build server is ready. The `builder` script will sit open, waiting for file
   changes in order to recompile
 - If you see "initial compile failed", it may be a memory issue. Ensure you
-  have docker configured to provide 4GB of memory, then rerun the builder
+  have docker configured to provide 4GB or more of memory, then rerun the builder
   script. (Sometimes just rerunning will work, too).
 - Open your browser to http://darklang.localhost:8000/a/dark/, username "dark",
   password "what"
@@ -137,7 +136,6 @@ Formatters".
 ## Other important docs:
 
 - [Contributor docs](https://darklang.github.io/docs/contributing/getting-started)
-- [Add an account for yourself](docs/add-account.md)
 - [Other ways to run the dev container](docs/builder-options.md)
 - [Setting up your editor](docs/editor-setup.md)
 
@@ -148,3 +146,4 @@ Formatters".
 - [Writing Stdlib docstrings](docs/writing-docstrings.md)
 - [Debugging PPXes](docs/debugging-ppxes.md)
 - [Editing other BS libraries](docs/modifying-libraries.md)
+- [Add an account for yourself](docs/add-account.md)
