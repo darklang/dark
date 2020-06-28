@@ -51,7 +51,7 @@ let time (name : string) (fn : _ -> 'a) : timing_header * 'a =
   ((name, (finish -. start) *. 1000.0, name), result)
 
 
-let get_ip_address ch : string =
+let get_ip_address (ch : Conduit_lwt_unix.flow) : string =
   match Conduit_lwt_unix.endp_of_flow ch with
   | `TCP (ip, port) ->
       Ipaddr.to_string ip
@@ -452,7 +452,7 @@ let user_page_handler
     ~(ip : string)
     ~(uri : Uri.t)
     ~(body : string)
-    (req : CRequest.t) =
+    (req : CRequest.t) : response_or_redirect_params =
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
@@ -2158,7 +2158,11 @@ let stroller_readiness_check () : string option Lwt.t =
       Lwt.return (Some ("Stroller.status = `Unhealthy: " ^ s))
 
 
-let k8s_handler (parent : Span.t) req ~execution_id ~stopper =
+let k8s_handler
+    (parent : Span.t)
+    (req : CRequest.t)
+    ~(execution_id : Types.id)
+    ~(stopper : unit Lwt.u) : (CResponse.t * Cl.Body.t) Lwt.t =
   let%lwt stroller_readiness_check = stroller_readiness_check () in
   match req |> CRequest.uri |> Uri.path with
   (* For GKE health check *)
@@ -2243,7 +2247,7 @@ let canvas_handler
     ~(uri : Uri.t)
     ~(body : string)
     (parent : Span.t)
-    (req : CRequest.t) =
+    (req : CRequest.t) : (Cohttp.Response.t * Cl.Body.t) Lwt.t =
   let verb = req |> CRequest.meth in
   (* TODO make sure this resolves before returning *)
   let%lwt resp, body =
@@ -2287,7 +2291,13 @@ let canvas_handler
   Lwt.return (resp, body)
 
 
-let callback ~k8s_callback (parent : Span.t) ip req body execution_id =
+let callback
+    ~k8s_callback
+    (parent : Span.t)
+    (ip : string)
+    (req : CRequest.t)
+    (body : string)
+    (execution_id : Types.id) : (CResponse.t * Cl.Body.t) Lwt.t =
   let req = canonicalize_request req in
   let uri = CRequest.uri req in
   let handle_error ~(include_internals : bool) (e : exn) =
@@ -2399,8 +2409,9 @@ let callback ~k8s_callback (parent : Span.t) ip req body execution_id =
 
 let server () =
   let stop, stopper = Lwt.wait () in
-  let cbwb conn req req_body =
-    let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
+  let cbwb (conn : S.conn) (req : CRequest.t) (req_body : Cl.Body.t) :
+      (CResponse.t * Cl.Body.t) Lwt.t =
+    let%lwt body_string = Cl.Body.to_string req_body in
     let execution_id = Util.create_id () in
     let uri = CRequest.uri req in
     (* use the x-forwarded-for ip, falling back to the raw ip in the request *)
