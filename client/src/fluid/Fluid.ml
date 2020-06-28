@@ -4315,6 +4315,15 @@ let rec updateKey
       when false (* disable for now *) && pos - ti.startPos != 0 ->
         startEscapingString pos ti astInfo
     (* comma - add another of the thing *)
+    | InsertText ",", L (TPartial _, ti), R (TListClose (id, _), _)
+    | InsertText ",", L (TPartial _, ti), R (TListComma (id, _), _)
+      when isAutocompleting ti astInfo.state ->
+        let astInfo = acEnter ti K.Enter astInfo in
+        let bID = gid () in
+        let newExpr = E.EBlank bID in
+        astInfo
+        |> ASTInfo.setAST (insertAtListEnd id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
     | InsertText ",", L (TListOpen (id, _), _), _ when onEdge ->
         let bID = gid () in
         let newExpr = E.EBlank bID (* new separators *) in
