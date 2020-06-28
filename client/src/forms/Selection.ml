@@ -124,29 +124,29 @@ let maybeEnterFluid
       else fluidEnteringMod tlid
 
 
-let enterNextBlank (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
+let enterNextEditable (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
   match TL.get m tlid with
   | None ->
       recover "entering no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let nextBlank = TL.getNextBlank tl cur in
+      let nextEditable = TL.getNextEditable tl cur in
       let target =
-        nextBlank
+        nextEditable
         |> Option.map ~f:(fun id -> Enter (Filling (tlid, id)))
         |> Option.withDefault ~default:(fluidEnteringMod tlid)
       in
-      maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
+      maybeEnterFluid ~nonFluidCursorMod:target tl nextEditable
 
 
-let enterPrevBlank (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
+let enterPrevEditable (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
   match TL.get m tlid with
   | None ->
       recover "entering no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
-      let prevBlank = TL.getPrevBlank tl cur in
+      let prevEditable = TL.getPrevEditable tl cur in
       let target =
-        prevBlank
+        prevEditable
         |> Option.map ~f:(fun id -> Enter (Filling (tlid, id)))
         |> Option.withDefault ~default:(fluidEnteringMod tlid)
       in
-      maybeEnterFluid ~nonFluidCursorMod:target tl prevBlank
+      maybeEnterFluid ~nonFluidCursorMod:target tl prevEditable
