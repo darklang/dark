@@ -8,7 +8,7 @@ LOCAL_BRANCH="pr-${NUM}"
 REMOTE_BRANCH="pull/${NUM}/head"
 
 
-git checkout master
+git checkout main
 
 git branch -D "pr-${NUM}" || true
 git fetch origin "${REMOTE_BRANCH}:${LOCAL_BRANCH}" 

@@ -47,13 +47,12 @@ else
   DB="${REPLICA_DB}"
 fi
 
-INSTANCE="${PROJECT}:${REGION}:${DB}=tcp:2345"
+INSTANCE="${PROJECT}:${REGION}:${DB}"
 
 echo "Setting up proxy to ${INSTANCE}"
 
 cloud_sql_proxy \
     -verbose=false \
-    -dir /tmp \
-    -instances "${INSTANCE}" 
+    -instances "${INSTANCE}=tcp:2345" 
 
 
