@@ -166,6 +166,7 @@ let http_call_with_code
       C.set_writefunction c responsefn ;
       C.set_httpheader c headers ;
       C.set_headerfunction c headerfn ;
+      C.setopt c (Curl.CURLOPT_TIMEOUT 30) (* timeout is infinite by default *) ;
       (* This tells CURL to send an Accept-Encoding header including all
         * of the encodings it supports *and* tells it to automagically decode
         * responses in those encodings. This works even if someone manually specifies
