@@ -15,7 +15,7 @@ type position =
   | First
   | Last
 
-let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
+let binop_to_sql (op : string) : tipe * tipe * tipe * string =
   let allInts str = (TInt, TInt, TInt, str) in
   let allFloats str = (TFloat, TFloat, TFloat, str) in
   let boolOp tipe str = (tipe, tipe, TBool, str) in
@@ -89,7 +89,7 @@ let binop_to_sql (op : string) : tipe_ * tipe_ * tipe_ * string =
       error2 "This function is not yet implemented" op
 
 
-let unary_op_to_sql op : tipe_ * tipe_ * string * string list * position =
+let unary_op_to_sql op : tipe * tipe * string * string list * position =
   (* Returns a postgres function name, and arguments to the function. The
    * argument the user provides will be inserted as the First or Last argument. *)
   match op with
@@ -117,7 +117,7 @@ let unary_op_to_sql op : tipe_ * tipe_ * string * string list * position =
       error2 "This function is not yet implemented" op
 
 
-let tipe_to_sql_tipe (t : tipe_) : string =
+let tipe_to_sql_tipe (t : tipe) : string =
   match t with
   | TStr ->
       "text"
@@ -130,7 +130,7 @@ let tipe_to_sql_tipe (t : tipe_) : string =
   | TDate ->
       "timestamp with time zone"
   | _ ->
-      error2 "We do not support this type of DB field yet" (show_tipe_ t)
+      error2 "We do not support this type of DB field yet" (show_tipe t)
 
 
 (* This canonicalizes an expression, meaning it removes multiple ways of
@@ -168,7 +168,7 @@ let rec canonicalize (expr : E.t) : E.t =
           e)
 
 
-let dval_to_sql (dval : E.t dval) : string =
+let dval_to_sql (dval : dval) : string =
   match dval with
   | DObj _
   | DList _
@@ -212,8 +212,7 @@ let dval_to_sql (dval : E.t dval) : string =
 (* TODO: support characters, floats, dates, and uuids. And maybe lists and
  * bytes. Probably something can be done with options and results. *)
 
-let typecheckDval (name : string) (dval : E.t dval) (expected_tipe : tipe_) :
-    unit =
+let typecheckDval (name : string) (dval : dval) (expected_tipe : tipe) : unit =
   if Dval.tipe_of dval = expected_tipe || expected_tipe = TAny
   then ()
   else
@@ -228,8 +227,8 @@ let typecheckDval (name : string) (dval : E.t dval) (expected_tipe : tipe_) :
       ^ Dval.to_developer_repr_v0 dval )
 
 
-let typecheck (name : string) (actual_tipe : tipe_) (expected_tipe : tipe_) :
-    unit =
+let typecheck (name : string) (actual_tipe : tipe) (expected_tipe : tipe) : unit
+    =
   if actual_tipe = expected_tipe || expected_tipe = TAny
   then ()
   else
@@ -301,10 +300,10 @@ let rec inline
 (* Generate SQL from an Expr. This expects that all the hard stuff has been
  * removed by previous passes, and should only be called as the final pass. *)
 let rec lambda_to_sql
-    (symtable : E.t dval_map)
+    (symtable : dval_map)
     (paramName : string)
-    (dbFields : tipe_ Prelude.StrDict.t)
-    (expected_tipe : tipe_)
+    (dbFields : tipe Prelude.StrDict.t)
+    (expected_tipe : tipe)
     (expr : E.t) : string =
   let lts tipe e = lambda_to_sql symtable paramName dbFields tipe e in
   match expr with
@@ -421,10 +420,10 @@ let rec lambda_to_sql
  * Expects inlining to have finished first, so that it has all the values it
  * needs in the right place. *)
 let partially_evaluate
-    (state : E.t exec_state)
+    (state : exec_state)
     (param_name : string)
-    (symtable : E.t dval_map)
-    (body : E.t) : E.t dval_map * E.t =
+    (symtable : dval_map)
+    (body : E.t) : dval_map * E.t =
   (* This isn't really a good implementation, but right now we only do
    * straight-line code here, so it should work *)
   let open E in
@@ -466,16 +465,13 @@ let partially_evaluate
 
 
 let compile_lambda
-    ~(state : expr exec_state)
-    (symtable : expr dval_map)
+    ~(state : exec_state)
+    (symtable : dval_map)
     (param_name : string)
-    (db_fields : tipe_ Prelude.StrDict.t)
-    (body : expr) : string =
-  let symtable = Fluid.dval_map_to_fluid symtable in
-  let state = Toplevel.exec_state_to_fluid state in
+    (db_fields : tipe Prelude.StrDict.t)
+    (body : fluid_expr) : string =
   let symtable, body =
     body
-    |> Fluid.toFluidExpr
     (* Replace threads with nested function calls - simplifies all later passes *)
     |> canonicalize
     (* Inline the rhs of any let within the lambda body. See comment for more

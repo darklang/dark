@@ -31,6 +31,23 @@ let t_lambda_with_foreach () =
           ; str "" ]))
 
 
+let t_pipe_works () =
+  check_dval
+    "pipe in function and binop works"
+    (Dval.dint 8)
+    (exec_ast
+       (pipe
+          (list [int 5])
+          [ fn "List::head_v1" ~ster:Rail [pipeTarget]
+          ; binop "+" pipeTarget (int 3)
+          ; lambda
+              ["x"]
+              (if'
+                 (binop ">" (binop "+" (var "x") (int 4)) (int 1))
+                 (var "x")
+                 (binop "+" (int 1) (var "x"))) ]))
+
+
 let t_match_works () =
   let check_match arg expected =
     check_dval
@@ -40,7 +57,7 @@ let t_match_works () =
          (match'
             arg
             [ (pInt 5, str "int")
-            ; (pFloat "5" "6", str "float")
+            ; (pFloat 5 6, str "float")
             ; (pBool false, str "bool")
             ; (pString "myStr", str "string")
             ; (pNull (), str "null")
@@ -62,7 +79,6 @@ let t_match_works () =
 
 
 let t_lambda_scopes_correctly () =
-  let open Fluid in
   check_dval
     "lambda uses scope at create time, not call time"
     (DList [Dval.dint 6; Dval.dint 7; Dval.dint 8; Dval.dint 9])
@@ -79,6 +95,57 @@ let t_lambda_scopes_correctly () =
                 (pipe
                    (list [int 1; int 2; int 3; int 4])
                    [fn "List::map" [pipeTarget; var "y"]]))))) ;
+  ()
+
+
+let t_pattern_matches_work () =
+  check_dval
+    "int pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (int 6)
+          [(pInt 5, str "fail"); (pInt 6, str "pass"); (pVar "var", str "fail")])) ;
+  check_dval
+    "str pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (str "x")
+          [ (pString "y", str "fail")
+          ; (pString "x", str "pass")
+          ; (pVar "var", str "fail") ])) ;
+  check_dval
+    "bool pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (bool true)
+          [ (pBool false, str "fail")
+          ; (pBool true, str "pass")
+          ; (pVar "var", str "fail") ])) ;
+  check_dval
+    "float pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (float' 2 0)
+          [ (pFloat 1 0, str "fail")
+          ; (pFloat 2 0, str "pass")
+          ; (pVar "var", str "fail") ])) ;
+  check_dval
+    "null pattern"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast (match' null [(pNull (), str "pass"); (pVar "var", str "fail")])) ;
+  check_dval
+    "blank doesnt match"
+    (Dval.dstr_of_string_exn "pass")
+    (exec_ast
+       (match'
+          (float' 2 0)
+          [ (pBlank (), str "fail")
+          ; (pFloat 2 0, str "pass")
+          ; (pVar "var", str "fail") ])) ;
   ()
 
 
@@ -472,7 +539,7 @@ let t_typechecker_error_isnt_wrapped_by_errorail () =
 
 
 let t_typechecker_return_types () =
-  let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (f (Value "5")) in
+  let myBadFn = user_fn "myBadFn" ~return_type:TStr [] (int 5) in
   check_condition
     "typecheck userfn with bad return type"
     (exec_ast ~ops:[fop myBadFn] (fn "myBadFn" []))
@@ -484,14 +551,12 @@ let t_typechecker_return_types () =
           true
       | _ ->
           false) ;
-  let myGoodFn =
-    user_fn "myGoodFn" ~return_type:TStr [] (f (Value "\"str\""))
-  in
+  let myGoodFn = user_fn "myGoodFn" ~return_type:TStr [] (str "str") in
   check_dval
     "typecheck userfn with good return type"
     (exec_ast ~ops:[fop myGoodFn] (fn "myGoodFn" []))
     (Dval.dstr_of_string_exn "str") ;
-  let myAnyFn = user_fn "myAnyFn" ~return_type:TAny [] (f (Value "5")) in
+  let myAnyFn = user_fn "myAnyFn" ~return_type:TAny [] (int 5) in
   check_dval
     "typecheck userfn with any return type"
     (exec_ast ~ops:[fop myAnyFn] (fn "myAnyFn" []))
@@ -641,6 +706,7 @@ let suite =
   [ ("int_add_works", `Quick, t_int_add_works)
   ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
   ; ("match_works", `Quick, t_match_works)
+  ; ("pipe works", `Quick, t_pipe_works)
   ; ( "Multiple copies of same name don't crash"
     , `Quick
     , t_multiple_copies_of_same_name )
@@ -696,4 +762,5 @@ let suite =
   ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1)
   ; ("t_int_functions_works", `Quick, t_int_functions_works)
   ; ("lambda scopes correctly", `Quick, t_lambda_scopes_correctly)
+  ; ("pattern matches work", `Quick, t_pattern_matches_work)
   ; ("shadowing all the way down", `Quick, t_shadowing_all_the_way_down) ]

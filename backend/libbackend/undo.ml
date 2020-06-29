@@ -6,10 +6,9 @@ open Types
 (* Undo *)
 (* ------------------------- *)
 (* Passthrough whether an op is new or not *)
-type 'expr_type op_with_newness = bool * 'expr_type Op.op
+type op_with_newness = bool * Types.op
 
-let preprocess (ops : 'expr_type op_with_newness list) :
-    'expr_type op_with_newness list =
+let preprocess (ops : op_with_newness list) : op_with_newness list =
   (* The client can add undopoints when it chooses. When we get an undo,
    * we go back to the previous undopoint for that TL. *)
 
@@ -39,12 +38,12 @@ let preprocess (ops : 'expr_type op_with_newness list) :
              []
          | [op] ->
              [op]
-         | (_, Op.UndoTL uid) :: (_, Op.RedoTL rid) :: rest when rid = uid ->
+         | (_, UndoTL uid) :: (_, RedoTL rid) :: rest when rid = uid ->
              rest
          (* Step 2: error on solo redos *)
-         | (_, Op.RedoTL id1) :: (_, Op.RedoTL id2) :: rest when id1 = id2 ->
+         | (_, RedoTL id1) :: (_, RedoTL id2) :: rest when id1 = id2 ->
              op :: ops
-         | _ :: (_, Op.RedoTL _) :: rest ->
+         | _ :: (_, RedoTL _) :: rest ->
              Exception.client "Already at latest redo"
          | ops ->
              ops)
@@ -53,10 +52,10 @@ let preprocess (ops : 'expr_type op_with_newness list) :
   (* back until the last savepoint. *)
   |> List.fold_left ~init:[] ~f:(fun ops op ->
          match op with
-         | _, Op.UndoTL tlid ->
+         | _, UndoTL tlid ->
              let not_savepoint o =
                match o with
-               | _, Op.TLSavepoint sptlid when tlid = sptlid ->
+               | _, TLSavepoint sptlid when tlid = sptlid ->
                    false
                | _ ->
                    true
@@ -78,5 +77,5 @@ let preprocess (ops : 'expr_type op_with_newness list) :
 
 (* previous step leaves the list reversed *)
 
-let undo_count (ops : 'expr_type Op.op list) (tlid : tlid) : int =
-  ops |> List.rev |> List.take_while ~f:(( = ) (Op.UndoTL tlid)) |> List.length
+let undo_count (ops : Types.oplist) (tlid : tlid) : int =
+  ops |> List.rev |> List.take_while ~f:(( = ) (UndoTL tlid)) |> List.length

@@ -10,7 +10,7 @@ module Header = Cohttp.Header
 module AT = Alcotest
 
 let t_internal_roundtrippable_doesnt_care_about_order () =
-  check_dval'
+  check_dval
     "internal_roundtrippable doesn't care about key order"
     (Dval.of_internal_roundtrippable_v0
        "{
@@ -30,24 +30,19 @@ let t_dval_yojson_roundtrips () =
       , Dval.to_internal_roundtrippable_v0
       , Dval.of_internal_roundtrippable_v0 )
     ; ( "safe"
-      , (fun v ->
-          v
-          |> dval_to_yojson Types.fluid_expr_to_yojson
-          |> Yojson.Safe.to_string)
+      , (fun v -> v |> dval_to_yojson |> Yojson.Safe.to_string)
       , fun v ->
           v
           |> Yojson.Safe.from_string
-          |> dval_of_yojson Types.fluid_expr_of_yojson
+          |> dval_of_yojson
           |> Result.ok_or_failwith ) ]
   in
-  let check name (v : Types.fluid_expr dval) =
+  let check name (v : dval) =
     List.iter
       checks
-      ~f:(fun ( test_name
-              , (encode : Types.fluid_expr dval -> string)
-              , (decode : string -> Types.fluid_expr dval) )
+      ~f:(fun (test_name, (encode : dval -> string), (decode : string -> dval))
               ->
-        check_dval' (test_name ^ ": " ^ name) v (v |> encode |> decode) ;
+        check_dval (test_name ^ ": " ^ name) v (v |> encode |> decode) ;
         AT.check
           AT.string
           (test_name ^ " as string: " ^ name)
@@ -72,7 +67,7 @@ let t_dval_user_db_json_roundtrips () =
     |> Dval.to_internal_queryable_v1
     |> Dval.of_internal_queryable_v1
   in
-  let check name (v : expr dval) =
+  let check name (v : dval) =
     check_dval ("queryable: " ^ name) v (queryable_rt v) ;
     ()
   in
@@ -98,9 +93,9 @@ let t_dval_user_db_v1_migration () =
     |> Dval.to_internal_queryable_v1
     |> Dval.of_internal_queryable_v0
   in
-  let check name (v : Types.fluid_expr dval) =
-    check_dval' ("forward: " ^ name) v (forward v) ;
-    check_dval' ("backwards: " ^ name) v (backwards v) ;
+  let check name (v : dval) =
+    check_dval ("forward: " ^ name) v (forward v) ;
+    check_dval ("backwards: " ^ name) v (backwards v) ;
     ()
   in
   let fields =
@@ -274,7 +269,7 @@ let date_migration_has_correct_formats () =
 
 let t_password_json_round_trip_forwards () =
   let password = DPassword (Bytes.of_string "x") in
-  check_dval'
+  check_dval
     "Passwords serialize and deserialize if there's no redaction."
     password
     ( password
@@ -300,7 +295,7 @@ let t_password_serialization () =
     let bytes = Bytes.of_string "encryptedbytes" in
     let password = DPassword bytes in
     AT.check
-      at_dval'
+      at_dval
       ("Passwords serialize in non-redaction function: " ^ name)
       password
       (password |> serialize |> deserialize |> serialize |> deserialize)

@@ -3,7 +3,7 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
-let fns : expr fn list =
+let fns : fn list =
   [ { prefix_names = ["Date::parse"]
     ; infix_names = []
     ; parameters = [par "s" TStr]

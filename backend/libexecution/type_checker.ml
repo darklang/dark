@@ -4,11 +4,11 @@ open Types
 open Types.RuntimeT
 
 module Error = struct
-  type 'expr_type t =
+  type t =
     | TypeLookupFailure of string * int
     | TypeUnificationFailure of
         { expected_tipe : tipe
-        ; actual_value : 'expr_type dval }
+        ; actual_value : dval }
     | MismatchedRecordFields of
         { expected_fields : String.Set.t
         ; actual_fields : String.Set.t }
@@ -79,8 +79,8 @@ let user_tipe_list_to_type_env (tipes : user_tipe list) : type_env =
 
 let error err = Error [err]
 
-let rec unify ~(type_env : type_env) (expected : tipe) (value : 'expr_type dval)
-    : (unit, 'expr_type Error.t list) Result.t =
+let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
+    (unit, Error.t list) Result.t =
   match (expected, value) with
   (* Any should be removed, but we currently allow it as a param tipe
    * in user functions, so we should allow it here.
@@ -138,7 +138,7 @@ let rec unify ~(type_env : type_env) (expected : tipe) (value : 'expr_type dval)
 and unify_user_record_with_dval_map
     ~(type_env : type_env)
     (definition : user_record_field list)
-    (value : 'expr_type dval_map) : (unit, 'expr_type Error.t list) Result.t =
+    (value : dval_map) : (unit, Error.t list) Result.t =
   let complete_definition =
     definition
     |> List.filter_map ~f:(fun d ->
@@ -169,9 +169,8 @@ and unify_user_record_with_dval_map
 
 
 let check_function_call
-    ~(user_tipes : user_tipe list)
-    (fn : 'expr_type fn)
-    (args : 'expr_type dval_map) : (unit, 'expr_type Error.t list) Result.t =
+    ~(user_tipes : user_tipe list) (fn : fn) (args : dval_map) :
+    (unit, Error.t list) Result.t =
   let type_env = user_tipe_list_to_type_env user_tipes in
   let args = DvalMap.to_list args in
   let with_params =
@@ -187,8 +186,7 @@ let check_function_call
 
 
 let check_function_return_type
-    ~(user_tipes : user_tipe list)
-    (fn : 'expr_type fn)
-    (result : 'expr_type dval) : (unit, 'expr_type Error.t list) Result.t =
+    ~(user_tipes : user_tipe list) (fn : fn) (result : dval) :
+    (unit, Error.t list) Result.t =
   let type_env = user_tipe_list_to_type_env user_tipes in
   unify ~type_env fn.return_type result

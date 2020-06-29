@@ -3,7 +3,7 @@ module RT = Runtime
 open Types.RuntimeT
 open Lib
 
-let fns : Types.RuntimeT.expr Types.RuntimeT.fn list =
+let fns : fn list =
   [ { prefix_names = ["Http::respond"]
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
@@ -372,9 +372,9 @@ let fns : Types.RuntimeT.expr Types.RuntimeT.fn list =
           | state, [DStr name; DStr value; DObj o] ->
               let fold_cookie_params
                   ~(key : string)
-                  ~(data : 'expr_type dval)
-                  (acc : (string list, 'expr_type dval (* type error *)) result)
-                  : (string list, 'expr_type dval (* type error *)) result =
+                  ~(data : dval)
+                  (acc : (string list, dval (* type error *)) result) :
+                  (string list, dval (* type error *)) result =
                 Result.bind acc ~f:(fun acc ->
                     match (String.lowercase key, data) with
                     (* Bubble up errors for values that are invalid for all params *)

@@ -4,8 +4,8 @@ open Types.RuntimeT
 module RT = Runtime
 
 (* type coerces one list to another using a function *)
-let list_coerce ~(f : 'expr_type dval -> 'a option) (l : 'expr_type dval list) :
-    ('a list, 'expr_type dval list * 'expr_type dval) Result.t =
+let list_coerce ~(f : dval -> 'a option) (l : dval list) :
+    ('a list, dval list * dval) Result.t =
   l
   |> List.map ~f:(fun dv ->
          match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
@@ -14,7 +14,7 @@ let list_coerce ~(f : 'expr_type dval -> 'a option) (l : 'expr_type dval list) :
 
 let ( >>| ) = Result.( >>| )
 
-let fns : expr fn list =
+let fns : fn list =
   [ { prefix_names = ["Int::mod"]
     ; infix_names = ["%"]
     ; parameters = [par "a" TInt; par "b" TInt]

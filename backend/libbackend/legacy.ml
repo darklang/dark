@@ -744,10 +744,10 @@ module LibhttpclientV0 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : 'expr_type dval -> string)
-      (body : 'expr_type dval)
-      (query : 'expr_type dval)
-      (headers : 'expr_type dval) : 'expr_type dval =
+      (json_fn : dval -> string)
+      (body : dval)
+      (query : dval)
+      (headers : dval) : Types.RuntimeT.dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
@@ -762,7 +762,7 @@ module LibhttpclientV0 = struct
       if has_form_header headers
       then Dval.of_form_encoding result
       else if has_json_header headers
-      then Dval.of_unknown_json_v0 result |> Fluid.dval_of_fluid
+      then Dval.of_unknown_json_v0 result
       else Dval.dstr_of_string_exn result
     in
     let parsed_headers =
@@ -816,10 +816,10 @@ module LibhttpclientV0 = struct
   let wrapped_send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : 'expr_type dval -> string)
-      (body : 'expr_type dval)
-      (query : 'expr_type dval)
-      (headers : 'expr_type dval) : 'expr_type dval =
+      (json_fn : dval -> string)
+      (body : dval)
+      (query : dval)
+      (headers : dval) : dval =
     Libcommon.Log.inspecT "uri" uri ;
     Libcommon.Log.inspecT "body" body ;
     Libcommon.Log.inspecT "query" query ;
@@ -888,10 +888,10 @@ module LibhttpclientV1 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : 'expr_type dval -> string)
-      (body : 'expr_type dval)
-      (query : 'expr_type dval)
-      (headers : 'expr_type dval) : 'expr_type dval =
+      (json_fn : dval -> string)
+      (body : dval)
+      (query : dval)
+      (headers : dval) : dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
@@ -911,7 +911,7 @@ module LibhttpclientV1 = struct
         with _ -> Dval.dstr_of_string_exn "form decoding error"
       else if has_json_header headers
       then
-        try Dval.of_unknown_json_v0 result |> Fluid.dval_of_fluid
+        try Dval.of_unknown_json_v0 result
         with _ -> Dval.dstr_of_string_exn "json decoding error"
       else
         try Dval.dstr_of_string_exn result
@@ -1018,10 +1018,10 @@ module LibhttpclientV2 = struct
   let send_request
       (uri : string)
       (verb : Httpclient.verb)
-      (json_fn : 'expr_type dval -> string)
-      (body : 'expr_type dval)
-      (query : 'expr_type dval)
-      (headers : 'expr_type dval) : 'expr_type dval =
+      (json_fn : dval -> string)
+      (body : dval)
+      (query : dval)
+      (headers : dval) : dval =
     let query = Dval.dval_to_query query in
     let headers = Dval.to_string_pairs_exn headers in
     let body =
@@ -1041,7 +1041,7 @@ module LibhttpclientV2 = struct
         with _ -> Dval.dstr_of_string_exn "form decoding error"
       else if has_json_header headers
       then
-        try Dval.of_unknown_json_v0 result |> Fluid.dval_of_fluid
+        try Dval.of_unknown_json_v0 result
         with _ -> Dval.dstr_of_string_exn "json decoding error"
       else
         try Dval.dstr_of_string_exn result

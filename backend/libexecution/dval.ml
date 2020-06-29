@@ -5,18 +5,18 @@ open Types.RuntimeT
 (* ------------------------- *)
 (* Strings *)
 (* ------------------------- *)
-let dstr_of_string (s : string) : 'expr_type dval option =
+let dstr_of_string (s : string) : dval option =
   s |> Unicode_string.of_string |> Option.map ~f:(fun s -> DStr s)
 
 
-let dstr_of_string_exn (s : string) : 'expr_type dval =
+let dstr_of_string_exn (s : string) : dval =
   s |> dstr_of_string |> Option.value_exn ~message:("Invalid UTF-8 string:" ^ s)
 
 
 (* ------------------------- *)
 (* Types *)
 (* ------------------------- *)
-let rec tipe_to_string t : string =
+let rec tipe_to_string (t : tipe) : string =
   match t with
   | TAny ->
       "Any"
@@ -73,7 +73,7 @@ let rec tipe_to_string t : string =
       Exception.internal "Deprecated type"
 
 
-let rec tipe_to_developer_repr_v0 t : string =
+let rec tipe_to_developer_repr_v0 (t : tipe) : string =
   match t with
   | TAny ->
       "Any"
@@ -239,7 +239,7 @@ and parse_list_tipe (list_tipe : string) : tipe =
       Exception.internal ("Unhandled parse_list_tipe: " ^ list_tipe)
 
 
-let rec tipe_of (dv : 'expr_type dval) : tipe =
+let rec tipe_of (dv : dval) : tipe =
   match dv with
   | DInt _ ->
       TInt
@@ -284,13 +284,11 @@ let rec tipe_of (dv : 'expr_type dval) : tipe =
 
 
 (* Users should not be aware of this *)
-let tipename (dv : 'expr_type dval) : string =
+let tipename (dv : dval) : string =
   dv |> tipe_of |> tipe_to_string |> String.lowercase
 
 
-let pretty_tipename (dv : 'expr_type dval) : string =
-  dv |> tipe_of |> tipe_to_string
-
+let pretty_tipename (dv : dval) : string = dv |> tipe_of |> tipe_to_string
 
 let unsafe_tipe_to_yojson (t : tipe) : Yojson.Safe.t =
   `String (t |> tipe_to_string |> String.lowercase)
@@ -310,7 +308,7 @@ let unsafe_tipe_of_yojson (json : Yojson.Safe.t) =
 
 let is_errorrail e = match e with DErrorRail _ -> true | _ -> false
 
-let unwrap_from_errorrail (dv : 'expr_type dval) =
+let unwrap_from_errorrail (dv : dval) =
   match dv with DErrorRail dv -> dv | other -> other
 
 
@@ -322,27 +320,27 @@ let exception_to_dval (exc : Exn.t) (src : dval_source) =
  * These types of values are stand-ins/markers for some static property about the
  * code. They should be propagated through the programs execution whenever they are
  * found.*)
-let is_fake_marker_dval (dv : 'expr_type dval) =
+let is_fake_marker_dval (dv : dval) =
   match dv with DErrorRail _ | DIncomplete _ | DError _ -> true | _ -> false
 
 
 (* Anytime we create a dlist with the except of list literals,
  * we need to make sure that there are no incomplete, error rail
  * values within the list *)
-let to_list (l : 'expr_type dval list) : 'expr_type dval =
+let to_list (l : dval list) : dval =
   let found = List.find l ~f:is_fake_marker_dval in
   match found with Some v -> v | None -> DList l
 
 
-let to_res_ok (dv : 'expr_type dval) : 'expr_type dval =
+let to_res_ok (dv : dval) : dval =
   if is_fake_marker_dval dv then dv else DResult (ResOk dv)
 
 
-let to_res_err (dv : 'expr_type dval) : 'expr_type dval =
+let to_res_err (dv : dval) : dval =
   if is_fake_marker_dval dv then dv else DResult (ResError dv)
 
 
-let to_opt_just (dv : 'expr_type dval) : 'expr_type dval =
+let to_opt_just (dv : dval) : dval =
   if is_fake_marker_dval dv then dv else DOption (OptJust dv)
 
 
@@ -350,14 +348,14 @@ let to_opt_just (dv : 'expr_type dval) : 'expr_type dval =
  * type as long as we can, because we don't have a way to express (in ocaml)
  * 'DOption'. But then we have to convert it to a proper (DOption of OptJust
  * dval | OptNothing at the end *)
-let dopt_of_option (dv : 'expr_type dval option) : 'expr_type dval =
+let dopt_of_option (dv : dval option) : dval =
   match dv with None -> DOption OptNothing | Some dv -> dv |> to_opt_just
 
 
 (* ------------------------- *)
 (* Obj Functions *)
 (* ------------------------- *)
-let obj_merge (l : 'expr_type dval) (r : 'expr_type dval) : 'expr_type dval =
+let obj_merge (l : dval) (r : dval) : dval =
   match (l, r) with
   | DObj l, DObj r ->
       DObj (Util.merge_left l r)
@@ -369,7 +367,7 @@ let obj_merge (l : 'expr_type dval) (r : 'expr_type dval) : 'expr_type dval =
       Exception.code "was expecting objs"
 
 
-let empty_dobj : 'expr_type dval = DObj DvalMap.empty
+let empty_dobj : dval = DObj DvalMap.empty
 
 (* ------------------------- *)
 (* Json *)
@@ -381,7 +379,7 @@ let empty_dobj : 'expr_type dval = DObj DvalMap.empty
  * and we really need to move off it, but for now we're here. Do not change
  * existing encodings - this will break everything.
  *)
-let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : fluid_expr dval =
+let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
   (* sort so this isn't key-order-dependent. *)
   let json = Yojson.Safe.sort json in
   match json with
@@ -475,7 +473,7 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : fluid_expr dval =
       DObj (unsafe_dvalmap_of_yojson_v0 json)
 
 
-and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : 'expr_type dval_map =
+and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : dval_map =
   match json with
   | `Assoc alist ->
       List.fold_left
@@ -487,7 +485,7 @@ and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : 'expr_type dval_map =
       Exception.internal "Not a json object"
 
 
-let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : fluid_expr dval =
+let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
   (* sort so this isn't key-order-dependent. *)
   let json = Yojson.Safe.sort json in
   match json with
@@ -566,7 +564,7 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : fluid_expr dval =
       DObj (unsafe_dvalmap_of_yojson_v1 json)
 
 
-and unsafe_dvalmap_of_yojson_v1 (json : Yojson.Safe.t) : 'expr_type dval_map =
+and unsafe_dvalmap_of_yojson_v1 (json : Yojson.Safe.t) : dval_map =
   match json with
   | `Assoc alist ->
       List.fold_left
@@ -578,8 +576,7 @@ and unsafe_dvalmap_of_yojson_v1 (json : Yojson.Safe.t) : 'expr_type dval_map =
       Exception.internal "Not a json object"
 
 
-let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : 'expr_type dval) :
-    Yojson.Safe.t =
+let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : dval) : Yojson.Safe.t =
   let tipe = dv |> tipe_of |> unsafe_tipe_to_yojson in
   let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
   let wrap_constructed_type cons values =
@@ -649,8 +646,7 @@ let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : 'expr_type dval) :
       bytes |> RawBytes.to_string |> B64.encode |> wrap_user_str
 
 
-let unsafe_dval_to_yojson_v1 ?(redact = true) (dv : 'expr_type dval) :
-    Yojson.Safe.t =
+let unsafe_dval_to_yojson_v1 ?(redact = true) (dv : dval) : Yojson.Safe.t =
   unsafe_dval_to_yojson_v0 ~redact dv
 
 
@@ -675,9 +671,8 @@ let dhttp_to_formatted_string (d : dhttp) : string =
       string_of_int c ^ " " ^ string_of_headers hs
 
 
-let rec to_nested_string
-    ~(reprfn : 'expr_type dval -> string) (dv : 'expr_type dval) : string =
-  let rec inner (indent : int) (dv : 'expr_type dval) : string =
+let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
+  let rec inner (indent : int) (dv : dval) : string =
     let nl = "\n" ^ String.make indent ' ' in
     let inl = "\n" ^ String.make (indent + 2) ' ' in
     let indent = indent + 2 in
@@ -720,7 +715,7 @@ let of_internal_roundtrippable_json_v0 j =
   |> Result.map_error ~f:Exception.to_string
 
 
-let of_internal_roundtrippable_v0 str : fluid_expr dval =
+let of_internal_roundtrippable_v0 str : dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v1
 
 
@@ -732,7 +727,7 @@ let to_internal_queryable_v0 dval : string =
   dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
 
 
-let of_internal_queryable_v0 (str : string) : fluid_expr dval =
+let of_internal_queryable_v0 (str : string) : dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 
 
@@ -744,7 +739,7 @@ let to_internal_queryable_field_v1 dval : string =
   dval |> to_internal_queryable_field_json_v1 |> Yojson.Safe.to_string
 
 
-let to_internal_queryable_v1 (dval_map : 'expr_type dval_map) : string =
+let to_internal_queryable_v1 (dval_map : dval_map) : string =
   dval_map
   |> DvalMap.toList
   |> List.map ~f:(fun (k, dval) ->
@@ -752,9 +747,9 @@ let to_internal_queryable_v1 (dval_map : 'expr_type dval_map) : string =
   |> fun l -> `Assoc l |> Yojson.Safe.to_string
 
 
-let of_internal_queryable_v1 (str : string) : 'expr_type dval =
+let of_internal_queryable_v1 (str : string) : dval =
   (* The first level _must_ be an object at the moment *)
-  let rec convert_top_level (json : Yojson.Safe.t) : 'expr_type dval =
+  let rec convert_top_level (json : Yojson.Safe.t) : dval =
     match json with
     | `Assoc alist ->
         DObj
@@ -764,7 +759,7 @@ let of_internal_queryable_v1 (str : string) : 'expr_type dval =
              ~init:DvalMap.empty)
     | _ ->
         Exception.internal "Value that isn't an object"
-  and convert (json : Yojson.Safe.t) : 'expr_type dval =
+  and convert (json : Yojson.Safe.t) : dval =
     (* sort so this isn't key-order-dependent. *)
     let json = Yojson.Safe.sort json in
     match json with
@@ -876,8 +871,8 @@ let rec to_enduser_readable_text_v0 dval =
 
 let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
 
-let rec to_developer_repr_v0 (dv : 'expr_type dval) : string =
-  let rec to_repr_ (indent : int) (dv : 'expr_type dval) : string =
+let rec to_developer_repr_v0 (dv : dval) : string =
+  let rec to_repr_ (indent : int) (dv : dval) : string =
     let nl = "\n" ^ String.make indent ' ' in
     let inl = "\n" ^ String.make (indent + 2) ' ' in
     let indent = indent + 2 in
@@ -1005,7 +1000,7 @@ let to_pretty_machine_yojson_v1 dval =
   recurse dval
 
 
-let to_pretty_machine_json_v1 dval =
+let to_pretty_machine_json_v1 dval : string =
   to_pretty_machine_yojson_v1 dval |> Yojson.Safe.pretty_to_string
 
 
@@ -1102,7 +1097,7 @@ let rec show dv =
       "<Bytes: length=" ^ string_of_int (RawBytes.length bytes) ^ ">"
 
 
-let parse_literal (str : string) : 'expr_type dval option =
+let parse_literal (str : string) : dval option =
   let len = String.length str in
   (* Character *)
   if len > 2 && str.[0] = '\'' && str.[len - 1] = '\''
@@ -1154,9 +1149,9 @@ let to_float dv : Float.t option =
   match dv with DFloat f -> Some f | _ -> None
 
 
-let dint (i : int) : 'expr_type dval = DInt (Dint.of_int i)
+let dint (i : int) : dval = DInt (Dint.of_int i)
 
-let to_dobj_exn (pairs : (string * 'expr_type dval) list) : 'expr_type dval =
+let to_dobj_exn (pairs : (string * dval) list) : dval =
   match DvalMap.from_list_unique pairs with
   | Ok ok ->
       DObj ok
@@ -1176,7 +1171,7 @@ let to_string_exn dv : string =
       Exception.code "expecting str" ~actual:(to_developer_repr_v0 dv)
 
 
-let to_dval_pairs_exn dv : (string * 'expr_type dval) list =
+let to_dval_pairs_exn dv : (string * dval) list =
   match dv with
   | DObj obj ->
       DvalMap.to_list obj
@@ -1189,7 +1184,7 @@ let to_string_pairs_exn dv : (string * string) list =
 
 
 (* For putting into URLs as query params *)
-let rec to_url_string_exn (dv : 'expr_type dval) : string =
+let rec to_url_string_exn (dv : dval) : string =
   match dv with
   | DBlock _ ->
       (* See docs/dblock-serialization.ml *)
@@ -1246,7 +1241,7 @@ let rec to_url_string_exn (dv : 'expr_type dval) : string =
 (* Forms and queries Functions *)
 (* ------------------------- *)
 
-let query_to_dval (query : (string * string list) list) : 'expr_type dval =
+let query_to_dval (query : (string * string list) list) : dval =
   query
   |> List.map ~f:(fun (key, vals) ->
          let dval =
@@ -1263,7 +1258,7 @@ let query_to_dval (query : (string * string list) list) : 'expr_type dval =
   |> DObj
 
 
-let dval_to_query (dv : 'expr_type dval) : (string * string list) list =
+let dval_to_query (dv : dval) : (string * string list) list =
   match dv with
   | DObj kvs ->
       kvs
@@ -1280,11 +1275,11 @@ let dval_to_query (dv : 'expr_type dval) : (string * string list) list =
       Exception.code "attempting to use non-object as query param"
 
 
-let to_form_encoding (dv : 'expr_type dval) : string =
+let to_form_encoding (dv : dval) : string =
   dv |> dval_to_query |> Uri.encoded_of_query
 
 
-let of_form_encoding (f : string) : 'expr_type dval =
+let of_form_encoding (f : string) : dval =
   f |> Uri.query_of_encoded |> query_to_dval
 
 
@@ -1296,8 +1291,8 @@ let of_form_encoding (f : string) : 'expr_type dval =
  * amenable to change without a migration. Don't change ANYTHING for existing
  * values, but continue to add representations for new values. Also, inline
  * everything! *)
-let rec to_hashable_repr
-    ?(indent = 0) ?(old_bytes = false) (dv : 'expr_type dval) : string =
+let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
+    =
   let nl = "\n" ^ String.make indent ' ' in
   let inl = "\n" ^ String.make (indent + 2) ' ' in
   let indent = indent + 2 in
@@ -1387,7 +1382,7 @@ let current_hash_version = 1
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
  * size of the data stored by only storing a hash *)
-let hash (version : int) (arglist : 'expr_type dval list) : string =
+let hash (version : int) (arglist : dval list) : string =
   (* Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
    * [b"ab"; b"c"] *)
   match version with

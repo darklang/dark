@@ -8,7 +8,7 @@ module Unicode_string = Libexecution.Unicode_string
 
 let find_db = Libexecution.Ast.find_db
 
-let fns : expr fn list =
+let fns : fn list =
   [ { prefix_names = ["DB::set_v1"]
     ; infix_names = []
     ; parameters = [par "val" TObj; par "key" TStr; par "table" TDB]

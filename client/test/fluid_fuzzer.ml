@@ -163,7 +163,7 @@ let rec generatePattern' () : FluidPattern.t =
            (generateList ~minSize:0 ~f:generatePattern ()))
     ; lazy (pVar (generateName ()))
     ; lazy (pString (generateString ()))
-    ; lazy (pFloat (Int.toString (range 5000000)) (Int.toString (range 500000)))
+    ; lazy (pFloat (range 5000000) (range 500000))
     ; lazy (pBlank ()) ]
   |> Lazy.force
 

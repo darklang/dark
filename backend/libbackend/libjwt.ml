@@ -120,7 +120,7 @@ let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
       Error "Invalid token format"
 
 
-let handle_error (fn : unit -> expr dval) =
+let handle_error (fn : unit -> dval) =
   try DResult (ResOk (fn ()))
   with Invalid_argument msg ->
     let msg =
@@ -129,7 +129,7 @@ let handle_error (fn : unit -> expr dval) =
     DResult (ResError (Dval.dstr_of_string_exn msg))
 
 
-let fns =
+let fns : fn list =
   [ { prefix_names = ["JWT::signAndEncode"]
     ; infix_names = []
     ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]
@@ -261,11 +261,8 @@ let fns =
                     ~token:(Unicode_string.to_string token)
                 with
               | Some (headers, payload) ->
-                  [ ( "header"
-                    , Dval.of_unknown_json_v1 headers |> Fluid.dval_of_fluid )
-                  ; ( "payload"
-                    , Dval.of_unknown_json_v1 payload |> Fluid.dval_of_fluid )
-                  ]
+                  [ ("header", Dval.of_unknown_json_v1 headers)
+                  ; ("payload", Dval.of_unknown_json_v1 payload) ]
                   |> Prelude.StrDict.from_list_exn
                   |> DObj
                   |> OptJust
@@ -302,12 +299,8 @@ let fns =
                         ~token:(Unicode_string.to_string token)
                     with
                   | Ok (headers, payload) ->
-                      [ ( "header"
-                        , Dval.of_unknown_json_v1 headers |> Fluid.dval_of_fluid
-                        )
-                      ; ( "payload"
-                        , Dval.of_unknown_json_v1 payload |> Fluid.dval_of_fluid
-                        ) ]
+                      [ ("header", Dval.of_unknown_json_v1 headers)
+                      ; ("payload", Dval.of_unknown_json_v1 payload) ]
                       |> Prelude.StrDict.from_list_exn
                       |> DObj
                       |> ResOk

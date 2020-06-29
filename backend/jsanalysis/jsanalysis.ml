@@ -9,10 +9,9 @@ let init () =
   print_endline "libfrontend reporting in"
 
 
-type handler_list = fluid_expr HandlerT.handler list [@@deriving yojson]
+type handler_list = HandlerT.handler list [@@deriving yojson]
 
-type input_vars = (string * fluid_expr dval) list (* list of vars *)
-[@@deriving of_yojson]
+type input_vars = (string * dval) list (* list of vars *) [@@deriving of_yojson]
 
 (* We bring in our own definition because the deserializer is in Dval but the
  * definition is in Types, and that's challenging *)
@@ -43,7 +42,7 @@ type our_db =
 
 let convert_col ((name, tipe) : our_col) : DbT.col = (name, tipe)
 
-let convert_migration (m : our_db_migration) : fluid_expr DbT.db_migration =
+let convert_migration (m : our_db_migration) : DbT.db_migration =
   { starting_version = m.starting_version
   ; version = m.version
   ; state = m.state
@@ -52,7 +51,7 @@ let convert_migration (m : our_db_migration) : fluid_expr DbT.db_migration =
   ; cols = List.map ~f:convert_col m.cols }
 
 
-let convert_db (db : our_db) : fluid_expr DbT.db =
+let convert_db (db : our_db) : DbT.db =
   { tlid = db.tlid
   ; name = db.name
   ; cols = List.map ~f:convert_col db.cols
@@ -62,33 +61,32 @@ let convert_db (db : our_db) : fluid_expr DbT.db =
 
 
 type handler_analysis_param =
-  { handler : fluid_expr HandlerT.handler
+  { handler : HandlerT.handler
   ; trace_id : Analysis_types.traceid
-  ; trace_data : fluid_expr Analysis_types.trace_data
+  ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : fluid_expr user_fn list
+  ; user_fns : user_fn list
   ; user_tipes : user_tipe list
   ; secrets : secret list }
 [@@deriving of_yojson]
 
 type function_analysis_param =
-  { func : fluid_expr user_fn
+  { func : user_fn
   ; trace_id : Analysis_types.traceid
-  ; trace_data : fluid_expr Analysis_types.trace_data
+  ; trace_data : Analysis_types.trace_data
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
-  ; user_fns : fluid_expr user_fn list
+  ; user_fns : user_fn list
   ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
-type analysis_envelope = uuid * fluid_expr Analysis_types.analysis
-[@@deriving to_yojson]
+type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
 
 let load_from_trace
-    (results : expr Analysis_types.function_result list)
+    (results : Analysis_types.function_result list)
     (tlid, fnname, caller_id)
-    (args : expr dval list) : (expr dval * Time.t) option =
+    (args : dval list) : (dval * Time.t) option =
   let hashes =
     Dval.supported_hash_versions
     |> List.map ~f:(fun key -> (id_of_int key, Dval.hash key args))
@@ -109,21 +107,16 @@ let load_from_trace
 let perform_analysis
     ~(tlid : tlid)
     ~(dbs : our_db list)
-    ~(user_fns : fluid_expr user_fn list)
+    ~(user_fns : user_fn list)
     ~(user_tipes : user_tipe list)
     ~(secrets : secret list)
     ~(trace_id : RuntimeT.uuid)
-    ~(trace_data : fluid_expr Analysis_types.trace_data)
+    ~(trace_data : Analysis_types.trace_data)
     ast =
-  let dbs : fluid_expr DbT.db list = List.map ~f:convert_db dbs in
+  let dbs : DbT.db list = List.map ~f:convert_db dbs in
   let execution_id = Types.id_of_int 1 in
-  let input_vars =
-    trace_data.input |> List.map ~f:(fun (a, b) -> (a, Fluid.dval_of_fluid b))
-  in
-  let function_results =
-    List.map trace_data.function_results ~f:(fun (a, b, c, d, e) ->
-        (a, b, c, d, Fluid.dval_of_fluid e))
-  in
+  let input_vars = trace_data.input in
+  let function_results = trace_data.function_results in
   Log.add_log_annotations
     [ ("execution_id", `String (Types.string_of_id execution_id))
     ; ("tlid", `String (Types.string_of_id tlid)) ]
@@ -136,14 +129,13 @@ let perform_analysis
           ~account_id:(Util.create_uuid ())
           ~canvas_id:(Util.create_uuid ())
           ~input_vars
-          ~dbs:(List.map ~f:Toplevel.db_of_fluid dbs)
-          ~user_fns:(List.map ~f:Toplevel.user_fn_of_fluid user_fns)
+          ~dbs
+          ~user_fns
           ~user_tipes
           ~package_fns:[]
           ~secrets
           ~load_fn_result:(load_from_trace function_results)
-          ~load_fn_arguments:Execution.load_no_arguments
-        |> Hashtbl.map ~f:Fluid.execution_result_to_fluid )
+          ~load_fn_arguments:Execution.load_no_arguments )
       |> analysis_envelope_to_yojson
       |> Yojson.Safe.to_string)
 
@@ -163,7 +155,7 @@ let perform_handler_analysis (str : string) : string =
     ~secrets
     ~trace_id
     ~trace_data
-    (Fluid.fromFluidExpr handler.ast)
+    handler.ast
 
 
 let perform_function_analysis (str : string) : string =
@@ -181,7 +173,7 @@ let perform_function_analysis (str : string) : string =
     ~secrets:[]
     ~trace_id
     ~trace_data
-    (Fluid.fromFluidExpr func.ast)
+    func.ast
 
 
 open Js_of_ocaml

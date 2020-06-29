@@ -113,7 +113,7 @@ let t_html_escaping () =
     (* TODO: add back in check that `'` is correctly escaped. It didn't
      * play nice with our hacky `'` removal in the DSL parser *)
     (Dval.dstr_of_string_exn "test&lt;&gt;&amp;&quot;")
-    (exec_ast (fn "String::htmlEscape" [str "test<>&\\\""]))
+    (exec_ast (fn "String::htmlEscape" [str "test<>&\""]))
 
 
 let t_slugify_works () =
@@ -185,11 +185,7 @@ let t_uuid_string_roundtrip () =
     AT.int
     "A generated id can round-trip"
     0
-    ( match exec_ast ast with
-    | DList [p1; p2] ->
-        compare_dval compare_expr p1 p2
-    | _ ->
-        1 )
+    (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
 
 
 let t_substring_works () =

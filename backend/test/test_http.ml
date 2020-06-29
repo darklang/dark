@@ -258,7 +258,7 @@ let t_path_gt_route_does_not_crash () =
 
 let t_incomplete_handler_doesnt_throw () =
   let filled = http_route_handler ~route:"/:foo" () in
-  let empty = handler (Fluid.fromFluidExpr (int 5)) in
+  let empty = handler (int 5) in
   let ordered = Http.filter_matching_handlers "/a" [filled; empty] in
   AT.check
     (AT.list testable_handler)
@@ -280,7 +280,7 @@ let t_parsed_request_cookies () =
   in
   let with_cookies c = with_headers [("cookie", c)] in
   AT.check
-    (AT.list at_dval')
+    (AT.list at_dval)
     "Parsed_request.from_request parses cookies correctly."
     [ with_headers []
     ; with_cookies ""
@@ -322,12 +322,12 @@ let t_parsed_request_bodies () =
     Dval.to_dobj_exn [("field1", Dval.dstr_of_string_exn "value1")]
   in
   AT.check
-    (AT.pair at_dval' at_dval')
+    (AT.pair at_dval at_dval)
     "form no json"
     (DNull, expectedObj)
     (parse formHeader "field1=value1") ;
   AT.check
-    (AT.pair at_dval' at_dval')
+    (AT.pair at_dval at_dval)
     "json no form"
     (expectedObj, DNull)
     (parse jsonHeader "{ \"field1\": \"value1\" }") ;

@@ -55,8 +55,8 @@ let to_name (fn : fn) : string =
 (* ------------------ *)
 exception InvalidFunction of string
 
-let extract_metadata (fn : 'expr_type RuntimeT.user_fn) :
-    string * parameter list * tipe_ * string =
+let extract_metadata (fn : RuntimeT.user_fn) :
+    string * parameter list * RuntimeT.tipe * string =
   let name =
     match fn.metadata.name with
     | Filled (_, name) ->
@@ -129,19 +129,25 @@ let parse_fnname (name : string) : string * string * string * string * int =
            "Invalid function name, missing part of the name. It should match {user_or_org}/{package}/{module}::{fnname}_v{number}")
 
 
-type expr_with_id =
-  { tlid : tlid
-  ; expr : RuntimeT.expr }
+type expr_with_tlid =
+  { tlid : Serialization_format.tlid
+  ; expr : Serialization_format.RuntimeT.expr }
 [@@deriving bin_io, show]
 
-let expr_to_string (tlid : tlid) (expr : RuntimeT.expr) : string =
+type expr_tlid_pair = Types.fluid_expr * tlid [@@deriving show]
+
+let expr_tlid_pair_to_binary_string ((expr, tlid) : expr_tlid_pair) : string =
+  let expr = Serialization_converters.fromFluidExpr expr in
   {expr; tlid}
-  |> Core_extended.Bin_io_utils.to_line bin_expr_with_id
+  |> Core_extended.Bin_io_utils.to_line bin_expr_with_tlid
   |> Bigstring.to_string
 
 
-let string_to_expr (str : string) : expr_with_id =
-  Core_extended.Bin_io_utils.of_line str bin_expr_with_id
+let binary_string_to_expr_tlid_pair (str : string) : expr_tlid_pair =
+  let {expr; tlid} =
+    Core_extended.Bin_io_utils.of_line str bin_expr_with_tlid
+  in
+  (Serialization_converters.toFluidExpr expr, tlid)
 
 
 let function_name (fn : fn) : string =
@@ -222,7 +228,7 @@ let add_function (fn : fn) : unit =
           ; Db.String fn.fnname
           ; Db.Int version
           ; Db.String fn.description
-          ; Db.Binary (expr_to_string fn.tlid (Fluid.fromFluidExpr fn.body))
+          ; Db.Binary (expr_tlid_pair_to_binary_string (fn.body, fn.tlid))
           ; Db.String (Dval.tipe_to_string fn.return_type)
           ; Db.String
               (fn.parameters |> parameters_to_yojson |> Yojson.Safe.to_string)
@@ -252,8 +258,7 @@ let add_function (fn : fn) : unit =
         ~result:TextResult)
 
 
-let save (author : string) (fn : Types.fluid_expr RuntimeT.user_fn) :
-    (unit, string) Result.t =
+let save (author : string) (fn : RuntimeT.user_fn) : (unit, string) Result.t =
   (* First let's be very sure we have a correct function *)
   let metadata =
     try extract_metadata fn |> Result.return
@@ -371,8 +376,8 @@ let all_functions () : fn list =
     |> List.filter_map ~f:(function
            | [user_id; package; module_; fnname; version; body] ->
              ( try
-                 let body = string_to_expr body in
-                 Some (string_of_id body.tlid, Fluid.toFluidExpr body.expr)
+                 let expr, tlid = binary_string_to_expr_tlid_pair body in
+                 Some (string_of_id tlid, expr)
                with _ ->
                  let fnkey =
                    Printf.sprintf
@@ -415,16 +420,16 @@ let all_functions () : fn list =
   functions
 
 
-let runtime_fn_of_package_fn (fn : fn) : RuntimeT.expr RuntimeT.fn =
+let runtime_fn_of_package_fn (fn : fn) : RuntimeT.fn =
   ( { prefix_names = [to_name fn]
     ; infix_names = []
     ; parameters = fn.parameters |> List.map ~f:runtime_param_of_parameter
     ; return_type = fn.return_type
     ; description = fn.description
-    ; func = PackageFunction (Fluid.fromFluidExpr fn.body)
+    ; func = PackageFunction fn.body
     ; preview_safety = Unsafe
     ; deprecated = fn.deprecated }
-    : RuntimeT.expr RuntimeT.fn )
+    : RuntimeT.fn )
 
 
 let to_get_packages_rpc_result packages : string =

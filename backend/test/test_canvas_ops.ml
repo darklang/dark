@@ -13,16 +13,12 @@ module AT = Alcotest
 
 let t_undo_fns () =
   clear_test_data () ;
-  let n1 = Op.TLSavepoint tlid in
-  let n2 =
-    hop (handler (Fluid.fromFluidExpr (binop "-" (blank ()) (blank ()))))
-  in
-  let n3 = hop (handler (Fluid.fromFluidExpr (binop "-" (int 3) (blank ())))) in
-  let n4 = hop (handler (Fluid.fromFluidExpr (binop "-" (int 3) (int 4)))) in
-  let u = Op.UndoTL tlid in
-  let ops (c : RuntimeT.expr C.canvas ref) =
-    !c.ops |> List.hd_exn |> Tuple.T2.get2
-  in
+  let n1 = TLSavepoint tlid in
+  let n2 = hop (handler (binop "-" (blank ()) (blank ()))) in
+  let n3 = hop (handler (binop "-" (int 3) (blank ()))) in
+  let n4 = hop (handler (binop "-" (int 3) (int 4))) in
+  let u = UndoTL tlid in
+  let ops (c : C.canvas ref) = !c.ops |> List.hd_exn |> Tuple.T2.get2 in
   AT.check
     AT.int
     "undocount"
@@ -35,14 +31,14 @@ let t_undo_fns () =
 let t_undo () =
   clear_test_data () ;
   let ha ast = hop (handler ast) in
-  let sp = Op.TLSavepoint tlid in
-  let u = Op.UndoTL tlid in
-  let r = Op.RedoTL tlid in
-  let o1 = v "1" in
-  let o2 = v "2" in
-  let o3 = v "3" in
-  let o4 = v "4" in
-  let o5 = v "5" in
+  let sp = TLSavepoint tlid in
+  let u = UndoTL tlid in
+  let r = RedoTL tlid in
+  let o1 = int 1 in
+  let o2 = int 2 in
+  let o3 = int 3 in
+  let o4 = int 4 in
+  let o5 = int 5 in
   let ops = [sp; ha o1; sp; ha o2; sp; ha o3; sp; ha o4; sp; ha o5] in
   (* Check assumptions *)
   execute_ops ops |> check_dval "t_undo_1" (Dval.dint 5) ;
@@ -69,9 +65,7 @@ let t_db_oplist_roundtrip () =
   let host = "test-db_oplist_roundtrip" in
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
-  let oplist =
-    [Op.UndoTL tlid; Op.RedoTL tlid; Op.UndoTL tlid; Op.RedoTL tlid]
-  in
+  let oplist = [UndoTL tlid; RedoTL tlid; UndoTL tlid; RedoTL tlid] in
   Serialize.save_toplevel_oplist
     oplist
     ~binary_repr:None
@@ -92,7 +86,7 @@ let t_http_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-http_oplist_roundtrip" in
   let handler = http_route_handler () in
-  let oplist = [Op.SetHandler (tlid, pos, handler)] in
+  let oplist = [SetHandler (tlid, pos, handler)] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c1 ;
   let c2 =
@@ -118,9 +112,7 @@ let t_http_oplist_loads_user_tipes () =
   clear_test_data () ;
   let host = "test-http_oplist_loads_user_tipes" in
   let tipe = user_record "test-tipe" [] in
-  let oplist =
-    [Op.SetHandler (tlid, pos, http_route_handler ()); Op.SetType tipe]
-  in
+  let oplist = [SetHandler (tlid, pos, http_route_handler ()); SetType tipe] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
   let c2 =
@@ -144,25 +136,13 @@ let t_http_load_ignores_deleted_fns () =
   clear_test_data () ;
   let host = "test-http_load_ignores_deleted_fns_and_dbs" in
   let handler = http_route_handler () in
-  let f =
-    user_fn
-      ~tlid:tlid2
-      "testfn"
-      []
-      (Fluid.fromFluidExpr (binop "+" (int 5) (int 3)))
-  in
-  let f2 =
-    user_fn
-      ~tlid:tlid3
-      "testfn"
-      []
-      (Fluid.fromFluidExpr (binop "+" (int 6) (int 4)))
-  in
+  let f = user_fn ~tlid:tlid2 "testfn" [] (binop "+" (int 5) (int 3)) in
+  let f2 = user_fn ~tlid:tlid3 "testfn" [] (binop "+" (int 6) (int 4)) in
   let oplist =
-    [ Op.SetHandler (tlid, pos, handler)
-    ; Op.SetFunction f
-    ; Op.DeleteFunction tlid2
-    ; Op.SetFunction f2 ]
+    [ SetHandler (tlid, pos, handler)
+    ; SetFunction f
+    ; DeleteFunction tlid2
+    ; SetFunction f2 ]
   in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tlid2; tlid3] !c1 ;
@@ -196,8 +176,8 @@ let t_http_load_ignores_deleted_fns () =
 let t_db_create_with_orblank_name () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid) ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; AddDBCol (dbid, colnameid, coltypeid) ]
   in
   let _, state, _ = test_execution_data ops in
   AT.check AT.bool "datastore is created" true (state.dbs <> [])
@@ -206,9 +186,9 @@ let t_db_create_with_orblank_name () =
 let t_db_rename () =
   clear_test_data () ;
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "ElmCode")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.RenameDBname (dbid, "BsCode") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "ElmCode")
+    ; AddDBCol (dbid, colnameid, coltypeid)
+    ; RenameDBname (dbid, "BsCode") ]
   in
   let _, state, _ = test_execution_data ops in
   match List.hd state.dbs with
@@ -230,11 +210,11 @@ let t_set_after_delete () =
   let check_single msg tls = AT.check AT.int msg (IDMap.length tls) 1 in
   (* handlers *)
   clear_test_data () ;
-  let h1 = handler (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
-  let h2 = handler (Fluid.fromFluidExpr (binop "+" (int 5) (int 2))) in
-  let op1 = Op.SetHandler (tlid, pos, h1) in
-  let op2 = Op.DeleteTL tlid in
-  let op3 = Op.SetHandler (tlid, pos, h2) in
+  let h1 = handler (binop "+" (int 5) (int 3)) in
+  let h2 = handler (binop "+" (int 5) (int 2)) in
+  let op1 = SetHandler (tlid, pos, h1) in
+  let op2 = DeleteTL tlid in
+  let op3 = SetHandler (tlid, pos, h2) in
   check_dval "first handler is right" (execute_ops [op1]) (Dval.dint 8) ;
   check_empty "deleted not in handlers" !(ops2c_exn "test" [op1; op2]).handlers ;
   check_single
@@ -252,15 +232,11 @@ let t_set_after_delete () =
     (Dval.dint 7) ;
   (* same thing for functions *)
   clear_test_data () ;
-  let h1 =
-    user_fn "testfn" [] (Fluid.fromFluidExpr (binop "+" (int 5) (int 3)))
-  in
-  let h2 =
-    user_fn "testfn" [] (Fluid.fromFluidExpr (binop "+" (int 5) (int 2)))
-  in
-  let op1 = Op.SetFunction h1 in
-  let op2 = Op.DeleteFunction tlid in
-  let op3 = Op.SetFunction h2 in
+  let h1 = user_fn "testfn" [] (binop "+" (int 5) (int 3)) in
+  let h2 = user_fn "testfn" [] (binop "+" (int 5) (int 2)) in
+  let op1 = SetFunction h1 in
+  let op2 = DeleteFunction tlid in
+  let op3 = SetFunction h2 in
   check_empty "deleted not in fns" !(ops2c_exn "test" [op1; op2]).user_functions ;
   check_single
     "delete in deleted"
@@ -278,10 +254,10 @@ let t_load_all_dbs_from_cache () =
   clear_test_data () ;
   let host = "test-http_oplist_loads_user_tipes" in
   let oplist =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
-    ; Op.CreateDBWithBlankOr (dbid3, pos, nameid3, "Books3")
-    ; Op.DeleteTL dbid ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
+    ; CreateDBWithBlankOr (dbid3, pos, nameid3, "Books3")
+    ; DeleteTL dbid ]
   in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [dbid; dbid2; dbid3] !c1 ;
@@ -300,8 +276,8 @@ let t_load_all_dbs_from_cache () =
 
 let t_canvas_verification_duplicate_creation () =
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
   in
   let c = ops2c "test-verify_create" ops in
   AT.check AT.bool "should not verify" false (Result.is_ok c)
@@ -310,11 +286,11 @@ let t_canvas_verification_duplicate_creation () =
 let t_canvas_verification_duplicate_creation_off_disk () =
   clear_test_data () ;
   let host = "test-verify_rename" in
-  let ops = [Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")] in
+  let ops = [CreateDBWithBlankOr (dbid, pos, nameid, "Books")] in
   let c1 = ops2c_exn host ops in
   Canvas.serialize_only [dbid] !c1 ;
   let c2 =
-    let ops = [Op.CreateDBWithBlankOr (dbid2, pos, nameid, "Books")] in
+    let ops = [CreateDBWithBlankOr (dbid2, pos, nameid, "Books")] in
     match Op.required_context_to_validate_oplist ops with
     | NoContext ->
         Canvas.load_only_tlids ~tlids:[dbid2] host ops
@@ -326,9 +302,9 @@ let t_canvas_verification_duplicate_creation_off_disk () =
 
 let t_canvas_verification_duplicate_renaming () =
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
-    ; Op.RenameDBname (dbid2, "Books") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2")
+    ; RenameDBname (dbid2, "Books") ]
   in
   let c = ops2c "test-verify_rename" ops in
   AT.check AT.bool "should not verify" false (Result.is_ok c)
@@ -336,8 +312,8 @@ let t_canvas_verification_duplicate_renaming () =
 
 let t_canvas_verification_no_error () =
   let ops =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books2") ]
   in
   let c = ops2c "test-verify_okay" ops in
   AT.check AT.bool "should verify" true (Result.is_ok c)
@@ -345,10 +321,10 @@ let t_canvas_verification_no_error () =
 
 let t_canvas_verification_undo_rename_duped_name () =
   let ops1 =
-    [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-    ; Op.TLSavepoint dbid
-    ; Op.DeleteTL dbid
-    ; Op.CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
+    [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
+    ; TLSavepoint dbid
+    ; DeleteTL dbid
+    ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
   in
   let c = ops2c "test-verify_undo_1" ops1 in
   AT.check AT.bool "should initially verify" true (Result.is_ok c) ;
@@ -375,21 +351,21 @@ let t_canvas_clone () =
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas : RuntimeT.expr Canvas.canvas ref =
+  let cloned_canvas : Canvas.canvas ref =
     Canvas.load_all "clone-gettingstarted" []
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
-  let cloned_canvas_from_cache : RuntimeT.expr Canvas.canvas ref =
+  let cloned_canvas_from_cache : Canvas.canvas ref =
     Canvas.load_all_from_cache "clone-gettingstarted"
     |> Tc.Result.map_error (String.concat ~sep:", ")
     |> Result.ok_or_failwith
   in
   (* canvas.ops is not [op list], it is [(tlid, op list) list] *)
-  let canvas_ops_length (c : RuntimeT.expr Canvas.canvas) =
+  let canvas_ops_length (c : Canvas.canvas) =
     c.ops |> List.map ~f:snd |> List.join |> List.length
   in
-  let has_creation_ops (c : RuntimeT.expr Canvas.canvas) =
+  let has_creation_ops (c : Canvas.canvas) =
     List.map c.ops ~f:(fun (_, ops) ->
         Canvas_clone.only_ops_since_last_savepoint ops
         |> Tablecloth.List.any ~f:Canvas_clone.is_op_that_creates_toplevel)
@@ -409,15 +385,12 @@ let t_canvas_clone () =
     AT.bool
     "Same DBs when loading from db"
     true
-    (Toplevel.equal_toplevels
-       RuntimeT.equal_expr
-       !sample_canvas.dbs
-       !cloned_canvas.dbs) ;
+    (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from db, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -425,21 +398,18 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string ) ;
   AT.check
     AT.bool
     "Same DBs when loading from cache"
     true
-    (Toplevel.equal_toplevels
-       RuntimeT.equal_expr
-       !sample_canvas.dbs
-       !cloned_canvas_from_cache.dbs) ;
+    (Toplevel.equal_toplevels !sample_canvas.dbs !cloned_canvas_from_cache.dbs) ;
   AT.check
     AT.string
     "Same handlers when loading from cache, except that string with url got properly munged from sample-gettingstarted... to clone-gettingstarted...,"
     ( !sample_canvas.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string
     |> fun s ->
     Libexecution.Util.string_replace
@@ -447,7 +417,7 @@ let t_canvas_clone () =
       "http://clone-gettingstarted.builtwithdark.localhost"
       s )
     ( !cloned_canvas_from_cache.handlers
-    |> Toplevel.toplevels_to_yojson RuntimeT.expr_to_yojson
+    |> Toplevel.toplevels_to_yojson
     |> Yojson.Safe.to_string )
 
 

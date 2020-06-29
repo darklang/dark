@@ -8,9 +8,9 @@ module Span = Libcommon.Telemetry.Span
  * passing a variable that'll unify *)
 type transaction
 
-type 'expr_type t =
+type t =
   { id : int
-  ; value : 'expr_type RuntimeT.dval
+  ; value : RuntimeT.dval
   ; retries : int
   ; canvas_id : Uuidm.t
   ; host : string
@@ -18,7 +18,7 @@ type 'expr_type t =
   ; name : string
   ; modifier : string }
 
-val to_event_desc : 'expr_type t -> Stored_event.event_desc
+val to_event_desc : t -> Stored_event.event_desc
 
 val enqueue :
      account_id:Uuidm.t
@@ -26,22 +26,21 @@ val enqueue :
   -> string
   -> string
   -> string
-  -> 'expr_type RuntimeT.dval
+  -> RuntimeT.dval
   -> unit
 
 val with_transaction :
      Span.t
   -> (   Span.t
       -> transaction
-      -> ('expr_type RuntimeT.dval option, Exception.captured) Result.t)
-  -> ('expr_type RuntimeT.dval option, Exception.captured) Result.t
+      -> (RuntimeT.dval option, Exception.captured) Result.t)
+  -> (RuntimeT.dval option, Exception.captured) Result.t
 
-val dequeue : Span.t -> transaction -> RuntimeT.expr t option
+val dequeue : Span.t -> transaction -> t option
 
-val put_back :
-  transaction -> 'expr_type t -> status:[`OK | `Err | `Incomplete] -> unit
+val put_back : transaction -> t -> status:[`OK | `Err | `Incomplete] -> unit
 
-val finish : transaction -> 'expr_type t -> unit
+val finish : transaction -> t -> unit
 
 val schedule_all : unit -> unit
 
@@ -62,7 +61,7 @@ module Scheduling_rule : sig
 
   val rule_type_to_string : rule_type -> string
 
-  val to_dval : t -> 'expr_type dval
+  val to_dval : t -> RuntimeT.dval
 end
 
 module Worker_states : sig

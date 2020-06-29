@@ -13,9 +13,7 @@ open Libcommon
  * event handler *)
 let t_event_queue_roundtrip () =
   clear_test_data () ;
-  let h =
-    daily_cron (Fluid.fromFluidExpr (let' "date" (fn "Date::now" []) (int 123)))
-  in
+  let h = daily_cron (let' "date" (fn "Date::now" []) (int 123)) in
   let c = ops2c_exn "test-event_queue" [hop h] in
   Canvas.save_all !c ;
   Event_queue.enqueue
@@ -52,8 +50,8 @@ let t_event_queue_roundtrip () =
 let t_event_queue_is_fifo () =
   let module E = Event_queue in
   clear_test_data () ;
-  let apple = worker "apple" (Fluid.fromFluidExpr (var "event")) in
-  let banana = worker "banana" (Fluid.fromFluidExpr (var "event")) in
+  let apple = worker "apple" (var "event") in
+  let banana = worker "banana" (var "event") in
   let c = ops2c_exn "test-worker-fifo" [hop apple; hop banana] in
   Canvas.save_all !c ;
   let enqueue name i =
@@ -106,7 +104,7 @@ let t_cron_fetch_active_crons () =
 
 let t_cron_sanity () =
   clear_test_data () ;
-  let h = daily_cron (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
+  let h = daily_cron (binop "+" (int 5) (int 3)) in
   let c = ops2c_exn "test-cron_works" [hop h] in
   let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
     { canvas_id = !c.id
@@ -128,7 +126,7 @@ let t_cron_sanity () =
 
 let t_cron_just_ran () =
   clear_test_data () ;
-  let h = daily_cron (Fluid.fromFluidExpr (binop "+" (int 5) (int 3))) in
+  let h = daily_cron (binop "+" (int 5) (int 3)) in
   let c = ops2c_exn "test-cron_works" [hop h] in
   let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
     { canvas_id = !c.id
@@ -155,9 +153,9 @@ let t_cron_just_ran () =
 
 let t_get_worker_schedules_for_canvas () =
   clear_test_data () ;
-  let apple = worker "apple" (Fluid.fromFluidExpr (int 1)) in
-  let banana = worker "banana" (Fluid.fromFluidExpr (int 1)) in
-  let cherry = worker "cherry" (Fluid.fromFluidExpr (int 1)) in
+  let apple = worker "apple" (int 1) in
+  let banana = worker "banana" (int 1) in
+  let cherry = worker "cherry" (int 1) in
   let c =
     ops2c_exn "test-worker-scheduling-rules" [hop apple; hop banana; hop cherry]
   in

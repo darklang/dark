@@ -91,16 +91,8 @@ let fns =
           | state, [DList l] ->
               let fold_fn
                   (idx : int)
-                  (acc :
-                    ( 'expr_type dval DvalMap.t
-                    , 'expr_type dval
-                    (* type error *) )
-                    result)
-                  (dv : 'expr_type dval) :
-                  ( 'expr_type dval DvalMap.t
-                  , 'expr_type dval
-                  (* type error *) )
-                  result =
+                  (acc : (dval DvalMap.t, dval (* type error *)) result)
+                  (dv : dval) : (dval DvalMap.t, dval (* type error *)) result =
                 Result.bind acc ~f:(fun acc ->
                     match dv with
                     | DList [DStr k; value] ->
@@ -169,10 +161,8 @@ let fns =
           (function
           | state, [DList l] ->
               let fold_fn
-                  (idx : int)
-                  (acc : ('expr_type dval DvalMap.t, 'expr_type dval) result)
-                  (dv : 'expr_type dval) :
-                  ('expr_type dval DvalMap.t, 'expr_type dval) result =
+                  (idx : int) (acc : (dval DvalMap.t, dval) result) (dv : dval)
+                  : (dval DvalMap.t, dval) result =
                 (* The dval for the result error could either be [Error DError] (in case of a type error)
                  * or an [Error (DOption OptNothing)] (in case there is a duplicate) *)
                 Result.bind acc ~f:(fun acc ->
@@ -336,7 +326,7 @@ let fns =
         InProcess
           (function
           | state, [DObj o; DBlock b] ->
-              let f ~key ~(data : 'expr_type dval) =
+              let f ~key ~(data : dval) =
                 Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
               in
               DObj (Map.mapi ~f o)
@@ -356,7 +346,7 @@ let fns =
           (function
           | state, [DObj o; DBlock b] ->
               let incomplete = ref false in
-              let f ~(key : string) ~(data : 'expr_type dval) : bool =
+              let f ~(key : string) ~(data : dval) : bool =
                 let result =
                   Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
                 in
@@ -438,7 +428,7 @@ let fns =
           (function
           | state, [DObj o; DBlock b] ->
               let abortReason = ref None in
-              let f ~key ~(data : 'expr_type dval) : 'expr_type dval option =
+              let f ~key ~(data : dval) : dval option =
                 if !abortReason = None
                 then (
                   match

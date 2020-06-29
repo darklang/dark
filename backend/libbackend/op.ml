@@ -1,173 +1,8 @@
 open Core_kernel
 open Libexecution
-open Types
+module SF = Serialization_format
 
-(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-type 'expr_type op =
-  | SetHandler of tlid * pos * 'expr_type RuntimeT.HandlerT.handler
-  | CreateDB of tlid * pos * string
-  | AddDBCol of tlid * id * id
-  | SetDBColName of tlid * id * string
-  | SetDBColType of tlid * id * string
-  | DeleteTL of tlid
-  | MoveTL of tlid * pos
-  | SetFunction of 'expr_type RuntimeT.user_fn
-  | ChangeDBColName of tlid * id * string
-  | ChangeDBColType of tlid * id * string
-  | UndoTL of tlid
-  | RedoTL of tlid
-  | DeprecatedInitDbm of tlid * id * id * id * RuntimeT.DbT.migration_kind
-  | SetExpr of tlid * id * 'expr_type
-  | TLSavepoint of tlid
-  | DeleteFunction of tlid
-  | CreateDBMigration of
-      tlid * id * id * (string or_blank * string or_blank) list
-  | AddDBColToDBMigration of tlid * id * id
-  | SetDBColNameInDBMigration of tlid * id * string
-  | SetDBColTypeInDBMigration of tlid * id * string
-  | AbandonDBMigration of tlid
-  | DeleteColInDBMigration of tlid * id
-  | DeleteDBCol of tlid * id
-  | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * pos * id * string
-  | DeleteTLForever of tlid
-  | DeleteFunctionForever of tlid
-  | SetType of RuntimeT.user_tipe
-  | DeleteType of tlid
-  | DeleteTypeForever of tlid
-[@@deriving eq, yojson, show, bin_io]
-
-(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
-
-let op_to_fluid_op (op : RuntimeT.expr op) : Types.fluid_expr op =
-  match op with
-  | SetHandler (tlid, pos, h) ->
-      SetHandler (tlid, pos, Toplevel.handler_to_fluid h)
-  | CreateDB (tlid, pos, str) ->
-      CreateDB (tlid, pos, str)
-  | AddDBCol (tlid, id1, id2) ->
-      AddDBCol (tlid, id1, id2)
-  | SetDBColName (tlid, id, str) ->
-      SetDBColName (tlid, id, str)
-  | ChangeDBColName (tlid, id, str) ->
-      ChangeDBColName (tlid, id, str)
-  | SetDBColType (tlid, id, str) ->
-      SetDBColType (tlid, id, str)
-  | ChangeDBColType (tlid, id, str) ->
-      ChangeDBColType (tlid, id, str)
-  | DeprecatedInitDbm (tlid, id1, id2, id3, kind) ->
-      DeprecatedInitDbm (tlid, id1, id2, id3, kind)
-  | SetExpr (tlid, id, expr) ->
-      SetExpr (tlid, id, Fluid.toFluidExpr expr)
-  | TLSavepoint tlid ->
-      TLSavepoint tlid
-  | UndoTL tlid ->
-      UndoTL tlid
-  | RedoTL tlid ->
-      RedoTL tlid
-  | DeleteTL tlid ->
-      DeleteTL tlid
-  | MoveTL (tlid, pos) ->
-      MoveTL (tlid, pos)
-  | SetFunction f ->
-      SetFunction (Toplevel.user_fn_to_fluid f)
-  | DeleteFunction tlid ->
-      DeleteFunction tlid
-  | CreateDBMigration (tlid, id1, id2, l) ->
-      CreateDBMigration (tlid, id1, id2, l)
-  | AddDBColToDBMigration (tlid, id1, id2) ->
-      AddDBColToDBMigration (tlid, id1, id2)
-  | SetDBColNameInDBMigration (tlid, id, str) ->
-      SetDBColNameInDBMigration (tlid, id, str)
-  | SetDBColTypeInDBMigration (tlid, id, str) ->
-      SetDBColTypeInDBMigration (tlid, id, str)
-  | AbandonDBMigration tlid ->
-      AbandonDBMigration tlid
-  | DeleteColInDBMigration (tlid, id) ->
-      DeleteColInDBMigration (tlid, id)
-  | DeleteDBCol (tlid, id) ->
-      DeleteDBCol (tlid, id)
-  | RenameDBname (tlid, str) ->
-      RenameDBname (tlid, str)
-  | CreateDBWithBlankOr (tlid, pos, id, str) ->
-      CreateDBWithBlankOr (tlid, pos, id, str)
-  | DeleteTLForever tlid ->
-      DeleteTLForever tlid
-  | DeleteFunctionForever tlid ->
-      DeleteFunctionForever tlid
-  | SetType ut ->
-      SetType ut
-  | DeleteType tlid ->
-      DeleteType tlid
-  | DeleteTypeForever tlid ->
-      DeleteTypeForever tlid
-
-
-let op_of_fluid_op (op : Types.fluid_expr op) : RuntimeT.expr op =
-  match op with
-  | SetHandler (tlid, pos, h) ->
-      SetHandler (tlid, pos, Toplevel.handler_of_fluid h)
-  | CreateDB (tlid, pos, str) ->
-      CreateDB (tlid, pos, str)
-  | AddDBCol (tlid, id1, id2) ->
-      AddDBCol (tlid, id1, id2)
-  | SetDBColName (tlid, id, str) ->
-      SetDBColName (tlid, id, str)
-  | ChangeDBColName (tlid, id, str) ->
-      ChangeDBColName (tlid, id, str)
-  | SetDBColType (tlid, id, str) ->
-      SetDBColType (tlid, id, str)
-  | ChangeDBColType (tlid, id, str) ->
-      ChangeDBColType (tlid, id, str)
-  | DeprecatedInitDbm (tlid, id1, id2, id3, kind) ->
-      DeprecatedInitDbm (tlid, id1, id2, id3, kind)
-  | SetExpr (tlid, id, expr) ->
-      SetExpr (tlid, id, Fluid.fromFluidExpr expr)
-  | TLSavepoint tlid ->
-      TLSavepoint tlid
-  | UndoTL tlid ->
-      UndoTL tlid
-  | RedoTL tlid ->
-      RedoTL tlid
-  | DeleteTL tlid ->
-      DeleteTL tlid
-  | MoveTL (tlid, pos) ->
-      MoveTL (tlid, pos)
-  | SetFunction f ->
-      SetFunction (Toplevel.user_fn_of_fluid f)
-  | DeleteFunction tlid ->
-      DeleteFunction tlid
-  | CreateDBMigration (tlid, id1, id2, l) ->
-      CreateDBMigration (tlid, id1, id2, l)
-  | AddDBColToDBMigration (tlid, id1, id2) ->
-      AddDBColToDBMigration (tlid, id1, id2)
-  | SetDBColNameInDBMigration (tlid, id, str) ->
-      SetDBColNameInDBMigration (tlid, id, str)
-  | SetDBColTypeInDBMigration (tlid, id, str) ->
-      SetDBColTypeInDBMigration (tlid, id, str)
-  | AbandonDBMigration tlid ->
-      AbandonDBMigration tlid
-  | DeleteColInDBMigration (tlid, id) ->
-      DeleteColInDBMigration (tlid, id)
-  | DeleteDBCol (tlid, id) ->
-      DeleteDBCol (tlid, id)
-  | RenameDBname (tlid, str) ->
-      RenameDBname (tlid, str)
-  | CreateDBWithBlankOr (tlid, pos, id, str) ->
-      CreateDBWithBlankOr (tlid, pos, id, str)
-  | DeleteTLForever tlid ->
-      DeleteTLForever tlid
-  | DeleteFunctionForever tlid ->
-      DeleteFunctionForever tlid
-  | SetType ut ->
-      SetType ut
-  | DeleteType tlid ->
-      DeleteType tlid
-  | DeleteTypeForever tlid ->
-      DeleteTypeForever tlid
-
-
-let event_name_of_op (op : 'expr_type op) : string =
+let event_name_of_op (op : Types.op) : string =
   match op with
   | SetHandler _ ->
       "SetHandler"
@@ -240,7 +75,7 @@ type required_context =
 (* Returns the 'context', ie. the other stuff on the canvas, that
  * you need to also load in order validate that this op could be added
  * to the oplist/canvas correctly *)
-let required_context_to_validate (op : 'expr_type op) : required_context =
+let required_context_to_validate (op : Types.op) : required_context =
   match op with
   | SetHandler _ ->
       NoContext
@@ -306,18 +141,7 @@ let required_context_to_validate (op : 'expr_type op) : required_context =
       NoContext
 
 
-type 'expr_type oplist = 'expr_type op list
-[@@deriving eq, yojson, show, bin_io]
-
-let oplist_to_fluid (oplist : RuntimeT.expr oplist) : Types.fluid_expr oplist =
-  List.map oplist ~f:op_to_fluid_op
-
-
-let oplist_of_fluid (oplist : Types.fluid_expr oplist) : RuntimeT.expr oplist =
-  List.map oplist ~f:op_of_fluid_op
-
-
-let required_context_to_validate_oplist (oplist : 'expr_type oplist) :
+let required_context_to_validate_oplist (oplist : Types.oplist) :
     required_context =
   oplist
   |> List.map ~f:required_context_to_validate
@@ -325,16 +149,13 @@ let required_context_to_validate_oplist (oplist : 'expr_type oplist) :
   |> Option.value ~default:NoContext
 
 
-type 'expr_type tlid_oplists = (tlid * 'expr_type oplist) list
-[@@deriving eq, yojson, show, bin_io]
+let is_deprecated (op : Types.op) : bool = false
 
-let is_deprecated (op : 'expr_type op) : bool = false
-
-let has_effect (op : 'expr_type op) : bool =
+let has_effect (op : Types.op) : bool =
   match op with TLSavepoint _ -> false | _ -> true
 
 
-let tlidOf (op : 'expr_type op) : tlid =
+let tlidOf (op : Types.op) : Types.tlid =
   match op with
   | SetHandler (tlid, _, _) ->
       tlid
@@ -398,22 +219,7 @@ let tlidOf (op : 'expr_type op) : tlid =
       tlid
 
 
-(* [f] is something like RuntimeT.bin_expr *)
-let oplist_to_string
-    ~(f : 'expr_type Bin_prot.Type_class.t) (ops : 'expr_type op list) : string
-    =
-  ops
-  |> Core_extended.Bin_io_utils.to_line (bin_oplist f)
-  |> Bigstring.to_string
-
-
-(* [f] is something like RuntimeT.bin_expr *)
-let oplist_of_string ~(f : 'expr_type Bin_prot.Type_class.t) (str : string) :
-    'expr_type op list =
-  Core_extended.Bin_io_utils.of_line str (bin_oplist f)
-
-
-let oplist2tlid_oplists (oplist : 'expr_type oplist) : 'expr_type tlid_oplists =
+let oplist2tlid_oplists (oplist : Types.oplist) : Types.tlid_oplists =
   oplist
   |> List.map ~f:tlidOf
   |> List.stable_dedup
@@ -421,11 +227,11 @@ let oplist2tlid_oplists (oplist : 'expr_type oplist) : 'expr_type tlid_oplists =
          (tlid, List.filter oplist ~f:(fun op -> tlidOf op = tlid)))
 
 
-let tlid_oplists2oplist (tos : 'expr_type tlid_oplists) : 'expr_type oplist =
+let tlid_oplists2oplist (tos : Types.tlid_oplists) : Types.oplist =
   tos |> List.unzip |> Tuple.T2.get2 |> List.concat
 
 
-let ast_of (op : 'expr_type op) : 'expr_type option =
+let ast_of (op : Types.op) : Types.fluid_expr option =
   match op with
   | SetFunction {ast; _} | SetExpr (_, _, ast) | SetHandler (_, _, {ast; _}) ->
       Some ast
@@ -459,7 +265,47 @@ let ast_of (op : 'expr_type op) : 'expr_type option =
       None
 
 
-let is_latest_op_request client_op_ctr_id op_ctr canvas_id : bool =
+let with_ast (new_ast : Types.fluid_expr) (op : Types.op) =
+  match op with
+  | Types.SetFunction userfn ->
+      Types.SetFunction {userfn with ast = new_ast}
+  | SetExpr (tlid, id, _) ->
+      SetExpr (tlid, id, new_ast)
+  | SetHandler (tlid, id, handler) ->
+      SetHandler (tlid, id, {handler with ast = new_ast})
+  | CreateDB (_, _, _)
+  | AddDBCol (_, _, _)
+  | SetDBColName (_, _, _)
+  | SetDBColType (_, _, _)
+  | DeleteTL _
+  | MoveTL (_, _)
+  | TLSavepoint _
+  | UndoTL _
+  | RedoTL _
+  | DeleteFunction _
+  | ChangeDBColName (_, _, _)
+  | ChangeDBColType (_, _, _)
+  | DeprecatedInitDbm (_, _, _, _, _)
+  | CreateDBMigration (_, _, _, _)
+  | AddDBColToDBMigration (_, _, _)
+  | SetDBColNameInDBMigration (_, _, _)
+  | SetDBColTypeInDBMigration (_, _, _)
+  | DeleteColInDBMigration (_, _)
+  | AbandonDBMigration _
+  | DeleteDBCol (_, _)
+  | RenameDBname (_, _)
+  | CreateDBWithBlankOr (_, _, _, _)
+  | DeleteTLForever _
+  | DeleteFunctionForever _
+  | SetType _
+  | DeleteType _
+  | DeleteTypeForever _ ->
+      op
+
+
+let is_latest_op_request
+    (client_op_ctr_id : string option) (op_ctr : int) (canvas_id : Uuidm.t) :
+    bool =
   let client_op_ctr_id =
     match client_op_ctr_id with
     | Some s when s = "" ->
@@ -496,8 +342,7 @@ let is_latest_op_request client_op_ctr_id op_ctr canvas_id : bool =
  * SetHandler2's value is "aa", applying them out of order (SH2,
  * SH1) will result in SH2's update being overwritten *)
 (* NOTE: DO NOT UPDATE WITHOUT UPDATING THE CLIENT-SIDE LIST *)
-let filter_ops_received_out_of_order (ops : 'expr_type op list) :
-    'expr_type op list =
+let filter_ops_received_out_of_order (ops : Types.oplist) : Types.oplist =
   ops
   |> List.filter ~f:(fun op ->
          match op with

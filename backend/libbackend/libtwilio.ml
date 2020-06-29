@@ -3,7 +3,7 @@ open Libexecution.Lib
 open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 
-let fns : expr fn list =
+let fns : fn list =
   [ { prefix_names = ["Twilio::sendText"]
     ; infix_names = []
     ; parameters =

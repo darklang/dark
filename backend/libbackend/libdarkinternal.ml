@@ -9,7 +9,7 @@ module Unicode = Libexecution.Unicode_string
 
 (* Apply this to function to wrap that function in an InProcess that checks
  * permissions for the dark internal functions and logs status. *)
-let internal_fn (f : expr exec_state * expr dval list -> expr dval) =
+let internal_fn (f : exec_state * dval list -> dval) =
   InProcess
     (fun (es, params) ->
       match es.account_id |> Account.username_of_id with
@@ -50,7 +50,7 @@ let modify_schedule fn =
           fail args)
 
 
-let fns : expr fn list =
+let fns : fn list =
   [ { prefix_names = ["DarkInternal::checkAccess"]
     ; infix_names = []
     ; parameters = []
@@ -493,8 +493,8 @@ that's already taken, returns an error."
     ; func =
         internal_fn (function
             | _, [DStr host] ->
-                Dval.dstr_of_string_exn
-                  (Canvas.to_string (Unicode_string.to_string host))
+                (* Removed, no longer useful now that you can copy from Fluid *)
+                Dval.dstr_of_string_exn ""
             | args ->
                 fail args)
     ; preview_safety = Unsafe
@@ -563,7 +563,6 @@ that's already taken, returns an error."
                       (Unicode_string.to_string host)
                       ~tlids:[Types.id_of_string tlid]
                       []
-                    |> Result.map ~f:Canvas.to_fluid_ref
                     |> Result.map_error ~f:(String.concat ~sep:", ")
                     |> Prelude.Result.ok_or_internal_exception
                          "Canvas load error"
@@ -595,7 +594,7 @@ that's already taken, returns an error."
         internal_fn (function
             | _, [DStr host] ->
                 let cors_setting_to_dval (setting : Canvas.cors_setting option)
-                    : expr dval =
+                    : dval =
                   match setting with
                   | None ->
                       DOption OptNothing
@@ -627,7 +626,7 @@ that's already taken, returns an error."
     ; func =
         internal_fn (function
             | _, [DStr host; DOption s] ->
-                let cors_setting (opt : expr optionT) :
+                let cors_setting (opt : optionT) :
                     (Canvas.cors_setting option, string) result =
                   (* Error: error converting the dval to a cors setting.
                    * Ok None: the dval is "unset the cors value"
@@ -766,7 +765,7 @@ that's already taken, returns an error."
                 let tlid =
                   Types.id_of_string (Unicode_string.to_string tlid_str)
                 in
-                let canvas : RuntimeT.expr Canvas.canvas ref =
+                let canvas =
                   Canvas.load_only_tlids
                     ~tlids:[tlid]
                     (Unicode_string.to_string host)
@@ -793,7 +792,7 @@ that's already taken, returns an error."
                              [ ("path", Dval.dstr_of_string_exn path)
                              ; ("traceid", DUuid traceid)
                              ; ("time", DDate time)
-                             ; ("event", Fluid.dval_of_fluid data) ]
+                             ; ("event", data) ]
                              |> DvalMap.from_list
                              |> fun o -> DObj o)
                       |> fun l -> DList l
