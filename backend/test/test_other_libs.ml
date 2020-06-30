@@ -681,12 +681,12 @@ let t_list_stdlibs_work () =
     (DOption OptNothing) ;
   check_dval
     "List::isEmpty works (empty)"
-    (DBool true)
-    (exec_ast (fn "List::isEmpty" [list []])) ;
+    (exec_ast (fn "List::isEmpty" [list []]))
+    (DBool true) ;
   check_dval
     "List::isEmpty works (not empty)"
-    (DBool false)
-    (exec_ast (fn "List::isEmpty" [list [int 1]])) ;
+    (exec_ast (fn "List::isEmpty" [list [int 1]]))
+    (DBool false) ;
   check_dval
     "List::filter_v2 works (empty)"
     (DList [])
