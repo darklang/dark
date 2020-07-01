@@ -4563,13 +4563,13 @@ let run () =
       t
         "putting a comma does autocomplete, creates a new element on the list and jumps to that one"
         (list [aPartialVar])
-        ~pos: 4
+        ~pos:4
         (inputs [InsertText ","])
         "[request,~___]" ;
       t
         "putting a comma does autocomplete, creates a new element on the list and jumps to that one in the middle of the list"
         (list [int 1; aPartialVar; int 3])
-        ~pos: 6
+        ~pos:6
         (inputs [InsertText ","])
         "[1,request,~___,3]" ;
       test "click into partial opens autocomplete" (fun () ->
