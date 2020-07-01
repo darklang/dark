@@ -680,6 +680,14 @@ let t_list_stdlibs_work () =
     (exec_ast (fn "List::getAt" [list [int 1; int 2; int 3; int 4]; int 4]))
     (DOption OptNothing) ;
   check_dval
+    "List::isEmpty works (empty)"
+    (exec_ast (fn "List::isEmpty" [list []]))
+    (DBool true) ;
+  check_dval
+    "List::isEmpty works (not empty)"
+    (exec_ast (fn "List::isEmpty" [list [int 1]]))
+    (DBool false) ;
+  check_dval
     "List::filter_v2 works (empty)"
     (DList [])
     (exec_ast (fn "List::filter_v2" [list []; lambda ["item"] (bool true)])) ;
