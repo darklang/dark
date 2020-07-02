@@ -4321,16 +4321,18 @@ let rec updateKey
         astInfo
         |> ASTInfo.setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
-    | InsertText ",", L (TListComma (id, index), _), _
-    | InsertText ",", _, R (TListComma (id, index), _)
+    | InsertText ",", L (TListComma (id, index), _), R (_, ti)
+    | InsertText ",", L (_, ti), R (TListComma (id, index), _)
       when onEdge ->
+        let astInfo = acEnter ti K.Enter astInfo in
         let bID = gid () in
         let newExpr = E.EBlank bID (* new separators *) in
         astInfo
         |> ASTInfo.setAST
              (insertInList ~index:(index + 1) id ~newExpr astInfo.ast)
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
-    | InsertText ",", _, R (TListClose (id, _), _) when onEdge ->
+    | InsertText ",", L (_, ti), R (TListClose (id, _), _) when onEdge ->
+        let astInfo = acEnter ti K.Enter astInfo in
         let bID = gid () in
         let newExpr = E.EBlank bID (* new separators *) in
         astInfo

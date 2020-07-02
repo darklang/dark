@@ -4560,6 +4560,18 @@ let run () =
         ~pos:3
         (inputs [DeleteContentBackward; InsertText "+"; keypress K.Enter])
         "4 + ~_________" ;
+      t
+        "putting a comma does autocomplete, creates a new element on the list and jumps to that one"
+        (list [aPartialVar])
+        ~pos:4
+        (inputs [InsertText ","])
+        "[request,~___]" ;
+      t
+        "putting a comma does autocomplete, creates a new element on the list and jumps to that one in the middle of the list"
+        (list [int 1; aPartialVar; int 3])
+        ~pos:6
+        (inputs [InsertText ","])
+        "[1,request,~___,3]" ;
       test "click into partial opens autocomplete" (fun () ->
           let ast = let' "request" aShortInt aPartialVar in
           let h = Fluid_utils.h ast in
