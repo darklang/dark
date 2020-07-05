@@ -1500,7 +1500,11 @@ let t_db_query_works () =
   check_dval
     "string::replaceAll"
     (DList [chandler])
-    ( queryv (binop "==" (fn "String::replaceAll" [(field "v" "name"); str "handle"; str "he"]) (str " Cher "))
+    ( queryv
+        (binop
+           "=="
+           (fn "String::replaceAll" [field "v" "name"; str "handle"; str "he"])
+           (str " Cher "))
     |> execs ) ;
   (* -------------- *)
   (* Test partial evaluation *)

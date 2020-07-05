@@ -319,8 +319,16 @@ let rec lambda_to_sql
   | EFnCall (_, "String::contains", [lookingIn; searchingFor], NoRail) ->
       (* strpos returns indexed from 1; 0 means missing *)
       "(strpos(" ^ lts TStr lookingIn ^ ", " ^ lts TStr searchingFor ^ ") > 0)"
-  | EFnCall (_, "String::replaceAll", [lookingIn; searchingFor; replaceWith], NoRail) ->
-                  "(replace(" ^ lts TStr lookingIn ^ ", " ^ lts TStr searchingFor ^ ", " ^ lts TStr replaceWith ^ "))"
+  | EFnCall
+      (_, "String::replaceAll", [lookingIn; searchingFor; replaceWith], NoRail)
+    ->
+      "(replace("
+      ^ lts TStr lookingIn
+      ^ ", "
+      ^ lts TStr searchingFor
+      ^ ", "
+      ^ lts TStr replaceWith
+      ^ "))"
   | EFnCall (_, op, [l; r], NoRail) | EBinOp (_, op, l, r, NoRail) ->
       let ltipe, rtipe, result_tipe, opname = binop_to_sql op in
       typecheck op result_tipe expected_tipe ;
