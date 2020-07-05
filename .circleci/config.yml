@@ -32,33 +32,6 @@ executors:
 
 
 commands:
-
-  # CircleCI won't share the "deploy key" used to checkout the repo with a branch
-  # unless we've opted to share secrets, which we should never do. So this adds a
-  # new read-only deploy key that can only be used to check out this repo 
-  dark-checkout:
-    steps:
-      - run:
-          environment:
-            DARK_DEPLOY_KEY: "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlKS2dJQkFBS0NBZ0VBd3U1WE1VRVZtTzhiNFJvM3hzUDBMK0prYm5VUFFVSDlkdEpjSENKaFFjcTZ1cUdvCk5ZOXBtSUk1SXVtMVVvQ3V1UkpBMytGOEFrcW5zWWtXb1JrcWJJTktsdUNRWXRBL2VXMThsbkJrMkdwaEFHK0IKNiszb2xIZWJyS3Q4WTN6UTJSd0dnUEVtaEpSblZoZlQxd2FnU3R5d05kUHNEVXpDbUlJK3VlSFVzcDVNQktLWgoyaHd1WUpQSnI5OHQrdUdicmt2ZWZkUTVRa1F0bHpNZzFXZTVUVzBCc2UxWkUvalV2K1hVVDlSOGw4aHE4UnUyClUwZFBBU3RZRGNIT2tGZHBhVGVKbklSYkNvbDJDRDkrMFZvOEF1eGR5NitpUjNSK1hRMVFqL2JVbnBlbnZ2TFoKeFZzU1JzeFhLTkZJaUw1ZXdOY1ZFa0ZxN1lGTjF3RWpxSjc5bURHNElzQW56V1FzYklGQXA3U3ZTc2VWZisvbwphem5aS21UVnNaM2RIckNrVkpaNlpsZEg4bEE3S1F1aUx5TithNlJzTElSNGpYSnA2VmFIMitZWEJaVnhTWkVYCjQ4WGttUEE2ZjRWTzhLUlNjc3ArbzdIZ3M2eStBcGhYUHE5a3pIRU9UOEMxTWJPRGpoODlkYWx6amU5MnRDYWUKUS9jeFZVakhJYUJua2VYVlY4RUNhM2lURlJTWHc0UE5vQ0tCV2ZMcStxV09ENEJJekFYZlRvV2NtWG1ZSVgxNgpoUTFjZXVrdjlaUDBDdDdlT2xGZGtGbTdkWWs5bEhxeHMvSjJKWmVzbC81UzB3eWwwVDJCd3dpWmFPRmZhbHRrCldHK3NybFhQWjRoYUdPY2FpeUpjd200a1F4Qmg5UCtWZnRvNkIxR3ljN1ZCZHNJYjczMFE1Ti9EWW9FQ0F3RUEKQVFLQ0FnQVlMUGNqWks4SkNKNnNqRlBla3U3MkFWM3pWUkZQUnAvbzNLNFB6elBBdFNQemdaa2JDMjVOTzlsYQpPeUlCMlhQU0FER0xrcXVPblRPdkVSRjlhV0daazY3c2gyMWcwL01MWEVqWFg1a2lQZzlKdm9xZWVDTWdSclZICjlQeTRXZ0tNNnF6ajBRUzE3TEhrTzVCS1dzZ0dnTmhaMUs2eDk1TXExdnh3a1ZHUDFaSVlBUktUdW1zR0QwNDAKUWJteUk4anJGUDNESFU3OHFQZitpSmpKM3ROY2h1aHU2TURqZVRqcGs5ZUJEeGxrdWJhSnNLWXNMZXZlZVVHeQpjeGJyVCt3QzRLQndpUG5CbE1yT3V4RS9aYkdMcTBUMnZoR2lTeEJnK2dYRDFSa0pra1Y3cVNMWkZ6SnRGV3E1CjVUclp1c0tGcUNjMDNHZ21qS0xheDRsa29GTlRGVnFZU0EzUlA1RzFuUC9uMGxNWWlaMFdxbnQvMlpmb0dId24KUGdmcm1yajZEYmoydCt5WktleGVLZjNDM1J6ZGRPMHZYc1Q0UkdjNzFNaWdGdTk3VnI0RGNpM2lhRUJNd2xKMwoxTlhvWXZLamxLekp3dEJ5ck5GUEJwMkpidk1BMXJSTzVaT05wQytjQ25IVkFBcW9wWG02WHAreGZUV0FBRmNnCmJJYXRJNllBNUVnTlB0cWxLdFhob3g0bXRNanU2SW14S2wvQ3pjamJYOE5KVUhabTZmOWpVQXRCU25OZ0p4djcKNnlOdzZSZXoxTVV4UGFqUVBUUWs1T2pvSDZITGtnZUdJNnorUldobkRvazVHU3NKcE5aZjhhWVV1ZFl0cEN6TQpqN1lvOEFCa3JRV25Qd2NlNVcrTUFQcHY5d3JJb2pnamZQVzRjYWhGSGFIdGtVejBBUUtDQVFFQTYzM2d5QkZ1CnpBTjF3cHVpb0I5Q2FqYzdMa1VIbWxqQWN3Qk92bzJ1d2JKQ2Z4VCtQS3JobjF4ZSsweGtudGw5c05naTNOTFoKdVZobFdHSXY4L1loR2loTis5ZWp3aE1RbkpyWGJyZjlWaWxZNXlLRlJ6WUZMQmxzemJKYU1DeHE0Q040Sm4zTAppOVlaaHRITkNBb0c4MWdvN2s0eUU5RHMrQmJkeldaZ2xDaFY3ZHpST0JjTUNmOHIveldhOWtCaEhuajl0dHJvCnRjMU5rcCtHVnRsUzg3QlBBQkpWbW4xZ2MzM1lEeDBqM1ZRaGVxQkNvdDN6dUJTS1ZmMlpLQ3g0blFFTitiZSsKZDdoOE5GcDhtZXBEa2Zlakl5QmxFaThOdGh3TzV3K2VaU0szZmt6ZXFDMVNYV25wL0V0NmFBeXU3U3lGT2xQegoxanE1bXRzWFhrSTk3UUtDQVFFQTArZ3d3SFpVR0JFZGxxam1SUm5FOE5nMmFGK0pRZ2RxYjY4WWVRbVhLRUFICnpUanJtb0pTZ0ZGdXBxTCtGTWRlUmVPR1FUWWNQeUdpV3Jzdi9idUhqNmJsNkZ2U2Q2T0VObXR1YU0xMmpkQXoKM013S3hwRE8xekhSZ3JCN1NPaERCaXd0ZHQwWHpRNDBSMXFLMXRjY3BtQVBmZ3NHNWk0YUJXQ2VhdmhTUVBKbwpUZE5wcUF3STNtZlNNZlJ2YVQzVkFRWllCRmNGR3I2N3FMVnExaFF0VUVvc3RtV2ZwWjlGK05kUHNESytTOW5RCjR3MitnYUtjMXhISzNiZTV3KzJiT0k2T3RHR1IvSWNrOFhXbUd1WjlnTXBtTmc5WEpiYlhPaFNWTmw3ZUY5ancKY2xuVmhBQVRsRWNkcEZpYUVaWXNwUUMyWWZIZ2E5dDBMNWc0dmlaRVpRS0NBUUVBcWV6cEdEVE1HRmFlME5CeApKczJucFBFNXVRZUNsdk5YMnlQcnJrQ2FTNWFQdVJleTVLQUJzblo2NnlhU3JMVVBwMTR1dWQxRDBpUmc3TWZkCkJsTWlTN2V0bmY1YVloNVRyRTFuQ3JPbEVGbEJsM2NuYU4wb0drdzJZSzlEdU9NME00d2tsTkhNNEppYlR0ZHcKOVU0VytkMHhtOU84K3VPVk91ZDFJVk93ZVBncUdUdHZsT084Z2pJbzB6MGhGblFhSUZ6NTVzcExoWFFoZDUyNAoyRTUxTnZhUDZ1TlA5ZXhtZnEvZUNmbmkrVUJOOENoWUxTR3ZUYk0wcHh3Wk9nM3M4bzNpUWNFK3BURHdIdTcwClhqUFdraXQ1QWszTDRMVW5WYk1sWmNHMWNCRC9DeG40eUszN2N3Q01JTXR1Qmtxd3B0K3JPdzE5TTZhb2EzK1EKZXltZGVRS0NBUUVBcDdKZ29tOENMZW1kbU5VaEpoNDJsTU1HaTZMUFpNbXBtYWpmblNuUnpiQ2VlL0pId1liUQo4MnQrUGJGUGtmSVUwUW8xL1BWdGRTaVE2MnlubGcwS1FzeTV0U0MxZHFpWXdOaFVEK3hKbmdEZWlpV1BnWVNuCnEvVm84QnZwOU5DWitoQ01Dano5MFBFa3ZqTVJIT1F2Y0JzbEo0SmllMWFRa1NEZFBabzJ2ZDhZWEQ2cXBxcWYKZWlKL1hia3JVZ1gwdzFMWjVOVlkzTW1FaVFiSS9aSUtLamdKR205aDRCZ2pyOEgwOW1PeDVTVURBaXltVHNENQpqZG91eVRmVWN4RmVmV3VUMDN4RG82enZ0NFo3WlY1eWc3R3BJYThTTUc1NTlTVEUwTHBTMkZ4K0xJQ2JVRk1mCks0RDhIRXRoNGZrT2E2WWNyM1pUUEFmMzhwSnNsVTZEWVFLQ0FRRUE2SXlRdGkwUFBVZTlORmJqZXpWK2xBRW8KSkhYYUtZSzB1QnFTTHZVdHJGQlJrNEtmRHAzNE5WK0diVkpFbzhiZmdYTzBtdlNBRS9Qa3J3cHpjWTZVa2doRgpqNytNTjdmTXB0STBoVWRRYjdTVVZab2RGZmh5a09sNFFqWTJaZGZTdVNyQTMzWHpVU21QMFFTTVNDOWpLRWxZCnA5S2REMUF3Z1U2NGdFY0NBRzdZTkxuVm1PNGxmVXEzOVdpZ3dlRU02VGZEbFRTNmZwbVl1cXFhemVqc09saEgKTGFVSmZPaElmNmtlLzkrRFYyVWdxNzA3eWprbTRCZ2JlWkltTXJkQmV2MWNKdlFSMzZjV0tOSU1BbTJFZ2lmdApQTmVURVFGd3lNM2Jualhud0lyNVVtNHNoeVk2eWU0ZVRtOHd6Q1g1MGJYVVgzK3RqUlBxWDlkTUNTZTAvUT09Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg=="
-            GITHUB_KNOWN_HOST: "AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="
-          command: |
-            mkdir -p ~/.ssh
-            echo "${DARK_DEPLOY_KEY}" | base64 -d > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-            # remove the old key
-            ssh-add -D
-            # Copied from CircleCI builtin config
-            echo "github.com ssh-rsa ${GITHUB_KNOWN_HOST}" >> ~/.ssh/known_hosts
-            git config --global gc.auto 0 || true
-            git clone git@github.com:darklang/dark .
-            # This is only available on forked PRs
-            if [[ -n "${CIRCLE_PR_USERNAME}" ]]; then
-              git fetch --force origin "${CIRCLE_BRANCH}/head:remotes/origin/${CIRCLE_BRANCH}"
-            fi
-            git checkout -q -B "$CIRCLE_BRANCH"
-            git reset --hard "$CIRCLE_SHA1"
-            
   show-large-files-and-directories:
     steps:
       - run:
@@ -193,7 +166,7 @@ jobs:
   build-client:
     executor: in-container
     steps:
-      - dark-checkout
+      - checkout
       - setup-app
       - restore_cache:
           keys:
@@ -219,7 +192,7 @@ jobs:
   build-backend:
     executor: in-container
     steps:
-      - dark-checkout
+      - checkout
       - setup-app
       - restore_cache:
           keys:
@@ -273,7 +246,7 @@ jobs:
   build-stroller:
     executor: in-rust-container
     steps:
-      - dark-checkout
+      - checkout
       - rust-setup: { project: "stroller" }
       - run: scripts/support/compile stroller/Cargo.toml --test
       - assert-clean-worktree
@@ -282,7 +255,7 @@ jobs:
   build-queue-scheduler:
     executor: in-rust-container
     steps:
-      - dark-checkout
+      - checkout
       - rust-setup: { project: "queue-scheduler" }
       # tests are run in rust-integration-tests
       - run: scripts/support/compile queue-scheduler/Cargo.toml
@@ -292,14 +265,14 @@ jobs:
   build-postgres-honeytail:
     executor: my-executor
     steps:
-      - dark-checkout
+      - checkout
       - prep-container-creation
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
   validate-honeycomb-config:
     executor: my-executor
     steps:
-      - dark-checkout
+      - checkout
       - prep-container-creation
       - run: apk add --update bash jq python3 py3-pip && pip install yq
       - run: bash -c scripts/support/test-honeycomb-config.sh
@@ -308,7 +281,7 @@ jobs:
     executor: in-container
     parallelism: 4
     steps:
-      - dark-checkout
+      - checkout
       - setup-app
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
@@ -341,7 +314,7 @@ jobs:
   rust-integration-tests:
     executor: in-rust-container
     steps:
-      - dark-checkout
+      - checkout
       - rust-setup: { project: "queue-scheduler" }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
@@ -361,7 +334,7 @@ jobs:
     executor: in-container
     steps:
       # Just test that we can build them for now
-      - dark-checkout
+      - checkout
       - setup-app
       - attach_workspace: { at: "." }
       - build-gcp-containers
@@ -369,7 +342,7 @@ jobs:
   push-to-gcp:
     executor: in-container
     steps:
-      - dark-checkout
+      - checkout
       - setup-app
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
@@ -398,7 +371,7 @@ jobs:
   deploy:
     executor: in-container
     steps:
-      - dark-checkout
+      - checkout
       - setup-app
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
