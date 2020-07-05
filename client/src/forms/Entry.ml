@@ -413,6 +413,15 @@ let submitACItem
           then NoChange
           else Model.updateErrorMod (Error.set error)
       | None ->
+          let selectOrMove =
+            match move with
+            | GotoNext ->
+                Many
+                  [ AutocompleteMod (ACSetQuery "")
+                  ; Selection.enterNextEditable m tlid id ]
+            | _ ->
+                Select (tlid, STID id)
+          in
           let wrap ops next =
             let wasEditing = P.isBlank pd |> not in
             let focus =
@@ -452,7 +461,7 @@ let submitACItem
             tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
           in
           ( match (pd, item, tl) with
-          | PDBName (F (id, oldName)), ACDBName value, TLDB _ ->
+          | PDBName (F (_, oldName)), ACDBName value, TLDB _ ->
               if AC.assertValid AC.dbNameValidator value <> value
               then
                 Model.updateErrorMod
@@ -461,7 +470,7 @@ let submitACItem
               else if oldName = value (* leave as is *)
               then
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
-                Select (tlid, STID id)
+                selectOrMove
               else if List.member ~value (TL.allDBNames m.dbs)
               then
                 Model.updateErrorMod
@@ -473,7 +482,7 @@ let submitACItem
               if B.toOption ct = Some value
               then
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
-                Select (tlid, STID id)
+                selectOrMove
               else if DB.isMigrationCol db id
               then
                 wrapID
@@ -489,7 +498,7 @@ let submitACItem
               if B.toOption cn = Some value
               then
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
-                Select (tlid, STID id)
+                selectOrMove
               else if DB.isMigrationCol db id
               then wrapID [SetDBColNameInDBMigration (tlid, id, value)]
               else if DB.hasCol db value
