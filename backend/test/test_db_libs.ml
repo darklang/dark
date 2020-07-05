@@ -1497,6 +1497,35 @@ let t_db_query_works () =
     (DList [chandler])
     ( queryv (binop "==" (fn "Date::hour_v1" [field "v" "dob"]) (int 10))
     |> execs ) ;
+  check_dval
+    "string::replaceAll one replacement"
+    (DList [chandler])
+    ( queryv
+        (binop
+           "=="
+           (fn "String::replaceAll" [field "v" "name"; str "handle"; str "he"])
+           (str " Cher "))
+    |> execs ) ;
+  check_dval
+    "string::replaceAll two replacements"
+    (DList [chandler])
+    ( queryv
+        (binop
+           "=="
+           (fn "String::replaceAll" [field "v" "name"; str " "; str "Xx"])
+           (str "XxChandlerXx"))
+    |> execs ) ;
+  check_dval
+    "string::replaceAll 0 replacements"
+    (DList [chandler])
+    ( queryv
+        (binop
+           "=="
+           (fn
+              "String::replaceAll"
+              [field "v" "name"; str "xxx"; str "willNotBeInserted"])
+           (str " Chandler "))
+    |> execs ) ;
   (* -------------- *)
   (* Test partial evaluation *)
   (* -------------- *)
