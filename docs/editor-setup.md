@@ -24,7 +24,9 @@ those scripts first in your `$PATH`.
     - copy snippet to your bashrc/shell config. DO NOT DO THIS FOR zsh. SEE BELOW.
   - `opam install merlin.3.2.2`
 - Install editor integration:
-  - vim+plug: `Plug '~/.opam/default/share/merlin', { 'for': ['ocaml', 'merlin' ], 'rtp': 'vim' }`
+  - vim+plug:
+    - make sure you have a python provider for vim. Gvim comes with one. If you're using neovim, you can get one with `pip3 install pynvim`
+    - add `Plug '~/.opam/default/share/merlin', { 'for': ['ocaml', 'merlin' ], 'rtp': 'vim' }` to your vim config file
   - others: ??
 
 CAVEAT: If you install the zsh config that merlin recommends, it will
