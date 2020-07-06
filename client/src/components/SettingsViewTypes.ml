@@ -29,14 +29,12 @@ type inviteFormMessage =
 type updateCanvasInfo =
   { canvasName : string
   ; canvasDescription : string
-  ; canvasShipped : string
   ; canvasCreation : string }
 [@@deriving show]
 
 type canvasInformation =
   { canvasName : string
   ; canvasDescription : string
-  ; shippedDate : Js.Date.t option [@opaque]
   ; createdAt : Js.Date.t option [@opaque] }
 [@@deriving show]
 
@@ -54,10 +52,7 @@ type settingsViewState =
   ; privacy : privacySettings }
 [@@deriving show]
 
-type loadCanvasInfoAPIResult =
-  { canvasDescription : string
-  ; shippedDate : string }
-[@@deriving show]
+type loadCanvasInfoAPIResult = {canvasDescription : string} [@@deriving show]
 
 type settingsMsg =
   | CloseSettingsView of settingsTab
@@ -68,7 +63,6 @@ type settingsMsg =
   | SwitchSettingsTabs of settingsTab
   | UpdateInviteForm of string
   | UpdateCanvasDescription of string
-  | SetCanvasDeployStatus of bool
   | SubmitForm
   | TriggerSendInviteCallback of
       (unit, (string Tea.Http.error[@opaque])) Tea.Result.t

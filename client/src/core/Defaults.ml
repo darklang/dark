@@ -189,7 +189,6 @@ let defaultModel : model =
       ; loading = false
       ; canvasInformation =
           { canvasDescription = ""
-          ; shippedDate = None
           ; createdAt = None
           ; canvasName = "builtwithdark" }
       ; privacy = {recordConsent = None} }

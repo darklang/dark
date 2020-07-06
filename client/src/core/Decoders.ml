@@ -952,8 +952,7 @@ let uploadFnAPIResult _ : uploadFnAPIResult = ()
 let loadPackagesAPIResult j : loadPackagesAPIResult = list packageFn j
 
 let loadCanvasInfoAPIResult j : SettingsViewTypes.loadCanvasInfoAPIResult =
-  { canvasDescription = field "canvasDescription" string j
-  ; shippedDate = field "canvasShippedDate" string j }
+  {canvasDescription = field "canvasDescription" string j}
 
 
 let triggerHandlerAPIResult j : triggerHandlerAPIResult =
