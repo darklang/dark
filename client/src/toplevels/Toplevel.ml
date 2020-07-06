@@ -197,17 +197,6 @@ let toOp (tl : toplevel) : op list =
       recover "This isn't how datastore ops work" ~debug:(id tl) []
 
 
-let customEventSpaceNames (handlers : handler TD.t) : string list =
-  let otherSpaces =
-    handlers
-    |> TD.mapValues ~f:(fun h -> TLHandler h)
-    |> List.filter ~f:isDeprecatedCustomHandler
-    |> List.filterMap ~f:(fun tl ->
-           asHandler tl |> Option.andThen ~f:(fun h -> B.toOption h.spec.space))
-  in
-  otherSpaces
-
-
 (* ------------------------- *)
 (* Generic *)
 (* ------------------------- *)

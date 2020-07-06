@@ -39,39 +39,6 @@ let typeOf (pd : blankOrData) : blankOrType =
       GroupName
 
 
-let emptyD (pt : blankOrType) : blankOrData =
-  let id = gid () in
-  match pt with
-  | EventModifier ->
-      PEventModifier (Blank id)
-  | EventName ->
-      PEventName (Blank id)
-  | EventSpace ->
-      PEventSpace (Blank id)
-  | DBName ->
-      PDBName (Blank id)
-  | DBColName ->
-      PDBColName (Blank id)
-  | DBColType ->
-      PDBColType (Blank id)
-  | FnName ->
-      PFnName (Blank id)
-  | FnReturnTipe ->
-      PFnReturnTipe (Blank id)
-  | ParamName ->
-      PParamName (Blank id)
-  | ParamTipe ->
-      PParamTipe (Blank id)
-  | TypeName ->
-      PTypeName (Blank id)
-  | TypeFieldName ->
-      PTypeFieldName (Blank id)
-  | TypeFieldTipe ->
-      PTypeFieldTipe (Blank id)
-  | GroupName ->
-      PGroupName (Blank id)
-
-
 let toID (pd : blankOrData) : ID.t =
   match pd with
   | PEventModifier d ->

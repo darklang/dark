@@ -13,11 +13,11 @@ let defaultBlankOr = Blank defaultID
 
 let defaultExpr = FluidExpression.EBlank defaultID
 
-let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
-  Entering (Filling (tlid, id))
+let enteringCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
+  Entering (tlid, id)
 
 
-let creatingCS : cursorState = Entering (Creating None)
+let omniboxCS : cursorState = Omnibox None
 
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
@@ -87,7 +87,7 @@ let enteringFunction
     ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
     model =
   defaultModel
-    ~cursorState:(fillingCS ())
+    ~cursorState:(enteringCS ())
     ~dbs
     ~handlers
     ~userTipes
@@ -99,7 +99,7 @@ let enteringDBField
     ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
     model =
   defaultModel
-    ~cursorState:(fillingCS ())
+    ~cursorState:(enteringCS ())
     ~dbs:([aDB ()] @ dbs)
     ~handlers
     ~userTipes
@@ -111,7 +111,7 @@ let enteringDBType
     ?(dbs = []) ?(handlers = []) ?(userFunctions = []) ?(userTipes = []) () :
     model =
   defaultModel
-    ~cursorState:(fillingCS ())
+    ~cursorState:(enteringCS ())
     ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
     ~handlers
     ~userTipes
@@ -120,26 +120,26 @@ let enteringDBType
 
 
 let enteringHandler ?(space : string option = None) () : model =
-  defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~space ()] ()
+  defaultModel ~cursorState:(enteringCS ()) ~handlers:[aHandler ~space ()] ()
 
 
 let enteringEventNameHandler ?(space : string option = None) () : model =
   let handler = aHandler ~space () in
   let id = B.toID handler.spec.name in
-  defaultModel ~cursorState:(fillingCS ~id ()) ~handlers:[handler] ()
+  defaultModel ~cursorState:(enteringCS ~id ()) ~handlers:[handler] ()
 
 
 let creatingOmni : model =
-  {Defaults.defaultModel with cursorState = Entering (Creating None)}
+  {Defaults.defaultModel with cursorState = Omnibox None}
 
 
 (* AC targeting a tlid and pointer *)
 let acFor ?(target = Some (defaultTLID, PDBColType defaultBlankOr)) (m : model)
     : autocomplete =
   match m.cursorState with
-  | Entering (Creating _) ->
+  | Omnibox _ ->
       init m |> setTarget m None
-  | Entering (Filling _) ->
+  | Entering _ ->
       init m |> setTarget m target
   | _ ->
       init m |> setTarget m target
@@ -161,7 +161,7 @@ let run () =
             "invalidated cursor state/acFor still produces a valid autocomplete"
             (fun () ->
               try
-                defaultModel ~cursorState:(fillingCS ()) ()
+                defaultModel ~cursorState:(enteringCS ()) ()
                 |> fun x ->
                 acFor x |> ignore ;
                 pass ()
@@ -543,7 +543,7 @@ let run () =
                    , EString (gid (), "\"hello\"") ))
               ()
           in
-          let cursorState = creatingCS in
+          let cursorState = omniboxCS in
           let m =
             defaultModel
               ~handlers:[http; repl]

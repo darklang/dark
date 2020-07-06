@@ -53,13 +53,6 @@ let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
 
 let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
   let msg =
-    let canvasShipped =
-      match m.settingsView.canvasInformation.shippedDate with
-      | Some date ->
-          date |> Js.Date.toUTCString
-      | None ->
-          ""
-    in
     let canvasCreation =
       match m.settingsView.canvasInformation.createdAt with
       | Some date ->
@@ -69,7 +62,6 @@ let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
     in
     { canvasName = m.settingsView.canvasInformation.canvasName
     ; canvasDescription = m.settingsView.canvasInformation.canvasDescription
-    ; canvasShipped
     ; canvasCreation }
   in
   API.sendCanvasInfo m msg
@@ -102,35 +94,15 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
       { settingsView with
         canvasInformation =
           {settingsView.canvasInformation with canvasDescription = value} }
-  | SetCanvasDeployStatus ship ->
-      let shippedDate =
-        let rawDate = Js.Date.now () |> Js.Date.fromFloat in
-        let formattedDate = Util.formatDate (rawDate, "L") in
-        if ship
-        then (
-          Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
-          Some rawDate )
-        else (
-          Entry.sendSegmentMessage (MarkCanvasAsInDevelopment formattedDate) ;
-          None )
-      in
-      { settingsView with
-        canvasInformation = {settingsView.canvasInformation with shippedDate} }
   | TriggerSendInviteCallback (Ok _) ->
       {settingsView with tab = InviteUser defaultInviteFields; loading = false}
   | TriggerSendInviteCallback (Error _) ->
       {settingsView with tab = InviteUser defaultInviteFields; loading = false}
   | TriggerGetCanvasInfoCallback (Ok data) ->
-      let shippedDate =
-        if String.length data.shippedDate == 0
-        then None
-        else Some (Js.Date.fromString data.shippedDate)
-      in
       { settingsView with
         canvasInformation =
           { settingsView.canvasInformation with
-            canvasDescription = data.canvasDescription
-          ; shippedDate } }
+            canvasDescription = data.canvasDescription } }
   | SubmitForm
   | TriggerUpdateCanvasInfoCallback _
   | TriggerGetCanvasInfoCallback (Error _) ->
@@ -344,14 +316,6 @@ let viewNewCanvas (svs : settingsViewState) : Types.msg Html.html list =
 
 
 let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
-  let shipped, shippedText =
-    match canvas.shippedDate with
-    | Some date ->
-        let formattedDate = Util.formatDate (date, "L") in
-        (true, " (as of " ^ formattedDate ^ ")")
-    | None ->
-        (false, "")
-  in
   let create_at_text =
     match canvas.createdAt with
     | Some date ->
@@ -376,20 +340,6 @@ let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
                     Types.SettingsViewMsg (UpdateCanvasDescription str))
               ; Attributes.value canvas.canvasDescription ]
               [] ]
-      ; Html.div
-          [ Html.class' "canvas-shipped-info"
-          ; ViewUtils.eventNoPropagation
-              ~key:("SetCanvasDeployStatus" ^ shippedText)
-              "mouseup"
-              (fun _ ->
-                Types.SettingsViewMsg (SetCanvasDeployStatus (not shipped))) ]
-          [ Html.input' [Html.type' "checkbox"; Html.checked shipped] []
-          ; Html.p [] [Html.text ("Project is live" ^ shippedText)] ]
-      ; Html.p
-          [Html.class' "sub-text"]
-          [ Html.text
-              "*If your project has gone live, we'll use it to help us determine the health of the Dark infrastructure*"
-          ]
       ; Html.p [Html.class' "created-text"] [Html.text create_at_text] ] ]
 
 

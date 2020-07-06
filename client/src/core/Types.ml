@@ -47,28 +47,6 @@ and 'a blankOr =
   | F of ID.t * 'a
 [@@deriving show {with_path = false}]
 
-module Pair (K1 : Key) (K2 : Key) = struct
-  type t = K1.t * K2.t
-
-  let separator = "_*_DARKPAIRSEPARATOR_%_"
-
-  let toString ((v1, v2) : t) : string =
-    K1.toString v1 ^ separator ^ K2.toString v2
-
-
-  let fromString (str : string) : t =
-    match String.split ~on:separator str with
-    | [v1; v2] ->
-        (K1.fromString v1, K2.fromString v2)
-    | _ ->
-        failwith
-          ( "Pair cannot be separated. This probably means you're using the wrong module for this dict/set: "
-          ^ str )
-end
-
-module IDPair = Pair (TLID.T) (ID.T)
-module IDPairSet = Tc.Set (IDPair)
-
 (* There are two coordinate systems. Pos is an absolute position in the *)
 (* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
 (* within the viewport and we map Absolute positions back to the *)
@@ -81,12 +59,6 @@ type pos =
 and vPos =
   { vx : int
   ; vy : int }
-
-and size =
-  { w : int
-  ; h : int }
-
-and box = pos * size
 
 (* ---------------------- *)
 (* Types *)
@@ -511,22 +483,42 @@ and isLeftButton = bool
 (* ----------------------------- *)
 (* CursorState *)
 (* ----------------------------- *)
-and entryCursor =
-  | Creating of pos option (* If we know the position the user wants the handler to be at (presumably because they clicked there to get the omnibox), then use it. Otherwise, if there's no position, we'll pick one for them later *)
-  | Filling of TLID.t * ID.t
-
 and hasMoved = bool
 
+(* CursorState represents what the user is focussed on and where their actions
+ * (notably keypresses, but also things like autocomplete and refactoring) are
+ * intended to work on *)
 and cursorState =
-  | Selecting of TLID.t * ID.t option
-  | Entering of entryCursor
-  | FluidEntering of TLID.t
-  | DraggingTL of TLID.t * vPos * hasMoved * cursorState
-  | PanningCanvas of
+  | (* Show the onmibox. If we know the position the user wants the handler
+     * to be at (presumably because they clicked there to get the omnibox),
+     * then use it. Otherwise, if there's no position, we'll pick one for them
+     * later *)
+      Omnibox of
+      pos option
+  | (* Partially deprecated. This used to indicate when you had selected a
+     * blankOr, but were not "entering" it. However, this mostly only made
+     * sense for code, and now that code is fluid this is just annoying and
+     * weird. *)
+      Selecting of
+      TLID.t * ID.t option
+  | (* When we're editing a blankOr *)
+      Entering of TLID.t * ID.t
+  | (* When we're editing code (in the fluid
+      editor) *)
+      FluidEntering of
+      TLID.t
+  | (* When we're dragging toplevels -
+      the old state is stored and reset
+       * after moving is done *)
+      DraggingTL of
+      TLID.t * vPos * hasMoved * cursorState
+  | (* For dragging
+      the canvas. The old state is stored and reset later. *)
+      PanningCanvas of
       { viewportStart : vPos
       ; viewportCurr : vPos
       ; prevCursorState : cursorState }
-  | Deselected
+  | (* Doing nothing *) Deselected
 
 (* ------------------- *)
 (* Analysis *)
@@ -1157,8 +1149,11 @@ and modification =
   | AppendUnlockedDBs of unlockedDBs
   | Append404s of fourOhFour list
   | Delete404 of fourOhFour
-  | Enter of entryCursor
-  | EnterWithOffset of entryCursor * int
+  | Enter (* Enter a blankOr *) of TLID.t * ID.t
+  | EnterWithOffset
+      (* Entering a blankOr with a desired caret offset *) of
+      TLID.t * ID.t * int
+  | OpenOmnibox (* Open the omnibox *) of pos option
   | UpdateWorkerSchedules of string StrDict.t
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]

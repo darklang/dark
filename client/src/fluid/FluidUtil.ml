@@ -22,22 +22,6 @@ let getSelectionRange (s : fluidState) : int * int =
       (s.newPos, s.newPos)
 
 
-let literalToString
-    (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
-    : string =
-  match v with
-  | `Int i ->
-      i
-  | `String str ->
-      "\"" ^ str ^ "\""
-  | `Bool b ->
-      if b then "true" else "false"
-  | `Null ->
-      "null"
-  | `Float (whole, fraction) ->
-      whole ^ "." ^ fraction
-
-
 (** [truncateStringTo63BitInt s] attempts to chop off the
  * least-significant base-10 digits of a string [s] intended
  * to represent an integer, until the resulting truncated string
