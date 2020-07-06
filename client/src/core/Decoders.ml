@@ -963,8 +963,6 @@ let triggerHandlerAPIResult j : triggerHandlerAPIResult =
 
 let saveTestAPIResult j : saveTestAPIResult = string j
 
-let optBool j : bool option = optional bool j
-
 (* -------------------------- *)
 (* Dval (some here because of cyclic dependencies) *)
 (* ------------------------- *)
