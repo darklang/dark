@@ -47,28 +47,6 @@ and 'a blankOr =
   | F of ID.t * 'a
 [@@deriving show {with_path = false}]
 
-module Pair (K1 : Key) (K2 : Key) = struct
-  type t = K1.t * K2.t
-
-  let separator = "_*_DARKPAIRSEPARATOR_%_"
-
-  let toString ((v1, v2) : t) : string =
-    K1.toString v1 ^ separator ^ K2.toString v2
-
-
-  let fromString (str : string) : t =
-    match String.split ~on:separator str with
-    | [v1; v2] ->
-        (K1.fromString v1, K2.fromString v2)
-    | _ ->
-        failwith
-          ( "Pair cannot be separated. This probably means you're using the wrong module for this dict/set: "
-          ^ str )
-end
-
-module IDPair = Pair (TLID.T) (ID.T)
-module IDPairSet = Tc.Set (IDPair)
-
 (* There are two coordinate systems. Pos is an absolute position in the *)
 (* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
 (* within the viewport and we map Absolute positions back to the *)
@@ -81,12 +59,6 @@ type pos =
 and vPos =
   { vx : int
   ; vy : int }
-
-and size =
-  { w : int
-  ; h : int }
-
-and box = pos * size
 
 (* ---------------------- *)
 (* Types *)
