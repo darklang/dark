@@ -56,6 +56,18 @@ let packageFnParamsView (params : packageFnParameter list) : msg Html.html =
   Html.div [Html.class' "fields"] (List.map ~f:paramView params)
 
 
+let fnReturnTipeView (returnTipe : tipe blankOr) : msg Html.html =
+  match returnTipe with
+  | F (_, v) ->
+      let typeStr = Runtime.tipe2str v in
+      Html.div
+        []
+        [ Html.text "Returns "
+        ; Html.span [Html.class' "type"] [Html.text typeStr] ]
+  | Blank _ ->
+      Vdom.noNode
+
+
 let hoveringRefProps
     (originTLID : TLID.t) (originIDs : ID.t list) ~(key : string) =
   [ ViewUtils.eventNoPropagation
@@ -122,6 +134,7 @@ let fnView
     (tlid : TLID.t)
     (name : string)
     (params : userFunctionParameter list)
+    (returnTipe : tipe blankOr)
     (direction : string) : msg Html.html =
   let header =
     [ViewUtils.darkIcon "fn"; Html.span [Html.class' "fnname"] [Html.text name]]
@@ -133,7 +146,9 @@ let fnView
           "click"
           (fun _ -> GoTo (FocusedFn (tlid, None))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
-    [Html.div [Html.class' "fnheader fnheader-user"] header; fnParamsView params]
+    [ Html.div [Html.class' "fnheader fnheader-user"] header
+    ; fnParamsView params
+    ; fnReturnTipeView returnTipe ]
 
 
 let packageFnView
@@ -142,6 +157,7 @@ let packageFnView
     (tlid : TLID.t)
     (name : string)
     (params : packageFnParameter list)
+    (returnTipe : tipe blankOr)
     (direction : string) : msg Html.html =
   (* Spec is here: https://www.notion.so/darklang/PM-Function-References-793d95469dfd40d5b01c2271cb8f4a0f *)
   let header =
@@ -156,7 +172,8 @@ let packageFnView
           (fun _ -> GoTo (FocusedPackageManagerFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
     [ Html.div [Html.class' "fnheader fnheader-pkg"] header
-    ; packageFnParamsView params ]
+    ; packageFnParamsView params
+    ; fnReturnTipeView returnTipe ]
 
 
 let tipeView
@@ -195,9 +212,17 @@ let renderView originalTLID direction (tl, originalIDs) =
         (B.toOption modifier)
         direction
   | TLFunc
-      {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters; _}; ufAST = _}
-    ->
-      fnView originalTLID originalIDs ufTLID name ufmParameters direction
+      { ufTLID
+      ; ufMetadata = {ufmName = F (_, name); ufmParameters; ufmReturnTipe; _}
+      ; ufAST = _ } ->
+      fnView
+        originalTLID
+        originalIDs
+        ufTLID
+        name
+        ufmParameters
+        ufmReturnTipe
+        direction
   | TLPmFunc pFn ->
       let name = pFn |> PackageManager.extendedName in
       packageFnView
@@ -206,6 +231,7 @@ let renderView originalTLID direction (tl, originalIDs) =
         pFn.pfTLID
         name
         pFn.parameters
+        (BlankOr.newF pFn.return_type)
         direction
   | TLTipe {utTLID; utName = F (_, name); utVersion; utDefinition = _} ->
       tipeView originalTLID originalIDs utTLID name utVersion direction
