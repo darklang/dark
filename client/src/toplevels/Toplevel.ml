@@ -475,3 +475,33 @@ let getPrevBlank (tl : toplevel) (id : ID.t) : predecessor =
   |> List.reverse
   |> List.find ~f:(fun id -> StrSet.has blanks ~value:(ID.toString id))
   |> Option.orElse (lastBlank tl)
+
+
+let firstEditable (tl : toplevel) : successor = tl |> allIDs |> List.head
+
+let lastEditable (tl : toplevel) : successor = tl |> allIDs |> List.last
+
+let getNextEditable (tl : toplevel) (id : ID.t) : successor =
+  let all = allIDs tl in
+  let index =
+    List.elemIndex ~value:id all |> Option.withDefault ~default:(-1)
+  in
+  let editables = allIDs tl |> List.map ~f:ID.toString |> StrSet.fromList in
+  all
+  |> List.drop ~count:(index + 1)
+  |> List.find ~f:(fun id -> StrSet.has editables ~value:(ID.toString id))
+  |> Option.orElse (firstEditable tl)
+
+
+let getPrevEditable (tl : toplevel) (id : ID.t) : predecessor =
+  let all = allIDs tl in
+  let index =
+    List.elemIndex ~value:id all
+    |> Option.withDefault ~default:(List.length all)
+  in
+  let editables = allIDs tl |> List.map ~f:ID.toString |> StrSet.fromList in
+  all
+  |> List.take ~count:index
+  |> List.reverse
+  |> List.find ~f:(fun id -> StrSet.has editables ~value:(ID.toString id))
+  |> Option.orElse (lastEditable tl)

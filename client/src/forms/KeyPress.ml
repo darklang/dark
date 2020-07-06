@@ -121,8 +121,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         ( match mId with
         | Some id ->
             if event.shiftKey
-            then Selection.enterPrevBlank m tlid id
-            else Selection.enterNextBlank m tlid id
+            then Selection.enterPrevEditable m tlid id
+            else Selection.enterNextEditable m tlid id
         | None ->
             NoChange )
       | Key.O, Some _ ->
@@ -162,10 +162,10 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 then
                   if hasContent
                   then NoChange
-                  else Selection.enterPrevBlank m tlid id
+                  else Selection.enterPrevEditable m tlid id
                 else if hasContent
                 then Entry.submit m cursor Entry.GotoNext
-                else Selection.enterNextBlank m tlid id
+                else Selection.enterNextEditable m tlid id
             | Creating _ ->
                 NoChange )
           | Key.Unknown _ ->
