@@ -49,7 +49,7 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : ID.t) : modification =
   let pd = TL.find tl id in
   let enterField =
     Many
-      [ Enter (Filling (tlid, id))
+      [ Enter (tlid, id)
       ; AutocompleteMod
           (ACSetQuery
              (pd |> Option.map ~f:P.toContent |> Option.withDefault ~default:""))
@@ -79,9 +79,9 @@ let enterWithOffset
         let enterMod =
           match offset with
           | None ->
-              Enter (Filling (tlid, id))
+              Enter (tlid, id)
           | Some offset ->
-              EnterWithOffset (Filling (tlid, id), offset)
+              EnterWithOffset (tlid, id, offset)
         in
         Many [enterMod; AutocompleteMod (ACSetQuery (P.toContent pd))]
     | None ->
@@ -132,7 +132,7 @@ let enterNextBlank (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
       let nextBlank = TL.getNextBlank tl cur in
       let target =
         nextBlank
-        |> Option.map ~f:(fun id -> Enter (Filling (tlid, id)))
+        |> Option.map ~f:(fun id -> Enter (tlid, id))
         |> Option.withDefault ~default:(fluidEnteringMod tlid)
       in
       maybeEnterFluid ~nonFluidCursorMod:target tl nextBlank
@@ -146,7 +146,7 @@ let enterPrevBlank (m : model) (tlid : TLID.t) (cur : ID.t) : modification =
       let prevBlank = TL.getPrevBlank tl cur in
       let target =
         prevBlank
-        |> Option.map ~f:(fun id -> Enter (Filling (tlid, id)))
+        |> Option.map ~f:(fun id -> Enter (tlid, id))
         |> Option.withDefault ~default:(fluidEnteringMod tlid)
       in
       maybeEnterFluid ~nonFluidCursorMod:target tl prevBlank

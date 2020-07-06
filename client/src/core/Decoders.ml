@@ -496,7 +496,7 @@ and savedSettings (j : Js.Json.t) : savedSettings =
         j }
 
 
-and cursorState j =
+and cursorState (j : Js.Json.t) : cursorState =
   let dv0 = variant0 in
   let dv1 = variant1 in
   let dv2 = variant2 in
@@ -504,7 +504,8 @@ and cursorState j =
   let dv4 = variant4 in
   variants
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
-    ; ("Entering", dv1 (fun a -> Entering a) entering)
+    ; ("Omnibox", dv1 (fun x -> Omnibox x) (optional pos))
+    ; ("Entering", dv2 (fun x y -> Entering (x, y)) tlid id)
     ; ( "Dragging" (* Deprecated via DraggingTL *)
       , dv4 (fun a b c d -> DraggingTL (a, b, c, d)) tlid vPos bool cursorState
       )
@@ -527,18 +528,19 @@ and cursorState j =
     j
 
 
-and entering j =
-  let dv1 = variant1 in
-  let dv2 = variant2 in
-  variants
-    [ ( "Creating"
-      , dv1
-          (fun x -> Creating (if x = Defaults.origin then None else Some x))
-          pos )
-    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
-    j
-
-
+(*  *)
+(* and entering j = *)
+(*   let dv1 = variant1 in *)
+(*   let dv2 = variant2 in *)
+(*   variants *)
+(*     [ ( "Creating" *)
+(*       , dv1 *)
+(*           (fun x -> Creating (if x = Defaults.origin then None else Some x)) *)
+(*           pos ) *)
+(*     ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ] *)
+(*     j *)
+(*  *)
+(*  *)
 and loadable (decoder : Js.Json.t -> 'a) (j : Js.Json.t) : 'a loadable =
   variants
     [ ("LoadableSuccess", variant1 (fun a -> LoadableSuccess a) decoder)

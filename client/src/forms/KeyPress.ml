@@ -131,7 +131,51 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           if osCmdKeyHeld then openOmnibox m else NoChange
       | _ ->
           NoChange )
-    | Entering cursor ->
+    | Entering (tlid, id) ->
+        if event.ctrlKey
+        then
+          match event.keyCode with
+          | Key.P ->
+              AutocompleteMod ACSelectUp
+          | Key.N ->
+              AutocompleteMod ACSelectDown
+          | _ ->
+              NoChange
+        else (
+          match event.keyCode with
+          | Key.Enter ->
+              Entry.submit m tlid id Entry.StayHere
+          | Key.Tab ->
+              let content = AC.getValue m.complete in
+              let hasContent = content <> "" in
+              if event.shiftKey
+              then
+                if hasContent
+                then NoChange
+                else Selection.enterPrevBlank m tlid id
+              else if hasContent
+              then Entry.submit m tlid id Entry.GotoNext
+              else Selection.enterNextBlank m tlid id
+          | Key.Unknown _ ->
+              NoChange
+          | Key.Escape ->
+              Many [Select (tlid, STID id); AutocompleteMod ACReset]
+          | Key.Up ->
+              AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
+          | Key.Down ->
+              AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
+          | Key.Backspace ->
+              (* This was an old hack for strings in the AST of the old editor.
+               * Unclear if it still is needed. *)
+              let v = m.complete.value in
+              Many
+                [ AutocompleteMod (ACSetVisible true)
+                ; AutocompleteMod (ACSetQuery v)
+                ; AutocompleteMod (ACSetVisible true)
+                ; MakeCmd (CursorState.focusEntry m) ]
+          | _ ->
+              AutocompleteMod (ACSetVisible true) )
+    | Omnibox pos ->
         if event.ctrlKey
         then
           match event.keyCode with
@@ -144,38 +188,23 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         else (
           match event.keyCode with
           | Key.Spacebar ->
-            ( match cursor with
-            | Creating _ ->
-                if AC.isOmnibox m.complete
-                then AutocompleteMod (ACSetQuery (m.complete.value ^ " "))
-                else NoChange
-            | _ ->
-                NoChange )
+              if AC.isOmnibox m.complete
+              then AutocompleteMod (ACSetQuery (m.complete.value ^ " "))
+              else NoChange
           | Key.Enter ->
-              Entry.submit m cursor Entry.StayHere
-          | Key.Tab ->
-            ( match cursor with
-            | Filling (tlid, id) ->
-                let content = AC.getValue m.complete in
-                let hasContent = content <> "" in
-                if event.shiftKey
-                then
-                  if hasContent
-                  then NoChange
-                  else Selection.enterPrevBlank m tlid id
-                else if hasContent
-                then Entry.submit m cursor Entry.GotoNext
-                else Selection.enterNextBlank m tlid id
-            | Creating _ ->
-                NoChange )
-          | Key.Unknown _ ->
-              NoChange
+              let pos =
+                Option.withDefault ~default:(Viewport.findNewPos m) pos
+              in
+              ( match AC.highlighted m.complete with
+              | Some (ACOmniAction act) ->
+                  Entry.submitOmniAction m pos act
+              (* If empty, create an empty handler *)
+              | None when m.complete.value = "" ->
+                  Entry.submitOmniAction m pos (NewReplHandler None)
+              | _ ->
+                  NoChange )
           | Key.Escape ->
-            ( match cursor with
-            | Creating _ ->
-                Many [Deselect; AutocompleteMod ACReset]
-            | Filling (tlid, p) ->
-                Many [Select (tlid, STID p); AutocompleteMod ACReset] )
+              Many [Deselect; AutocompleteMod ACReset]
           | Key.Up ->
               AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
           | Key.Down ->

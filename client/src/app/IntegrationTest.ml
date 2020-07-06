@@ -66,7 +66,7 @@ let showOption (f : 'e -> string) (o : 'e option) : string =
 
 let enter_changes_state (m : model) : testResult =
   match m.cursorState with
-  | Entering (Creating _) ->
+  | Omnibox _ ->
       pass
   | _ ->
       fail ~f:show_cursorState m.cursorState

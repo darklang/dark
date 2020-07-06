@@ -13,12 +13,10 @@ let tlidOf (s : cursorState) : TLID.t option =
   match unwrap s with
   | Selecting (tlid, _) ->
       Some tlid
-  | Entering entryCursor ->
-    ( match entryCursor with
-    | Creating _ ->
-        None
-    | Filling (tlid, _) ->
-        Some tlid )
+  | Entering (tlid, _) ->
+      Some tlid
+  | Omnibox _ ->
+      None
   | Deselected ->
       None
   | FluidEntering tlid ->
@@ -32,8 +30,10 @@ let idOf (s : cursorState) : ID.t option =
   match unwrap s with
   | Selecting (_, id) ->
       id
-  | Entering entryCursor ->
-    (match entryCursor with Creating _ -> None | Filling (_, id) -> Some id)
+  | Omnibox _ ->
+      None
+  | Entering (_, id) ->
+      Some id
   | Deselected ->
       None
   | FluidEntering _ ->

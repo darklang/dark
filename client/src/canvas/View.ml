@@ -419,7 +419,7 @@ let viewCanvas (m : model) : msg Html.html =
           true
       | Architecture ->
         ( match CursorState.unwrap m.cursorState with
-        | Entering (Creating _) ->
+        | Omnibox _ ->
             true
         | _ ->
             false )

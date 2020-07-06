@@ -132,7 +132,7 @@ let viewBlankOr
               [Html.text (placeHolderFor vp pt)] ]
   in
   match vp.cursorState with
-  | Entering (Filling (_, thisID)) ->
+  | Entering (_, thisID) ->
       let id = B.toID bo in
       if id = thisID
       then

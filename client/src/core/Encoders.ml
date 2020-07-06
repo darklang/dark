@@ -736,12 +736,10 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
   match cs with
   | Selecting (tlid_, mId) ->
       ev "Selecting" [tlid tlid_; nullable id mId]
-  | Entering (Creating maybePos) ->
-      (* Hack to avoid changing the decoder: encode none as (0,0) *)
-      let pos_ = Option.withDefault ~default:Defaults.origin maybePos in
-      ev "Entering" [ev "Creating" [pos pos_]]
-  | Entering (Filling (tlid_, id_)) ->
-      ev "Entering" [ev "Filling" [tlid tlid_; id id_]]
+  | Omnibox maybePos ->
+      ev "OmniBox" [nullable pos maybePos]
+  | Entering (tlid_, id_) ->
+      ev "Entering" [tlid tlid_; id id_]
   | DraggingTL (tlid_, vpos_, hasMoved, cursor) ->
       ev "DraggingTL" [tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor]
   | PanningCanvas {viewportStart; viewportCurr; prevCursorState} ->
