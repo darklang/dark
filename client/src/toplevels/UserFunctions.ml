@@ -65,10 +65,6 @@ let sameName (name : string) (uf : userFunction) : bool =
   match uf.ufMetadata.ufmName with F (_, n) -> n = name | _ -> false
 
 
-let findByName (m : model) (s : string) : userFunction option =
-  List.find ~f:(sameName s) (TLIDDict.values m.userFunctions)
-
-
 let paramData (ufp : userFunctionParameter) : blankOrData list =
   [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 
@@ -118,13 +114,6 @@ let replaceFnName
     in
     {uf with ufMetadata = newMetadata}
   else uf
-
-
-let allParamNames (uf : userFunction) : string list =
-  uf
-  |> allParamData
-  |> List.filterMap ~f:(fun p ->
-         match p with PParamName (F (_, n)) -> Some n | _ -> None)
 
 
 let replaceParamName
