@@ -106,6 +106,22 @@ let toHtml (p : props) : Types.msg Html.html list =
     | _ ->
         false
   in
+  let isDuplicatedFiledName ti =
+    match ti.token with
+    | TRecordFieldname {fieldName; recordID; _} ->
+        let exprAst = FluidAST.toExpr p.ast in
+        Fluid.recordFields recordID exprAst
+        |> Option.andThen ~f:(fun fields ->
+               let count =
+                 fields
+                 |> List.filter ~f:(fun (v, _) -> v = fieldName)
+                 |> List.length
+               in
+               if count > 1 then Some count else None)
+        |> Option.is_some
+    | _ ->
+        false
+  in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -244,7 +260,7 @@ let toHtml (p : props) : Types.msg Html.html list =
             && (* This expression is the source of its own incompleteness. We
             only draw underlines under sources of incompletes, not all
             propagated occurrences. *)
-            sourceId = Some (p.tlid, analysisId)
+            (sourceId = Some (p.tlid, analysisId) || isDuplicatedFiledName ti)
           in
           let isNotExecuted = exeFlow ti = CodeNotExecuted in
           (* Unfade non-executed code if the caret is in it,

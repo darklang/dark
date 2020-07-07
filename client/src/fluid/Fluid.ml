@@ -1729,13 +1729,18 @@ let addRecordRowToBack (id : ID.t) (ast : FluidAST.t) : FluidAST.t =
           recover "Not a record in addRecordRowToTheBack" ~debug:e e)
 
 
+let recordFields (recordID : ID.t) (ast : FluidExpression.t) :
+    (string * fluidExpr) list option =
+  E.find recordID ast
+  |> Option.andThen ~f:(fun expr ->
+         match expr with E.ERecord (_, fields) -> Some fields | _ -> None)
+
+
 (* recordFieldAtIndex gets the field for the record in the ast with recordID at index,
    or None if the record has no field with that index *)
 let recordFieldAtIndex (recordID : ID.t) (index : int) (ast : FluidExpression.t)
     : (string * fluidExpr) option =
-  E.find recordID ast
-  |> Option.andThen ~f:(fun expr ->
-         match expr with E.ERecord (_, fields) -> Some fields | _ -> None)
+  recordFields recordID ast
   |> Option.andThen ~f:(fun fields -> List.getAt ~index fields)
 
 
