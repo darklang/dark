@@ -1,11 +1,17 @@
 # Dark
 
+This is the main repo for [Dark](https://darklang.com), a combined language, editor, and infrastructure to make it easy to build backends.
+
+This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
+[source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
+
 ## Contributing
 
-We have a [set of contributor
-docs](https://darklang.github.io/docs/contributing/getting-started) to guide
-you through your first PR, find good projects to contribute to, and learn about
-the code base, available on our docs site.
+We are committed to make Dark easy to contribute to.
+Our [contributor
+docs](https://darklang.github.io/docs/contributing/getting-started) will help
+guide you through your first PR, find good projects to contribute to, and learn
+about the code base.
 
 ## Getting Started
 
