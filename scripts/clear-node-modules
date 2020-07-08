@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 . ./scripts/support/assert-in-container "$0" "$@"
 
-set -euo pipefail
+set -uo pipefail
 
 rm -Rf node_modules/*
-rm -Rf node_modules/.*
+rm -Rf node_modules/.* 2> /dev/null

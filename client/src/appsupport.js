@@ -1,5 +1,3 @@
-document.title = window.location.hostname.split(".")[0] + " - Dark";
-
 const FullStory = require("@fullstory/browser");
 
 const mousewheel = function (callback) {

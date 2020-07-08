@@ -17,6 +17,9 @@ unbuffer bsb "$@" 2>&1 | while read -r line; do
   if [[ "$line" == *"Fatal error: exception Unix.Unix_error(Unix.ENOENT, \"execv\", \"/home/dark/app/node_modules/bs-platform/lib/ninja.exe\")"* ]]; then
     error=1;
     errorline="$line";
+  elif [[ "$line" == *"make inconsistent assumptions over interface"* ]]; then
+    error=1;
+    errorline="$line";
   fi
   echo "$line";
 done

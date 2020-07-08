@@ -1456,6 +1456,7 @@ let admin_ui_template = File.readfile ~root:Templates "ui.html"
 
 let admin_ui_html
     ~(canvas_id : Uuidm.t)
+    ~(canvas : string)
     ~(csrf_token : string)
     ~(local : string option)
     ~(account_created : Core_kernel.Time.t)
@@ -1505,6 +1506,7 @@ let admin_ui_html
        |> Option.value_exn
        |> Uuidm.to_string )
   |> Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
+  |> Util.string_replace "{{CANVAS}}" canvas
   |> Util.string_replace
        "{{APPSUPPORT}}"
        (File.readfile ~root:Webroot "appsupport.js")
@@ -1803,6 +1805,7 @@ let admin_ui_handler
           let html =
             admin_ui_html
               ~canvas_id
+              ~canvas
               ~csrf_token
               ~local
               ~account_created
