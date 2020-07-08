@@ -16,6 +16,6 @@ reqwest = "0.9.24"
 slog = "2.5.2"
 slog-scope = "4.3.0"
 slog-json = "2.3.0"
-chrono = "0.4.12"
+chrono = "0.4.13"
 uuid = { version = "0.8", features = ["v4"] }
 analytics = "0.2"
