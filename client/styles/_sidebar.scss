@@ -357,6 +357,9 @@ $icSize: 1em;
 
     a.toplevel-link {
       color: $primaryColor;
+      &.unused {
+        color: $secondaryColor;
+      }
       text-decoration: none;
       outline: none;
 

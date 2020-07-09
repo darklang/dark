@@ -543,7 +543,11 @@ let viewEntry (m : model) (e : entry) : msg Html.html =
     in
     match e.onClick with
     | Destination dest ->
-        let cls = "toplevel-link" ^ if isSelected then " selected" else "" in
+        let cls =
+          let selected = if isSelected then " selected" else "" in
+          let unused = if e.uses = Some 0 then " unused" else "" in
+          "toplevel-link" ^ selected ^ unused
+        in
         let path = Html.span [Html.class' "path"] [Html.text name] in
         Html.span
           [Html.class' "toplevel-name"]
