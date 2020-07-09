@@ -62,7 +62,8 @@ let viewPlayIcon (p : props) (ti : FluidToken.tokenInfo) : Types.msg Html.html =
       Vdom.noNode
 
 
-let toHtml (p : props) : Types.msg Html.html list =
+let toHtml (p : props) (duplicatedRecordFields : (ID.t * StrSet.t) list) :
+    Types.msg Html.html list =
   let exeFlow ti =
     let id = FluidToken.analysisID ti.token in
     match Analysis.getLiveValueLoadable p.analysisStore id with
@@ -236,6 +237,16 @@ let toHtml (p : props) : Types.msg Html.html list =
           :: (backingNestingClass @ tokenClasses)
           |> List.map ~f:(fun s -> (s, true))
         in
+        let isInvalidToken ti =
+          match ti.token with
+          | TRecordFieldname {fieldName; recordID; _} ->
+              duplicatedRecordFields
+              |> List.find ~f:(fun (rID, fns) ->
+                     rID = recordID && StrSet.has ~value:fieldName fns)
+              |> Option.isSome
+          | _ ->
+              false
+        in
         let conditionalClasses =
           let sourceId, errorType = sourceOfExprValue analysisId in
           let isError =
@@ -244,7 +255,7 @@ let toHtml (p : props) : Types.msg Html.html list =
             && (* This expression is the source of its own incompleteness. We
             only draw underlines under sources of incompletes, not all
             propagated occurrences. *)
-            sourceId = Some (p.tlid, analysisId)
+            (sourceId = Some (p.tlid, analysisId) || isInvalidToken ti)
           in
           let isNotExecuted = exeFlow ti = CodeNotExecuted in
           (* Unfade non-executed code if the caret is in it,
@@ -358,6 +369,28 @@ let tokensView (p : props) : Types.msg Html.html =
     then Html.id "active-editor"
     else Html.noProp
   in
+  let duplicatedRecordFields =
+    let exprAst = FluidAST.toExpr p.ast in
+    exprAst
+    |> FluidExpression.filterMap ~f:(fun e ->
+           match e with
+           | ERecord (id, fields) ->
+               let _, duplicates =
+                 fields
+                 |> List.map ~f:(fun (name, _) -> name)
+                 |> List.foldl
+                      ~init:(StrSet.empty, StrSet.empty)
+                      ~f:(fun name (fns, duplicates) ->
+                        if StrSet.has ~value:name fns
+                        then (fns, StrSet.add ~value:name duplicates)
+                        else (StrSet.add ~value:name fns, duplicates))
+               in
+               if duplicates |> StrSet.isEmpty
+               then None
+               else Some (id, duplicates)
+           | _ ->
+               None)
+  in
   Html.div
     ( [ idAttr
       ; Html.class' "fluid-tokens"
@@ -368,7 +401,7 @@ let tokensView (p : props) : Types.msg Html.html =
       ]
     @ clickHandlers
     @ Tuple3.toList textInputListeners )
-    (toHtml p)
+    (toHtml p duplicatedRecordFields)
 
 
 let viewErrorIndicator (p : props) (ti : FluidToken.tokenInfo) :
