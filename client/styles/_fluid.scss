@@ -354,7 +354,7 @@ $ff-color: adjust-hue($purple, -40deg);
       right: -8px;
       top: 0px;
       transition: color linear 0.1s;
-      z-index: 1000;
+      z-index: 100;
 
       &:hover {
         font-size: 75%;
