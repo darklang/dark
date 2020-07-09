@@ -5,7 +5,7 @@ let rec unwrap (s : cursorState) : cursorState =
   | DraggingTL (_, _, _, nested) | PanningCanvas {prevCursorState = nested; _}
     ->
       unwrap nested
-  | _ ->
+  | Omnibox _ | Entering _ | Selecting _ | Deselected | FluidEntering _ ->
       s
 
 
@@ -45,9 +45,10 @@ let idOf (s : cursorState) : ID.t option =
 
 let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrap m.cursorState with
-  | Entering _ ->
+  | Entering _ | Omnibox _ ->
       Tea_html_cmds.focus Defaults.entryID
-  | _ ->
+  | Selecting _ | Deselected | FluidEntering _ | DraggingTL _ | PanningCanvas _
+    ->
       Tea.Cmd.none
 
 
@@ -74,9 +75,10 @@ let focusWithOffset id offset =
 
 let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
   match unwrap m.cursorState with
-  | Entering _ ->
+  | Entering _ | Omnibox _ ->
       focusWithOffset Defaults.entryID offset
-  | _ ->
+  | Selecting _ | Deselected | FluidEntering _ | DraggingTL _ | PanningCanvas _
+    ->
       Tea.Cmd.none
 
 
