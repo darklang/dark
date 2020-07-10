@@ -113,6 +113,18 @@ let unary_op_to_sql op : tipe * tipe * string * string list * position =
       (TStr, TStr, "rtrim", [], First)
   | "Date::hour_v1" ->
       (TDate, TInt, "date_part", ["'hour'"], Last)
+  | "Date::day" ->
+      (TDate, TInt, "date_part", ["'day'"], Last)
+  | "Date::minute" ->
+      (TDate, TInt, "date_part", ["'minute'"], Last)
+  | "Date::month" ->
+      (TDate, TInt, "date_part", ["'month'"], Last)
+  | "Date::second" ->
+      (TDate, TInt, "date_part", ["'second'"], Last)
+  | "Date::year" ->
+      (TDate, TInt, "date_part", ["'year'"], Last)
+  | "Date::atStartOfDay" ->
+      (TDate, TInt, "date_trunc", ["'day'"], Last)
   | _ ->
       error2 "This function is not yet implemented" op
 
