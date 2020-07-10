@@ -1100,7 +1100,7 @@ let t_db_query_works () =
       [ ("height", int 72)
       ; ("name", str " Chandler ")
       ; ("human", bool true)
-      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1969-08-19T10:00:00Z"])
+      ; ("dob", fn ~ster:Rail "Date::parse_v2" [str "1969-08-19T10:13:42Z"])
       ; ("income", float' 83 00) ]
   in
   let cat_expr =
@@ -1526,6 +1526,35 @@ let t_db_query_works () =
               [field "v" "name"; str "xxx"; str "willNotBeInserted"])
            (str " Chandler "))
     |> execs ) ;
+  check_dval
+    "date::atStartOfDay"
+    (DList [chandler])
+    ( queryv
+        (binop
+           "=="
+           (fn "Date::atStartOfDay" [field "v" "dob"])
+           (fn "Date::parse" [str "1969-08-19T00:00:00Z"]))
+    |> execs ) ;
+  check_dval
+    "date::day"
+    (DList [chandler])
+    (queryv (binop "==" (fn "Date::day" [field "v" "dob"]) (int 19)) |> execs) ;
+  check_dval
+    "date::minute"
+    (DList [chandler])
+    (queryv (binop "==" (fn "Date::minute" [field "v" "dob"]) (int 13)) |> execs) ;
+  check_dval
+    "date::month"
+    (DList [chandler])
+    (queryv (binop "==" (fn "Date::month" [field "v" "dob"]) (int 8)) |> execs) ;
+  check_dval
+    "date::second"
+    (DList [chandler])
+    (queryv (binop "==" (fn "Date::second" [field "v" "dob"]) (int 42)) |> execs) ;
+  check_dval
+    "date::year"
+    (DList [rachel; chandler])
+    (queryv (binop "==" (fn "Date::year" [field "v" "dob"]) (int 1969)) |> execs) ;
   (* -------------- *)
   (* Test partial evaluation *)
   (* -------------- *)
