@@ -214,4 +214,27 @@ let run () =
         "right partials with diff exprs"
         (rightPartial "++" (str "foo"))
         (rightPartial "++" (str "bar")) ;
+      describe "renameVariableUses" (fun () ->
+          test "with variable used in right hand side" (fun () ->
+              let exprAst = let' "a" (var "x") (E.newB ()) in
+              expect
+                ( E.renameVariableUses ~oldName:"x" ~newName:"x1" exprAst
+                |> FluidPrinter.eToTestString )
+              |> toEqual "let a = x1\n___") ;
+          test "with rebound let expression" (fun () ->
+              let exprAst = let' "x" (int 6) (let' "a" (var "x") (E.newB ())) in
+              expect
+                ( E.renameVariableUses ~oldName:"x" ~newName:"x1" exprAst
+                |> FluidPrinter.eToTestString )
+              |> toEqual "let x = 6\nlet a = x\n___") ;
+          test
+            "ith rebound let expression and used as variable in right hand side"
+            (fun () ->
+              let exprAst =
+                let' "x" (fn "Int::add" [var "x"; int 6]) (E.newB ())
+              in
+              expect
+                ( E.renameVariableUses ~oldName:"x" ~newName:"x1" exprAst
+                |> FluidPrinter.eToTestString )
+              |> toEqual "let x = Int::add x1 6\n___")) ;
       ())
