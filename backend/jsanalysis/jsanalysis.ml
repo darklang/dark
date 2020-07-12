@@ -78,7 +78,8 @@ type function_analysis_param =
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list
-  ; user_tipes : user_tipe list }
+  ; user_tipes : user_tipe list
+  ; secrets : secret list }
 [@@deriving of_yojson]
 
 type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
@@ -159,7 +160,7 @@ let perform_handler_analysis (str : string) : string =
 
 
 let perform_function_analysis (str : string) : string =
-  let {func; dbs; user_fns; user_tipes; trace_id; trace_data} =
+  let {func; dbs; user_fns; user_tipes; trace_id; trace_data; secrets} =
     str
     |> Yojson.Safe.from_string
     |> function_analysis_param_of_yojson
@@ -170,7 +171,7 @@ let perform_function_analysis (str : string) : string =
     ~dbs
     ~user_fns
     ~user_tipes
-    ~secrets:[]
+    ~secrets
     ~trace_id
     ~trace_data
     func.ast

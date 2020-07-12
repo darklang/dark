@@ -723,7 +723,8 @@ and performFunctionAnalysisParams =
   ; traceData : traceData
   ; dbs : db list
   ; userFns : userFunction list
-  ; userTipes : userTipe list }
+  ; userTipes : userTipe list
+  ; secrets : SecretTypes.t list }
 
 and performAnalysisParams =
   | AnalyzeHandler of performHandlerAnalysisParams
