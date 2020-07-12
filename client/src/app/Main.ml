@@ -2022,6 +2022,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many [SetClipboardContents (copyData, e); mod_; toast]
   | ClipboardCopyLivevalue (lv, pos) ->
+      let lv = lv |> Regex.replace ~re:(Regex.regex "(^\")|(\"$)") ~repl:"" in
       Native.Clipboard.copyToClipboard lv ;
       ReplaceAllModificationsWithThisOne
         (fun m ->
