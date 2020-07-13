@@ -457,8 +457,8 @@ let rec updateVariableUses (oldVarName : string) ~(f : t -> t) (ast : t) : t =
   | EVariable (_, varName) ->
       if varName = oldVarName then f ast else ast
   | ELet (id, lhs, rhs, body) ->
-      if oldVarName = lhs (* if variable name is rebound *)
-      then ast
+      if oldVarName = lhs
+      then ELet (id, lhs, u rhs, body)
       else ELet (id, lhs, u rhs, u body)
   | ELambda (id, vars, lexpr) ->
       if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
