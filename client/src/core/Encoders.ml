@@ -526,7 +526,8 @@ and performFunctionAnalysisParams (params : Types.performFunctionAnalysisParams)
     ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
     ; ("user_fns", list userFunction params.userFns)
-    ; ("user_tipes", list userTipe params.userTipes) ]
+    ; ("user_tipes", list userTipe params.userTipes)
+    ; ("secrets", list secret params.secrets) ]
 
 
 and userFunction (uf : Types.userFunction) : Js.Json.t =

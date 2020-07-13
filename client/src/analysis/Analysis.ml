@@ -460,6 +460,7 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
   let userTipes = TD.values m.userTipes in
   let trace = getTrace m tlid traceID in
   let tl = TL.get m tlid in
+  let secrets = m.secrets in
   match (tl, trace) with
   | Some (TLHandler h), Some (_, Ok traceData) ->
       Tea_cmd.call (fun _ ->
@@ -471,12 +472,12 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
                ; dbs
                ; userFns
                ; userTipes
-               ; secrets = m.secrets }))
+               ; secrets }))
   | Some (TLFunc f), Some (_, Ok traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeFunction
-               {func = f; traceID; traceData; dbs; userFns; userTipes}))
+               {func = f; traceID; traceData; dbs; userFns; userTipes; secrets}))
   | _ ->
       Cmd.none
 
