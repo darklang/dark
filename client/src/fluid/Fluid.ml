@@ -1785,6 +1785,11 @@ let rec mergeExprs (e1 : fluidExpr) (e2 : fluidExpr) : fluidExpr * caretTarget =
       (e1, caretTargetForEndOfExpr' e1)
 
 
+type compareParamsResult =
+  | CPAligned
+  | CPTypeAndPositionMatched
+  | CPNothingMatched
+
 let replacePartialWithArguments
     (props : props) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) :
     FluidAST.t * caretTarget =
@@ -1848,12 +1853,19 @@ let replacePartialWithArguments
     then Rail
     else NoRail
   in
-  let isAligned p1 p2 =
+  (* Compare two params function,
+   * params are aligned if both name and type are the same,
+   * Params are type and position matched if both type and position are the same *)
+  let compareParams p1 p2 =
     match (p1, p2) with
-    | Some (name, tipe, _, _), Some (name', tipe', _, _) ->
-        name = name' && tipe = tipe'
+    | Some (name, tipe, _, index), Some (name', tipe', _, index') ->
+        if name = name' && tipe = tipe'
+        then CPAligned
+        else if tipe = tipe' && index = index'
+        then CPTypeAndPositionMatched
+        else CPNothingMatched
     | _, _ ->
-        false
+        CPNothingMatched
   in
   let ctForExpr (expr : fluidExpr) : caretTarget =
     match expr with
@@ -1901,11 +1913,39 @@ let replacePartialWithArguments
                  getFunctionParams newName count placeholderExprs
                in
                let oldParams = getFunctionParams oldName count existingExprs in
+               (* Divide old existing params to matched and mismatched lists*)
                let matchedParams, mismatchedParams =
-                 List.partition oldParams ~f:(fun p ->
-                     List.any newParams ~f:(isAligned p))
+                 List.partitionMap oldParams ~f:(fun p ->
+                     (* compare old param with all new param,
+                      * to check if there is any aligned or type and position matched,
+                      * needs to compare with all new params
+                      * because same old param could align and type matched with multiple new params *)
+                     let comparedResults =
+                       List.map newParams ~f:(compareParams p)
+                     in
+                     let alignedIndex =
+                       List.findIndex comparedResults ~f:(fun r ->
+                           r = CPAligned)
+                     in
+                     let typeAndPositionMatchedIndex =
+                       List.findIndex comparedResults ~f:(fun r ->
+                           r = CPTypeAndPositionMatched)
+                     in
+                     match (alignedIndex, typeAndPositionMatchedIndex) with
+                     | Some index, _ | None, Some index ->
+                         let np = List.getAt ~index newParams in
+                         ( match (np, p) with
+                         | ( Some (Some (name, tipe, _, index))
+                           , Some (_, _, expr, _) ) ->
+                             (* Assign new param position index with old param info *)
+                             Left (Some (name, tipe, expr, index))
+                         | _ ->
+                             Right p )
+                     | None, None ->
+                         Right p)
                  |> Tuple2.mapAll ~f:Option.values
                in
+               (* Update new params with old matched params with their new position index *)
                let newParams =
                  List.foldl
                    matchedParams
