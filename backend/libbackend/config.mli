@@ -50,6 +50,8 @@ val stroller_port : int option
 
 val pusher_js : string
 
+val heap_id : string
+
 val public_domain : string
 
 val browser_reload_enabled : bool

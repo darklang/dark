@@ -48,6 +48,8 @@ if (unsupportedBrowser) {
 // ---------------------------
 // Analytics
 // ---------------------------
+require("../static/vendor/heap.js");
+heap.load(heapID);
 
 // ---------------------------
 // Allows us capture certain keys and stop them from affecting the browser.
