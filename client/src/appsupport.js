@@ -46,6 +46,12 @@ if (unsupportedBrowser) {
 }
 
 // ---------------------------
+// Analytics
+// ---------------------------
+const getwisdom = require("./getwisdom.js");
+getwisdom.setup({ userId, isAdmin, username });
+
+// ---------------------------
 // Allows us capture certain keys and stop them from affecting the browser.
 // ---------------------------
 function stopKeys(event) {
