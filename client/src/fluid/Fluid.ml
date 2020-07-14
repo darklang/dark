@@ -5415,15 +5415,14 @@ let pasteOverSelection (data : clipboardContents) (astInfo : ASTInfo.t) :
           astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
       | EString (id, str), _, Some {astRef = ARString (_, SPOpenQuote); offset}
         ->
-          (* Paste into a string, to take care of newlines.
-           * Note: pasting before an open quote
-           * places the caret one unit left of the text end *)
           let replacement =
             E.EString (id, String.insertAt ~insert:text ~index:(offset - 1) str)
           in
           let newAST = FluidAST.replace ~replacement id ast in
           let caretTarget =
-            CT.forARStringOpenQuote id (offset + String.length text)
+            if offset = 0
+            then CT.forARStringOpenQuote id (String.length text + 1)
+            else CT.forARStringOpenQuote id (offset + String.length text)
           in
           astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget caretTarget
       | ( ERecord (id, oldKVs)

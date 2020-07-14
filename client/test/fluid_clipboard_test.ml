@@ -507,6 +507,12 @@ let run () =
         (11, 15)
         (record [("key1", int 9876)])
         "\"abcd EFGH {\n  key1 : 9876\n}~ 1234\"" ;
+      testPasteText
+        "pasting a string before open quote should paste string inside quotes and move caret to end of text"
+        (str "")
+        (-1, 0)
+        "abcd"
+        "\"abcd~\"" ;
       ()) ;
   describe "Floats" (fun () ->
       testCopy
