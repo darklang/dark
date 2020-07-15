@@ -1476,7 +1476,6 @@ let admin_ui_html
     | _ ->
         Config.static_host
   in
-  let rollbar_js = Config.rollbar_js in
   let hash_static_filenames =
     if local = None then Config.hash_static_filenames else false
   in
@@ -1494,7 +1493,8 @@ let admin_ui_html
   |> Util.string_replace
        "{{ACCOUNT_CREATION_UNIX_MSTS}}"
        (string_of_int account_created_msts)
-  |> Util.string_replace "{{ROLLBARCONFIG}}" rollbar_js
+  |> Util.string_replace "{{HEAP_ID}}" Config.heap_id
+  |> Util.string_replace "{{ROLLBARCONFIG}}" Config.rollbar_js
   |> Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
   |> Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
   |> Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name

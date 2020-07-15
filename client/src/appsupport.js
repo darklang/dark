@@ -48,8 +48,8 @@ if (unsupportedBrowser) {
 // ---------------------------
 // Analytics
 // ---------------------------
-const getwisdom = require("./getwisdom.js");
-getwisdom.setup({ userId, isAdmin, username });
+require("../static/vendor/heap.js");
+heap.load(heapID);
 
 // ---------------------------
 // Allows us capture certain keys and stop them from affecting the browser.
