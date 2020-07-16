@@ -905,9 +905,21 @@ let t_list_stdlibs_work () =
     (* Can't check randomness deterministically in test so only 1 element*)
     (exec_ast (fn "List::randomElement" [list [int 1]])) ;
   check_dval
-    "List:member works for empty lists"
+    "List::member works for empty lists"
     (DBool false)
     (exec_ast (fn "List::member" [list []; int 1])) ;
+  check_dval
+    "List::contains works (value in list)"
+    (DBool true)
+    (exec_ast (fn "List::contains" [list [int 1; int 2; int 3]; int 2])) ;
+  check_dval
+    "List::contains works (value not in list)"
+    (DBool false)
+    (exec_ast (fn "List::contains" [list [int 1; int 2; int 3]; int 4])) ;
+  check_dval
+    "List::contains works (empty list)"
+    (DBool false)
+    (exec_ast (fn "List::contains" [list []; int 1])) ;
   check_dval
     "List::takeWhile works"
     (DList [Dval.dint 1; Dval.dint 2])
