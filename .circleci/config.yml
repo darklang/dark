@@ -13,11 +13,8 @@ executors:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
-      # these keys are read-only
-      AWS_ACCESS_KEY_ID: "AKIAXJAGP54V756YBAHZ"
-      AWS_SECRET_ACCESS_KEY: "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"
     docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:c8654a8
+      - image: darklang/dark-base:3d1c584
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -25,11 +22,8 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
       # these keys are read-only
-      AWS_ACCESS_KEY_ID: "AKIAXJAGP54V756YBAHZ"
-      AWS_SECRET_ACCESS_KEY: "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"
     docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:rust-c8654a8
-
+      - image: darklang/dark-rust:rust-3d1c584
 
 commands:
   show-large-files-and-directories:
@@ -51,15 +45,13 @@ commands:
           name: Assert the worktree is clean
           command: "bash -c '[[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
 
-
   ##########################
   # Setup app
   ##########################
   setup-app:
     steps:
       - run:
-          name:
-            Setup build environment
+          name: Setup build environment
           command: |
             set -x
             scripts/support/setup-circleci-environment
@@ -96,7 +88,10 @@ commands:
       # must persist to workspace first, as next step will remove built release artifact
       - persist_to_workspace:
           root: "."
-          paths: [ << parameters.project >>/target/release/dark-<< parameters.project >> ]
+          paths:
+            [
+              << parameters.project >>/target/release/dark-<< parameters.project >>,
+            ]
 
       # This removes files in the top-level of target/{debug,release}, which include the actual built artifact
       # and other intermediates that will always be rebuilt on the next build (so there's no sense in caching them).
@@ -144,8 +139,6 @@ commands:
             cp backend/static/etags.json rundir/
       - run: scripts/gcp-build-containers
 
-
-
   ##########################
   # misc
   ##########################
@@ -179,7 +172,7 @@ jobs:
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
-          paths: [ "node_modules" ]
+          paths: ["node_modules"]
           key: v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
@@ -241,7 +234,6 @@ jobs:
           key: v8-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
-
 
   build-stroller:
     executor: in-rust-container
@@ -310,7 +302,6 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
-
   rust-integration-tests:
     executor: in-rust-container
     steps:
@@ -365,8 +356,7 @@ jobs:
             time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
       - persist_to_workspace:
           root: "."
-          paths: [ gcr-image-ids ]
-
+          paths: [gcr-image-ids]
 
   deploy:
     executor: in-container
@@ -387,7 +377,6 @@ jobs:
             --tunnel-image-id=`cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
           scripts/honeymarker.sh
-
 
 workflows:
   version: 2
