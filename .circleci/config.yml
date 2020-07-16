@@ -18,14 +18,14 @@ jobs:
 
       - run: echo "Building images for version $(./tag-version.sh)."
       - run: docker build --target dark-base -t $TAG:$(./tag-version.sh) .
-      - run: docker build -t $RUST_TAG:rust-$(./tag-version.sh) .
+      - run: docker build -t $RUST_TAG:$(./tag-version.sh) .
       - deploy:
           name: Push image
           command: |
             if [ "${CIRCLE_BRANCH}" == "main" ]; then
               docker login --username pbiggar --password "${DOCKER_HUB_TOKEN}"
               docker push $TAG:$(./tag-version.sh)
-              docker push $RUST_TAG:rust-$(./tag-version.sh)
+              docker push $RUST_TAG:$(./tag-version.sh)
             fi
 
 
