@@ -22,7 +22,7 @@ jobs:
       - deploy:
           name: Push image
           command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            if [ "${CIRCLE_BRANCH}" == "main" ]; then
               docker login --username pbiggar --password "${DOCKER_HUB_TOKEN}"
               docker push $TAG:$(./tag-version.sh)
               docker push $RUST_TAG:rust-$(./tag-version.sh)
