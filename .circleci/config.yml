@@ -14,16 +14,15 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     docker:
-      - image: darklang/dark-base:3d1c584
+      - image: darklang/dark-base:1b7bbe0
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
-      # these keys are read-only
     docker:
-      - image: darklang/dark-rust:rust-3d1c584
+      - image: darklang/dark-rust:1b7bbe0
 
 commands:
   show-large-files-and-directories:
