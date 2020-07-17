@@ -361,18 +361,19 @@ let fns : fn list =
     ; infix_names = []
     ; parameters = [par "sep" TAny; par "list" TList]
     ; return_type = TList
-    ; description = "Returns a single list containing the values of `list` separated by `sep`."
+    ; description =
+        "Returns a single list containing the values of `list` separated by `sep`."
     ; func =
         InProcess
           (function
           | _, [i; DList l] ->
               let rec join ls =
                 match ls with
-                | [] -> []
+                | [] ->
+                    []
                 | h :: t ->
-                    ( match t with
-                    | [] -> [h]
-                    | t -> [h] @ [i] @ join t ) in
+                  (match t with [] -> [h] | t -> [h] @ [i] @ join t)
+              in
               DList (join l)
           | args ->
               fail args)
