@@ -921,6 +921,14 @@ let t_list_stdlibs_work () =
     (DBool false)
     (exec_ast (fn "List::contains" [list []; int 1])) ;
   check_dval
+    "List::interpose works"
+    (DList [Dval.dint 1; Dval.dint 5; Dval.dint 2; Dval.dint 5; Dval.dint 3])
+    (exec_ast (fn "List::interpose" [int 5; list [int 1; int 2; int 3]])) ;
+  check_dval
+    "List::interpose works (empty)"
+    (DList [])
+    (exec_ast (fn "List::interpose" [int 5; list []])) ;
+  check_dval
     "List::takeWhile works"
     (DList [Dval.dint 1; Dval.dint 2])
     (exec_ast
