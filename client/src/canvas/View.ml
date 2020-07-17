@@ -10,11 +10,11 @@ let appID = "app"
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let docsURL = "https://ops-documentation.builtwithdark.com/user-manual"
+let docsURL = "https://docs.darklang.com"
 
 let functionRefsURL = "https://ops-documentation.builtwithdark.com/?pretty=1"
 
-let keyboardRefsURL = "https://darklang.github.io/docs/keyboard-mapping"
+let keyboardRefsURL = "https://docs.darklang.com/keyboard-mapping"
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
@@ -552,10 +552,29 @@ let accountView (m : model) : msg Html.html =
       [ Html.class' "account-action-btn"
       ; Html.href keyboardRefsURL
       ; Html.target "_blank"
-      ; ViewUtils.eventNoPropagation ~key:"account-fn-ref" "click" (fun _ ->
+      ; ViewUtils.eventNoPropagation ~key:"keyboard-ref" "click" (fun _ ->
             UpdateSegment OpenKeyboardRef) ]
       [Html.text "Keyboard Reference"]
   in
+  let slackRef =
+    Html.a
+      [ Html.class' "account-action-btn"
+      ; Html.href "https://darklang.com/slack-invite"
+      ; Html.target "_blank"
+      ; ViewUtils.eventNoPropagation ~key:"slack-invite-ref" "click" (fun _ ->
+            UpdateSegment OpenKeyboardRef) ]
+      [Html.text "Slack Community"]
+  in
+  let contributeRef =
+    Html.a
+      [ Html.class' "account-action-btn"
+      ; Html.href "https://docs.darklang.com/contributing/getting-started"
+      ; Html.target "_blank"
+      ; ViewUtils.eventNoPropagation ~key:"contributor-ref" "click" (fun _ ->
+            UpdateSegment OpenKeyboardRef) ]
+      [Html.text "Contributor Docs"]
+  in
+
   let tutorial =
     Html.p
       [ Html.class' "account-action-btn"
@@ -633,6 +652,8 @@ let accountView (m : model) : msg Html.html =
         ; docs
         ; functionRefs
         ; keyboardRefs
+        ; slackRef
+        ; contributeRef
         ; tutorial ] ]
 
 
