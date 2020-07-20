@@ -1853,9 +1853,8 @@ let replacePartialWithArguments
     then Rail
     else NoRail
   in
-  (* Compare two params function,
-   * params are aligned if both name and type are the same,
-   * Params are type and position matched if both type and position are the same *)
+  (* Compare two parameters, params are aligned if both name 
+    * and type are the same, or if both type and position are the same *)
   let compareParams p1 p2 =
     match (p1, p2) with
     | Some (name, tipe, _, index), Some (name', tipe', _, index') ->
@@ -1916,10 +1915,7 @@ let replacePartialWithArguments
                (* Divide old existing params to matched and mismatched lists*)
                let matchedParams, mismatchedParams =
                  List.partitionMap oldParams ~f:(fun p ->
-                     (* compare old param with all new param,
-                      * to check if there is any aligned or type and position matched,
-                      * needs to compare with all new params
-                      * because same old param could align and type matched with multiple new params *)
+                     (* Split out the "aligned" parameters (parameters from the old fnCall that match the new fnCall) *)
                      let comparedResults =
                        List.map newParams ~f:(compareParams p)
                      in
