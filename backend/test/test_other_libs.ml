@@ -923,15 +923,15 @@ let t_list_stdlibs_work () =
   check_dval
     "List::interpose works"
     (DList [Dval.dint 1; Dval.dint 5; Dval.dint 2; Dval.dint 5; Dval.dint 3])
-    (exec_ast (fn "List::interpose" [int 5; list [int 1; int 2; int 3]])) ;
+    (exec_ast (fn "List::interpose" [list [int 1; int 2; int 3]; int 5])) ;
   check_dval
     "List::interpose works (empty)"
     (DList [])
-    (exec_ast (fn "List::interpose" [int 5; list []])) ;
+    (exec_ast (fn "List::interpose" [list []; int 5])) ;
   check_dval
     "List::interpose works (single value)"
     (DList [Dval.dint 1])
-    (exec_ast (fn "List::interpose" [int 5; list [int 1]])) ;
+    (exec_ast (fn "List::interpose" [list [int 1]; int 5])) ;
   check_dval
     "List::takeWhile works"
     (DList [Dval.dint 1; Dval.dint 2])

@@ -359,14 +359,14 @@ let fns : fn list =
     ; deprecated = false }
   ; { prefix_names = ["List::interpose"]
     ; infix_names = []
-    ; parameters = [par "sep" TAny; par "list" TList]
+    ; parameters = [par "list" TList; par "sep" TAny]
     ; return_type = TList
     ; description =
         "Returns a single list containing the values of `list` separated by `sep`."
     ; func =
         InProcess
           (function
-          | _, [i; DList l] ->
+          | _, [DList l; i] ->
               let rec join ls =
                 match ls with
                 | [] ->
