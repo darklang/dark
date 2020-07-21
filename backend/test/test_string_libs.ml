@@ -237,9 +237,9 @@ let t_toList_v1_works () =
     "String::toList_v1 works"
     (exec_ast (fn "String::toList_v1" [str "abc"]))
     (DList
-       [ Dval.dstr_of_string_exn "a"
-       ; Dval.dstr_of_string_exn "b"
-       ; Dval.dstr_of_string_exn "c" ])
+       [ DCharacter (Unicode_string.Character.unsafe_of_string "a")
+       ; DCharacter (Unicode_string.Character.unsafe_of_string "b")
+       ; DCharacter (Unicode_string.Character.unsafe_of_string "c") ])
 
 
 let suite =
