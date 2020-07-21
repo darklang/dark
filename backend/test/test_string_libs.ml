@@ -232,6 +232,16 @@ let t_toint_works () =
     (DResult (ResOk (Dval.dint 1)))
 
 
+let t_toList_v1_works () =
+  check_dval
+    "String::toList_v1 works"
+    (exec_ast (fn "String::toList_v1" [str "abc"]))
+    (DList
+       [ DCharacter (Unicode_string.Character.unsafe_of_string "a")
+       ; DCharacter (Unicode_string.Character.unsafe_of_string "b")
+       ; DCharacter (Unicode_string.Character.unsafe_of_string "c") ])
+
+
 let suite =
   [ ( "String::length_v2 returns the correct length for a string containing an emoji"
     , `Quick
@@ -285,4 +295,5 @@ let suite =
     , t_string_prepend_works_for_ascii_range )
   ; ( "String::prepend works on non-ascii strings"
     , `Quick
-    , t_string_prepend_works_on_non_ascii_strings ) ]
+    , t_string_prepend_works_on_non_ascii_strings )
+  ; ("String::toList_v1 works", `Quick, t_toList_v1_works) ]
