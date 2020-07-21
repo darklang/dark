@@ -357,6 +357,28 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["List::interpose"]
+    ; infix_names = []
+    ; parameters = [par "list" TList; par "sep" TAny]
+    ; return_type = TList
+    ; description =
+        "Returns a single list containing the values of `list` separated by `sep`."
+    ; func =
+        InProcess
+          (function
+          | _, [DList l; i] ->
+              let rec join ls =
+                match ls with
+                | [] ->
+                    []
+                | h :: t ->
+                  (match t with [] -> [h] | t -> [h] @ [i] @ join t)
+              in
+              DList (join l)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["List::uniqueBy"]
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
