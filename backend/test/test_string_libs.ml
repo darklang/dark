@@ -231,11 +231,15 @@ let t_toint_works () =
     (exec_ast (fn "String::toInt_v1" [str "1"]))
     (DResult (ResOk (Dval.dint 1)))
 
-let t_toList_v1_works() =
+
+let t_toList_v1_works () =
   check_dval
     "String::toList_v1 works"
     (exec_ast (fn "String::toList_v1" [str "abc"]))
-    (DList [Dval.dstr_of_string_exn "a"; Dval.dstr_of_string_exn "b"; Dval.dstr_of_string_exn "c"])
+    (DList
+       [ Dval.dstr_of_string_exn "a"
+       ; Dval.dstr_of_string_exn "b"
+       ; Dval.dstr_of_string_exn "c" ])
 
 
 let suite =
@@ -292,6 +296,4 @@ let suite =
   ; ( "String::prepend works on non-ascii strings"
     , `Quick
     , t_string_prepend_works_on_non_ascii_strings )
-  ; ( "String::toList_v1 works"
-    , `Quick
-    , t_toList_v1_works ) ]
+  ; ("String::toList_v1 works", `Quick, t_toList_v1_works) ]
