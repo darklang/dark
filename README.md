@@ -26,6 +26,13 @@ To build and run the server you must have the following installed (and running):
 - PIP `brew install python` / `apt install python3-pip`
 - live reload `pip3 install livereload`
 
+On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
+
+- You must be on at least Windows 10 Version 2004, and you must run WSL 2 (docker does not work in WSL 1)
+- Follow the [WSL 2 installation instructions](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2)
+- Follow the [Docker for WSL 2 installation instructions](https://docs.docker.com/docker-for-windows/wsl/)
+- Install the depedencies above in your Linux distro
+
 ### Docker
 The app and its dependencies are all held within the container. While code is edited on your machine, the application is compiled and run inside of the container.
 
