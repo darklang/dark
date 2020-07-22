@@ -50,7 +50,7 @@ if (unsupportedBrowser) {
 // ---------------------------
 require("../static/vendor/heapio.js");
 heapio.load(heapioID);
-heapio.identify(userID);
+heapio.identify(userId);
 
 window["_fs_ready"] = function () {
   heapio.track("FullStory Session", {
@@ -63,7 +63,7 @@ window["_fs_ready"] = function () {
 
 function sendHeapioMessage(event) {
   heap.track({
-    userId: userID,
+    userId: userId,
     event: event,
   });
   return;
