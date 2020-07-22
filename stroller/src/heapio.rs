@@ -3,7 +3,7 @@ use slog::o;
 use slog_scope::{debug, error, info};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Value};
 
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
@@ -31,14 +31,14 @@ fn default_http_client() -> reqwest::Client {
 }
 
 pub fn send(msg: &Message, client: &reqwest::Client) -> Result<(), Error> {
-    debug!("about to send to heapio " ; "msg" => msg_to_json_string(msg) );
+    debug!("about to send to heapio" ; "msg" => msg_to_json_string(msg) );
     let path = match msg {
-        Message::Identify(_) => "/v1/identify",
-        Message::Track(_) => "/v1/track",
+        Message::Identify(_) => "/api/add_user_properties",
+        Message::Track(_) => "/api/track",
     };
 
     client
-        .post(&format!("{}{}", "https://api.heap.io.todo", path))
+        .post(&format!("{}{}", "https://heapanalytics.com", path))
         .basic_auth("", Some(heapio_id()))
         .json(msg)
         .send()?
@@ -60,35 +60,12 @@ pub enum Message {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum User {
-    /// The user is identified only by a user ID.
-    UserId {
-        #[serde(rename = "userId")]
-        user_id: String,
-    },
-
-    /// The user is identified only by an anonymous ID.
-    AnonymousId {
-        #[serde(rename = "anonymousId")]
-        anonymous_id: String,
-    },
-
-    /// The user is identified by both a user ID and an anonymous ID.
-    Both {
-        #[serde(rename = "userId")]
-        user_id: String,
-
-        #[serde(rename = "anonymousId")]
-        anonymous_id: String,
-    },
-}
-
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Identify {
     /// The user associated with this message.
-    #[serde(flatten)]
-    pub user: User,
+    pub identity : String,
+    
+    /// The Heap app id
+    pub app_id : String,
 
     /// The traits to assign to the user.
     pub traits: Value,
@@ -96,55 +73,25 @@ pub struct Identify {
     /// The timestamp associated with this message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<DateTime<Utc>>,
-
-    /// Context associated with this message.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub context: Option<Value>,
-
-    /// Integrations to route this message to.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub integrations: Option<Value>,
-
-    /// Extra fields to put at the top level of this message.
-    #[serde(flatten)]
-    pub extra: Map<String, Value>,
 }
 
-impl Default for User {
-    fn default() -> Self {
-        User::AnonymousId {
-            anonymous_id: "".to_owned(),
-        }
-    }
-}
-
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize )]
 pub struct Track {
     /// The user associated with this message.
-    #[serde(flatten)]
-    pub user: User,
+    pub identity : String,
+
+    /// The Heap app id
+    pub app_id : String,
 
     /// The name of the event being tracked.
     pub event: String,
-
-    /// The properties associated with the event.
-    pub properties: Value,
 
     /// The timestamp associated with this message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<DateTime<Utc>>,
 
-    /// Context associated with this message.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub context: Option<Value>,
-
-    /// Integrations to route this message to.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub integrations: Option<Value>,
-
-    /// Extra fields to put at the top level of this message.
-    #[serde(flatten)]
-    pub extra: Map<String, Value>,
+    /// The properties associated with the event.
+    pub properties: Value,
 }
 
 pub enum HeapioMessage {
@@ -165,10 +112,6 @@ pub fn new_message(
     body: Vec<u8>,
     request_id: String,
 ) -> Option<HeapioMessage> {
-    let user = User::UserId {
-        user_id: format!("user-{}", user_id),
-    };
-
     String::from_utf8(body)
         .map_err(|_| error!("Heapio body was not a valid utf8 string"))
         .and_then(|s: String| {
@@ -208,17 +151,17 @@ pub fn new_message(
             };
             match msg_type.as_str() {
                 "identify" => Some(Message::Identify(Identify {
-                    user,
+                    app_id : heapio_id(),
+                    identity : user_id,
                     timestamp,
                     traits: body,
-                    ..Default::default()
                 })),
                 "track" => Some(Message::Track(Track {
-                    user,
+                    app_id : heapio_id(),
+                    identity : user_id,
                     event: event.clone(),
                     timestamp,
                     properties: body,
-                    ..Default::default()
                 })),
                 _ => {
                     error!("Heapio message type '{}' is not supported.", msg_type);
