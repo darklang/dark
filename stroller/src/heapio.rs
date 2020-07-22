@@ -31,7 +31,7 @@ fn default_http_client() -> reqwest::Client {
 }
 
 pub fn send(msg: &Message, client: &reqwest::Client) -> Result<(), Error> {
-    debug!("about to send to heapio" ; "msg" => msg_to_json_string(msg) );
+    debug!("about to send to heapio" ; "message" => msg_to_json_string(msg) );
     let path = match msg {
         Message::Identify(_) => "/api/add_user_properties",
         Message::Track(_) => "/api/track",
@@ -68,11 +68,7 @@ pub struct Identify {
     pub app_id : String,
 
     /// The traits to assign to the user.
-    pub traits: Value,
-
-    /// The timestamp associated with this message.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timestamp: Option<DateTime<Utc>>,
+    pub properties: Value,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize )]
@@ -153,8 +149,7 @@ pub fn new_message(
                 "identify" => Some(Message::Identify(Identify {
                     app_id : heapio_id(),
                     identity : user_id,
-                    timestamp,
-                    traits: body,
+                    properties: body,
                 })),
                 "track" => Some(Message::Track(Track {
                     app_id : heapio_id(),
@@ -186,7 +181,7 @@ pub fn run(channel: Receiver<HeapioMessage>) -> WorkerTerminationReason {
                 ));
                 match send(&m, &client) {
                     Ok(_) => info!("Successfully sent to heapio."),
-                    Err(e) => error!("Could not send to segment: {}", e),
+                    Err(e) => error!("Could not send to heapio: {}", e),
                 }
             }
             Ok(HeapioMessage::Die) => {
