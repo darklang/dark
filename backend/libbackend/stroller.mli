@@ -1,20 +1,20 @@
 open Libexecution
 
-type segment_type =
+type heapio_type =
   | Track
   | Identify
 
-val segment_track :
+val heapio_track :
      canvas_id:Uuidm.t
+  -> user_id:Uuidm.t
   -> canvas:string
-  -> username:string
   -> execution_id:Types.id
   -> event:string
-  -> segment_type
+  -> heapio_type
   -> Yojson.Safe.t
   -> unit Lwt.t
 
-val segment_identify_user : string -> unit
+val heapio_identify_user : string -> unit
 
 val push :
   ?execution_id:Types.id -> canvas_id:Uuidm.t -> event:string -> string -> unit

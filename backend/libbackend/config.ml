@@ -214,7 +214,7 @@ let pusher_js =
       "{enabled: false}"
 
 
-let heap_id = string "DARK_CONFIG_HEAP_ID"
+let heapio_id = string "DARK_CONFIG_HEAPIO_ID"
 
 let public_domain = string "DARK_CONFIG_PUBLIC_DOMAIN"
 

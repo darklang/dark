@@ -535,7 +535,7 @@ let accountView (m : model) : msg Html.html =
       ; Html.href docsURL
       ; Html.target "_blank"
       ; ViewUtils.eventNoPropagation ~key:"account-doc" "click" (fun _ ->
-            UpdateSegment OpenDocs) ]
+            UpdateHeapio OpenDocs) ]
       [Html.text "Documentation"]
   in
   let functionRefs =
@@ -544,7 +544,7 @@ let accountView (m : model) : msg Html.html =
       ; Html.href functionRefsURL
       ; Html.target "_blank"
       ; ViewUtils.eventNoPropagation ~key:"account-fn-ref" "click" (fun _ ->
-            UpdateSegment OpenFnRef) ]
+            UpdateHeapio OpenFnRef) ]
       [Html.text "Function Reference"]
   in
   let keyboardRefs =
@@ -552,8 +552,8 @@ let accountView (m : model) : msg Html.html =
       [ Html.class' "account-action-btn"
       ; Html.href keyboardRefsURL
       ; Html.target "_blank"
-      ; ViewUtils.eventNoPropagation ~key:"keyboard-ref" "click" (fun _ ->
-            UpdateSegment OpenKeyboardRef) ]
+      ; ViewUtils.eventNoPropagation ~key:"account-fn-ref" "click" (fun _ ->
+            UpdateHeapio OpenKeyboardRef) ]
       [Html.text "Keyboard Reference"]
   in
   let slackRef =
@@ -562,7 +562,7 @@ let accountView (m : model) : msg Html.html =
       ; Html.href "https://darklang.com/slack-invite"
       ; Html.target "_blank"
       ; ViewUtils.eventNoPropagation ~key:"slack-invite-ref" "click" (fun _ ->
-            UpdateSegment OpenKeyboardRef) ]
+            UpdateHeapio OpenKeyboardRef) ]
       [Html.text "Slack Community"]
   in
   let contributeRef =
@@ -571,7 +571,7 @@ let accountView (m : model) : msg Html.html =
       ; Html.href "https://docs.darklang.com/contributing/getting-started"
       ; Html.target "_blank"
       ; ViewUtils.eventNoPropagation ~key:"contributor-ref" "click" (fun _ ->
-            UpdateSegment OpenKeyboardRef) ]
+            UpdateHeapio OpenKeyboardRef) ]
       [Html.text "Contributor Docs"]
   in
 
@@ -699,7 +699,7 @@ let view (m : model) : msg Html.html =
           (* Block opening the omnibox here by preventing canvas pan start *)
         ; ViewUtils.nothingMouseEvent "mousedown"
         ; ViewUtils.eventNoPropagation ~key:"doc" "click" (fun _ ->
-              UpdateSegment OpenDocs) ]
+              UpdateHeapio OpenDocs) ]
         [fontAwesome "book"; Html.text "Docs"] ]
   in
   let modal =

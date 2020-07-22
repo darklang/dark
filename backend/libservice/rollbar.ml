@@ -19,7 +19,7 @@ type err_ctx =
   | CronChecker
   | GarbageCollector
   | Push of string
-  | Segment of string
+  | Heapio of string
   | Other of string
 
 let string_of_ctx (ctx : err_ctx) =
@@ -34,8 +34,8 @@ let string_of_ctx (ctx : err_ctx) =
       "remote"
   | Push _ ->
       "push"
-  | Segment _ ->
-      "segment"
+  | Heapio _ ->
+      "heapio"
   | Other _ ->
       "other"
 
@@ -105,8 +105,8 @@ let error_to_payload
         `String "server push"
     | Other str ->
         `String str
-    | Segment event ->
-        `String (sprintf "segment: %s" event)
+    | Heapio event ->
+        `String (sprintf "heapio: %s" event)
   in
   let env = `String Config.rollbar_environment in
   let language = `String "OCaml" in
@@ -142,7 +142,7 @@ let error_to_payload
         ; ("framework", framework)
         ; ("execution_id", `String execution_id)
         ; ("context", context) ]
-    | Push event | Segment event ->
+    | Push event | Heapio event ->
         [ ("body", message)
         ; ("level", level)
         ; ("environment", env)

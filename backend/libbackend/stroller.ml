@@ -31,15 +31,15 @@ let status () =
           Lwt.return (`Unhealthy "Exception in stroller healthcheck") )
 
 
-type segment_type =
+type heapio_type =
   | Track
   | Identify
 
-let show_segment_type (st : segment_type) : string =
+let show_heapio_type (st : heapio_type) : string =
   match st with Track -> "track" | Identify -> "identify"
 
 
-let _payload_for_segment_event
+let _payload_for_heapio_event
     ~execution_id ~canvas ~canvas_id (payload : Yojson.Safe.t) : Yojson.Safe.t =
   let timestamp =
     Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
@@ -67,36 +67,34 @@ let _payload_for_segment_event
         "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
 
 
-let _log_params_for_segment ~canvas ~canvas_id ~event ~username :
+let _log_params_for_heapio ~canvas ~canvas_id ~event ~(user_id : Uuidm.t) :
     (string * string) list =
   [ ("canvas", canvas)
   ; ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
   ; ("event", event)
-  ; ("username", Some username) ]
+  ; ("userid", Some (user_id |> Uuidm.to_string)) ]
   |> List.filter_map ~f:(fun (k, v) ->
          match v with Some v -> Some (k, v) | _ -> None)
 
 
-let _segment_event
+let heapio_event
     ?canvas_id
     ?canvas
-    ~(username : string)
+    ~(user_id : Uuidm.t)
     ?execution_id
     ?event
-    (msg_type : segment_type)
+    (msg_type : heapio_type)
     (payload : Yojson.Safe.t) : unit Lwt.t =
-  let log_params =
-    _log_params_for_segment ~canvas ~canvas_id ~event ~username
-  in
+  let log_params = _log_params_for_heapio ~canvas ~canvas_id ~event ~user_id in
   let payload =
-    payload |> _payload_for_segment_event ~execution_id ~canvas ~canvas_id
+    payload |> _payload_for_heapio_event ~execution_id ~canvas ~canvas_id
   in
   match Config.stroller_port with
   | None ->
-      Log.infO "stroller not configured, skipping segment" ~params:log_params ;
+      Log.infO "stroller not configured, skipping heapio" ~params:log_params ;
       Lwt.return ()
   | Some port ->
-      Log.infO "pushing segment event via stroller" ~params:log_params ;
+      Log.infO "pushing heapio event via stroller" ~params:log_params ;
       let uri =
         Uri.make
           ()
@@ -105,10 +103,10 @@ let _segment_event
           ~port
           ~path:
             (sprintf
-               "segment/%s/%s/event/%s"
-               username
-               (msg_type |> show_segment_type)
-               (event |> Option.value ~default:(msg_type |> show_segment_type)))
+               "heapio/%s/%s/event/%s"
+               (Uuidm.to_string user_id)
+               (msg_type |> show_heapio_type)
+               (event |> Option.value ~default:(msg_type |> show_heapio_type)))
       in
       ( try%lwt
           let%lwt resp, _ =
@@ -117,7 +115,7 @@ let _segment_event
           in
           let code = resp |> CResponse.status |> Cohttp.Code.code_of_status in
           Log.infO
-            "pushed to segment via stroller"
+            "pushed to heapio via stroller"
             ~jsonparams:[("status", `Int code)]
             ~params:log_params ;
           Lwt.return ()
@@ -127,8 +125,8 @@ let _segment_event
             Rollbar.report_lwt
               e
               bt
-              (Segment
-                 (event |> Option.value ~default:(msg_type |> show_segment_type)))
+              (Heapio
+                 (event |> Option.value ~default:(msg_type |> show_heapio_type)))
               ( execution_id
               |> Option.map ~f:Types.show_id
               |> Option.value ~default:"no execution_id" )
@@ -169,31 +167,29 @@ let blocking_curl_post (url : string) (body : string) : int * string * string =
     (code, "", "")
 
 
-let segment_event_blocking
+let heapio_event_blocking
     ?canvas_id
     ?canvas
-    ~(username : string)
+    ~(user_id : Uuidm.t)
     ?execution_id
     ?event
-    (msg_type : segment_type)
+    (msg_type : heapio_type)
     (payload : Yojson.Safe.t) =
   let payload =
-    payload |> _payload_for_segment_event ~execution_id ~canvas ~canvas_id
+    payload |> _payload_for_heapio_event ~execution_id ~canvas ~canvas_id
   in
-  let log_params =
-    _log_params_for_segment ~canvas_id ~canvas ~event ~username
-  in
+  let log_params = _log_params_for_heapio ~canvas_id ~canvas ~event ~user_id in
   match Config.stroller_port with
   | None ->
-      Log.infO "stroller not configured, skipping segment" ~params:log_params
+      Log.infO "stroller not configured, skipping heapio" ~params:log_params
   | Some port ->
-      Log.infO "pushing segment event via stroller" ~params:log_params ;
+      Log.infO "pushing heapio event via stroller" ~params:log_params ;
       let path =
         sprintf
-          "segment/%s/%s/event/%s"
-          username
-          (msg_type |> show_segment_type)
-          (event |> Option.value ~default:(msg_type |> show_segment_type))
+          "heapio/%s/%s/event/%s"
+          (Uuidm.to_string user_id)
+          (msg_type |> show_heapio_type)
+          (event |> Option.value ~default:(msg_type |> show_heapio_type))
       in
       let uri = Uri.make () ~scheme:"http" ~host:"127.0.0.1" ~port ~path in
       let payload = payload |> Yojson.Safe.to_string in
@@ -201,90 +197,75 @@ let segment_event_blocking
       ( match code with
       | 202 ->
           Log.infO
-            "pushed to segment via stroller"
+            "pushed to heapio via stroller"
             ~jsonparams:[("status", `Int code)]
             ~params:log_params
       | _ ->
           Log.erroR
-            "failed to push to segment via stroller"
+            "failed to push to heapio via stroller"
             ~jsonparams:[("status", `Int code)]
             ~params:log_params ) ;
       ()
 
 
-let segment_track
+let heapio_track
     ~(canvas_id : Uuidm.t)
+    ~(user_id : Uuidm.t)
     ~(canvas : string)
-    ~(username : string)
     ~(execution_id : Types.id)
     ~(event : string)
-    (msg_type : segment_type)
+    (msg_type : heapio_type)
     (payload : Yojson.Safe.t) : unit Lwt.t =
-  _segment_event
-    ~canvas_id
-    ~canvas
-    ~username
-    ~execution_id
-    ~event
-    msg_type
-    payload
+  heapio_event ~canvas_id ~canvas ~user_id ~execution_id ~event msg_type payload
 
 
 (* We call this in two contexts: DarkInternal:: fns, and
- * bin/segment_identify_users.exe. Neither of those is an async/lwt context, so
+ * bin/heapio_identify_users.exe. Neither of those is an async/lwt context, so
  * we use the blocking_curl_post instead of Curl_lwt. *)
-let segment_identify_user (username : string) : unit =
-  let payload =
-    Account.get_user_and_created_at_and_segment_metadata username
-    (* If we fail to get the user from the db, we want to continue but rollbar
-     * *)
-    |> (function
-         | None ->
-             let bt = Exception.get_backtrace () in
-             ( match
-                 Rollbar.report
-                   (Exception.internal
-                      "No user found when calling segment_identify user")
-                   bt
-                   (Other "segment_identify_user")
-                   "No execution id"
-               with
-             | `Failure ->
-                 Log.erroR "Failed to Rollbar.report in segment_identify_user"
-             | _ ->
-                 () ) ;
-             None
-         | Some payload ->
-             Some payload)
-    |> Option.map ~f:(fun (user_info_and_created_at, segment_metadata) ->
-           let payload =
-             user_info_and_created_at
-             |> Account.user_info_and_created_at_to_yojson
-           in
-           (* We do zero checking of fields in segment_metadata, but this is ok
-            * because it's a field we control, going to a service only we see.
-            * If we wanted to harden this later, we could List.filter the
-            * segment_metadata yojson *)
-           Yojson.Safe.Util.combine payload segment_metadata)
-  in
-  let organization =
-    username
-    |> Authorization.orgs_for
-    (* A user's orgs for this purpose do not include orgs it has
-     * read-only access to *)
-    |> List.filter ~f:(function _, rw -> rw = ReadWrite)
-    (* If you have one org, that's your org! If you have no orgs, or
-     * more than one, then we just use your username. This is because
-     * Heap's properties/traits don't support lists. *)
-    |> function [(org_name, _)] -> org_name | _ -> username
-  in
-  Option.map payload ~f:(fun payload ->
+let heapio_identify_user (username : string) : unit =
+  match Account.get_user_and_created_at_and_analytics_metadata username with
+  | None ->
+      let bt = Exception.get_backtrace () in
+      ( match
+          Rollbar.report
+            (Exception.internal
+               "No user found when calling heapio_identify user")
+            bt
+            (Other "heapio_identify_user")
+            "No execution id"
+        with
+      | `Failure ->
+          Log.erroR "Failed to Rollbar.report in heapio_identify_user"
+      | _ ->
+          () )
+  | Some (user_info_and_created_at, heapio_metadata) ->
+      let payload =
+        (* If we fail to get the user from the db, we want to continue but
+         * rollbar *)
+        let payload =
+          user_info_and_created_at |> Account.user_info_and_created_at_to_yojson
+        in
+        (* We do zero checking of fields in heapio_metadata, but this is ok
+         * because it's a field we control, going to a service only we see.
+         * If we wanted to harden this later, we could List.filter the
+         * heapio_metadata yojson *)
+        Yojson.Safe.Util.combine payload heapio_metadata
+      in
+      let organization =
+        username
+        |> Authorization.orgs_for
+        (* A user's orgs for this purpose do not include orgs it has
+         * read-only access to *)
+        |> List.filter ~f:(function _, rw -> rw = ReadWrite)
+        (* If you have one org, that's your org! If you have no orgs, or
+         * more than one, then we just use your username. This is because
+         * Heap's properties/traits don't support lists. *)
+        |> function [(org_name, _)] -> org_name | _ -> username
+      in
       Yojson.Safe.Util.combine
         payload
-        (`Assoc [("organization", `String organization)]))
-  |> Option.map ~f:(fun payload ->
-         segment_event_blocking ~username Identify payload)
-  |> Option.value ~default:()
+        (`Assoc [("organization", `String organization)])
+      |> heapio_event_blocking ~user_id:user_info_and_created_at.id Identify
 
 
 let push

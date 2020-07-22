@@ -18,7 +18,7 @@ type err_ctx =
   | CronChecker
   | GarbageCollector
   | Push of string
-  | Segment of string
+  | Heapio of string
   | Other of string
 
 val string_of_ctx : err_ctx -> string

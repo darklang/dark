@@ -14,8 +14,8 @@
 )
 
 (executable
-  (name segment_identify_users)
-  (modules segment_identify_users)
+  (name heapio_identify_users)
+  (modules heapio_identify_users)
   (flags (-warn-error +A -w +9))
   (libraries libbackend libcommon)
 )

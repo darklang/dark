@@ -6,13 +6,15 @@ type user_info =
   { username : username
   ; email : string
   ; name : string
-  ; admin : bool }
+  ; admin : bool
+  ; id : Uuidm.t }
 
 type user_info_and_created_at =
   { username : username
   ; email : string
   ; name : string
   ; admin : bool
+  ; id : Uuidm.t
   ; created_at : string }
 
 (* validate username/password of a Dark user *)
@@ -45,7 +47,7 @@ val insert_user :
      username:string
   -> email:string
   -> name:string
-  -> ?segment_metadata:Libexecution.Types.RuntimeT.dval_map
+  -> ?analytics_metadata:Libexecution.Types.RuntimeT.dval_map
   -> unit
   -> (unit, string) Result.t
 
@@ -59,7 +61,7 @@ val get_user : string -> user_info option
 * Raises a [DarkStorage] exception if [username] does not exist. *)
 val get_user_created_at_exn : string -> Core_kernel.Time.t
 
-val get_user_and_created_at_and_segment_metadata :
+val get_user_and_created_at_and_analytics_metadata :
   string -> (user_info_and_created_at * Yojson.Safe.t) option
 
 (* Get a user's info by their email address *)

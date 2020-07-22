@@ -210,7 +210,7 @@ that's already taken, returns an error."
                 let result =
                   Account.insert_user ~username ~email ~name ()
                   |> Result.map ~f:(fun r ->
-                         Stroller.segment_identify_user username ;
+                         Stroller.heapio_identify_user username ;
                          r)
                 in
                 ( match result with
@@ -228,7 +228,7 @@ that's already taken, returns an error."
         [ par "username" TStr
         ; par "email" TStr
         ; par "name" TStr
-        ; par "segment_metadata" TObj ]
+        ; par "analytics_metadata" TObj ]
     ; return_type = TResult
     ; description =
         "Add a user. Returns a result containing the password for the user,
@@ -236,7 +236,7 @@ which was randomly generated. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
     ; func =
         internal_fn (function
-            | _, [DStr username; DStr email; DStr name; DObj segment_metadata]
+            | _, [DStr username; DStr email; DStr name; DObj analytics_metadata]
               ->
                 let username = Unicode_string.to_string username in
                 let email = Unicode_string.to_string email in
@@ -246,10 +246,10 @@ that's already taken, returns an error."
                     ~username
                     ~email
                     ~name
-                    ~segment_metadata
+                    ~analytics_metadata
                     ()
                   |> Result.map ~f:(fun () ->
-                         Stroller.segment_identify_user username)
+                         Stroller.heapio_identify_user username)
                   |> Result.bind ~f:(fun () ->
                          let to_canvas_name =
                            username
@@ -293,7 +293,7 @@ that's already taken, returns an error."
                 let result =
                   Account.upsert_user ~username ~email ~name ()
                   |> Result.map ~f:(fun r ->
-                         Stroller.segment_identify_user username ;
+                         Stroller.heapio_identify_user username ;
                          r)
                 in
                 ( match result with
@@ -320,7 +320,7 @@ that's already taken, returns an error."
                 ( match info with
                 | None ->
                     DOption OptNothing
-                | Some {username; name; email; admin = _} ->
+                | Some {username; name; email; admin = _; id = _} ->
                     DOption
                       (OptJust
                          (Dval.to_dobj_exn
@@ -346,7 +346,7 @@ that's already taken, returns an error."
                 ( match info with
                 | None ->
                     DOption OptNothing
-                | Some {username; name; admin; email} ->
+                | Some {username; name; admin; email; id = _} ->
                     DOption
                       (OptJust
                          (Dval.to_dobj_exn
@@ -372,7 +372,7 @@ that's already taken, returns an error."
                 ( match info with
                 | None ->
                     DOption OptNothing
-                | Some {username; name; admin; email} ->
+                | Some {username; name; admin; email; id = _} ->
                     DOption
                       (OptJust
                          (Dval.to_dobj_exn
@@ -394,7 +394,7 @@ that's already taken, returns an error."
             | _, [DStr username; DBool admin] ->
                 let username = Unicode_string.to_string username in
                 Account.set_admin username admin ;
-                Stroller.segment_identify_user username ;
+                Stroller.heapio_identify_user username ;
                 DNull
             | args ->
                 fail args)

@@ -1,6 +1,6 @@
 mod config;
+mod heapio;
 mod push;
-mod segment;
 mod service;
 mod util;
 mod worker;
@@ -63,22 +63,22 @@ fn main() {
     });
 
     // create 'infinite', non-blocking, multi-producer, single-consumer channel
-    let (segment_sender, segment_receiver) = mpsc::channel::<segment::SegmentMessage>();
-    thread::spawn(move || match segment::run(segment_receiver) {
-        segment::WorkerTerminationReason::ViaDie => std::process::exit(0),
-        segment::WorkerTerminationReason::SendersDropped => std::process::exit(1),
+    let (heapio_sender, heapio_receiver) = mpsc::channel::<heapio::HeapioMessage>();
+    thread::spawn(move || match heapio::run(heapio_receiver) {
+        heapio::WorkerTerminationReason::ViaDie => std::process::exit(0),
+        heapio::WorkerTerminationReason::SendersDropped => std::process::exit(1),
     });
 
     let make_service = move || {
         let shutting_down = shutting_down.clone();
         let pusher_sender = pusher_sender.clone();
-        let segment_sender = segment_sender.clone();
+        let heapio_sender = heapio_sender.clone();
 
         service_fn(move |req| {
             service::handle(
                 &shutting_down,
                 pusher_sender.clone(),
-                segment_sender.clone(),
+                heapio_sender.clone(),
                 req,
             )
         })

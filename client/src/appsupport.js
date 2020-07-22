@@ -48,8 +48,28 @@ if (unsupportedBrowser) {
 // ---------------------------
 // Analytics
 // ---------------------------
-require("../static/vendor/heap.js");
-heap.load(heapID);
+require("../static/vendor/heapio.js");
+heapio.load(heapioID);
+heapio.identify(userID);
+
+window["_fs_ready"] = function () {
+  heapio.track("FullStory Session", {
+    "Fullstory Session URL": FS.getCurrentSessionURL(true),
+  });
+  heapio.addUserProperties({
+    "Latest FullStory Session": FS.getCurrentSessionURL(),
+  });
+};
+
+function sendHeapioMessage(event) {
+  heap.track({
+    userId: userID,
+    event: event,
+  });
+  return;
+}
+
+window.sendHeapioMessage = sendHeapioMessage;
 
 // ---------------------------
 // Allows us capture certain keys and stop them from affecting the browser.
@@ -132,33 +152,6 @@ if (pusherConfig.enabled) {
     forceTLS: true,
   });
 }
-
-// ---------------------------
-// Analytics
-// ---------------------------
-
-var Analytics = require("analytics-node");
-var analytics = new Analytics("fVtoR1kNIsfZ484ovfavEybnNubNNVi8");
-analytics.page({
-  userId: `user-${username}`,
-  name: "Canvas",
-  properties: {
-    url: document.URL,
-    path: location.pathname,
-    title: document.title,
-    referrer: document.referrer,
-  },
-});
-
-function sendSegmentMessage(event) {
-  analytics.track({
-    userId: `user-${username}`,
-    event: event,
-  });
-  return;
-}
-
-window.sendSegmentMessage = sendSegmentMessage;
 
 // ---------------------------
 // Analysis

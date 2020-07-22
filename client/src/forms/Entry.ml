@@ -230,10 +230,10 @@ let getBrowserPlatform () : browserPlatform =
   |> Option.withDefault ~default:UnknownPlatform
 
 
-external jsSendSegmentMessage : string -> unit = "sendSegmentMessage"
+external jsSendHeapioMessage : string -> unit = "sendHeapioMessage"
   [@@bs.val] [@@bs.scope "window"]
 
-let string_of_segment_track (e : segmentTrack) : string =
+let string_of_heapio_track (e : heapioTrack) : string =
   match e with
   | WelcomeModal ->
       "Welcome Modal"
@@ -241,18 +241,14 @@ let string_of_segment_track (e : segmentTrack) : string =
       "Open docs"
   | InviteUser ->
       "User shared dark"
-  | MarkCanvasAsShipped date ->
-      "Canvas is shipped as of " ^ date
-  | MarkCanvasAsInDevelopment date ->
-      "Canvas is back in development as of " ^ date
   | OpenFnRef ->
       "Open function refs"
   | OpenKeyboardRef ->
       "Open keyboard refs"
 
 
-let sendSegmentMessage (event : segmentTrack) : unit =
-  string_of_segment_track event |> jsSendSegmentMessage |> ignore
+let sendHeapioMessage (event : heapioTrack) : unit =
+  string_of_heapio_track event |> jsSendHeapioMessage |> ignore
 
 
 external jsUnsupportedBrowser : unit -> bool Js.Nullable.t

@@ -11,7 +11,7 @@ use hyper::rt::{Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
 use uuid::Uuid;
 
-use crate::segment::SegmentMessage;
+use crate::heapio::HeapioMessage;
 use crate::util::ms_duration;
 use crate::worker::PusherMessage;
 
@@ -43,7 +43,7 @@ fn handle_result(
 pub fn handle(
     shutting_down: &Arc<AtomicBool>,
     pusher_sender: Sender<PusherMessage>,
-    segment_sender: Sender<SegmentMessage>,
+    heapio_sender: Sender<HeapioMessage>,
     req: Request<Body>,
 ) -> Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send> {
     let start = SystemTime::now();
@@ -81,10 +81,10 @@ pub fn handle(
             );
 
             shutting_down.store(true, Ordering::Release);
-            if segment_sender.send(SegmentMessage::Die).is_err() {
+            if heapio_sender.send(HeapioMessage::Die).is_err() {
                 slog_error!(
                     slog_scope::logger(),
-                    "Tried to send `Die` to segment worker, but it was dropped!"
+                    "Tried to send `Die` to heapio worker, but it was dropped!"
                 );
             };
             if pusher_sender.send(PusherMessage::Die).is_err() {
@@ -130,14 +130,14 @@ pub fn handle(
             let handled = Box::new(handled);
             return Box::new(handled);
         }
-        (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
+        (&Method::POST, ["", "heapio", uuid, msg_type, "event", event]) => {
             let msg_type = (*msg_type).to_string();
             let uuid = (*uuid).to_string();
             let event = (*event).to_string();
             let moved_request_id = request_id.clone();
             let handled = req_body
                 .map(move |req_body| {
-                    let msg = crate::segment::new_message(
+                    let msg = crate::heapio::new_message(
                         msg_type.to_string(),
                         uuid.to_string(),
                         event.clone(),
@@ -145,7 +145,7 @@ pub fn handle(
                         moved_request_id.clone(),
                     );
 
-                    let result = msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()));
+                    let result = msg.map_or(Ok(()), |msg| heapio_sender.send(msg).map_err(|_| ()));
 
                     handle_result(result, uuid.to_string(), moved_request_id, event, response)
                 })
@@ -185,7 +185,7 @@ mod tests {
         sender
     }
 
-    fn test_segment_channel() -> Sender<SegmentMessage> {
+    fn test_heapio_channel() -> Sender<HeapioMessage> {
         let (sender, _) = mpsc::channel();
         sender
     }
@@ -203,7 +203,7 @@ mod tests {
         let resp = handle(
             &not_shutting_down(),
             test_channel(),
-            test_segment_channel(),
+            test_heapio_channel(),
             get("/"),
         )
         .wait();
@@ -216,7 +216,7 @@ mod tests {
         let resp = handle(
             &not_shutting_down(),
             test_channel(),
-            test_segment_channel(),
+            test_heapio_channel(),
             get("/nonexistent"),
         )
         .wait();
@@ -232,7 +232,7 @@ mod tests {
         let resp = handle(
             &not_shutting_down(),
             test_channel(),
-            test_segment_channel(),
+            test_heapio_channel(),
             req,
         )
         .wait();
@@ -245,7 +245,7 @@ mod tests {
         let shutting_down = Arc::new(AtomicBool::new(false));
 
         let req = Request::post("/pkill").body(Body::empty()).unwrap();
-        let resp = handle(&shutting_down, test_channel(), test_segment_channel(), req).wait();
+        let resp = handle(&shutting_down, test_channel(), test_heapio_channel(), req).wait();
 
         assert_eq!(resp.unwrap().status(), 202);
         assert!(shutting_down.load(Ordering::Acquire));
@@ -253,7 +253,7 @@ mod tests {
         let resp = handle(
             &shutting_down,
             test_channel(),
-            test_segment_channel(),
+            test_heapio_channel(),
             get("/"),
         )
         .wait();
