@@ -3,7 +3,7 @@ use slog::o;
 use slog_scope::{debug, error, info};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Value};
+use serde_json::Value;
 
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
@@ -62,22 +62,22 @@ pub enum Message {
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Identify {
     /// The user associated with this message.
-    pub identity : String,
-    
+    pub identity: String,
+
     /// The Heap app id
-    pub app_id : String,
+    pub app_id: String,
 
     /// The traits to assign to the user.
     pub properties: Value,
 }
 
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize )]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Track {
     /// The user associated with this message.
-    pub identity : String,
+    pub identity: String,
 
     /// The Heap app id
-    pub app_id : String,
+    pub app_id: String,
 
     /// The name of the event being tracked.
     pub event: String,
@@ -147,13 +147,13 @@ pub fn new_message(
             };
             match msg_type.as_str() {
                 "identify" => Some(Message::Identify(Identify {
-                    app_id : heapio_id(),
-                    identity : user_id,
+                    app_id: heapio_id(),
+                    identity: user_id,
                     properties: body,
                 })),
                 "track" => Some(Message::Track(Track {
-                    app_id : heapio_id(),
-                    identity : user_id,
+                    app_id: heapio_id(),
+                    identity: user_id,
                     event: event.clone(),
                     timestamp,
                     properties: body,
