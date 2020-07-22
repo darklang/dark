@@ -50,7 +50,14 @@ if (unsupportedBrowser) {
 // ---------------------------
 require("../static/vendor/heapio.js");
 heapio.load(heapioID);
-heapio.identify(userId);
+heapio.identify(userID);
+heapio.addUserProperties({
+  handle: username,
+  username: username,
+  email: userEmail,
+  name: userFullname,
+  created_at: userCreatedAt,
+});
 
 window["_fs_ready"] = function () {
   heapio.track("FullStory Session", {
@@ -61,11 +68,8 @@ window["_fs_ready"] = function () {
   });
 };
 
-function sendHeapioMessage(event) {
-  heap.track({
-    userId: userId,
-    event: event,
-  });
+function sendHeapioMessage(event_name) {
+  heap.track(event_name);
   return;
 }
 
@@ -117,7 +121,7 @@ window.getBrowserPlatform = getBrowserPlatform;
 // ---------------------------
 var rollbar = require("rollbar");
 rollbarConfig.payload = rollbarConfig.payload || {};
-rollbarConfig.payload.person = { id: userId, username: username };
+rollbarConfig.payload.person = { id: userID, username: username };
 var Rollbar = rollbar.init(rollbarConfig);
 window.Rollbar = Rollbar;
 
@@ -294,14 +298,14 @@ window.Dark = {
     init: function (canvas) {
       const maxAccountAgeToRecordMs =
         48 /* hrs */ * 60 /* min/hr */ * 60 /* sec/min */ * 1000; /* ms/sec */
-      const msSinceAccountCreated = new Date() - accountCreationDate;
+      const msSinceAccountCreated = new Date() - userCreatedAt;
 
       const isOlderThanWeWantToRecord =
         msSinceAccountCreated > maxAccountAgeToRecordMs;
 
       // the actual behavior is in FullStory.init's devMode flag, but this log
       // is here in hopes of reassuring users who look in console.
-      if (isAdmin || isOlderThanWeWantToRecord) {
+      if (userIsAdmin || isOlderThanWeWantToRecord) {
         console.log(
           "FullStory is not enabled for this user because the account is too old; console warnings that it is in dev mode may be safely ignored.",
         );
@@ -310,7 +314,7 @@ window.Dark = {
       /* If devMode is set to true, FullStory will shutdown recording and all subsequent SDK method calls will be no-ops. */
       FullStory.init({
         orgId: "TMVRZ",
-        devMode: isAdmin || isOlderThanWeWantToRecord,
+        devMode: userIsAdmin || isOlderThanWeWantToRecord,
       });
       FullStory.identify(username, {
         displayName: username,
@@ -461,7 +465,7 @@ setTimeout(function () {
     userContentHost: userContentHost,
     environment: environmentName,
     csrfToken: csrfToken,
-    isAdmin: isAdmin,
+    isAdmin: userIsAdmin,
     buildHash: buildHash,
     username: username,
   });
@@ -529,7 +533,7 @@ setTimeout(function () {
   Dark.fullstory.init(canvasName);
 
   if (pusherConfig.enabled) {
-    var pusherChannel = pusherConnection.subscribe(`canvas_${canvasId}`);
+    var pusherChannel = pusherConnection.subscribe(`canvas_${canvasID}`);
     pusherChannel.bind("new_trace", data => {
       var event = new CustomEvent("newTracePush", { detail: data });
       document.dispatchEvent(event);

@@ -1463,19 +1463,21 @@ let admin_ui_html
          "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
        else "" )
   |> Util.string_replace "{{STATIC}}" static_host
-  |> Util.string_replace "{{IS_ADMIN}}" (string_of_bool user.admin)
-  |> Util.string_replace
-       "{{ACCOUNT_CREATION_UNIX_MSTS}}"
-       (string_of_int account_created_msts)
   |> Util.string_replace "{{HEAPIO_ID}}" Config.heapio_id
   |> Util.string_replace "{{ROLLBARCONFIG}}" Config.rollbar_js
   |> Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
   |> Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
   |> Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
   |> Util.string_replace "{{USERNAME}}" user.username
+  |> Util.string_replace "{{USER_EMAIL}}" user.email
+  |> Util.string_replace "{{USER_FULL_NAME}}" user.name
+  |> Util.string_replace
+       "{{USER_CREATED_AT_UNIX_MSTS}}"
+       (string_of_int account_created_msts)
+  |> Util.string_replace "{{USER_IS_ADMIN}}" (string_of_bool user.admin)
   |> Util.string_replace "{{USER_ID}}" (Uuidm.to_string user.id)
   |> Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
-  |> Util.string_replace "{{CANVAS}}" canvas
+  |> Util.string_replace "{{CANVAS_NAME}}" canvas
   |> Util.string_replace
        "{{APPSUPPORT}}"
        (File.readfile ~root:Webroot "appsupport.js")
