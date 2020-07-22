@@ -453,12 +453,18 @@ let user_page_handler
     ~(uri : Uri.t)
     ~(body : string)
     ~(owner : Uuidm.t)
+    ~(canvas_id : Uuidm.t)
     (req : CRequest.t) : response_or_redirect_params =
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
   let c =
-    C.load_http_from_cache canvas ~verb ~path:(sanitize_uri_path (Uri.path uri))
+    C.load_http_from_cache
+      canvas
+      ~owner
+      ~canvas_id
+      ~verb
+      ~path:(sanitize_uri_path (Uri.path uri))
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas loading error"
   in
@@ -468,7 +474,6 @@ let user_page_handler
     |> Http.filter_matching_handlers ~path:(sanitize_uri_path (Uri.path uri))
   in
   let trace_id = Util.create_uuid () in
-  let canvas_id = !c.id in
   match pages with
   | [] when String.Caseless.equal verb "OPTIONS" ->
       options_handler ~execution_id !c req
@@ -2188,6 +2193,7 @@ let canvas_handler
   | None ->
       respond ~execution_id parent `Not_found "user not found"
   | Some owner ->
+      let canvas_id = Serialize.fetch_canvas_id owner canvas in
       (* TODO make sure this resolves before returning *)
       let%lwt resp, body =
         match verb with
@@ -2196,6 +2202,7 @@ let canvas_handler
             user_page_handler
               ~execution_id
               ~canvas
+              ~canvas_id
               ~ip
               ~uri
               ~body
@@ -2203,12 +2210,20 @@ let canvas_handler
               (coalesce_head_to_get req)
             |> respond_or_redirect_empty_body parent
         | _ ->
-            user_page_handler ~execution_id ~canvas ~ip ~uri ~body ~owner req
+            user_page_handler
+              ~execution_id
+              ~canvas
+              ~canvas_id
+              ~ip
+              ~uri
+              ~body
+              ~owner
+              req
             |> respond_or_redirect parent
       in
       Lwt.async (fun () ->
           Stroller.heapio_track
-            ~canvas_id:Uuidm.nil
+            ~canvas_id
             ~canvas
             ~execution_id
             ~user_id:owner

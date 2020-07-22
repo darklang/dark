@@ -588,11 +588,10 @@ let load_all_from_cache host : (canvas ref, string list) Result.t =
     owner
 
 
-let load_http_from_cache ~verb ~path host : (canvas ref, string list) Result.t =
+let load_http_from_cache ~canvas_id ~owner ~verb ~path host :
+    (canvas ref, string list) Result.t =
   (* Attempt to load all required toplvels via their
    * cached repr, and then go and fetch whatever we were missing*)
-  let owner = Account.for_host_exn host in
-  let canvas_id = Serialize.fetch_canvas_id owner host in
   load_from_cache
     ~tlids:
       (Serialize.fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb ())

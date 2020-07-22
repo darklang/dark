@@ -86,11 +86,18 @@ let t_http_oplist_roundtrip () =
   clear_test_data () ;
   let host = "test-http_oplist_roundtrip" in
   let handler = http_route_handler () in
+  let owner = Account.for_host_exn host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
   let oplist = [SetHandler (tlid, pos, handler)] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid] !c1 ;
   let c2 =
-    Canvas.load_http_from_cache ~path:http_request_path ~verb:"GET" host
+    Canvas.load_http_from_cache
+      ~canvas_id
+      ~owner
+      ~path:http_request_path
+      ~verb:"GET"
+      host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -111,12 +118,19 @@ let t_http_oplist_roundtrip () =
 let t_http_oplist_loads_user_tipes () =
   clear_test_data () ;
   let host = "test-http_oplist_loads_user_tipes" in
+  let owner = Account.for_host_exn host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
   let tipe = user_record "test-tipe" [] in
   let oplist = [SetHandler (tlid, pos, http_route_handler ()); SetType tipe] in
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tipe.tlid] !c1 ;
   let c2 =
-    Canvas.load_http_from_cache ~path:http_request_path ~verb:"GET" host
+    Canvas.load_http_from_cache
+      ~canvas_id
+      ~owner
+      ~path:http_request_path
+      ~verb:"GET"
+      host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -135,6 +149,8 @@ let t_http_oplist_loads_user_tipes () =
 let t_http_load_ignores_deleted_fns () =
   clear_test_data () ;
   let host = "test-http_load_ignores_deleted_fns_and_dbs" in
+  let owner = Account.for_host_exn host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
   let handler = http_route_handler () in
   let f = user_fn ~tlid:tlid2 "testfn" [] (binop "+" (int 5) (int 3)) in
   let f2 = user_fn ~tlid:tlid3 "testfn" [] (binop "+" (int 6) (int 4)) in
@@ -147,7 +163,12 @@ let t_http_load_ignores_deleted_fns () =
   let c1 = ops2c_exn host oplist in
   Canvas.serialize_only [tlid; tlid2; tlid3] !c1 ;
   let c2 =
-    Canvas.load_http_from_cache ~path:http_request_path ~verb:"GET" host
+    Canvas.load_http_from_cache
+      ~canvas_id
+      ~owner
+      ~path:http_request_path
+      ~verb:"GET"
+      host
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
