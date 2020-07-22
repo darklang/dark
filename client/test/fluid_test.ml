@@ -1964,6 +1964,21 @@ let run () =
         ~pos:5
         (inputs [InsertText "s"; InsertText "q"; keypress K.Enter])
         "Int::sqrt ~_________" ;
+      t
+        "renaming a function maintains aligned params to correct positions"
+        (partial
+           "HttpClient::"
+           (fn
+              "HttpClient::get_v3"
+              [EString (gid (), "someurl"); emptyRecord; emptyRecord]))
+        ~pos:12
+        (inputs
+           [ InsertText "p"
+           ; InsertText "o"
+           ; InsertText "s"
+           ; InsertText "t"
+           ; keypress K.Enter ])
+        "HttpClient::postv4 ~\"someurl\" ____________ {} {}" ;
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
        * implemented. Some tests we need:
