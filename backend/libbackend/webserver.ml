@@ -452,128 +452,118 @@ let user_page_handler
     ~(ip : string)
     ~(uri : Uri.t)
     ~(body : string)
+    ~(owner : Uuidm.t)
+    ~(canvas_id : Uuidm.t)
     (req : CRequest.t) : response_or_redirect_params =
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
-  let owner = Account.for_host canvas in
-  match owner with
-  | None ->
-      (* Account doesn't exist! Don't store the event or do any loading *)
+  let c =
+    C.load_http_from_cache
+      canvas
+      ~owner
+      ~canvas_id
+      ~verb
+      ~path:(sanitize_uri_path (Uri.path uri))
+    |> Result.map_error ~f:(String.concat ~sep:", ")
+    |> Prelude.Result.ok_or_internal_exception "Canvas loading error"
+  in
+  let pages =
+    !c.handlers
+    |> TL.http_handlers
+    |> Http.filter_matching_handlers ~path:(sanitize_uri_path (Uri.path uri))
+  in
+  let trace_id = Util.create_uuid () in
+  match pages with
+  | [] when String.Caseless.equal verb "OPTIONS" ->
+      options_handler ~execution_id !c req
+      (* If we have a 404, and path is /favicon.ico, then serve the
+             * default dark favicon.ico. Because we're matching on [], this code
+             * path won't get run if a user has a /favicon.ico handler (or a /*
+             * handler!). *)
+  | [] when Uri.path uri = "/favicon.ico" ->
+      (* NB: we're sending back a png, not an ico - this is deliberate,
+             * favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico.
+             * *)
+      let filename = "favicon-32x32.png" in
+      let filetype = Magic_mime.lookup filename in
+      let file = File.readfile ~root:Webroot "favicon-32x32.png" in
+      let resp_headers =
+        Cohttp.Header.of_list [cors; ("content-type", filetype)]
+      in
+      Respond {resp_headers; execution_id; status = `OK; body = file}
+  | [] ->
+      let fof_timestamp =
+        PReq.from_request ~allow_unparseable:true uri headers query body
+        |> PReq.to_dval
+        |> Stored_event.store_event
+             ~trace_id
+             ~canvas_id
+             ("HTTP", Uri.path uri, verb)
+      in
+      Stroller.push_new_404
+        ~execution_id
+        ~canvas_id
+        ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
       let resp_headers = Cohttp.Header.of_list [cors] in
       Respond
         { resp_headers
         ; execution_id
         ; status = `Not_found
         ; body = "404 Not Found: No route matches" }
-  | Some owner ->
-      let c =
-        C.load_http_from_cache
-          canvas
-          ~verb
-          ~path:(sanitize_uri_path (Uri.path uri))
-        |> Result.map_error ~f:(String.concat ~sep:", ")
-        |> Prelude.Result.ok_or_internal_exception "Canvas loading error"
-      in
-      let pages =
-        !c.handlers
-        |> TL.http_handlers
-        |> Http.filter_matching_handlers
-             ~path:(sanitize_uri_path (Uri.path uri))
-      in
-      let trace_id = Util.create_uuid () in
-      let canvas_id = !c.id in
-      ( match pages with
-      | [] when String.Caseless.equal verb "OPTIONS" ->
-          options_handler ~execution_id !c req
-          (* If we have a 404, and path is /favicon.ico, then serve the
-             * default dark favicon.ico. Because we're matching on [], this code
-             * path won't get run if a user has a /favicon.ico handler (or a /*
-             * handler!). *)
-      | [] when Uri.path uri = "/favicon.ico" ->
-          (* NB: we're sending back a png, not an ico - this is deliberate,
-             * favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico.
-             * *)
-          let filename = "favicon-32x32.png" in
-          let filetype = Magic_mime.lookup filename in
-          let file = File.readfile ~root:Webroot "favicon-32x32.png" in
-          let resp_headers =
-            Cohttp.Header.of_list [cors; ("content-type", filetype)]
-          in
-          Respond {resp_headers; execution_id; status = `OK; body = file}
-      | [] ->
-          let fof_timestamp =
-            PReq.from_request ~allow_unparseable:true uri headers query body
-            |> PReq.to_dval
-            |> Stored_event.store_event
-                 ~trace_id
-                 ~canvas_id
-                 ("HTTP", Uri.path uri, verb)
-          in
-          Stroller.push_new_404
-            ~execution_id
-            ~canvas_id
-            ("HTTP", Uri.path uri, verb, fof_timestamp, trace_id) ;
-          let resp_headers = Cohttp.Header.of_list [cors] in
-          Respond
-            { resp_headers
-            ; execution_id
-            ; status = `Not_found
-            ; body = "404 Not Found: No route matches" }
-      | a :: b :: _ ->
-          let resp_headers = Cohttp.Header.of_list [cors] in
-          Respond
-            { resp_headers
-            ; execution_id
-            ; status = `Internal_server_error
-            ; body =
-                "500 Internal Server Error: More than one handler for route: "
-                ^ Uri.path uri }
-      | [page] ->
-          let input = PReq.from_request uri headers query body in
-          ( match (Handler.module_for page, Handler.modifier_for page) with
-          | Some m, Some mo ->
-              (* Store the event with the input path not the event name, because we
+  | a :: b :: _ ->
+      let resp_headers = Cohttp.Header.of_list [cors] in
+      Respond
+        { resp_headers
+        ; execution_id
+        ; status = `Internal_server_error
+        ; body =
+            "500 Internal Server Error: More than one handler for route: "
+            ^ Uri.path uri }
+  | [page] ->
+      let input = PReq.from_request uri headers query body in
+      ( match (Handler.module_for page, Handler.modifier_for page) with
+      | Some m, Some mo ->
+          (* Store the event with the input path not the event name, because we
             * want to be able to
             *    a) use this event if this particular handler changes
             *    b) use the input url params in the analysis for this handler
             *)
-              let desc = (m, Uri.path uri, mo) in
-              ignore
-                (Stored_event.store_event
-                   ~trace_id
-                   ~canvas_id
-                   desc
-                   (PReq.to_dval input))
-          | _ ->
-              () ) ;
-          let bound =
-            Libexecution.Execution.http_route_input_vars page (Uri.path uri)
-          in
-          let result, touched_tlids =
-            Libexecution.Execution.execute_handler
-              page
-              ~execution_id
-              ~account_id:!c.owner
-              ~canvas_id
-              ~user_fns:(Types.IDMap.data !c.user_functions)
-              ~user_tipes:(Types.IDMap.data !c.user_tipes)
-              ~package_fns:!c.package_fns
-              ~secrets:(Secret.secrets_in_canvas !c.id)
-              ~tlid:page.tlid
-              ~dbs:(TL.dbs !c.dbs)
-              ~input_vars:([("request", PReq.to_dval input)] @ bound)
-              ~store_fn_arguments:
-                (Stored_function_arguments.store ~canvas_id ~trace_id)
-              ~store_fn_result:
-                (Stored_function_result.store ~canvas_id ~trace_id)
-          in
-          Stroller.push_new_trace_id
-            ~execution_id
-            ~canvas_id
-            trace_id
-            (page.tlid :: touched_tlids) ;
-          result_to_response ~c ~execution_id ~req result )
+          let desc = (m, Uri.path uri, mo) in
+          ignore
+            (Stored_event.store_event
+               ~trace_id
+               ~canvas_id
+               desc
+               (PReq.to_dval input))
+      | _ ->
+          () ) ;
+      let bound =
+        Libexecution.Execution.http_route_input_vars page (Uri.path uri)
+      in
+      let result, touched_tlids =
+        Libexecution.Execution.execute_handler
+          page
+          ~execution_id
+          ~account_id:!c.owner
+          ~canvas_id
+          ~user_fns:(Types.IDMap.data !c.user_functions)
+          ~user_tipes:(Types.IDMap.data !c.user_tipes)
+          ~package_fns:!c.package_fns
+          ~secrets:(Secret.secrets_in_canvas !c.id)
+          ~tlid:page.tlid
+          ~dbs:(TL.dbs !c.dbs)
+          ~input_vars:([("request", PReq.to_dval input)] @ bound)
+          ~store_fn_arguments:
+            (Stored_function_arguments.store ~canvas_id ~trace_id)
+          ~store_fn_result:(Stored_function_result.store ~canvas_id ~trace_id)
+      in
+      Stroller.push_new_trace_id
+        ~execution_id
+        ~canvas_id
+        trace_id
+        (page.tlid :: touched_tlids) ;
+      result_to_response ~c ~execution_id ~req result
 
 
 (* -------------------------------------------- *)
@@ -581,9 +571,9 @@ let user_page_handler
 (* -------------------------------------------- *)
 let static_assets_upload_handler
     ~(execution_id : Types.id)
+    ~(user : Account.user_info)
     (parent : Span.t)
     (canvas : string)
-    (username : string)
     req
     body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
@@ -606,9 +596,7 @@ let static_assets_upload_handler
         * https://trello.com/c/pAD4uoJc/520-figure-out-branch-feature-for-static-assets
        *)
         let branch = "main" in
-        let sa =
-          Static_assets.start_static_asset_deploy canvas branch username
-        in
+        let sa = Static_assets.start_static_asset_deploy ~user canvas branch in
         Stroller.push_new_static_deploy ~execution_id ~canvas_id:canvas sa ;
         let deploy_hash = sa.deploy_hash in
         let%lwt stream =
@@ -730,9 +718,9 @@ let static_assets_upload_handler
                     [ ("canvas", Canvas.name_for_id canvas)
                     ; ("errs", String.concat ~sep:";" err_strs) ] ;
                 Static_assets.delete_static_asset_deploy
+                  ~user
                   canvas
                   branch
-                  username
                   deploy_hash ;
                 respond
                   ~resp_headers:(server_timing []) (* t1; t2; etc *)
@@ -754,9 +742,9 @@ let static_assets_upload_handler
 
 let admin_add_op_handler
     ~(execution_id : Types.id)
+    ~(user : Account.user_info)
     (parent : Span.t)
     (host : string)
-    (username : string)
     body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, (params, canvas_id) =
     time "1-read-api-ops" (fun _ ->
@@ -818,12 +806,11 @@ let admin_add_op_handler
             else None)
       in
       let t6, _ =
-        time "send event to segment" (fun _ ->
+        time "send event to heapio" (fun _ ->
             (* NB: I believe we only send one op at a time, but the type is op
              * list *)
             ops
-            (* MoveTL and TLSavepoint make for noisy data, so exclude it from segment
-               * *)
+            (* MoveTL and TLSavepoint make for noisy data, so exclude it from heapio *)
             |> List.filter ~f:(function
                    | MoveTL _ | TLSavepoint _ ->
                        false
@@ -831,15 +818,14 @@ let admin_add_op_handler
                        true)
             |> List.iter ~f:(fun op ->
                    Lwt.async (fun () ->
-                       Stroller.segment_track
+                       Stroller.heapio_track
                          ~canvas_id
                          ~canvas:host
-                         ~username
+                         ~user_id:user.id
                          ~execution_id
                          Track
                          ~event:(op |> Op.event_name_of_op)
-                         (* currently empty, but we could add annotations -
-                      * 'properties', in segment's language - later *)
+                         (* currently empty, but we could add annotations later *)
                          (`Assoc []))))
       in
       Span.set_attr parent "op_ctr" (`Int params.opCtr) ;
@@ -866,7 +852,7 @@ let admin_add_op_handler
 
 let fetch_all_traces
     ~(execution_id : Types.id)
-    ~(username : Account.username)
+    ~(user : Account.user_info)
     ~(canvas : string)
     ~(permission : Authorization.permission option)
     (parent : Span.t)
@@ -912,7 +898,7 @@ let fetch_all_traces
 
 let initial_load
     ~(execution_id : Types.id)
-    ~(username : Account.username)
+    ~(user : Account.user_info)
     ~(canvas : string)
     ~(permission : Authorization.permission option)
     (parent : Span.t)
@@ -946,21 +932,13 @@ let initial_load
     let t3, assets =
       time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
     in
-    let t4, account =
-      time "4-account" (fun _ ->
-          match A.get_user username with
-          | Some u ->
-              u
-          | None ->
-              {username; email = ""; name = ""; admin = false})
-    in
     let t5, canvas_list =
-      time "5-canvas-list" (fun _ -> Serialize.hosts_for username)
+      time "5-canvas-list" (fun _ -> Serialize.hosts_for user.username)
     in
     let t6, org_canvas_list =
-      time "6-org-list" (fun _ -> Serialize.orgs_for username)
+      time "6-org-list" (fun _ -> Serialize.orgs_for user.username)
     in
-    let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs username) in
+    let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs user.username) in
     let t8, worker_schedules =
       time "8-worker-schedules" (fun _ ->
           Event_queue.get_worker_schedules_for_canvas !c.id)
@@ -976,7 +954,7 @@ let initial_load
             permission
             unlocked
             assets
-            account
+            user
             canvas_list
             orgs
             org_canvas_list
@@ -985,7 +963,7 @@ let initial_load
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10])
+      ~resp_headers:(server_timing [t1; t2; t3; t5; t6; t7; t8; t9; t10])
       parent
       `OK
       result
@@ -1064,14 +1042,14 @@ let get_404s ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
 
 let upload_function
     ~(execution_id : Types.id)
+    ~(user : Account.user_info)
     (parent : Span.t)
-    (username : string)
     (body : string) : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
     time "1-read-api" (fun _ -> Api.to_upload_function_rpc_params body)
   in
   let t2, result =
-    time "2-save" (fun _ -> Package_manager.save username params.fn)
+    time "2-save" (fun _ -> Package_manager.save user.username params.fn)
   in
   let t3, (response_code, response) =
     time "3-to-frontend" (fun _ ->
@@ -1460,8 +1438,7 @@ let admin_ui_html
     ~(csrf_token : string)
     ~(local : string option)
     ~(account_created : Core_kernel.Time.t)
-    (username : string)
-    (admin : bool) =
+    (user : Account.user_info) =
   let account_created_msts =
     account_created
     |> Core_kernel.Time.to_span_since_epoch
@@ -1481,7 +1458,9 @@ let admin_ui_html
   in
   (* TODO: allow APPSUPPORT in here *)
   admin_ui_template
-  |> Util.string_replace "{{ALLFUNCTIONS}}" (Api.functions ~username)
+  |> Util.string_replace
+       "{{ALLFUNCTIONS}}"
+       (Api.functions ~username:user.username)
   |> Util.string_replace
        "{{LIVERELOADJS}}"
        ( if Config.browser_reload_enabled
@@ -1489,24 +1468,21 @@ let admin_ui_html
          "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
        else "" )
   |> Util.string_replace "{{STATIC}}" static_host
-  |> Util.string_replace "{{IS_ADMIN}}" (string_of_bool admin)
-  |> Util.string_replace
-       "{{ACCOUNT_CREATION_UNIX_MSTS}}"
-       (string_of_int account_created_msts)
-  |> Util.string_replace "{{HEAP_ID}}" Config.heap_id
+  |> Util.string_replace "{{HEAPIO_ID}}" Config.heapio_id
   |> Util.string_replace "{{ROLLBARCONFIG}}" Config.rollbar_js
   |> Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
   |> Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
   |> Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
-  |> Util.string_replace "{{USERNAME}}" username
+  |> Util.string_replace "{{USERNAME}}" user.username
+  |> Util.string_replace "{{USER_EMAIL}}" user.email
+  |> Util.string_replace "{{USER_FULL_NAME}}" user.name
   |> Util.string_replace
-       "{{USER_ID}}"
-       ( username
-       |> Account.id_of_username
-       |> Option.value_exn
-       |> Uuidm.to_string )
+       "{{USER_CREATED_AT_UNIX_MSTS}}"
+       (string_of_int account_created_msts)
+  |> Util.string_replace "{{USER_IS_ADMIN}}" (string_of_bool user.admin)
+  |> Util.string_replace "{{USER_ID}}" (Uuidm.to_string user.id)
   |> Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
-  |> Util.string_replace "{{CANVAS}}" canvas
+  |> Util.string_replace "{{CANVAS_NAME}}" canvas
   |> Util.string_replace
        "{{APPSUPPORT}}"
        (File.readfile ~root:Webroot "appsupport.js")
@@ -1748,9 +1724,8 @@ let admin_ui_handler
     ~(canvasname : string)
     ~(body : string)
     ~(account_created : Core_kernel.Time.t)
-    ~(username : string)
+    ~(user : Account.user_info)
     ~(csrf_token : string)
-    ~(admin : bool)
     (parent : Span.t)
     (req : CRequest.t) =
   let verb = req |> CRequest.meth in
@@ -1787,7 +1762,7 @@ let admin_ui_handler
      only make changes in promises .*)
   let when_can_view ~canvas f =
     let auth_domain = Account.auth_domain_for canvas in
-    if Authorization.can_view_canvas ~canvas ~username
+    if Authorization.can_view_canvas ~canvas ~username:user.username
     then
       match Account.owner ~auth_domain with
       | Some owner ->
@@ -1809,8 +1784,7 @@ let admin_ui_handler
               ~csrf_token
               ~local
               ~account_created
-              username
-              admin
+              user
           in
           respond ~resp_headers:html_hdrs ~execution_id parent `OK html)
   | `GET, ["a"; canvas] ->
@@ -1827,7 +1801,7 @@ let admin_api_handler
     ~(execution_id : Types.id)
     ~(path : string list)
     ~(body : string)
-    ~(username : string)
+    ~(user : Account.user_info)
     (parent : Span.t)
     (req : CRequest.t) =
   let verb = req |> CRequest.meth in
@@ -1837,7 +1811,7 @@ let admin_api_handler
     let p =
       Authorization.permission
         ~auth_domain:(Account.auth_domain_for canvas)
-        ~username
+        ~username:user.username
     in
     if p = Some Authorization.ReadWrite
     then f p
@@ -1847,7 +1821,7 @@ let admin_api_handler
     let p =
       Authorization.permission
         ~auth_domain:(Account.auth_domain_for canvas)
-        ~username
+        ~username:user.username
     in
     if p >= Some Authorization.Read
     then f p
@@ -1876,23 +1850,17 @@ let admin_api_handler
   | `POST, ["api"; canvas; "add_op"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers
-            (admin_add_op_handler ~execution_id parent canvas username body))
+            (admin_add_op_handler ~execution_id ~user parent canvas body))
   | `POST, ["api"; canvas; "initial_load"] ->
       when_can_view ~canvas (fun permission ->
           wrap_editor_api_headers
-            (initial_load
-               ~execution_id
-               ~username
-               ~canvas
-               ~permission
-               parent
-               body))
+            (initial_load ~execution_id ~user ~canvas ~permission parent body))
   | `POST, ["api"; canvas; "all_traces"] ->
       when_can_view ~canvas (fun permission ->
           wrap_editor_api_headers
             (fetch_all_traces
                ~execution_id
-               ~username
+               ~user
                ~canvas
                ~permission
                parent
@@ -1901,11 +1869,10 @@ let admin_api_handler
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers
             (execute_function ~execution_id parent canvas body))
-  | `POST, ["api"; canvas; "packages"; "upload_function"]
-    when Account.is_admin ~username ->
+  | `POST, ["api"; canvas; "packages"; "upload_function"] when user.admin ->
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers
-            (upload_function ~execution_id parent username body))
+            (upload_function ~execution_id ~user parent body))
   | `POST, ["api"; canvas; "packages"] ->
       when_can_view ~canvas (fun _ ->
           wrap_editor_api_headers (get_all_packages ~execution_id parent ()))
@@ -1943,9 +1910,9 @@ let admin_api_handler
           wrap_editor_api_headers
             (static_assets_upload_handler
                ~execution_id
+               ~user
                parent
                canvas
-               username
                req
                body))
   | `POST, ["api"; canvas; "insert_secret"] ->
@@ -1965,8 +1932,7 @@ let admin_handler
     (parent : Span.t)
     (req : CRequest.t) =
   let username = Auth.SessionLwt.username_for session in
-  let admin = Account.is_admin username in
-  Span.set_attr parent "is_admin" (`Bool admin) ;
+  let user = Account.get_user username in
   let path =
     uri
     |> Uri.path
@@ -1975,27 +1941,34 @@ let admin_handler
     |> String.split ~on:'/'
   in
   (* routing *)
-  match path with
-  | "api" :: canvas :: _ ->
-      Span.set_attr parent "canvas" (`String canvas) ;
+  match (user, path) with
+  | Some user, "api" :: canvas :: _ ->
+      Span.set_attrs
+        parent
+        [ ("is_admin", `Bool user.admin)
+        ; ("username", `String user.username)
+        ; ("canvas", `String canvas) ] ;
       check_csrf_then_handle
         ~execution_id
         ~session
         parent
-        (admin_api_handler ~execution_id ~path ~body ~username)
+        (admin_api_handler ~execution_id ~path ~body ~user)
         req
-  | "a" :: canvasname :: _ ->
-      Span.set_attr parent "canvas" (`String canvasname) ;
+  | Some user, "a" :: canvasname :: _ ->
+      Span.set_attrs
+        parent
+        [ ("is_admin", `Bool user.admin)
+        ; ("username", `String user.username)
+        ; ("canvas", `String canvasname) ] ;
       let account_created = Account.get_user_created_at_exn username in
       admin_ui_handler
         ~execution_id
         ~path
+        ~canvasname
         ~body
         ~account_created
-        ~username
-        ~canvasname
+        ~user
         ~csrf_token
-        ~admin
         parent
         req
   | _ ->
@@ -2216,46 +2189,64 @@ let canvas_handler
     (parent : Span.t)
     (req : CRequest.t) : (Cohttp.Response.t * Cl.Body.t) Lwt.t =
   let verb = req |> CRequest.meth in
-  (* TODO make sure this resolves before returning *)
-  let%lwt resp, body =
-    match verb with
-    (* transform HEAD req method to GET, discards body in response*)
-    | `HEAD ->
-        user_page_handler
-          ~execution_id
-          ~canvas
-          ~ip
-          ~uri
-          ~body
-          (coalesce_head_to_get req)
-        |> respond_or_redirect_empty_body parent
-    | _ ->
-        user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
-        |> respond_or_redirect parent
-  in
-  Lwt.async (fun () ->
-      Stroller.segment_track
-        ~canvas_id:Uuidm.nil
-        ~canvas
-        ~execution_id (* TODO should username be the canvas owner, or the ip? *)
-        ~username:("canvas::" ^ canvas)
-        ~event:"canvas_traffic"
-        Track
-        (`Assoc
-          [ ("verb", `String (verb |> Cohttp.Code.string_of_method))
-          ; ("path", `String (uri |> Uri.path))
-          ; ( "useragent"
-            , `String
-                ( req
-                |> CRequest.headers
-                |> fun hs ->
-                Cohttp.Header.get hs Cohttp.Header.user_agent
-                |> Option.value ~default:"" ) )
-          ; ("ip", `String ip)
-          ; ( "status"
-            , `Int (resp |> Cohttp.Response.status |> Cohttp.Code.code_of_status)
-            ) ])) ;
-  Lwt.return (resp, body)
+  match Account.for_host canvas with
+  | None ->
+      respond ~execution_id parent `Not_found "user not found"
+  | Some owner ->
+      let canvas_id = Serialize.fetch_canvas_id owner canvas in
+      (* TODO make sure this resolves before returning *)
+      let%lwt resp, body =
+        match verb with
+        (* transform HEAD req method to GET, discards body in response*)
+        | `HEAD ->
+            user_page_handler
+              ~execution_id
+              ~canvas
+              ~canvas_id
+              ~ip
+              ~uri
+              ~body
+              ~owner
+              (coalesce_head_to_get req)
+            |> respond_or_redirect_empty_body parent
+        | _ ->
+            user_page_handler
+              ~execution_id
+              ~canvas
+              ~canvas_id
+              ~ip
+              ~uri
+              ~body
+              ~owner
+              req
+            |> respond_or_redirect parent
+      in
+      Lwt.async (fun () ->
+          Stroller.heapio_track
+            ~canvas_id
+            ~canvas
+            ~execution_id
+            ~user_id:owner
+            ~event:"canvas_traffic"
+            Track
+            (`Assoc
+              [ ("verb", `String (verb |> Cohttp.Code.string_of_method))
+              ; ("path", `String (uri |> Uri.path))
+              ; ( "useragent"
+                , `String
+                    ( req
+                    |> CRequest.headers
+                    |> fun hs ->
+                    Cohttp.Header.get hs Cohttp.Header.user_agent
+                    |> Option.value ~default:"" ) )
+              ; ("ip", `String ip)
+              ; ( "status"
+                , `Int
+                    ( resp
+                    |> Cohttp.Response.status
+                    |> Cohttp.Code.code_of_status ) ) ])) ;
+
+      Lwt.return (resp, body)
 
 
 let callback

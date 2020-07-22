@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>{{CANVAS}} - Dark</title>
+    <title>{{CANVAS_NAME}} - Dark</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta
       name="viewport"
@@ -35,18 +35,20 @@
     <script type="text/javascript" src="//{{STATIC}}/app.js"></script>
     <script type="text/javascript">
       var testcafeInjectedPrefix = "";
-      const heapID = "{{HEAP_ID}}";
+      const heapioID = "{{HEAPIO_ID}}";
       const rollbarConfig = {{ROLLBARCONFIG}};
       const pusherConfig = {{PUSHERCONFIG}};
       const complete = {{ALLFUNCTIONS}};
-      const isAdmin = {{IS_ADMIN}};
-      const accountCreationDate = new Date({{ACCOUNT_CREATION_UNIX_MSTS}});
       const userContentHost = "{{USER_CONTENT_HOST}}";
       const environmentName = "{{ENVIRONMENT_NAME}}";
-      const username = "{{USERNAME}}";
-      const userId = "{{USER_ID}}";
-      const canvasId = "{{CANVAS_ID}}";
-      const canvas = "{{CANVAS}}";
+      const username = "{{USER_USERNAME}}";
+      const userEmail = "{{USER_EMAIL}}";
+      const userFullname = "{{USER_FULLNAME}}";
+      const userCreatedAt = new Date({{USER_CREATED_AT_UNIX_MSTS}});
+      const userIsAdmin = {{USER_IS_ADMIN}};
+      const userID = "{{USER_ID}}";
+      const canvasID = "{{CANVAS_ID}}";
+      const canvasName = "{{CANVAS_NAME}}";
       const csrfToken = "{{CSRF_TOKEN}}";
       const staticUrl = "{{STATIC}}";
       const buildHash = "{{BUILD_HASH}}";

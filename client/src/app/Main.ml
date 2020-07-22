@@ -1442,12 +1442,12 @@ let update_ (msg : msg) (m : model) : modification =
               NoChange )
       | _ ->
           NoChange )
-  | UpdateSegment msg ->
-      Entry.sendSegmentMessage msg ;
+  | UpdateHeapio msg ->
+      Entry.sendHeapioMessage msg ;
       NoChange
   | ToolTipMsg msg ->
       if msg = UpdateTutorial CloseTutorial && m.firstVisitToDark
-      then Entry.sendSegmentMessage WelcomeModal ;
+      then Entry.sendHeapioMessage WelcomeModal ;
       Tooltips.update m.tooltipState msg
   | DeleteUserTypeForever tlid ->
       Many

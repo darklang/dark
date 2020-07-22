@@ -6,6 +6,7 @@ authors = ["Sam Stokes <me@samstokes.co.uk>", "Dark Developers <ops@darklang.com
 
 [dependencies]
 futures = "0.1.29"
+failure = "0.1.5"
 hmac = "0.7.1"
 hyper = "0.12"
 md5 = "0.7.0"
@@ -16,6 +17,5 @@ reqwest = "0.9.24"
 slog = "2.5.2"
 slog-scope = "4.3.0"
 slog-json = "2.3.0"
-chrono = "0.4.13"
+chrono = { version = "0.4.13", features = ["serde"] }
 uuid = { version = "0.8", features = ["v4"] }
-analytics = "0.2"

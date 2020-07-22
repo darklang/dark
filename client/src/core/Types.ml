@@ -1270,12 +1270,10 @@ and fluidMsg =
   | FluidUpdateDropdownIndex of int
   | FluidCloseCmdPalette
 
-and segmentTrack =
+and heapioTrack =
   | WelcomeModal
   | OpenDocs
   | InviteUser
-  | MarkCanvasAsShipped of string
-  | MarkCanvasAsInDevelopment of string
   | OpenFnRef
   | OpenKeyboardRef
 
@@ -1412,7 +1410,7 @@ and msg =
   | NewTabFromTLMenu of string * TLID.t
   | FnParamMsg of fnpMsg
   | ToolTipMsg of toolTipMsg
-  | UpdateSegment of segmentTrack
+  | UpdateHeapio of heapioTrack
   | SettingsViewMsg of SettingsViewTypes.settingsMsg
   | SecretMsg of SecretTypes.msg
 

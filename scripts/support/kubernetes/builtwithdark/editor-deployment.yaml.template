@@ -135,11 +135,6 @@ spec:
                 secretKeyRef:
                   name: pusher-account-credentials
                   key: secret
-            - name: DARK_CONFIG_SEGMENT_WRITE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: segment-account-credentials
-                  key: key
           lifecycle:
             preStop:
               httpGet:

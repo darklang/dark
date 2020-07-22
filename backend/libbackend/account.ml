@@ -59,20 +59,28 @@ type account =
   ; email : string
   ; name : string }
 
+type uuidmt = Uuidm.t
+
+let uuidmt_to_yojson (uuid : uuidmt) : Yojson.Safe.t =
+  `String (Uuidm.to_string uuid)
+
+
 type user_info =
   { username : username
   ; email : string
   ; name : string
-  ; admin : bool }
-[@@deriving yojson]
+  ; admin : bool
+  ; id : uuidmt }
+[@@deriving to_yojson]
 
 type user_info_and_created_at =
   { username : username
   ; email : string
   ; name : string
   ; admin : bool
+  ; id : uuidmt
   ; created_at : string }
-[@@deriving yojson]
+[@@deriving to_yojson]
 
 (************************)
 (* Adding *)
@@ -105,11 +113,11 @@ let validate_account (account : account) : (unit, string) Result.t =
 
 let insert_account
     ?(validate : bool = true)
-    ~(segment_metadata : Types.RuntimeT.dval_map option)
+    ~(analytics_metadata : Types.RuntimeT.dval_map option)
     (account : account) : (unit, string) Result.t =
   let result = if validate then validate_account account else Ok () in
-  let segment_metadata =
-    segment_metadata
+  let analytics_metadata =
+    analytics_metadata
     |> Option.value ~default:([] |> Types.RuntimeT.DvalMap.from_list)
   in
   Result.map result ~f:(fun () ->
@@ -127,7 +135,7 @@ let insert_account
           ; String account.name
           ; String account.email
           ; String (Password.to_bytes account.password)
-          ; QueryableDvalmap segment_metadata ])
+          ; QueryableDvalmap analytics_metadata ])
   |> Result.bind ~f:(fun () ->
          if Db.exists
               ~name:"check_inserted_account"
@@ -233,12 +241,17 @@ let get_user username =
   Db.fetch_one_option
     ~name:"get_user"
     ~subject:username
-    "SELECT name, email, admin from accounts
+    "SELECT name, email, admin, id from accounts
      WHERE accounts.username = $1"
     ~params:[String username]
   |> Option.bind ~f:(function
-         | [name; email; admin] ->
-             Some {username; name; admin = admin = "t"; email}
+         | [name; email; admin; id] ->
+             Some
+               { username
+               ; name
+               ; admin = admin = "t"
+               ; email
+               ; id = id |> Uuidm.of_string |> Option.value_exn }
          | _ ->
              None)
 
@@ -254,26 +267,27 @@ let get_user_created_at_exn username =
   |> Db.date_of_sqlstring
 
 
-let get_user_and_created_at_and_segment_metadata username =
+let get_user_and_created_at_and_analytics_metadata username =
   Db.fetch_one_option
     ~name:"get_user_and_created_at"
     ~subject:username
-    "SELECT name, email, admin, created_at, segment_metadata from accounts
+    "SELECT name, email, admin, created_at, id, segment_metadata from accounts
      WHERE accounts.username = $1"
     ~params:[String username]
   |> Option.bind ~f:(function
-         | [name; email; admin; created_at; segment_metadata] ->
+         | [name; email; admin; created_at; id; analytics_metadata] ->
              Some
                ( { username
                  ; name
                  ; admin = admin = "t"
                  ; email
+                 ; id = id |> Uuidm.of_string |> Option.value_exn
                  ; created_at =
                      created_at
                      |> Db.date_of_sqlstring
                      |> Core.Time.to_string_iso8601_basic
                           ~zone:Core.Time.Zone.utc }
-               , segment_metadata
+               , analytics_metadata
                  |> fun s ->
                  (* If it's NULL,then we'll get an empty string, don't bother
                   * trying to parse *)
@@ -286,12 +300,17 @@ let get_user_by_email email =
   Db.fetch_one_option
     ~name:"get_user_by_email"
     ~subject:email
-    "SELECT name, username, admin from accounts
+    "SELECT name, username, admin, id from accounts
      WHERE accounts.email = $1"
     ~params:[String email]
   |> Option.bind ~f:(function
-         | [name; username; admin] ->
-             Some {username; name; admin = admin = "t"; email}
+         | [name; username; admin; id] ->
+             Some
+               { username
+               ; name
+               ; admin = admin = "t"
+               ; email
+               ; id = id |> Uuidm.of_string |> Option.value_exn }
          | _ ->
              None)
 
@@ -311,7 +330,7 @@ let is_admin ~username : bool =
     ~params:[String username]
 
 
-(* Any external calls to this should also call Stroller.segment_identify_user;
+(* Any external calls to this should also call Stroller.heapio_identify_user;
  * we can't do it here because that sets up a module dependency cycle *)
 let set_admin ~username (admin : bool) : unit =
   Db.run
@@ -382,13 +401,13 @@ let for_host_exn (host : string) : Uuidm.t =
 (* Darkinternal functions *)
 (************************)
 
-(* Any external calls to this should also call Stroller.segment_identify_user;
+(* Any external calls to this should also call Stroller.heapio_identify_user;
  * we can't do it here because that sets up a module dependency cycle *)
 let insert_user
     ~(username : string)
     ~(email : string)
     ~(name : string)
-    ?(segment_metadata : Types.RuntimeT.dval_map option)
+    ?(analytics_metadata : Types.RuntimeT.dval_map option)
     () : (unit, string) Result.t =
   (* As of the move to auth0, we  no longer store passwords in postgres. We do
    * still use postgres locally, which is why we're not removing the field
@@ -396,10 +415,10 @@ let insert_user
    * upsert_account_exn/upsert_admin_exn, so using Password.invalid here does
    * not affect that *)
   let password = Password.invalid in
-  insert_account {username; email; name; password} ~segment_metadata
+  insert_account {username; email; name; password} ~analytics_metadata
 
 
-(* Any external calls to this should also call Stroller.segment_identify_user;
+(* Any external calls to this should also call Stroller.heapio_identify_user;
  * we can't do it here because that sets up a module dependency cycle *)
 let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
     (unit, string) Result.t =

@@ -187,9 +187,8 @@ Content-type: %s
 
 
 let start_static_asset_deploy
-    (canvas_id : Uuidm.t) (branch : string) (username : string) : static_deploy
-    =
-  let account_id = Account.id_of_username username |> Option.value_exn in
+    ~(user : Account.user_info) (canvas_id : Uuidm.t) (branch : string) :
+    static_deploy =
   let deploy_hash =
     Nocrypto.Hash.SHA1.digest
       (Cstruct.of_string
@@ -207,8 +206,7 @@ let start_static_asset_deploy
       "INSERT INTO static_asset_deploys
         (canvas_id, branch, deploy_hash, uploaded_by_account_id)
         VALUES ($1, $2, $3, $4) RETURNING created_at"
-      ~params:
-        [Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
+      ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid user.id]
     |> List.hd_exn
     |> Db.date_of_sqlstring
   in
@@ -235,22 +233,16 @@ let delete_assets_for_ellens_demo (canvas_id : Uuidm.t) : unit =
  * 'garbage collection' work, in which we can query for files/dirs not known to
  * the db and delete them *)
 let delete_static_asset_deploy
+    ~(user : Account.user_info)
     (canvas_id : Uuidm.t)
     (branch : string)
-    (username : string)
     (deploy_hash : string) : unit =
-  let account_id =
-    try Account.id_of_username username |> Option.value_exn
-    with e ->
-      Log.infO ("NO ACCOUNT ID FOR USERNAME " ^ username) ;
-      Uuidm.of_string "cb0b287e-92d6-4f51-919d-681705e2ade2" |> Option.value_exn
-  in
   Db.run
     ~name:"delete static_asset_deploy record"
     ~subject:deploy_hash
     "DELETE FROM static_asset_deploys
     WHERE canvas_id=$1 AND branch=$2 AND deploy_hash=$3 AND uploaded_by_account_id=$4"
-    ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
+    ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid user.id]
 
 
 let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
