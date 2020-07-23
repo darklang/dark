@@ -4,7 +4,7 @@ external rollbarConfig : string = "rollbarConfig" [@@bs.val]
 
 let () = Rollbar.init (Json.parseOrRaise rollbarConfig)
 
-type event = < data : Types.performAnalysisParams [@bs.get] > Js.t
+type event = < data : Types.performAnalysisParams Js.nullable [@bs.get] > Js.t
 
 type self
 
@@ -27,8 +27,14 @@ let () =
   onmessage self (fun event ->
       let result =
         (* TODO: couldn't make Tc work *)
-        match event##data with
-        | AnalyzeHandler hParams ->
+        match Js.Nullable.toOption event##data with
+        | None ->
+            (* When we sent too much data, the event just won't have data in it. *)
+            reportError "Trace was too big to load into analysis" () ;
+            Belt.Result.Error
+              (Types.AnalysisParseError
+                 "Trace was too big to load into analysis")
+        | Some (AnalyzeHandler hParams as params) ->
             let encoded =
               Js.Json.stringify (Encoders.performHandlerAnalysisParams hParams)
             in
@@ -64,9 +70,8 @@ let () =
                 else msg
               in
               reportError "An execution failure occurred in a handler" msg ;
-              Belt.Result.Error
-                (Types.AnalysisExecutionError (event##data, msg))
-        | AnalyzeFunction fParams ->
+              Belt.Result.Error (Types.AnalysisExecutionError (params, msg))
+        | Some (AnalyzeFunction fParams as params) ->
             let encoded =
               Js.Json.stringify (Encoders.performFunctionAnalysisParams fParams)
             in
@@ -75,8 +80,7 @@ let () =
             then Belt.Result.Ok msg
             else (
               reportError "An execution failure occurred in a function" msg ;
-              Belt.Result.Error
-                (Types.AnalysisExecutionError (event##data, msg)) )
+              Belt.Result.Error (Types.AnalysisExecutionError (params, msg)) )
       in
       let decoded =
         Tc.Result.andThen
