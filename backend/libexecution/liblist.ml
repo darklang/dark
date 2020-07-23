@@ -384,7 +384,7 @@ let fns : fn list =
     ; parameters = [par "as" TList; par "bs" TList]
     ; return_type = TList
     ; description =
-        "Returns a new list with the first value from `as` then the first value from `bs`, then the second value from `as` then the second value from `bs`, etc, until one list ends, then the remaining items from the other list."
+        "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
     ; func =
         InProcess
           (function
