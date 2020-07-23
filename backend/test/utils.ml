@@ -543,6 +543,10 @@ let sample_dvals : (string * dval) list =
   ; ("int_max_63_bits", Dval.dint 4611686018427387903)
   ; ("float", DFloat 7.2)
   ; ("float2", DFloat (-7.2))
+    (* Long term, we shoudln't allow Infinity/NaNs, but since we do we should
+     * make sure they roundtrip OK. *)
+  ; ("nan", DFloat Caml.nan)
+  ; ("infinity", DFloat (0.0 /. 0.0))
   ; ("true", DBool true)
   ; ("false", DBool false)
   ; ("null", DNull)
