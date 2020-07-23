@@ -14,17 +14,15 @@ if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
   exit 1
 fi
 
-if [ ! -v CI ]; then
-  # Sometimes these dirs leak out of the container, causing confusion and
-  # slowness
-  rm -Rf _build
-  rm -Rf _esy
-  rm -Rf .esy
-  rm -Rf node_modules
-  rm -Rf lib
-  rm -Rf stroller/target
-  rm -Rf queue-scheduler/target
-fi
+# Sometimes these dirs leak out of the container, causing confusion and
+# slowness
+rm -Rf _build
+rm -Rf _esy
+rm -Rf .esy
+rm -Rf node_modules
+rm -Rf lib
+rm -Rf stroller/target
+rm -Rf queue-scheduler/target
 
 # --------------
 # Build image from clean start
@@ -68,29 +66,24 @@ fi
 # Mounts
 # --------------
 
-if [ -v CI ]; then
-  # see "copy in data" in .circleci/config.yml
-  MOUNTS="--volumes-from vols"
-else
-  MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
+MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
-  # Avoid docker syncing everything to the host, slowing compiles down by 5x
-  MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/_build"
-  MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
-  MOUNTS+=" --mount type=volume,src=dark_dotesy,dst=/home/dark/.esy"
-  MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
-  MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
-  MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
-  MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/queue-scheduler/target"
-  MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
+# Avoid docker syncing everything to the host, slowing compiles down by 5x
+MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/_build"
+MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
+MOUNTS+=" --mount type=volume,src=dark_dotesy,dst=/home/dark/.esy"
+MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
+MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
+MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
+MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/queue-scheduler/target"
+MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
 
-  if [[ -e "$HOME/.config/gcloud" ]]; then
-    MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
-  fi
-  # make sure this exists first, so it doesn't get created as a directory
-  touch "$HOME/.dark_bash_history"
-  MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
+if [[ -e "$HOME/.config/gcloud" ]]; then
+  MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
 fi
+# make sure this exists first, so it doesn't get created as a directory
+touch "$HOME/.dark_bash_history"
+MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
 
 # --------------
 # fswatch
@@ -137,9 +130,6 @@ do
     ;;
   esac
 done
-if [ -v CI ]; then
-  ENV="circleci"
-fi
 
 ENV_FILE="config/$ENV"
 
@@ -182,9 +172,6 @@ $FSWATCH | docker run \
              --env-file "$ENV_FILE" \
              --env HOST_PWD="$PWD" \
              --env IN_DEV_CONTAINER=true \
-             --env CI="${CI-}" \
-             --env CIRCLE_BRANCH="${CIRCLE_BRANCH-}" \
-             --env CIRCLE_BUILD_URL="${CIRCLE_BUILD_URL-}" \
              $POLL_FREQ \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
