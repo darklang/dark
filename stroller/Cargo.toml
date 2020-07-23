@@ -6,7 +6,7 @@ authors = ["Sam Stokes <me@samstokes.co.uk>", "Dark Developers <ops@darklang.com
 
 [dependencies]
 futures = "0.1.29"
-failure = "0.1.5"
+failure = "0.1.8"
 hmac = "0.7.1"
 hyper = "0.12"
 md5 = "0.7.0"
