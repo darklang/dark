@@ -379,6 +379,28 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["List::interleave"]
+    ; infix_names = []
+    ; parameters = [par "as" TList; par "bs" TList]
+    ; return_type = TList
+    ; description =
+        "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
+    ; func =
+        InProcess
+          (function
+          | _, [DList l1; DList l2] ->
+              let rec f l1 l2 =
+                match l1 with
+                | [] ->
+                    l2
+                | x :: xs ->
+                  (match l2 with [] -> l1 | y :: ys -> x :: y :: f xs ys)
+              in
+              DList (f l1 l2)
+          | args ->
+              fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ; { prefix_names = ["List::uniqueBy"]
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
