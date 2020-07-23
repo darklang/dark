@@ -933,6 +933,54 @@ let t_list_stdlibs_work () =
     (DList [Dval.dint 1])
     (exec_ast (fn "List::interpose" [list [int 1]; int 5])) ;
   check_dval
+    "List::interleave works"
+    (DList
+       [ Dval.dint 1
+       ; Dval.dint 4
+       ; Dval.dint 2
+       ; Dval.dint 5
+       ; Dval.dint 3
+       ; Dval.dint 6 ])
+    (exec_ast
+       (fn
+          "List::interleave"
+          [list [int 1; int 2; int 3]; list [int 4; int 5; int 6]])) ;
+  check_dval
+    "List::interleave works (a longer than b)"
+    (DList [Dval.dint 1; Dval.dint 4; Dval.dint 2; Dval.dint 3])
+    (exec_ast
+       (fn "List::interleave" [list [int 1; int 2; int 3]; list [int 4]])) ;
+  check_dval
+    "List::interleave works (b longer than a)"
+    (DList [Dval.dint 1; Dval.dint 4; Dval.dint 5; Dval.dint 6])
+    (exec_ast
+       (fn "List::interleave" [list [int 1]; list [int 4; int 5; int 6]])) ;
+  check_dval
+    "List::interleave works (a empty)"
+    (DList [Dval.dint 4; Dval.dint 5; Dval.dint 6])
+    (exec_ast (fn "List::interleave" [list []; list [int 4; int 5; int 6]])) ;
+  check_dval
+    "List::interleave works (b empty)"
+    (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3])
+    (exec_ast (fn "List::interleave" [list [int 1; int 2; int 3]; list []])) ;
+  check_dval
+    "List::interleave works (both empty)"
+    (DList [])
+    (exec_ast (fn "List::interleave" [list []; list []])) ;
+  check_dval
+    "List::interleave works (mixed types)"
+    (DList
+       [ Dval.dint 1
+       ; Dval.dstr_of_string_exn "a"
+       ; Dval.dint 2
+       ; Dval.dstr_of_string_exn "b"
+       ; Dval.dint 3
+       ; Dval.dstr_of_string_exn "c" ])
+    (exec_ast
+       (fn
+          "List::interleave"
+          [list [int 1; int 2; int 3]; list [str "a"; str "b"; str "c"]])) ;
+  check_dval
     "List::takeWhile works"
     (DList [Dval.dint 1; Dval.dint 2])
     (exec_ast
