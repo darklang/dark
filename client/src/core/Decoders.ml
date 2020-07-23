@@ -345,9 +345,29 @@ let rec dval j : dval =
     ; body = field "body" fluidExpr j
     ; symtable = field "symtable" (strDict dval) j }
   in
+  let encodedFloat j =
+    (* We can sometimes get infinity/NaN in analysis results. While the Dark
+     * language isn't intended to have them, we haven't actually managed to
+     * eradicate them from the runtime, and so we'll sometimes get the from the
+     * analysis code.  However, since JSON doesn't support Infinity/NaN, our
+     * JSON parser crashes. So instead we encode them specially in
+     * Jsanalysis.clean_yojson, which is the encoder which matches this decoder
+     *)
+    match Js.Json.decodeObject j with
+    | Some obj ->
+        if Js_dict.get obj "type" = Some (Js.Json.string "float")
+           && Js_dict.get obj "value" = Some (Js.Json.string "NaN")
+        then Float.nan
+        else if Js_dict.get obj "type" = Some (Js.Json.string "float")
+                && Js_dict.get obj "value" = Some (Js.Json.string "Infinity")
+        then Float.infinity
+        else raise @@ DecodeError ("Expected float, got " ^ stringify j)
+    | None ->
+        Json.Decode.float j
+  in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
-    ; ("DFloat", dv1 (fun x -> DFloat x) Json.Decode.float)
+    ; ("DFloat", dv1 (fun x -> DFloat x) encodedFloat)
     ; ("DBool", dv1 (fun x -> DBool x) bool)
     ; ("DNull", dv0 DNull)
     ; ("DCharacter", dv1 (fun x -> DCharacter x) string)

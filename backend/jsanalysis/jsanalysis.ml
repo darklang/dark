@@ -105,6 +105,30 @@ let load_from_trace
   |> Option.map ~f:(fun dv -> (dv, Time.now ()))
 
 
+(* We can sometimes get infinity/NaN in analysis results. While the Dark
+ * language isn't intended to have them, we haven't actually managed to
+ * eradicate them from the runtime, and so we need to send them back to the
+ * client. However, since JSON doesn't support Infinity/NaN, the client JSON
+ * parser crashes. So instead we encode them specially, and also support
+ * decoding them in the client dval Decoder (client/src/Decoder.ml). *)
+let rec clean_yojson (json : Yojson.Safe.t) : Yojson.Safe.t =
+  match json with
+  | `Float f ->
+      if Float.is_nan f
+      then `Assoc [("type", `String "float"); ("value", `String "NaN")]
+      else if Float.is_finite f
+      then `Float f
+      else `Assoc [("type", `String "float"); ("value", `String "Infinity")]
+  | `List l ->
+      `List (List.map ~f:clean_yojson l)
+  | `Tuple l ->
+      `Tuple (List.map ~f:clean_yojson l)
+  | `Assoc o ->
+      `Assoc (List.map ~f:(fun (k, v) -> (k, clean_yojson v)) o)
+  | a ->
+      a
+
+
 let perform_analysis
     ~(tlid : tlid)
     ~(dbs : our_db list)
@@ -138,6 +162,7 @@ let perform_analysis
           ~load_fn_result:(load_from_trace function_results)
           ~load_fn_arguments:Execution.load_no_arguments )
       |> analysis_envelope_to_yojson
+      |> clean_yojson
       |> Yojson.Safe.to_string)
 
 
