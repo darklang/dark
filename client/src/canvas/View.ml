@@ -5,6 +5,7 @@ module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict
 module E = FluidExpression
+module Attrs = Tea.Html2.Attributes
 
 let appID = "app"
 
@@ -709,6 +710,12 @@ let view (m : model) : msg Html.html =
   let settingsModal =
     if m.settingsView.opened then SettingsView.html m else Vdom.noNode
   in
+  let savvy =
+    (* Analytics should not be installed here, but hard to do elsewhere due to
+     * the framework. *)
+    Html.node "savvy-smart-form" [Attrs.id "6HBmUjmI12nCuopyvB0B"] []
+  in
+
   let content =
     (FullstoryView.html m :: ViewTopbar.html m)
     @ [ sidebar
@@ -723,5 +730,6 @@ let view (m : model) : msg Html.html =
     @ fluidStatus
     @ footer
     @ viewDocs
+    @ [savvy]
   in
   Html.div attributes content
