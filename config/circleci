@@ -36,6 +36,8 @@ DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM=none
 
 # DB
 DARK_CONFIG_DB_HOST=localhost
+# We use devdb here rather than testdb because we want sometimes want to run
+# tests while the server is running
 DARK_CONFIG_DB_DBNAME=devdb
 DARK_CONFIG_DB_USER=dark
 DARK_CONFIG_DB_PASSWORD=eapnsdc

@@ -2,6 +2,13 @@
 . ./scripts/support/assert-in-container "$0" "$@"
 
 set -euo pipefail
+
+dropdb --if-exists testdb
+createdb testdb
+DARK_CONFIG_DB_HOST=localhost \
+DARK_CONFIG_DB_DBNAME=testdb \
+DARK_CONFIG_DB_USER=dark \
+DARK_CONFIG_DB_PASSWORD=eapnsdc \
 "_build/default/backend/test/test.exe" "${@}"
 
 

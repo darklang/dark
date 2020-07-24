@@ -139,21 +139,13 @@ def backend_build():
         + exes
   return run_backend(start, build)
 
-def test_db_env():
-  return "DARK_CONFIG_DB_HOST=localhost" \
-    " DARK_CONFIG_DB_DBNAME=testdb" \
-    " DARK_CONFIG_DB_USER=dark" \
-    " DARK_CONFIG_DB_PASSWORD=eapnsdc"
-
 def backend_test():
   start = time.time()
   ci = "--verbose" if os.environ.get("CI") else "--quick"
   rundir = os.environ.get("DARK_CONFIG_RUNDIR")
   return run_test(start,
           f"unbuffer scripts/dune-wrapper.sh build backend/test/test.exe" \
-          f" && dropdb --if-exists testdb" \
-          f" && createdb testdb" \
-          f" && {test_db_env()} unbuffer scripts/run-backend-tests --show-errors {ci}" \
+          f" && unbuffer scripts/run-backend-tests --show-errors {ci}" \
           f" 2>&1")
 
 def rust_build(name):
@@ -175,6 +167,12 @@ def rust_build(name):
 def rust_reload(name):
   start = time.time()
   return run_backend(start, f"scripts/support/run-rust {name}")
+  
+def test_db_env():
+  return "DARK_CONFIG_DB_HOST=localhost" \
+    " DARK_CONFIG_DB_DBNAME=testdb" \
+    " DARK_CONFIG_DB_USER=dark" \
+    " DARK_CONFIG_DB_PASSWORD=eapnsdc"
 
 def rust_test(name):
   start = time.time()

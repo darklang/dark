@@ -319,6 +319,7 @@ jobs:
           name: Run queue-scheduler tests
           command: scripts/run-rust-tests queue-scheduler
       - assert-clean-worktree
+      - store_artifacts: { path: rundir }
 
   gcp-containers-test:
     executor: in-container
