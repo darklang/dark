@@ -69,7 +69,7 @@ window["_fs_ready"] = function () {
 };
 
 function sendHeapioMessage(event_name) {
-  heap.track(event_name);
+  heapio.track(event_name);
   return;
 }
 
