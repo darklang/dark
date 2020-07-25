@@ -15,6 +15,13 @@ arg="${1:-}"
 # Make sure it has time to come up before we try to connect to it
 sleep 1s
 
+if [[ "${arg}x" = "--productionx" ]];
+then
+  PORT=2346
+else
+  PORT=2347
+fi
+
 SECRET=$(kubectl get secrets cloudsql-db-credentials -o json)
 
 PGUSERNAME=$(echo "${SECRET}" |  jq -r '.data.username' | base64 -d)
@@ -22,10 +29,11 @@ PGPASSWORD=$(echo "${SECRET}" |  jq -r '.data.password' | base64 -d)
 export PGUSERNAME
 export PGPASSWORD
 
-# If we're in a terminal (not a pipe), use pgcli, which has nice interactive fea tures like autocomplete of columns.
+# If we're in a terminal (not a pipe), use pgcli, which has nice interactive features like autocomplete of columns.
 # If we're in a pipe, then use psql (pgcli doesn't let you pipe in a query, psql does)
+echo "Connecting to port $PORT"
 if [[ -t 0 ]]; then
-    pgcli -h localhost -p 2345 --username=${PGUSERNAME} postgres
+    pgcli -h localhost -p "${PORT}" --username=${PGUSERNAME} postgres
 else
-    psql -h localhost -p 2345 --user=${PGUSERNAME} postgres
+    psql -h localhost -p "${PORT}" --user=${PGUSERNAME} postgres
 fi

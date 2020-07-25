@@ -40,11 +40,13 @@ REPLICA_DB=dark-west-read-replica
 
 
 if [ "${target}x" == "productionx" ]; then
-  echo "Connecting to production"
+  echo "Connecting to production (port 2346)"
   DB="${PROD_DB}"
+  PORT=2346
 else
-  echo "Connecting to the replica"
+  echo "Connecting to the replica (port 2347)"
   DB="${REPLICA_DB}"
+  PORT=2347
 fi
 
 INSTANCE="${PROJECT}:${REGION}:${DB}"
@@ -53,6 +55,6 @@ echo "Setting up proxy to ${INSTANCE}"
 
 cloud_sql_proxy \
     -verbose=false \
-    -instances "${INSTANCE}=tcp:2345" 
+    -instances "${INSTANCE}=tcp:${PORT}" 
 
 
