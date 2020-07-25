@@ -239,18 +239,6 @@ let heapio_identify_user (username : string) : unit =
       | _ ->
           () )
   | Some (user_info_and_created_at, heapio_metadata) ->
-      let payload =
-        (* If we fail to get the user from the db, we want to continue but
-         * rollbar *)
-        let payload =
-          user_info_and_created_at |> Account.user_info_and_created_at_to_yojson
-        in
-        (* We do zero checking of fields in heapio_metadata, but this is ok
-         * because it's a field we control, going to a service only we see.
-         * If we wanted to harden this later, we could List.filter the
-         * heapio_metadata yojson *)
-        Yojson.Safe.Util.combine payload heapio_metadata
-      in
       let organization =
         username
         |> Authorization.orgs_for
@@ -262,10 +250,26 @@ let heapio_identify_user (username : string) : unit =
          * Heap's properties/traits don't support lists. *)
         |> function [(org_name, _)] -> org_name | _ -> username
       in
-      Yojson.Safe.Util.combine
+      let payload =
+        let payload =
+          `Assoc
+            [ ("username", user_info_and_created_at.username)
+            ; ("email", user_info_and_created_at.email)
+            ; ("name", user_info_and_created_at.name)
+            ; ("admin", user_info_and_created_at.admin)
+            ; ("handle", user_info_and_created_at.handle)
+            ; ("organization", `String organization) ]
+        in
+        (* We do zero checking of fields in heapio_metadata, but this is ok
+         * because it's a field we control, going to a service only we see.
+         * If we wanted to harden this later, we could List.filter the
+         * heapio_metadata yojson *)
+        Yojson.Safe.Util.combine payload heapio_metadata
+      in
+      heapio_event_blocking
+        ~user_id:user_info_and_created_at.id
+        Identify
         payload
-        (`Assoc [("organization", `String organization)])
-      |> heapio_event_blocking ~user_id:user_info_and_created_at.id Identify
 
 
 let push
