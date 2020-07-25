@@ -253,11 +253,11 @@ let heapio_identify_user (username : string) : unit =
       let payload =
         let payload =
           `Assoc
-            [ ("username", user_info_and_created_at.username)
-            ; ("email", user_info_and_created_at.email)
-            ; ("name", user_info_and_created_at.name)
-            ; ("admin", user_info_and_created_at.admin)
-            ; ("handle", user_info_and_created_at.handle)
+            [ ("username", `String user_info_and_created_at.username)
+            ; ("email", `String user_info_and_created_at.email)
+            ; ("name", `String user_info_and_created_at.name)
+            ; ("admin", `Bool user_info_and_created_at.admin)
+            ; ("handle", `String user_info_and_created_at.username)
             ; ("organization", `String organization) ]
         in
         (* We do zero checking of fields in heapio_metadata, but this is ok
