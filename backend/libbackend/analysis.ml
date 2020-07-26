@@ -67,7 +67,8 @@ let worker_stats (canvas_id : Uuidm.t) (tlid : tlid) : worker_stat =
   {count}
 
 
-let get_404s ~(since : RTT.time) (c : Canvas.canvas) : SE.four_oh_four list =
+let get_404s (c : Canvas.canvas) : SE.four_oh_four list =
+  let since = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
   let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
     Db.fetch

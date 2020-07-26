@@ -170,7 +170,7 @@ let t_route_variables_work_with_stored_events () =
     (loaded1 |> List.map ~f:t4_get1st)
     [http_request_path] ;
   (* check that the event is not in the 404s *)
-  let f404s = Analysis.get_404s ~since:Time.epoch !c in
+  let f404s = Analysis.get_404s !c in
   AT.check (AT.list (AT.of_pp Stored_event.pp_four_oh_four)) "no 404s" [] f404s ;
   ()
 

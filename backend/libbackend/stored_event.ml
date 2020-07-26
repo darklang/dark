@@ -285,7 +285,8 @@ let trim_events_for_canvas
                    WHERE canvas_id = $1
                    AND modifier IS NOT NULL
                    AND module IS NOT NULL
-                   AND name IS NOT NULL;"
+                   AND name IS NOT NULL
+                   AND tipe = 'handler'::toplevel_type;"
                   ~params:[Db.Uuid canvas_id]
               with Exception.DarkException e ->
                 Log.erroR

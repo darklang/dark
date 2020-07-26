@@ -1023,11 +1023,7 @@ let get_404s ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
     in
-    let t2, f404s =
-      time "2-get-404s" (fun _ ->
-          let latest = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-          Analysis.get_404s ~since:latest !c)
-    in
+    let t2, f404s = time "2-get-404s" (fun _ -> Analysis.get_404s !c) in
     let t3, result =
       time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
     in
