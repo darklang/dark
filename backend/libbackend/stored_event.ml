@@ -15,6 +15,26 @@ let event_subject module_ path modifier = module_ ^ "_" ^ path ^ "_" ^ modifier
 (* ------------------------- *)
 (* Event data *)
 (* ------------------------- *)
+let get_handlers_for_canvas (canvas_id : Uuidm.t) : event_desc list =
+  Db.fetch
+    ~name:"get_handlers_for_canvas"
+    "SELECT module, name, modifier FROM toplevel_oplists
+        WHERE canvas_id = $1
+          AND module IS NOT NULL
+          AND name IS NOT NULL
+          AND modifier IS NOT NULL
+          AND tipe = 'handler'::toplevel_type"
+    ~params:[Db.Uuid canvas_id]
+  |> List.map ~f:(function
+         | [modu; n; modi] ->
+             (modu, n, modi)
+         | _ ->
+             Exception.internal "Bad DB format for get_handlers_for_canvas")
+
+
+(* ------------------------- *)
+(* Event data *)
+(* ------------------------- *)
 let store_event
     ~(trace_id : Uuidm.t)
     ~(canvas_id : Uuidm.t)
@@ -256,9 +276,57 @@ let trim_events_for_handler
       count)
 
 
-(** trim_events_for_canvas is like trim_events but for a single canvas.
+(** Remove all the stored_events that are older than a week, keeping one per path. *)
+let trim_404s
+    ~(span : Telemetry.Span.t)
+    ?(action : trim_events_action = Count)
+    (canvas_id : Uuidm.t)
+    (canvas_name : string)
+    (limit : int) : int =
+  Telemetry.with_span span "trim_404s" (fun span ->
+      let handlers =
+        Telemetry.with_span
+          span
+          "get_handlers_for_canvas"
+          ~attrs:[("canvas_name", `String canvas_name)]
+          (fun span -> get_handlers_for_canvas canvas_id)
+      in
+      let row_count : int =
+        handlers
+        |> List.map ~f:(fun (module_, modifier, path) ->
+               trim_events_for_handler
+                 ~span
+                 ~action
+                 ~limit
+                 ~module_
+                 ~modifier
+                 ~path
+                 ~canvas_name
+                 ~canvas_id)
+        |> Tc.List.sum
+      in
+      Telemetry.Span.set_attrs
+        span
+        [ ("handler_count", `Int (handlers |> List.length))
+        ; ("row_count", `Int row_count)
+        ; ("canvas_name", `String canvas_name)
+        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string)) ] ;
+      row_count)
+
+
+(** trim_events_for_canvas removes all stored_events_v2 records older than a week, leaving
+ * at minimum 10 records for each unique handler on a canvas regardless of age.
  *
- * All the comments and warnings there apply. Please read them. *)
+ * Returns the number of rows deleted.
+ *
+ * CAVEAT: in order to keep our DB from bursting into flames given a large
+ * number of records to cleanup, we cap the maximum number of records deleted
+ * per call to 10_000.
+ *
+ * See also
+ * - Stored_function_result.trim_results
+ * - Stored_function_arguments.trum_arguments
+ * which are nearly identical queries on different tables *)
 let trim_events_for_canvas
     ~(span : Telemetry.Span.t)
     ?(action : trim_events_action = Count)
@@ -271,40 +339,7 @@ let trim_events_for_canvas
           span
           "get_handlers_for_canvas"
           ~attrs:[("canvas_name", `String canvas_name)]
-          (fun span ->
-            ( try
-                (* modifier, module, name are IS NOT NULL here because the
-                 * equivalent fields in stored_events_v2 (modifier, module, path)
-                 * are all marked NOT NULL. In production, that cuts us down from
-                 * 102k rows (42k distinct) to 27k rows (and about the same #
-                 * distinct) *)
-                Db.fetch
-                  ~name:"get_handlers_for_gc"
-                  "SELECT module, modifier, name
-                   FROM toplevel_oplists
-                   WHERE canvas_id = $1
-                   AND modifier IS NOT NULL
-                   AND module IS NOT NULL
-                   AND name IS NOT NULL
-                   AND tipe = 'handler'::toplevel_type;"
-                  ~params:[Db.Uuid canvas_id]
-              with Exception.DarkException e ->
-                Log.erroR
-                  "db error"
-                  ~params:
-                    [ ( "err"
-                      , e
-                        |> Exception.exception_data_to_yojson
-                        |> Yojson.Safe.to_string ) ] ;
-                Exception.reraise (Exception.DarkException e) )
-            |> List.map ~f:(function
-                   | [module_; modifier; path] ->
-                       (module_, modifier, path)
-                   | xs ->
-                       Log.erroR
-                         "wrong shape"
-                         ~params:[("result", xs |> String.concat ~sep:",")] ;
-                       Exception.internal "Wrong shape in get_handlers_for_db"))
+          (fun span -> get_handlers_for_canvas canvas_id)
       in
       let row_count : int =
         handlers

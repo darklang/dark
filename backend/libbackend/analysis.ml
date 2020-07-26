@@ -70,22 +70,7 @@ let worker_stats (canvas_id : Uuidm.t) (tlid : tlid) : worker_stat =
 let get_404s (c : Canvas.canvas) : SE.four_oh_four list =
   let since = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
   let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
-  let handlers =
-    Db.fetch
-      ~name:"get_404s"
-      "SELECT module, name, modifier FROM toplevel_oplists
-        WHERE canvas_id = $1
-          AND module IS NOT NULL
-          AND name IS NOT NULL
-          AND modifier IS NOT NULL
-          AND tipe = 'handler'::toplevel_type"
-      ~params:[Db.Uuid c.id]
-    |> List.map ~f:(function
-           | [modu; n; modi] ->
-               (modu, n, modi)
-           | _ ->
-               Exception.internal "Bad DB format for get404s")
-  in
+  let handlers = SE.get_handlers_for_canvas c.id in
   let match_event h event : bool =
     let space, request_path, modifier, _ts, _ = event in
     let h_space, h_name, h_modifier = h in
