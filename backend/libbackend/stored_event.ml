@@ -167,26 +167,6 @@ let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
     ~params:[Uuid canvas_id]
 
 
-let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
-  let module_, path, modifier, _, _ = event_rec in
-  Db.fetch
-    ~name:"stored_event.get_recent_traces"
-    ~subject:(event_subject module_ path modifier)
-    "SELECT trace_id FROM stored_events_v2
-     WHERE canvas_id = $1
-       AND module = $2
-       AND path = $3
-       AND modifier = $4
-     ORDER BY timestamp DESC
-     LIMIT 10"
-    ~params:[Uuid canvas_id; String module_; String path; String modifier]
-  |> List.filter_map ~f:(function
-         | [trace_id] ->
-             if trace_id = "" then None else Some (Util.uuid_of_string trace_id)
-         | _ ->
-             Exception.internal "Bad DB format for stored_events")
-
-
 type trim_events_action =
   | Count
   | Delete
