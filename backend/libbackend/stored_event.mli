@@ -44,6 +44,10 @@ type trim_events_action =
   | Count
   | Delete
 
+type trim_events_canvases =
+  | All
+  | JustOne of string
+
 val trim_events_for_canvas :
      span:Libcommon.Telemetry.Span.t
   -> ?action:trim_events_action

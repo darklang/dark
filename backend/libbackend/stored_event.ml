@@ -191,6 +191,10 @@ type trim_events_action =
   | Count
   | Delete
 
+type trim_events_canvases =
+  | All
+  | JustOne of string
+
 let trim_events_for_handler
     ~(span : Libcommon.Telemetry.Span.t)
     ?(action : trim_events_action = Count)
