@@ -16,6 +16,7 @@ type four_oh_four = event_record [@@deriving show, yojson]
 val store_event :
      trace_id:Uuidm.t
   -> canvas_id:Uuidm.t
+  -> ?timestamp:Time.t
   -> event_desc
   -> Types.RuntimeT.dval
   -> Types.RuntimeT.time
