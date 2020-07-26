@@ -1,3 +1,13 @@
+(**  Stored events. These are the "input values" for handler traces, containing
+  * the `request` or `event` for a trace.
+  * 
+  * We keep traces around for a week, and also keep the last 10 regardless of age.
+  *
+  * Traces are also used for 404s - which are just traces for which a handler doesn't exist.
+  * Note that traces are stored for routes (technically for an `event_desc`), not for handlers. 
+  * There is a GC process to clean these up.
+  *)
+
 open Core_kernel
 open Libexecution
 module RTT = Types.RuntimeT
@@ -60,14 +70,18 @@ let store_event
   |> Util.date_of_isostring
 
 
-let list_events ~(limit : [`All | `Since of RTT.time]) ~(canvas_id : Uuidm.t) ()
-    : event_record list =
+let list_events
+    ~(limit : [`All | `After of RTT.time | `Before of RTT.time])
+    ~(canvas_id : Uuidm.t)
+    () : event_record list =
   let timestamp_constraint =
     match limit with
     | `All ->
         ""
-    | `Since since ->
-        "AND timestamp > " ^ Db.escape (Time since)
+    | `After ts ->
+        "AND timestamp > " ^ Db.escape (Time ts)
+    | `Before ts ->
+        "AND timestamp < " ^ Db.escape (Time ts)
   in
   let sql =
     (* Note we just grab the first one in the group because the ergonomics

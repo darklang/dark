@@ -1020,7 +1020,9 @@ let get_404s ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
     let t1, canvas_id =
       time "1-load-canvas" (fun _ -> Canvas.id_for_name host)
     in
-    let t2, f404s = time "2-get-404s" (fun _ -> Analysis.get_404s canvas_id) in
+    let t2, f404s =
+      time "2-get-404s" (fun _ -> Analysis.get_recent_404s canvas_id)
+    in
     let t3, result =
       time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
     in
