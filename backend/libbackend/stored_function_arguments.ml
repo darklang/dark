@@ -143,12 +143,12 @@ let trim_arguments_for_canvas
       let handlers =
         Telemetry.with_span
           span
-          "get_function_handlers_for_canvas"
+          "get_user_functions_for_canvas"
           ~attrs:[("canvas_name", `String canvas_name)]
           (fun span ->
             ( try
                 Db.fetch
-                  ~name:"get_function_handlers_for_gc"
+                  ~name:"get_user_functions_for_gc"
                   "SELECT tlid
                    FROM toplevel_oplists
                    WHERE canvas_id = $1
