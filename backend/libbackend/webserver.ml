@@ -1017,13 +1017,10 @@ let execute_function
 let get_404s ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, c =
-      time "1-load-saved-ops" (fun _ ->
-          C.load_all_from_cache host
-          |> Result.map_error ~f:(String.concat ~sep:", ")
-          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas")
+    let t1, canvas_id =
+      time "1-load-canvas" (fun _ -> Canvas.id_for_name host)
     in
-    let t2, f404s = time "2-get-404s" (fun _ -> Analysis.get_404s !c) in
+    let t2, f404s = time "2-get-404s" (fun _ -> Analysis.get_404s canvas_id) in
     let t3, result =
       time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
     in

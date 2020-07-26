@@ -67,10 +67,10 @@ let worker_stats (canvas_id : Uuidm.t) (tlid : tlid) : worker_stat =
   {count}
 
 
-let get_404s (c : Canvas.canvas) : SE.four_oh_four list =
+let get_404s (canvas_id : Uuidm.t) : SE.four_oh_four list =
   let since = Time.sub (Time.now ()) (Time.Span.of_day 7.0) in
-  let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
-  let handlers = SE.get_handlers_for_canvas c.id in
+  let events = SE.list_events ~limit:(`Since since) ~canvas_id () in
+  let handlers = SE.get_handlers_for_canvas canvas_id in
   let match_event h event : bool =
     let space, request_path, modifier, _ts, _ = event in
     let h_space, h_name, h_modifier = h in
