@@ -40,11 +40,6 @@ val list_events :
 
 val clear_all_events : canvas_id:Uuidm.t -> unit -> unit
 
-(* Trim the events for an entire canvas, removing events from before the time,
- * unless listed in keep.
- *)
-val trim_events : unit -> int
-
 type trim_events_action =
   | Count
   | Delete
