@@ -9,7 +9,7 @@ open Libbackend
 let shutdown = ref false
 
 let garbage_collector_iteration () =
-  Libbackend.Garbage_collection.collect Delete 10000 All
+  Libbackend.Garbage_collection.collect Delete 1000 All
 
 
 (* Based on cron_checker, though with only one tailcall to loop instead of two
