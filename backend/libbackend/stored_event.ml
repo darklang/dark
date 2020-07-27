@@ -247,8 +247,8 @@ let trim_events_for_handler
     ~(action : trim_events_action)
     ~(limit : int)
     ~(module_ : string)
-    ~(modifier : string)
     ~(path : string)
+    ~(modifier : string)
     ~(canvas_name : string)
     ~(canvas_id : Uuidm.t) : int =
   let action_str = action_to_string action in
@@ -257,8 +257,8 @@ let trim_events_for_handler
         span
         [ ("limit", `Int limit)
         ; ("module", `String module_)
-        ; ("modifier", `String modifier)
         ; ("path", `String path)
+        ; ("modifier", `String modifier)
         ; ("canvas_name", `String canvas_name)
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
         ; ("action", `String action_str) ] ;
@@ -270,37 +270,38 @@ let trim_events_for_handler
              * 'trace_id IN (... to_delete)', are logically redundant with the
              * to_delete subquery, but they improve performance by allowing the
              * query to make use of the index. *)
+            (* Note: this doesn't work for wildcards at all. It just won't delete them. *)
             (Printf.sprintf
                "WITH last_ten AS (
                   SELECT trace_id
                   FROM stored_events_v2
                   WHERE module = $1
-                  AND modifier = $2
-                  AND path = $3
+                  AND path LIKE $2
+                  AND modifier = $3
                   AND canvas_id = $4
                   AND timestamp < (NOW() - interval '1 week')
                   LIMIT 10),
               to_delete AS (
                 SELECT trace_id FROM stored_events_v2
                   WHERE module = $1
-                    AND modifier = $2
-                    AND path = $3
+                    AND path LIKE $2
+                    AND modifier = $3
                     AND canvas_id = $4
                     AND timestamp < (NOW() - interval '1 week')
                     AND trace_id NOT IN (SELECT trace_id FROM last_ten)
                     LIMIT $5)
               %s FROM stored_events_v2
                 WHERE module = $1
-                  AND modifier = $2
-                  AND path = $3
+                  AND path LIKE $2
+                  AND modifier = $3
                   AND canvas_id = $4
                   AND timestamp < (NOW() - interval '1 week')
                   AND trace_id IN (SELECT trace_id FROM to_delete);"
                action_str)
             ~params:
               [ Db.String module_
-              ; Db.String modifier
               ; Db.String path
+              ; Db.String modifier
               ; Db.Uuid canvas_id
               ; Db.Int limit ]
         with Exception.DarkException e ->
@@ -341,8 +342,8 @@ let trim_404s
                "trim_404"
                ~attrs:
                  [ ("module", `String module_)
-                 ; ("modifier", `String modifier)
                  ; ("path", `String path)
+                 ; ("modifier", `String modifier)
                  ; ("action", `String action_str) ]
                (fun span ->
                  let row_count : int =
@@ -350,8 +351,8 @@ let trim_404s
                      span
                      [ ("limit", `Int limit)
                      ; ("module", `String module_)
-                     ; ("modifier", `String modifier)
                      ; ("path", `String path)
+                     ; ("modifier", `String modifier)
                      ; ("canvas_name", `String canvas_name)
                      ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
                      ; ("action", `String action_str) ] ;
@@ -359,36 +360,37 @@ let trim_404s
                      try
                        (* postgres doesn't allow a limit in a DELETE so
                         * `to_delete` is the workaround. *)
+                       (* We don't use LIKE here because we're trimming the exact 404. *)
                        (db_fn action)
                          ~name:"gc_404s"
                          (Printf.sprintf
                             "WITH latest_trace AS
                               (SELECT trace_id from stored_events_v2
                                WHERE module = $1
-                                 AND modifier = $2
-                                 AND path = $3
+                                 AND path = $2
+                                 AND modifier = $3
                                  AND canvas_id = $4
                                  ORDER BY timestamp DESC
                                  LIMIT 1),
                             to_delete AS (
                               SELECT trace_id FROM stored_events_v2
                               WHERE module = $1
-                                AND modifier = $2
-                                AND path = $3
+                                AND path = $2
+                                AND modifier = $3
                                 AND canvas_id = $4
                                 AND trace_id NOT IN (SELECT trace_id FROM latest_trace)
                                 LIMIT $5)
                             %s FROM stored_events_V2
                               WHERE module = $1
-                                AND modifier = $2
-                                AND path = $3
+                                AND path = $2
+                                AND modifier = $3
                                 AND canvas_id = $4
                                 AND trace_id in (SELECT trace_id FROM to_delete)"
                             action_str)
                          ~params:
                            [ Db.String module_
-                           ; Db.String modifier
                            ; Db.String path
+                           ; Db.String modifier
                            ; Db.Uuid canvas_id
                            ; Db.Int limit ]
                      with Exception.DarkException e ->
@@ -438,14 +440,14 @@ let trim_events_for_canvas
       in
       let row_count : int =
         handlers
-        |> List.map ~f:(fun (module_, modifier, path) ->
+        |> List.map ~f:(fun (module_, path, modifier) ->
                trim_events_for_handler
                  ~span
                  ~action
                  ~limit
                  ~module_
-                 ~modifier
                  ~path
+                 ~modifier
                  ~canvas_name
                  ~canvas_id)
         |> Tc.List.sum

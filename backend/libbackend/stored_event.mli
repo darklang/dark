@@ -71,8 +71,8 @@ val trim_events_for_handler :
   -> action:trim_events_action
   -> limit:int
   -> module_:string
-  -> modifier:string
   -> path:string
+  -> modifier:string
   -> canvas_name:string
   -> canvas_id:Uuidm.t
   -> int
