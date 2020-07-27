@@ -56,6 +56,18 @@ let t_route_variables_work () =
        ~route:"/user/:userid/card/:cardid") ;
   AT.check
     AT.bool
+    "Path matches the route, using postgres wildcards"
+    true
+    (Http.request_path_matches_route
+       "/user/myid/card/0"
+       ~route:"/user/%/card/%") ;
+  AT.check
+    AT.bool
+    "Path matches wildcard route, using postgres wildcards"
+    true
+    (Http.request_path_matches_route "//.some-spam-address" ~route:"/%") ;
+  AT.check
+    AT.bool
     "Path doesnt match erroneously"
     false
     (Http.request_path_matches_route
