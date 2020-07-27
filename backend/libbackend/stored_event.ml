@@ -424,6 +424,30 @@ let trim_404s
  * - Stored_function_result.trim_results
  * - Stored_function_arguments.trum_arguments
  * which are nearly identical queries on different tables *)
+
+let repeat_while_hitting_limit
+    ~(span : Telemetry.Span.t) ~(limit : int) ~(f : unit -> int) : int =
+  (* We want to keep the limit small to avoid hurting the DB too
+   * much. But that doesn't do a great job of deleting this data
+   * over time. So repeat lots of times so long as we're still
+   * deleting the limit. *)
+  let total_rows = ref 0 in
+  let repeat = ref true in
+  let iterations = ref 0 in
+  while !repeat && !iterations < 100 do
+    Telemetry.with_span
+      span
+      "iteration"
+      ~attrs:[("iteration", `Int !iterations)]
+      (fun span ->
+        let deleted_count = f () in
+        total_rows := !total_rows + deleted_count ;
+        iterations := !iterations + 1 ;
+        repeat := deleted_count = limit)
+  done ;
+  !total_rows
+
+
 let trim_events_for_canvas
     ~(span : Telemetry.Span.t)
     ~(action : trim_events_action)
@@ -441,18 +465,23 @@ let trim_events_for_canvas
       let row_count : int =
         handlers
         |> List.map ~f:(fun (module_, path, modifier) ->
-               trim_events_for_handler
-                 ~span
-                 ~action
-                 ~limit
-                 ~module_
-                 ~path
-                 ~modifier
-                 ~canvas_name
-                 ~canvas_id)
+               repeat_while_hitting_limit ~span ~limit ~f:(fun () ->
+                   trim_events_for_handler
+                     ~span
+                     ~action
+                     ~limit
+                     ~module_
+                     ~path
+                     ~modifier
+                     ~canvas_name
+                     ~canvas_id))
         |> Tc.List.sum
       in
-      let f404_count = trim_404s ~span ~action canvas_id canvas_name limit in
+
+      let f404_count =
+        repeat_while_hitting_limit ~span ~limit ~f:(fun () ->
+            trim_404s ~span ~action canvas_id canvas_name limit)
+      in
       Telemetry.Span.set_attrs
         span
         [ ("handler_count", `Int (handlers |> List.length))
