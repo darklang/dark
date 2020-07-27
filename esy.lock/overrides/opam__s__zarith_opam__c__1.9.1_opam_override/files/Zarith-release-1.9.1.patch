@@ -1,0 +1,28 @@
+--- ./configure
++++ ./configure
+@@ -209,9 +209,24 @@
+ searchbinreq $ocamldep
+ searchbinreq $ocamlmklib
+ searchbinreq $ocamldoc
++searchbinreq perl
++
++ar_help=$($ocamlc -config | awk -F '[\t \r]+' '/^system/ {print $2}')
++case "$ar_help" in
++    *mingw*)
++        ar_help=$($ocamlc -config | awk -F '[\t\r ]+' '/^bytecomp_c_compiler/ {print $2}')
++        case "$ar_help" in
++            *-gcc)
++                ar=$(echo "$ar_help" | sed 's|gcc|ar|g')
++                ;;
++        esac
++        ;;
++esac
++
+ searchbin $ar
+ if test $? -eq 0; then ar=$prefixnonocaml$ar; searchbinreq $ar; fi
+-searchbinreq perl
++
++
+ 
+ if test -n "$CC"; then
+   searchbinreq "$CC"
