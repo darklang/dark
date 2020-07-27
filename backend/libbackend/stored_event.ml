@@ -1,4 +1,4 @@
-(**  Stored events. These are the "input values" for handler traces, containing
+(** Stored events. These are the "input values" for handler traces, containing
   * the `request` or `event` for a trace.
   * 
   * We keep traces around for a week, and also keep the last 10 regardless of age.
