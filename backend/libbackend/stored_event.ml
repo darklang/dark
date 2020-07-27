@@ -195,6 +195,21 @@ let load_event_ids
              Exception.internal "Bad DB format for stored_events")
 
 
+let get_404s ~limit (canvas_id : Uuidm.t) : four_oh_four list =
+  let events = list_events ~limit ~canvas_id () in
+  let handlers = get_handlers_for_canvas canvas_id in
+  let match_event h event : bool =
+    let space, request_path, modifier, _ts, _ = event in
+    let h_space, h_name, h_modifier = h in
+    Http.request_path_matches_route ~route:h_name request_path
+    && h_modifier = modifier
+    && h_space = space
+  in
+  events
+  |> List.filter ~f:(fun e ->
+         not (List.exists handlers ~f:(fun h -> match_event h e)))
+
+
 let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
   Db.run
     ~name:"stored_event.clear_events"
@@ -203,9 +218,20 @@ let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
     ~params:[Uuid canvas_id]
 
 
+(* ------------------------- *)
+(* Garbage collection  *)
+(* ------------------------- *)
 type trim_events_action =
   | Count
   | Delete
+
+let action_to_string action =
+  match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
+
+
+let db_fn action =
+  match action with Count -> Db.fetch_count | Delete -> Db.delete
+
 
 type trim_events_canvases =
   | All
@@ -213,20 +239,15 @@ type trim_events_canvases =
 
 let trim_events_for_handler
     ~(span : Libcommon.Telemetry.Span.t)
-    ?(action : trim_events_action = Count)
+    ~(action : trim_events_action)
     ~(limit : int)
     ~(module_ : string)
     ~(modifier : string)
     ~(path : string)
     ~(canvas_name : string)
     ~(canvas_id : Uuidm.t) : int =
+  let action_str = action_to_string action in
   Telemetry.with_span span "trim_events_for_handler" (fun span ->
-      let db_fn trim_events_action =
-        match action with Count -> Db.fetch_count | Delete -> Db.delete
-      in
-      let action_str =
-        match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
-      in
       Telemetry.Span.set_attrs
         span
         [ ("limit", `Int limit)
@@ -246,29 +267,30 @@ let trim_events_for_handler
              * query to make use of the index. *)
             (Printf.sprintf
                "WITH last_ten AS (
-                SELECT trace_id
-                FROM stored_events_v2
-                WHERE module = $1
-                AND modifier = $2
-                AND path = $3
-                AND canvas_id = $4
-                AND timestamp < (NOW() - interval '1 week') LIMIT 10
-              ),
-              to_delete AS (SELECT trace_id FROM stored_events_v2
-                WHERE module = $1
-                AND modifier = $2
-                AND path = $3
-                AND canvas_id = $4
-                AND timestamp < (NOW() - interval '1 week')
-                AND trace_id NOT IN (SELECT trace_id FROM last_ten)
-                LIMIT $5)
+                  SELECT trace_id
+                  FROM stored_events_v2
+                  WHERE module = $1
+                  AND modifier = $2
+                  AND path = $3
+                  AND canvas_id = $4
+                  AND timestamp < (NOW() - interval '1 week')
+                  LIMIT 10),
+              to_delete AS (
+                SELECT trace_id FROM stored_events_v2
+                  WHERE module = $1
+                    AND modifier = $2
+                    AND path = $3
+                    AND canvas_id = $4
+                    AND timestamp < (NOW() - interval '1 week')
+                    AND trace_id NOT IN (SELECT trace_id FROM last_ten)
+                    LIMIT $5)
               %s FROM stored_events_v2
                 WHERE module = $1
-                AND modifier = $2
-                AND path = $3
-                AND canvas_id = $4
-                AND timestamp < (NOW() - interval '1 week')
-                AND trace_id IN (SELECT trace_id FROM to_delete);"
+                  AND modifier = $2
+                  AND path = $3
+                  AND canvas_id = $4
+                  AND timestamp < (NOW() - interval '1 week')
+                  AND trace_id IN (SELECT trace_id FROM to_delete);"
                action_str)
             ~params:
               [ Db.String module_
@@ -290,42 +312,120 @@ let trim_events_for_handler
       count)
 
 
-(** Remove all the stored_events that are older than a week, keeping one per path. *)
+(** Remove all the stored_events that are older than a week, and then keeping
+ * the latest from the last week if there is one. *)
 let trim_404s
     ~(span : Telemetry.Span.t)
-    ?(action : trim_events_action = Count)
+    ~(action : trim_events_action)
     (canvas_id : Uuidm.t)
     (canvas_name : string)
     (limit : int) : int =
-  Telemetry.with_span span "trim_404s" (fun span ->
-      let handlers =
-        Telemetry.with_span
-          span
-          "get_handlers_for_canvas"
-          ~attrs:[("canvas_name", `String canvas_name)]
-          (fun span -> get_handlers_for_canvas canvas_id)
-      in
-      let row_count : int =
-        handlers
-        |> List.map ~f:(fun (module_, modifier, path) ->
-               trim_events_for_handler
-                 ~span
-                 ~action
-                 ~limit
-                 ~module_
-                 ~modifier
-                 ~path
-                 ~canvas_name
-                 ~canvas_id)
-        |> Tc.List.sum
-      in
-      Telemetry.Span.set_attrs
-        span
-        [ ("handler_count", `Int (handlers |> List.length))
-        ; ("row_count", `Int row_count)
-        ; ("canvas_name", `String canvas_name)
-        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string)) ] ;
-      row_count)
+  let action_str = action_to_string action in
+  Telemetry.with_span
+    span
+    ~attrs:
+      [ ("canvas_name", `String canvas_name)
+      ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
+      ; ("limit", `Int limit) ]
+    "trim_404s"
+    (fun span ->
+      get_404s ~limit:`All canvas_id
+      |> List.map ~f:(fun (module_, path, modifier, _, _) ->
+             Telemetry.with_span
+               span
+               "trim_404"
+               ~attrs:
+                 [ ("module", `String module_)
+                 ; ("modifier", `String modifier)
+                 ; ("path", `String path)
+                 ; ("action", `String action_str) ]
+               (fun span ->
+                 let row_count : int =
+                   let db_fn trim_events_action =
+                     match action with
+                     | Count ->
+                         Db.fetch_count
+                     | Delete ->
+                         Db.delete
+                   in
+                   Telemetry.Span.set_attrs
+                     span
+                     [ ("limit", `Int limit)
+                     ; ("module", `String module_)
+                     ; ("modifier", `String modifier)
+                     ; ("path", `String path)
+                     ; ("canvas_name", `String canvas_name)
+                     ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
+                     ; ("action", `String action_str) ] ;
+                   Db.fetch
+                     ~name:"debug"
+                     "(SELECT trace_id from stored_events_v2
+                               WHERE module = $1
+                                 AND modifier = $2
+                                 AND path = $3
+                                 AND canvas_id = $4
+                                 ORDER BY timestamp DESC
+                                 LIMIT 1)"
+                     ~params:
+                       [ Db.String module_
+                       ; Db.String modifier
+                       ; Db.String path
+                       ; Db.Uuid canvas_id ]
+                   |> List.concat
+                   |> String.concat ~sep:"\n"
+                   |> Log.inspecT "debug" ;
+                   let count =
+                     try
+                       (* postgres doesn't allow a limit in a DELETE so
+                        * `to_delete` is the workaround. *)
+                       (db_fn action)
+                         ~name:"gc_404s"
+                         (Printf.sprintf
+                            "WITH latest_trace AS
+                              (SELECT trace_id from stored_events_v2
+                               WHERE module = $1
+                                 AND modifier = $2
+                                 AND path = $3
+                                 AND canvas_id = $4
+                                 ORDER BY timestamp DESC
+                                 LIMIT 1),
+                            to_delete AS (
+                              SELECT trace_id FROM stored_events_v2
+                              WHERE module = $1
+                                AND modifier = $2
+                                AND path = $3
+                                AND canvas_id = $4
+                                AND trace_id NOT IN (SELECT trace_id FROM latest_trace)
+                                LIMIT $5)
+                            %s FROM stored_events_V2
+                              WHERE module = $1
+                                AND modifier = $2
+                                AND path = $3
+                                AND canvas_id = $4
+                                AND trace_id in (SELECT trace_id FROM to_delete)"
+                            action_str)
+                         ~params:
+                           [ Db.String module_
+                           ; Db.String modifier
+                           ; Db.String path
+                           ; Db.Uuid canvas_id
+                           ; Db.Int limit ]
+                     with Exception.DarkException e ->
+                       Log.erroR
+                         "db error"
+                         ~params:
+                           [ ( "err"
+                             , e
+                               |> Exception.exception_data_to_yojson
+                               |> Yojson.Safe.to_string ) ] ;
+                       Exception.reraise (Exception.DarkException e)
+                   in
+                   Telemetry.Span.set_attr span "row_count" (`Int count) ;
+                   count
+                 in
+                 Telemetry.Span.set_attrs span [("row_count", `Int row_count)] ;
+                 row_count))
+      |> Tc.List.sum)
 
 
 (** trim_events_for_canvas removes all stored_events_v2 records older than a week, leaving
@@ -343,7 +443,7 @@ let trim_404s
  * which are nearly identical queries on different tables *)
 let trim_events_for_canvas
     ~(span : Telemetry.Span.t)
-    ?(action : trim_events_action = Count)
+    ~(action : trim_events_action)
     (canvas_id : Uuidm.t)
     (canvas_name : string)
     (limit : int) : int =
@@ -369,10 +469,11 @@ let trim_events_for_canvas
                  ~canvas_id)
         |> Tc.List.sum
       in
+      let f404_count = trim_404s ~span ~action canvas_id canvas_name limit in
       Telemetry.Span.set_attrs
         span
         [ ("handler_count", `Int (handlers |> List.length))
-        ; ("row_count", `Int row_count)
+        ; ("row_count", `Int (row_count + f404_count))
         ; ("canvas_name", `String canvas_name)
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string)) ] ;
-      row_count)
+      row_count + f404_count)

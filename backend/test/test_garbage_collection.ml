@@ -20,22 +20,19 @@ let t_unmatched_garbage () =
   clear_test_data () ;
 
   (* Setup canvas / handler with "Good" data *)
-  let owner : Uuidm.t =
-    Account.owner ~auth_domain:"test" |> fun x -> Option.value_exn x
-  in
-  let canvas_id = Serialize.fetch_canvas_id owner "host" in
   let c =
     ops2c_exn
       "test-host"
       [Types.SetHandler (tlid, pos, http_route_handler ~route:"/path" ())]
   in
   Libbackend.Canvas.save_all !c ;
+  let canvas_id = !c.id in
   let good_handler = ("HTTP", "/path", "GET") in
 
-  (* Add Bad data *)
+  (* Add 404 data *)
   let ten_days_ago = Time.sub (Time.now ()) (Time.Span.create ~day:10 ()) in
   SE.clear_all_events ~canvas_id () ;
-  let bad_handler = ("HTTP", "/path", "POST") in
+  let f404_handler = ("HTTP", "/path", "POST") in
   let store_data handler =
     let trace_id = Util.create_uuid () in
     ignore
@@ -50,29 +47,33 @@ let t_unmatched_garbage () =
   store_data good_handler ;
   store_data good_handler ;
   store_data good_handler ;
-  store_data bad_handler ;
-  store_data bad_handler ;
-  store_data bad_handler ;
+  store_data f404_handler ;
+  store_data f404_handler ;
+  store_data f404_handler ;
+  (* We expect that we keep 4 traces (good + latest 404) and delete 2
+   * (non-latest 404s)) *)
   let expected =
     Stored_event.trim_events_for_canvas
       ~span
       ~action:Count
       canvas_id
-      "host"
+      "test-host"
       10000
   in
-  AT.check AT.int "expected is right" 3 expected ;
+  AT.check AT.int "expected is right" 2 expected ;
   let deleted =
     Stored_event.trim_events_for_canvas
       ~span
       ~action:Delete
       canvas_id
-      "host"
+      "test-host"
       10000
   in
-  AT.check AT.int "deleted row count is right" 3 deleted ;
-  let all = SE.load_events ~canvas_id bad_handler in
-  AT.check AT.int "no events exist" 0 (List.length all) ;
+  AT.check AT.int "deleted row count is right" 2 deleted ;
+  let f404 = SE.load_events ~canvas_id f404_handler in
+  AT.check AT.int "1 404 remains" 1 (List.length f404) ;
+  let good = SE.load_events ~canvas_id good_handler in
+  AT.check AT.int "all good events remain" 3 (List.length good) ;
   ()
 
 

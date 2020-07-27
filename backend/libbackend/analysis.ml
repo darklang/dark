@@ -67,35 +67,20 @@ let worker_stats (canvas_id : Uuidm.t) (tlid : tlid) : worker_stat =
   {count}
 
 
-let get_404s' ~limit (canvas_id : Uuidm.t) : SE.four_oh_four list =
-  let events = SE.list_events ~limit ~canvas_id () in
-  let handlers = SE.get_handlers_for_canvas canvas_id in
-  let match_event h event : bool =
-    let space, request_path, modifier, _ts, _ = event in
-    let h_space, h_name, h_modifier = h in
-    Http.request_path_matches_route ~route:h_name request_path
-    && h_modifier = modifier
-    && h_space = space
-  in
-  events
-  |> List.filter ~f:(fun e ->
-         not (List.exists handlers ~f:(fun h -> match_event h e)))
-
-
 let get_recent_404s (canvas_id : Uuidm.t) : SE.four_oh_four list =
-  get_404s'
+  SE.get_404s
     ~limit:(`After (Time.sub (Time.now ()) (Time.Span.of_day 7.0)))
     canvas_id
 
 
 let get_old_404s (canvas_id : Uuidm.t) : SE.four_oh_four list =
-  get_404s'
+  SE.get_404s
     ~limit:(`Before (Time.sub (Time.now ()) (Time.Span.of_day 7.0)))
     canvas_id
 
 
 let get_all_404s (canvas_id : Uuidm.t) : SE.four_oh_four list =
-  get_404s' ~limit:`All canvas_id
+  SE.get_404s ~limit:`All canvas_id
 
 
 let delete_404s

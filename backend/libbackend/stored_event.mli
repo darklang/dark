@@ -44,6 +44,12 @@ val list_events :
 
 val clear_all_events : canvas_id:Uuidm.t -> unit -> unit
 
+val get_404s :
+     limit:
+       [`All | `After of Types.RuntimeT.time | `Before of Types.RuntimeT.time]
+  -> Uuidm.t
+  -> four_oh_four list
+
 type trim_events_action =
   | Count
   | Delete
@@ -54,7 +60,7 @@ type trim_events_canvases =
 
 val trim_events_for_canvas :
      span:Libcommon.Telemetry.Span.t
-  -> ?action:trim_events_action
+  -> action:trim_events_action
   -> Uuidm.t
   -> string
   -> int
@@ -62,7 +68,7 @@ val trim_events_for_canvas :
 
 val trim_events_for_handler :
      span:Libcommon.Telemetry.Span.t
-  -> ?action:trim_events_action
+  -> action:trim_events_action
   -> limit:int
   -> module_:string
   -> modifier:string
