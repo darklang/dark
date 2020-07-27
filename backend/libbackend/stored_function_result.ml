@@ -86,26 +86,25 @@ let trim_results_for_handler
           (db_fn action)
             ~name:"gc_function_results"
             (Printf.sprintf
-               "
-              WITH last_ten AS (
+               "WITH last_ten AS (
+                  SELECT canvas_id, tlid, trace_id
+                  FROM function_results_v2
+                  WHERE canvas_id = $1
+                    AND tlid = $2
+                    AND timestamp < (NOW() - interval '1 week') LIMIT 10),
+              to_delete AS (
                 SELECT canvas_id, tlid, trace_id
-                FROM function_results_v2
-                WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week') LIMIT 10
-              ),
-              to_delete AS (SELECT canvas_id, tlid, trace_id
-                FROM function_results_v2
-                WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week')
-                LIMIT $3)
+                  FROM function_results_v2
+                  WHERE canvas_id = $1
+                    AND tlid = $2
+                    AND timestamp < (NOW() - interval '1 week')
+                  LIMIT $3)
               %s FROM function_results_v2
                 WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week')
-                AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
-                AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
+                  AND tlid = $2
+                  AND timestamp < (NOW() - interval '1 week')
+                  AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
+                  AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
                action_str)
             ~params:[Db.Uuid canvas_id; Db.String tlid; Db.Int limit]
         with Exception.DarkException e ->
