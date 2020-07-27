@@ -25,6 +25,9 @@ let event_subject module_ path modifier = module_ ^ "_" ^ path ^ "_" ^ modifier
 (* ------------------------- *)
 (* Event data *)
 (* ------------------------- *)
+
+(* Note that this returns munged version of the name, that are designed for
+ * pattern matching using postgres' LIKE syntax. *)
 let get_handlers_for_canvas (canvas_id : Uuidm.t) : event_desc list =
   Db.fetch
     ~name:"get_handlers_for_canvas"
@@ -162,21 +165,23 @@ let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
              Exception.internal "Bad DB format for load_event_for_trace")
 
 
+let munge_path_for_postgres module_ path =
+  (* Only munge the route for HTTP events, as they have wildcards, whereas
+   * background events are completely concrete.
+   *
+   * `split_uri_path` inside `Http.route_to_postgres_pattern` doesn't like that background
+   * events don't have leading slashes. *)
+  if String.Caseless.equal module_ "HTTP"
+  then Http.route_to_postgres_pattern path
+  else
+    (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
+    path |> Util.string_replace "%" "\\%" |> Util.string_replace "_" "\\_"
+
+
 let load_event_ids
     ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
     (Uuidm.t * string) list =
-  let route =
-    (* Only munge the route for HTTP events, as they have wildcards, whereas
-     * background events are completely concrete.
-     *
-     * `split_uri_path` inside `Http.route_to_postgres_pattern` doesn't like that background
-     * events don't have leading slashes. *)
-    if String.Caseless.equal module_ "HTTP"
-    then Http.route_to_postgres_pattern route
-    else
-      (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
-      route |> Util.string_replace "%" "\\%" |> Util.string_replace "_" "\\_"
-  in
+  let route = munge_path_for_postgres module_ route in
   Db.fetch
     ~name:"load_events"
     ~subject:(event_subject module_ route modifier)
