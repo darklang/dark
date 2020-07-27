@@ -341,13 +341,6 @@ let trim_404s
                  ; ("action", `String action_str) ]
                (fun span ->
                  let row_count : int =
-                   let db_fn trim_events_action =
-                     match action with
-                     | Count ->
-                         Db.fetch_count
-                     | Delete ->
-                         Db.delete
-                   in
                    Telemetry.Span.set_attrs
                      span
                      [ ("limit", `Int limit)
@@ -357,23 +350,6 @@ let trim_404s
                      ; ("canvas_name", `String canvas_name)
                      ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
                      ; ("action", `String action_str) ] ;
-                   Db.fetch
-                     ~name:"debug"
-                     "(SELECT trace_id from stored_events_v2
-                               WHERE module = $1
-                                 AND modifier = $2
-                                 AND path = $3
-                                 AND canvas_id = $4
-                                 ORDER BY timestamp DESC
-                                 LIMIT 1)"
-                     ~params:
-                       [ Db.String module_
-                       ; Db.String modifier
-                       ; Db.String path
-                       ; Db.Uuid canvas_id ]
-                   |> List.concat
-                   |> String.concat ~sep:"\n"
-                   |> Log.inspecT "debug" ;
                    let count =
                      try
                        (* postgres doesn't allow a limit in a DELETE so
