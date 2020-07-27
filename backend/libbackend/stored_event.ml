@@ -238,6 +238,29 @@ let db_fn action =
   match action with Count -> Db.fetch_count | Delete -> Db.delete
 
 
+let repeat_while_hitting_limit
+    ~(span : Telemetry.Span.t) ~(limit : int) ~(f : unit -> int) : int =
+  (* We want to keep the limit small to avoid hurting the DB too
+   * much. But that doesn't do a great job of deleting this data
+   * over time. So repeat lots of times so long as we're still
+   * deleting the limit. *)
+  let total_rows = ref 0 in
+  let repeat = ref true in
+  let iterations = ref 0 in
+  while !repeat && !iterations < 100 do
+    Telemetry.with_span
+      span
+      "iteration"
+      ~attrs:[("iteration", `Int !iterations)]
+      (fun span ->
+        let deleted_count = f () in
+        total_rows := !total_rows + deleted_count ;
+        iterations := !iterations + 1 ;
+        repeat := deleted_count = limit)
+  done ;
+  !total_rows
+
+
 type trim_events_canvases =
   | All
   | JustOne of string
@@ -337,34 +360,34 @@ let trim_404s
     (fun span ->
       get_404s ~limit:`All canvas_id
       |> List.map ~f:(fun (module_, path, modifier, _, _) ->
-             Telemetry.with_span
-               span
-               "trim_404"
-               ~attrs:
-                 [ ("module", `String module_)
-                 ; ("path", `String path)
-                 ; ("modifier", `String modifier)
-                 ; ("action", `String action_str) ]
-               (fun span ->
-                 let row_count : int =
-                   Telemetry.Span.set_attrs
-                     span
-                     [ ("limit", `Int limit)
-                     ; ("module", `String module_)
+             repeat_while_hitting_limit ~span ~limit ~f:(fun () ->
+                 Telemetry.with_span
+                   span
+                   "trim_404"
+                   ~attrs:
+                     [ ("module", `String module_)
                      ; ("path", `String path)
                      ; ("modifier", `String modifier)
-                     ; ("canvas_name", `String canvas_name)
-                     ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
-                     ; ("action", `String action_str) ] ;
-                   let count =
-                     try
-                       (* postgres doesn't allow a limit in a DELETE so
-                        * `to_delete` is the workaround. *)
-                       (* We don't use LIKE here because we're trimming the exact 404. *)
-                       (db_fn action)
-                         ~name:"gc_404s"
-                         (Printf.sprintf
-                            "WITH latest_trace AS
+                     ; ("action", `String action_str) ]
+                   (fun span ->
+                     let row_count : int =
+                       Telemetry.Span.set_attrs
+                         span
+                         [ ("limit", `Int limit)
+                         ; ("module", `String module_)
+                         ; ("path", `String path)
+                         ; ("modifier", `String modifier)
+                         ; ("canvas_name", `String canvas_name)
+                         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
+                         ; ("action", `String action_str) ] ;
+                       try
+                         (* postgres doesn't allow a limit in a DELETE so
+                          * `to_delete` is the workaround. *)
+                         (* We don't use LIKE here because we're trimming the exact 404. *)
+                         (db_fn action)
+                           ~name:"gc_404s"
+                           (Printf.sprintf
+                              "WITH latest_trace AS
                               (SELECT trace_id from stored_events_v2
                                WHERE module = $1
                                  AND path = $2
@@ -386,28 +409,27 @@ let trim_404s
                                 AND modifier = $3
                                 AND canvas_id = $4
                                 AND trace_id in (SELECT trace_id FROM to_delete)"
-                            action_str)
-                         ~params:
-                           [ Db.String module_
-                           ; Db.String path
-                           ; Db.String modifier
-                           ; Db.Uuid canvas_id
-                           ; Db.Int limit ]
-                     with Exception.DarkException e ->
-                       Log.erroR
-                         "db error"
-                         ~params:
-                           [ ( "err"
-                             , e
-                               |> Exception.exception_data_to_yojson
-                               |> Yojson.Safe.to_string ) ] ;
-                       Exception.reraise (Exception.DarkException e)
-                   in
-                   Telemetry.Span.set_attr span "row_count" (`Int count) ;
-                   count
-                 in
-                 Telemetry.Span.set_attrs span [("row_count", `Int row_count)] ;
-                 row_count))
+                              action_str)
+                           ~params:
+                             [ Db.String module_
+                             ; Db.String path
+                             ; Db.String modifier
+                             ; Db.Uuid canvas_id
+                             ; Db.Int limit ]
+                       with Exception.DarkException e ->
+                         Log.erroR
+                           "db error"
+                           ~params:
+                             [ ( "err"
+                               , e
+                                 |> Exception.exception_data_to_yojson
+                                 |> Yojson.Safe.to_string ) ] ;
+                         Exception.reraise (Exception.DarkException e)
+                     in
+                     Telemetry.Span.set_attrs
+                       span
+                       [("row_count", `Int row_count)] ;
+                     row_count)))
       |> Tc.List.sum)
 
 
@@ -424,29 +446,6 @@ let trim_404s
  * - Stored_function_result.trim_results
  * - Stored_function_arguments.trum_arguments
  * which are nearly identical queries on different tables *)
-
-let repeat_while_hitting_limit
-    ~(span : Telemetry.Span.t) ~(limit : int) ~(f : unit -> int) : int =
-  (* We want to keep the limit small to avoid hurting the DB too
-   * much. But that doesn't do a great job of deleting this data
-   * over time. So repeat lots of times so long as we're still
-   * deleting the limit. *)
-  let total_rows = ref 0 in
-  let repeat = ref true in
-  let iterations = ref 0 in
-  while !repeat && !iterations < 100 do
-    Telemetry.with_span
-      span
-      "iteration"
-      ~attrs:[("iteration", `Int !iterations)]
-      (fun span ->
-        let deleted_count = f () in
-        total_rows := !total_rows + deleted_count ;
-        iterations := !iterations + 1 ;
-        repeat := deleted_count = limit)
-  done ;
-  !total_rows
-
 
 let trim_events_for_canvas
     ~(span : Telemetry.Span.t)
@@ -478,10 +477,7 @@ let trim_events_for_canvas
         |> Tc.List.sum
       in
 
-      let f404_count =
-        repeat_while_hitting_limit ~span ~limit ~f:(fun () ->
-            trim_404s ~span ~action canvas_id canvas_name limit)
-      in
+      let f404_count = trim_404s ~span ~action canvas_id canvas_name limit in
       Telemetry.Span.set_attrs
         span
         [ ("handler_count", `Int (handlers |> List.length))
