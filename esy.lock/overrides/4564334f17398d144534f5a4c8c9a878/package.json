@@ -7,7 +7,7 @@
     "buildsInSource": true,
     "build": [
       "find ./ -exec touch -t 200905010101 {} +",
-      "./configure --prefix=#{self.install} #{os == 'windows' ? '--host x86_64-w64-mingw32' : ''} --with-pic",
+      "./configure --enable-fat --prefix=#{self.install} #{os == 'windows' ? '--host x86_64-w64-mingw32' : ''} --with-pic",
       "make"
     ],
     "install": [

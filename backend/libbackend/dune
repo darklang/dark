@@ -10,6 +10,7 @@
                ppx_fields_conv
                ppx_sexp_conv
                ppx_pipebang
+               ppx_let
                ))
   (libraries  libtarget_ocaml
               libexecution

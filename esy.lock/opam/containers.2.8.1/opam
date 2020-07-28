@@ -4,7 +4,7 @@ synopsis: "A modular, clean and powerful extension of the OCaml standard library
 build: [
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "build" "@doc" "-p" name ] {with-doc}
-  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test & ocaml:version < "4.11"}
 ]
 depends: [
   "ocaml" { >= "4.03.0" }
