@@ -10,12 +10,15 @@ type event_record =
 
 type four_oh_four = event_record [@@deriving show, yojson]
 
+val get_handlers_for_canvas : Uuidm.t -> event_desc list
+
 (* We store a set of events for each host. The events may or may not
  * belong to a toplevel. We provide a list in advance so that they can
  * be partitioned effectively. Returns the DB-assigned event timestamp. *)
 val store_event :
      trace_id:Uuidm.t
   -> canvas_id:Uuidm.t
+  -> ?timestamp:Time.t
   -> event_desc
   -> Types.RuntimeT.dval
   -> Types.RuntimeT.time
@@ -33,25 +36,31 @@ val load_events :
 val load_event_ids : canvas_id:Uuidm.t -> event_desc -> (Uuidm.t * string) list
 
 val list_events :
-     limit:[`All | `Since of Types.RuntimeT.time]
+     limit:
+       [`All | `After of Types.RuntimeT.time | `Before of Types.RuntimeT.time]
   -> canvas_id:Uuidm.t
   -> unit
   -> event_record list
 
 val clear_all_events : canvas_id:Uuidm.t -> unit -> unit
 
-(* Trim the events for an entire canvas, removing events from before the time,
- * unless listed in keep.
- *)
-val trim_events : unit -> int
+val get_404s :
+     limit:
+       [`All | `After of Types.RuntimeT.time | `Before of Types.RuntimeT.time]
+  -> Uuidm.t
+  -> four_oh_four list
 
 type trim_events_action =
   | Count
   | Delete
 
+type trim_events_canvases =
+  | All
+  | JustOne of string
+
 val trim_events_for_canvas :
      span:Libcommon.Telemetry.Span.t
-  -> ?action:trim_events_action
+  -> action:trim_events_action
   -> Uuidm.t
   -> string
   -> int
@@ -59,11 +68,11 @@ val trim_events_for_canvas :
 
 val trim_events_for_handler :
      span:Libcommon.Telemetry.Span.t
-  -> ?action:trim_events_action
+  -> action:trim_events_action
   -> limit:int
   -> module_:string
-  -> modifier:string
   -> path:string
+  -> modifier:string
   -> canvas_name:string
   -> canvas_id:Uuidm.t
   -> int

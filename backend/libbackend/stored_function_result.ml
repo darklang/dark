@@ -55,38 +55,6 @@ let load ~canvas_id ~trace_id tlid : function_result list =
                "Bad DB format for stored_functions_results.load")
 
 
-(** trim_results removes all function_results_v2 records older than a week,
- * leaving at minimum 10 records for each tlid on a canvas regardless of age.
- *
- * Returns the number of rows deleted.
- *
- * CAVEAT: in order to keep our DB from bursting into flames given a large
- * number of records to cleanup, we cap the maximum number of records deleted
- * per call to 10_000.
- *
- * See also
- * - Stored_event.trim_events
- * - Stored_function_arguments.trim_arguments
- * which are nearly identical queries on different tables *)
-let trim_results () : int =
-  Db.delete
-    ~name:"stored_function_result.trim_results"
-    "WITH indexed_results AS (
-       SELECT trace_id, row_number() OVER (
-         PARTITION BY canvas_id, tlid
-         ORDER BY timestamp DESC
-       ) AS rownum
-       FROM function_results_v2
-       WHERE timestamp < (NOW() - interval '1 week')
-    )
-    DELETE FROM function_results_v2 WHERE trace_id IN (
-      SELECT trace_id FROM indexed_results
-      WHERE rownum > 10
-      LIMIT 10000
-    )"
-    ~params:[]
-
-
 (** trim_results_for_canvas is like trim_results but for a single canvas.
  *
  * All the comments and warnings there apply. Please read them. *)
@@ -118,26 +86,25 @@ let trim_results_for_handler
           (db_fn action)
             ~name:"gc_function_results"
             (Printf.sprintf
-               "
-              WITH last_ten AS (
+               "WITH last_ten AS (
+                  SELECT canvas_id, tlid, trace_id
+                  FROM function_results_v2
+                  WHERE canvas_id = $1
+                    AND tlid = $2
+                    AND timestamp < (NOW() - interval '1 week') LIMIT 10),
+              to_delete AS (
                 SELECT canvas_id, tlid, trace_id
-                FROM function_results_v2
-                WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week') LIMIT 10
-              ),
-              to_delete AS (SELECT canvas_id, tlid, trace_id
-                FROM function_results_v2
-                WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week')
-                LIMIT $3)
+                  FROM function_results_v2
+                  WHERE canvas_id = $1
+                    AND tlid = $2
+                    AND timestamp < (NOW() - interval '1 week')
+                  LIMIT $3)
               %s FROM function_results_v2
                 WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week')
-                AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
-                AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
+                  AND tlid = $2
+                  AND timestamp < (NOW() - interval '1 week')
+                  AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
+                  AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
                action_str)
             ~params:[Db.Uuid canvas_id; Db.String tlid; Db.Int limit]
         with Exception.DarkException e ->

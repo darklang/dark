@@ -114,13 +114,9 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; return_type = TFloat
     ; description = "Cleanup the old traces from a canvas"
     ; func =
-        internal_fn (function
-            | state, [] ->
-                DFloat (Canvas.cleanup_old_traces ())
-            | args ->
-                fail args)
+        internal_fn (function state, [] -> DFloat 0.0 | args -> fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["DarkInternal::cleanupOldTracesForCanvas_v1"]
     ; infix_names = []
     ; parameters = [par "canvas_id" TUuid]
@@ -130,11 +126,11 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; func =
         internal_fn (function
             | state, [DUuid canvas_id] ->
-                DFloat (Canvas.cleanup_old_traces_for_canvas canvas_id)
+                DFloat 0.0
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = true }
   ; { prefix_names = ["DarkInternal::checkCanvas"]
     ; infix_names = []
     ; parameters = [par "host" TStr]

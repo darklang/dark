@@ -67,38 +67,6 @@ let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
                "Bad DB format for stored_functions.load_for_analysis")
 
 
-(** trim_arguments removes all function_arguments records older than a week,
- * leaving at minimum 10 records for each tlid on a canvas regardless of age.
- *
- * Returns the number of rows deleted.
- *
- * CAVEAT: in order to keep our DB from bursting into flames given a large
- * number of records to cleanup, we cap the maximum number of records deleted
- * per call to 10_000.
- *
- * See also
- * - Stored_event.trim_events
- * - Stored_function_result.trim_results
- * which are nearly identical queries on different tables *)
-let trim_arguments () : int =
-  Db.delete
-    ~name:"stored_function_argument.trim_arguments"
-    "WITH indexed_arguments AS (
-       SELECT trace_id, row_number() OVER (
-         PARTITION BY canvas_id, tlid
-         ORDER BY timestamp DESC
-       ) AS rownum
-       FROM function_arguments
-       WHERE timestamp < (NOW() - interval '1 week')
-    )
-    DELETE FROM function_arguments WHERE trace_id IN (
-      SELECT trace_id FROM indexed_arguments
-      WHERE rownum > 10
-      LIMIT 10000
-    )"
-    ~params:[]
-
-
 type trim_arguments_action = Stored_event.trim_events_action
 
 let trim_arguments_for_handler
@@ -128,24 +96,24 @@ let trim_arguments_for_handler
             ~name:"gc_function_arguments"
             (Printf.sprintf
                "WITH last_ten AS (
+                  SELECT canvas_id, tlid, trace_id
+                  FROM function_arguments
+                  WHERE canvas_id = $1
+                    AND tlid = $2
+                    AND timestamp < (NOW() - interval '1 week') LIMIT 10),
+              to_delete AS (
                 SELECT canvas_id, tlid, trace_id
-                FROM function_arguments
-                WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week') LIMIT 10
-              ),
-              to_delete AS (SELECT canvas_id, tlid, trace_id
-                FROM function_arguments
-                WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week')
-                LIMIT $3)
+                  FROM function_arguments
+                  WHERE canvas_id = $1
+                    AND tlid = $2
+                    AND timestamp < (NOW() - interval '1 week')
+                  LIMIT $3)
               %s FROM function_arguments
                 WHERE canvas_id = $1
-                AND tlid = $2
-                AND timestamp < (NOW() - interval '1 week')
-                AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
-                AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
+                  AND tlid = $2
+                  AND timestamp < (NOW() - interval '1 week')
+                  AND (canvas_id, tlid, trace_id) NOT IN (SELECT canvas_id, tlid, trace_id FROM last_ten)
+                  AND (canvas_id, tlid, trace_id) IN (SELECT canvas_id, tlid, trace_id FROM to_delete);"
                action_str)
             ~params:[Db.Uuid canvas_id; Db.String tlid; Db.Int limit]
         with Exception.DarkException e ->
@@ -175,12 +143,12 @@ let trim_arguments_for_canvas
       let handlers =
         Telemetry.with_span
           span
-          "get_function_handlers_for_canvas"
+          "get_user_functions_for_canvas"
           ~attrs:[("canvas_name", `String canvas_name)]
           (fun span ->
             ( try
                 Db.fetch
-                  ~name:"get_function_handlers_for_gc"
+                  ~name:"get_user_functions_for_gc"
                   "SELECT tlid
                    FROM toplevel_oplists
                    WHERE canvas_id = $1
