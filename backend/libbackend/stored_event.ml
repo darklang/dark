@@ -119,6 +119,42 @@ let list_events
              Exception.internal "Bad DB format for stored_events")
 
 
+let list_event_descs
+    ~(limit : [`All | `After of RTT.time | `Before of RTT.time])
+    ~(canvas_id : Uuidm.t)
+    () : event_desc list =
+  let timestamp_constraint =
+    match limit with
+    | `All ->
+        ""
+    | `After ts ->
+        "AND timestamp > " ^ Db.escape (Time ts)
+    | `Before ts ->
+        "AND timestamp < " ^ Db.escape (Time ts)
+  in
+  let sql =
+    (* Note we just grab the first one in the group because the ergonomics
+     * of SELECT DISTINCT ON is much easier than the complex GROUP BY
+     * with row_partition/row_num counting to express "give me the
+     * first N in the group" which is probably more what we want
+     * from a product POV.
+     *
+     * Also we _could_ order by timestamp desc here to get the more
+     * recent events if we desire in the future *)
+    "SELECT DISTINCT ON (module, path, modifier)
+     module, path, modifier
+     FROM stored_events_v2
+     WHERE canvas_id = $1"
+    ^ timestamp_constraint
+  in
+  Db.fetch sql ~name:"list_events" ~params:[Db.Uuid canvas_id]
+  |> List.map ~f:(function
+         | [module_; path; modifier] ->
+             (module_, path, modifier)
+         | out ->
+             Exception.internal "Bad DB format for stored_events")
+
+
 let load_events ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc)
     : (string * Uuidm.t * RTT.time * RTT.dval) list =
   let route = Http.route_to_postgres_pattern route in
@@ -209,6 +245,25 @@ let get_404s ~limit (canvas_id : Uuidm.t) : four_oh_four list =
     Http.request_path_matches_route ~route:h_name request_path
     && h_modifier = modifier
     && h_space = space
+  in
+  events
+  |> List.filter ~f:(fun e ->
+         not (List.exists handlers ~f:(fun h -> match_event h e)))
+
+
+(* Cut back version of get_404s which hits the index. *)
+let get_404_descs ~limit (canvas_id : Uuidm.t) : event_desc list =
+  let events = list_event_descs ~limit ~canvas_id () in
+  let handlers = get_handlers_for_canvas canvas_id in
+  let match_event h event : bool =
+    let space, request_path, modifier = event in
+    let h_space, h_name, h_modifier = h in
+    let path_matches =
+      if h_space = "HTTP"
+      then Http.request_path_matches_route ~route:h_name request_path
+      else h_name = request_path
+    in
+    path_matches && h_modifier = modifier && h_space = space
   in
   events
   |> List.filter ~f:(fun e ->
@@ -357,9 +412,9 @@ let trim_404s
       ; ("limit", `Int limit) ]
     "trim_404s"
     (fun span ->
-      get_404s ~limit:`All canvas_id
-      |> List.map ~f:(fun (module_, path, modifier, _, _) ->
-             repeat_while_hitting_limit ~span ~limit ~f:(fun () ->
+      get_404_descs ~limit:`All canvas_id
+      |> List.map ~f:(fun (module_, path, modifier) ->
+             repeat_while_hitting_limit ~span ~action ~limit ~f:(fun () ->
                  Telemetry.with_span
                    span
                    "trim_404"
