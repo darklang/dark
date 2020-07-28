@@ -294,26 +294,30 @@ let db_fn action =
 
 
 let repeat_while_hitting_limit
-    ~(span : Telemetry.Span.t) ~(limit : int) ~(f : unit -> int) : int =
+    ~action ~(span : Telemetry.Span.t) ~(limit : int) ~(f : unit -> int) : int =
   (* We want to keep the limit small to avoid hurting the DB too
    * much. But that doesn't do a great job of deleting this data
    * over time. So repeat lots of times so long as we're still
    * deleting the limit. *)
-  let total_rows = ref 0 in
-  let repeat = ref true in
-  let iterations = ref 0 in
-  while !repeat && !iterations < 100 do
-    Telemetry.with_span
-      span
-      "iteration"
-      ~attrs:[("iteration", `Int !iterations)]
-      (fun span ->
-        let deleted_count = f () in
-        total_rows := !total_rows + deleted_count ;
-        iterations := !iterations + 1 ;
-        repeat := deleted_count = limit)
-  done ;
-  !total_rows
+  match action with
+  | Delete ->
+      let total_rows = ref 0 in
+      let repeat = ref true in
+      let iterations = ref 0 in
+      while !repeat && !iterations < 100 do
+        Telemetry.with_span
+          span
+          "iteration"
+          ~attrs:[("iteration", `Int !iterations)]
+          (fun span ->
+            let deleted_count = f () in
+            total_rows := !total_rows + deleted_count ;
+            iterations := !iterations + 1 ;
+            repeat := deleted_count = limit)
+      done ;
+      !total_rows
+  | Count ->
+      f ()
 
 
 type trim_events_canvases =
@@ -518,7 +522,7 @@ let trim_events_for_canvas
       let row_count : int =
         handlers
         |> List.map ~f:(fun (module_, path, modifier) ->
-               repeat_while_hitting_limit ~span ~limit ~f:(fun () ->
+               repeat_while_hitting_limit ~span ~action ~limit ~f:(fun () ->
                    trim_events_for_handler
                      ~span
                      ~action
