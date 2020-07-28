@@ -6,20 +6,23 @@ open Utils
 open Libcommon
 module SE = Libbackend.Stored_event
 
+let span : Telemetry.Span.t =
+  { name = "test"
+  ; service_name = "test"
+  ; span_id = 0
+  ; trace_id = 0
+  ; parent_id = 0
+  ; start_time = Time.now ()
+  ; attributes = String.Table.create () }
+
+
+let ten_days_ago = Time.sub (Time.now ()) (Time.Span.create ~day:10 ())
+
+(* old garbage which matches no handler is completely gone. *)
 let t_unmatched_garbage () =
-  let span : Telemetry.Span.t =
-    { name = "test"
-    ; service_name = "test"
-    ; span_id = 0
-    ; trace_id = 0
-    ; parent_id = 0
-    ; start_time = Time.now ()
-    ; attributes = String.Table.create () }
-  in
-  (* old garbage which matches no handler is completely gone. *)
   clear_test_data () ;
 
-  (* Setup canvas / handler with "Good" data *)
+  (* Setup canvas *)
   let c =
     ops2c_exn
       "test-host"
@@ -27,12 +30,7 @@ let t_unmatched_garbage () =
   in
   Libbackend.Canvas.save_all !c ;
   let canvas_id = !c.id in
-  let good_handler = ("HTTP", "/path", "GET") in
 
-  (* Add 404 data *)
-  let ten_days_ago = Time.sub (Time.now ()) (Time.Span.create ~day:10 ()) in
-  SE.clear_all_events ~canvas_id () ;
-  let f404_handler = ("HTTP", "/path", "POST") in
   let store_data handler =
     let trace_id = Util.create_uuid () in
     ignore
@@ -44,6 +42,8 @@ let t_unmatched_garbage () =
          (Dval.dstr_of_string_exn "1")) ;
     ()
   in
+  let good_handler = ("HTTP", "/path", "GET") in
+  let f404_handler = ("HTTP", "/path", "POST") in
   store_data good_handler ;
   store_data good_handler ;
   store_data good_handler ;
@@ -78,19 +78,10 @@ let t_unmatched_garbage () =
 
 
 let t_wildcard_cleanup () =
-  let span : Telemetry.Span.t =
-    { name = "test"
-    ; service_name = "test"
-    ; span_id = 0
-    ; trace_id = 0
-    ; parent_id = 0
-    ; start_time = Time.now ()
-    ; attributes = String.Table.create () }
-  in
   (* old garbage which matches no handler is completely gone. *)
   clear_test_data () ;
 
-  (* Setup canvas / handler with "Good" data *)
+  (* Setup canvas *)
   let path = "/:part1/other/:part2" in
   let c =
     ops2c_exn
@@ -100,7 +91,6 @@ let t_wildcard_cleanup () =
   Libbackend.Canvas.save_all !c ;
   let canvas_id = !c.id in
 
-  let ten_days_ago = Time.sub (Time.now ()) (Time.Span.create ~day:10 ()) in
   let store_data segment1 segment2 =
     let trace_id = Util.create_uuid () in
     ignore
