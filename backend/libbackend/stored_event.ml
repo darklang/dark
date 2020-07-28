@@ -293,13 +293,15 @@ let trim_events_for_handler
              * 'trace_id IN (... to_delete)', are logically redundant with the
              * to_delete subquery, but they improve performance by allowing the
              * query to make use of the index. *)
-            (* Note: this doesn't work for wildcards at all. It just won't delete them. *)
+            (* Note: to make this work for wildcards, we need to use LIKE for
+             * comparing path. However, that misses the index we currently
+             * have, so we need to add an index that uses test_pattern_ops. *)
             (Printf.sprintf
                "WITH last_ten AS (
                   SELECT trace_id
                   FROM stored_events_v2
                   WHERE module = $1
-                  AND path LIKE $2
+                  AND path = $2
                   AND modifier = $3
                   AND canvas_id = $4
                   AND timestamp < (NOW() - interval '1 week')
@@ -307,7 +309,7 @@ let trim_events_for_handler
               to_delete AS (
                 SELECT trace_id FROM stored_events_v2
                   WHERE module = $1
-                    AND path LIKE $2
+                    AND path = $2
                     AND modifier = $3
                     AND canvas_id = $4
                     AND timestamp < (NOW() - interval '1 week')
@@ -315,7 +317,7 @@ let trim_events_for_handler
                     LIMIT $5)
               %s FROM stored_events_v2
                 WHERE module = $1
-                  AND path LIKE $2
+                  AND path = $2
                   AND modifier = $3
                   AND canvas_id = $4
                   AND timestamp < (NOW() - interval '1 week')
@@ -477,7 +479,9 @@ let trim_events_for_canvas
         |> Tc.List.sum
       in
 
-      let f404_count = trim_404s ~span ~action canvas_id canvas_name limit in
+      let f404_count = 0 in
+      (* This seems to run a little slow, wait until we have this indexed. *)
+      (* trim_404s ~span ~action canvas_id canvas_name limit in *)
       Telemetry.Span.set_attrs
         span
         [ ("handler_count", `Int (handlers |> List.length))
