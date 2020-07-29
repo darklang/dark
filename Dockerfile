@@ -311,7 +311,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-too
   && rustc --version
 
 # install Rust dev tools
-RUN rustup component add clippy-preview rustfmt-preview
+RUN rustup component add clippy-preview rustfmt-preview rls
 RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 
 
