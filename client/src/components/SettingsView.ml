@@ -10,7 +10,7 @@ module Html = Tea_html_extended
 
 let fontAwesome = ViewUtils.fontAwesome
 
-let allTabs = [CanvasInfo; UserSettings; Privacy; InviteUser defaultInviteFields]
+let allTabs = [UserSettings; Privacy; InviteUser defaultInviteFields]
 
 let validateEmail (email : formField) : formField =
   let error =
@@ -51,36 +51,11 @@ let submitForm (m : Types.model) : Types.model * Types.msg Cmd.t =
       (m, Cmd.none)
 
 
-let sendCanvasInformation (m : Types.model) : Types.msg Cmd.t =
-  let msg =
-    let canvasCreation =
-      match m.settingsView.canvasInformation.createdAt with
-      | Some date ->
-          date |> Js.Date.toUTCString
-      | None ->
-          ""
-    in
-    { canvasName = m.settingsView.canvasInformation.canvasName
-    ; canvasDescription = m.settingsView.canvasInformation.canvasDescription
-    ; canvasCreation }
-  in
-  API.sendCanvasInfo m msg
-
-
 let update (settingsView : settingsViewState) (msg : settingsMsg) :
     settingsViewState =
   match msg with
-  | SetSettingsView
-      (canvasName, canvasList, username, orgs, orgCanvasList, creationDate) ->
-      { settingsView with
-        canvasList
-      ; username
-      ; orgs
-      ; orgCanvasList
-      ; canvasInformation =
-          { settingsView.canvasInformation with
-            canvasName
-          ; createdAt = Some creationDate } }
+  | SetSettingsView (canvasList, username, orgs, orgCanvasList) ->
+      {settingsView with canvasList; username; orgs; orgCanvasList}
   | OpenSettingsView tab ->
       {settingsView with opened = true; tab; loading = false}
   | CloseSettingsView _ ->
@@ -90,22 +65,11 @@ let update (settingsView : settingsViewState) (msg : settingsMsg) :
   | UpdateInviteForm value ->
       let form = {email = {value; error = None}} in
       {settingsView with tab = InviteUser form}
-  | UpdateCanvasDescription value ->
-      { settingsView with
-        canvasInformation =
-          {settingsView.canvasInformation with canvasDescription = value} }
   | TriggerSendInviteCallback (Ok _) ->
       {settingsView with tab = InviteUser defaultInviteFields; loading = false}
   | TriggerSendInviteCallback (Error _) ->
       {settingsView with tab = InviteUser defaultInviteFields; loading = false}
-  | TriggerGetCanvasInfoCallback (Ok data) ->
-      { settingsView with
-        canvasInformation =
-          { settingsView.canvasInformation with
-            canvasDescription = data.canvasDescription } }
-  | SubmitForm
-  | TriggerUpdateCanvasInfoCallback _
-  | TriggerGetCanvasInfoCallback (Error _) ->
+  | SubmitForm ->
       settingsView
   | InitRecordConsent recordConsent ->
       {settingsView with privacy = {recordConsent}}
@@ -124,20 +88,6 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
              ~importance:ImportantError
              ~reload:false
              err) ]
-  | TriggerUpdateCanvasInfoCallback (Error err) ->
-      [ HandleAPIError
-          (APIError.make
-             ~context:"TriggerUpdateCanvasInfoCallback"
-             ~importance:IgnorableError
-             ~reload:false
-             err) ]
-  | TriggerGetCanvasInfoCallback (Error err) ->
-      [ HandleAPIError
-          (APIError.make
-             ~context:"TriggerGetCanvasInfoCallback"
-             ~importance:IgnorableError
-             ~reload:false
-             err) ]
   | OpenSettingsView tab ->
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
@@ -145,28 +95,18 @@ let getModifications (m : Types.model) (msg : settingsMsg) :
             let cmd = Url.navigateTo (SettingsModal tab) in
             ( {m with cursorState = Deselected; currentPage = SettingsModal tab}
             , cmd )) ]
-  | TriggerUpdateCanvasInfoCallback (Ok _) ->
-      [ SettingsViewUpdate msg
-      ; ReplaceAllModificationsWithThisOne
-          (fun m ->
-            ( { m with
-                toast =
-                  {toastMessage = Some "Canvas Info saved!"; toastPos = None} }
-            , Cmd.none )) ]
   | TriggerSendInviteCallback (Ok _) ->
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
           (fun m ->
             ( {m with toast = {toastMessage = Some "Sent!"; toastPos = None}}
             , Cmd.none )) ]
-  | CloseSettingsView tab ->
-      let cmd =
-        match tab with CanvasInfo -> sendCanvasInformation m | _ -> Cmd.none
-      in
+  | CloseSettingsView _ ->
       [ SettingsViewUpdate msg
       ; ReplaceAllModificationsWithThisOne
           (fun m ->
-            ({m with canvasProps = {m.canvasProps with enablePan = true}}, cmd))
+            ( {m with canvasProps = {m.canvasProps with enablePan = true}}
+            , Cmd.none ))
       ; Deselect
       ; MakeCmd (Url.navigateTo Architecture) ]
   | SwitchSettingsTabs tab ->
@@ -200,8 +140,6 @@ let settingsTabToText (tab : settingsTab) : string =
   match tab with
   | NewCanvas ->
       "NewCanvas"
-  | CanvasInfo ->
-      "About"
   | UserSettings ->
       "Canvases"
   | InviteUser _ ->
@@ -315,34 +253,6 @@ let viewNewCanvas (svs : settingsViewState) : Types.msg Html.html list =
   introText
 
 
-let viewCanvasInfo (canvas : canvasInformation) : Types.msg Html.html list =
-  let create_at_text =
-    match canvas.createdAt with
-    | Some date ->
-        "Canvas created on: " ^ Util.formatDate (date, "L")
-    | None ->
-        ""
-  in
-  [ Html.div
-      [Html.class' "canvas-info"]
-      [ Html.h2 [] [Html.text "About"]
-      ; Html.p
-          []
-          [ Html.text
-              "Tell us about what you're building. This will help us figure out what to build into Dark."
-          ]
-      ; Html.div
-          [Html.class' "canvas-desc"]
-          [ Html.h3 [] [Html.text "Canvas description:"]
-          ; Html.textarea
-              [ Vdom.attribute "" "spellcheck" "false"
-              ; Events.onInput (fun str ->
-                    Types.SettingsViewMsg (UpdateCanvasDescription str))
-              ; Attributes.value canvas.canvasDescription ]
-              [] ]
-      ; Html.p [Html.class' "created-text"] [Html.text create_at_text] ] ]
-
-
 let viewPrivacy (s : privacySettings) : Types.msg Html.html list =
   [FullstoryView.consentRow s.recordConsent ~longLabels:false]
 
@@ -352,8 +262,6 @@ let settingsTabToHtml (svs : settingsViewState) : Types.msg Html.html list =
   match tab with
   | NewCanvas ->
       viewNewCanvas svs
-  | CanvasInfo ->
-      viewCanvasInfo svs.canvasInformation
   | UserSettings ->
       viewUserCanvases svs
   | InviteUser _ ->
