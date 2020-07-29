@@ -10,6 +10,7 @@ DATASETS="integration-tests
 kubernetes-bwd-nginx
 kubernetes-bwd-ocaml
 kubernetes-cluster-events
+kubernetes-garbagecollector
 kubernetes-resource-metrics
 kubernetes-scheduler
 kubernetes-stroller
