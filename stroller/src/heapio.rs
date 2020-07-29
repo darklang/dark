@@ -172,14 +172,15 @@ pub fn run(channel: Receiver<HeapioMessage>) -> WorkerTerminationReason {
   loop {
     match channel.recv() {
       Ok(HeapioMessage::Message(m, msg_type, event, request_id)) => {
-        info!("analytics msg recv: ok"; o!(
-        "msg_type" => msg_type,
-        "event" => event,
-        "x-request-id" => &request_id
-        ));
+        let attrs = o!(
+          "msg_type" => msg_type,
+          "event" => event,
+          "x-request-id" => &request_id
+        );
+        info!("analytics msg recv: ok"; &attrs);
         match send(&m, &client) {
-          Ok(_) => info!("Successfully sent to heapio."),
-          Err(e) => error!("Could not send to heapio: {}", e),
+          Ok(_) => info!("Successfully sent to heapio."; &attrs),
+          Err(e) => error!("Could not send to heapio: {}", e; &attrs),
         }
       }
       Ok(HeapioMessage::Die) => {
