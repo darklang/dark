@@ -149,13 +149,11 @@ def backend_test():
           f" 2>&1")
 
 def rust_build(name):
-
   if os.environ.get("CI"):
     start = time.time()
-    result = run_backend(start, f"cd {name} && cargo fmt -- --check")
+    result = run_backend(start, "./scripts/format check --rust-only stroller queue-scheduler")
     if not result:
       return result
-
     build_flags = " --release"
   else:
     build_flags = ""

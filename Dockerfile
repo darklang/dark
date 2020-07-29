@@ -177,7 +177,7 @@ RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.6/main/pg_hba.co
 
 # RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 
-user dark
+USER dark
 # Add VOLUMEs to allow backup of config, logs and databases
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
@@ -209,7 +209,7 @@ RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /de
 # Google cloud
 ############################
 # New authentication for docker - not supported via apt
-user root
+USER root
 RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v1.4.3/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" \
     | tar xz --to-stdout docker-credential-gcr > /usr/bin/docker-credential-gcr \
     && chmod +x /usr/bin/docker-credential-gcr
@@ -288,7 +288,7 @@ ENV TERM=xterm-256color
 ############################
 # Finish
 ############################
-user dark
+USER dark
 CMD ["app", "scripts", "builder"]
 
 
@@ -311,7 +311,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-too
   && rustc --version
 
 # install Rust dev tools
-RUN rustup component add clippy-preview rustfmt-preview
+RUN rustup component add clippy-preview rustfmt-preview rls
 RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 
 
@@ -333,6 +333,6 @@ RUN apt update && apt install -y dnsutils \
         rm -rf /var/lib/apt/lists/*
 
 
-user dark
+USER dark
 
 
