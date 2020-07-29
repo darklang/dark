@@ -202,7 +202,7 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
       let btn =
         if svs.loading
         then [ViewUtils.fontAwesome "spinner"; Html.h3 [] [Html.text "Loading"]]
-        else [Html.h3 [] [Html.text "Submit"]]
+        else [Html.h3 [] [Html.text "Send invite"]]
       in
       Html.button
         [ Html.class' "submit-btn"
