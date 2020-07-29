@@ -392,7 +392,7 @@ let settingViewWrapper (acc : settingsViewState) : Types.msg Html.html =
   let tabView = settingsTabToHtml acc in
   Html.div
     [Html.class' "settings-tab-wrapper"]
-    ([Html.h1 [] [Html.text "Account"]; tabTitleView acc.tab] @ tabView)
+    ([Html.h1 [] [Html.text "Settings"]; tabTitleView acc.tab] @ tabView)
 
 
 let html (m : Types.model) : Types.msg Html.html =
