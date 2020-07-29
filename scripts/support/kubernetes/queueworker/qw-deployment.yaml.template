@@ -102,7 +102,6 @@ spec:
                 secretKeyRef:
                   name: pusher-account-credentials
                   key: secret
-                  key: key
           lifecycle:
             preStop:
               httpGet:
