@@ -6,6 +6,7 @@ set -euo pipefail
 CHECK=0 # (0 mean check, 1 means format)
 OCAML=0 # (0 means check ocaml files, 1 means don't)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
+RUST=0 # (0 means check rust files, 1 means don't)
 FILES=()
 
 #######################
@@ -32,9 +33,15 @@ for val in "${@}"; do
         ;;
     --prettier-only)
         OCAML=1
+        RUST=1
         ;;
     --ocaml-only)
         PRETTIER=1
+        RUST=1
+        ;;
+    --rust-only)
+        PRETTIER=1
+        OCAML=1
         ;;
     check)
       CHECK=0
@@ -66,8 +73,12 @@ is_ocaml() {
   [[ $1 == *.mli || $1 == *.ml ]]
 }
 
+is_rust() {
+  [[ $1 == *.rs ]]
+}
+
 is_allowed() {
-  [[ $1 == *.mli || $1 == *.ml || $1 == *.css || $i == *.scss || $1 == *.js || $1 == *.html ]]
+  [[ $1 == *.mli || $1 == *.ml || $1 == *.css || $i == *.scss || $1 == *.js || $1 == *.html || $! == *.rs ]]
 }
 
 all_prettier_files() {
@@ -109,6 +120,27 @@ all_ocaml_files() {
     -o -path "./esy.lock" -prune
 }
 
+
+all_rust_files() {
+  find "$1" -type f \
+    -name "*.rs" \
+    -print0 \
+    -o -path ".git" -prune \
+    -o -path "_build" -prune \
+    -o -path "./_build" -prune \
+    -o -path "node_modules" -prune \
+    -o -path "./node_modules" -prune \
+    -o -path "stroller/target" -prune \
+    -o -path "./stroller/target" -prune \
+    -o -path "queue-scheduler/target" -prune \
+    -o -path "./queue-scheduler/target" -prune \
+    -o -path "_esy" -prune \
+    -o -path "./_esy" -prune \
+    -o -path "/home/dark/.esy" -prune \
+    -o -path "esy.lock" -prune \
+    -o -path "./esy.lock" -prune
+}
+
 check_ocamlformat() {
   xargs -0 esy ocamlformat --check
 }
@@ -117,12 +149,20 @@ check_prettier () {
   xargs -0 npx prettier --list-different
 }
 
+check_rustfmt () {
+  xargs -0 rustfmt --files-with-diff --check
+}
+
 format_ocamlformat() {
   xargs -0 esy ocamlformat --inplace
 }
 
 format_prettier() {
   xargs -0 npx prettier --write
+}
+
+format_rustfmt() {
+  xargs -0 rustfmt 
 }
 
 do_ocamlformat() {
@@ -141,6 +181,14 @@ do_prettier() {
   fi
 }
 
+do_rustfmt() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_rustfmt
+  else
+    format_rustfmt
+  fi
+}
+
 # TODO sqlfmt for sql
 # TODO add python
 # TODO bash formatter
@@ -156,10 +204,17 @@ for i in "${FILES[@]}"; do
     if [[ 0 -eq "$PRETTIER" ]]; then
       all_prettier_files "$i" | do_prettier
     fi
+    if [[ 0 -eq "$RUST" ]]; then
+      all_rust_files "$i" | do_rustfmt
+    fi
   elif is_allowed "$i"; then
     if is_ocaml "$i"; then
       if [[ 0 -eq "$OCAML" ]]; then
         echo "$i" | do_ocamlformat
+      fi
+    elif is_rust "$1"; then
+      if [[ 0 -eq "$RUST" ]]; then
+        echo "$i" | do_rustfmt
       fi
     else
       if [[ 0 -eq "$PRETTIER" ]]; then
