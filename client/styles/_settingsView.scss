@@ -134,6 +134,7 @@
     }
     .submit-btn {
       @extend .modal-form-button;
+      width: auto;
       display: flex;
       align-items: center;
       justify-content: center;
