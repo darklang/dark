@@ -182,7 +182,7 @@ let viewInviteUserToDark (svs : settingsViewState) : Types.msg Html.html list =
     ; Html.p
         []
         [ Html.text
-            "Friends don't let friends stay on waitlists. Help your friends skip the line by inviting them directly to Dark."
+            "Share the love! Invite a friend, and we'll send them an email saying you invited them."
         ]
     ; Html.p
         []
