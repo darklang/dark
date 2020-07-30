@@ -15,7 +15,7 @@ _esy/
 /backend/profile.json
 /backend/static/
 
-# Templates for these are in scripts/support/kubernetes/*/*.yaml.template
+# Templates for these are in scripts/support/kubernetes/*/*.template.yaml
 /scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
 /scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
 /scripts/support/kubernetes/cronchecker/cron-deployment.yaml

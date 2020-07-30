@@ -22,8 +22,7 @@ else
   # shellcheck disable=SC2038
   FILES=$(find ./* -type f \
     \( -name "*.yml" \
-    -o -name "*.yaml" \
-    -o -name "*.yaml.template" \) -print \
+    -o -name "*.yaml" \) -print \
     -o -path ".git" -prune \
     -o -path "_build" -prune \
     -o -path "./_build" -prune \
