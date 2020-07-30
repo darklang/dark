@@ -259,6 +259,16 @@ RUN \
   && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
   && rm -Rf tmp_install_folder
 
+############################
+# Kubeval - for linting k8s files
+############################
+RUN \
+  VERSION=0.15.0 \
+  && wget -P tmp_install_folder/ https://github.com/instrumenta/kubeval/releases/download/${VERSION}/kubeval-linux-amd64.tar.gz \
+  && tar xvf tmp_install_folder/kubeval-linux-amd64.tar.gz -C  tmp_install_folder \
+  && sudo cp tmp_install_folder/kubeval /usr/bin/ \
+  && rm -Rf tmp_install_folder
+#
 ####################################
 # Honeytail and honeymarker installs
 ####################################
