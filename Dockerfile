@@ -124,6 +124,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       texinfo \
       openssh-server \
+      jq \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -156,11 +157,9 @@ ENV LC_ALL en_US.UTF-8
 ############################
 USER root
 
-RUN npm install -g yarn@1.21.1
-
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
-RUN npm install -g esy@0.5.8 --unsafe-perm=true \
+RUN npm install -g esy@0.6.6 --unsafe-perm=true \
      && sudo rm -Rf /usr/lib/node_modules/esy/platform-*
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
@@ -179,7 +178,7 @@ RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.6/main/pg_hba.co
 
 # RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 
-user dark
+USER dark
 # Add VOLUMEs to allow backup of config, logs and databases
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
@@ -211,12 +210,16 @@ RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /de
 # Google cloud
 ############################
 # New authentication for docker - not supported via apt
-user root
-RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v1.4.3/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" \
+USER root
+RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.0.0/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" \
     | tar xz --to-stdout docker-credential-gcr > /usr/bin/docker-credential-gcr \
     && chmod +x /usr/bin/docker-credential-gcr
 
 RUN docker-credential-gcr config --token-source="gcloud"
+
+RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
+        -O /usr/bin/cloud_sql_proxy \
+  && chmod +x /usr/bin/cloud_sql_proxy
 
 # crcmod for gsutil; this gets us the compiled (faster), not pure Python
 # (slower) crcmod, as described in `gsutil help crcmod`
@@ -238,13 +241,12 @@ RUN pip3 install -U --no-cache-dir -U crcmod \
 ############################
 # Pip packages
 ############################
-RUN pip3 install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
+RUN pip3 install yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
 ############################
 # Ocaml
 ############################
 USER dark
-
 
 ENV ESY__PROJECT=/home/dark/app
 
@@ -255,20 +257,30 @@ ENV ESY__PROJECT=/home/dark/app
 ############################
 
 RUN \
-  VERSION=v0.7.0 \
+  VERSION=v0.7.1 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
   && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
   && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
   && rm -Rf tmp_install_folder
 
+############################
+# Kubeval - for linting k8s files
+############################
+RUN \
+  VERSION=0.15.0 \
+  && wget -P tmp_install_folder/ https://github.com/instrumenta/kubeval/releases/download/${VERSION}/kubeval-linux-amd64.tar.gz \
+  && tar xvf tmp_install_folder/kubeval-linux-amd64.tar.gz -C  tmp_install_folder \
+  && sudo cp tmp_install_folder/kubeval /usr/bin/ \
+  && rm -Rf tmp_install_folder
+#
 ####################################
 # Honeytail and honeymarker installs
 ####################################
-RUN wget -q https://honeycomb.io/download/honeytail/linux/honeytail_1.762_amd64.deb && \
-      echo 'd7bed8a005cbc6a34b232c54f0f84b945f0bb90905c67f85cceaedee9bbbad1e  honeytail_1.762_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeytail_1.762_amd64.deb && \
-      rm honeytail_1.762_amd64.deb
+RUN wget -q https://honeycomb.io/download/honeytail/v1.1.4/honeytail_1.1.4_amd64.deb && \
+      echo '7adbd3c64200cabcaff3adc8a2beb54f73895cc4b091981b3b2be280a0f08c02  honeytail_1.1.4_amd64.deb' | sha256sum -c && \
+      sudo dpkg -i honeytail_1.1.4_amd64.deb && \
+      rm honeytail_1.1.4_amd64.deb
 
 RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd64.deb && \
       echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \
@@ -290,7 +302,7 @@ ENV TERM=xterm-256color
 ############################
 # Finish
 ############################
-user dark
+USER dark
 CMD ["app", "scripts", "builder"]
 
 
@@ -313,7 +325,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-too
   && rustc --version
 
 # install Rust dev tools
-RUN rustup component add clippy-preview rustfmt-preview
+RUN rustup component add clippy-preview rustfmt-preview rls
 RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 
 
@@ -325,12 +337,5 @@ ENV CARGO_HOME=/home/dark/.cargo
 # Quick hacks here, to avoid massive recompiles
 ######################
 
-RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
-        -O /usr/bin/cloud_sql_proxy \
-  && chmod +x /usr/bin/cloud_sql_proxy
-
-RUN apt update && apt install -y dnsutils && apt clean && rm -rf /var/lib/apt/lists/*
-
-user dark
 
 
