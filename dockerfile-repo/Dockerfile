@@ -160,7 +160,7 @@ USER root
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
 RUN npm install -g esy@0.6.6 --unsafe-perm=true \
-     && rm /root/.npm \
+     && sudo rm -Rf /root/.npm \
      && sudo rm -Rf /usr/lib/node_modules/esy/platform-*
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
@@ -266,7 +266,7 @@ ENV ESY__PROJECT=/home/dark/app
 RUN \
   VERSION=v0.7.1 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
-  && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
+  && wget -P tmp_install_folder/ https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
   && sudo cp tmp_install_folder/shellcheck-$VERSION/shellcheck /usr/bin/shellcheck \
   && rm -Rf tmp_install_folder
