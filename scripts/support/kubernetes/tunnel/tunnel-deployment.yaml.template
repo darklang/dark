@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: tunnel-deployment
   annotations:
-    kubernetes.io/change-cause: {CHANGE_CAUSE}
+    kubernetes.io/change-cause: "{CHANGE_CAUSE}"
 spec:
   selector:
     matchLabels:

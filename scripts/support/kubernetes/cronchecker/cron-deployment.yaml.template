@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: cron-deployment
   annotations:
-    kubernetes.io/change-cause: {CHANGE_CAUSE}
+    kubernetes.io/change-cause: "{CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
