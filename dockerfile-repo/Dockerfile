@@ -1,6 +1,19 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
+# DOCKERFILE_REPO: VERY IMPORTANT: this dockerfile is stored in the
+# darklang/dockerfile repo, and is copied into darklang/dark via a git subtree.
+# The copy allows developers to develop Dark directly without pulling a docker
+# image.
+#
+# You can make changes to this file in this repo, and then push those changes
+# to the darklang/dockerfile repo using scripts/dockerfile-push.
+#
+# The CircleCI workflow is a little complicated. To actually use any changes to
+# the image, you need to change the sha used in config/circleci.yml. You can
+# find the new sha after pushing to darklang/dockerfile - the sha is generated
+# as part of that build. Search for DOCKERFILE_REPO for where to make that change.
+
 FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
 
 ENV FORCE_BUILD 1
