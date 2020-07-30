@@ -159,7 +159,7 @@ USER root
 
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
-RUN npm install -g esy@0.5.8 --unsafe-perm=true \
+RUN npm install -g esy@0.6.6 --unsafe-perm=true \
      && sudo rm -Rf /usr/lib/node_modules/esy/platform-*
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
