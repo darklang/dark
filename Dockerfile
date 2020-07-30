@@ -252,7 +252,7 @@ ENV ESY__PROJECT=/home/dark/app
 ############################
 
 RUN \
-  VERSION=v0.7.0 \
+  VERSION=v0.7.1 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
   && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
