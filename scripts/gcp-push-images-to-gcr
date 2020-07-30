@@ -77,7 +77,7 @@ docker tag "${PREFIX}tunnel:latest" "$TUNNEL_IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-postgres-honeytail:latest" "$POSTGRES_HONEYTAIL_IMAGE_LATEST"
 
 # hook up gcloud docker
-docker-credential-gcr configure-docker
+gcloud auth configure-docker
 
 # push the newly-tagged images
 docker push "$IMAGE"

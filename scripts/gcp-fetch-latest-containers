@@ -37,7 +37,7 @@ STROLLER_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-stroller:latest"
 TUNNEL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}tunnel:latest"
 POSTGRES_HONEYTAIL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-postgres-honeytail:latest"
 
-docker-credential-gcr configure-docker
+gcloud auth configure-docker
 docker pull $IMAGE_LATEST
 docker pull $QW_IMAGE_LATEST
 docker pull $CRON_IMAGE_LATEST
