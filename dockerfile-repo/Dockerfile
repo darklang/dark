@@ -345,4 +345,5 @@ ENV CARGO_HOME=/home/dark/.cargo
 ######################
 
 
+USER dark
 
