@@ -128,8 +128,7 @@ let init (encodedParamString : string) (location : Web.Location.location) =
     , Cmd.batch
         [ API.loadPackages m
         ; API.initialLoad m (FocusPageAndCursor (page, savedCursorState))
-        ; API.sendPresence m avMessage
-        ; API.getCanvasInfo m ] )
+        ; API.sendPresence m avMessage ] )
 
 
 let processFocus (m : model) (focus : focus) : modification =
@@ -1544,12 +1543,7 @@ let update_ (msg : msg) (m : model) : modification =
                 SettingsView.update
                   m.settingsView
                   (SetSettingsView
-                     ( m.canvasName
-                     , r.canvasList
-                     , m.username
-                     , r.orgs
-                     , r.orgCanvasList
-                     , r.creationDate ))
+                     (r.canvasList, m.username, r.orgs, r.orgCanvasList))
               in
               ( { m with
                   opCtrs = r.opCtrs

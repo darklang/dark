@@ -79,7 +79,7 @@ def client_build():
     start = time.time()
 
   start = time.time()
-  build = "unbuffer npm run build"
+  build = "unbuffer ./scripts/support/npm-run-build-with-retry"
   result = run_frontend(start, build)
   return result
 

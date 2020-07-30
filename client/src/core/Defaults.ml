@@ -187,9 +187,5 @@ let defaultModel : model =
       ; orgs = []
       ; orgCanvasList = []
       ; loading = false
-      ; canvasInformation =
-          { canvasDescription = ""
-          ; createdAt = None
-          ; canvasName = "builtwithdark" }
       ; privacy = {recordConsent = None} }
   ; insertSecretModal = SecretTypes.defaultInsertModal }

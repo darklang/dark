@@ -590,26 +590,12 @@ let accountView (m : model) : msg Html.html =
             SettingsViewMsg (OpenSettingsView NewCanvas)) ]
       [Html.text "New Canvas"]
   in
-  let canvasInfo =
-    Html.p
-      [ Html.class' "account-action-btn"
-      ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
-            SettingsViewMsg (OpenSettingsView CanvasInfo)) ]
-      [Html.text "About"]
-  in
   let settings =
     Html.p
       [ Html.class' "account-action-btn"
       ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
             SettingsViewMsg (OpenSettingsView UserSettings)) ]
-      [Html.text "Account"]
-  in
-  let privacy =
-    Html.p
-      [ Html.class' "account-action-btn"
-      ; ViewUtils.eventNoPropagation ~key:"open-settings" "click" (fun _ ->
-            SettingsViewMsg (OpenSettingsView Privacy)) ]
-      [Html.text "Privacy"]
+      [Html.text "Settings"]
   in
   let share =
     Html.p
@@ -643,9 +629,7 @@ let accountView (m : model) : msg Html.html =
     ; Html.div
         [Html.class' "account-actions"]
         [ newCanvas
-        ; canvasInfo
         ; settings
-        ; privacy
         ; share
         ; logout
         ; spacer
