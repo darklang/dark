@@ -40,14 +40,6 @@ let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
 
 
 let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
-  ignore
-    ( match Config.gcloud_application_credentials with
-    | Some s ->
-        Unix.putenv
-          Gcloud.Auth.Environment_vars.google_application_credentials
-          s
-    | None ->
-        () ) ;
   let scopes = ["https://www.googleapis.com/auth/devstorage.read_write"] in
   let r = Gcloud.Auth.get_access_token ~scopes () in
   match%lwt r with
