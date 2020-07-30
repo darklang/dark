@@ -236,13 +236,12 @@ RUN pip3 install -U --no-cache-dir -U crcmod \
 ############################
 # Pip packages
 ############################
-RUN pip3 install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
+RUN pip3 install yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
 ############################
 # Ocaml
 ############################
 USER dark
-
 
 ENV ESY__PROJECT=/home/dark/app
 
