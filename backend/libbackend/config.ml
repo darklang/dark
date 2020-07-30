@@ -222,8 +222,6 @@ let browser_reload_enabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
 
 let hash_static_filenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
 
-let gcloud_application_credentials =
-  string_option "DARK_CONFIG_GCLOUD_APPLICATION_CREDENTIALS"
 
 
 let check_tier_one_hosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
