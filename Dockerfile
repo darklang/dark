@@ -272,10 +272,10 @@ RUN \
 ####################################
 # Honeytail and honeymarker installs
 ####################################
-RUN wget -q https://honeycomb.io/download/honeytail/linux/honeytail_1.762_amd64.deb && \
-      echo 'd7bed8a005cbc6a34b232c54f0f84b945f0bb90905c67f85cceaedee9bbbad1e  honeytail_1.762_amd64.deb' | sha256sum -c && \
-      sudo dpkg -i honeytail_1.762_amd64.deb && \
-      rm honeytail_1.762_amd64.deb
+RUN wget -q https://honeycomb.io/download/honeytail/v1.1.4/honeytail_1.1.4_amd64.deb && \
+      echo '7adbd3c64200cabcaff3adc8a2beb54f73895cc4b091981b3b2be280a0f08c02  honeytail_1.1.4_amd64.deb' | sha256sum -c && \
+      sudo dpkg -i honeytail_1.1.4_amd64.deb && \
+      rm honeytail_1.1.4_amd64.deb
 
 RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd64.deb && \
       echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \
