@@ -1,6 +1,4 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
+#!/bin/sh
 
 git rev-parse --short HEAD | \
     # Remove trailing endline
