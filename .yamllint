@@ -1,0 +1,10 @@
+extends: default
+
+rules:
+  line-length: disable
+  document-start: disable
+  indentation:
+    spaces: 2
+    # Don't like this, but the k8s examples use it
+    indent-sequences: false
+  key-duplicates: enable

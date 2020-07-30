@@ -138,6 +138,7 @@ commands:
             scripts/support/generate-etags
             scripts/support/check-etags
             cp backend/static/etags.json rundir/
+      - run: scripts/support/yamllinter
       - run: scripts/gcp-build-containers
 
   ##########################

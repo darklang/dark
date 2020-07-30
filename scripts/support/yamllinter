@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+function check {
+  if [[ "$1" == *"kubernetes"* ]]; then
+    echo "kubeval $1"
+    kubeval "$1"
+  else
+    echo "not kubernetes so no kubeval: $1"
+  fi
+  echo "yamllint $1"
+  yamllint "$1"
+}
+
+if [[ "$#" -eq 1 ]]; then
+  check "$1"
+else
+  echo "checking yaml files ..."
+  # skip circleci for now
+  # shellcheck disable=SC2038
+  FILES=$(find ./* -type f \
+    \( -name "*.yml" \
+    -o -name "*.yaml" \
+    -o -name "*.yaml.template" \) -print \
+    -o -path ".git" -prune \
+    -o -path "_build" -prune \
+    -o -path "./_build" -prune \
+    -o -path "node_modules" -prune \
+    -o -path "./node_modules" -prune \
+    -o -path "_esy" -prune \
+    -o -path "./_esy" -prune \
+    -o -path "lib" -prune \
+    -o -path "./lib" -prune \
+    -o -path "esy.lock" -prune \
+    -o -path "./esy.lock" -prune \
+    -o -path "rundir" -prune \
+    -o -path "./rundir" -prune \
+    -o -path "stroller/target" -prune \
+    -o -path "./stroller/target" -prune \
+    -o -path "queue-scheduler/target" -prune \
+    -o -path "./queue-scheduler/target" -prune \
+    | grep -v circleci)
+    for i in $FILES; do
+      check $i
+    done
+  fi
