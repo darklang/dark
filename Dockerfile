@@ -124,6 +124,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       texinfo \
       openssh-server \
+      jq \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -215,6 +216,10 @@ RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/rele
     && chmod +x /usr/bin/docker-credential-gcr
 
 RUN docker-credential-gcr config --token-source="gcloud"
+
+RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
+        -O /usr/bin/cloud_sql_proxy \
+  && chmod +x /usr/bin/cloud_sql_proxy
 
 # crcmod for gsutil; this gets us the compiled (faster), not pure Python
 # (slower) crcmod, as described in `gsutil help crcmod`
@@ -332,16 +337,5 @@ ENV CARGO_HOME=/home/dark/.cargo
 # Quick hacks here, to avoid massive recompiles
 ######################
 
-RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
-        -O /usr/bin/cloud_sql_proxy \
-  && chmod +x /usr/bin/cloud_sql_proxy
-
-RUN apt update && apt install -y dnsutils \
-        jq && \
-        apt clean && \
-        rm -rf /var/lib/apt/lists/*
-
-
-USER dark
 
 
