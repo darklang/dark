@@ -840,6 +840,7 @@ and function_ =
   ; fnPreviewSafety : previewSafety
   ; fnDeprecated : bool
   ; fnInfix : bool
+  ; fnIsSupportedInQuery : bool
   ; fnOrigin :
       (* This is a client-side only field to be able to give different UX to
        * different functions *)

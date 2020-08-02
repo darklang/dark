@@ -23,6 +23,7 @@ let function_ j : function_ =
   ; fnPreviewSafety = field "preview_safety" previewSafetyVariants j
   ; fnDeprecated = field "deprecated" bool j
   ; fnInfix = field "infix" bool j
+  ; fnIsSupportedInQuery = field "is_supported_in_query" bool j
   ; fnOrigin = Builtin }
 
 

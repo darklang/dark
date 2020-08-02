@@ -328,12 +328,32 @@ let secretToACItem (s : SecretTypes.t) : fluidAutocompleteItem =
   let asDval = DStr (Util.obscureString s.secretValue) in
   FACVariable (s.secretName, Some asDval)
 
+let isInQuery (tl : toplevel) ti =
+  let ast' = TL.getAST tl in
+  match ast' with
+  | None -> false
+  | Some ast ->
+    FluidAST.ancestors (FluidToken.tid ti.token) ast
+    |> List.find ~f:(function FluidExpression.EFnCall (_, name, _, _) -> if name = "DB::query_v4" then true else false | _ -> false)
+    |> Option.is_some
+
+let filterToDbSupportedFns (tl : toplevel) ti functions =
+  if not (isInQuery tl ti) then
+    functions
+  else
+    functions
+    |> List.filter ~f:(fun f -> 
+      match f with
+      | FACFunction fn -> fn.fnIsSupportedInQuery
+      | _ -> false)
 
 let generateExprs (m : model) (props : props) (tl : toplevel) ti =
-  let functions =
+  let _ = (let x = isInQuery tl ti in (Js.log2 "isInQuery: " x); x) in
+  let functions' =
     Functions.asFunctions props.functions
     |> List.map ~f:(fun x -> FACFunction x)
   in
+  let functions = filterToDbSupportedFns tl ti functions' in
   let constructors =
     [ FACConstructorName ("Just", 1)
     ; FACConstructorName ("Nothing", 0)

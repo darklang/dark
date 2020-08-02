@@ -51,4 +51,5 @@ let fn_of_packageFn (pkgFn : packageFn) : function_ =
   ; fnPreviewSafety = Unsafe
   ; fnDeprecated = pkgFn.deprecated
   ; fnInfix = false
+  ; fnIsSupportedInQuery = false
   ; fnOrigin = PackageManager }

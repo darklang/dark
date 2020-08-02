@@ -28,6 +28,7 @@ let sampleFunctions =
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
     ; fnInfix = false
+    ; fnIsSupportedInQuery = false
     ; fnOrigin = Builtin }
   ; { fnName = "List::getAt_v1"
     ; fnParameters = [par "list" TList; par "index" TInt]
@@ -36,6 +37,7 @@ let sampleFunctions =
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
     ; fnInfix = false
+    ; fnIsSupportedInQuery = false
     ; fnOrigin = Builtin }
   ; { fnName = "Dict::map"
     ; fnParameters = [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
@@ -44,6 +46,7 @@ let sampleFunctions =
     ; fnPreviewSafety = Safe
     ; fnDeprecated = false
     ; fnInfix = false
+    ; fnIsSupportedInQuery = false
     ; fnOrigin = Builtin }
   ; { fnName = "DB::set_v1"
     ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
@@ -52,6 +55,7 @@ let sampleFunctions =
     ; fnPreviewSafety = Unsafe
     ; fnDeprecated = false
     ; fnInfix = false
+    ; fnIsSupportedInQuery = false
     ; fnOrigin = Builtin } ]
 
 
@@ -86,6 +90,7 @@ let run () =
         ; fnPreviewSafety = Safe
         ; fnDeprecated = false
         ; fnInfix = false
+        ; fnIsSupportedInQuery = false
         ; fnOrigin = Builtin }
       in
       let f2 =
@@ -96,6 +101,7 @@ let run () =
         ; fnPreviewSafety = Safe
         ; fnDeprecated = false
         ; fnInfix = false
+        ; fnIsSupportedInQuery = false
         ; fnOrigin = Builtin }
       in
       let model hs =

@@ -53,6 +53,7 @@ let sampleFunctions : function_ list =
          ; fnDescription = ""
          ; fnInfix = true
          ; fnDeprecated = fnName = "Some::deprecated"
+         ; fnIsSupportedInQuery = false
          ; fnOrigin = Builtin })
 
 
