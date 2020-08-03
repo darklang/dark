@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: scheduler-deployment
   annotations:
-    kubernetes.io/change-cause: {CHANGE_CAUSE}
+    kubernetes.io/change-cause: "{CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
@@ -39,14 +39,7 @@ spec:
                 secretKeyRef:
                   name: pusher-account-credentials
                   key: key
-#########################
-# Postgres proxy config
-# To connect to postgres from kubernetes, we need to add a proxy. See
-# https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
-# Note in particular that we needed to create a service account and a
-# set of GKE secrets, listed below, to manage this.
-#########################
-            # connect to sql proxy in the same pod
+            # connect to sql proxy in the same pod (see comment below)
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1
             - name: DARK_CONFIG_DB_USER
@@ -59,7 +52,13 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
-
+        #########################
+        # Postgres proxy config
+        # To connect to postgres from kubernetes, we need to add a proxy. See
+        # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
+        # Note in particular that we needed to create a service account and a
+        # set of GKE secrets, listed below, to manage this.
+        #########################
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
           resources:

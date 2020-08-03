@@ -213,49 +213,49 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 (kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
 
-CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)'"
+CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
+  scripts/support/kubernetes/builtwithdark/bwd-deployment.template.yaml > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/builtwithdark/editor-deployment.yaml.template > scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
+  scripts/support/kubernetes/builtwithdark/editor-deployment.template.yaml > scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
 
 sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/queueworker/qw-deployment.yaml.template > scripts/support/kubernetes/queueworker/qw-deployment.yaml
+  scripts/support/kubernetes/queueworker/qw-deployment.template.yaml > scripts/support/kubernetes/queueworker/qw-deployment.yaml
 
 sed -e "s!{SCHEDULER_IMAGE}!${QUEUE_SCHEDULER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/queueworker/scheduler-deployment.yaml.template > scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
+  scripts/support/kubernetes/queueworker/scheduler-deployment.template.yaml > scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
 
 sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/cronchecker/cron-deployment.yaml.template > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
+  scripts/support/kubernetes/cronchecker/cron-deployment.template.yaml > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
 
 sed -e "s!{GARBAGE_COLLECTOR_IMAGE}!${GARBAGE_COLLECTOR_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/garbagecollector/garbagecollector-deployment.yaml.template > scripts/support/kubernetes/garbagecollector/garbagecollector-deployment.yaml
+  scripts/support/kubernetes/garbagecollector/garbagecollector-deployment.template.yaml > scripts/support/kubernetes/garbagecollector/garbagecollector-deployment.yaml
 
 sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  scripts/support/kubernetes/tunnel/tunnel-deployment.yaml.template > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+  scripts/support/kubernetes/tunnel/tunnel-deployment.template.yaml > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 
 
 sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  scripts/support/kubernetes/postgres-honeytail-deployment.yaml.template > scripts/support/kubernetes/postgres-honeytail-deployment.yaml
+  scripts/support/kubernetes/postgres-honeytail-deployment.template.yaml > scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml

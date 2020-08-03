@@ -1,23 +1,25 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: garbagecollector-deployment
+  name: cron-deployment
   annotations:
-    kubernetes.io/change-cause: {CHANGE_CAUSE}
+    kubernetes.io/change-cause: "{CHANGE_CAUSE}"
 spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: garbagecollector
+      app: cron-checker
+  # there should only be one of these right now, as there's no locking on checking
+  # if we should enqueue or not
   replicas: 1
   template:
     metadata:
       labels:
-        app: garbagecollector
+        app: cron-checker
     spec:
       containers:
-        - name: garbagecollector-ctr
-          image: "gcr.io/balmy-ground-195100/dark-gcp-garbagecollector:{GARBAGE_COLLECTOR_IMAGE}"
+        - name: cron-ctr
+          image: "gcr.io/balmy-ground-195100/dark-gcp-cron:{CRON_IMAGE}"
           # Resource request intentionally less than resource limit, to ensure
           # this pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -34,13 +36,11 @@ spec:
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
-#########################
-# Postgres proxy config
-# To connect to postgres from kubernetes, we need to add a proxy. See
-# https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
-# Note in particular that we needed to create a service account and a
-# set of GKE secrets, listed below, to manage this.
-#########################
+            - name: DARK_CONFIG_PUSHER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pusher-account-credentials
+                  key: key
             # connect to sql proxy in the same pod
             - name: DARK_CONFIG_DB_HOST
               value: 127.0.0.1
@@ -54,6 +54,13 @@ spec:
                 secretKeyRef:
                   name: cloudsql-db-credentials
                   key: password
+        #########################
+        # Postgres proxy config
+        # To connect to postgres from kubernetes, we need to add a proxy. See
+        # https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
+        # Note in particular that we needed to create a service account and a
+        # set of GKE secrets, listed below, to manage this.
+        #########################
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
           resources:

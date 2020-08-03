@@ -19,6 +19,6 @@ spec:
       name: letsencrypt-prod
     # Add a single challenge solver, HTTP01 using nginx
     solvers:
-    - http01:
-        ingress:
-          name: darkcustomdomain-l4-ingress
+      - http01:
+          ingress:
+            name: darkcustomdomain-l4-ingress
