@@ -7,14 +7,14 @@ spec:
     matchLabels:
       app: cron-checker
   policyTypes:
-  - Egress
-  - Ingress
+    - Egress
+    - Ingress
   egress:
-  - to:
-    - ipBlock:
-        cidr: 0.0.0.0/0
-        except:
-        # make sure to block link-local addresses,
-        # since there's sensitive data in http://metadata
-        - 169.254.0.0/16
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # make sure to block link-local addresses,
+              # since there's sensitive data in http://metadata
+              - 169.254.0.0/16
   ingress:

@@ -5,6 +5,13 @@ rules:
   document-start: disable
   indentation:
     spaces: 2
-    # Don't like this, but the k8s examples use it
-    indent-sequences: false
+    # The k8s examples use it, but this is ridiculous (and half our yaml does
+    # it the other way)
+    indent-sequences: true
   key-duplicates: enable
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 1

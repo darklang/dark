@@ -16,7 +16,7 @@ metadata:
     group: com.stakater.platform
     provider: stakater
     version: v0.0.49
-    
+
   name: reloader-reloader
 spec:
   replicas: 1
@@ -35,14 +35,14 @@ spec:
         group: com.stakater.platform
         provider: stakater
         version: v0.0.49
-        
+
     spec:
       containers:
-      - env:
-        image: "stakater/reloader:v0.0.49"
-        imagePullPolicy: IfNotPresent
-        name: reloader-reloader
-        args:
+        - env:
+          image: "stakater/reloader:v0.0.49"
+          imagePullPolicy: IfNotPresent
+          name: reloader-reloader
+          args:
       serviceAccountName: reloader-reloader
 
 ---
@@ -128,4 +128,3 @@ metadata:
     release: "reloader"
     heritage: "Tiller"
   name: reloader-reloader
-
