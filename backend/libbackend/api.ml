@@ -181,12 +181,11 @@ let functions ~username =
          ; infix = List.mem ~equal:( = ) v.infix_names k
          ; deprecated = v.deprecated
          ; is_supported_in_query =
-            List.exists 
-              ~f:(fun compiler_prefix_name -> 
-                (List.exists 
-                    ~f:(fun fn_prefix_name -> fn_prefix_name = compiler_prefix_name) 
-                    v.prefix_names))
-              Sql_compiler.compilerSupportedFns })
+             v.prefix_names
+             |> List.exists ~f:(fun fn_prefix_name ->
+                    Tc.StrSet.member
+                      Sql_compiler.compilerSupportedFns
+                      ~value:fn_prefix_name) })
   |> List.map ~f:function_metadata_to_yojson
   |> (fun l -> `List l)
   |> Yojson.Safe.pretty_to_string

@@ -15,58 +15,59 @@ type position =
   | First
   | Last
 
-let compilerSupportedFns = [
-    "Date::lessThan";
-    "Date::greaterThan";
-    "Date::lessThanOrEqualTo";
-    "Date::greaterThanOrEqualTo";
-    "Date::subtract";
-    "Date::add";
-    "Int::mod";
-    "Int::add";
-    "Int::substract";
-    "Int::multiply";
-    "Int::power";
-    "Int::divide";
-    "Int::greaterThan";
-    "Int::greaterThanOrEqualTo";
-    "Int::lessThan";
-    "Int::lessThanOrEqualTo";
-    "Float::mod";
-    "Float::add";
-    "Float::subtract";
-    "Float::multiply";
-    "Float::power";
-    "Float::divide";
-    "Float::greaterThan";
-    "Float::greaterThanOrEqualTo";
-    "Float::lessThan";
-    "Float::lessThanOrEqualTo";
-    "Bool::not";
-    "Bool::and";
-    "Bool::or";
-    "String::toLowercase";
-    "String::toLowercase_v1";
-    "String::toUppercase";
-    "String::toUppercase_v1";
-    "String::length";
-    "String::reverse";
-    "String::trim";
-    "String::trimStart";
-    "String::trimEnd";
-    "Date::hour_v1";
-    "Date::day";
-    "Date::minute";
-    "Date::month";
-    "Date::second";
-    "Date::year";
-    "Date::atStartOfDay";
-    "String::isSubstring_v1";
-    "String::contains";
-    "String::replaceAll";
-    "equals";
-    "notEquals";
-]
+let compilerSupportedFns =
+  [ "Date::lessThan"
+  ; "Date::greaterThan"
+  ; "Date::lessThanOrEqualTo"
+  ; "Date::greaterThanOrEqualTo"
+  ; "Date::subtract"
+  ; "Date::add"
+  ; "Int::mod"
+  ; "Int::add"
+  ; "Int::substract"
+  ; "Int::multiply"
+  ; "Int::power"
+  ; "Int::divide"
+  ; "Int::greaterThan"
+  ; "Int::greaterThanOrEqualTo"
+  ; "Int::lessThan"
+  ; "Int::lessThanOrEqualTo"
+  ; "Float::mod"
+  ; "Float::add"
+  ; "Float::subtract"
+  ; "Float::multiply"
+  ; "Float::power"
+  ; "Float::divide"
+  ; "Float::greaterThan"
+  ; "Float::greaterThanOrEqualTo"
+  ; "Float::lessThan"
+  ; "Float::lessThanOrEqualTo"
+  ; "Bool::not"
+  ; "Bool::and"
+  ; "Bool::or"
+  ; "String::toLowercase"
+  ; "String::toLowercase_v1"
+  ; "String::toUppercase"
+  ; "String::toUppercase_v1"
+  ; "String::length"
+  ; "String::reverse"
+  ; "String::trim"
+  ; "String::trimStart"
+  ; "String::trimEnd"
+  ; "Date::hour_v1"
+  ; "Date::day"
+  ; "Date::minute"
+  ; "Date::month"
+  ; "Date::second"
+  ; "Date::year"
+  ; "Date::atStartOfDay"
+  ; "String::isSubstring_v1"
+  ; "String::contains"
+  ; "String::replaceAll"
+  ; "equals"
+  ; "notEquals" ]
+  |> Tc.StrSet.fromList
+
 
 let binop_to_sql (op : string) : tipe * tipe * tipe * string =
   let allInts str = (TInt, TInt, TInt, str) in
