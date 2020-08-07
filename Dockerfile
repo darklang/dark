@@ -229,17 +229,6 @@ RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /de
 # New authentication for docker - not supported via apt
 USER root
 
-RUN \
-  VERSION=2.0.2 \
-  FILENAME=docker-credential-gcr_linux_amd64-${VERSION}.tar.gz \
-  && wget -P tmp_install_folder/ https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v$VERSION/$FILENAME \
-  && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
-  && sudo cp tmp_install_folder/docker-credential-gcr /usr/bin/ \
-  && chmod +x /usr/bin/docker-credential-gcr \
-  && rm -Rf tmp_install_folder
-
-RUN docker-credential-gcr config --token-source="gcloud"
-
 RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
         -O /usr/bin/cloud_sql_proxy \
   && chmod +x /usr/bin/cloud_sql_proxy
