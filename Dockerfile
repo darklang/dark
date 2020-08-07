@@ -138,6 +138,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       texinfo \
       openssh-server \
       jq \
+      dnsutils \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
