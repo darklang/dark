@@ -177,7 +177,9 @@ RUN npm install -g esy@0.6.6 --unsafe-perm=true \
      && rm -Rf /root/.npm \
      && rm -Rf /usr/lib/node_modules/esy/platform-*
 
+USER dark
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
+ENV ESY__PROJECT=/home/dark/app
 
 ############################
 # Postgres
@@ -262,15 +264,7 @@ RUN pip3 install -U --no-cache-dir -U crcmod \
 ############################
 # Pip packages
 ############################
-RUN pip3 install yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
-
-############################
-# Ocaml
-############################
-USER dark
-
-ENV ESY__PROJECT=/home/dark/app
-
+RUN pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
 ############################
 # Shellcheck
