@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-# Push the latest dockerfile to the darklang/dockerfile repo
-
-git subtree push --prefix dockerfile-repo/ git@github.com:darklang/dockerfile main
