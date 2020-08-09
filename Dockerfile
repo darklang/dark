@@ -6,13 +6,16 @@
 # The copy allows developers to develop Dark directly without pulling a docker
 # image.
 #
-# You can make changes to this file in this repo, and then push those changes
-# to the darklang/dockerfile repo using scripts/dockerfile-push.
+# You can make changes to this file in this repo, and but pushing directly via
+# the subtree is broken, so you need to make the changes to darklang/dockerfile
+# and then pull them using scripts/dockerfile-pull (or edit the commands within
+# appropiately).
 #
 # The CircleCI workflow is a little complicated. To actually use any changes to
 # the image, you need to change the sha used in config/circleci.yml. You can
 # find the new sha after pushing to darklang/dockerfile - the sha is generated
-# as part of that build. Search for DOCKERFILE_REPO for where to make that change.
+# as part of that build. Search for DOCKERFILE_REPO for where to make that
+# change.
 
 FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
 
@@ -171,9 +174,19 @@ ENV LC_ALL en_US.UTF-8
 ############################
 USER root
 
+# Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
+# - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
+#   cross-volume, so it fails with an EXDEV error.
+#
+# - this is solved by adding `{ prefixPath: "/home/dark/app/_esy/.esy" }` to
+#   .esyrc. However, this changes where esy keeps esy.lock, breaking the delicate
+#   balance of versions we have installed, and breaks in different ways involving
+#   dune-configurator, alcotest, and others.
+
+
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
-RUN npm install -g esy@0.6.6 --unsafe-perm=true \
+RUN npm install -g esy@0.5.8 --unsafe-perm=true \
      && rm -Rf /root/.npm \
      && rm -Rf /usr/lib/node_modules/esy/platform-*
 
