@@ -4,7 +4,7 @@ synopsis: "A modular, clean and powerful extension of the OCaml standard library
 build: [
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "build" "@doc" "-p" name ] {with-doc}
-  ["dune" "runtest" "-p" name "-j" jobs] {with-test & ocaml:version < "4.11"}
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
 ]
 depends: [
   "ocaml" { >= "4.03.0" }
@@ -17,7 +17,6 @@ depends: [
   "iter" { with-test }
   "gen" { with-test }
   "uutf" { with-test }
-  "mdx" { with-test & >= "1.5.0" & < "2.0.0" }
   "odoc" { with-doc }
 ]
 depopts: [
@@ -31,9 +30,9 @@ dev-repo: "git+https://github.com/c-cube/ocaml-containers.git"
 bug-reports: "https://github.com/c-cube/ocaml-containers/issues/"
 authors: "Simon Cruanes"
 url {
-  src: "https://github.com/c-cube/ocaml-containers/archive/v2.8.1.tar.gz"
+  src: "https://github.com/c-cube/ocaml-containers/archive/v3.0.tar.gz"
   checksum: [
-    "md5=d84e09c5d0abc501aa17cd502e31a038"
-    "sha512=8b832f4ada6035e80d81be0cfb7bdffb695ec67d465ed6097a144019e2b8a8f909095e78019c3da2d8181cc3cd730cd48f7519e87d3162442562103b7f36aabb"
+    "md5=00ba20a8c8824991cab96aff8f8e5a3c"
+    "sha512=4126045d58b9408eecaaad005c334081ade151f291dafc32ce9a33e8f796d41f72df62b617528f272996f3c93cb9b4293545ab86ac416288960f5a2b60b41932"
   ]
 }

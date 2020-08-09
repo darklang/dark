@@ -8,7 +8,7 @@ bug-reports: "https://github.com/dbuenzli/astring/issues"
 tags: [ "string" "org:erratique" ]
 license: "ISC"
 depends: [
-  "ocaml" {>= "4.05.0"}
+  "ocaml" {>= "4.05.0" & < "4.12.0"}
   "ocamlfind" {build}
   "ocamlbuild" {build}
   "topkg" {build} ]

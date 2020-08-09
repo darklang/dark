@@ -16,7 +16,7 @@
 
 FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
 
-ENV FORCE_BUILD 1
+ENV FORCE_BUILD 2
 
 # These are reasonable defaults, and what the dark uid/gid would be if we didn't
 # specify values. By exposing them as build-args, we can set these values to
@@ -171,9 +171,18 @@ ENV LC_ALL en_US.UTF-8
 ############################
 USER root
 
+# Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
+# - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
+#   cross-volume, so it fails with an EXDEV error.
+#
+# - this is solved by adding `{ prefixPath: "/home/dark/app/_esy/.esy" }` to
+#   .esyrc. However, this changes where esy keeps esy.lock, breaking the delicate
+#   balance of versions we have installed, and breaks in different ways involving
+#   dune-configurator, alcotest, and others.
+
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
-RUN npm install -g esy@0.6.6 --unsafe-perm=true \
+RUN npm install -g esy@0.5.8 --unsafe-perm=true \
      && rm -Rf /root/.npm \
      && rm -Rf /usr/lib/node_modules/esy/platform-*
 
