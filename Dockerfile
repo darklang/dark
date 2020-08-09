@@ -320,8 +320,6 @@ ENV TERM=xterm-256color
 # Finish
 ############################
 USER dark
-CMD ["app", "scripts", "builder"]
-
 
 ########################
 # Install Rust toolchain
@@ -350,10 +348,4 @@ RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
-######################
-# Quick hacks here, to avoid massive recompiles
-######################
-
-
 USER dark
-
