@@ -15,7 +15,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:6096eb4
+      - image: darklang/dark-base:a20240a
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -24,7 +24,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:6096eb4
+      - image: darklang/dark-rust:a20240a
 
 commands:
   show-large-files-and-directories:
@@ -191,8 +191,8 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v8-backend-{{ checksum "esy.json" }}
-            - v8-backend
+            - v9-backend-{{ checksum "esy.json" }}
+            - v9-backend
       # appsupport is needed for a unit test, but it is not needed as part
       # of the backend otherwise. It is compiled as part of the frontend
       # tests.
@@ -233,7 +233,7 @@ jobs:
             - _build
             - node_modules
             - /home/dark/.esy
-          key: v8-backend-{{ checksum "esy.json" }}
+          key: v9-backend-{{ checksum "esy.json" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 

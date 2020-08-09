@@ -49,9 +49,9 @@
   "devDependencies": {
     "@opam/junit": "2.0.1",
     "@opam/junit_alcotest": "2.0.1",
-    "@opam/alcotest": "0.8.5",
     "ocaml": "4.06.1",
-    "@opam/dune": "*",
+    "@opam/alcotest": "1.0.1",
+    "@opam/dune": "1.11.4",
     "@opam/merlin": "3.3.3",
     "@opam/ocp-indent": "1.8.1",
     "@opam/ocamlformat": "0.12"

@@ -9,7 +9,7 @@ jobs:
       RUST_TAG: darklang/dark-rust
     steps:
       - checkout
-      - setup_remote_docker: { docker_layer_caching: true }
+      - setup_remote_docker: {docker_layer_caching: true}
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
       - run:
@@ -27,5 +27,3 @@ jobs:
               docker push $TAG:$(./tag-version.sh)
               docker push $RUST_TAG:$(./tag-version.sh)
             fi
-
-
