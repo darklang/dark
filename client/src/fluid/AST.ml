@@ -62,6 +62,8 @@ let rec uses (var : string) (expr : E.t) : E.t list =
         u obj
     | EList (_, exprs) ->
         exprs |> List.map ~f:u |> List.concat
+    | ETuple (_, exprs) ->
+        exprs |> List.map ~f:u |> List.concat
     | ERecord (_, pairs) ->
         pairs |> List.map ~f:Tuple2.second |> List.map ~f:u |> List.concat
     | EFeatureFlag (_, _, cond, a, b) ->
@@ -250,6 +252,8 @@ let rec sym_exec ~(trace : E.t -> sym_set -> unit) (st : sym_set) (expr : E.t) :
     | EFieldAccess (_, obj, _) ->
         sexe st obj
     | EList (_, exprs) ->
+        List.iter ~f:(sexe st) exprs
+    | ETuple (_, exprs) ->
         List.iter ~f:(sexe st) exprs
     | EMatch (_, matchExpr, cases) ->
         let rec variablesInPattern p =

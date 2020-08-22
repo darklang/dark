@@ -386,6 +386,12 @@ type astListPart =
   | LPComma of int
 [@@deriving show {with_path = false}]
 
+type astTuplePart =
+  | TPOpen
+  | TPClose
+  | TPComma of int
+[@@deriving show {with_path = false}]
+
 type astMatchPart =
   | MPKeyword
   | MPBranchArrow of (* index of the branch *) int
@@ -441,6 +447,7 @@ type astRef =
   | ARRightPartial of ID.t
   | ARLeftPartial of ID.t
   | ARList of ID.t * astListPart
+  | ARTuple of ID.t * astTuplePart
   | ARRecord of ID.t * astRecordPart
   | ARPipe of ID.t * int (* index of the pipe *)
   | ARConstructor of ID.t (* name of the constructor *)
@@ -1546,6 +1553,9 @@ and fluidToken =
   | TListOpen of ID.t * parentBlockID option
   | TListClose of ID.t * parentBlockID option
   | TListComma of ID.t * int
+  | TTupleOpen of ID.t * parentBlockID option
+  | TTupleClose of ID.t * parentBlockID option
+  | TTupleComma of ID.t * int
   (* 2nd int is the number of pipe segments there are *)
   | TPipe of ID.t * int * int * parentBlockID option
   | TRecordOpen of ID.t * parentBlockID option

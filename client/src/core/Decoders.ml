@@ -280,6 +280,7 @@ let rec fluidExpr (j : Js.Json.t) : FluidExpression.t =
     ; ( "ERightPartial"
       , dv3 (fun a b c -> E.ERightPartial (a, b, c)) id string de )
     ; ("EList", dv2 (fun x y -> E.EList (x, y)) id (list de))
+    ; ("ETuple", dv2 (fun x y -> E.ETuple (x, y)) id (list de))
     ; ("ERecord", dv2 (fun x y -> E.ERecord (x, y)) id (list (pair string de)))
     ; ("EPipe", dv2 (fun x y -> E.EPipe (x, y)) id (list de))
     ; ( "EConstructor"

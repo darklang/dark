@@ -60,7 +60,7 @@ type t =
    * ELeftPartial is rendered as the string followed by the normal rendering of the old expression. *)
   | ELeftPartial of Shared.id * string * t
   | EList of Shared.id * t list
-  (* The Shared.id in the list is extra for the fieldname *)
+  | ETuple of Shared.id * t list
   | ERecord of Shared.id * (string * t) list
   | EPipe of Shared.id * t list
   (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the

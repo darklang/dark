@@ -138,6 +138,8 @@ let rec eToTestcase (e : E.t) : string =
                    "(" ^ quoted k ^ ", " ^ r v ^ ")")) ]
     | EList (_, exprs) ->
         spaced ["list"; listed (List.map ~f:r exprs)]
+    | ETuple (_, exprs) ->
+        spaced ["tuple"; listed (List.map ~f:r exprs)]
     | EPipe (_, a :: rest) ->
         spaced ["pipe"; r a; listed (List.map ~f:r rest)]
     | EPipe (_, []) ->

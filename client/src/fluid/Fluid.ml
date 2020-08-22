@@ -694,6 +694,8 @@ let posFromCaretTarget (ct : caretTarget) (astInfo : ASTInfo.t) : int =
     | ARLet (id, LPAssignment), TLetAssignment (id', _, _)
     | ARList (id, LPOpen), TListOpen (id', _)
     | ARList (id, LPClose), TListClose (id', _)
+    | ARTuple (id, TPOpen), TTupleOpen (id', _)
+    | ARTuple (id, TPClose), TTupleClose (id', _)
     | ARMatch (id, MPKeyword), TMatchKeyword id'
     | ARNull id, TNullToken (id', _)
     | ARPartial id, TPartial (id', _, _)
@@ -717,6 +719,7 @@ let posFromCaretTarget (ct : caretTarget) (astInfo : ASTInfo.t) : int =
       when id = id' ->
         posForTi ti
     | ARList (id, LPComma idx), TListComma (id', idx')
+    | ARTuple (id, TPComma idx), TTupleComma (id', idx')
     | ( ARMatch (id, MPBranchArrow idx)
       , TMatchBranchArrow {matchID = id'; index = idx'; _} )
     | ARPipe (id, idx), TPipe (id', idx', _, _)
@@ -833,6 +836,9 @@ let posFromCaretTarget (ct : caretTarget) (astInfo : ASTInfo.t) : int =
     | ARList (_, LPOpen), _
     | ARList (_, LPClose), _
     | ARList (_, LPComma _), _
+    | ARTuple (_, TPOpen), _
+    | ARTuple (_, TPClose), _
+    | ARTuple (_, TPComma _), _
     | ARMatch (_, MPKeyword), _
     | ARMatch (_, MPBranchArrow _), _
     | ARNull _, _
@@ -974,6 +980,12 @@ let caretTargetFromTokenInfo (pos : int) (ti : T.tokenInfo) : caretTarget option
       Some {astRef = ARList (id, LPClose); offset}
   | TListComma (id, idx) ->
       Some {astRef = ARList (id, LPComma idx); offset}
+  | TTupleOpen (id, _) ->
+      Some {astRef = ARTuple (id, TPOpen); offset}
+  | TTupleClose (id, _) ->
+      Some {astRef = ARTuple (id, TPClose); offset}
+  | TTupleComma (id, idx) ->
+      Some {astRef = ARTuple (id, TPComma idx); offset}
   | TPipe (id, idx, _, _) ->
       Some {astRef = ARPipe (id, idx); offset}
   | TRecordOpen (id, _) ->
@@ -1117,6 +1129,8 @@ let rec caretTargetForEndOfExpr' : fluidExpr -> caretTarget = function
       {astRef = ARLeftPartial id; offset = String.length str}
   | EList (id, _) ->
       {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
+  | ETuple (id, _) ->
+      {astRef = ARTuple (id, TPClose); offset = 1 (* End of the close ) *)}
   | ERecord (id, _) ->
       {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
   | EPipe (id, pipeExprs) ->
@@ -1201,6 +1215,8 @@ let rec caretTargetForStartOfExpr' : fluidExpr -> caretTarget = function
       {astRef = ARLeftPartial id; offset = 0}
   | EList (id, _) ->
       {astRef = ARList (id, LPOpen); offset = 0}
+  | ETuple (id, _) ->
+      {astRef = ARTuple (id, TPOpen); offset = 0}
   | ERecord (id, _) ->
       {astRef = ARRecord (id, RPOpen); offset = 0}
   | EPipe (id, exprChain) ->
@@ -2046,7 +2062,7 @@ let rec findAppropriateParentToWrap
     | EPipe _ ->
         Some parent
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
-    | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
+    | EBinOp _ | EFnCall _ | EList _ | ETuple _ | EConstructor _ | EFieldAccess _ ->
         findAppropriateParentToWrap parent ast
     (* These are wrappers of the current expr. *)
     | EPartial _ | ERightPartial _ | ELeftPartial _ ->
@@ -2673,6 +2689,7 @@ let idOfASTRef (astRef : astRef) : ID.t option =
   | ARRightPartial id
   | ARLeftPartial id
   | ARList (id, _)
+  | ARTuple (id, _)
   | ARRecord (id, _)
   | ARPipe (id, _)
   | ARConstructor id
@@ -2822,10 +2839,28 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
           |> List.removeAt ~index:(elemAndSepIdx + 1)
         in
         Some (Expr (EList (id, newExprs)), target)
+    | ARTuple (_, TPComma elemAndSepIdx), ETuple (id, exprs) ->
+        let newExpr, target =
+          itemsAtCurrAndNextIndex exprs elemAndSepIdx
+          |> Option.map ~f:(fun (beforeComma, afterComma) ->
+                 mergeExprs beforeComma afterComma)
+          |> Option.withDefault
+               ~default:(E.newB (), {astRef = ARTuple (id, TPOpen); offset = 1})
+        in
+        let newExprs =
+          (* Considering a is the item at elemAndSepIdx and b is at elemAndSepIdx + 1,
+           * we merge a and b in [...a,b...] by replacing a with ab and removing b *)
+          exprs
+          |> List.updateAt ~index:elemAndSepIdx ~f:(fun _ -> newExpr)
+          |> List.removeAt ~index:(elemAndSepIdx + 1)
+        in
+        Some (Expr (ETuple (id, newExprs)), target)
     (* Remove list wrapping from singleton *)
     | ARList (_, LPOpen), EList (_, [item]) ->
         Some (Expr item, caretTargetForStartOfExpr' item)
-    | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr)
+    | ARTuple (_, TPOpen), ETuple (_, [item]) ->
+        Some (Expr item, caretTargetForStartOfExpr' item)
+    | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr | ARTuple (_, TPOpen), expr)
       when E.isEmpty expr ->
         mkEBlank ()
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
@@ -2987,6 +3022,8 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
     | ARRecord (_, RPFieldSep _), expr
     | ARList (_, LPOpen), expr
     | ARList (_, LPClose), expr
+    | ARTuple (_, TPOpen), expr
+    | ARTuple (_, TPClose), expr
     | ARFlag (_, FPWhenKeyword), expr
     | ARFlag (_, FPEnabledKeyword), expr ->
         (* We could alternatively move by a single character instead,
@@ -3015,6 +3052,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
     | ARLet (_, LPKeyword), _
     | ARLet (_, LPVarName), _
     | ARList (_, LPComma _), _
+    | ARTuple (_, TPComma _), _
     | ARMatch (_, MPKeyword), _
     | ARNull _, _
     | ARPartial _, _
@@ -3188,6 +3226,7 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
     | ARLambda _, _
     | ARLet _, _
     | ARList _, _
+    | ARTuple _, _
     | ARMatch _, _
     | ARNull _, _
     | ARPartial _, _
@@ -3356,6 +3395,7 @@ let doExplicitInsert
     | ARFnCall _, EFnCall _
     | ARString (_, SPOpenQuote), EString _
     | ARList (_, LPOpen), EList _
+    | ARTuple (_, TPOpen), ETuple _
     | ARRecord (_, RPOpen), ERecord _
       when currCaretTarget.offset = 0
            && FluidUtil.isUnicodeLetter extendedGraphemeCluster ->
@@ -3533,6 +3573,9 @@ let doExplicitInsert
     | ARList (_, LPOpen), _
     | ARList (_, LPComma _), _
     | ARList (_, LPClose), _
+    | ARTuple (_, TPOpen), _
+    | ARTuple (_, TPComma _), _
+    | ARTuple (_, TPClose), _
     | ARLet (_, LPKeyword), _
     | ARLet (_, LPAssignment), _
     | ARIf (_, IPIfKeyword), _
@@ -3750,6 +3793,7 @@ let doExplicitInsert
     | ARLambda _, _
     | ARLet _, _
     | ARList _, _
+    | ARTuple _, _
     | ARMatch _, _
     | ARNull _, _
     | ARPartial _, _
@@ -3869,6 +3913,7 @@ let doInfixInsert
          | ARNull _, expr
          | ARVariable _, expr
          | ARList _, expr
+         | ARTuple _, expr
          | ARRecord _, expr
          (* This works for function calls because
           * the caretTargetForEndOfExpr' of a function
@@ -5233,6 +5278,9 @@ let reconstructExprFromRange (range : int * int) (astInfo : ASTInfo.t) :
     | EList (_, exprs) ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
         Some (EList (id, newExprs))
+    | ETuple (_, exprs) ->
+        let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
+        Some (ETuple (id, newExprs))
     | ERecord (id, entries) ->
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
