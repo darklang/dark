@@ -4333,6 +4333,21 @@ let rec updateKey
           doDelete ~pos ti astInfo
       | None ->
           doDelete ~pos rti astInfo )
+    (* Special case for deleting blanks in front of a tuple *)
+    | DeleteContentForward, L (TTupleOpen _, _), R (TBlank _, rti) ->
+      (* If L is a TTupleOpen and R is a TBlank, mNext can be a comma or a tuple close.
+       * In case of a tuple close, we just replace the expr with the empty tuple
+       *)
+      ( match mNext with
+      | Some {token = TTupleClose (id, _); _} ->
+          astInfo
+          |> ASTInfo.setAST
+               (FluidAST.update ~f:(fun _ -> E.ETuple (id, [])) id astInfo.ast)
+          |> moveToCaretTarget {astRef = ARTuple (id, TPOpen); offset = 1}
+      | Some ti ->
+          doDelete ~pos ti astInfo
+      | None ->
+          doDelete ~pos rti astInfo )
     | DeleteContentForward, _, R (_, ti) ->
         doDelete ~pos ti astInfo
     | DeleteSoftLineBackward, _, R (_, ti)
@@ -4411,6 +4426,9 @@ let rec updateKey
         moveOneRight pos astInfo
     (* Pressing ] to go over the last ] *)
     | InsertText "]", _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
+        moveOneRight pos astInfo
+    (* Pressing ) to go over the last ) *)
+    | InsertText ")", _, R (TTupleClose _, ti) when pos = ti.endPos - 1 ->
         moveOneRight pos astInfo
     (* Pressing quote to go over the last quote *)
     | InsertText "\"", _, R (TPatternString _, ti)
@@ -4522,6 +4540,7 @@ let rec updateKey
     | InsertText "[", _, R (TFnName (id, _, _, _, _), _)
     | InsertText "[", _, R (TVariable (id, _, _), _)
     | InsertText "[", _, R (TListOpen (id, _), _)
+    | InsertText "[", _, R (TTupleOpen (id, _), _)
     | InsertText "[", _, R (TRecordOpen (id, _), _)
     | InsertText "[", _, R (TConstructorName (id, _), _) ->
         let newID = gid () in
@@ -4532,6 +4551,28 @@ let rec updateKey
                 id
                 astInfo.ast)
         |> moveToCaretTarget {astRef = ARList (newID, LPOpen); offset = 1}
+    (* Insert a singleton tuple *)
+        | InsertText "(", _, R (TInteger (id, _, _), _)
+        | InsertText "(", _, R (TString (id, _, _), _)
+        | InsertText "(", _, R (TStringMLStart (id, _, _, _), _)
+        | InsertText "(", _, R (TTrue (id, _), _)
+        | InsertText "(", _, R (TFalse (id, _), _)
+        | InsertText "(", _, R (TNullToken (id, _), _)
+        | InsertText "(", _, R (TFloatWhole (id, _, _), _)
+        | InsertText "(", _, R (TFnName (id, _, _, _, _), _)
+        | InsertText "(", _, R (TVariable (id, _, _), _)
+        | InsertText "(", _, R (TListOpen (id, _), _)
+        | InsertText "(", _, R (TTupleOpen (id, _), _)
+        | InsertText "(", _, R (TRecordOpen (id, _), _)
+        | InsertText "(", _, R (TConstructorName (id, _), _) ->
+            let newID = gid () in
+            astInfo
+            |> ASTInfo.setAST
+                 (FluidAST.update
+                    ~f:(fun var -> E.ETuple (newID, [var]))
+                    id
+                    astInfo.ast)
+            |> moveToCaretTarget {astRef = ARTuple (newID, TPOpen); offset = 1}
     (* Infix symbol insertion to create partials *)
     | InsertText infixTxt, L (TPipe _, ti), _
     | InsertText infixTxt, _, R (TPlaceholder _, ti)
@@ -4544,6 +4585,12 @@ let rec updateKey
         let newExpr, target = insertInBlankExpr txt in
         astInfo
         |> ASTInfo.setAST (insertInList ~index:0 id ~newExpr astInfo.ast)
+        |> moveToCaretTarget target
+    (* Typing between empty tuple symbols () *)
+    | InsertText txt, L (TTupleOpen (id, _), _), R (TTupleClose _, _) ->
+        let newExpr, target = insertInBlankExpr txt in
+        astInfo
+        |> ASTInfo.setAST (insertInTuple ~index:0 id ~newExpr astInfo.ast)
         |> moveToCaretTarget target
     (* Typing between empty record symbols {} *)
     | InsertText txt, L (TRecordOpen (id, _), _), R (TRecordClose _, _) ->

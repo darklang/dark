@@ -344,11 +344,11 @@ let functionWrappedEmptyRecord =
 (* ---------------- *)
 let emptyList = list []
 
-let single = list [fiftySix]
+let singleList = list [fiftySix]
 
-let multi = list [fiftySix; seventyEight]
+let multiList = list [fiftySix; seventyEight]
 
-let withStr = list [str "ab"]
+let listWithStr = list [str "ab"]
 
 let longList =
   list [fiftySix; seventyEight; fiftySix; seventyEight; fiftySix; seventyEight]
@@ -434,7 +434,106 @@ let listWithJustABlank = list [b]
 
 let listWithRecord = list [emptyRecord]
 
-let multiWithStrs = list [str "ab"; str "cd"; str "ef"]
+let multiListWithStrs = list [str "ab"; str "cd"; str "ef"]
+
+
+(* ---------------- *)
+(* Tuples *)
+(* ---------------- *)
+let emptyTuple = tuple []
+
+let singleTuple = tuple [fiftySix]
+
+let multiTuple = tuple [fiftySix; seventyEight]
+
+let tupleWithStr = tuple [str "ab"]
+
+let bigTuple =
+  tuple [fiftySix; seventyEight; fiftySix; seventyEight; fiftySix; seventyEight]
+
+
+let veryBigTuple =
+  tuple
+    [ fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight
+    ; fiftySix
+    ; seventyEight ]
+
+
+let tupleWithBlank = tuple [fiftySix; seventyEight; b; fiftySix]
+
+let tupleWithBlankAtStart = tuple [b; fiftySix; seventyEight; fiftySix]
+
+let tupleWithJustABlank = tuple [b]
+
+let tupleWithRecord = tuple [emptyRecord]
+
+let multiTupleWithStrs = tuple [str "ab"; str "cd"; str "ef"]
+
 
 (* ---------------- *)
 (* Fields *)

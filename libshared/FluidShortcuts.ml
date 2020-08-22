@@ -28,6 +28,8 @@ let record ?(id = gid ()) (rows : (string * t) list) : t =
 
 let list ?(id = gid ()) (elems : t list) : t = EList (id, elems)
 
+let tuple ?(id = gid ()) (elems : t list) : t = ETuple (id, elems)
+
 let pipeTarget = EPipeTarget (gid ())
 
 let fn ?(id = gid ()) ?(ster = NoRail) (name : string) (args : t list) =

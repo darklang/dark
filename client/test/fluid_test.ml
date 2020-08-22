@@ -3815,18 +3815,18 @@ let run () =
         ~pos:0
         [InsertText "c"]
         (leftPartial "c" emptyList) ;
-      t "insert space into multi list" multi ~pos:6 (key K.Space) "[56,78~]" ;
-      t "insert space into single list" single ~pos:3 (key K.Space) "[56~]" ;
-      t "insert into existing list item" single ~pos:1 (ins "4") "[4~56]" ;
+      t "insert space into multi list" multiList ~pos:6 (key K.Space) "[56,78~]" ;
+      t "insert space into single list" singleList ~pos:3 (key K.Space) "[56~]" ;
+      t "insert into existing list item" singleList ~pos:1 (ins "4") "[4~56]" ;
       t
         "insert separator before item creates blank"
-        single
+        singleList
         ~pos:1
         (ins ",")
         "[~___,56]" ;
       t
         "insert separator after item creates blank"
-        single
+        singleList
         ~pos:3
         (ins ",")
         "[56,~___]" ;
@@ -3844,22 +3844,22 @@ let run () =
         "[\"0123456789012345678901234567890123456789\n ,~0\"]" ;
       t
         "insert separator after item creates blank when list is in match"
-        (match' single [(pBlank (), b)])
+        (match' singleList [(pBlank (), b)])
         ~pos:9
         (ins ",")
         "match [56,~___]\n  *** -> ___\n" ;
       t
         "insert separator between items creates blank"
-        multi
+        multiList
         ~pos:3
         (ins ",")
         "[56,~___,78]" ;
-      (* t "insert separator mid integer makes two items" single (ins ',' 2) *)
+      (* t "insert separator mid integer makes two items" singleList (ins ',' 2) *)
       (*   ("[5,6]", 3) ; *)
       (* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. *)
       t
         "insert separator mid string does nothing special "
-        withStr
+        listWithStr
         ~pos:3
         (ins ",")
         "[\"a,~b\"]" ;
@@ -3889,13 +3889,13 @@ let run () =
         "[]~" ;
       t
         "bs on first separator between ints merges ints on either side of sep"
-        multi
+        multiList
         ~pos:4
         bs
         "[56~78]" ;
       t
         "del before first separator between ints merges ints on either side of sep"
-        multi
+        multiList
         ~pos:3
         del
         "[56~78]" ;
@@ -3937,13 +3937,13 @@ let run () =
         "[56,78,~56]" ;
       t
         "bs on separator between string items merges strings"
-        multiWithStrs
+        multiListWithStrs
         ~pos:6
         bs
         "[\"ab~cd\",\"ef\"]" ;
       t
         "del before separator between string items merges strings"
-        multiWithStrs
+        multiListWithStrs
         ~pos:5
         del
         "[\"ab~cd\",\"ef\"]" ;
@@ -4043,7 +4043,7 @@ let run () =
         "[~[]]" ;
       t
         "inserting [ before list open wraps it in another list"
-        multi
+        multiList
         ~pos:0
         (ins "[")
         "[~[56,78]]" ;
@@ -4061,13 +4061,13 @@ let run () =
         "[~Just ___]" ;
       t
         "deleting [ from a singleton remove a list wrapping"
-        single
+        singleList
         ~pos:0
         del
         "~56" ;
       t
         "backspacing [ from a singleton remove a list wrapping"
-        single
+        singleList
         ~pos:1
         bs
         "~56" ;
@@ -4083,6 +4083,285 @@ let run () =
         ~pos:1
         del
         "[~]" ;
+      ()) ;
+  describe "Tuples" (fun () ->
+      t "create tuple" b ~pos:0 (ins "(") "(~)" ;
+      t "insert into empty tuple inserts" emptyTuple ~pos:1 (ins "5") "(5~)" ;
+      t "inserting before a tuple is no-op" emptyTuple ~pos:0 (ins "5") "~()" ;
+      tStruct
+        "inserting before a tuple at top-level creates left partial"
+        emptyTuple
+        ~pos:0
+        [InsertText "c"]
+        (leftPartial "c" emptyTuple) ;
+      t "insert space into multi tuple" multiTuple ~pos:6 (key K.Space) "(56,78~)" ;
+      t "insert space into single tuple" singleTuple ~pos:3 (key K.Space) "(56~)" ;
+      t "insert into existing tuple item" singleTuple ~pos:1 (ins "4") "(4~56)" ;
+      t
+        "insert separator before item creates blank"
+        singleTuple
+        ~pos:1
+        (ins ",")
+        "(~___,56)" ;
+      t
+        "insert separator after item creates blank"
+        singleTuple
+        ~pos:3
+        (ins ",")
+        "(56,~___)" ;
+      t
+        "insert separator after separator creates blank"
+        (tuple [int 1; int 2; int 3])
+        ~pos:5
+        (ins ",")
+        "(1,2,~___,3)" ;
+      t
+        "insert , in string in tuple types ,"
+        (tuple [str "01234567890123456789012345678901234567890"])
+        ~pos:44
+        (ins ",")
+        "(\"0123456789012345678901234567890123456789\n ,~0\")" ;
+      t
+        "insert separator after item creates blank when tuple is in match"
+        (match' singleTuple [(pBlank (), b)])
+        ~pos:9
+        (ins ",")
+        "match (56,~___)\n  *** -> ___\n" ;
+      t
+        "insert separator between items creates blank"
+        multiTuple
+        ~pos:3
+        (ins ",")
+        "(56,~___,78)" ;
+      (* t "insert separator mid integer makes two items" singleTuple (ins ',' 2) *)
+      (*   ("(5,6)", 3) ; *)
+      (* TODO: when on a separator in a nested tuple, pressing comma makes an entry outside the tuple. *)
+      t
+        "insert separator mid string does nothing special "
+        tupleWithStr
+        ~pos:3
+        (ins ",")
+        "(\"a,~b\")" ;
+      t
+        "backspacing open bracket of empty tuple dels tuple"
+        emptyTuple
+        ~pos:1
+        bs
+        "~___" ;
+      t
+        "backspacing close bracket of empty tuple moves inside tuple"
+        emptyTuple
+        ~pos:2
+        bs
+        "(~)" ;
+      t
+        "deleting open bracket of empty tuple dels tuple"
+        emptyTuple
+        ~pos:0
+        del
+        "~___" ;
+      t
+        "close bracket at end of tuple is swallowed"
+        emptyTuple
+        ~pos:1
+        (ins ")")
+        "()~" ;
+      t
+        "bs on first separator between ints merges ints on either side of sep"
+        multiTuple
+        ~pos:4
+        bs
+        "(56~78)" ;
+      t
+        "del before first separator between ints merges ints on either side of sep"
+        multiTuple
+        ~pos:3
+        del
+        "(56~78)" ;
+      t
+        "bs on middle separator between ints merges ints on either side of sep"
+        bigTuple
+        ~pos:10
+        bs
+        "(56,78,56~78,56,78)" ;
+      t
+        "del before middle separator between ints merges ints on either side of sep"
+        bigTuple
+        ~pos:9
+        del
+        "(56,78,56~78,56,78)" ;
+      t
+        "bs on separator between item and blank dels blank"
+        tupleWithBlank
+        ~pos:7
+        bs
+        "(56,78~,56)" ;
+      t
+        "del on separator between item and blank dels blank"
+        tupleWithBlank
+        ~pos:6
+        del
+        "(56,78~,56)" ;
+      t
+        "bs on separator between blank and item dels blank"
+        tupleWithBlank
+        ~pos:11
+        bs
+        "(56,78,~56)" ;
+      t
+        "del on separator between blank and item dels blank"
+        tupleWithBlank
+        ~pos:10
+        del
+        "(56,78,~56)" ;
+      t
+        "bs on separator between string items merges strings"
+        multiTupleWithStrs
+        ~pos:6
+        bs
+        "(\"ab~cd\",\"ef\")" ;
+      t
+        "del before separator between string items merges strings"
+        multiTupleWithStrs
+        ~pos:5
+        del
+        "(\"ab~cd\",\"ef\")" ;
+      t
+        "ctrl+left at the beg of tuple item moves to beg of next tuple item"
+        bigTuple
+        ~pos:10
+        ctrlLeft
+        "(56,78,~56,78,56,78)" ;
+      t
+        "ctrl+right at the end of tuple item moves to end of next tuple item"
+        bigTuple
+        ~pos:12
+        ctrlRight
+        "(56,78,56,78,56~,78)" ;
+      t
+        "a very long tuple wraps"
+        veryBigTuple
+        render
+        "~(56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n 56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n 78,56,78,56,78,56,78,56,78,56,78)" ;
+      t
+        "a tuple of long floats does not break upon wrap"
+        (tuple
+           [ EFloat
+               ( gid ()
+               , "4611686018427387"
+               , "12345678901234567989048290381902830912830912830912830912309128901234567890123456789"
+               )
+           ; EFloat
+               ( gid ()
+               , "4611686018427387"
+               , "1234567890183918309183091809183091283019832345678901234567890123456789"
+               )
+           ; EFloat (gid (), "4611686018427387", "123456") ])
+        render
+        "~(4611686018427387.12345678901234567989048290381902830912830912830912830912309128901234567890123456789,\n 4611686018427387.1234567890183918309183091809183091283019832345678901234567890123456789,\n 4611686018427387.123456)" ;
+      t
+        "a nested very tuple wraps with proper indents"
+        (let' "a" veryBigTuple b)
+        render
+        "~let a = (56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,\n         56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,78,56,\n         78,56,78,56,78,56,78,56,78,56,78)\n___" ;
+      t
+        "inserting ( before int creates a singleton int tuple"
+        aShortInt
+        ~pos:0
+        (ins "(")
+        "(~1)" ;
+      t
+        "inserting ( before multiline string creates a singleton string tuple"
+        mlStrWSpace
+        ~pos:0
+        (ins "(")
+        ( "(~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "  123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ " ghi,\")" ) ;
+      t
+        "inserting ( before true creates a singleton bool tuple"
+        trueBool
+        ~pos:0
+        (ins "(")
+        "(~true)" ;
+      t
+        "inserting ( before true creates a singleton bool tuple"
+        falseBool
+        ~pos:0
+        (ins "(")
+        "(~false)" ;
+      t
+        "inserting ( before true creates a singleton bool tuple"
+        aNull
+        ~pos:0
+        (ins "(")
+        "(~null)" ;
+      t
+        "inserting ( before float creates a singleton float tuple"
+        aFloat
+        ~pos:0
+        (ins "(")
+        "(~123.456)" ;
+      t
+        "inserting ( before function call creates a singleton function tuple"
+        aFullFnCall
+        ~pos:0
+        (ins "(")
+        "(~Int::add 5 5)" ;
+      t
+        "inserting ( before variable creates a singleton with variable"
+        aVar
+        ~pos:0
+        (ins "(")
+        "(~variable)" ;
+      t
+        "inserting ( before empty tuple open wraps it in another tuple"
+        emptyTuple
+        ~pos:0
+        (ins "(")
+        "(~())" ;
+      t
+        "inserting ( before tuple open wraps it in another tuple"
+        multiTuple
+        ~pos:0
+        (ins "(")
+        "(~(56,78))" ;
+      t
+        "inserting ( before record open wraps it in a tuple"
+        singleRowRecord
+        ~pos:0
+        (ins "(")
+        "(~{\n   f1 : 56\n })" ;
+      t
+        "inserting ( before constructor creates a singleton of that type"
+        aConstructor
+        ~pos:0
+        (ins "(")
+        "(~Just ___)" ;
+      t
+        "deleting ( from a singleton remove a tuple wrapping"
+        singleTuple
+        ~pos:0
+        del
+        "~56" ;
+      t
+        "backspacing ( from a singleton remove a tuple wrapping"
+        singleTuple
+        ~pos:1
+        bs
+        "~56" ;
+      t
+        "a delete with caret before a blank in front of a tuple will delete the blank"
+        tupleWithBlankAtStart
+        ~pos:1
+        del
+        "(~56,78,56)" ;
+      t
+        "a delete with caret before a tuple with just a blank removes the blank"
+        tupleWithJustABlank
+        ~pos:1
+        del
+        "(~)" ;
       ()) ;
   describe "Records" (fun () ->
       t "create record" b ~pos:0 (ins "{") "{~}" ;
@@ -5156,7 +5435,7 @@ let run () =
         shiftTab
         "[56,78,56,78,56,78~]" ;
       t
-        "tab at end of line, wraps to beginging"
+        "tab at end of line, wraps to beginning"
         ~wrap:
           false
           (* wrap false because else we move the cursor into the wrapper *)
@@ -5167,13 +5446,13 @@ let run () =
         (key K.Tab)
         "~Int::add 5 _________" ;
       t
-        "tab at end of line, wraps to beginging"
+        "tab at end of line, wraps to beginning"
         ~wrap:
           false
           (* wrap false because else we move the cursor into the wrapper *)
         ~brokenInFF:true
         (* brokenInFF false because else we move the cursor into the ff condition*)
-        multi
+        multiList
         ~pos:6
         (key K.Tab)
         "[~56,78]" ;
