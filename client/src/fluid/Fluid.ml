@@ -1451,6 +1451,8 @@ let insBlankOrPlaceholderHelper' (ins : string) : (E.t * caretTarget) option =
        then (E.EString (newID, ""), CT.forARStringOpenQuote newID 1)
        else if ins = "["
        then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
+       else if ins = "("
+       then (E.ETuple (newID, []), {astRef = ARTuple (newID, TPOpen); offset = 1})
        else if ins = "{"
        then
          (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
@@ -2151,6 +2153,30 @@ let insertAtListEnd ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) : FluidAST.t
           EList (id, exprs @ [newExpr])
       | _ ->
           recover "not a list in insertInList" ~debug:e e)
+
+
+(* ---------------- *)
+(* Tuples *)
+(* ---------------- *)
+
+let insertInTuple ~(index : int) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t)
+    : FluidAST.t =
+  FluidAST.update id ast ~f:(fun e ->
+      match e with
+      | ETuple (id, exprs) ->
+          ETuple (id, List.insertAt ~index ~value:newExpr exprs)
+      | _ ->
+          recover "not a tuple in insertInTuple" ~debug:e e)
+
+
+let insertAtTupleEnd ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) : FluidAST.t
+    =
+  FluidAST.update id ast ~f:(fun e ->
+      match e with
+      | ETuple (id, exprs) ->
+          ETuple (id, exprs @ [newExpr])
+      | _ ->
+          recover "not a tuple in insertInTuple" ~debug:e e)
 
 
 (* -------------------- *)
@@ -4423,6 +4449,27 @@ let rec updateKey
         let newExpr = E.EBlank bID (* new separators *) in
         astInfo
         |> ASTInfo.setAST (insertAtListEnd id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
+    | InsertText ",", L (TTupleOpen (id, _), _), _ when onEdge ->
+        let bID = gid () in
+        let newExpr = E.EBlank bID (* new separators *) in
+        astInfo
+        |> ASTInfo.setAST (insertInTuple ~index:0 id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
+    | InsertText ",", L (TTupleComma (id, index), _), _
+    | InsertText ",", _, R (TTupleComma (id, index), _)
+      when onEdge ->
+        let bID = gid () in
+        let newExpr = E.EBlank bID (* new separators *) in
+        astInfo
+        |> ASTInfo.setAST
+             (insertInTuple ~index:(index + 1) id ~newExpr astInfo.ast)
+        |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
+    | InsertText ",", _, R (TTupleClose (id, _), _) when onEdge ->
+        let bID = gid () in
+        let newExpr = E.EBlank bID (* new separators *) in
+        astInfo
+        |> ASTInfo.setAST (insertAtTupleEnd id ~newExpr astInfo.ast)
         |> moveToCaretTarget {astRef = ARBlank bID; offset = 0}
     | InsertText ",", L (TLambdaSymbol (id, _), _), _ when onEdge ->
         astInfo
