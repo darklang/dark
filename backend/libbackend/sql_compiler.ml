@@ -184,6 +184,7 @@ let dval_to_sql (dval : dval) : string =
   match dval with
   | DObj _
   | DList _
+  | DTuple _
   | DResp _
   | DBlock _
   | DError _

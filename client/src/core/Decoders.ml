@@ -183,6 +183,7 @@ let rec tipe j : tipe =
     ; ("TFloat", dv0 TFloat)
     ; ("TObj", dv0 TObj)
     ; ("TList", dv0 TList)
+    ; ("TTuple", dv0 TTuple)
     ; ("TAny", dv0 TAny)
     ; ("TNull", dv0 TNull)
     ; ("TBlock", dv0 TBlock)
@@ -374,6 +375,7 @@ let rec dval j : dval =
     ; ("DCharacter", dv1 (fun x -> DCharacter x) string)
     ; ("DStr", dv1 (fun x -> DStr x) string)
     ; ("DList", dv1 (fun x -> DList x) (array dd))
+    ; ("DTuple", dv1 (fun x -> DTuple x) (array dd))
     ; ("DObj", dv1 (fun x -> DObj x) (strDict dd))
     ; ( "DIncomplete"
         (* catch decoding errors for backwards compatibility. if you see this

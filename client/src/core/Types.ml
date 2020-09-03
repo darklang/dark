@@ -71,6 +71,7 @@ and tipe =
   | TFloat
   | TObj
   | TList
+  | TTuple
   | TAny
   | TNull
   | TBlock
@@ -318,6 +319,7 @@ and dval =
   | DCharacter of string
   | DStr of string
   | DList of dval array
+  | DTuple of dval array
   | DObj of dval StrDict.t
   | DIncomplete of dval_source
   | DError of (dval_source * string)

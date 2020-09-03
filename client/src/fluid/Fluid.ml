@@ -1452,7 +1452,8 @@ let insBlankOrPlaceholderHelper' (ins : string) : (E.t * caretTarget) option =
        else if ins = "["
        then (E.EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
        else if ins = "("
-       then (E.ETuple (newID, []), {astRef = ARTuple (newID, TPOpen); offset = 1})
+       then
+         (E.ETuple (newID, []), {astRef = ARTuple (newID, TPOpen); offset = 1})
        else if ins = "{"
        then
          (E.ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
@@ -2064,7 +2065,12 @@ let rec findAppropriateParentToWrap
     | EPipe _ ->
         Some parent
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
-    | EBinOp _ | EFnCall _ | EList _ | ETuple _ | EConstructor _ | EFieldAccess _ ->
+    | EBinOp _
+    | EFnCall _
+    | EList _
+    | ETuple _
+    | EConstructor _
+    | EFieldAccess _ ->
         findAppropriateParentToWrap parent ast
     (* These are wrappers of the current expr. *)
     | EPartial _ | ERightPartial _ | ELeftPartial _ ->
@@ -2169,8 +2175,8 @@ let insertInTuple ~(index : int) ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t)
           recover "not a tuple in insertInTuple" ~debug:e e)
 
 
-let insertAtTupleEnd ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) : FluidAST.t
-    =
+let insertAtTupleEnd ~(newExpr : E.t) (id : ID.t) (ast : FluidAST.t) :
+    FluidAST.t =
   FluidAST.update id ast ~f:(fun e ->
       match e with
       | ETuple (id, exprs) ->
@@ -2886,7 +2892,9 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
         Some (Expr item, caretTargetForStartOfExpr' item)
     | ARTuple (_, TPOpen), ETuple (_, [item]) ->
         Some (Expr item, caretTargetForStartOfExpr' item)
-    | (ARRecord (_, RPOpen), expr | ARList (_, LPOpen), expr | ARTuple (_, TPOpen), expr)
+    | ARRecord (_, RPOpen), expr
+    | ARList (_, LPOpen), expr
+    | ARTuple (_, TPOpen), expr
       when E.isEmpty expr ->
         mkEBlank ()
     | ARRecord (_, RPFieldname index), ERecord (id, nameValPairs) ->
@@ -4552,27 +4560,27 @@ let rec updateKey
                 astInfo.ast)
         |> moveToCaretTarget {astRef = ARList (newID, LPOpen); offset = 1}
     (* Insert a singleton tuple *)
-        | InsertText "(", _, R (TInteger (id, _, _), _)
-        | InsertText "(", _, R (TString (id, _, _), _)
-        | InsertText "(", _, R (TStringMLStart (id, _, _, _), _)
-        | InsertText "(", _, R (TTrue (id, _), _)
-        | InsertText "(", _, R (TFalse (id, _), _)
-        | InsertText "(", _, R (TNullToken (id, _), _)
-        | InsertText "(", _, R (TFloatWhole (id, _, _), _)
-        | InsertText "(", _, R (TFnName (id, _, _, _, _), _)
-        | InsertText "(", _, R (TVariable (id, _, _), _)
-        | InsertText "(", _, R (TListOpen (id, _), _)
-        | InsertText "(", _, R (TTupleOpen (id, _), _)
-        | InsertText "(", _, R (TRecordOpen (id, _), _)
-        | InsertText "(", _, R (TConstructorName (id, _), _) ->
-            let newID = gid () in
-            astInfo
-            |> ASTInfo.setAST
-                 (FluidAST.update
-                    ~f:(fun var -> E.ETuple (newID, [var]))
-                    id
-                    astInfo.ast)
-            |> moveToCaretTarget {astRef = ARTuple (newID, TPOpen); offset = 1}
+    | InsertText "(", _, R (TInteger (id, _, _), _)
+    | InsertText "(", _, R (TString (id, _, _), _)
+    | InsertText "(", _, R (TStringMLStart (id, _, _, _), _)
+    | InsertText "(", _, R (TTrue (id, _), _)
+    | InsertText "(", _, R (TFalse (id, _), _)
+    | InsertText "(", _, R (TNullToken (id, _), _)
+    | InsertText "(", _, R (TFloatWhole (id, _, _), _)
+    | InsertText "(", _, R (TFnName (id, _, _, _, _), _)
+    | InsertText "(", _, R (TVariable (id, _, _), _)
+    | InsertText "(", _, R (TListOpen (id, _), _)
+    | InsertText "(", _, R (TTupleOpen (id, _), _)
+    | InsertText "(", _, R (TRecordOpen (id, _), _)
+    | InsertText "(", _, R (TConstructorName (id, _), _) ->
+        let newID = gid () in
+        astInfo
+        |> ASTInfo.setAST
+             (FluidAST.update
+                ~f:(fun var -> E.ETuple (newID, [var]))
+                id
+                astInfo.ast)
+        |> moveToCaretTarget {astRef = ARTuple (newID, TPOpen); offset = 1}
     (* Infix symbol insertion to create partials *)
     | InsertText infixTxt, L (TPipe _, ti), _
     | InsertText infixTxt, _, R (TPlaceholder _, ti)

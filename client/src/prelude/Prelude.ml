@@ -88,6 +88,8 @@ let rec tipe2str (t : tipe) : string =
       "String"
   | TList ->
       "List"
+  | TTuple ->
+      "Tuple"
   | TObj ->
       "Dict"
   | TBlock ->

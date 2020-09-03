@@ -436,7 +436,6 @@ let listWithRecord = list [emptyRecord]
 
 let multiListWithStrs = list [str "ab"; str "cd"; str "ef"]
 
-
 (* ---------------- *)
 (* Tuples *)
 (* ---------------- *)
@@ -533,7 +532,6 @@ let tupleWithJustABlank = tuple [b]
 let tupleWithRecord = tuple [emptyRecord]
 
 let multiTupleWithStrs = tuple [str "ab"; str "cd"; str "ef"]
-
 
 (* ---------------- *)
 (* Fields *)

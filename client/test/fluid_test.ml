@@ -4094,8 +4094,18 @@ let run () =
         ~pos:0
         [InsertText "c"]
         (leftPartial "c" emptyTuple) ;
-      t "insert space into multi tuple" multiTuple ~pos:6 (key K.Space) "(56,78~)" ;
-      t "insert space into single tuple" singleTuple ~pos:3 (key K.Space) "(56~)" ;
+      t
+        "insert space into multi tuple"
+        multiTuple
+        ~pos:6
+        (key K.Space)
+        "(56,78~)" ;
+      t
+        "insert space into single tuple"
+        singleTuple
+        ~pos:3
+        (key K.Space)
+        "(56~)" ;
       t "insert into existing tuple item" singleTuple ~pos:1 (ins "4") "(4~56)" ;
       t
         "insert separator before item creates blank"

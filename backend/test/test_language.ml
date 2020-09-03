@@ -13,6 +13,13 @@ let t_int_add_works () =
   check_dval "int_add" (Dval.dint 8) (exec_ast (binop "+" (int 5) (int 3)))
 
 
+let t_tuple_works () =
+  check_dval
+    "tuple_of_two_elements"
+    (DTuple [Dval.dint 5; Dval.dint 3])
+    (exec_ast (tuple [int 5; int 3]))
+
+
 let t_lambda_with_foreach () =
   check_dval
     "lambda_with_foreach"
@@ -291,9 +298,17 @@ let t_incomplete_propagation () =
     (DList [Dval.dint 5; Dval.dint 6])
     (exec_ast (list [int 5; int 6; fn "List::head" [blank ()]])) ;
   check_dval
+    "Incompletes stripped from tuples"
+    (DTuple [Dval.dint 5; Dval.dint 6])
+    (exec_ast (tuple [int 5; int 6; fn "List::head" [blank ()]])) ;
+  check_dval
     "Blanks stripped from lists"
     (DList [Dval.dint 5; Dval.dint 6])
     (exec_ast (list [int 5; int 6; blank ()])) ;
+  check_dval
+    "Blanks stripped from tuples"
+    (DTuple [Dval.dint 5; Dval.dint 6])
+    (exec_ast (tuple [int 5; int 6; blank ()])) ;
   check_dval
     "Blanks stripped from objects"
     (DObj (DvalMap.from_list [("m", Dval.dint 5); ("n", Dval.dint 6)]))
@@ -704,6 +719,7 @@ let t_dval_hash_differs_for_version_0_and_1 () =
 
 let suite =
   [ ("int_add_works", `Quick, t_int_add_works)
+  ; ("tuple_of_two_elements_work", `Quick, t_int_add_works)
   ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
   ; ("match_works", `Quick, t_match_works)
   ; ("pipe works", `Quick, t_pipe_works)

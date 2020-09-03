@@ -101,6 +101,8 @@ let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
       Ok ()
   | TList, DList _ ->
       Ok ()
+  | TTuple, DTuple _ ->
+      Ok ()
   | TDate, DDate _ ->
       Ok ()
   | TObj, DObj _ ->

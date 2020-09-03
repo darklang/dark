@@ -109,6 +109,7 @@ module RuntimeT = struct
     (* name * version *)
     | TUserType of string * int
     | TBytes
+    | TTuple
   [@@deriving eq, ord, show, yojson]
 
   type fnname = Serialization_format.RuntimeT.fnname
@@ -343,6 +344,7 @@ module RuntimeT = struct
     | DStr of Unicode_string.t
     (* compound types *)
     | DList of dval list
+    | DTuple of dval list
     | DObj of dval_map
     (* special types - see notes above *)
     | DIncomplete of dval_source

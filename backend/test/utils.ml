@@ -553,6 +553,7 @@ let sample_dvals : (string * dval) list =
   ; ("datastore", DDB "Visitors")
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
   ; ("list", DList [Dval.dint 4])
+  ; ("tuple", DTuple [Dval.dint 4; Dval.dint 5])
   ; ("obj", DObj (DvalMap.singleton "foo" (Dval.dint 5)))
   ; ( "obj2"
     , DObj

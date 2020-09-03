@@ -70,6 +70,8 @@ let rec deprecated_traverse ~(f : fluid_expr -> fluid_expr) (expr : fluid_expr)
       EFieldAccess (id, f obj, field)
   | EList (id, exprs) ->
       EList (id, List.map ~f exprs)
+  | ETuple (id, exprs) ->
+      ETuple (id, List.map ~f exprs)
   | ERecord (id, pairs) ->
       ERecord (id, List.map ~f:(fun (k, v) -> (k, f v)) pairs)
   | EFeatureFlag (id, msg, cond, a, b) ->
@@ -121,6 +123,8 @@ let rec post_traverse ~(f : fluid_expr -> fluid_expr) (expr : fluid_expr) :
         EFieldAccess (id, r obj, field)
     | EList (id, exprs) ->
         EList (id, List.map ~f:r exprs)
+    | ETuple (id, exprs) ->
+        ETuple (id, List.map ~f:r exprs)
     | ERecord (id, pairs) ->
         ERecord (id, List.map ~f:(fun (k, v) -> (k, r v)) pairs)
     | EFeatureFlag (id, msg, cond, a, b) ->
@@ -336,6 +340,12 @@ and exec ~(state : exec_state) (st : symtable) (expr : fluid_expr) : dval =
                (* exe each list item to store their values, but don't count the incompletes as list items *)
                match exe st e with DIncomplete _ -> None | dv -> Some dv)
         |> fun l -> find_derrorrail l |> Option.value ~default:(DList l)
+    | ETuple (id, exprs) ->
+        exprs
+        |> List.filter_map ~f:(fun e ->
+               (* exe each tuple element to store their values, but don't count the incompletes as tuple elements *)
+               match exe st e with DIncomplete _ -> None | dv -> Some dv)
+        |> fun t -> find_derrorrail t |> Option.value ~default:(DTuple t)
     | ERecord (id, pairs) ->
         pairs
         |> List.filter_map ~f:(fun (k, v) ->
