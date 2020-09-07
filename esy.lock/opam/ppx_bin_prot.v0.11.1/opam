@@ -15,7 +15,7 @@ depends: [
   "bin_prot" {>= "v0.11" & < "v0.12"}
   "ppx_here" {>= "v0.11" & < "v0.12"}
   "jbuilder" {>= "1.0+beta18.1"}
-  "ocaml-migrate-parsetree" {>= "1.0"}
+  "ocaml-migrate-parsetree" {>= "1.0" & < "2.0.0"}
   "ppxlib" {>= "0.3.0" & < "0.9.0"}
 ]
 synopsis: "Generation of bin_prot readers and writers from types"

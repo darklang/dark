@@ -18,7 +18,7 @@ build: [["dune" "build" "-p" name "-j" jobs]]
 depends: [
   "ocaml" {>= "4.02.0" & < "4.09.0"}
   "dune" {>= "1.2"}
-  "ocaml-migrate-parsetree"
+  "ocaml-migrate-parsetree" {< "2.0.0"}
   "ppx_tools_versioned"
   "uchar"
   "js_of_ocaml-compiler" {= version}

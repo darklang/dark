@@ -10,17 +10,17 @@ doc:         "https://mirage.github.io/alcotest/"
 build: [
   ["dune" "subst"] {pinned}
   ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
 ]
 
 depends: [
-  "dune"  {>= "1.11"}
-  "ocaml" {>= "4.03.0"}
-  "fmt"   {>= "0.8.6"}
+  "dune"  {>= "1.1.0"}
+  "ocaml" {>= "4.02.3"}
+  "fmt"   {>= "0.8.0"}
   "astring"
+  "result" {< "1.5"}
   "cmdliner"
   "uuidm"
-  "re"
-  "stdlib-shims"
 ]
 
 synopsis: "Alcotest is a lightweight and colourful test framework"
@@ -38,9 +38,6 @@ tests to run.
 """
 url {
   src:
-    "https://github.com/mirage/alcotest/releases/download/1.0.1/alcotest-1.0.1.tbz"
-  checksum: [
-    "sha256=0c8748838a89df6dee4850aa7ef5e46c573265a9bf1589dec255bd8156a793f6"
-    "sha512=f5f52dea5bb143e7001b8d0ac6131f8851389b080f46b9ad1ccacb95cc31a38143dd7122ccba59bb190abe559dbf81f33cc4dc3401ed95772d59be75fa566f19"
-  ]
+    "https://github.com/mirage/alcotest/releases/download/0.8.5/alcotest-0.8.5.tbz"
+  checksum: "md5=2db36741c413ab93391ecc1f983aa804"
 }
