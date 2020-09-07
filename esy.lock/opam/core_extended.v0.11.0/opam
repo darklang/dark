@@ -21,7 +21,7 @@ depends: [
   "textutils" {>= "v0.11" & < "v0.12"}
   "base-threads"
   "jbuilder" {>= "1.0+beta18.1"}
-  "ocaml-migrate-parsetree" {>= "1.0"}
+  "ocaml-migrate-parsetree" {>= "1.0" & < "2.0.0"}
   "re" {>= "1.5.0"}
 ]
 synopsis:

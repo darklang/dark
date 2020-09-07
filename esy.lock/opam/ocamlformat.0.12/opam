@@ -24,7 +24,7 @@ depends: [
   "cmdliner"
   "dune" {>= "1.11.1"}
   "fpath"
-  "ocaml-migrate-parsetree" {>= "1.3.1"}
+  "ocaml-migrate-parsetree" {>= "1.3.1" & < "2.0.0"}
   "odoc" {>= "1.4.2"}
   "re"
   "stdio" {< "v0.14"}

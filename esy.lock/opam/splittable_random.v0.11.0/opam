@@ -13,7 +13,7 @@ depends: [
   "base" {>= "v0.11" & < "v0.12"}
   "ppx_jane" {>= "v0.11" & < "v0.12"}
   "jbuilder" {>= "1.0+beta18.1"}
-  "ocaml-migrate-parsetree" {>= "1.0"}
+  "ocaml-migrate-parsetree" {>= "1.0" & < "2.0.0"}
 ]
 synopsis: "PRNG that can be split into independent streams"
 description: """

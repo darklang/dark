@@ -9,8 +9,8 @@ bug-reports: "https://github.com/ocaml/opam-repository/issues"
 
 depexts: [
   ["libpq-dev"] {os-family = "debian"}
-  ["database/postgresql96-client"] {os-distribution = "freebsd"}
-  ["database/postgresql96-client"] {os-distribution = "openbsd"}
+  ["postgresql96-client"] {os-distribution = "freebsd"}
+  ["postgresql96-client"] {os-distribution = "openbsd"}
   ["postgresql-devel"] {os-distribution = "centos"}
   ["postgresql-devel"] {os-distribution = "rhel"}
   ["postgresql-devel"] {os-distribution = "fedora"}

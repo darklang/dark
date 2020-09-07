@@ -18,7 +18,7 @@ depends: [
   "ppx_sexp_conv" {>= "v0.11" & < "v0.12"}
   "ppx_variants_conv" {>= "v0.11" & < "v0.12"}
   "jbuilder" {>= "1.0+beta18.1"}
-  "ocaml-migrate-parsetree" {>= "1.0"}
+  "ocaml-migrate-parsetree" {>= "1.0" & < "2.0.0"}
 ]
 depopts: [
   "mirage-xen-ocaml"
