@@ -329,7 +329,7 @@ let secretToACItem (s : SecretTypes.t) : fluidAutocompleteItem =
   FACVariable (s.secretName, Some asDval)
 
 
-let isInQuery (tl : toplevel) ti =
+let lookupIsInQuery (tl : toplevel) ti =
   let ast' = TL.getAST tl in
   match ast' with
   | None ->
@@ -344,8 +344,8 @@ let isInQuery (tl : toplevel) ti =
       |> Option.is_some
 
 
-let filterToDbSupportedFns (tl : toplevel) ti functions =
-  if not (isInQuery tl ti)
+let filterToDbSupportedFns isInQuery functions =
+  if not isInQuery
   then functions
   else
     functions
@@ -354,11 +354,12 @@ let filterToDbSupportedFns (tl : toplevel) ti functions =
 
 
 let generateExprs (m : model) (props : props) (tl : toplevel) ti =
+  let isInQuery = lookupIsInQuery tl ti in
   let functions' =
     Functions.asFunctions props.functions
     |> List.map ~f:(fun x -> FACFunction x)
   in
-  let functions = filterToDbSupportedFns tl ti functions' in
+  let functions = filterToDbSupportedFns isInQuery functions' in
   let constructors =
     [ FACConstructorName ("Just", 1)
     ; FACConstructorName ("Nothing", 0)
@@ -373,7 +374,9 @@ let generateExprs (m : model) (props : props) (tl : toplevel) ti =
     |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
   in
   let keywords =
-    List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KPipe]
+    if not isInQuery
+    then List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KPipe]
+    else List.map ~f:(fun x -> FACKeyword x) [KLet; KPipe]
   in
   let literals =
     List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]

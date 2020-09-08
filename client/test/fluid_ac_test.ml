@@ -560,13 +560,11 @@ let run () =
               |> toEqual ["true"; "false"; "null"]) ;
           test "includes keywords" (fun () ->
               expect (valid |> List.filter ~f:isKeyword |> List.map ~f:AC.asName)
-              |> toEqual ["let"; "if"; "lambda"; "match"; "|>"]) ;
-          (* TODO: if, lambda, and match are NOT supported by sql_compiler! *)
+              |> toEqual ["let"; "|>"]) ;
           test "includes constructors" (fun () ->
               expect
                 (valid |> List.filter ~f:isConstructor |> List.map ~f:AC.asName)
               |> toEqual ["Just"; "Nothing"; "Ok"; "Error"]) ;
-          (* TODO: do any of these make sense in sql_compiler? *)
           ()) ;
       ()) ;
   ()
