@@ -138,15 +138,11 @@ type expr_tlid_pair = Types.fluid_expr * tlid [@@deriving show]
 
 let expr_tlid_pair_to_binary_string ((expr, tlid) : expr_tlid_pair) : string =
   let expr = Serialization_converters.fromFluidExpr expr in
-  {expr; tlid}
-  |> Core_extended.Bin_io_utils.to_line bin_expr_with_tlid
-  |> Bigstring.to_string
+  {expr; tlid} |> Bin_io_utils.to_line bin_expr_with_tlid |> Bigstring.to_string
 
 
 let binary_string_to_expr_tlid_pair (str : string) : expr_tlid_pair =
-  let {expr; tlid} =
-    Core_extended.Bin_io_utils.of_line str bin_expr_with_tlid
-  in
+  let {expr; tlid} = Bin_io_utils.of_line str bin_expr_with_tlid in
   (Serialization_converters.toFluidExpr expr, tlid)
 
 

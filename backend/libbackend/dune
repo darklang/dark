@@ -16,7 +16,6 @@
               libexecution
               libservice
               cohttp-lwt
-              core_extended
               cstruct
               curl
               curl.lwt

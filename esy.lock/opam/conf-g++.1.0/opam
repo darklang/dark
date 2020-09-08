@@ -1,0 +1,20 @@
+opam-version: "2.0"
+maintainer: "unixjunkie@sdf.org"
+authors: "Francois Berenger"
+homepage: "https://github.com/ocaml/opam-repository"
+bug-reports: "https://github.com/ocaml/opam-repository/issues"
+license: "GPL-2.0-or-later"
+build: ["g++" "--version"]
+depexts: [
+  ["gcc-c++"] {os-distribution = "centos"}
+  ["gcc-c++"] {os-distribution = "fedora"}
+  ["gcc-c++"] {os-family = "suse"}
+  ["g++"] {os-family = "debian"}
+  ["gcc"] {os-distribution = "nixos"}
+  ["gcc"] {os-distribution = "arch"}
+  ["gcc"] {os = "macos" & os-distribution = "homebrew"}
+]
+synopsis: "Virtual package relying on the g++ compiler (for C++)"
+description:
+  "This package can only install if the g++ compiler is installed on the system."
+flags: conf

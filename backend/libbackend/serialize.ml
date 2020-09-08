@@ -5,7 +5,7 @@ module SF = Serialization_format
 module Span = Telemetry.Span
 
 let handler_of_binary_string (str : string) : Types.RuntimeT.HandlerT.handler =
-  Core_extended.Bin_io_utils.of_line
+  Bin_io_utils.of_line
     str
     (SF.RuntimeT.HandlerT.bin_handler SF.RuntimeT.bin_expr)
   |> Serialization_converters.handler_to_fluid
@@ -14,60 +14,52 @@ let handler_of_binary_string (str : string) : Types.RuntimeT.HandlerT.handler =
 let handler_to_binary_string (h : Types.RuntimeT.HandlerT.handler) : string =
   h
   |> Serialization_converters.handler_of_fluid
-  |> Core_extended.Bin_io_utils.to_line
+  |> Bin_io_utils.to_line
        (SF.RuntimeT.HandlerT.bin_handler SF.RuntimeT.bin_expr)
   |> Bigstring.to_string
 
 
 let db_of_binary_string (str : string) : Types.RuntimeT.DbT.db =
-  Core_extended.Bin_io_utils.of_line
-    str
-    (SF.RuntimeT.DbT.bin_db SF.RuntimeT.bin_expr)
+  Bin_io_utils.of_line str (SF.RuntimeT.DbT.bin_db SF.RuntimeT.bin_expr)
   |> Serialization_converters.db_to_fluid
 
 
 let db_to_binary_string (db : Types.RuntimeT.DbT.db) : string =
   db
   |> Serialization_converters.db_of_fluid
-  |> Core_extended.Bin_io_utils.to_line
-       (SF.RuntimeT.DbT.bin_db SF.RuntimeT.bin_expr)
+  |> Bin_io_utils.to_line (SF.RuntimeT.DbT.bin_db SF.RuntimeT.bin_expr)
   |> Bigstring.to_string
 
 
 let user_fn_of_binary_string (str : string) : Types.RuntimeT.user_fn =
-  Core_extended.Bin_io_utils.of_line
-    str
-    (SF.RuntimeT.bin_user_fn SF.RuntimeT.bin_expr)
+  Bin_io_utils.of_line str (SF.RuntimeT.bin_user_fn SF.RuntimeT.bin_expr)
   |> Serialization_converters.user_fn_to_fluid
 
 
 let user_fn_to_binary_string (ufn : Types.RuntimeT.user_fn) : string =
   ufn
   |> Serialization_converters.user_fn_of_fluid
-  |> Core_extended.Bin_io_utils.to_line
-       (SF.RuntimeT.bin_user_fn SF.RuntimeT.bin_expr)
+  |> Bin_io_utils.to_line (SF.RuntimeT.bin_user_fn SF.RuntimeT.bin_expr)
   |> Bigstring.to_string
 
 
 let user_tipe_of_binary_string (str : string) : Types.RuntimeT.user_tipe =
-  Core_extended.Bin_io_utils.of_line str SF.RuntimeT.bin_user_tipe
+  Bin_io_utils.of_line str SF.RuntimeT.bin_user_tipe
 
 
 let user_tipe_to_binary_string (ut : Types.RuntimeT.user_tipe) : string =
-  ut
-  |> Core_extended.Bin_io_utils.to_line SF.RuntimeT.bin_user_tipe
-  |> Bigstring.to_string
+  ut |> Bin_io_utils.to_line SF.RuntimeT.bin_user_tipe |> Bigstring.to_string
 
 
 let oplist_to_binary_string (ops : Types.oplist) : string =
   ops
   |> Serialization_converters.oplist_of_fluid
-  |> Core_extended.Bin_io_utils.to_line (SF.bin_oplist SF.RuntimeT.bin_expr)
+  |> Bin_io_utils.to_line (SF.bin_oplist SF.RuntimeT.bin_expr)
   |> Bigstring.to_string
 
 
 let oplist_of_binary_string (str : string) : Types.oplist =
-  Core_extended.Bin_io_utils.of_line str (SF.bin_oplist SF.RuntimeT.bin_expr)
+  Bin_io_utils.of_line str (SF.bin_oplist SF.RuntimeT.bin_expr)
   |> Serialization_converters.oplist_to_fluid
 
 

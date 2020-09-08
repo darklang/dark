@@ -115,7 +115,17 @@ let http_date_string_of_date (date : Time.t) : string =
     parts.sec
 
 
-let date_of_isostring (str : string) : Time.t = Time.of_string str
+let date_of_isostring (str : string) : Time.t =
+  (* Copied from https://github.com/janestreet/core_kernel/blob/v0.11/src/time.ml#L453 - later versions do not have a default time zone, breaking things like Date::parse *)
+  let default_zone () = Time.Zone.utc in
+  let find_zone zone_name =
+    failwithf
+      "unable to lookup Zone %s.  Try using Core.Time.of_string"
+      zone_name
+      ()
+  in
+  Time.of_string_gen ~default_zone ~find_zone str
+
 
 let string_replace (search : string) (replace : string) (str : string) : string
     =

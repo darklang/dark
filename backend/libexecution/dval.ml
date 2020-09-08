@@ -1041,62 +1041,6 @@ let of_unknown_json_v1 str =
   str |> Yojson.Safe.from_string |> convert
 
 
-let rec show dv =
-  match dv with
-  | DInt i ->
-      Dint.to_string i
-  | DBool true ->
-      "true"
-  | DBool false ->
-      "false"
-  | DStr s ->
-      Unicode_string.to_string s
-  | DFloat f ->
-      string_of_float f
-  | DCharacter c ->
-      Unicode_string.Character.to_string c
-  | DNull ->
-      "null"
-  | DDate d ->
-      Util.isostring_of_date d
-  | DUuid uuid ->
-      Uuidm.to_string uuid
-  | DDB dbname ->
-      "<DB: " ^ dbname ^ ">"
-  | DError (_, msg) ->
-      "<Error: " ^ msg ^ ">"
-  | DIncomplete SourceNone ->
-      "<Incomplete>"
-  | DIncomplete (SourceId (tlid, id)) ->
-      Printf.sprintf "<Incomplete[%s,%s]>" (string_of_id tlid) (string_of_id id)
-  | DBlock _ ->
-      (* See docs/dblock-serialization.ml *)
-      "<Block>"
-  | DPassword _ ->
-      (* redacting, do not unredact *)
-      "<Password>"
-  | DObj o ->
-      to_nested_string ~reprfn:show dv
-  | DList l ->
-      to_nested_string ~reprfn:show dv
-  | DErrorRail d ->
-      (* We don't print error here, because the errorrail value will know
-          * whether it's an error or not. *)
-      "<ErrorRail: " ^ show d ^ ">"
-  | DResp (dh, dv) ->
-      dhttp_to_formatted_string dh ^ "\n" ^ show dv ^ ""
-  | DResult (ResOk d) ->
-      "Ok " ^ show d
-  | DResult (ResError d) ->
-      "Error " ^ show d
-  | DOption (OptJust d) ->
-      "Just " ^ show d
-  | DOption OptNothing ->
-      "Nothing"
-  | DBytes bytes ->
-      "<Bytes: length=" ^ string_of_int (RawBytes.length bytes) ^ ">"
-
-
 let parse_literal (str : string) : dval option =
   let len = String.length str in
   (* Character *)

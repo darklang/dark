@@ -269,7 +269,7 @@ let row_to_scheduling_rule row : Scheduling_rule.t =
       ; canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
       ; handler_name
       ; event_space
-      ; created_at = Time.of_string created_at }
+      ; created_at = Core.Time.of_string created_at }
   | _ ->
       Exception.internal "unexpected structure parsing scheduling_rule row"
 

@@ -1472,6 +1472,33 @@ let t_date_functions_work () =
     "Valid Date::parse_v1 roundtrips"
     (Dval.dstr_of_string_exn datestr)
     (exec_ast (fn "Date::toString" [date])) ;
+  check_dval
+    "Valid Date::parse_v0 works without timezone"
+    (Dval.dstr_of_string_exn datestr)
+    (exec_ast
+       (pipe
+          (str datestr)
+          [ fn "String::dropLast" [pipeTarget; int 1]
+          ; fn "Date::parse" [pipeTarget]
+          ; fn "Date::toString" [pipeTarget] ])) ;
+  check_dval
+    "Valid Date::parse_v1 works without timezone"
+    (Dval.dstr_of_string_exn datestr)
+    (exec_ast
+       (pipe
+          (str datestr)
+          [ fn "String::dropLast" [pipeTarget; int 1]
+          ; fn ~ster:Rail "Date::parse_v1" [pipeTarget]
+          ; fn "Date::toString" [pipeTarget] ])) ;
+  check_dval
+    "Valid Date::parse_v2 works without timezone"
+    (Dval.dstr_of_string_exn datestr)
+    (exec_ast
+       (pipe
+          (str datestr)
+          [ fn "String::dropLast" [pipeTarget; int 1]
+          ; fn ~ster:Rail "Date::parse_v2" [pipeTarget]
+          ; fn "Date::toString" [pipeTarget] ])) ;
   (* Subparts of a date *)
   check_dval "Year works" (Dval.dint 2019) (exec_ast (fn "Date::year" [date])) ;
   check_dval "Month works" (Dval.dint 7) (exec_ast (fn "Date::month" [date])) ;

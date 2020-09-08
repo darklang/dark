@@ -40,7 +40,7 @@ module Character = struct
 
   let equal a b = a = b
 
-  let compare a b = Pervasives.compare a b
+  let compare a b = Stdlib.compare a b
 
   let to_string t = t
 
@@ -71,7 +71,7 @@ let of_utf8_encoded_string (s : string) : t option =
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
   let rec validate_string () =
     match Uutf.decode decoder with
-    | `Uchar ch when ch = Uchar.min ->
+    | `Uchar ch when ch = Stdlib.Uchar.min ->
         `Err (* U+0000 is rejected by postgres *)
     | `Uchar _ ->
         validate_string ()
@@ -252,7 +252,7 @@ let last_n s num_egcs =
   let b = Buffer.create (String.length s) in
   (* We iterate through every EGC, adding it to the buffer
    * if its [idx] >= ([s_egc_count] - [num_egcs]).
-   * Consider if the string is "abcde" and [num_egcs] = 2, 
+   * Consider if the string is "abcde" and [num_egcs] = 2,
    * [s_egc_count] = 5; 5-2 = 3. The index of "d" is 3 and
    * we want to keep it and everything after it so we end up with "de". *)
   let s_egc_count = length s in
@@ -364,7 +364,7 @@ let equal a b = a = b
 (* Structual compare is okay because the byte-structure of normalized strings is stable,
  * and defines a total order. That order is arbitrary wrt. to the Unicode codepoint table.
  * It _may_ be accidentally lexicographic for the ASCII compatible subset of UTF-8. *)
-let compare a b = Pervasives.compare a b
+let compare a b = Stdlib.compare a b
 
 let to_yojson t = `String t
 

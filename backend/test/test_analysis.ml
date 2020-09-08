@@ -241,7 +241,7 @@ let t_match_evaluation () =
                 ^ ": found unexected executed result ("
                 ^ string_of_id key
                 ^ "): "
-                ^ Dval.show dval )
+                ^ Types.RuntimeT.show_dval dval )
           | NonExecutedResult _ ->
               ()) ;
     ()

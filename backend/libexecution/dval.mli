@@ -116,8 +116,7 @@ val of_unknown_json_v0 : string -> Types.RuntimeT.dval
  * convert everything into reasonable types, in the absense of a schema. *)
 val of_unknown_json_v1 : string -> Types.RuntimeT.dval
 
-(* For debugging internally, redacts passwords. Never throws. *)
-val show : Types.RuntimeT.dval -> string
+(* For debugging internally, use Types.show_dval *)
 
 (* JSON coming in from the user as part of a known API should have a type which
  * can act as a schema to reconstruct the data perfectly. Redacts passwords. *)

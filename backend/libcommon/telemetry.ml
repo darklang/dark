@@ -31,7 +31,7 @@ module Span = struct
    * generating a new trace ID. *)
   let root (name : string) : t =
     let service_name =
-      Sys.argv.(0) |> Filename.basename |> Filename.remove_extension
+      Sys.argv.(0) |> Filename.basename |> Filename.chop_extension
     in
     { name
     ; service_name
