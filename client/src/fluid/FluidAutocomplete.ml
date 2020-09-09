@@ -361,10 +361,13 @@ let generateExprs (m : model) (props : props) (tl : toplevel) ti =
   in
   let functions = filterToDbSupportedFns isInQuery functions' in
   let constructors =
-    [ FACConstructorName ("Just", 1)
-    ; FACConstructorName ("Nothing", 0)
-    ; FACConstructorName ("Ok", 1)
-    ; FACConstructorName ("Error", 1) ]
+    if not isInQuery
+    then
+      [ FACConstructorName ("Just", 1)
+      ; FACConstructorName ("Nothing", 0)
+      ; FACConstructorName ("Ok", 1)
+      ; FACConstructorName ("Error", 1) ]
+    else []
   in
   let id = FluidToken.tid ti.token in
   let varnames =

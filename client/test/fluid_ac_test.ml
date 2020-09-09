@@ -564,7 +564,7 @@ let run () =
           test "includes constructors" (fun () ->
               expect
                 (valid |> List.filter ~f:isConstructor |> List.map ~f:AC.asName)
-              |> toEqual ["Just"; "Nothing"; "Ok"; "Error"]) ;
+              |> toEqual []) ;
           ()) ;
       ()) ;
   ()
