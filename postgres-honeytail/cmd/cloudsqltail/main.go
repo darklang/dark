@@ -139,14 +139,7 @@ func flushBuffer(dur time.Duration) {
 		})
 
 		for i := range globalBuffer {
-			msg := &globalBuffer[i]
-
-			if msg.TextPayload[0] == '[' {
-				timestamp := globalBuffer[i].Timestamp.Format(pgTimestamp)
-				fmt.Printf("[%s]: %s\n", timestamp, globalBuffer[i].TextPayload)
-			} else {
-				fmt.Println(globalBuffer[i].TextPayload)
-			}
+			fmt.Println(globalBuffer[i].TextPayload)
 		}
 
 		// Reset the global entries slice, pre-allocating enough capacity to
