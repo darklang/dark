@@ -116,12 +116,12 @@ func bufferMessage(data []byte) {
 
 // flushBuffer sets up a ticker to flush the message buffer every 'dur'.
 // Each tick locks then sorts the message buffer based on the Timestamp,
-// then outputs the buffer sequentially to to STDOUT. Some notes:
+// then outputs the buffer sequentially to STDOUT. Some notes:
 //
 // Subscriptions make no guarantee about the ordering of delivered
 // messages, so we sort all buffered messages before output. This does
 // not guarantee that we don't ever miss or mangle messages, but it
-// gets to mostly correct.
+// gets it mostly correct.
 //
 // Postgres query logs can span multiple lines.
 // The first line always has a prefix, which we know starts with the
