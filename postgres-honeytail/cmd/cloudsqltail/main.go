@@ -106,6 +106,7 @@ func main() {
 func bufferMessage(data []byte) {
 	var pm ParsedMessage
 	if err := json.Unmarshal(data, &pm); err != nil {
+		fmt.Fprintf(os.Stderr, "error unparsing msg %s\n", data)
 		return
 	}
 
