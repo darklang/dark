@@ -22,7 +22,7 @@ RUN mkdir /app
 WORKDIR /app
 COPY --from=build /go/bin/cloudsqltail ./cloudsqltail
 COPY run.sh .
-RUN wget -q -O honeytail https://honeycomb.io/download/honeytail/linux/1.762 \
-    && echo '00e24441316c7ae24665b1aaea4cbb77e2ee52c83397bf67d70f3ffe14a1e341  honeytail' | sha256sum -c \
-    && chmod 755 /app/honeytail
+RUN wget -q -O honeytail https://honeycomb.io/download/honeytail/v1.1.4/honeytail-linux-amd64 && \
+      echo 'd23e6f1808bdf5f99a2fd4183d143ffaf81f5b41af26c5e0e11a2d45ed04f277  honeytail' | sha256sum -c && \
+      chmod 755 ./honeytail
 CMD ["ash", "/app/run.sh"]
