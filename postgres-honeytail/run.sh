@@ -2,7 +2,7 @@ set -euo pipefail
 
 # For testing, you can run with DEBUG=1, and data will not be sent to honeycomb
 # (--debug sets the log level, --debug_stdout says to write events to stdout
-# instead of sending to honecomb)
+# instead of sending to honeycomb)
 if ! [[ -z "${DEBUG:-}" ]]; then
     HTDEBUG="--debug --debug_stdout"
 fi
