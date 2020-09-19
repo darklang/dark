@@ -18,5 +18,5 @@ fi
     -k="${HONEYCOMB_WRITEKEY:-unset}" \
     --dataset="${DATASET:-postgres}" \
     --parser=postgresql \
-    --postgresql.log_line_prefix='[%t]: [%p]: [%l-1] db=%d,user=%u' \
+    --postgresql.log_line_prefix='%m [%p]: [%l-1] db=%d,user=%u' \
     -f -
