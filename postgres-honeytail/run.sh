@@ -2,7 +2,7 @@ set -euo pipefail
 
 # For testing, you can run with DEBUG=1, and data will not be sent to honeycomb
 # (--debug sets the log level, --debug_stdout says to write events to stdout
-# instead of sending to honecomb)
+# instead of sending to honeycomb)
 if ! [[ -z "${DEBUG:-}" ]]; then
     HTDEBUG="--debug --debug_stdout"
 fi
@@ -18,5 +18,5 @@ fi
     -k="${HONEYCOMB_WRITEKEY:-unset}" \
     --dataset="${DATASET:-postgres}" \
     --parser=postgresql \
-    --postgresql.log_line_prefix='[%t]: [%p]: [%l-1] db=%d,user=%u' \
+    --postgresql.log_line_prefix='%m [%p]: [%l-1] db=%d,user=%u' \
     -f -
