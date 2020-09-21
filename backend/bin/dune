@@ -52,15 +52,6 @@
 )
 
 (executable
-  (name garbage_collector)
-  (modules garbage_collector)
-  (flags (-warn-error +A -w +9))
-  (libraries libbackend libexecution libcommon)
-  (preprocess (pps lwt_ppx))
-)
-
-
-(executable
   (name garbage_collector_worker)
   (modules garbage_collector_worker)
   (flags (-warn-error +A -w +9))
