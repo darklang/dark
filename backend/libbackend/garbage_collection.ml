@@ -86,34 +86,36 @@ let collect
               (`Int function_arguments_row_count) ;
             function_arguments_row_count)
       in
-      let function_results_v2_row_count =
-        Telemetry.with_span
-          span
-          "garbage_collector_function_results_v2"
-          (fun span ->
-            let function_results_v2_row_count =
-              canvas_ids_and_names
-              |> List.map ~f:(fun (canvas_id, canvas_name) ->
-                     Thread.yield () ;
-                     Stored_function_result.trim_results_for_canvas
-                       span
-                       action
-                       canvas_id
-                       ~canvas_name
-                       ~limit)
-              |> Tc.List.sum
-            in
-            Telemetry.Span.set_attr
-              span
-              "function_results_v2_row_count"
-              (`Int function_results_v2_row_count) ;
-            function_arguments_row_count)
-      in
+      (* Temporarily disabled because causing operational problems *)
+      (* let function_results_v2_row_count = *)
+      (*   Telemetry.with_span *)
+      (*     span *)
+      (*     "garbage_collector_function_results_v2" *)
+      (*     (fun span -> *)
+      (*       let function_results_v2_row_count = *)
+      (*         canvas_ids_and_names *)
+      (*         |> List.map ~f:(fun (canvas_id, canvas_name) -> *)
+      (*                Thread.yield () ; *)
+      (*                Stored_function_result.trim_results_for_canvas *)
+      (*                  span *)
+      (*                  action *)
+      (*                  canvas_id *)
+      (*                  ~canvas_name *)
+      (*                  ~limit) *)
+      (*         |> Tc.List.sum *)
+      (*       in *)
+      (*       Telemetry.Span.set_attr *)
+      (*         span *)
+      (*         "function_results_v2_row_count" *)
+      (*         (`Int function_results_v2_row_count) ; *)
+      (*       function_arguments_row_count) *)
+      (* in *)
       Telemetry.Span.set_attrs
         span
         [ ("stored_events_v2_row_count", `Int stored_events_v2_row_count)
         ; ("function_arguments_row_count", `Int function_arguments_row_count)
-        ; ("function_results_v2_row_count", `Int function_results_v2_row_count)
+        ; ("function_results_v2_row_count", `Int 0)
+          (* ; ("function_results_v2_row_count", `Int function_results_v2_row_count) *)
         ] ;
       ())
   |> ignore
