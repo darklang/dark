@@ -115,7 +115,7 @@ let collect
         [ ("stored_events_v2_row_count", `Int stored_events_v2_row_count)
         ; ("function_arguments_row_count", `Int function_arguments_row_count)
         ; ("function_results_v2_row_count", `Int 0)
-        (* ; ("function_results_v2_row_count", `Int function_results_v2_row_count) *)
+          (* ; ("function_results_v2_row_count", `Int function_results_v2_row_count) *)
         ] ;
       ())
   |> ignore
