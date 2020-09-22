@@ -330,6 +330,15 @@ let secretToACItem (s : SecretTypes.t) : fluidAutocompleteItem =
 
 
 let lookupIsInQuery (tl : toplevel) ti =
+  let isQueryFn name =
+    [ "DB::query_v4"
+    ; "DB::queryWithKey_v3"
+    ; "DB::queryOne_v3"
+    ; "DB::queryOne_v4"
+    ; "DB::queryOneWithKey_v3"
+    ; "DB::queryCount" ]
+    |> List.any ~f:(fun q -> q = name)
+  in
   let ast' = TL.getAST tl in
   match ast' with
   | None ->
@@ -338,7 +347,7 @@ let lookupIsInQuery (tl : toplevel) ti =
       FluidAST.ancestors (FluidToken.tid ti.token) ast
       |> List.find ~f:(function
              | FluidExpression.EFnCall (_, name, _, _) ->
-                 if name = "DB::query_v4" then true else false
+                 isQueryFn name
              | _ ->
                  false)
       |> Option.is_some

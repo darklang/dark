@@ -566,5 +566,85 @@ let run () =
                 (valid |> List.filter ~f:isConstructor |> List.map ~f:AC.asName)
               |> toEqual []) ;
           ()) ;
+      describe "filter in other DB::queryWithKey" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryWithKey_v3" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          ()) ;
+      describe "filter in other DB::queryOne" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryOne_v4" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          ()) ;
+      describe "filter in other DB::queryOneWithKey" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryOneWithKey_v3" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          ()) ;
+      describe "filter in other DB::queryCount" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryCount" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          ()) ;
       ()) ;
   ()
