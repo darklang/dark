@@ -841,6 +841,7 @@ and function_ =
   ; fnDeprecated : bool
   ; fnInfix : bool
   ; fnIsSupportedInQuery : bool
+  ; fnIsQuery : bool
   ; fnOrigin :
       (* This is a client-side only field to be able to give different UX to
        * different functions *)

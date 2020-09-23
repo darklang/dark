@@ -15,6 +15,16 @@ type position =
   | First
   | Last
 
+let queryFns =
+  [ "DB::query_v4"
+  ; "DB::queryWithKey_v3"
+  ; "DB::queryOne_v3"
+  ; "DB::queryOne_v4"
+  ; "DB::queryOneWithKey_v3"
+  ; "DB::queryCount" ]
+  |> Tc.StrSet.fromList
+
+
 let compilerSupportedFns =
   [ "Date::lessThan"
   ; "Date::greaterThan"

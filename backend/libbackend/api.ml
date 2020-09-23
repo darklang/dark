@@ -154,7 +154,8 @@ type function_metadata =
   ; infix : bool
   ; preview_safety : RuntimeT.fn_preview_safety
   ; deprecated : bool
-  ; is_supported_in_query : bool }
+  ; is_supported_in_query : bool
+  ; is_query : bool }
 [@@deriving yojson]
 
 let functions ~username =
@@ -185,7 +186,12 @@ let functions ~username =
              |> List.exists ~f:(fun fn_prefix_name ->
                     Tc.StrSet.member
                       Sql_compiler.compilerSupportedFns
-                      ~value:fn_prefix_name) })
+                      ~value:fn_prefix_name)
+         ; is_query =
+             v.prefix_names
+             |> List.exists ~f:(fun fn_prefix_name ->
+                    Tc.StrSet.member Sql_compiler.queryFns ~value:fn_prefix_name)
+         })
   |> List.map ~f:function_metadata_to_yojson
   |> (fun l -> `List l)
   |> Yojson.Safe.pretty_to_string

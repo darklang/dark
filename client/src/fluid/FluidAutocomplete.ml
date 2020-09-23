@@ -329,16 +329,19 @@ let secretToACItem (s : SecretTypes.t) : fluidAutocompleteItem =
   FACVariable (s.secretName, Some asDval)
 
 
-let lookupIsInQuery (tl : toplevel) ti =
-  let isQueryFn name =
-    [ "DB::query_v4"
-    ; "DB::queryWithKey_v3"
-    ; "DB::queryOne_v3"
-    ; "DB::queryOne_v4"
-    ; "DB::queryOneWithKey_v3"
-    ; "DB::queryCount" ]
-    |> List.any ~f:(fun q -> q = name)
+let lookupIsInQuery (tl : toplevel) ti functions =
+  let queryFnNames =
+    functions
+    |> List.map ~f:(fun fn ->
+           match fn with
+           | FACFunction fn ->
+               if fn.fnIsQuery then Some fn.fnName else None
+           | _ ->
+               None)
+    |> List.filter ~f:Option.is_some
+    |> List.map ~f:(fun x -> match x with Some fnName -> fnName | _ -> "")
   in
+  let isQueryFn name = queryFnNames |> List.any ~f:(fun q -> q = name) in
   let ast' = TL.getAST tl in
   match ast' with
   | None ->
@@ -363,11 +366,11 @@ let filterToDbSupportedFns isInQuery functions =
 
 
 let generateExprs (m : model) (props : props) (tl : toplevel) ti =
-  let isInQuery = lookupIsInQuery tl ti in
   let functions' =
     Functions.asFunctions props.functions
     |> List.map ~f:(fun x -> FACFunction x)
   in
+  let isInQuery = lookupIsInQuery tl ti functions' in
   let functions = filterToDbSupportedFns isInQuery functions' in
   let constructors =
     if not isInQuery
