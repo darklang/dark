@@ -12,41 +12,35 @@ open Fluid_test_data
 open FluidShortcuts
 
 let sampleFunctions : function_ list =
-  [ ("Twit::somefunc", [TObj], TAny, false)
-  ; ("Twit::someOtherFunc", [TObj], TAny, false)
-  ; ("Twit::yetAnother", [TObj], TAny, false)
-  ; ("+", [TInt; TInt], TInt, false)
-  ; ("Int::add", [TInt; TInt], TInt, false)
-  ; ("Dict::keys", [TObj], TList, false)
-  ; ("List::head", [TList], TAny, false)
-  ; ("withlower", [TObj], TObj, false)
-  ; ("withLower", [TObj], TObj, false)
-  ; ("SomeModule::withLower", [TObj], TObj, false)
-  ; ("SomeOtherModule::withlower", [TObj], TObj, false)
-  ; ("HTTP::post", [TAny], TAny, false)
-  ; ("HTTP::head", [TAny], TAny, false)
-  ; ("HTTP::get", [TAny], TAny, false)
-  ; ("HTTP::options", [TAny], TAny, false)
-  ; ("Some::deprecated", [TAny], TAny, false)
-  ; ("DB::deleteAll", [TDB], TNull, false)
-  ; ("DB::generateKey", [], TStr, false)
-  ; ("DB::getAll_v2", [TDB], TList, false)
-  ; ("DB::getAll_v1", [TDB], TList, false)
-  ; ("DB::query_v4", [TDB], TList, true)
-  ; ("DB::queryWithKey_v3", [TDB], TList, true)
-  ; ("DB::queryOne_v3", [TDB], TAny, true)
-  ; ("DB::queryOne_v4", [TDB], TAny, true)
-  ; ("DB::queryOneWithKey_v3", [TDB], TAny, true)
-  ; ("DB::queryCount", [TDB], TObj, true)
+  [ ("Twit::somefunc", [TObj], TAny)
+  ; ("Twit::someOtherFunc", [TObj], TAny)
+  ; ("Twit::yetAnother", [TObj], TAny)
+  ; ("+", [TInt; TInt], TInt)
+  ; ("Int::add", [TInt; TInt], TInt)
+  ; ("Dict::keys", [TObj], TList)
+  ; ("List::head", [TList], TAny)
+  ; ("withlower", [TObj], TObj)
+  ; ("withLower", [TObj], TObj)
+  ; ("SomeModule::withLower", [TObj], TObj)
+  ; ("SomeOtherModule::withlower", [TObj], TObj)
+  ; ("HTTP::post", [TAny], TAny)
+  ; ("HTTP::head", [TAny], TAny)
+  ; ("HTTP::get", [TAny], TAny)
+  ; ("HTTP::options", [TAny], TAny)
+  ; ("Some::deprecated", [TAny], TAny)
+  ; ("DB::deleteAll", [TDB], TNull)
+  ; ("DB::generateKey", [], TStr)
+  ; ("DB::getAll_v2", [TDB], TList)
+  ; ("DB::getAll_v1", [TDB], TList)
     (* ordering is deliberate - we want the query to order s.t. get is before getAll *)
-  ; ("DB::get_v1", [TDB], TList, false)
-  ; ("String::append", [TStr; TStr], TStr, false)
-  ; ("List::append", [TList; TList], TList, false)
-  ; ("String::newline", [], TStr, false)
-  ; ("Option::withDefault", [TOption], TAny, false)
-  ; ("Result::withDefault", [TResult], TAny, false)
-  ; ("InQuery::whatever", [TObj], TAny, false) ]
-  |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe, isQuery) ->
+  ; ("DB::get_v1", [TDB], TList)
+  ; ("String::append", [TStr; TStr], TStr)
+  ; ("List::append", [TList; TList], TList)
+  ; ("String::newline", [], TStr)
+  ; ("Option::withDefault", [TOption], TAny)
+  ; ("Result::withDefault", [TResult], TAny)
+  ; ("InQuery::whatever", [TObj], TAny) ]
+  |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe) ->
          { fnName
          ; fnParameters =
              List.map paramTipes ~f:(fun paramTipe ->
@@ -61,7 +55,6 @@ let sampleFunctions : function_ list =
          ; fnInfix = true
          ; fnDeprecated = fnName = "Some::deprecated"
          ; fnIsSupportedInQuery = fnName = "InQuery::whatever"
-         ; fnIsQuery = isQuery
          ; fnOrigin = Builtin })
 
 

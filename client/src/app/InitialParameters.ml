@@ -24,7 +24,6 @@ let function_ j : function_ =
   ; fnDeprecated = field "deprecated" bool j
   ; fnInfix = field "infix" bool j
   ; fnIsSupportedInQuery = field "is_supported_in_query" bool j
-  ; fnIsQuery = field "is_query" bool j
   ; fnOrigin = Builtin }
 
 
