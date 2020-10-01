@@ -6517,6 +6517,7 @@ metadata:
     app.kubernetes.io/component: "cainjector"
     helm.sh/chart: cert-manager-v0.14.0
 spec:
+  revisionHistoryLimit: 10
   replicas: 1
   selector:
     matchLabels:
@@ -6564,6 +6565,7 @@ metadata:
     app.kubernetes.io/component: "controller"
     helm.sh/chart: cert-manager-v0.14.0
 spec:
+  revisionHistoryLimit: 10
   replicas: 1
   selector:
     matchLabels:
@@ -6622,6 +6624,7 @@ metadata:
     app.kubernetes.io/component: "webhook"
     helm.sh/chart: cert-manager-v0.14.0
 spec:
+  revisionHistoryLimit: 10
   replicas: 1
   selector:
     matchLabels:

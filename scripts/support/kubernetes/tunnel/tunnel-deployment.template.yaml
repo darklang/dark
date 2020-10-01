@@ -8,6 +8,7 @@ spec:
   selector:
     matchLabels:
       app: tunnel-app
+  revisionHistoryLimit: 10
   replicas: 1
   template:
     metadata:
