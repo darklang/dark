@@ -84,42 +84,6 @@ let isBlank (pd : blankOrData) : bool =
       B.isBlank t
 
 
-let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
-  let bf s =
-    match s with
-    | Blank _ ->
-      (match f "" with "" -> s | other -> B.newF other)
-    | F (id, str) ->
-        F (id, f str)
-  in
-  match pd with
-  | PEventModifier d ->
-      PEventModifier (bf d)
-  | PEventName d ->
-      PEventName (bf d)
-  | PEventSpace d ->
-      PEventSpace (bf d)
-  | PDBName d ->
-      PDBName (bf d)
-  | PDBColName d ->
-      PDBColName (bf d)
-  | PDBColType d ->
-      PDBColType (bf d)
-  | PFnName d ->
-      PFnName (bf d)
-  | PFnReturnTipe d ->
-      PFnReturnTipe d
-  | PParamName d ->
-      PParamName (bf d)
-  | PParamTipe d ->
-      PParamTipe d
-  | PTypeName d ->
-      PTypeName (bf d)
-  | PTypeFieldName d ->
-      PTypeFieldName (bf d)
-  | PTypeFieldTipe d ->
-      PTypeFieldTipe d
-
 
 let toContent (pd : blankOrData) : string =
   let bs2s s = s |> B.toOption |> Option.withDefault ~default:"" in

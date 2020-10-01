@@ -22,12 +22,6 @@ let spaceOf (hs : handlerSpec) : handlerSpace =
   match hs.space with Blank _ -> HSDeprecatedOther | F (_, s) -> spaceOfStr s
 
 
-let visibleModifier (hs : handlerSpec) : bool =
-  match spaceOf hs with
-  | HSHTTP | HSCron ->
-      true
-  | HSRepl | HSDeprecatedOther | HSWorker ->
-      false
 
 
 let replaceEventModifier
