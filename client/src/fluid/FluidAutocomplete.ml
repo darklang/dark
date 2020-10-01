@@ -329,16 +329,54 @@ let secretToACItem (s : SecretTypes.t) : fluidAutocompleteItem =
   FACVariable (s.secretName, Some asDval)
 
 
+let lookupIsInQuery (tl : toplevel) ti =
+  let isQueryFn name =
+    [ "DB::query_v4"
+    ; "DB::queryWithKey_v3"
+    ; "DB::queryOne_v3"
+    ; "DB::queryOne_v4"
+    ; "DB::queryOneWithKey_v3"
+    ; "DB::queryCount" ]
+    |> List.any ~f:(fun q -> q = name)
+  in
+  let ast' = TL.getAST tl in
+  match ast' with
+  | None ->
+      false
+  | Some ast ->
+      FluidAST.ancestors (FluidToken.tid ti.token) ast
+      |> List.find ~f:(function
+             | FluidExpression.EFnCall (_, name, _, _) ->
+                 isQueryFn name
+             | _ ->
+                 false)
+      |> Option.is_some
+
+
+let filterToDbSupportedFns isInQuery functions =
+  if not isInQuery
+  then functions
+  else
+    functions
+    |> List.filter ~f:(fun f ->
+           match f with FACFunction fn -> fn.fnIsSupportedInQuery | _ -> false)
+
+
 let generateExprs (m : model) (props : props) (tl : toplevel) ti =
-  let functions =
+  let isInQuery = lookupIsInQuery tl ti in
+  let functions' =
     Functions.asFunctions props.functions
     |> List.map ~f:(fun x -> FACFunction x)
   in
+  let functions = filterToDbSupportedFns isInQuery functions' in
   let constructors =
-    [ FACConstructorName ("Just", 1)
-    ; FACConstructorName ("Nothing", 0)
-    ; FACConstructorName ("Ok", 1)
-    ; FACConstructorName ("Error", 1) ]
+    if not isInQuery
+    then
+      [ FACConstructorName ("Just", 1)
+      ; FACConstructorName ("Nothing", 0)
+      ; FACConstructorName ("Ok", 1)
+      ; FACConstructorName ("Error", 1) ]
+    else []
   in
   let id = FluidToken.tid ti.token in
   let varnames =
@@ -348,7 +386,9 @@ let generateExprs (m : model) (props : props) (tl : toplevel) ti =
     |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
   in
   let keywords =
-    List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KPipe]
+    if not isInQuery
+    then List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KPipe]
+    else List.map ~f:(fun x -> FACKeyword x) [KLet; KPipe]
   in
   let literals =
     List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]

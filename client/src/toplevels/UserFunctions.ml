@@ -55,6 +55,7 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
       ; fnInfix = ufm.ufmInfix
       ; fnPreviewSafety = Unsafe
       ; fnDeprecated = false
+      ; fnIsSupportedInQuery = false
       ; fnOrigin = UserFunction }
       |> fun x -> Some x
   | _ ->

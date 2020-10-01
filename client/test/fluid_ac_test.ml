@@ -38,7 +38,8 @@ let sampleFunctions : function_ list =
   ; ("List::append", [TList; TList], TList)
   ; ("String::newline", [], TStr)
   ; ("Option::withDefault", [TOption], TAny)
-  ; ("Result::withDefault", [TResult], TAny) ]
+  ; ("Result::withDefault", [TResult], TAny)
+  ; ("InQuery::whatever", [TObj], TAny) ]
   |> List.map ~f:(fun (fnName, paramTipes, fnReturnTipe) ->
          { fnName
          ; fnParameters =
@@ -53,6 +54,7 @@ let sampleFunctions : function_ list =
          ; fnDescription = ""
          ; fnInfix = true
          ; fnDeprecated = fnName = "Some::deprecated"
+         ; fnIsSupportedInQuery = fnName = "InQuery::whatever"
          ; fnOrigin = Builtin })
 
 
@@ -517,6 +519,132 @@ let run () =
               expect
                 (acFor ~tlid ~pos:13 m |> filterValid |> List.map ~f:AC.asName)
               |> toEqual ["o"; "Ok"; "Nothing"; "Error"]) ;
+          ()) ;
+      describe "filter in DB::query" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let isVariable = function FACVariable _ -> true | _ -> false in
+          let isKeyword = function FACKeyword _ -> true | _ -> false in
+          let isConstructor = function
+            | FACConstructorName _ ->
+                true
+            | _ ->
+                false
+          in
+          let isLiteral = function FACLiteral _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::query_v4" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          test "includes variables" (fun () ->
+              expect
+                ( valid
+                |> List.filter ~f:isVariable
+                |> List.map ~f:AC.asName
+                |> List.filter ~f:(fun n -> n = "value") )
+              |> toEqual ["value"]) ;
+          test "includes variables" (fun () ->
+              expect (valid |> List.filter ~f:isLiteral |> List.map ~f:AC.asName)
+              |> toEqual ["true"; "false"; "null"]) ;
+          test "includes keywords" (fun () ->
+              expect (valid |> List.filter ~f:isKeyword |> List.map ~f:AC.asName)
+              |> toEqual ["let"; "|>"]) ;
+          test "includes constructors" (fun () ->
+              expect
+                (valid |> List.filter ~f:isConstructor |> List.map ~f:AC.asName)
+              |> toEqual []) ;
+          ()) ;
+      describe "filter in other DB::queryWithKey" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryWithKey_v3" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          ()) ;
+      describe "filter in other DB::queryOne" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryOne_v4" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          ()) ;
+      describe "filter in other DB::queryOneWithKey" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryOneWithKey_v3" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
+          ()) ;
+      describe "filter in other DB::queryCount" (fun () ->
+          let isFunction = function FACFunction _ -> true | _ -> false in
+          let tlid = TLID.fromString "123" in
+          let expr =
+            fn "DB::queryCount" [str "MyDB"; lambda ["value"] (blank ())]
+          in
+          let m =
+            defaultModel
+              ~tlid
+              ~dbs:[aDB ~tlid:(TLID.fromString "db123") ()]
+              ~handlers:[aHandler ~expr ()]
+              ()
+          in
+          let ac = acFor ~pos:50 m in
+          let valid = filterValid ac in
+          test "includes supported functions only" (fun () ->
+              expect
+                (valid |> List.filter ~f:isFunction |> List.map ~f:AC.asName)
+              |> toEqual ["InQuery::whatever"]) ;
           ()) ;
       ()) ;
   ()

@@ -153,7 +153,8 @@ type function_metadata =
   ; return_type : string
   ; infix : bool
   ; preview_safety : RuntimeT.fn_preview_safety
-  ; deprecated : bool }
+  ; deprecated : bool
+  ; is_supported_in_query : bool }
 [@@deriving yojson]
 
 let functions ~username =
@@ -178,7 +179,13 @@ let functions ~username =
          ; return_type = Dval.tipe_to_string v.return_type
          ; preview_safety = v.preview_safety
          ; infix = List.mem ~equal:( = ) v.infix_names k
-         ; deprecated = v.deprecated })
+         ; deprecated = v.deprecated
+         ; is_supported_in_query =
+             v.prefix_names
+             |> List.exists ~f:(fun fn_prefix_name ->
+                    Tc.StrSet.member
+                      Sql_compiler.compilerSupportedFns
+                      ~value:fn_prefix_name) })
   |> List.map ~f:function_metadata_to_yojson
   |> (fun l -> `List l)
   |> Yojson.Safe.pretty_to_string
