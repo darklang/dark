@@ -1924,9 +1924,6 @@ let update_ (msg : msg) (m : model) : modification =
            ^ " got error: \""
            ^ error
            ^ "\"" ))
-  | UpdateHandlerState (tlid, state) ->
-      ReplaceAllModificationsWithThisOne
-        (fun m -> (Handlers.setHandlerState tlid state m, Cmd.none))
   | CanvasPanAnimationEnd ->
       ReplaceAllModificationsWithThisOne
         (fun m ->

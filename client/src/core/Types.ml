@@ -1363,7 +1363,6 @@ and msg =
   | ClipboardPasteEvent of clipboardEvent
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
-  | UpdateHandlerState of TLID.t * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
   | SetHoveringReferences of TLID.t * ID.t list
@@ -1416,13 +1415,6 @@ and flagsVS = ffIsExpanded StrDict.t
 (* ----------------------------- *)
 and syncState = StrSet.t
 
-and handlerState =
-  | HandlerExpanded
-  | HandlerPrepCollapse
-  | HandlerCollapsing
-  | HandlerCollapsed
-  | HandlerExpanding
-
 and exeState =
   | Idle
   | Executing
@@ -1430,7 +1422,6 @@ and exeState =
 
 and handlerProp =
   { handlerLock : bool
-  ; handlerState : handlerState
   ; hoveringReferences :
       (* When hovering over a reference, this is the list of ID.ts that refer to
        * the reference *)

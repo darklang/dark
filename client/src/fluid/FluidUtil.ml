@@ -117,7 +117,6 @@ let isFnNameChar str =
   Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
 
 
-
 let splitFnName (fnName : string) : string option * string * string =
   let pattern = Js.Re.fromString "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
   let mResult = Js.Re.exec_ pattern fnName in

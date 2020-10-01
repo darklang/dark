@@ -206,52 +206,13 @@ let viewEventSpec
     [viewType; viewEventName; viewActions]
 
 
-let handlerAttrs (tlid : TLID.t) (state : handlerState) : msg Vdom.property list
-    =
-  let sid = TLID.toString tlid in
-  let codeHeight id =
-    let open Webapi.Dom in
-    Document.querySelector (".toplevel.tl-" ^ id ^ " .handler-body") document
-    |> Option.map ~f:(fun el -> Element.scrollHeight el)
-    |> Option.withDefault ~default:0
-  in
-  match state with
-  | HandlerExpanding ->
-      let h = inUnit (codeHeight sid) "px" in
-      [ Html.class' "handler-body expand"
-      ; Html.style "height" h
-      ; ViewUtils.onTransitionEnd ~key:("hdlexp-" ^ sid) ~listener:(fun prop ->
-            if prop = "opacity"
-            then UpdateHandlerState (tlid, HandlerExpanded)
-            else IgnoreMsg "handler-expanding") ]
-  | HandlerExpanded ->
-      [ Html.class' "handler-body expand"
-      ; Html.style "height" "auto"
-      ; Vdom.noProp ]
-  | HandlerPrepCollapse ->
-      let h = inUnit (codeHeight sid) "px" in
-      [ Html.class' "handler-body"
-      ; Html.style "height" h
-      ; ViewUtils.onTransitionEnd ~key:("hdlpcol-" ^ sid) ~listener:(fun prop ->
-            if prop = "opacity"
-            then UpdateHandlerState (tlid, HandlerCollapsing)
-            else IgnoreMsg "handler-prep-collapse") ]
-  | HandlerCollapsing ->
-      [ Html.class' "handler-body"
-      ; Html.style "height" "0"
-      ; ViewUtils.onTransitionEnd
-          ~key:("hdlcolng-" ^ sid)
-          ~listener:(fun prop ->
-            if prop = "height"
-            then UpdateHandlerState (tlid, HandlerCollapsed)
-            else IgnoreMsg "handler-collapsing") ]
-  | HandlerCollapsed ->
-      [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
+let handlerAttrs : msg Vdom.property list =
+  [Html.class' "handler-body expand"; Html.style "height" "auto"; Vdom.noProp]
 
 
 let view (vp : viewProps) (h : handler) (dragEvents : domEventList) :
     msg Html.html list =
-  let attrs = handlerAttrs vp.tlid (ViewUtils.getHandlerState vp) in
+  let attrs = handlerAttrs in
   let ast = Html.div attrs (FluidView.view vp dragEvents) in
   let header = viewEventSpec vp h.spec dragEvents in
   [header; ast]

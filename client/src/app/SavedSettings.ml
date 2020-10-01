@@ -2,23 +2,6 @@ open Prelude
 
 let canonicalizeCursorState = CursorState.unwrap
 
-let canonicalizeHandlerProps props =
-  StrDict.map props ~f:(fun v ->
-      { v with
-        handlerState =
-          ( match v.handlerState with
-          | HandlerExpanded ->
-              HandlerExpanded
-          | HandlerPrepCollapse ->
-              HandlerCollapsed
-          | HandlerCollapsing ->
-              HandlerCollapsed
-          | HandlerCollapsed ->
-              HandlerCollapsed
-          | HandlerExpanding ->
-              HandlerExpanded ) })
-
-
 let toModel (e : savedSettings) : model =
   let m = Defaults.defaultModel in
   { m with
@@ -26,7 +9,7 @@ let toModel (e : savedSettings) : model =
   ; cursorState = e.cursorState |> canonicalizeCursorState
   ; tlTraceIDs = e.tlTraceIDs
   ; featureFlags = e.featureFlags
-  ; handlerProps = e.handlerProps |> canonicalizeHandlerProps
+  ; handlerProps = e.handlerProps
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
   ; lastReload = e.lastReload
   ; sidebarState = e.sidebarState

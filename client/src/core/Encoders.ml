@@ -769,25 +769,8 @@ and trace (t : Types.trace) : Js.Json.t =
   pair traceID data t
 
 
-and handlerState (s : Types.handlerState) : Js.Json.t =
-  let ev = variant in
-  match s with
-  | HandlerExpanded ->
-      ev "HandlerExpanded" []
-  | HandlerPrepCollapse ->
-      ev "HandlerPrepCollapse" []
-  | HandlerCollapsing ->
-      ev "HandlerCollapsing" []
-  | HandlerCollapsed ->
-      ev "HandlerCollapsed" []
-  | HandlerExpanding ->
-      ev "HandlerExpanding" []
-
-
 let handlerProp (p : Types.handlerProp) : Js.Json.t =
-  object_
-    [ ("handlerLock", bool p.handlerLock)
-    ; ("handlerState", handlerState p.handlerState) ]
+  object_ [("handlerLock", bool p.handlerLock)]
 
 
 let sidebarMode (s : Types.sidebarMode) : Js.Json.t =

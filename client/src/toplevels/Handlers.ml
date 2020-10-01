@@ -39,15 +39,3 @@ let setHandlerLock (tlid : TLID.t) (lock : bool) (m : model) : model =
   in
   let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
   {m with handlerProps = props}
-
-
-let setHandlerState (tlid : TLID.t) (state : handlerState) (m : model) : model =
-  let updateProps prop =
-    match prop with
-    | Some p ->
-        Some {p with handlerState = state}
-    | None ->
-        Some {Defaults.defaultHandlerProp with handlerState = state}
-  in
-  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}

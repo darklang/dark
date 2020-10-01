@@ -79,10 +79,7 @@ let defaultCanvasProps : canvasProps =
 
 
 let defaultHandlerProp : handlerProp =
-  { handlerLock = false
-  ; handlerState = HandlerExpanded
-  ; hoveringReferences = []
-  ; execution = Idle }
+  {handlerLock = false; hoveringReferences = []; execution = Idle}
 
 
 let defaultToast : toast = {toastMessage = None; toastPos = None}

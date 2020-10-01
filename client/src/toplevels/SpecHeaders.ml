@@ -22,8 +22,6 @@ let spaceOf (hs : handlerSpec) : handlerSpace =
   match hs.space with Blank _ -> HSDeprecatedOther | F (_, s) -> spaceOfStr s
 
 
-
-
 let replaceEventModifier
     (search : ID.t) (replacement : string blankOr) (hs : handlerSpec) :
     handlerSpec =

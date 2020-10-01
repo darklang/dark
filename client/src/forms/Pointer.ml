@@ -84,7 +84,6 @@ let isBlank (pd : blankOrData) : bool =
       B.isBlank t
 
 
-
 let toContent (pd : blankOrData) : string =
   let bs2s s = s |> B.toOption |> Option.withDefault ~default:"" in
   match pd with

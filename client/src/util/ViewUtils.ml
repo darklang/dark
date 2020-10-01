@@ -273,19 +273,6 @@ let createHandlerProp (hs : handler list) : handlerProp TD.t =
   |> TD.fromList
 
 
-let getHandlerState (vp : viewProps) : handlerState =
-  match vp.handlerProp with
-  | Some p ->
-      p.handlerState
-  | None ->
-      Defaults.defaultHandlerProp.handlerState
-
-
-let isHandlerExpanded (vp : viewProps) : bool =
-  let state = getHandlerState vp in
-  match state with HandlerExpanded | HandlerExpanding -> true | _ -> false
-
-
 let isHoverOverTL (vp : viewProps) : bool =
   match vp.hovering with
   | Some (tlid, _id) when tlid = TL.id vp.tl ->
