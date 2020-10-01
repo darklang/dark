@@ -142,11 +142,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       openssh-server \
       jq \
       dnsutils \
-      # .NET dependencies
+      # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
       libgcc1 \
       libgssapi-krb5-2 \
-        # Note: originally libicu66 but adapted for 18.04
       libicu60 \
       libssl1.1 \
       libstdc++6 \
@@ -313,33 +312,29 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 ####################################
 # dotnet / F#
 ####################################
-ENV \
-    DOTNET_VERSION=5.0.0-rc.1.20451.14 \
-    DOTNET_SDK_VERSION=5.0.100-rc.1.20452.10 \
-     # Skip extraction of XML docs - generally not useful within an image/container - helps performance
+# This section was created copying the commands from the 3.1 dockerfiles.
+# https://github.com/dotnet/dotnet-docker/blob/master/src/sdk/3.1/bionic/amd64/Dockerfile
+
+# TODO: switch to 5.0. Note that the 5.0 dockerfules are split among 3
+# different dockerfile (runtime-deps, runtime, and sdk), see
+# https://github.com/dotnet/dotnet-docker/blob/master/src.
+
+ENV DOTNET_SDK_VERSION=3.1.402 \
+     # Skip extraction of XML docs - generally not useful within an
+     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
     # Enable detection of running in a container
     DOTNET_RUNNING_IN_CONTAINER=true \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
-# Runtime - adapted from https://github.com/dotnet/dotnet-docker/blob/master/src/runtime/5.0/focal/amd64/Dockerfile
-RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Runtime/$DOTNET_VERSION/dotnet-runtime-$DOTNET_VERSION-linux-x64.tar.gz \
-    # TODO: get sha for this version
-    && dotnet_sha512='c8f6c24029c2d3ef07ea1781a6aac4d51a46aeb33886091df038b76b49830272afe7ac97484e0372e2d3ce2e6c32ba842142f0d1194791922c08445d7ff4cc95' \
-    && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
-    && mkdir -p /dotnet \
-    && tar -ozxf dotnet.tar.gz -C /dotnet \
-    && rm dotnet.tar.gz \
-    && mv /dotnet /usr/share/dotnet \
-    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
-
-# SDK - adapted from https://github.com/dotnet/dotnet-docker/blob/master/src/sdk/5.0/focal/amd64/Dockerfile
 RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
-    && dotnet_sha512='d7e709dacc4bb188c2380060d24bfb5b791240dc33af8499fb4a31e1885a9377dad1d1ebc76847432ea67d5e4ac832a31679dc293e09fa6dade28f5fbbe4db9b' \
+    && dotnet_sha512='42154efb5ad66ae3dcc300b2c0573a9537dd916fc48cbae92885a63a0b6d7f7c3a4366ca2298107783bc1f1913328f35e778dcda378da276cff3b8269495d5be' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
-    && tar -C /usr/share/dotnet -oxzf dotnet.tar.gz ./packs ./sdk ./templates ./LICENSE.txt ./ThirdPartyNotices.txt \
-    && rm dotnet.tar.gz
+    && mkdir -p /usr/share/dotnet \
+    && tar -ozxf dotnet.tar.gz -C /usr/share/dotnet \
+    && rm dotnet.tar.gz \
+    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
 # Trigger first run experience by running arbitrary cmd
 RUN dotnet help
