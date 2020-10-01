@@ -210,7 +210,7 @@ def fsharp_backend_build():
   else:
     configuration = "Debug"
 
-  build = f"cd fsharp-backend && unbuffer dotnet build -c {configuration}"
+  build = f"cd fsharp-backend && unbuffer dotnet publish -c {configuration}"
   return run_backend(start, build)
 
 
