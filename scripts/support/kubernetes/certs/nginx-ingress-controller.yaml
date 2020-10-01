@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
 spec:
+  revisionHistoryLimit: 10
   replicas: 1
   selector:
     matchLabels:

@@ -7,7 +7,7 @@
 # Handles darkcustomdomain, for which we (not google) do TLS termination
 #
 # See docs/custom-domains.md for more detail.
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: darkcustomdomain-l4-ingress

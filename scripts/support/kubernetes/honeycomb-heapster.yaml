@@ -2,12 +2,16 @@
 # honeycomb-agent pods so there will be new ones with the new config:
 # `kubectl delete pod --selector k8s-app=honeycomb-agent`
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: heapster-honeycomb
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      k8s-app: heapster
+  revisionHistoryLimit: 10
   replicas: 1
   template:
     metadata:
