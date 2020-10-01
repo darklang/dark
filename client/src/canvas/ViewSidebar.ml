@@ -99,8 +99,6 @@ let categoryIcon_ (name : string) : msg Html.html list =
       [fontAwesome "wrench"]
   | "fof" ->
       [darkIcon "fof"]
-  | "group" ->
-      [fontAwesome "object-group"]
   | "secrets" ->
       [fontAwesome "user-secret"]
   | _ when String.contains ~substring:"pm-author" name ->
@@ -333,35 +331,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
   ; entries }
 
 
-let groupCategory (groups : group list) : category =
-  let groups = groups |> List.filter ~f:(fun (g : group) -> B.isF g.gName) in
-  let entries =
-    List.filterMap groups ~f:(fun (group : group) ->
-        Option.map (B.toOption group.gName) ~f:(fun name ->
-            let minusButton =
-              let hasMembers = List.length group.members > 0 in
-              if hasMembers then None else Some (DeleteGroup group.gTLID)
-            in
-            Entry
-              { name
-              ; identifier = Tlid group.gTLID
-              ; uses = None
-              ; minusButton
-              ; killAction = Some (DeleteGroupForever group.gTLID)
-              ; onClick = Destination (FocusedGroup (group.gTLID, true))
-              ; plusButton = None
-              ; verb = None }))
-  in
-  { count = List.length groups
-  ; name = "Groups"
-  ; classname = "group"
-  ; plusButton = Some CreateGroup
-  ; iconAction = None
-  ; tooltip = None
-  ; entries }
-
-
-let standardCategories m hs dbs ufns tipes groups =
+let standardCategories m hs dbs ufns tipes =
   let hs =
     hs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
   in
@@ -373,14 +343,6 @@ let standardCategories m hs dbs ufns tipes groups =
   in
   let tipes =
     tipes |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
-  in
-  let groups =
-    groups |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLGroup tl))
-  in
-  let groupCategory =
-    if VariantTesting.variantIsActive m GroupVariant
-    then [groupCategory groups]
-    else []
   in
   (* We want to hide user defined types for users who arent already using them
     since there is currently no way to use them other than as a function param.
@@ -397,7 +359,7 @@ let standardCategories m hs dbs ufns tipes groups =
     ; userFunctionCategory m ufns ]
     @ tipes
   in
-  catergories @ groupCategory
+  catergories
 
 
 let packageManagerCategory (pmfns : packageFns) : category =
@@ -478,7 +440,6 @@ let deletedCategory (m : model) : category =
       m.deletedDBs
       m.deletedUserFunctions
       m.deletedUserTipes
-      m.deletedGroups
     |> List.map ~f:(fun c ->
            { c with
              plusButton = None (* only allow new entries on the main category *)
@@ -948,8 +909,6 @@ let adminDebuggerView (m : model) : msg Html.html =
         Printf.sprintf "DB (TLID %s)" (TLID.toString tlid)
     | FocusedType tlid ->
         Printf.sprintf "Type (TLID %s)" (TLID.toString tlid)
-    | FocusedGroup (tlid, _) ->
-        Printf.sprintf "Group (TLID %s)" (TLID.toString tlid)
     | SettingsModal tab ->
         Printf.sprintf
           "SettingsModal (tab %s)"
@@ -1094,7 +1053,7 @@ let update (msg : sidebarMsg) : modification =
 
 let viewSidebar_ (m : model) : msg Html.html =
   let cats =
-    standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
+    standardCategories m m.handlers m.dbs m.userFunctions m.userTipes
     @ [ f404Category m
       ; deletedCategory m
       ; packageManagerCategory m.functions.packageFunctions ]
@@ -1151,9 +1110,6 @@ let rtCacheKey m =
   , m.usedFns
   , m.userTipes |> TD.mapValues ~f:(fun t -> t.utName)
   , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
-  , m.groups
-  , m.deletedGroups
-    |> TD.mapValues ~f:(fun (g : group) -> TL.sortkey (TLGroup g))
   , CursorState.tlidOf m.cursorState
   , m.environment
   , m.editorSettings

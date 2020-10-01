@@ -116,11 +116,7 @@ let moveToToken (id : ID.t) (tl : toplevel) : int option * int option =
 let findNewPos (m : model) : pos =
   let open Native in
   match m.currentPage with
-  | Architecture
-  | FocusedHandler _
-  | FocusedDB _
-  | FocusedGroup _
-  | SettingsModal _ ->
+  | Architecture | FocusedHandler _ | FocusedDB _ | SettingsModal _ ->
       let o = m.canvasProps.offset in
       (* We add padding to the viewport range, to ensure we don't have new handlers too far from eachother. *)
       let padRight = 400 in

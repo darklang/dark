@@ -194,8 +194,6 @@ and blankOrData (pd : Types.blankOrData) : Js.Json.t =
       ev "PTypeFieldName" [blankOr string n]
   | PTypeFieldTipe t ->
       ev "PTypeFieldTipe" [blankOr tipe t]
-  | PGroupName g ->
-      ev "PGroupName" [blankOr string g]
 
 
 and tlidOf (op : Types.op) : TLID.t =

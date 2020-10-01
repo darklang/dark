@@ -946,8 +946,6 @@ let initialLoadAPIResult j : initialLoadAPIResult =
       |> withDefault [] (field "op_ctrs" (list (tuple2 string int)))
       |> StrDict.fromList
   ; permission = field "permission" (optional permission) j
-  ; groups = List.filterMap ~f:TL.asGroup tls
-  ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
   ; canvasList = field "canvas_list" (list string) j
   ; orgs = field "orgs" (list string) j
