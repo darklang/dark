@@ -155,7 +155,7 @@ data:
 
 # Daemonset
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -171,6 +171,9 @@ spec:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
+  selector:
+    matchLabels:
+      k8s-app: honeycomb-agent # needs to be a label from template.metadata.labels
   template:
     metadata:
       labels:
