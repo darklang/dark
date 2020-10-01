@@ -13,8 +13,6 @@ let toVariantTest (s : string) : variantTest option =
   match String.toLower s with
   | "stub" ->
       Some StubVariant
-  | "groups" ->
-      Some GroupVariant
   | "localhost-assets" ->
       Some NgrokVariant
   | "lpartial" ->
@@ -28,8 +26,6 @@ let nameOf (vt : variantTest) : string =
   match vt with
   | StubVariant ->
       "stub"
-  | GroupVariant ->
-      "groups"
   | NgrokVariant ->
       "localhost-assets"
   | LeftPartialVariant ->
@@ -38,7 +34,7 @@ let nameOf (vt : variantTest) : string =
 
 let toCSSClass (vt : variantTest) : string = nameOf vt ^ "-variant"
 
-let availableAdminVariants : variantTest list = [NgrokVariant; GroupVariant]
+let availableAdminVariants : variantTest list = [NgrokVariant]
 
 let activeCSSClasses (m : model) : string =
   m.tests |> List.map ~f:toCSSClass |> String.join ~sep:" "

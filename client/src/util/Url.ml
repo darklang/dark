@@ -35,8 +35,6 @@ let urlFor (page : page) : string =
         [("db", TLID.toString tlid)]
     | FocusedType tlid ->
         [("type", TLID.toString tlid)]
-    | FocusedGroup (tlid, _) ->
-        [("group", TLID.toString tlid)]
     | SettingsModal tab ->
         [("settings", SettingsViewTypes.settingsTabToText tab)]
   in
@@ -111,19 +109,11 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
-  let group () =
-    match StrDict.get ~key:"group" unstructured with
-    | Some sid ->
-        Some (FocusedGroup (TLID.fromString sid, true))
-    | _ ->
-        None
-  in
   fn ()
   |> Option.orElse (pmfn ())
   |> Option.orElse (handler ())
   |> Option.orElse (db ())
   |> Option.orElse (tipe ())
-  |> Option.orElse (group ())
   |> Option.orElse (settingModal ())
   |> Option.orElse (architecture ())
 

@@ -267,11 +267,7 @@ let viewReturnValue
                       ^ " " )
                   ; Html.span [Html.class' "type"] [Html.text actualTypeString]
                   ]
-          | _, TLPmFunc _
-          | _, TLHandler _
-          | _, TLDB _
-          | _, TLTipe _
-          | _, TLGroup _ ->
+          | _, TLPmFunc _ | _, TLHandler _ | _, TLDB _ | _, TLTipe _ ->
               Vdom.noNode
         in
         let dvalString = Runtime.toRepr dval in

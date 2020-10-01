@@ -126,7 +126,6 @@ and blankOrData =
   | PTypeName of string blankOr
   | PTypeFieldName of string blankOr
   | PTypeFieldTipe of tipe blankOr
-  | PGroupName of string blankOr
 
 and blankOrType =
   | EventName
@@ -142,7 +141,6 @@ and blankOrType =
   | TypeName
   | TypeFieldName
   | TypeFieldTipe
-  | GroupName
 [@@deriving show {with_path = false}]
 
 (* ---------------------- *)
@@ -178,13 +176,6 @@ and handler =
   { ast : FluidAST.t
   ; spec : handlerSpec
   ; hTLID : TLID.t
-  ; pos : pos }
-
-(* groups *)
-and group =
-  { gName : string blankOr
-  ; gTLID : TLID.t
-  ; members : TLID.t list
   ; pos : pos }
 
 (* dbs *)
@@ -282,7 +273,6 @@ and toplevel =
   | TLPmFunc of packageFn
   | TLFunc of userFunction
   | TLTipe of userTipe
-  | TLGroup of group
 
 and packageFns = packageFn TLIDDict.t
 
@@ -800,8 +790,6 @@ and initialLoadAPIResult =
   ; deletedUserTipes : userTipe list
   ; permission : permission option
   ; opCtrs : int StrDict.t
-  ; groups : group list
-  ; deletedGroups : group list
   ; account : account
   ; canvasList : string list
   ; orgs : string list
@@ -881,7 +869,6 @@ and omniAction =
   | NewWorkerHandler of string option
   | NewCronHandler of string option
   | NewReplHandler of string option
-  | NewGroup of string option
   | Goto of page * TLID.t * displayText * isDynamic
 
 and autocompleteItem =
@@ -911,8 +898,6 @@ and autocompleteItem =
   | ACTypeFieldTipe of tipe
   | ACTypeName of string
   | ACTypeFieldName of string
-  (* Groups *)
-  | ACGroupName of string
 
 and target = TLID.t * blankOrData
 
@@ -1048,7 +1033,6 @@ and page =
   | FocusedHandler of TLID.t * traceID option * centerPage
   | FocusedDB of TLID.t * centerPage
   | FocusedType of TLID.t
-  | FocusedGroup of TLID.t * centerPage
   | SettingsModal of SettingsViewTypes.settingsTab
 
 and focus =
@@ -1140,8 +1124,7 @@ and modification =
   | ClearHover of TLID.t * ID.t
   | Deselect
   | RemoveToplevel of toplevel
-  | RemoveGroup of toplevel
-  | SetToplevels of handler list * db list * group list * bool
+  | SetToplevels of handler list * db list * bool
   | UpdateToplevels of handler list * db list * bool
   | SetDeletedToplevels of handler list * db list
   | UpdateDeletedToplevels of handler list * db list
@@ -1201,10 +1184,6 @@ and modification =
   | FluidEndClick
   | UpdateAvatarList of avatar list
   | ExpireAvatars
-  | AddGroup of group
-  | AddToGroup of TLID.t * TLID.t
-  | UndoGroupDelete of TLID.t * group
-  | MoveMemberToNewGroup of TLID.t * TLID.t * model
   | SetClipboardContents of clipboardContents * clipboardEvent
   | UpdateASTCache of TLID.t * string
   | InitASTCache of handler list * userFunction list
@@ -1370,7 +1349,6 @@ and msg =
   | DeleteUserFunctionForever of TLID.t
   | DeleteUserType of TLID.t
   | DeleteUserTypeForever of TLID.t
-  | DeleteGroupForever of TLID.t
   | RestoreToplevel of TLID.t
   | LockHandler of TLID.t * bool
   | ReceiveAnalysis of performAnalysisResult
@@ -1398,9 +1376,6 @@ and msg =
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
-  | DeleteGroup of TLID.t
-  | DragGroupMember of TLID.t * TLID.t * mouseEvent
-  | CreateGroup
   | HideTopbar
   | LogoutOfDark
   | DismissErrorBar
@@ -1422,7 +1397,6 @@ and variantTest =
   | (* does nothing variant just so we can leave this in place
      * if we're not testing anything else *)
       StubVariant
-  | GroupVariant
   | NgrokVariant
   | LeftPartialVariant
 
@@ -1721,7 +1695,6 @@ and model =
   ; cursorState : cursorState
   ; currentPage : page
   ; hovering : (TLID.t * ID.t) list
-  ; groups : group TLIDDict.t
   ; handlers : handler TLIDDict.t
   ; deletedHandlers : handler TLIDDict.t
   ; dbs : db TLIDDict.t
@@ -1730,7 +1703,6 @@ and model =
   ; deletedUserFunctions : userFunction TLIDDict.t
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
-  ; deletedGroups : group TLIDDict.t
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list

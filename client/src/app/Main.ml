@@ -277,7 +277,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               Handlers.upsert newM h
           | Some (TLFunc func) ->
               UserFunctions.upsert newM func
-          | Some (TLPmFunc _) | Some (TLGroup _) | Some (TLTipe _) | None ->
+          | Some (TLPmFunc _) | Some (TLTipe _) | None ->
               newM )
       | None ->
           newM
@@ -450,7 +450,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           match p with
           | STTopLevelRoot ->
             ( match TL.get m tlid with
-            | Some (TLDB _) | Some (TLGroup _) | Some (TLTipe _) ->
+            | Some (TLDB _) | Some (TLTipe _) ->
                 (Selecting (tlid, None), None)
             | Some (TLFunc _) | Some (TLHandler _) ->
                 (FluidEntering tlid, None)
@@ -563,15 +563,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch [afCmd; acCmd; CursorState.focusEntryWithOffset m offset])
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
-    | RemoveGroup tl ->
-        (Toplevel.remove m tl, Cmd.none)
-    | SetToplevels (handlers, dbs, groups, updateCurrent) ->
+    | SetToplevels (handlers, dbs, updateCurrent) ->
         let oldM = m in
         let m =
-          { m with
-            handlers = Handlers.fromList handlers
-          ; dbs = DB.fromList dbs
-          ; groups = Groups.fromList groups }
+          {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs}
         in
         (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -597,11 +592,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
            API call *)
         let m = if updateCurrent then m else bringBackCurrentTL oldM m in
         updateMod
-          (SetToplevels
-             ( TD.values m.handlers
-             , TD.values m.dbs
-             , TD.values m.groups
-             , updateCurrent ))
+          (SetToplevels (TD.values m.handlers, TD.values m.dbs, updateCurrent))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
@@ -790,13 +781,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearHover (tlid, id) ->
         let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
-    | AddToGroup (gTLID, tlid) ->
-        (* Add to group spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
-        let newMod, newCmd = Groups.addToGroup m gTLID tlid in
-        (newMod, newCmd)
-    | MoveMemberToNewGroup (gTLID, tlid, newMod) ->
-        let newMod, newCmd = Groups.addToGroup newMod gTLID tlid in
-        (newMod, newCmd)
     | SetTLTraceID (tlid, traceID) ->
         let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -900,16 +884,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let cp = FluidCommands.reset m in
         ( {m with fluidState = {m.fluidState with cp; selectionStart = None}}
         , Cmd.none )
-    | AddGroup group ->
-        (* This code is temp while we work on FE *)
-        let nameAlreadyUsed = Groups.isGroupNameUnique group m.groups in
-        if nameAlreadyUsed
-        then (m, Cmd.none)
-        else
-          ( { m with
-              groups = TLIDDict.insert ~tlid:group.gTLID ~value:group m.groups
-            }
-          , Cmd.none )
     | FluidStartClick ->
         ({m with fluidState = {m.fluidState with midClick = true}}, Cmd.none)
     | FluidEndClick ->
@@ -919,10 +893,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         updateMod mod_ (m, cmd)
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
-    | UndoGroupDelete (tlid, g) ->
-        let newModel = Groups.upsert m g in
-        ( {newModel with deletedGroups = TD.remove ~tlid m.deletedGroups}
-        , Cmd.none )
     | SetClipboardContents (data, e) ->
         Clipboard.setData data e ;
         (m, Cmd.none)
@@ -1048,7 +1018,7 @@ let update_ (msg : msg) (m : model) : modification =
                 [Entry.commit m tlid id; defaultBehaviour]
             | _ ->
                 [defaultBehaviour] )
-        | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
+        | Architecture | FocusedDB _ | FocusedHandler _ ->
             if event.button = Defaults.leftButton
             then
               (* Clicking on the canvas should deselect the current selection on the main canvas *)
@@ -1101,16 +1071,10 @@ let update_ (msg : msg) (m : model) : modification =
             then
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
-              if not (TL.isGroup tl)
-              then
-                Many
-                  [ ReplaceAllModificationsWithThisOne
-                      (CursorState.setCursorState origCursorState)
-                  ; AddOps ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
-                  ]
-              else
-                ReplaceAllModificationsWithThisOne
-                  (CursorState.setCursorState origCursorState)
+              Many
+                [ ReplaceAllModificationsWithThisOne
+                    (CursorState.setCursorState origCursorState)
+                ; AddOps ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]
             else
               (* if we haven't moved, treat this as a single click and not a attempted drag *)
               let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
@@ -1156,11 +1120,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels
-              ( TD.values m2.handlers
-              , TD.values m2.dbs
-              , TD.values m2.groups
-              , true )
+          [ SetToplevels (TD.values m2.handlers, TD.values m2.dbs, true)
           ; DragTL
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1175,7 +1135,7 @@ let update_ (msg : msg) (m : model) : modification =
         match tl with
         | Some (TLPmFunc _) | Some (TLFunc _) | Some (TLTipe _) | None ->
             NoChange
-        | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
+        | Some (TLHandler _) | Some (TLDB _) ->
             DragTL (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | TLDragRegionMouseUp (tlid, event) ->
@@ -1195,29 +1155,11 @@ let update_ (msg : msg) (m : model) : modification =
                 (* we don't, perhaps due to overlapping click handlers *)
                 (* There doesn't seem to be any harm in stopping dragging *)
                 (* here though *)
-                if not (TL.isGroup tl)
-                then
-                  (* Check if toplevel landed on top of a group *)
-                  (* https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
-                  let gTlid =
-                    Groups.landedInGroup draggingTLID m.groups |> List.head
-                  in
-                  match gTlid with
-                  | Some tlid ->
-                      Many
-                        [ ReplaceAllModificationsWithThisOne
-                            (CursorState.setCursorState origCursorState)
-                        ; AddToGroup (tlid, draggingTLID) ]
-                  | None ->
-                      Many
-                        [ ReplaceAllModificationsWithThisOne
-                            (CursorState.setCursorState origCursorState)
-                        ; AddOps
-                            ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
-                        ]
-                else
-                  ReplaceAllModificationsWithThisOne
-                    (CursorState.setCursorState origCursorState)
+                Many
+                  [ ReplaceAllModificationsWithThisOne
+                      (CursorState.setCursorState origCursorState)
+                  ; AddOps ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                  ]
               else
                 (* if we haven't moved, treat this as a single click and not a attempted drag *)
                 let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
@@ -1382,16 +1324,8 @@ let update_ (msg : msg) (m : model) : modification =
       let page = Page.maybeChangeFromPage tlid m.currentPage in
       Many (AddOps ([DeleteFunction tlid], FocusSame) :: page)
   | RestoreToplevel tlid ->
-      (* Temporary check if tlid is a deleted group and add to model manually until groups has a BE *)
-      let group = Groups.isFromDeletedGroup m tlid in
-      ( match group with
-      | Some g ->
-          UndoGroupDelete (tlid, g)
-      | None ->
-          let page = Page.getPageFromTLID m tlid in
-          AddOps
-            ([UndoTL tlid], FocusPageAndCursor (page, Selecting (tlid, None)))
-      )
+      let page = Page.getPageFromTLID m tlid in
+      AddOps ([UndoTL tlid], FocusPageAndCursor (page, Selecting (tlid, None)))
   | DeleteUserFunctionForever tlid ->
       Many
         [ AddOps ([DeleteFunctionForever tlid], FocusSame)
@@ -1404,43 +1338,6 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserType tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
       Many (AddOps ([DeleteType tlid], FocusSame) :: page)
-  | DeleteGroup tlid ->
-      (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
-      TL.get m tlid
-      |> Option.map ~f:(fun tl -> Many [RemoveGroup tl])
-      |> Option.withDefault ~default:NoChange
-  | DragGroupMember (gTLID, tlid, event) ->
-      (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.s138ne3frlh0 *)
-      let group = TD.get ~tlid:gTLID m.groups in
-      ( match group with
-      | Some g ->
-          let newMembers =
-            g.members |> List.filter ~f:(fun member -> member != tlid)
-          in
-          let newGroup = {g with members = newMembers} in
-          let newMod = Groups.upsert m newGroup in
-          ( match m.cursorState with
-          | DraggingTL (_, _, _, origCursorState) ->
-              let mePos = Viewport.toAbsolute m event.mePos in
-              let gTlid = Groups.posInGroup mePos m.groups |> List.head in
-              (* Check if the new pos is in another group *)
-              ( match gTlid with
-              | Some gTlid ->
-                  Many
-                    [ ReplaceAllModificationsWithThisOne
-                        (CursorState.setCursorState origCursorState)
-                    ; MoveMemberToNewGroup (gTlid, tlid, newMod) ]
-              | None ->
-                  (* update the toplevel pos with the curent event position  *)
-                  Many
-                    [ ReplaceAllModificationsWithThisOne
-                        (fun _ ->
-                          CursorState.setCursorState origCursorState newMod)
-                    ; AddOps ([MoveTL (tlid, mePos)], FocusNoChange) ] )
-          | _ ->
-              NoChange )
-      | _ ->
-          NoChange )
   | UpdateHeapio msg ->
       Entry.sendHeapioMessage msg ;
       NoChange
@@ -1455,11 +1352,6 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               ( {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}
               , Cmd.none )) ]
-  | DeleteGroupForever tlid ->
-      (* TODO: Add AddOps *)
-      ReplaceAllModificationsWithThisOne
-        (fun m ->
-          ({m with deletedGroups = TD.remove ~tlid m.deletedGroups}, Cmd.none))
   | AddOpsAPICallback (focus, params, Ok (r : addOpAPIResponse)) ->
       let m, newOps, _ = API.filterOpsAndResult m params None in
       let params = {params with ops = newOps} in
@@ -1531,8 +1423,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; dbs = DB.fromList r.dbs
         ; userFunctions = UserFunctions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
-        ; handlerProps = ViewUtils.createHandlerProp r.handlers
-        ; groups = TLIDDict.empty }
+        ; handlerProps = ViewUtils.createHandlerProp r.handlers }
       in
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
@@ -1551,7 +1442,7 @@ let update_ (msg : msg) (m : model) : modification =
                 ; settingsView
                 ; secrets = r.secrets }
               , Cmd.none ))
-        ; SetToplevels (r.handlers, r.dbs, r.groups, true)
+        ; SetToplevels (r.handlers, r.dbs, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
@@ -1977,9 +1868,6 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateDBTable ->
       let center = Viewport.findNewPos m in
       Refactor.createNewDB m None center
-  | CreateGroup ->
-      let center = Viewport.findNewPos m in
-      Groups.createEmptyGroup None center
   | CreateFunction ->
       Refactor.createNewFunction m None
   | CreateType ->

@@ -186,7 +186,7 @@ let getAvailableVarnames
       varsFor h.ast @ glob @ inputVariables
   | TLFunc fn ->
       varsFor fn.ufAST @ glob @ inputVariables
-  | TLPmFunc _ | TLDB _ | TLTipe _ | TLGroup _ ->
+  | TLPmFunc _ | TLDB _ | TLTipe _ ->
       []
 
 
@@ -437,8 +437,7 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
   let should =
     (* DBs + Types dont have traces *)
     TL.get m tlid
-    |> Option.map ~f:(fun tl ->
-           not (TL.isDB tl || TL.isUserTipe tl || TL.isGroup tl))
+    |> Option.map ~f:(fun tl -> not (TL.isDB tl || TL.isUserTipe tl))
     |> Option.withDefault ~default:false
   in
   if should

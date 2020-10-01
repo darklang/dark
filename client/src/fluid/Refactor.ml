@@ -466,8 +466,6 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
          | TLTipe _ ->
              None
          | TLDB _ ->
-             None
-         | TLGroup _ ->
              None)
 
 

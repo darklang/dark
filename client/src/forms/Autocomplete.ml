@@ -70,12 +70,6 @@ let asName (aci : autocompleteItem) : string =
           "New REPL named " ^ name
       | None ->
           "New REPL" )
-    | NewGroup maybeName ->
-      ( match maybeName with
-      | Some name ->
-          "New Group named " ^ name
-      | None ->
-          "New Group" )
     | Goto (_, _, desc, _) ->
         desc )
   | ACHTTPModifier name ->
@@ -103,8 +97,7 @@ let asName (aci : autocompleteItem) : string =
   | ACFnName name
   | ACParamName name
   | ACTypeName name
-  | ACTypeFieldName name
-  | ACGroupName name ->
+  | ACTypeFieldName name ->
       name
   | ACReturnTipe tipe | ACTypeFieldTipe tipe ->
       RT.tipe2str tipe
@@ -146,8 +139,6 @@ let asTypeString (item : autocompleteItem) : string =
       "type name"
   | ACTypeFieldName _ ->
       "type field name"
-  | ACGroupName _ ->
-      "group name"
   | ACReturnTipe tipe | ACTypeFieldTipe tipe ->
     ( match tipe with
     | TUserType (_, v) ->
@@ -164,8 +155,6 @@ let asTypeClass (item : autocompleteItem) : string =
   | ACOmniAction (NewWorkerHandler _)
   | ACOmniAction (NewCronHandler _)
   | ACOmniAction (NewReplHandler _)
-  | ACOmniAction (NewGroup _) ->
-      "new-tl"
   | ACOmniAction (Goto (_, _, _, true)) ->
       "found-in"
   | ACOmniAction (Goto (_, _, _, false)) ->
@@ -242,8 +231,6 @@ let dbColTypeValidator = "\\[?[A-Z]\\w+\\]?"
 let dbColNameValidator = "\\w+"
 
 let dbNameValidator = "[A-Z][a-zA-Z0-9_]*"
-
-let groupNameValidator = "[A-Z][a-zA-Z0-9_]*"
 
 let eventModifierValidator = "[a-zA-Z_][\\sa-zA-Z0-9_]*"
 
@@ -372,13 +359,6 @@ let cleanDBName (s : string) : string =
   |> String.capitalize
 
 
-let cleanGroupName (s : string) : string =
-  s
-  |> stripChars "[^a-zA-Z0-9_]"
-  |> stripCharsFromFront "[^A-Z]"
-  |> String.capitalize
-
-
 let qNewDB (s : string) : omniAction =
   let name = cleanDBName s in
   if name = ""
@@ -417,13 +397,6 @@ let qReplHandler (s : string) : omniAction =
   if name = ""
   then NewReplHandler None
   else NewReplHandler (Some (assertValid eventNameValidator name))
-
-
-let qGroup (s : string) : omniAction =
-  let name = cleanGroupName s in
-  if name = ""
-  then NewGroup None
-  else NewGroup (Some (assertValid groupNameValidator name))
 
 
 let qHTTPHandler (s : string) : omniAction =
@@ -527,13 +500,7 @@ let toDynamicItems
         ; qReplHandler q ]
         @ qSearch m q
       in
-      (* Creating a group Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.sny6o08h9gc2 *)
-      let all =
-        if VariantTesting.variantIsActive m GroupVariant
-        then standard @ [qGroup q]
-        else standard
-      in
-      List.map ~f:(fun o -> ACOmniAction o) all
+      List.map ~f:(fun o -> ACOmniAction o) standard
   | Some (_, PEventName _) ->
     ( match space with
     | Some HSHTTP ->
@@ -573,9 +540,6 @@ let tlGotoName (tl : toplevel) : string =
   | TLDB db ->
       "Jump to DB: "
       ^ (db.dbName |> B.toOption |> Option.withDefault ~default:"Unnamed DB")
-  | TLGroup g ->
-      "Jump to Group: "
-      ^ (g.gName |> B.toOption |> Option.withDefault ~default:"Undefined")
   | TLPmFunc _ | TLFunc _ ->
       recover "can't goto function" ~debug:tl "<invalid state>"
   | TLTipe _ ->
@@ -714,13 +678,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           in
           allowedReturnTipes @ userTypes
           |> List.map ~f:(fun t -> ACReturnTipe t)
-      | DBName
-      | DBColName
-      | FnName
-      | ParamName
-      | TypeName
-      | TypeFieldName
-      | GroupName ->
+      | DBName | DBColName | FnName | ParamName | TypeName | TypeFieldName ->
           [] )
     | _ ->
         []
@@ -900,8 +858,6 @@ let documentationForItem (aci : autocompleteItem) : 'a Vdom.t list option =
       simpleDoc ("Set param name to " ^ paramName)
   | ACTypeName typeName ->
       simpleDoc ("Set type name to " ^ typeName)
-  | ACGroupName groupName ->
-      simpleDoc ("Set group name to " ^ groupName)
   | ACReturnTipe _ | ACTypeFieldName _ ->
       None
 

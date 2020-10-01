@@ -105,8 +105,6 @@ let placeHolderFor (vp : ViewUtils.viewProps) (pt : blankOrType) : string =
       "field name"
   | TypeFieldTipe ->
       "field type"
-  | GroupName ->
-      "group name"
 
 
 let viewBlankOr

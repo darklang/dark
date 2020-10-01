@@ -21,8 +21,6 @@ let name (tl : toplevel) : string =
       ^ (f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:"")
   | TLTipe t ->
       "Type: " ^ (t.utName |> B.toOption |> Option.withDefault ~default:"")
-  | TLGroup g ->
-      "Group: " ^ (g.gName |> B.toOption |> Option.withDefault ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
@@ -39,8 +37,6 @@ let sortkey (tl : toplevel) : string =
       f.ufMetadata.ufmName |> B.toOption |> Option.withDefault ~default:""
   | TLTipe t ->
       t.utName |> B.toOption |> Option.withDefault ~default:""
-  | TLGroup g ->
-      g.gName |> B.toOption |> Option.withDefault ~default:""
 
 
 let id tl =
@@ -55,8 +51,6 @@ let id tl =
       f.pfTLID
   | TLTipe t ->
       t.utTLID
-  | TLGroup g ->
-      g.gTLID
 
 
 let pos tl =
@@ -65,8 +59,6 @@ let pos tl =
       h.pos
   | TLDB db ->
       db.pos
-  | TLGroup g ->
-      g.pos
   | TLPmFunc f ->
       recover "no pos in a func" ~debug:f.pfTLID {x = 0; y = 0}
   | TLFunc f ->
@@ -86,8 +78,6 @@ let remove (m : model) (tl : toplevel) : model =
       UserFunctions.remove m f
   | TLTipe ut ->
       UserTypes.remove m ut
-  | TLGroup g ->
-      Groups.remove m g
   | TLPmFunc _ ->
       (* Cannot remove a package manager function *)
       m
@@ -105,10 +95,7 @@ let move (tlid : TLID.t) (xOffset : int) (yOffset : int) (m : model) : model =
           {h with pos = newPos h.pos})
   ; dbs =
       TD.updateIfPresent m.dbs ~tlid ~f:(fun (db : db) ->
-          {db with pos = newPos db.pos})
-  ; groups =
-      TD.updateIfPresent m.groups ~tlid ~f:(fun (group : group) ->
-          {group with pos = newPos group.pos}) }
+          {db with pos = newPos db.pos}) }
 
 
 let ufToTL (uf : userFunction) : toplevel = TLFunc uf
@@ -125,20 +112,12 @@ let asUserTipe (tl : toplevel) : userTipe option =
   match tl with TLTipe t -> Some t | _ -> None
 
 
-let asGroup (tl : toplevel) : group option =
-  match tl with TLGroup g -> Some g | _ -> None
-
-
 let isUserFunction (tl : toplevel) : bool =
   match tl with TLFunc _ -> true | _ -> false
 
 
 let isUserTipe (tl : toplevel) : bool =
   match tl with TLTipe _ -> true | _ -> false
-
-
-let isGroup (tl : toplevel) : bool =
-  match tl with TLGroup _ -> true | _ -> false
 
 
 let asHandler (tl : toplevel) : handler option =
@@ -191,8 +170,6 @@ let toOp (tl : toplevel) : op list =
       [SetType t]
   | TLPmFunc _ ->
       recover "Package Manager functions are not editable" ~debug:(id tl) []
-  | TLGroup _ ->
-      recover "Groups are front end only" ~debug:(id tl) []
   | TLDB _ ->
       recover "This isn't how datastore ops work" ~debug:(id tl) []
 
@@ -212,8 +189,6 @@ let blankOrData (tl : toplevel) : blankOrData list =
       UserFunctions.blankOrData f
   | TLTipe t ->
       UserTypes.blankOrData t
-  | TLGroup g ->
-      Groups.blankOrData g
 
 
 let isValidBlankOrID (tl : toplevel) (id : ID.t) : bool =
@@ -242,7 +217,7 @@ let setAST (tl : toplevel) (newAST : FluidAST.t) : toplevel =
       TLHandler {h with ast = newAST}
   | TLFunc uf ->
       TLFunc {uf with ufAST = newAST}
-  | TLDB _ | TLTipe _ | TLGroup _ | TLPmFunc _ ->
+  | TLDB _ | TLTipe _ | TLPmFunc _ ->
       tl
 
 
@@ -273,8 +248,6 @@ let setASTMod ?(ops = []) (tl : toplevel) (ast : FluidAST.t) : modification =
       recover "no ast in Tipes" ~debug:tl NoChange
   | TLDB _ ->
       recover "no ast in DBs" ~debug:tl NoChange
-  | TLGroup _ ->
-      recover "no ast in Groups" ~debug:tl NoChange
 
 
 (** modifyASTMod is a combination of getAST and setASTMod. It fetches the AST
@@ -315,13 +288,6 @@ let replace (p : blankOrData) (replacement : blankOrData) (tl : toplevel) :
         TLTipe newTL
     | _ ->
         recover "Changing tipe metadata on non-tipe" ~debug:replacement tl )
-  | PGroupName _ ->
-    ( match asGroup tl with
-    | Some group ->
-        let newTL = Groups.replace p replacement group in
-        TLGroup newTL
-    | _ ->
-        recover "Changing group metadata on non-fn" ~debug:replacement tl )
 
 
 let combine
@@ -329,14 +295,12 @@ let combine
     (dbs : db TD.t)
     (userFunctions : userFunction TD.t)
     (packageFn : packageFn TD.t)
-    (userTipes : userTipe TD.t)
-    (groups : group TD.t) : toplevel TD.t =
+    (userTipes : userTipe TD.t) : toplevel TD.t =
   TD.map ~f:(fun h -> TLHandler h) handlers
   |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) dbs)
   |> TD.mergeLeft (TD.map ~f:ufToTL userFunctions)
   |> TD.mergeLeft (TD.map ~f:pmfToTL packageFn)
   |> TD.mergeLeft (TD.map ~f:utToTL userTipes)
-  |> TD.mergeLeft (TD.map ~f:(fun group -> TLGroup group) groups)
 
 
 let all (m : model) : toplevel TD.t =
@@ -346,13 +310,11 @@ let all (m : model) : toplevel TD.t =
     m.userFunctions
     m.functions.packageFunctions
     m.userTipes
-    m.groups
 
 
 let structural (m : model) : toplevel TD.t =
   TD.map ~f:(fun h -> TLHandler h) m.handlers
   |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) m.dbs)
-  |> TD.mergeLeft (TD.map ~f:(fun group -> TLGroup group) m.groups)
 
 
 let get (m : model) (tlid : TLID.t) : toplevel option = TD.get ~tlid (all m)
@@ -391,8 +353,6 @@ let asPage (tl : toplevel) (center : bool) : page =
       FocusedHandler (id tl, None, center)
   | TLDB _ ->
       FocusedDB (id tl, center)
-  | TLGroup _ ->
-      FocusedGroup (id tl, center)
   | TLPmFunc _ | TLFunc _ ->
       FocusedFn (id tl, None)
   | TLTipe _ ->

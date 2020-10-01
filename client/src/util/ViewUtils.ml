@@ -113,7 +113,6 @@ let createVS (m : model) (tl : toplevel) : viewProps =
       | FocusedType tlid_
       | FocusedFn (tlid_, _)
       | FocusedDB (tlid_, _)
-      | FocusedGroup (tlid_, _)
         when tlid_ = tlid ->
           m.avatarsList
       | _ ->
@@ -146,7 +145,7 @@ let createVS (m : model) (tl : toplevel) : viewProps =
       | TLHandler _ ->
         (* Doing explicit match here just to be safe, even though we can probably assume you can't have handlerProp without it being a handler from code above. *)
         (match hp with Some p -> p.execution = Executing | _ -> false)
-      | TLPmFunc _ | TLDB _ | TLTipe _ | TLGroup _ ->
+      | TLPmFunc _ | TLDB _ | TLTipe _ ->
           false )
   ; fnProps = m.currentUserFn
   ; showHandlerASTs = m.editorSettings.showHandlerASTs

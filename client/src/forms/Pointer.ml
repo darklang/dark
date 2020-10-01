@@ -35,8 +35,6 @@ let typeOf (pd : blankOrData) : blankOrType =
       TypeFieldName
   | PTypeFieldTipe _ ->
       TypeFieldTipe
-  | PGroupName _ ->
-      GroupName
 
 
 let toID (pd : blankOrData) : ID.t =
@@ -67,8 +65,6 @@ let toID (pd : blankOrData) : ID.t =
       B.toID d
   | PTypeFieldTipe d ->
       B.toID d
-  | PGroupName d ->
-      B.toID d
 
 
 let isBlank (pd : blankOrData) : bool =
@@ -82,8 +78,7 @@ let isBlank (pd : blankOrData) : bool =
   | PFnName str
   | PParamName str
   | PTypeName str
-  | PTypeFieldName str
-  | PGroupName str ->
+  | PTypeFieldName str ->
       B.isBlank str
   | PFnReturnTipe t | PTypeFieldTipe t | PParamTipe t ->
       B.isBlank t
@@ -124,8 +119,6 @@ let strMap (pd : blankOrData) ~(f : string -> string) : blankOrData =
       PTypeFieldName (bf d)
   | PTypeFieldTipe d ->
       PTypeFieldTipe d
-  | PGroupName g ->
-      PGroupName (bf g)
 
 
 let toContent (pd : blankOrData) : string =
@@ -140,8 +133,7 @@ let toContent (pd : blankOrData) : string =
   | PFnName d
   | PParamName d
   | PTypeName d
-  | PTypeFieldName d
-  | PGroupName d ->
+  | PTypeFieldName d ->
       bs2s d
   | PFnReturnTipe d | PParamTipe d | PTypeFieldTipe d ->
       d

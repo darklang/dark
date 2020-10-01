@@ -43,8 +43,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         , false )
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [], false)
-    | TLGroup g ->
-        ([ViewGroup.viewGroup m vs g dragEvents], [], true)
   in
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
@@ -91,8 +89,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let classes =
     [ ("toplevel", true)
     ; ("tl-" ^ TLID.toString tlid, true)
-    ; ("selected", selected)
-    ; ("group", match tl with TLGroup _ -> true | _ -> false) ]
+    ; ("selected", selected) ]
   in
   let id =
     FluidTokenizer.ASTInfo.getToken vs.astInfo
@@ -191,11 +188,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let pos =
     match m.currentPage with
-    | Architecture
-    | FocusedHandler _
-    | FocusedDB _
-    | FocusedGroup _
-    | SettingsModal _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ | SettingsModal _ ->
         TL.pos tl
     | FocusedPackageManagerFn _ | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
@@ -294,19 +287,8 @@ let tlCacheKeyTipe (m : model) tl =
     Some (tl, avatarsList)
 
 
-let tlCacheKeyGroup (m : model) tl =
-  let tlid = TL.id tl in
-  if Some tlid = CursorState.tlidOf m.cursorState
-  then None
-  else
-    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
-    Some (tl, avatarsList)
-
-
 let viewTL m tl =
   match tl with
-  | TLGroup _ ->
-      ViewCache.cache2m tlCacheKeyGroup viewTL_ m tl
   | TLTipe _ ->
       ViewCache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
@@ -348,11 +330,7 @@ let isAppScrollZero () : bool =
 let viewCanvas (m : model) : msg Html.html =
   let allDivs =
     match m.currentPage with
-    | Architecture
-    | FocusedHandler _
-    | FocusedDB _
-    | FocusedGroup _
-    | SettingsModal _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ | SettingsModal _ ->
         m
         |> TL.structural
         |> TD.values
@@ -361,8 +339,6 @@ let viewCanvas (m : model) : msg Html.html =
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
        * know exactly how. TODO: we removed the Util cache so it might work. *)
         |> List.sortBy ~f:(fun tl -> TLID.toString (TL.id tl))
-        (* Filter out toplevels that are not in a group *)
-        |> List.filter ~f:(fun tl -> not (Groups.isInGroup (TL.id tl) m.groups))
         |> List.map ~f:(viewTL m)
     | FocusedPackageManagerFn tlid ->
       ( match TD.get ~tlid m.functions.packageFunctions with
@@ -447,8 +423,6 @@ let viewCanvas (m : model) : msg Html.html =
         "focused-fn"
     | FocusedType _ ->
         "focused-type"
-    | FocusedGroup _ ->
-        "focused-group"
   in
   Html.div
     [ Html.id "canvas"

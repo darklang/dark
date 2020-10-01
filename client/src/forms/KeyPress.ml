@@ -41,7 +41,7 @@ let undo_redo (m : model) (redo : bool) : modification =
 
 let openOmnibox (m : model) : modification =
   match m.currentPage with
-  | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+  | Architecture | FocusedHandler _ | FocusedDB _ ->
       Many [Deselect; Entry.openOmnibox ()]
   | FocusedFn _ | FocusedType _ | FocusedPackageManagerFn _ ->
       Entry.openOmnibox ()
@@ -80,8 +80,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         (* if we're selecting a toplevel only, deselect. *)
         | None ->
             Deselect )
-      | Key.Enter, Some (TLGroup _) when event.shiftKey ->
-          NoChange
       | Key.Enter, Some (TLTipe t as tl) when event.shiftKey ->
         ( match mId with
         | Some id ->

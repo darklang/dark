@@ -327,8 +327,6 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
           ~default:(Util.Namer.generateAnimalWithPersonality ~space:"REPL" ())
       in
       newHandler m "REPL" (Some name) unused pos
-  | NewGroup name ->
-      Groups.createEmptyGroup name pos
   | Goto (page, tlid, _, _) ->
       Many [SetPage page; Select (tlid, STTopLevelRoot)]
 
@@ -384,8 +382,6 @@ let validate (tl : toplevel) (pd : blankOrData) (value : string) : string option
       v AC.fieldNameValidator "type field name"
   | PTypeFieldTipe _ ->
       v AC.paramTypeValidator "type field type"
-  | PGroupName _ ->
-      v AC.groupNameValidator "group name"
 
 
 let submitACItem
@@ -433,8 +429,6 @@ let submitACItem
                 wrapNew [SetFunction f] next
             | TLTipe t ->
                 wrapNew [SetType t] next
-            | TLGroup g ->
-                AddGroup g
             | TLPmFunc _ ->
                 recover "no vars in pmfn" ~debug:tl NoChange
             | TLDB _ ->
@@ -617,8 +611,6 @@ let submitACItem
             replace (PTypeFieldName (F (id, value)))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe, _ ->
             replace (PTypeFieldTipe (F (id, tipe)))
-        | PGroupName _, ACGroupName name, _ ->
-            replace (PGroupName (F (id, name)))
         | pd, item, _ ->
             ReplaceAllModificationsWithThisOne
               (fun m ->
@@ -661,8 +653,6 @@ let submit (m : model) (tlid : TLID.t) (id : ID.t) (move : nextMove) :
               Some (ACTypeName value)
           | TypeFieldName ->
               Some (ACTypeFieldName value)
-          | GroupName ->
-              Some (ACGroupName value)
           | EventModifier ->
               (* Does not accept freeform inputs, but goes to validation call for more specific error message displayed to user *)
               Some (ACEventModifier value)
