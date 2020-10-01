@@ -6,8 +6,14 @@ set -euo pipefail
 function check {
   if [[ "$1" == *"kubernetes"* ]]; then
     echo "kubeval $1"
-    # not the production version
-    kubeval --skip-kinds=ManagedCertificate,Issuer,CustomResourceDefinition --kubernetes-version=1.15.7 "$1"
+    # production version is 1.16.13, this is the closest in that repo
+    kubeval \
+      --additional-schema-locations \
+        https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master,https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/746d95595310baddb59477bde49bfa7e6a4eecb7 \
+      --skip-kinds=ManagedCertificate,Issuer,CustomResourceDefinition \
+      --kubernetes-version=1.16.10 \
+      --force-color \
+      "$1"
   else
     echo "not kubernetes so no kubeval: $1"
   fi
