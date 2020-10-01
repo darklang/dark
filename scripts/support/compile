@@ -9,39 +9,48 @@ from pathlib import Path
 
 run_tests = False
 
+
 # Make io unbuffered
 def flush(fn):
   def newfn(x):
     fn(x)
     sys.stdout.flush()
+
   return newfn
+
+
 sys.stdout.write = flush(sys.stdout.write)
 sys.stdout.writelines = flush(sys.stdout.writelines)
+
 
 def run(start, bash):
   proc = subprocess.run(bash, shell=True)
   stop = time.time()
   success = proc.returncode == 0
   if success:
-    print(">> Success in " + str(stop-start) + "s")
+    print(f">> Success in {str(stop - start)}s")
   else:
-    print(">> Failed in " + str(stop-start) + "s")
+    print(f">> Failed in {str(stop - start)}s")
 
   return success
+
 
 ###################
 # Build logic
 ###################
 def pretty_print(msg, color):
-  print('\x1b[6;30;' + str(color) + 'm' + "\n$ " + msg + '\x1b[0m')
+  print(f"\x1b[6;30;{str(color)}m\n$ {msg}\x1b[0m")
+
 
 def run_frontend(start, bash):
   pretty_print(bash, 44)
   return run(start, bash)
 
+
 def run_backend(start, bash):
   pretty_print(bash, 42)
   return run(start, bash)
+
 
 def run_test(start, bash):
   if run_tests:
@@ -51,28 +60,35 @@ def run_test(start, bash):
     print("skipping tests")
     return True
 
+
 def run_other(start, bash):
   pretty_print(bash, 46)
   return run(start, bash)
+
 
 def is_script(f):
   filetype = subprocess.check_output(["file", f], encoding="utf-8")
   return "Bourne-Again" in filetype
 
+
 def sass_compile():
   start = time.time()
-  return run_frontend(start, "npx node-sass client/styles/app.scss > backend/static/app.css")
+  return run_frontend(
+      start, "npx node-sass client/styles/app.scss > backend/static/app.css")
+
 
 def copy_static():
   # For changing static files (esp icons)
   start = time.time()
   return run_frontend(start, "npm run copy:static")
 
+
 def client_build():
   if os.environ.get("CI"):
     start = time.time()
     # ml is checked on the backend
-    result = run_frontend(start, "./scripts/format check --prettier-only backend client")
+    result = run_frontend(
+        start, "./scripts/format check --prettier-only backend client")
     if not result:
       return result
   else:
@@ -83,15 +99,18 @@ def client_build():
   result = run_frontend(start, build)
   return result
 
+
 def npm_install():
   start = time.time()
   build = "unbuffer ./scripts/support/npm-install-with-retry"
   return run_frontend(start, build)
 
+
 def esy_install():
   start = time.time()
   build = "unbuffer esy install && esy build --release"
   return run_backend(start, build)
+
 
 def client_test():
   start = time.time()
@@ -101,10 +120,12 @@ def client_test():
   result = run_test(start, f"./scripts/runtests {flags}")
   return result
 
+
 def shellcheck(f):
   start = time.time()
   result = run_test(start, "scripts/support/shellchecker " + f)
   return result
+
 
 def yamllint(f):
   start = time.time()
@@ -120,7 +141,8 @@ def backend_build():
   if os.environ.get("CI"):
     start = time.time()
     # checks the frontend too
-    result = run_backend(start, "./scripts/format check  --ocaml-only client backend")
+    result = run_backend(
+        start, "./scripts/format check  --ocaml-only client backend")
     if not result:
       return result
   else:
@@ -130,10 +152,10 @@ def backend_build():
   # Get all the ml files in backend/bin, and build executables This is less
   # technically correct than "parse the sexp in backend/bin/dune", but it
   # is also much simpler.
-  exes = ["backend/bin/" + x.replace(".ml", ".exe")
-          for x
-          in os.listdir("backend/bin")
-          if x.endswith(".ml")]
+  exes = [
+      "backend/bin/" + x.replace(".ml", ".exe")
+      for x in os.listdir("backend/bin") if x.endswith(".ml")
+  ]
   exes.append("@analysis.js")
   exes = " ".join(exes)
   if os.environ.get("CI"):
@@ -143,25 +165,60 @@ def backend_build():
 
   build = "unbuffer" \
         + " scripts/dune-wrapper.sh build" \
-        + " --profile " + compilation_profile \
+        + f" --profile {compilation_profile}" \
         + " --display short" \
         + " -j 8 " \
         + exes
   return run_backend(start, build)
 
+
 def backend_test():
   start = time.time()
   ci = "--verbose" if os.environ.get("CI") else "--quick"
-  rundir = os.environ.get("DARK_CONFIG_RUNDIR")
   return run_test(start,
           f"unbuffer scripts/dune-wrapper.sh build backend/test/test.exe" \
           f" && unbuffer scripts/run-backend-tests --show-errors {ci}" \
           f" 2>&1")
 
+
+def fsharp_tool_restore():
+  start = time.time()
+  build = "cd fsharp-backend && unbuffer dotnet tool restore"
+  return run_backend(start, build)
+
+
+def fsharp_paket_restore():
+  start = time.time()
+  # We run paket restore to match the lock file
+  build = "cd fsharp-backend && unbuffer dotnet paket restore"
+  return run_backend(start, build)
+
+
+def fsharp_backend_build():
+  if os.environ.get("CI"):
+    start = time.time()
+    #  result = run_backend(
+    #      start, "./scripts/format check  --ocaml-only client backend")
+    #  if not result:
+    #    return result
+  else:
+    start = time.time()
+
+  start = time.time()
+  if os.environ.get("CI"):
+    configuration = "Release"
+  else:
+    configuration = "Debug"
+
+  build = f"cd fsharp-backend && unbuffer dotnet build -c {configuration}"
+  return run_backend(start, build)
+
+
 def rust_build(name):
   if os.environ.get("CI"):
     start = time.time()
-    result = run_backend(start, "./scripts/format check --rust-only containers/stroller containers/queue-scheduler")
+    result = run_backend(
+        start, "./scripts/format check --rust-only stroller queue-scheduler")
     if not result:
       return result
     build_flags = " --release"
@@ -172,9 +229,11 @@ def rust_build(name):
   build = f"cd {name} && unbuffer cargo build{build_flags}"
   return run_backend(start, build)
 
+
 def rust_reload(name):
   start = time.time()
   return run_backend(start, f"scripts/support/run-rust {name}")
+
 
 def test_db_env():
   return "DARK_CONFIG_DB_HOST=localhost" \
@@ -182,35 +241,43 @@ def test_db_env():
     " DARK_CONFIG_DB_USER=dark" \
     " DARK_CONFIG_DB_PASSWORD=eapnsdc"
 
+
 def rust_test(name):
   start = time.time()
-  result = run_test(start,
-      f"cd {name} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test -- --test-threads=1")
+  result = run_test(
+      start,
+      f"cd {name} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test -- --test-threads=1"
+  )
   if not result:
-      return result
+    return result
 
   start = time.time()
   if os.environ.get("CI"):
-      clippy_flags = "-D warnings"
+    clippy_flags = "-D warnings"
   else:
-      clippy_flags = ""
-  return run_test(start,
-      f"cd {name}"
-      + f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- " + clippy_flags)
+    clippy_flags = ""
+  return run_test(
+      start, f"cd {name}" +
+      f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- "
+      + clippy_flags)
+
 
 def reload_server():
   start = time.time()
   runserver = "scripts/support/runserver"
   return run_backend(start, runserver)
 
+
 def generate_etags():
   start = time.time()
   return run_frontend(start, "./scripts/support/generate-etags")
+
 
 def reload_browser():
   start = time.time()
   # Sends a signal to another fswatch on your mac
   return run_frontend(start, "touch .browser-trigger")
+
 
 class Should:
   def __init__(self):
@@ -221,6 +288,10 @@ class Should:
     self.stroller_test = False
     self.scheduler_build = False
     self.scheduler_test = False
+    self.fsharp_tool_restore = False
+    self.fsharp_paket_restore = False
+    self.fsharp_backend_build = False
+    self.fsharp_backend_test = False
     self.npm_install = False
     self.client_build = False
     self.client_test = False
@@ -235,6 +306,7 @@ class Should:
     self.shellcheck = []
     self.yamllint = []
 
+
 def execute(should):
   success = True
   # Fast path: get the important stuff built first
@@ -242,12 +314,24 @@ def execute(should):
     if not esy_install(): success = False
     should.backend_build |= success
 
+  if should.fsharp_tool_restore:
+    if not fsharp_tool_restore(): success = False
+    should.fsharp_paket_restore |= success
+    should.fsharp_backend_build |= success
+
+  if should.fsharp_paket_restore:
+    if not fsharp_paket_restore(): success = False
+    should.fsharp_backend_build |= success
+
   if should.backend_build:
     if not backend_build(): success = False
     should.generate_etags |= success
     should.backend_test |= success
     should.reload_server |= success
     should.reload_browser |= success
+
+  if should.fsharp_backend_build:
+    if not fsharp_backend_build(): success = False
 
   if should.npm_install:
     if not npm_install(): success = False
@@ -295,6 +379,10 @@ def execute(should):
   if should.backend_test:
     if not backend_test(): success = False
 
+  # TODO: tests
+  #  if should.fsharp_backend_test:
+  #    if not fsharp_backend_test(): success = False
+
   # Rust projects
   if should.stroller_build:
     if not rust_build('containers/stroller'): success = False
@@ -314,11 +402,9 @@ def execute(should):
   if should.scheduler_test:
     if not rust_test('containers/queue-scheduler'): success = False
 
-
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
       success = False
-
 
   if should.yamllint:
     if not all([yamllint(f) for f in should.yamllint]):
@@ -328,14 +414,12 @@ def execute(should):
 
 
 def mark(should, f):
-  print("file: " + f, end='')
   # Ocaml
   if ("libshared/" in f) \
           and ((".mli" in f) \
             or (".ml" in f)):
     should.backend_build = True
     should.client_build = True
-
 
   elif "esy.json" in f:
     should.esy_install = True
@@ -345,20 +429,25 @@ def mark(should, f):
                   or (".ml" in f)):
     should.backend_test = True
 
-  elif ("backend/" in f) \
-          and ((".mli" in f) \
-                  or (".ml" in f) \
-                  or ("_tags" in f) \
-                  or ("libtarget.js" in f)) \
-          or ("dune" in f):
+  elif ("fsharp-backend/global.json" in f):
+    should.fsharp_tool_restore = True
+
+  elif ("fsharp-backend/paket.dependencies" in f):
+    should.fsharp_paket_restore = True
+
+  elif ("fsharp-backend/tests/" in f):
+    should.fsharp_backend_test = True
+
+  elif ("fsharp-backend/" in f):
+    should.fsharp_backend_build = True
+
+  elif ("templates/" in f) and (".html" in f):
     should.backend_build = True
 
   elif "containers/ocaml-nginx/" in f and ".conf" in f:
     should.reload_server = True
     should.test_nginx = True
 
-  elif ("templates/" in f) and (".html" in f):
-    should.backend_build = True
   # Touch this to rerun the server
   elif "scripts/support/runserver" in f:
     should.reload_server = True
@@ -405,7 +494,7 @@ def mark(should, f):
   elif ("scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
-  elif (".yml" in f or ".yaml" in f) :
+  elif (".yml" in f or ".yaml" in f):
     should.yamllint += [f]
 
   elif ".html" in f:
@@ -417,34 +506,40 @@ def mark(should, f):
   return should
 
 
-
 def ignore(filename):
+  # substring
+  ignores = [
+      ".git",
+      ".merlin",
+      "scripts/support/compile",
+      "integration-tests/tests.js",
+      "rundir/",
+      "_build/",
+      "dark.install",
+      "gmon.out",
+      "backend/serialization/",
+      "backend/static/",
+      "_esy/",
+      "esy.lock",
+      "/home/dark/.esy",
+      "node_modules",
+      "build.ninja",
+      "containers/stroller/target",
+      "containers/queue-scheduler/target",
+      "paket-files",
+      ".bs.js",
+      ".bsdeps",
+      ".bsbuild",
+      ".sourcedirs.json",
+      ".md",
+      ".sw",
+  ]
   if "runserver" in filename:
     return False
-  # substring
-  ignores = [ ".git"
-            , ".merlin"
-            , "integration-tests/tests.js"
-            , "rundir/"
-            , "_build/"
-            , "dark.install"
-            , "gmon.out"
-            , "backend/serialization/"
-            , "backend/static/"
-            , "_esy/"
-            , "esy.lock"
-            , "/home/dark/.esy"
-            , "node_modules"
-            , "build.ninja"
-            , "containers/stroller/target"
-            , "containers/queue-scheduler/target"
-            , ".bs.js"
-            , ".bsdeps"
-            , ".bsbuild"
-            , ".sourcedirs.json"
-            , ".md"
-            , ".sw"
-  ]
+  if "fsharp-backend" in filename and ("/obj/" in filename or "/bin/"
+                                       in filename or filename.endswith("/obj")
+                                       or filename.endswith("/bin")):
+    return True
   for i in ignores:
     if i in filename:
       return True
@@ -461,6 +556,8 @@ def ignore(filename):
 
 
 files = []
+
+
 def main():
   for f in sys.argv[1:]:
     if f == "--test":
@@ -480,5 +577,6 @@ def main():
       sys.exit(0)
     else:
       sys.exit(1)
+
 
 main()
