@@ -769,9 +769,7 @@ and trace (t : Types.trace) : Js.Json.t =
   pair traceID data t
 
 
-let handlerProp (p : Types.handlerProp) : Js.Json.t =
-  object_ [("handlerLock", bool p.handlerLock)]
-
+let handlerProp (_p : Types.handlerProp) : Js.Json.t = object_ []
 
 let sidebarMode (s : Types.sidebarMode) : Js.Json.t =
   match s with

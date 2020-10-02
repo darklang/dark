@@ -1350,7 +1350,6 @@ and msg =
   | DeleteUserType of TLID.t
   | DeleteUserTypeForever of TLID.t
   | RestoreToplevel of TLID.t
-  | LockHandler of TLID.t * bool
   | ReceiveAnalysis of performAnalysisResult
   | ReceiveFetch of fetchResult
   | EnablePanning of bool
@@ -1421,8 +1420,7 @@ and exeState =
   | Complete
 
 and handlerProp =
-  { handlerLock : bool
-  ; hoveringReferences :
+  { hoveringReferences :
       (* When hovering over a reference, this is the list of ID.ts that refer to
        * the reference *)
       ID.t list

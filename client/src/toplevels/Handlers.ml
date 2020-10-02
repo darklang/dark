@@ -27,15 +27,3 @@ let getWorkerSchedule (m : model) (h : handler) : string option =
       StrDict.get ~key:name m.workerSchedules
   | Blank _ ->
       None
-
-
-let setHandlerLock (tlid : TLID.t) (lock : bool) (m : model) : model =
-  let updateProps prop =
-    match prop with
-    | Some p ->
-        Some {p with handlerLock = lock}
-    | None ->
-        Some {Defaults.defaultHandlerProp with handlerLock = lock}
-  in
-  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}

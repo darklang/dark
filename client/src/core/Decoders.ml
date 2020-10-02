@@ -410,8 +410,7 @@ and exeState j : exeState =
 
 
 and handlerProp j : handlerProp =
-  { handlerLock = field "handlerLock" bool j
-  ; hoveringReferences = field "hoveringReferences" (list id) j
+  { hoveringReferences = field "hoveringReferences" (list id) j
   ; execution = field "executing" exeState j }
 
 

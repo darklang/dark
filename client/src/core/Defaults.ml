@@ -79,7 +79,7 @@ let defaultCanvasProps : canvasProps =
 
 
 let defaultHandlerProp : handlerProp =
-  {handlerLock = false; hoveringReferences = []; execution = Idle}
+  {hoveringReferences = []; execution = Idle}
 
 
 let defaultToast : toast = {toastMessage = None; toastPos = None}
