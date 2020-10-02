@@ -1350,7 +1350,6 @@ and msg =
   | DeleteUserType of TLID.t
   | DeleteUserTypeForever of TLID.t
   | RestoreToplevel of TLID.t
-  | LockHandler of TLID.t * bool
   | ReceiveAnalysis of performAnalysisResult
   | ReceiveFetch of fetchResult
   | EnablePanning of bool
@@ -1363,7 +1362,6 @@ and msg =
   | ClipboardPasteEvent of clipboardEvent
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
-  | UpdateHandlerState of TLID.t * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
   | SetHoveringReferences of TLID.t * ID.t list
@@ -1416,22 +1414,13 @@ and flagsVS = ffIsExpanded StrDict.t
 (* ----------------------------- *)
 and syncState = StrSet.t
 
-and handlerState =
-  | HandlerExpanded
-  | HandlerPrepCollapse
-  | HandlerCollapsing
-  | HandlerCollapsed
-  | HandlerExpanding
-
 and exeState =
   | Idle
   | Executing
   | Complete
 
 and handlerProp =
-  { handlerLock : bool
-  ; handlerState : handlerState
-  ; hoveringReferences :
+  { hoveringReferences :
       (* When hovering over a reference, this is the list of ID.ts that refer to
        * the reference *)
       ID.t list

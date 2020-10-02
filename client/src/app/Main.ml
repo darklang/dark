@@ -1875,9 +1875,6 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ AddOps ([SetType tipe], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
-  | LockHandler (tlid, locked) ->
-      ReplaceAllModificationsWithThisOne
-        (fun m -> (Handlers.setHandlerLock tlid locked m, Cmd.none))
   | EnablePanning pan ->
       ReplaceAllModificationsWithThisOne (Viewport.enablePan pan)
   | ClipboardCopyEvent e ->
@@ -1924,9 +1921,6 @@ let update_ (msg : msg) (m : model) : modification =
            ^ " got error: \""
            ^ error
            ^ "\"" ))
-  | UpdateHandlerState (tlid, state) ->
-      ReplaceAllModificationsWithThisOne
-        (fun m -> (Handlers.setHandlerState tlid state m, Cmd.none))
   | CanvasPanAnimationEnd ->
       ReplaceAllModificationsWithThisOne
         (fun m ->
