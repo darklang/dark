@@ -15,7 +15,7 @@ path = "src/main.rs"
 [dependencies]
 backoff = "0.2.1"
 backtrace = "0.3"
-chrono = "0.4"
+chrono = "=0.4.18"
 config = "0.9"
 failure = "0.1.8"
 postgres = { version = "0.15", features = ["with-uuid"] }
