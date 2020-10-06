@@ -15,7 +15,9 @@ type t =
   ; host : string
   ; space : string
   ; name : string
-  ; modifier : string }
+  ; modifier : string
+  ; (* Delay in ms since it entered the queue *)
+    delay : Float.t }
 
 let to_event_desc t = (t.space, t.name, t.modifier)
 
@@ -219,17 +221,17 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
             ; modifier
             ; queue_delay_ms ] ->
             log_queue_size Dequeue ~host canvas_id space name modifier ;
+            let queue_delay_ms =
+              float_of_string_opt queue_delay_ms |> Option.value ~default:0.0
+            in
             Span.set_attrs
               parent
-              ( ( queue_delay_ms
-                |> float_of_string_opt
-                |> Option.map ~f:(fun qd -> [("queue_delay", `Float qd)])
-                |> Option.value ~default:[] )
-              @ [ ("host", `String host)
-                ; ("canvas_id", `String canvas_id)
-                ; ("space", `String space)
-                ; ("handler_name", `String name)
-                ; ("modifier", `String modifier) ] ) ;
+              [ ("queue_delay", `Float queue_delay_ms)
+              ; ("host", `String host)
+              ; ("canvas_id", `String canvas_id)
+              ; ("space", `String space)
+              ; ("handler_name", `String name)
+              ; ("modifier", `String modifier) ] ;
             Some
               { id = int_of_string id
               ; value = value |> Dval.of_internal_roundtrippable_v0
@@ -238,7 +240,8 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
               ; host
               ; space
               ; name
-              ; modifier }
+              ; modifier
+              ; delay = queue_delay_ms }
         | Some s ->
             Exception.internal
               ( "Fetched seemingly impossible shape from Postgres"
@@ -247,6 +250,11 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
               ^ "]" )
       in
       result)
+
+
+let has_expired (event : t) : bool =
+  let a_week = 7.0 *. 24.0 *. 60.0 *. 60.0 *. 1000.0 in
+  event.delay >= a_week
 
 
 (* TESTS ONLY *)

@@ -16,7 +16,9 @@ type t =
   ; host : string
   ; space : string
   ; name : string
-  ; modifier : string }
+  ; modifier : string
+  ; (* Delay in ms since it entered the queue *)
+    delay : Float.t }
 
 val to_event_desc : t -> Stored_event.event_desc
 
@@ -37,6 +39,9 @@ val with_transaction :
   -> (RuntimeT.dval option, Exception.captured) Result.t
 
 val dequeue : Span.t -> transaction -> t option
+
+(* Don't save events over a week old for reprocessing *)
+val has_expired : t -> bool
 
 val put_back : transaction -> t -> status:[`OK | `Err | `Incomplete] -> unit
 
