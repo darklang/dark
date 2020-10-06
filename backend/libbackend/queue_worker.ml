@@ -96,7 +96,6 @@ let dequeue_and_process execution_id :
                          * will just sit in the queue, being processed forever.
                          * Instead, let's drop it after a week. *)
                         let expired = Event_queue.has_expired event in
-                        (* event.delay < 604800000.0 *)
                         Span.set_attrs
                           parent
                           [ ("host", `String host)
