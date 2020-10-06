@@ -43,7 +43,7 @@ let dequeue_and_process execution_id :
                       |> Prelude.Result.ok_or_internal_exception
                            "Canvas load error"
                       (* This is a little silly, we could just return the error,
-                   * maybe? *)
+                       * maybe? *)
                       |> fun canvas ->
                       Span.set_attr parent "load_event_succeeded" (`Bool true) ;
                       Ok canvas
@@ -90,17 +90,27 @@ let dequeue_and_process execution_id :
                     in
                     match h with
                     | None ->
+                        (* If an event gets put in the queue and there's no handler
+                         * for it, they're probably creating a new event handler
+                         * from the 404s. But sometimes they won't do that and it
+                         * will just sit in the queue, being processed forever.
+                         * Instead, let's drop it after a week. *)
+                        let expired = Event_queue.has_expired event in
+                        (* event.delay < 604800000.0 *)
                         Span.set_attrs
                           parent
                           [ ("host", `String host)
                           ; ("event", `String (Log.dump desc))
-                          ; ("event_id", `String (string_of_int event.id)) ] ;
+                          ; ("event_id", `String (string_of_int event.id))
+                          ; ("delay", `Float event.delay)
+                          ; ("event.expired", `Bool expired) ] ;
                         let space, name, modifier = desc in
                         Stroller.push_new_404
                           ~execution_id
                           ~canvas_id
                           (space, name, modifier, event_timestamp, trace_id) ;
-                        Event_queue.put_back transaction event `Incomplete ;
+                        if not expired
+                        then Event_queue.put_back transaction event `Incomplete ;
                         Ok None
                     | Some h ->
                         Span.set_attrs
@@ -160,7 +170,7 @@ let dequeue_and_process execution_id :
                         Ok (Some result)
                   with e ->
                     (* exception occurred when processing an item,
-             * so put it back as an error *)
+                     * so put it back as an error *)
                     Span.set_attrs
                       parent
                       [("event.execution_success", `Bool false)] ;

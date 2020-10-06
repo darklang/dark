@@ -47,6 +47,43 @@ let t_event_queue_roundtrip () =
   ()
 
 
+let t_event_queue_drops_old_events () =
+  let module E = Event_queue in
+  clear_test_data () ;
+  let apple = worker "apple" (blank ()) in
+  let c = ops2c_exn "test-dropping-old-events" [hop apple] in
+  Canvas.save_all !c ;
+  let enqueue name i =
+    E.enqueue
+      "WORKER"
+      name
+      "_"
+      (DInt (Dint.of_int i))
+      ~account_id:!c.owner
+      ~canvas_id:!c.id
+  in
+  enqueue "apple" 1 ;
+  (* Just set all events, there shouldn't be any others. Set to a minute more
+   * than a week *)
+  Db.run
+    ~name:"setting-old-event"
+    ~params:[]
+    "UPDATE events SET enqueued_at = (NOW() - interval '10081 minutes')" ;
+  enqueue "banana" 2 ;
+  E.schedule_all () ;
+  let check_dequeue span tx expected =
+    let evt = E.dequeue span tx |> Option.value_exn in
+    AT.check AT.bool "has expired" (Event_queue.has_expired evt) expected ;
+    E.finish tx evt
+  in
+  Telemetry.with_root "test" (fun span ->
+      E.with_transaction span (fun span tx ->
+          check_dequeue span tx true ;
+          check_dequeue span tx false ;
+          Ok (Some DNull)))
+  |> ignore
+
+
 let t_event_queue_is_fifo () =
   let module E = Event_queue in
   clear_test_data () ;
@@ -187,6 +224,7 @@ let suite =
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
   ; ("Cron just ran", `Quick, t_cron_just_ran)
   ; ("Event queue is FIFO per worker", `Quick, t_event_queue_is_fifo)
+  ; ("Event queue drops old events", `Quick, t_event_queue_drops_old_events)
   ; ( "get_worker_schedules_for_canvas"
     , `Quick
     , t_get_worker_schedules_for_canvas ) ]
