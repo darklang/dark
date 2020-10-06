@@ -109,8 +109,9 @@ let dequeue_and_process execution_id :
                           ~execution_id
                           ~canvas_id
                           (space, name, modifier, event_timestamp, trace_id) ;
-                        if not expired
-                        then Event_queue.put_back transaction event `Incomplete ;
+                        if expired
+                        then Event_queue.finish transaction event
+                        else Event_queue.put_back transaction event `Incomplete ;
                         Ok None
                     | Some h ->
                         Span.set_attrs
