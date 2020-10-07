@@ -252,11 +252,6 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
       result)
 
 
-let has_expired (event : t) : bool =
-  let a_week = 7.0 *. 24.0 *. 60.0 *. 60.0 *. 1000.0 in
-  event.delay >= a_week
-
-
 (* TESTS ONLY *)
 (* schedule_all bypasses actual scheduling logic and is meant only for allowing
  * testing without running the queue-scheduler process *)
@@ -406,7 +401,15 @@ let with_transaction (parent : Span.t) f =
 
 let put_back transaction (item : t) ~status : unit =
   let show_status s =
-    match s with `OK -> "Ok" | `Err -> "Err" | `Incomplete -> "Incomplete"
+    match s with
+    | `OK ->
+        "Ok"
+    | `Err ->
+        "Err"
+    | `Incomplete ->
+        "Incomplete"
+    | `Missing ->
+        "Missing"
   in
   Log.infO
     "event_queue: put_back_transaction"
@@ -420,6 +423,13 @@ let put_back transaction (item : t) ~status : unit =
         "UPDATE \"events\"
       SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
       WHERE id = $1"
+        ~params:[Int item.id]
+  | `Missing ->
+      Db.run
+        ~name:"put_back_Missing"
+        "UPDATE events
+         SET status = 'missing', last_processed_at = CURRENT_TIMESTAMP
+         WHERE id = $1"
         ~params:[Int item.id]
   | `Err ->
       if item.retries < 2

@@ -40,10 +40,8 @@ val with_transaction :
 
 val dequeue : Span.t -> transaction -> t option
 
-(* Don't save events over a week old for reprocessing *)
-val has_expired : t -> bool
-
-val put_back : transaction -> t -> status:[`OK | `Err | `Incomplete] -> unit
+val put_back :
+  transaction -> t -> status:[`OK | `Err | `Incomplete | `Missing] -> unit
 
 val finish : transaction -> t -> unit
 
