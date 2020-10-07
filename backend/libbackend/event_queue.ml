@@ -252,11 +252,6 @@ let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
       result)
 
 
-let has_expired (event : t) : bool =
-  let a_week = 7.0 *. 24.0 *. 60.0 *. 60.0 *. 1000.0 in
-  event.delay >= a_week
-
-
 (* TESTS ONLY *)
 (* schedule_all bypasses actual scheduling logic and is meant only for allowing
  * testing without running the queue-scheduler process *)

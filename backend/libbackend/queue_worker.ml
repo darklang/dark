@@ -90,11 +90,16 @@ let dequeue_and_process execution_id :
                     in
                     match h with
                     | None ->
-                        (* If an event gets put in the queue and there's no handler
-                         * for it, they're probably creating a new event handler
-                         * from the 404s. But sometimes they won't do that and it
-                         * will just sit in the queue, being processed forever.
-                         * Instead, let's drop it after a week. *)
+                        (* If an event gets put in the queue and there's no
+                         * handler for it, they're probably emiting to a
+                         * handler they haven't created yet. This creates a
+                         * number of problems. Firstly, the event will sit in
+                         * the queue and rattle around forever, which is bad
+                         * operationally. However, it will also constantly run
+                         * while the user is editing code, until something
+                         * finally works. This is annoying, but also
+                         * unnecessary - so long as they have the trace they
+                         * can use it to build. So just drop it immediately. *)
                         Span.set_attrs
                           parent
                           [ ("host", `String host)
