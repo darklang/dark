@@ -577,6 +577,9 @@ def main():
       sys.exit(0)
     else:
       sys.exit(1)
+  else:
+    pretty_print("Nothing to compile", 43)
+    sys.exit(1)
 
 
 main()
