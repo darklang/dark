@@ -258,9 +258,9 @@ jobs:
             # Just enough for integration tests and deploy
             - fsharp-backend/src/Server/bin/Release/netcoreapp3.1/publish/Server
       - show-large-files-and-directories
-      - save_cache:
-          paths: []
-          key: v0-fsharp-backend-{{ checksum "checksum" }}
+      # - save_cache:
+      #     paths: []
+      #     key: v0-fsharp-backend-{{ checksum "checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
