@@ -243,10 +243,10 @@ jobs:
     steps:
       - checkout
       - setup-app
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > checksum
+      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v0-fsharp-backend-{{ checksum "checksum" }}
+            - v0-fsharp-backend-{{ checksum "../checksum" }}
             - v0-fsharp-backend
       - show-large-files-and-directories
       - run: scripts/support/compile --test global.json
@@ -260,7 +260,7 @@ jobs:
       - show-large-files-and-directories
       # - save_cache:
       #     paths: []
-      #     key: v0-fsharp-backend-{{ checksum "checksum" }}
+      #     key: v0-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
