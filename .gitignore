@@ -23,7 +23,6 @@ fsharp-backend/deploy/
 fsharp-backend/**/obj/
 fsharp-backend/**/bin/
 fsharp-backend/packages/
-fsharp-backend/.paket/
 fsharp-backend/paket-files/
 fsharp-backend/node_modules/
 
