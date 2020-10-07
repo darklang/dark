@@ -190,7 +190,8 @@ def fsharp_tool_restore():
 def fsharp_paket_restore():
   start = time.time()
   # We run paket restore to match the lock file
-  build = "cd fsharp-backend && unbuffer dotnet paket restore"
+  ci = "--verbose" if os.environ.get("CI") else ""
+  build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
   return run_backend(start, build)
 
 
