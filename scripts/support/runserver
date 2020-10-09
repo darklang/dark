@@ -31,6 +31,7 @@ echo "Waiting for postgres"
 # Run tunnel
 sudo mkdir -p /run/sshd
 echo "Starting tunnel"
+# shellcheck disable=SC2024
 sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
 echo "Started tunnel"
 
