@@ -30,7 +30,8 @@ done
 echo "Fetching latest containers from GCR"
 
 gcloud auth configure-docker
-for c in containers/*/; do
+for dir in containers/*/; do
+  c=$(basename $dir)
   IMAGE="gcr.io/$PROJECT/${PREFIX}$c:latest"
   docker pull $IMAGE
 done

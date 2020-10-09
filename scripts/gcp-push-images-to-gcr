@@ -23,7 +23,8 @@ done
 PROJECT="balmy-ground-195100"
 
 # tag containers
-for c in containers/*/; do
+for dir in containers/*/; do
+  c=$(basename $dir)
   NAME="${PREFIX}${c}"
   IMAGE_ID=$(docker images "${NAME}" -q | head -n 1)
   URL="gcr.io/${PROJECT}/${NAME}"
@@ -40,7 +41,8 @@ done
 gcloud auth configure-docker
 
 # push the newly-tagged images
-for c in containers/*/; do
+for dir in containers/*/; do
+  c=$(basename $dir)
   # repeats the same code, we want to make sure everything tags before we start
   # deploying
   NAME="${PREFIX}${c}"
