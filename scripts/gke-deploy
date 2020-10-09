@@ -221,7 +221,7 @@ sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/bwd-deployment/bwd-deployment.template.yaml > services/bwd-depoyment/bwd-deployment.yaml
+  services/bwd-deployment/bwd-deployment.template.yaml > services/bwd-deployment/bwd-deployment.yaml
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
