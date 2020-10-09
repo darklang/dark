@@ -74,9 +74,9 @@ commands:
       - restore_cache:
           keys:
             # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
-            - v0d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
-            - v0d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}
-            - v0d-<< parameters.project >>
+            - v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
+            - v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}
+            - v1d-<< parameters.project >>
 
   rust-finish:
     parameters:
@@ -111,12 +111,12 @@ commands:
       - save_cache:
           name: "Save << parameters.project >> cache"
           paths:
-            - << parameters.project >>/target
+            - << parameters.dir >>/target
             - .cargo/bin/
             - .cargo/registry/index/
             - .cargo/registry/cache/
             - .cargo/git/db/
-          key: v0d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
+          key: v1d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
 
   ##########################
   # Initializing the containers
