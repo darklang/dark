@@ -31,7 +31,7 @@ queueworker.yaml
 tunnel.yaml
 
 # Rust projects build into target/
-/*/target
+containers/*/target
 
 # Files that get created on CI. We check that status is clean so need to list these.
 gzipped_assets

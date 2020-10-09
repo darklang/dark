@@ -1,26 +1,17 @@
 #!/usr/bin/env bash
-set -euo pipefail
 . ./scripts/support/assert-in-container "$0" "${@}"
 
+set -euo pipefail
+
+# Build the docker containers for the services we run on GCP
+
 PREFIX=""
-SKIP_STROLLER=""
-SKIP_QUEUE_SCHEDULER=""
-SKIP_OCAML=""
 
 for i in "$@"
 do
   case "${i}" in
     --prefix=*)
       PREFIX="${i/--prefix=/''}-"
-      ;;
-    --skip-stroller)
-      SKIP_STROLLER=1
-      ;;
-    --skip-queue-scheduler)
-      SKIP_QUEUE_SCHEDULER=1
-      ;;
-    --skip-ocaml)
-      SKIP_OCAML=1
       ;;
     *)
       echo "Unexpected argument: $i"
@@ -29,174 +20,35 @@ do
   esac
 done
 
+GIT_COMMIT=$(git rev-parse --short HEAD)
 
-if [[ "${SKIP_OCAML}" == "" ]]; then
-  #################################
-  ## server
-  #################################
-  DIR=$(mktemp -d --suffix _gcp-builddir)
+# Build the base ocaml docker image ('-' means no build context)
+echo -e "\nBuild dark-base-service container"
+docker build \
+  --build-arg GIT_COMMIT="${GIT_COMMIT}" \
+  --tag "dark-base-service:latest" \
+  - \
+  < containers/base-service-Dockerfile
 
-  cp scripts/support/gcp-server-Dockerfile "$DIR/Dockerfile"
+# Build the base ocaml docker image ('-' means no build context)
+echo -e "\nBuild dark-ocaml-service container"
+docker build \
+  --build-arg GIT_COMMIT="${GIT_COMMIT}" \
+  --tag "dark-ocaml-service:latest" \
+  - \
+  < containers/ocaml-service-Dockerfile
 
-  cp -f scripts/support/gcp-run-server "$DIR/"
-  cp -f scripts/support/check-linked-libs "$DIR/"
-  cp -Rf backend/templates "$DIR/"
-  cp -Rf scripts "$DIR/"
-
-  mkdir -p "$DIR/bin"
-  cp -f _build/default/backend/bin/server.exe "$DIR/bin/"
-
-  # This also goes into the server container, so that if we need to run it, it's
-  # there in an env with access to production postgres
-  cp -f _build/default/backend/bin/emergency_login_script.exe "$DIR/bin/"
-
-  mkdir -p "$DIR/webroot"
-  cp -Rf backend/static "$DIR/webroot/"
-
-  mkdir -p "$DIR/swagger"
-  cp -Rf backend/swagger/*  "$DIR/swagger/"
-
-  mkdir -p "$DIR/migrations"
-  cp -Rf backend/migrations/* "$DIR/migrations/"
-
-  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp:latest" "$DIR"
-
-
-  #################################
-  ## queue worker
-  #################################
-  NDIR=$(mktemp -d --suffix _gcp-qw-builddir)
-
-  cp scripts/support/gcp-queueworker-Dockerfile "$NDIR/Dockerfile"
-
-  cp -f scripts/support/gcp-run-queueworker "$NDIR/"
-  cp -f scripts/support/check-linked-libs "$NDIR/"
-  cp -Rf backend/templates "$NDIR/"
-  cp -Rf scripts "$NDIR/"
-
-  mkdir -p "$NDIR/bin"
-  cp -f _build/default/backend/bin/queue_worker.exe "$NDIR/bin/"
-
-  mkdir -p "$NDIR/webroot"
-  cp -Rf backend/static "$NDIR/webroot/"
-
-  mkdir -p "$NDIR/swagger"
-  cp -Rf backend/swagger/*  "$NDIR/swagger/"
-
-  mkdir -p "$NDIR/migrations"
-  cp -Rf backend/migrations/* "$NDIR/migrations/"
-
-  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-qw:latest" "$NDIR"
-
-
-  #################################
-  ## cronchecker
-  #################################
-
-  CDIR=$(mktemp -d --suffix _gcp-cron-builddir)
-
-  cp scripts/support/gcp-cronchecker-Dockerfile "$CDIR/Dockerfile"
-
-  cp -f scripts/support/gcp-run-cronchecker "$CDIR/"
-  cp -f scripts/support/check-linked-libs "$CDIR/"
-  cp -Rf backend/templates "$CDIR/"
-  cp -Rf scripts "$CDIR/"
-
-  mkdir -p "$CDIR/bin"
-  cp -f _build/default/backend/bin/cron_checker.exe "$CDIR/bin/"
-
-  mkdir -p "$CDIR/webroot"
-  cp -Rf backend/static "$CDIR/webroot/"
-
-  mkdir -p "$CDIR/swagger"
-  cp -Rf backend/swagger/*  "$CDIR/swagger/"
-
-  mkdir -p "$CDIR/migrations"
-  cp -Rf backend/migrations/* "$CDIR/migrations/"
-
-  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-cron:latest" "$CDIR"
-
-  #################################
-  ## garbage collector
-  #################################
-
-  CDIR=$(mktemp -d --suffix _gcp-gc-builddir)
-
-  cp scripts/support/gcp-garbagecollector-Dockerfile "$CDIR/Dockerfile"
-
-  cp -f scripts/support/gcp-run-garbagecollector "$CDIR/"
-  cp -f scripts/support/check-linked-libs "$CDIR/"
-  cp -Rf backend/templates "$CDIR/"
-  cp -Rf scripts "$CDIR/"
-
-  mkdir -p "$CDIR/bin"
-  cp -f _build/default/backend/bin/garbage_collector_worker.exe "$CDIR/bin/"
-
-  # I don't think we need all of the below files for the gc image, but copying
-  # them in here is easier than confirming that
-  mkdir -p "$CDIR/webroot"
-  cp -Rf backend/static "$CDIR/webroot/"
-
-  mkdir -p "$CDIR/swagger"
-  cp -Rf backend/swagger/*  "$CDIR/swagger/"
-
-  mkdir -p "$CDIR/migrations"
-  cp -Rf backend/migrations/* "$CDIR/migrations/"
-
-  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-garbagecollector:latest" "$CDIR"
-fi
-
-
-if [[ "${SKIP_STROLLER}" == "" ]]; then
-  #################################
-  ## stroller
-  #################################
-  if [[ ! -v CI ]]; then
-      # If not in CI, we may not have a release build yet - build it
-      scripts/support/build-rust-release stroller
-  fi
-
-  SDIR=$(mktemp -d --suffix _gcp-stroller-builddir)
-
-  cp scripts/support/gcp-stroller-Dockerfile "$SDIR/Dockerfile"
-
-  mkdir -p "$SDIR/bin"
-  cp -f stroller/target/release/dark-stroller "$SDIR/bin/"
-  cp -f scripts/support/check-linked-libs "$SDIR/"
-
-  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-stroller:latest" "$SDIR"
-fi
-
-#################################
-## queue scheduler
-#################################
-if [[ "${SKIP_QUEUE_SCHEDULER}" == "" ]]; then
-  if [[ ! -v CI ]]; then
-      # If not in CI, we may not have a release build yet - build it
-      scripts/support/build-rust-release queue-scheduler
-  fi
-
-  SDIR=$(mktemp -d --suffix _gcp-scheduler-builddir)
-
-  cp scripts/support/gcp-queue-scheduler-Dockerfile "$SDIR/Dockerfile"
-
-  mkdir -p "$SDIR/bin"
-  cp -f queue-scheduler/target/release/dark-queue-scheduler "$SDIR/bin/"
-  cp -f scripts/support/check-linked-libs "$SDIR/"
-
-  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-queue-scheduler:latest" "$SDIR"
-fi
-
-
-#################################
-## tunnel
-#################################
-
-docker build scripts/support -t "${PREFIX}tunnel:latest" -f scripts/support/tunnel.dockerfile
-
-#################################
-## postgres-honeytail
-#################################
-cd postgres-honeytail \
-  && docker build -t "${PREFIX}dark-gcp-postgres-honeytail:latest" . \
-  && cd -
+# Build all the directories in containers/. Each one has a prep.sh file which
+# readies a directory and echoes it back. We then build the dockerfile in that
+# directory.
+for dir in containers/*/; do
+  c=$(basename $dir)
+  echo -e "\nBuild container: $c"
+  BUILD_DIR=$(${dir}prep.sh)
+  ( cd $BUILD_DIR \
+    && echo "Building in $BUILD_DIR" \
+    && docker build \
+         --tag "${PREFIX}${c}:latest" \
+         .
+    )
+done

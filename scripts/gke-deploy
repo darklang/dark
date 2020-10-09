@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+# Deploy Dark to production
+
 DARK_REGION="us-west1"
 DARK_PROJECT="balmy-ground-195100"
 DARK_CLUSTER="$(< current-cluster)"

@@ -4,6 +4,8 @@
 set -euo pipefail
 set -x
 
+# Go through the expected containers on the system and push them all to GCR
+
 PREFIX=""
 for i in "$@"
 do
@@ -20,79 +22,32 @@ done
 
 PROJECT="balmy-ground-195100"
 
-# get the latest local image ids
-IMAGE_ID=$(docker images "${PREFIX}dark-gcp" -q | head -n 1)
-QW_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-qw" -q | head -n 1)
-CRON_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-cron" -q | head -n 1)
-GARBAGE_COLLECTOR_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-garbagecollector" -q | head -n 1)
-STROLLER_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-stroller" -q | head -n 1)
-SCHEDULER_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-queue-scheduler" -q | head -n 1)
-TUNNEL_IMAGE_ID="$(docker images "${PREFIX}tunnel" -q | head -n 1)"
-POSTGRES_HONEYTAIL_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-postgres-honeytail" -q | head -n 1)
+# tag containers
+for c in containers/*/; do
+  NAME="${PREFIX}${c}"
+  IMAGE_ID=$(docker images "${NAME}" -q | head -n 1)
+  URL="gcr.io/${PROJECT}/${NAME}"
+  IMAGE="${URL}:${IMAGE_ID}"
+  IMAGE_LATEST="${URL}:latest"
 
-# get the image tag corresponding to the latest local image id
-IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp:$IMAGE_ID"
-QW_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:$QW_IMAGE_ID"
-CRON_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:$CRON_IMAGE_ID"
-GARBAGE_COLLECTOR_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-garbagecollector:$GARBAGE_COLLECTOR_IMAGE_ID"
-STROLLER_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-stroller:$STROLLER_IMAGE_ID"
-SCHEDULER_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-queue-scheduler:$SCHEDULER_IMAGE_ID"
-TUNNEL_IMAGE="gcr.io/$PROJECT/${PREFIX}tunnel:$TUNNEL_IMAGE_ID"
-POSTGRES_HONEYTAIL_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-postgres-honeytail:$POSTGRES_HONEYTAIL_IMAGE_ID"
+  # tag the most recent local containers with their ids.
+  docker tag "${NAME}:latest" "${IMAGE}"
 
-# the tags we'll tag them with.
-IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp:latest"
-QW_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:latest"
-CRON_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:latest"
-GARBAGE_COLLECTOR_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-garbagecollector:latest"
-STROLLER_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-stroller:latest"
-SCHEDULER_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-queue-scheduler:latest"
-TUNNEL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}tunnel:latest"
-POSTGRES_HONEYTAIL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-postgres-honeytail:latest"
+  # tag the most recent local containers with :latest.
+  docker tag "${NAME}:latest" "${IMAGE_LATEST}"
+done
 
-#########################
-# Deploy Docker image
-#########################
-
-echo "Deploying container to GCR"
-
-# tag the most recent local containers with their ids.
-docker tag "${PREFIX}dark-gcp:latest" "$IMAGE"
-docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE"
-docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE"
-docker tag "${PREFIX}dark-gcp-garbagecollector:latest" "$GARBAGE_COLLECTOR_IMAGE"
-docker tag "${PREFIX}dark-gcp-stroller:latest" "$STROLLER_IMAGE"
-docker tag "${PREFIX}dark-gcp-queue-scheduler:latest" "$SCHEDULER_IMAGE"
-docker tag "${PREFIX}tunnel:latest" "$TUNNEL_IMAGE"
-docker tag "${PREFIX}dark-gcp-postgres-honeytail:latest" "$POSTGRES_HONEYTAIL_IMAGE"
-
-# tag the most recent local containers with :latest.
-docker tag "${PREFIX}dark-gcp:latest" "$IMAGE_LATEST"
-docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE_LATEST"
-docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE_LATEST"
-docker tag "${PREFIX}dark-gcp-garbagecollector:latest" "$GARBAGE_COLLECTOR_IMAGE_LATEST"
-docker tag "${PREFIX}dark-gcp-stroller:latest" "$STROLLER_IMAGE_LATEST"
-docker tag "${PREFIX}dark-gcp-queue-scheduler:latest" "$SCHEDULER_IMAGE_LATEST"
-docker tag "${PREFIX}tunnel:latest" "$TUNNEL_IMAGE_LATEST"
-docker tag "${PREFIX}dark-gcp-postgres-honeytail:latest" "$POSTGRES_HONEYTAIL_IMAGE_LATEST"
-
-# hook up gcloud docker
 gcloud auth configure-docker
 
 # push the newly-tagged images
-docker push "$IMAGE"
-docker push "$IMAGE_LATEST"
-docker push "$QW_IMAGE"
-docker push "$QW_IMAGE_LATEST"
-docker push "$CRON_IMAGE"
-docker push "$CRON_IMAGE_LATEST"
-docker push "$GARBAGE_COLLECTOR_IMAGE"
-docker push "$GARBAGE_COLLECTOR_IMAGE_LATEST"
-docker push "$STROLLER_IMAGE"
-docker push "$STROLLER_IMAGE_LATEST"
-docker push "$SCHEDULER_IMAGE"
-docker push "$SCHEDULER_IMAGE_LATEST"
-docker push "$TUNNEL_IMAGE"
-docker push "$TUNNEL_IMAGE_LATEST"
-docker push "$POSTGRES_HONEYTAIL_IMAGE"
-docker push "$POSTGRES_HONEYTAIL_IMAGE_LATEST"
+for c in containers/*/; do
+  # repeats the same code, we want to make sure everything tags before we start
+  # deploying
+  NAME="${PREFIX}${c}"
+  IMAGE_ID=$(docker images "${NAME}" -q | head -n 1)
+  URL="gcr.io/${PROJECT}/${NAME}"
+  IMAGE="${URL}:${IMAGE_ID}"
+  IMAGE_LATEST="${URL}:latest"
+  docker push "$IMAGE"
+  docker push "$IMAGE_LATEST"
+done

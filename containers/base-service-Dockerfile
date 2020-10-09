@@ -1,3 +1,5 @@
+# Base docker image for most services we run in production on GCP
+
 FROM ubuntu:18.04
 
 RUN apt-get update && \
@@ -7,17 +9,11 @@ RUN apt-get update && \
       curl \
       apt-transport-https \
       ca-certificates \
-      netbase
-
-RUN apt-get update \
-    && apt-get install \
-      --no-install-recommends \
-      -y \
+      netbase \
       libcurl4-openssl-dev \
       locales \
       sudo \
       libssl-dev \
-      libssl-ocaml-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
@@ -35,12 +31,5 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER dark
 WORKDIR /home/dark
 
-
-COPY . /home/dark
-
 ARG GIT_COMMIT
 ENV GIT_COMMIT ${GIT_COMMIT}
-
-RUN ./check-linked-libs bin/dark-stroller
-
-CMD "bin/dark-stroller"
