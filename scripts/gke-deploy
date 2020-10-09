@@ -260,30 +260,32 @@ sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
   scripts/support/kubernetes/postgres-honeytail-deployment.template.yaml > scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 
 # make sure deployment matches current understanding
-kubectl apply -f scripts/support/kubernetes/cronchecker/cron-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/garbagecollector/garbagecollector-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/cronchecker/cc-network-policy.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-ingress.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-nodeport.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/bwd-network-policy.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/editor-network-policy.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-nodeport.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-ingress.yaml
-kubectl apply -f scripts/support/kubernetes/builtwithdark/honeycomb.yaml
-kubectl apply -f scripts/support/kubernetes/queueworker/qw-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/queueworker/qw-network-policy.yaml
-kubectl apply -f scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/tunnel/isolate-tunnel.yaml
-kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-service.yaml
-kubectl apply -f scripts/support/kubernetes/postgres-honeytail-deployment.yaml
-kubectl apply -f scripts/support/kubernetes/reloader.yaml
-kubectl apply -f scripts/support/kubernetes/certs/nginx-ingress-controller.yaml
-kubectl apply -f scripts/support/kubernetes/certs/darkcustomdomain-ip-svc.yaml
-kubectl apply -f scripts/support/kubernetes/certs/cert-manager.yaml
-kubectl apply -f scripts/support/kubernetes/certs/cert-manager-issuer.yaml
+kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
+kubectl apply -f services/bwd-deployment/bwd-ingress.yaml
+kubectl apply -f services/bwd-deployment/bwd-network-policy.yaml
+kubectl apply -f services/bwd-deployment/bwd-nodeport.yaml
+kubectl apply -f services/bwd-deployment/darklang-ingress.yaml
+kubectl apply -f services/cert-manager/cert-manager-issuer.yaml
+kubectl apply -f services/cert-manager/cert-manager.yaml
+kubectl apply -f services/cert-manager/darkcustomdomain-ip-svc.yaml
+# services/cert-manager/darkcustomdomain-ingress.yaml - see below
+kubectl apply -f services/cron-deployment/cc-network-policy.yaml
+kubectl apply -f services/cron-deployment/cron-deployment.yaml
+kubectl apply -f services/editor-deployment/editor-deployment.yaml
+kubectl apply -f services/editor-deployment/editor-network-policy.yaml
+kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
+kubectl apply -f services/honeycomb-agent/honeycomb-heapster.yaml
+kubectl apply -f services/honeycomb-agent/honeycomb.yaml
+kubectl apply -f services/nginx-ingress-controller/nginx-ingress-controller.yaml
+kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
+kubectl apply -f services/qw-deployment/qw-deployment.yaml
+kubectl apply -f services/qw-deployment/qw-network-policy.yaml
+kubectl apply -f services/reloader-reloader/reloader.yaml
+kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml
+kubectl apply -f services/tunnel-deployment/isolate-tunnel.yaml
+kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml
+kubectl apply -f services/tunnel-deployment/tunnel-service.yaml
+kubectl apply -f servives/bwd-deployment/darklang-nodeport.yaml
 
 # THIS IS DELIBERATELY create AND NOT apply!
 #
@@ -293,7 +295,7 @@ kubectl apply -f scripts/support/kubernetes/certs/cert-manager-issuer.yaml
 #
 # Expected output if this is not the first time the cluster is being created:
 # Error from server (AlreadyExists): error when creating "scripts/support/kubernetes/certs/darkcustomdomain-ingress.yaml": ingresses.extensions "darkcustomdomain-l4-ingress" already exists
-kubectl create -f scripts/support/kubernetes/certs/darkcustomdomain-ingress.yaml || true
+kubectl create -f services/cert-manager/darkcustomdomain-ingress.yaml || true
 
 #########################
 # Tell everyone else what's going on

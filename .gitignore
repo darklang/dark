@@ -15,20 +15,14 @@ _esy/
 /backend/profile.json
 /backend/static/
 
-# Templates for these are in scripts/support/kubernetes/*/*.template.yaml
-/scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
-/scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
-/scripts/support/kubernetes/cronchecker/cron-deployment.yaml
-/scripts/support/kubernetes/queueworker/qw-deployment.yaml
-/scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
-/scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
-/scripts/support/kubernetes/postgres-honeytail-deployment.yaml
-
-# Old rendered templates
-builtwithdark.yaml
-cronchecker.yaml
-queueworker.yaml
-tunnel.yaml
+# Templates for these are in services/*/*.template.yaml
+services/bwd-deployment/bwd-deployment.yaml
+services/editor-deployment/editor-deployment.yaml
+services/cron-deployment/cron-deployment.yaml
+services/qw-deployment/qw-deployment.yaml
+services/scheduler-deployment/scheduler-deployment.yaml
+services/tunnel-deployment/tunnel-deployment.yaml
+services/postgres-honeytail-deployment.yaml
 
 # Rust projects build into target/
 containers/*/target
