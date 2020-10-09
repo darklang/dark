@@ -240,20 +240,20 @@ jobs:
     executor: in-rust-container
     steps:
       - checkout
-      - rust-setup: { project: "stroller" }
-      - run: scripts/support/compile stroller/Cargo.toml --test
+      - rust-setup: { project: "containers/stroller" }
+      - run: scripts/support/compile containers/stroller/Cargo.toml --test
       - assert-clean-worktree
-      - rust-finish: { project: "stroller" }
+      - rust-finish: { project: "containers/stroller" }
 
   build-queue-scheduler:
     executor: in-rust-container
     steps:
       - checkout
-      - rust-setup: { project: "queue-scheduler" }
+      - rust-setup: { project: "containers/queue-scheduler" }
       # tests are run in rust-integration-tests
-      - run: scripts/support/compile queue-scheduler/Cargo.toml
+      - run: scripts/support/compile containers/queue-scheduler/Cargo.toml
       - assert-clean-worktree
-      - rust-finish: { project: "queue-scheduler" }
+      - rust-finish: { project: "containers/queue-scheduler" }
 
   build-postgres-honeytail:
     executor: my-executor
@@ -307,7 +307,7 @@ jobs:
     executor: in-rust-container
     steps:
       - checkout
-      - rust-setup: { project: "queue-scheduler" }
+      - rust-setup: { project: "containers/queue-scheduler" }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - run:
@@ -319,7 +319,7 @@ jobs:
             scripts/wait-until-server-ready
       - run:
           name: Run queue-scheduler tests
-          command: scripts/run-rust-tests queue-scheduler
+          command: scripts/run-rust-tests containers/queue-scheduler
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
 
