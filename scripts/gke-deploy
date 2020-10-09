@@ -206,13 +206,13 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
   "--project=${DARK_PROJECT}" "${DARK_CLUSTER}"
 
 # env vars (replace existing configmap or make a new one)
-(kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run | kubectl replace -f -) \
+(kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run=client | kubectl replace -f -) \
   ||  kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}
 
-(kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run | kubectl replace -f -) \
+(kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -) \
   ||  kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf
 
-(kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
+(kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf
 
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
@@ -221,43 +221,43 @@ sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/builtwithdark/bwd-deployment.template.yaml > scripts/support/kubernetes/builtwithdark/bwd-deployment.yaml
+  services/bwd-deployment/bwd-deployment.template.yaml > services/bwd-depoyment/bwd-deployment.yaml
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/builtwithdark/editor-deployment.template.yaml > scripts/support/kubernetes/builtwithdark/editor-deployment.yaml
+  services/editor-deployment/editor-deployment.template.yaml > services/editor-deployment/editor-deployment.yaml
 
 sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/queueworker/qw-deployment.template.yaml > scripts/support/kubernetes/queueworker/qw-deployment.yaml
+  services/qw-deployment/qw-deployment.template.yaml > services/qw-deployment/qw-deployment.yaml
 
 sed -e "s!{SCHEDULER_IMAGE}!${QUEUE_SCHEDULER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/queueworker/scheduler-deployment.template.yaml > scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
+  services/scheduler-deployment/scheduler-deployment.template.yaml > services/scheduler-deployment/scheduler-deployment.yaml
 
 sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/cronchecker/cron-deployment.template.yaml > scripts/support/kubernetes/cronchecker/cron-deployment.yaml
+  services/cron-deployment/cron-deployment.template.yaml > services/cron-deployment/cron-deployment.yaml
 
 sed -e "s!{GARBAGE_COLLECTOR_IMAGE}!${GARBAGE_COLLECTOR_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  scripts/support/kubernetes/garbagecollector/garbagecollector-deployment.template.yaml > scripts/support/kubernetes/garbagecollector/garbagecollector-deployment.yaml
+  services/garbagecollector-deployment/garbagecollector-deployment.template.yaml > services/garbagecollector-deployment/garbagecollector-deployment.yaml
 
 sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  scripts/support/kubernetes/tunnel/tunnel-deployment.template.yaml > scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
+  services/tunnel-deployment/tunnel-deployment.template.yaml > services/tunnel-deployment/tunnel-deployment.yaml
 
 
 sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  scripts/support/kubernetes/postgres-honeytail-deployment.template.yaml > scripts/support/kubernetes/postgres-honeytail-deployment.yaml
+  services/postgres-honeytail-deployment/postgres-honeytail-deployment.template.yaml > services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 
 # make sure deployment matches current understanding
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml

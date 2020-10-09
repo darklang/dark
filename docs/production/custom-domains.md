@@ -34,8 +34,8 @@ a cert.
 See `scripts/add-custom-domain.md` for a high level overview.
 
 If you're wondering about the `cert-manager-*` yamls in
-`scripts/support/kubernetes/certs`, see the [cert-manager
-docs](https://cert-manager.io/docs/); these files were taken directly fromthe
+`services/cert-manager/`, see the [cert-manager
+docs](https://cert-manager.io/docs/); these files were taken directly from the
 [cert-manager Kubernetes installation
 instructions](https://cert-manager.io/docs/installation/kubernetes/), see
 "installing with regular manifests" since we don't use Helm. The [cert-manager
