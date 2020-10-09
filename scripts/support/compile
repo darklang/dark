@@ -157,7 +157,7 @@ def backend_test():
 def rust_build(name):
   if os.environ.get("CI"):
     start = time.time()
-    result = run_backend(start, "./scripts/format check --rust-only stroller queue-scheduler")
+    result = run_backend(start, "./scripts/format check --rust-only containers/stroller containers/queue-scheduler")
     if not result:
       return result
     build_flags = " --release"
@@ -289,22 +289,22 @@ def execute(should):
 
   # Rust projects
   if should.stroller_build:
-    if not rust_build('stroller'): success = False
+    if not rust_build('containers/stroller'): success = False
     should.stroller_test |= success
     should.reload_stroller |= success
   if should.reload_stroller:
-    if not rust_reload('stroller'): success = False
+    if not rust_reload('containers/stroller'): success = False
   if should.stroller_test:
-    if not rust_test('stroller'): success = False
+    if not rust_test('containers/stroller'): success = False
 
   if should.scheduler_build:
-    if not rust_build('queue-scheduler'): success = False
+    if not rust_build('containers/queue-scheduler'): success = False
     should.scheduler_test |= success
     should.reload_scheduler |= success
   if should.reload_scheduler:
-    if not rust_reload('queue-scheduler'): success = False
+    if not rust_reload('containers/queue-scheduler'): success = False
   if should.scheduler_test:
-    if not rust_test('queue-scheduler'): success = False
+    if not rust_test('containers/queue-scheduler'): success = False
 
 
   if should.shellcheck != []:
@@ -425,8 +425,8 @@ def ignore(filename):
             , "/home/dark/.esy"
             , "node_modules"
             , "build.ninja"
-            , "stroller/target"
-            , "queue-scheduler/target"
+            , "containers/stroller/target"
+            , "containers/queue-scheduler/target"
             , ".bs.js"
             , ".bsdeps"
             , ".bsbuild"

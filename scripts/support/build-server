@@ -58,11 +58,11 @@ def initial_client_compile():
   return compile(files)
 
 def initial_stroller_compile():
-  files = [ "stroller/src/main.rs" ]
+  files = [ "containers/stroller/src/main.rs" ]
   return compile(files)
 
 def initial_scheduler_compile():
-  files = [ "queue-scheduler/src/main.rs" ]
+  files = [ "containers/queue-scheduler/src/main.rs" ]
   return compile(files)
 
 def run_server():

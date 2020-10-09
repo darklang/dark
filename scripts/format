@@ -130,10 +130,10 @@ all_rust_files() {
     -o -path "./_build" -prune \
     -o -path "node_modules" -prune \
     -o -path "./node_modules" -prune \
-    -o -path "stroller/target" -prune \
-    -o -path "./stroller/target" -prune \
-    -o -path "queue-scheduler/target" -prune \
-    -o -path "./queue-scheduler/target" -prune \
+    -o -path "containers/stroller/target" -prune \
+    -o -path "./containers/stroller/target" -prune \
+    -o -path "containers/queue-scheduler/target" -prune \
+    -o -path "./containers/queue-scheduler/target" -prune \
     -o -path "_esy" -prune \
     -o -path "./_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
@@ -162,7 +162,7 @@ format_prettier() {
 }
 
 format_rustfmt() {
-  xargs -0 rustfmt 
+  xargs -0 rustfmt
 }
 
 do_ocamlformat() {

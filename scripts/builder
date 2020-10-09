@@ -21,8 +21,8 @@ rm -Rf _esy
 rm -Rf .esy
 rm -Rf node_modules
 rm -Rf lib
-rm -Rf stroller/target
-rm -Rf queue-scheduler/target
+rm -Rf containers/stroller/target
+rm -Rf containers/queue-scheduler/target
 
 # --------------
 # Build image from clean start
@@ -74,8 +74,8 @@ MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
 MOUNTS+=" --mount type=volume,src=dark_dotesy,dst=/home/dark/.esy"
 MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
 MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
-MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
-MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/queue-scheduler/target"
+MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target"
+MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/containers/queue-scheduler/target"
 MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
 
 if [[ -e "$HOME/.config/gcloud" ]]; then
