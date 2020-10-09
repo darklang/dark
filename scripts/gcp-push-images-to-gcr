@@ -26,16 +26,18 @@ PROJECT="balmy-ground-195100"
 for dir in containers/*/; do
   c=$(basename $dir)
   NAME="${PREFIX}${c}"
-  IMAGE_ID=$(docker images "${NAME}" -q | head -n 1)
-  URL="gcr.io/${PROJECT}/${NAME}"
-  IMAGE="${URL}:${IMAGE_ID}"
-  IMAGE_LATEST="${URL}:latest"
+  if [[ -e "${dir}/Dockerfile "]]; then
+    IMAGE_ID=$(docker images "${NAME}" -q | head -n 1)
+    URL="gcr.io/${PROJECT}/${NAME}"
+    IMAGE="${URL}:${IMAGE_ID}"
+    IMAGE_LATEST="${URL}:latest"
 
-  # tag the most recent local containers with their ids.
-  docker tag "${NAME}:latest" "${IMAGE}"
+    # tag the most recent local containers with their ids.
+    docker tag "${NAME}:latest" "${IMAGE}"
 
-  # tag the most recent local containers with :latest.
-  docker tag "${NAME}:latest" "${IMAGE_LATEST}"
+    # tag the most recent local containers with :latest.
+    docker tag "${NAME}:latest" "${IMAGE_LATEST}"
+  fi
 done
 
 gcloud auth configure-docker
@@ -43,13 +45,16 @@ gcloud auth configure-docker
 # push the newly-tagged images
 for dir in containers/*/; do
   c=$(basename $dir)
-  # repeats the same code, we want to make sure everything tags before we start
-  # deploying
-  NAME="${PREFIX}${c}"
-  IMAGE_ID=$(docker images "${NAME}" -q | head -n 1)
-  URL="gcr.io/${PROJECT}/${NAME}"
-  IMAGE="${URL}:${IMAGE_ID}"
-  IMAGE_LATEST="${URL}:latest"
-  docker push "$IMAGE"
-  docker push "$IMAGE_LATEST"
+
+  if [[ -e "${dir}/Dockerfile" ]]; then
+    # repeats the same code, we want to make sure everything tags before we start
+    # deploying
+    NAME="${PREFIX}${c}"
+    IMAGE_ID=$(docker images "${NAME}" -q | head -n 1)
+    URL="gcr.io/${PROJECT}/${NAME}"
+    IMAGE="${URL}:${IMAGE_ID}"
+    IMAGE_LATEST="${URL}:latest"
+    docker push "$IMAGE"
+    docker push "$IMAGE_LATEST"
+  fi
 done
