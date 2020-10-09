@@ -206,13 +206,13 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
   "--project=${DARK_PROJECT}" "${DARK_CLUSTER}"
 
 # env vars (replace existing configmap or make a new one)
-(kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run | kubectl replace -f -) \
+(kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run=client | kubectl replace -f -) \
   ||  kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}
 
-(kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run | kubectl replace -f -) \
+(kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -) \
   ||  kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf
 
-(kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
+(kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf
 
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
