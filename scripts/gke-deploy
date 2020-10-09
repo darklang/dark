@@ -274,7 +274,7 @@ kubectl apply -f services/cron-deployment/cron-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-network-policy.yaml
 kubectl apply -f services/editor-deployment/darklang-ingress.yaml
-kubectl apply -f servives/editor-deployment/darklang-nodeport.yaml
+kubectl apply -f services/editor-deployment/darklang-nodeport.yaml
 kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
 kubectl apply -f services/honeycomb-agent/honeycomb-heapster.yaml
 kubectl apply -f services/honeycomb-agent/honeycomb.yaml
