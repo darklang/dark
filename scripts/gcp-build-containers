@@ -38,17 +38,27 @@ docker build \
   - \
   < containers/ocaml-service-Dockerfile
 
-# Build all the directories in containers/. Each one has a prep.sh file which
-# readies a directory and echoes it back. We then build the dockerfile in that
-# directory.
+# Build all the directories in containers/. If there's a prep.sh file, run it
+# first and then build the container in the directory it echos. If there is
+# no dockerfile, then do nothing (sometimes we use vendor containers and so we
+# just need to store config files).
 for dir in containers/*/; do
   c=$(basename $dir)
-  echo -e "\nBuild container: $c"
-  BUILD_DIR=$(${dir}prep.sh)
-  ( cd $BUILD_DIR \
-    && echo "Building in $BUILD_DIR" \
-    && docker build \
-         --tag "${PREFIX}${c}:latest" \
-         .
-    )
+  if [[ -e "${dir}/Dockerfile" ]]; then
+    echo -e "\nBuild container: $c"
+
+    BUILD_DIR="${dir}"
+    if [[ -e "${dir}prep.sh" ]]; then
+      BUILD_DIR=$(${dir}prep.sh)
+    fi
+
+    ( cd $BUILD_DIR \
+      && echo "Building in $BUILD_DIR" \
+      && docker build \
+           --tag "${PREFIX}${c}:latest" \
+           .
+      )
+  else
+    echo -e "\nNo dockerfile, skipping $c"
+  fi
 done
