@@ -260,7 +260,7 @@ jobs:
     steps:
       - checkout
       - prep-container-creation
-      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
+      - run: cd containers/postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
   validate-honeycomb-config:
     executor: my-executor
