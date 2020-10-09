@@ -34,16 +34,18 @@ On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
 - Install the depedencies above in your Linux distro
 
 ### Docker
+
 The app and its dependencies are all held within the container. While code is edited on your machine, the application is compiled and run inside of the container.
 
 Ensure that docker:
+
 - set to use 4 CPUs, 4.0 GiB of Memory, and 4.0 GiB of Swap (under the Advanced preferences tab).
 
 Ignore the other tabs (for example you don't need to enable Kubernetes).
 
 ### Dnsmasq
 
-A local DNS server is needed to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide]( https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
+A local DNS server is needed to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide](https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
 
 Install dnsmasq:
 
@@ -52,22 +54,27 @@ brew install dnsmasq / apt install dnsmasq
 ```
 
 Follow brew's post-install instructions:
+
 ```
 brew info dnsmasq
 ```
+
 (probably `sudo brew services start dnsmasq`)
 
 Add the following to `(brew --prefix)/etc/dnsmasq.conf`
+
 ```
 address=/localhost/127.0.0.1
 ```
 
 Restart dnsmasq:
+
 ```
 sudo brew services restart dnsmasq / sudo /etc/init.d/dnsmasq restart
 ```
 
 Configure OSX to use dnsmasq (not needed on linux):
+
 ```
 sudo mkdir -p /etc/resolver
 sudo tee /etc/resolver/localhost >/dev/null <<EOF
@@ -76,6 +83,7 @@ EOF
 ```
 
 Test it:
+
 ```
 # Make sure you haven't broken your DNS.
 ping -c 1 www.google.com
@@ -100,7 +108,6 @@ dig testing.builtwithdark.localhost @127.0.0.1
 ## Read the contributor docs
 
 If you've gotten this far, you're now ready to [contribute your first PR](https://darklang.github.io/docs/contributing/getting-started#first-contribution).
-
 
 ## Testing
 
@@ -145,14 +152,32 @@ Chrome Dev Tools instead of their JS representation. From within Chrome
 Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
 Formatters".
 
+## Production Services
 
-## Other important docs:
+The app is split into `backend/` and `client/`. Part of the backend is used in
+the client (`jsanalysis`), and one directory is shared (`libshared`). These are
+compiled to create libraries and binaries.
+
+These are put into containers, whose definitions are in `containers/`. We also
+have some containers which are defined entirely in their directory (typically,
+these have a self-contained codebase).
+
+The containers are used in `services/`. A _service_ is typically a number of
+yaml files defining a kubernetes _deployment_, made up of one or more
+containers, which use binaries from the backend.
+
+Some services do not use Dark's containers (eg, when we deploy 3rdparty code,
+such as "let's encrypt"). Some just have a single container (eg queue-scheduler
+and postgres-honeytail).
+
+## Other important docs
 
 - [Contributor docs](https://darklang.github.io/docs/contributing/getting-started)
 - [Other ways to run the dev container](docs/builder-options.md)
 - [Setting up your editor](docs/editor-setup.md)
 
 ### Less important docs
+
 - [Running the client against production (ngrok)](docs/running-against-production.md)
 - [Oplist serialization](docs/oplist-serialization.md)
 - [Intricacies of Bucklescript-tea](docs/bs-tea.md)

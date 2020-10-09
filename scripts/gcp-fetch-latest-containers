@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-set -x
+# Fetch all the latest production containers from GCR
 
 PREFIX=""
 PROJECT=""
@@ -29,19 +29,8 @@ done
 
 echo "Fetching latest containers from GCR"
 
-IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp:latest"
-QW_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:latest"
-CRON_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:latest"
-GARBAGE_COLLECTOR_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-garbagecollector:latest"
-STROLLER_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-stroller:latest"
-TUNNEL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}tunnel:latest"
-POSTGRES_HONEYTAIL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-postgres-honeytail:latest"
-
 gcloud auth configure-docker
-docker pull $IMAGE_LATEST
-docker pull $QW_IMAGE_LATEST
-docker pull $CRON_IMAGE_LATEST
-docker pull $GARBAGE_COLLECTOR_IMAGE_LATEST
-docker pull $STROLLER_IMAGE_LATEST
-docker pull $TUNNEL_IMAGE_LATEST
-docker pull $POSTGRES_HONEYTAIL_IMAGE_LATEST
+for c in containers/*/; do
+  IMAGE="gcr.io/$PROJECT/${PREFIX}$c:latest"
+  docker pull $IMAGE
+done
