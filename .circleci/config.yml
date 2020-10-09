@@ -68,18 +68,20 @@ commands:
   rust-setup:
     parameters:
       project: { type: string }
+      dir: { type: string }
     steps:
       - setup-app
       - restore_cache:
           keys:
             # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
-            - v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
-            - v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
+            - v0d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
+            - v0d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}
             - v0d-<< parameters.project >>
 
   rust-finish:
     parameters:
       project: { type: string }
+      dir: { type: string }
     steps:
       - run:
           name: Reduce caches
@@ -91,7 +93,7 @@ commands:
           root: "."
           paths:
             [
-              << parameters.project >>/target/release/dark-<< parameters.project >>,
+              << parameters.dir >>/target/release/dark-<< parameters.project >>,
             ]
 
       # This removes files in the top-level of target/{debug,release}, which include the actual built artifact
@@ -102,8 +104,8 @@ commands:
       - run:
           name: Cleanup frequently changing rust artifacts
           command: |
-            find << parameters.project >>/target -maxdepth 2 -type f -delete
-            rm -rf << parameters.project >>/target/{debug,release}/{deps,.fingerprint}/dark*
+            find << parameters.dir >>/target -maxdepth 2 -type f -delete
+            rm -rf << parameters.dir >>/target/{debug,release}/{deps,.fingerprint}/dark*
 
       # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
       - save_cache:
@@ -114,7 +116,7 @@ commands:
             - .cargo/registry/index/
             - .cargo/registry/cache/
             - .cargo/git/db/
-          key: v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
+          key: v0d-<< parameters.project >>-{{ checksum "<< parameters.dir >>/Cargo.lock" }}-{{ .Branch }}
 
   ##########################
   # Initializing the containers
@@ -240,20 +242,20 @@ jobs:
     executor: in-rust-container
     steps:
       - checkout
-      - rust-setup: { project: "containers/stroller" }
+      - rust-setup: { project: "stroller", dir: "containers/stroller" }
       - run: scripts/support/compile containers/stroller/Cargo.toml --test
       - assert-clean-worktree
-      - rust-finish: { project: "containers/stroller" }
+      - rust-finish: { project: "stroller", dir: "containers/stroller" }
 
   build-queue-scheduler:
     executor: in-rust-container
     steps:
       - checkout
-      - rust-setup: { project: "containers/queue-scheduler" }
+      - rust-setup: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
       # tests are run in rust-integration-tests
       - run: scripts/support/compile containers/queue-scheduler/Cargo.toml
       - assert-clean-worktree
-      - rust-finish: { project: "containers/queue-scheduler" }
+      - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
 
   build-postgres-honeytail:
     executor: my-executor
@@ -307,7 +309,7 @@ jobs:
     executor: in-rust-container
     steps:
       - checkout
-      - rust-setup: { project: "containers/queue-scheduler" }
+      - rust-setup: { dir: "containers/queue-scheduler", project: "containers/queue-scheduler" }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - run:
