@@ -4,7 +4,7 @@
 set -euo pipefail
 
 function check {
-  if [[ "$1" == *"kubernetes"* ]]; then
+  if [[ "$1" == *"/services/"* ]]; then
     echo "kubeval $1"
     # production version is 1.16.13, this is the closest in that repo
     kubeval \
@@ -18,7 +18,7 @@ function check {
     echo "not kubernetes so no kubeval: $1"
   fi
   # Too big to fuck with right now
-  if [[ "$1" != *"kubernetes/certs/cert-manager.yaml" ]]; then
+  if [[ "$1" != *"/cert-manager.yaml" ]]; then
     echo "yamllint $1"
     yamllint "$1"
   fi
@@ -48,8 +48,8 @@ else
     -o -path "./rundir" -prune \
     -o -path "containers/stroller/target" -prune \
     -o -path "./containers/stroller/target" -prune \
-    -o -path "queue-scheduler/target" -prune \
-    -o -path "./queue-scheduler/target" -prune \
+    -o -path "containers/queue-scheduler/target" -prune \
+    -o -path "./containers/queue-scheduler/target" -prune \
     | grep -v circleci)
     for i in $FILES; do
       check $i
