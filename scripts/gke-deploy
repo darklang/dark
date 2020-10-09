@@ -254,7 +254,6 @@ sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   services/tunnel-deployment/tunnel-deployment.template.yaml > services/tunnel-deployment/tunnel-deployment.yaml
 
-
 sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   services/postgres-honeytail-deployment/postgres-honeytail-deployment.template.yaml > services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
