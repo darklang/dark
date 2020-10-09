@@ -103,14 +103,18 @@ def client_test():
 
 def shellcheck(f):
   start = time.time()
-  result = run_other(start, "scripts/support/shellchecker " + f)
+  result = run_test(start, "scripts/support/shellchecker " + f)
   return result
 
 def yamllint(f):
   start = time.time()
-  result = run_other(start, "scripts/support/yamllinter " + f)
+  result = run_test(start, "scripts/support/yamllinter " + f)
   return result
 
+def test_nginx():
+  start = time.time()
+  result = run_test(start, "sudo nginx -t")
+  return result
 
 def backend_build():
   if os.environ.get("CI"):
@@ -222,6 +226,7 @@ class Should:
     self.client_test = False
     self.sass_compile = False
     self.copy_static = False
+    self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
     self.reload_stroller = False
@@ -272,6 +277,9 @@ def execute(should):
     should.reload_browser |= success
     # This should probably cause a restart, but it breaks CI atm
     # should.reload_server |= success
+
+  if should.test_nginx:
+    if not test_nginx(): success = False
 
   if should.reload_server:
     if not reload_server(): success = False
@@ -345,6 +353,9 @@ def mark(should, f):
           or ("dune" in f):
     should.backend_build = True
 
+  elif "containers/ocaml-nginx/" in f and ".conf" in f:
+    should.reload_server = True
+    should.test_nginx = True
 
   elif ("templates/" in f) and (".html" in f):
     should.backend_build = True
