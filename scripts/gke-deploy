@@ -264,7 +264,6 @@ kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
 kubectl apply -f services/bwd-deployment/bwd-ingress.yaml
 kubectl apply -f services/bwd-deployment/bwd-network-policy.yaml
 kubectl apply -f services/bwd-deployment/bwd-nodeport.yaml
-kubectl apply -f services/bwd-deployment/darklang-ingress.yaml
 kubectl apply -f services/cert-manager/cert-manager-issuer.yaml
 kubectl apply -f services/cert-manager/cert-manager.yaml
 kubectl apply -f services/cert-manager/darkcustomdomain-ip-svc.yaml
@@ -273,6 +272,8 @@ kubectl apply -f services/cron-deployment/cc-network-policy.yaml
 kubectl apply -f services/cron-deployment/cron-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-network-policy.yaml
+kubectl apply -f services/editor-deployment/darklang-ingress.yaml
+kubectl apply -f servives/editor-deployment/darklang-nodeport.yaml
 kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
 kubectl apply -f services/honeycomb-agent/honeycomb-heapster.yaml
 kubectl apply -f services/honeycomb-agent/honeycomb.yaml
@@ -285,7 +286,6 @@ kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml
 kubectl apply -f services/tunnel-deployment/isolate-tunnel.yaml
 kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml
 kubectl apply -f services/tunnel-deployment/tunnel-service.yaml
-kubectl apply -f servives/bwd-deployment/darklang-nodeport.yaml
 
 # THIS IS DELIBERATELY create AND NOT apply!
 #
