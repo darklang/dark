@@ -3,8 +3,9 @@
 set -euo pipefail
 
 
-BINPATH="/home/dark/app/fsharp-backend/src/Server/bin/Debug/netcoreapp3.1/publish/"
-SERVER_EXE="$BINPATH/Server"
+BINPATH="fsharp-backend/Build/out/Debug/netcoreapp3.1/publish/"
+BWD_SERVER_EXE="$BINPATH/BwdServer"
+API_SERVER_EXE="$BINPATH/ApiServer"
 #FSTODO
 # QW_EXE="$BINPATH/QueueWorker"
 # CRON_EXE="$BINPATH/CronChecker"
@@ -13,7 +14,8 @@ SERVER_EXE="$BINPATH/Server"
 # Stop the server processes
 echo "Stopping servers"
 sudo pkill -f nginx || true
-sudo pkill -f Server || true
+sudo pkill -f BwdServer || true
+sudo pkill -f ApiServer || true
 #FSTODO
 # pkill -f queue_worker.exe || true
 # pkill -f cron_checker.exe || true
@@ -45,7 +47,7 @@ for ((i=1;i<=1000;i++));
 do
   #FSTODO
   #if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
-  if [[ ! -f "${SERVER_EXE}" ]]; then
+  if [[ ! -f "${BWD_SERVER_EXE}" || ! -f "${API_SERVER_EXE}" ]]; then
     sleep 0.01
   fi
 done
@@ -69,10 +71,11 @@ echo "Done waiting for compiled servers"
 
 #FSTODO
 #if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
-if [[ -f "${SERVER_EXE}" ]]; then
+if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   echo "Running server"
-  "${SERVER_EXE}" > "$LOGS/fsharp-server.log" 2>&1 &
+  "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+  "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
   #FSTODO
   # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
   # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &

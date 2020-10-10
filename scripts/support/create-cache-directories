@@ -7,12 +7,12 @@ prepare () {
   sudo chown dark:dark $1
 }
 
-prepare "/home/dark/.cargo"
-prepare "/home/dark/.esy"
 prepare "_build"
 prepare "_esy"
-prepare "lib"
+prepare "/home/dark/.esy"
 prepare "node_modules"
-prepare "containers/queue-scheduler/target"
+prepare "lib"
 prepare "containers/stroller/target"
-#FSTODO
+prepare "containers/queue-scheduler/target"
+prepare "/home/dark/.cargo"
+prepare "fsharp-backend/Build"

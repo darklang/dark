@@ -11,3 +11,4 @@ docker volume rm \
   dark_stroller_target \
   dark_queue_scheduler_target \
   dark_rust_cargo \
+  dark_fsharp_build
