@@ -13,16 +13,21 @@ import os
 import signal
 
 run_tests = False
-freq = float (os.environ.get("POLL_FREQUENCY", "10"))
+freq = float(os.environ.get("POLL_FREQUENCY", "10"))
+
 
 # Make io unbuffered
 def flush(fn):
   def newfn(x):
     fn(x)
     sys.stdout.flush()
+
   return newfn
+
+
 sys.stdout.write = flush(sys.stdout.write)
 sys.stdout.writelines = flush(sys.stdout.writelines)
+
 
 def run_or_fail(bash):
   if not run(bash):
@@ -41,37 +46,59 @@ def compile(files):
     test = "--test "
   else:
     test = ""
-  return run("scripts/support/compile " + test + " ".join(files))
+  try:
+    return run("scripts/support/compile " + test + " ".join(files))
+  except:
+    return initial_compile()
+
+
 
 def initial_backend_compile():
-  files = [ "backend/bin/server.ml"
-          , "backend/test/test.ml"
-          , "esy.json" ]
+  files = [
+      "backend/bin/server.ml",
+      "backend/test/test.ml",
+      "esy.json",
+  ]
   return compile(files)
+
+
+def initial_fsharp_backend_compile():
+  files = [
+      "fsharp-backend/global.json",
+      "fsharp-backend/paket.lock",
+      "fsharp-backend/src/Client/App.fs",
+      "fsharp-backend/src/Server/Server.fs",
+      "fsharp-backend/src/LibExecution/LibExecution.fs",
+  ]
+  return compile(files)
+
 
 def initial_client_compile():
-  files = [ "package.json"
-          , "client/src/Types.ml"
-          , "client/styles/app.scss"
-          , "client/test/ast_test.ml"
-          ]
+  files = [
+      "package.json",
+      "client/src/Types.ml",
+      "client/styles/app.scss",
+      "client/test/ast_test.ml",
+  ]
   return compile(files)
 
+
 def initial_stroller_compile():
-  files = [ "containers/stroller/src/main.rs" ]
+  files = ["containers/stroller/src/main.rs"]
   return compile(files)
+
 
 def initial_scheduler_compile():
   files = [ "containers/queue-scheduler/src/main.rs" ]
   return compile(files)
 
+
 def run_server():
-  exit = compile([ "scripts/support/runserver" ])
+  exit = compile(["scripts/support/runserver"])
   print("--------------------------")
   print("-- Started server ")
   print("--------------------------")
   return exit
-
 
 
 # It is extremely challenging to get a non-blocking read on stdin.
@@ -87,6 +114,8 @@ def run_server():
 
 inputBuffer = []
 bufferLock = threading.Lock()
+
+
 def process_watchers():
   global inputBuffer
 
@@ -96,11 +125,11 @@ def process_watchers():
       while True:
         line = sys.stdin.readline()
         bufferLock.acquire()
-        inputBuffer.insert(0,line)
+        inputBuffer.insert(0, line)
         bufferLock.release()
 
-  input_thread=InputThread()
-  input_thread.daemon=True
+  input_thread = InputThread()
+  input_thread.daemon = True
   input_thread.start()
 
   while True:
@@ -124,10 +153,12 @@ def process_watchers():
               print("exception splitting: " + f)
       compile(files)
 
+
 def background_task(fn, name):
   t = threading.Thread(target=fn)
   t.name = name
   t.start()
+
 
 def main():
   # Recompile on file changes til infinity. This is our primary dev
@@ -140,6 +171,7 @@ def main():
   compile = False
   compile_client = False
   compile_backend = False
+  compile_fsharp_backend = False
   compile_stroller = False
   compile_scheduler = False
 
@@ -152,12 +184,16 @@ def main():
     if f == "--compile":
       compile = True
       compile_backend = True
+      compile_fsharp_backend = True
       compile_client = True
       compile_stroller = True
       compile_scheduler = True
     elif f == "--compile-backend":
       compile = True
       compile_backend = True
+    elif f == "--compile-fsharp-backend":
+      compile = True
+      compile_fsharp_backend = True
     elif f == "--compile-client":
       compile = True
       compile_client = True
@@ -186,13 +222,15 @@ def main():
     if compile_backend and not initial_backend_compile():
       print("Failed backend build")
       success = False
+    if compile_fsharp_backend and not initial_fsharp_backend_compile():
+      print("Failed backend build")
+      success = False
     if compile_stroller and not initial_stroller_compile():
       print("Failed stroller build")
       success = False
     if compile_scheduler and not initial_scheduler_compile():
       print("Failed scheduler build")
       success = False
-
 
     print("--------------------------")
     if success:
@@ -219,6 +257,7 @@ def main():
         sys.exit(1)
   else:
     if serve:
+      #FSTODO
       run_server()
 
   if watch:
@@ -226,5 +265,6 @@ def main():
   elif serve:
     # pause to allow the server stay up
     signal.pause()
+
 
 main()

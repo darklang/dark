@@ -1,5 +1,6 @@
 .DS_Store
 .idea
+.ionide/
 .merlin
 tags
 .browser-trigger
@@ -15,6 +16,18 @@ _esy/
 /backend/profile.json
 /backend/static/
 
+# F#
+fsharp-backend/.fable/
+fsharp-backend/.fake/
+fsharp-backend/deploy/
+fsharp-backend/packages/
+fsharp-backend/paket-files/
+fsharp-backend/node_modules/
+fsharp-backend/Build/
+# Unclear why these appear
+fsharp-backend/src/*/obj
+fsharp-backend/tests/*/obj
+
 # Templates for these are in services/*/*.template.yaml
 services/bwd-deployment/bwd-deployment.yaml
 services/editor-deployment/editor-deployment.yaml
@@ -24,6 +37,12 @@ services/scheduler-deployment/scheduler-deployment.yaml
 services/tunnel-deployment/tunnel-deployment.yaml
 services/postgres-honeytail-deployment.yaml
 
+# Old rendered templates
+builtwithdark.yaml
+cronchecker.yaml
+queueworker.yaml
+tunnel.yaml
+
 # Rust projects build into target/
 containers/*/target
 
@@ -31,3 +50,5 @@ containers/*/target
 gzipped_assets
 
 deploy-lock-manual-deploy
+
+.fake

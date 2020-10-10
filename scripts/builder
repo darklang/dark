@@ -23,6 +23,10 @@ rm -Rf node_modules
 rm -Rf lib
 rm -Rf containers/stroller/target
 rm -Rf containers/queue-scheduler/target
+rm -Rf fsharp-backend/src/*/obj
+rm -Rf fsharp-backend/tests/*/obj
+rm -Rf fsharp-backend/Build
+rm -Rf fsharp-backend/node_modules
 
 # --------------
 # Build image from clean start
@@ -77,6 +81,7 @@ MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
 MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target"
 MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/containers/queue-scheduler/target"
 MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
+MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build"
 
 if [[ -e "$HOME/.config/gcloud" ]]; then
   MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
@@ -161,6 +166,9 @@ echo "Run the build"
 # for documentation of --init.
 # -p 5433:5432 to expose the postgres DB to outside the container
 # -p 2345:2345 to expose the cloud_sql_proxy to outside the container
+# -p 9000:9000 to expose the F# api server
+# -p 9001:9001 to expose the F# bwd server
+# -p 8000:8000 to expose the OCaml backend server
 $FSWATCH | docker run \
              --init \
              --rm \
@@ -178,6 +186,8 @@ $FSWATCH | docker run \
              -v pgdata:/var/lib/postgresql \
              -v /var/run/docker.sock:/var/run/docker.sock \
              -p 8000:8000 \
+             -p 9000:9000 \
+             -p 9001:9001 \
              -p 5433:5432 \
              -p 2345:2345 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \

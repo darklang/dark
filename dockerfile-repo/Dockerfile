@@ -142,6 +142,15 @@ RUN DEBIAN_FRONTEND=noninteractive \
       openssh-server \
       jq \
       dnsutils \
+      # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
+      libc6 \
+      libgcc1 \
+      libgssapi-krb5-2 \
+      libicu60 \
+      libssl1.1 \
+      libstdc++6 \
+      zlib1g \
+      # end .NET dependencies
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -285,7 +294,7 @@ RUN \
   && tar xvf tmp_install_folder/kubeval-linux-amd64.tar.gz -C  tmp_install_folder \
   && sudo cp tmp_install_folder/kubeval /usr/bin/ \
   && rm -Rf tmp_install_folder
-#
+
 ####################################
 # Honeytail and honeymarker installs
 ####################################
@@ -298,6 +307,38 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
       echo '5aa10dd42f4f369c9463a8c8a361e46058339e6273055600ddad50e1bcdf2149  honeymarker_1.9_amd64.deb' | sha256sum -c && \
       sudo dpkg -i honeymarker_1.9_amd64.deb && \
       rm honeymarker_1.9_amd64.deb
+
+
+####################################
+# dotnet / F#
+####################################
+# This section was created copying the commands from the 3.1 dockerfiles.
+# https://github.com/dotnet/dotnet-docker/blob/master/src/sdk/3.1/bionic/amd64/Dockerfile
+
+# TODO: switch to 5.0. Note that the 5.0 dockerfules are split among 3
+# different dockerfile (runtime-deps, runtime, and sdk), see
+# https://github.com/dotnet/dotnet-docker/blob/master/src.
+
+ENV DOTNET_SDK_VERSION=3.1.402 \
+     # Skip extraction of XML docs - generally not useful within an
+     # image/container - helps performance
+    NUGET_XMLDOC_MODE=skip \
+    # Enable detection of running in a container
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    # Enable correct mode for dotnet watch (only mode supported in a container)
+    DOTNET_USE_POLLING_FILE_WATCHER=true
+
+RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
+    && dotnet_sha512='42154efb5ad66ae3dcc300b2c0573a9537dd916fc48cbae92885a63a0b6d7f7c3a4366ca2298107783bc1f1913328f35e778dcda378da276cff3b8269495d5be' \
+    && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
+    && mkdir -p /usr/share/dotnet \
+    && tar -ozxf dotnet.tar.gz -C /usr/share/dotnet \
+    && rm dotnet.tar.gz \
+    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+
+# Trigger first run experience by running arbitrary cmd
+RUN dotnet help
+
 
 #############
 # tunnel user
