@@ -225,7 +225,15 @@ def fsharp_backend_build():
   else:
     configuration = "Debug"
 
-  build = f"cd fsharp-backend && unbuffer dotnet publish -c {configuration}"
+  if os.environ.get("CI"):
+    verbosity = "detailed"
+  else:
+    verbosity = "minimal"
+
+  build = f"cd fsharp-backend \
+    && unbuffer dotnet publish \
+      --verbosity {verbosity} \
+      --configuration {configuration}"
   return run_backend(start, build)
 
 
@@ -555,6 +563,7 @@ def ignore(filename):
       "esy.lock",
       "/home/dark/.esy",
       "node_modules",
+      "fsharp-backend/Build",
       "build.ninja",
       "containers/stroller/target",
       "containers/queue-scheduler/target",

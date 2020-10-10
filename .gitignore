@@ -20,11 +20,10 @@ _esy/
 fsharp-backend/.fable/
 fsharp-backend/.fake/
 fsharp-backend/deploy/
-fsharp-backend/**/obj/
-fsharp-backend/**/bin/
 fsharp-backend/packages/
 fsharp-backend/paket-files/
 fsharp-backend/node_modules/
+fsharp-backend/Build/
 
 # Templates for these are in services/*/*.template.yaml
 services/bwd-deployment/bwd-deployment.yaml
