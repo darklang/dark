@@ -48,3 +48,5 @@ containers/*/target
 gzipped_assets
 
 deploy-lock-manual-deploy
+
+.fake
