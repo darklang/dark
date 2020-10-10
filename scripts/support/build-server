@@ -46,7 +46,11 @@ def compile(files):
     test = "--test "
   else:
     test = ""
-  return run("scripts/support/compile " + test + " ".join(files))
+  try:
+    return run("scripts/support/compile " + test + " ".join(files))
+  except:
+    return initial_compile()
+
 
 
 def initial_backend_compile():
