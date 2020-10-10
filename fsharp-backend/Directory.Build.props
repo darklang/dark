@@ -2,14 +2,12 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Common properties -->
   <PropertyGroup>
-    <!-- SolutionDir is not defined when building projects explicitly -->
-    <SolutionDir Condition=" '$(SolutionDir)' == '' ">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), MySolution.sln))\</SolutionDir>
     <!-- Output paths -->
-    <BaseIntermediateOutputPath>$(SolutionDir)Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(SolutionDir)Build\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <BaseIntermediateOutputPath>\home\dark\app\fsharp-backend\Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>\home\dark\app\fsharp-backend\Build\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
     <MSBuildProjectExtensionsPath>$(IntermediateOutputPath)\</MSBuildProjectExtensionsPath>
-    <OutputPath>$(SolutionDir)Build\out\</OutputPath>
+    <OutputPath>\home\dark\app\fsharp-backend\Build\out\</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
-    <DocumentationFile>$(SolutionDir)Build\doc\$(MSBuildProjectName).xml</DocumentationFile>
+    <DocumentationFile>\home\dark\app\fsharp-backend\Build\doc\$(MSBuildProjectName).xml</DocumentationFile>
   </PropertyGroup>
 </Project>
