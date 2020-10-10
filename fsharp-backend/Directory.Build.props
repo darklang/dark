@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+
+<!-- This file allows us to set where the build runs. It need to be in this
+     file to be read by the msbuild tools before the SDK (which uses some
+     of these values) is loaded. -->
+
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Common properties -->
   <PropertyGroup>
