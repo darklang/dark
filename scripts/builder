@@ -23,9 +23,8 @@ rm -Rf node_modules
 rm -Rf lib
 rm -Rf containers/stroller/target
 rm -Rf containers/queue-scheduler/target
-rm -Rf fsharp-backend/obj
 rm -Rf fsharp-backend/src/*/obj
-rm -Rf fsharp-backend/src/*/bin
+rm -Rf fsharp-backend/tests/*/obj
 rm -Rf fsharp-backend/Build
 rm -Rf fsharp-backend/node_modules
 
