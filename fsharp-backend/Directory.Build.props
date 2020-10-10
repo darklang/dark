@@ -5,11 +5,11 @@
     <!-- SolutionDir is not defined when building projects explicitly -->
     <SolutionDir Condition=" '$(SolutionDir)' == '' ">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), MySolution.sln))\</SolutionDir>
     <!-- Output paths -->
-    <BaseIntermediateOutputPath>$(SolutionDir)Build\obj\$(Configuration)\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(SolutionDir)Build\obj\$(Configuration)\$(MSBuildProjectName)\</IntermediateOutputPath>
+    <BaseIntermediateOutputPath>$(SolutionDir)Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(SolutionDir)Build\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
     <MSBuildProjectExtensionsPath>$(IntermediateOutputPath)\</MSBuildProjectExtensionsPath>
-    <OutputPath>$(SolutionDir)Build\out\$(Configuration)\</OutputPath>
+    <OutputPath>$(SolutionDir)Build\out\</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
-    <DocumentationFile>$(SolutionDir)Build\doc\$(Configuration)\$(MSBuildProjectName).xml</DocumentationFile>
+    <DocumentationFile>$(SolutionDir)Build\doc\$(MSBuildProjectName).xml</DocumentationFile>
   </PropertyGroup>
 </Project>
