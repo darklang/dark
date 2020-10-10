@@ -183,6 +183,7 @@ $FSWATCH | docker run \
              -v pgdata:/var/lib/postgresql \
              -v /var/run/docker.sock:/var/run/docker.sock \
              -p 8000:8000 \
+             -p 9000:9000 \
              -p 5433:5432 \
              -p 2345:2345 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \

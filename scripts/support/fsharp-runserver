@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+
+BINPATH="/home/dark/app/fsharp-backend/src/Server/bin/Debug/netcoreapp3.1/publish/"
+SERVER_EXE="$BINPATH/Server"
+#FSTODO
+# QW_EXE="$BINPATH/QueueWorker"
+# CRON_EXE="$BINPATH/CronChecker"
+# TUNNEL_DAEMON_EXE="containers/tunnel/tunnel-daemon"
+
+# Stop the server processes
+echo "Stopping servers"
+sudo pkill -f nginx || true
+sudo pkill -f Server || true
+#FSTODO
+# pkill -f queue_worker.exe || true
+# pkill -f cron_checker.exe || true
+
+#FSTODO
+# tunnel cleanup
+# echo "pkill tunnel"
+# sudo pkill -f "${TUNNEL_DAEMON_EXE}" || true
+# echo "rm tunnel"
+# sudo rm -rf /home/tunnel/.ssh/id_rsa{,.pub} /home/tunnel/.ssh/authorized_keys
+# echo "pkill sleep"
+# sudo pkill -f sleep.infinity || true
+# end tunnel cleanup
+
+echo "Waiting for postgres"
+./scripts/support/wait-for-background-services postgresql
+
+#FSTODO
+# Run tunnel
+# sudo mkdir -p /run/sshd
+# echo "Starting tunnel"
+# # shellcheck disable=SC2024
+# sudo ./"${TUNNEL_DAEMON_EXE}" > rundir/logs/tunnel.log 2>&1 &
+# echo "Started tunnel"
+
+# if it hasn't been compiled yet, wait for it
+echo "Waiting for compiled servers"
+for ((i=1;i<=1000;i++));
+do
+  #FSTODO
+  #if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
+  if [[ ! -f "${SERVER_EXE}" ]]; then
+    sleep 0.01
+  fi
+done
+echo "Done waiting for compiled servers"
+
+#FSTODO
+# symlink so nginx logs are visible on the host
+# if [[ ! -f "/home/dark/app/rundir/logs/nginx-access.log" ]]; then
+#   sudo rm /var/log/nginx/access.log
+#   touch /home/dark/app/rundir/logs/nginx-access.log
+#   ln -s /home/dark/app/rundir/logs/nginx-access.log /var/log/nginx/access.log
+# fi
+
+#FSTODO
+# symlink so nginx logs are visible on the host
+# if [[ ! -f "/home/dark/app/rundir/logs/nginx-error.log" ]]; then
+#   sudo rm /var/log/nginx/error.log
+#   touch /home/dark/app/rundir/logs/nginx-error.log
+#   ln -s /home/dark/app/rundir/logs/nginx-error.log /var/log/nginx/error.log
+# fi
+
+#FSTODO
+#if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
+if [[ -f "${SERVER_EXE}" ]]; then
+  LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  echo "Running server"
+  "${SERVER_EXE}" > "$LOGS/fsharp-server.log" 2>&1 &
+  #FSTODO
+  # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
+  # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
+
+  #FSTODO
+  # sudo rm -f /etc/nginx/nginx.conf
+  # sudo rm -f /etc/nginx/conf.d/nginx.conf
+
+  #FSTODO
+  # sudo ln -s \
+  #    /home/dark/app/containers/ocaml-nginx/base-nginx.conf \
+  #    /etc/nginx/nginx.conf
+
+  #FSTODO
+  # sudo ln -s \
+  #   /home/dark/app/containers/ocaml-nginx/nginx.conf \
+  #   /etc/nginx/conf.d/nginx.conf
+
+  #FSTODO
+  # echo "Starting nginx"
+  # sudo nginx &
+  # echo "Started nginx"
+else
+  echo "Missing binaries"
+  exit 1
+fi
+
+echo "Finished loading server"

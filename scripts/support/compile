@@ -269,6 +269,12 @@ def reload_server():
   return run_backend(start, runserver)
 
 
+def reload_fsharp_server():
+  start = time.time()
+  runserver = "scripts/support/fsharp-runserver"
+  return run_backend(start, runserver)
+
+
 def generate_etags():
   start = time.time()
   return run_frontend(start, "./scripts/support/generate-etags")
@@ -301,6 +307,7 @@ class Should:
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
+    self.reload_fsharp_server = False
     self.reload_stroller = False
     self.reload_scheduler = False
     self.generate_etags = False
@@ -333,6 +340,7 @@ def execute(should):
 
   if should.fsharp_backend_build:
     if not fsharp_backend_build(): success = False
+    should.reload_fsharp_server |= success
 
   if should.npm_install:
     if not npm_install(): success = False
@@ -368,6 +376,10 @@ def execute(should):
 
   if should.reload_server:
     if not reload_server(): success = False
+    should.reload_browser |= success
+
+  if should.reload_fsharp_server:
+    if not reload_fsharp_server(): success = False
     should.reload_browser |= success
 
   if should.reload_browser:
@@ -445,6 +457,7 @@ def mark(should, f):
   elif ("templates/" in f) and (".html" in f):
     should.backend_build = True
 
+  #FSTODO
   elif "containers/ocaml-nginx/" in f and ".conf" in f:
     should.reload_server = True
     should.test_nginx = True
@@ -452,6 +465,10 @@ def mark(should, f):
   # Touch this to rerun the server
   elif "scripts/support/runserver" in f:
     should.reload_server = True
+    should.generate_etags = True
+
+  elif "scripts/support/fsharp-runserver" in f:
+    should.reload_fsharp_server = True
     should.generate_etags = True
 
   # Rust
