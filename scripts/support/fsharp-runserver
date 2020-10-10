@@ -14,8 +14,8 @@ API_SERVER_EXE="$BINPATH/ApiServer"
 # Stop the server processes
 echo "Stopping servers"
 sudo pkill -f nginx || true
-sudo pkill -f BwdServer || true
-sudo pkill -f ApiServer || true
+sudo pkill -f BwdServer2 || true
+sudo pkill -f ApiServer2 || true
 #FSTODO
 # pkill -f queue_worker.exe || true
 # pkill -f cron_checker.exe || true
@@ -72,10 +72,13 @@ echo "Done waiting for compiled servers"
 #FSTODO
 #if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
 if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
+  # msbuild won't copy onto running files, so copy them first
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   echo "Running server"
-  "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
-  "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  cp "${API_SERVER_EXE}" "${API_SERVER_EXE}2"
+  cp "${BWD_SERVER_EXE}" "${BWD_SERVER_EXE}2"
+  "${API_SERVER_EXE}2" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+  "${BWD_SERVER_EXE}2" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
   #FSTODO
   # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
   # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
