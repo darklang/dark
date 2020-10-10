@@ -226,7 +226,7 @@ def fsharp_backend_build():
     configuration = "Debug"
 
   if os.environ.get("CI"):
-    verbosity = "detailed"
+    verbosity = "normal"
   else:
     verbosity = "minimal"
 
