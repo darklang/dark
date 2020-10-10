@@ -1,4 +1,4 @@
-module Server
+module BwdServer
 
 open Saturn
 open Giraffe.Core
@@ -14,7 +14,7 @@ let webApp =
 
 let app =
   application {
-    url "http://0.0.0.0:9000"
+    url "http://0.0.0.0:9001"
     use_router webApp
   (* use_static "public" *)
   (* use_gzip *)

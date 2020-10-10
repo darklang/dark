@@ -5,10 +5,10 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Server.Tests.fs" />
+    <Compile Include="BwdServer.Tests.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/Server/Server.fsproj" />
+    <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.Tests.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

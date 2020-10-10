@@ -1,9 +1,9 @@
-module Server.Tests
+module BwdServer.Tests
 
 open Expecto
 
 open LibExecution
-open Server
+open BwdServer
 
 let server =
   testList
@@ -13,11 +13,7 @@ let server =
 
         Expect.equal 1 1 "Result should be ok" ]
 
-let all =
-  testList
-    "All"
-    [ (* LibExecution.Tests.libExecution *)
-    server ]
+let all = testList "All" [ server ]
 
 [<EntryPoint>]
 let main _ = runTests defaultConfig all

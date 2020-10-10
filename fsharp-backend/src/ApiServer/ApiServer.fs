@@ -1,4 +1,4 @@
-module Server
+module ApiServer
 
 open Saturn
 open Giraffe.Core
