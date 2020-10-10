@@ -237,11 +237,11 @@ def fsharp_backend_build():
   return run_backend(start, build)
 
 
-def rust_build(name):
+def rust_build(dir):
   if os.environ.get("CI"):
     start = time.time()
     result = run_backend(
-        start, "./scripts/format check --rust-only stroller queue-scheduler")
+        start, f"./scripts/format check --rust-only {dir}")
     if not result:
       return result
     build_flags = " --release"
@@ -249,13 +249,13 @@ def rust_build(name):
     build_flags = ""
 
   start = time.time()
-  build = f"cd {name} && unbuffer cargo build{build_flags}"
+  build = f"cd {dir} && unbuffer cargo build{build_flags}"
   return run_backend(start, build)
 
 
-def rust_reload(name):
+def rust_reload(dir):
   start = time.time()
-  return run_backend(start, f"scripts/support/run-rust {name}")
+  return run_backend(start, f"scripts/support/run-rust {dir}")
 
 
 def test_db_env():
@@ -265,11 +265,11 @@ def test_db_env():
     " DARK_CONFIG_DB_PASSWORD=eapnsdc"
 
 
-def rust_test(name):
+def rust_test(dir):
   start = time.time()
   result = run_test(
       start,
-      f"cd {name} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test -- --test-threads=1"
+      f"cd {dir} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test -- --test-threads=1"
   )
   if not result:
     return result
@@ -279,8 +279,9 @@ def rust_test(name):
     clippy_flags = "-D warnings"
   else:
     clippy_flags = ""
+  name = os.path.basename(dir)
   return run_test(
-      start, f"cd {name}" +
+      start, f"cd {dir}" +
       f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- "
       + clippy_flags)
 
