@@ -2,10 +2,14 @@
 
 set -euo pipefail
 
-
-BINPATH="fsharp-backend/Build/out/Debug/netcoreapp3.1/publish/"
-BWD_SERVER_EXE="$BINPATH/BwdServer"
-API_SERVER_EXE="$BINPATH/ApiServer"
+if [[ -v CI ]]; then
+  CONFIG="Debug"
+else
+  CONFIG="Release"
+fi
+BINPATH="fsharp-backend/${CONFIG}/out/Debug/netcoreapp3.1/publish/"
+BWD_SERVER_EXE="${BINPATH}/BwdServer"
+API_SERVER_EXE="${BINPATH}/ApiServer"
 #FSTODO
 # QW_EXE="$BINPATH/QueueWorker"
 # CRON_EXE="$BINPATH/CronChecker"
