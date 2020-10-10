@@ -82,7 +82,7 @@ if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   sudo nginx &
   echo "Started nginx"
 else
-  echo "Missing binaries"
+  echo "Missing OCaml binaries"
   exit 1
 fi
 

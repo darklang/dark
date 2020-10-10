@@ -13,7 +13,7 @@ let server =
 
         Expect.equal 1 1 "Result should be ok" ]
 
-let all = testList "All" [ server ]
+let all = testList "ApiServer" [ server ]
 
 [<EntryPoint>]
 let main _ = runTests defaultConfig all

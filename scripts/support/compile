@@ -181,6 +181,20 @@ def backend_test():
           f" 2>&1")
 
 
+def fsharp_backend_test():
+  start = time.time()
+  #FSTODO
+  #ci = "--verbose" if os.environ.get("CI") else "--quick"
+  #  if os.environ.get("CI"):
+  #    configuration = "Release"
+  #  else:
+  #    configuration = "Debug"
+
+  #FSTODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
+  build = f"cd fsharp-backend && unbuffer dotnet run -p tests/All All.Tests"
+  return run_test(start, build)
+
+
 def fsharp_tool_restore():
   start = time.time()
   build = "cd fsharp-backend && unbuffer dotnet tool restore"
@@ -340,6 +354,7 @@ def execute(should):
 
   if should.fsharp_backend_build:
     if not fsharp_backend_build(): success = False
+    should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
 
   if should.npm_install:
@@ -392,9 +407,8 @@ def execute(should):
   if should.backend_test:
     if not backend_test(): success = False
 
-  # FSTODO
-  #  if should.fsharp_backend_test:
-  #    if not fsharp_backend_test(): success = False
+  if should.fsharp_backend_test:
+    if not fsharp_backend_test(): success = False
 
   # Rust projects
   if should.stroller_build:

@@ -96,7 +96,7 @@ if [[ -f "${SERVER_EXE}" ]]; then
   # sudo nginx &
   # echo "Started nginx"
 else
-  echo "Missing binaries"
+  echo "Missing F# binaries"
   exit 1
 fi
 
