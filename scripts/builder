@@ -81,6 +81,7 @@ MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
 MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target"
 MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/containers/queue-scheduler/target"
 MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
+#FSTODO
 
 if [[ -e "$HOME/.config/gcloud" ]]; then
   MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"

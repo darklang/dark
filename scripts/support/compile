@@ -380,7 +380,7 @@ def execute(should):
   if should.backend_test:
     if not backend_test(): success = False
 
-  # TODO: tests
+  # FSTODO
   #  if should.fsharp_backend_test:
   #    if not fsharp_backend_test(): success = False
 

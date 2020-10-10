@@ -217,6 +217,7 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 
+#FSTODO
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
@@ -258,6 +259,7 @@ sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   services/postgres-honeytail-deployment/postgres-honeytail-deployment.template.yaml > services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 
+#FSTODO
 # make sure deployment matches current understanding
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
 kubectl apply -f services/bwd-deployment/bwd-ingress.yaml
