@@ -43,6 +43,7 @@ type Expr =
   | ELambda of List<string> * Expr
   | EIf of Expr * Expr * Expr
 
+
 type Dval =
   | DInt of bigint
   | DString of string
@@ -50,7 +51,6 @@ type Dval =
   | DList of List<Dval>
   | DBool of bool
   | DLambda of Symtable * List<string> * Expr
-  | DTask of Task<Dval>
 
   member this.isSpecial: bool =
     match this with
@@ -69,7 +69,6 @@ type Dval =
       | DBool b -> Encode.bool b
       | DLambda _ -> Encode.nil
       | DSpecial (DError (e)) -> Encode.object [ "error", Encode.string (e.ToString()) ]
-      | DTask _ -> raise (InternalException "Stringifying a task is a no-no")
 
     encodeDval this
 
@@ -77,46 +76,53 @@ type Dval =
     List.tryFind (fun (dv: Dval) -> dv.isSpecial) list
     |> Option.defaultValue (DList list)
 
-  member dv.toTask(): Task<Dval> =
-    match dv with
-    | DTask t -> t
-    | _ -> task { return dv }
+// eval needs to return a Task<Dval>. This means it creates a Task for even
+// simple Dvals like DInts. Instead, we wrap the return value in DvalTask, and
+// simple DInts don't have to create an entire Task. (I previously tried making
+// DTask part of the Dval, but the types were hard to get right and ensure
+// execution happened as expected)
+and DvalTask =
+  | Plain of Dval
+  | Task of Task<Dval>
 
+  member dt.toTask(): Task<Dval> =
+    match dt with
+    | Task t -> t
+    | Plain dv -> task { return dv }
 
-  member dv.map(f: Dval -> Dval): Dval =
-    match dv with
-    | DTask t ->
-        DTask
+  member dt.bind(f: Dval -> DvalTask): DvalTask =
+    match dt with
+    | Task t ->
+        Task
+          (task {
+            let! resolved = t
+            // If `f` returns a task, don't wrap it
+            return! (f resolved).toTask()
+           })
+    | Plain dv -> (f dv)
+
+  member dt.map(f: Dval -> Dval): DvalTask =
+    match dt with
+    | Task t ->
+        Task
           (task {
             let! dv = t
             return (f dv)
            })
-    | _ -> dv
+    | Plain dv -> Plain dv
 
-  member dv.bind(f: Dval -> Dval): Dval =
-    match dv with
-    | DTask t ->
-        DTask
+  member dt1.bind2 (dt2: DvalTask) (f: Dval -> Dval -> DvalTask): DvalTask =
+    match dt1, dt2 with
+    | _, Task _
+    | Task _, _ ->
+        Task
           (task {
-            let! dv = t
-            // If `f` returns a task, don't wrap it
-            return! (f dv).toTask()
-           })
-    | _ -> f dv
-
-  member dv1.bind2 (dv2: Dval) (f: Dval -> Dval -> Dval): Dval =
-    match dv1, dv2 with
-    | _, DTask _
-    | DTask _, _ ->
-        DTask
-          (task {
-            let! t1 = dv1.toTask ()
-            let! t2 = dv2.toTask ()
+            let! t1 = dt1.toTask ()
+            let! t2 = dt2.toTask ()
             // If `f` returns a task, don't wrap it
             return! (f t1 t2).toTask()
            })
-    | _ -> f dv1 dv2
-
+    | Plain dv1, Plain dv2 -> f dv1 dv2
 
 
 and Symtable = Map<string, Dval>
@@ -149,7 +155,7 @@ and DType =
   | TVariable of string
   | TFn of List<DType> * DType
 
-let err (e: RuntimeError) = DSpecial(DError(e))
+let err (e: RuntimeError): Dval = (DSpecial(DError(e)))
 
 
 module Symtable =
@@ -168,7 +174,7 @@ module Environment =
     { name: FnDesc.T
       parameters: List<Param>
       returnVal: RetVal
-      fn: (T * List<Dval>) -> Result<Dval, unit> }
+      fn: (T * List<Dval>) -> Result<DvalTask, unit> }
 
   and T = { functions: Map<FnDesc.T, BuiltInFn> }
 
@@ -228,7 +234,7 @@ let fizzboom: Expr =
                       EString "fizz",
                       sfn "Int" "toString" 0 [ EVariable "i" ]))))) ]))
 
-let map_s (list: List<'a>) (f: 'a -> Dval): Task<List<Dval>> =
+let map_s (list: List<'a>) (f: 'a -> DvalTask): Task<List<Dval>> =
   task {
     let! result =
       match list with
@@ -259,15 +265,11 @@ let map_s (list: List<'a>) (f: 'a -> Dval): Task<List<Dval>> =
     return (result |> Seq.toList)
   }
 
-
-
-
-
-let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): Dval =
+let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): DvalTask =
   let tryFindFn desc = env.functions.TryFind(desc)
   match e with
-  | EInt i -> DInt i
-  | EString s -> DString s
+  | EInt i -> Plain(DInt i)
+  | EString s -> Plain(DString s)
   | ELet (lhs, rhs, body) ->
       let rhs = eval env st rhs
       rhs.bind (fun rhs ->
@@ -276,36 +278,36 @@ let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): Dval =
   | EFnCall (desc, exprs) ->
       (match tryFindFn desc with
        | Some fn ->
-           DTask
+           Task
              (task {
                let! args = map_s exprs (eval env st)
-               return (callFn env fn (Seq.toList args))
+               return! (callFn env fn (Seq.toList args)).toTask()
               })
-       | None -> err (NotAFunction desc))
+       | None -> Plain(err (NotAFunction desc)))
   | EBinOp (arg1, desc, arg2) ->
       (match tryFindFn desc with
        | Some fn ->
            let t1 = eval env st arg1
            let t2 = eval env st arg2
            t1.bind2 t2 (fun arg1 arg2 -> callFn env fn [ arg1; arg2 ])
-       | None -> (err (NotAFunction desc)))
-  | ELambda (vars, expr) -> DLambda(st, vars, expr)
-  | EVariable (name) -> Symtable.get st name
+       | None -> Plain(err (NotAFunction desc)))
+  | ELambda (vars, expr) -> Plain(DLambda(st, vars, expr))
+  | EVariable (name) -> Plain(Symtable.get st name)
   | EIf (cond, thenbody, elsebody) ->
       let cond = eval env st cond
       cond.bind (function
         | DBool (true) -> eval env st thenbody
         | DBool (false) -> eval env st elsebody
-        | _ -> err (CondWithNonBool cond))
+        | cond -> Task(task { return (err (CondWithNonBool cond)) }))
 
 
-and callFn (env: Environment.T) (fn: Environment.BuiltInFn) (args: List<Dval>): Dval =
+and callFn (env: Environment.T) (fn: Environment.BuiltInFn) (args: List<Dval>): DvalTask =
   match List.tryFind (fun (dv: Dval) -> dv.isSpecial) args with
-  | Some special -> special
+  | Some special -> Plain special
   | None ->
       match fn.fn (env, args) with
       | Ok result -> result
-      | Error () -> err (FnCalledWithWrongTypes(fn.name, args, fn.parameters))
+      | Error () -> Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
 
 module StdLib =
   let functions (): Map<FnDesc.T, Environment.BuiltInFn> =
@@ -317,7 +319,11 @@ module StdLib =
           returnVal = retVal (TList(TInt)) "List of ints between lowerBound and upperBound"
           fn =
             (function
-            | _, [ DInt lower; DInt upper ] -> List.map DInt [ lower .. upper ] |> DList |> Ok
+            | _, [ DInt lower; DInt upper ] ->
+                List.map DInt [ lower .. upper ]
+                |> DList
+                |> Plain
+                |> Ok
             | _ -> Error()) }
         { name = (FnDesc.stdFnDesc "List" "map" 0)
           parameters =
@@ -331,7 +337,7 @@ module StdLib =
             (function
             | env, [ DList l; DLambda (st, [ var ], body) ] ->
                 Ok
-                  (DTask
+                  (Task
                     (task {
                       let! result =
                         map_s l (fun dv ->
@@ -350,8 +356,8 @@ module StdLib =
             (function
             | env, [ DInt a; DInt b ] ->
                 try
-                  Ok(DInt(a % b))
-                with _ -> Ok(DInt(bigint 0))
+                  Ok(Plain(DInt(a % b)))
+                with _ -> Ok(Plain(DInt(bigint 0)))
             | _ -> Error()) }
         { name = (FnDesc.stdFnDesc "Int" "==" 0)
           parameters =
@@ -363,14 +369,14 @@ module StdLib =
                "True if structurally equal (they do not have to be the same piece of memory, two dicts or lists or strings with the same value will be equal), false otherwise")
           fn =
             (function
-            | env, [ DInt a; DInt b ] -> Ok(DBool(a = b))
+            | env, [ DInt a; DInt b ] -> Ok(Plain(DBool(a = b)))
             | _ -> Error()) }
         { name = (FnDesc.stdFnDesc "Int" "toString" 0)
           parameters = [ param "a" TInt "value" ]
           returnVal = (retVal TString "Stringified version of a")
           fn =
             (function
-            | env, [ DInt a ] -> Ok(DString(a.ToString()))
+            | env, [ DInt a ] -> Ok(Plain(DString(a.ToString())))
 
             | _ -> Error()) }
         { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)
@@ -381,7 +387,7 @@ module StdLib =
             | env, [ DString url ] ->
                 try
                   Ok
-                    (DTask
+                    (Task
                       (task {
                         let! response = FSharp.Data.Http.AsyncRequestString(url)
                         return DString(response)
