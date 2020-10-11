@@ -12,6 +12,11 @@ nuget Thoth.Json.Net ~> 4.1.0
 nuget Saturn ~> 0.15.0-preview01
 nuget Expecto ~> 9.0.2
 
+nuget TaskBuilder.fs ~> 2.1
+nuget FSharp.Data
+nuget Ply ~> 0.1
+
+
 group Build
     source https://api.nuget.org/v3/index.json
     framework: netstandard2.0
