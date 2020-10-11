@@ -35,7 +35,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ApiServer.Tests", "tests\Ap
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibExecution.Tests", "tests\LibExecution\LibExecution.Tests.fsproj", "{D60C99AA-FB14-439B-ACD1-E0D219D28F8A}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "All.Tests", "tests\All\All.Tests.fsproj", "{DB61305F-4CA9-4D92-82A5-503495F515E8}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "All.Tests", "tests\All.Tests\All.Tests.fsproj", "{DB61305F-4CA9-4D92-82A5-503495F515E8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
