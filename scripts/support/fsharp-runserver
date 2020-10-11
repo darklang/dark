@@ -2,13 +2,13 @@
 
 set -euo pipefail
 
-BINPATH="Build/out/"
-BWD_SERVER_EXE="${BINPATH}/BwdServer.dll"
-API_SERVER_EXE="${BINPATH}/ApiServer.dll"
-FULL_BINPATH="fsharp-backend/${BINPATH}"
-FULL_BWD_SERVER_EXE="fsharp-backend/${BWD_SERVER_EXE}"
-FULL_API_SERVER_EXE="fsharp-backend/${API_SERVER_EXE}"
-
+BINPATH="fsharp-backend/Build/out/"
+# msbuild doesn't like to copy on top of a running server, so we have two files
+# for each
+API_SERVER_FILE="${BINPATH}/ApiServer.dll"
+BWD_SERVER_FILE="${BINPATH}/BwdServer.dll"
+API_SERVER_EXE="${BINPATH}/ApiServer2.dll"
+BWD_SERVER_EXE="${BINPATH}/BwdServer2.dll"
 #FSTODO
 # QW_EXE="$BINPATH/QueueWorker"
 # CRON_EXE="$BINPATH/CronChecker"
@@ -18,8 +18,11 @@ FULL_API_SERVER_EXE="fsharp-backend/${API_SERVER_EXE}"
 echo "Stopping servers"
 sudo pkill -f nginx || true
 #FSTODO
-# sudo pkill -f BwdServer || true
-# sudo pkill -f ApiServer || true
+sudo pkill -f "dotnet ${API_SERVER_FILE}" || true
+sudo pkill -f "dotnet ${BWD_SERVER_FILE}" || true
+sudo pkill -f "dotnet ${API_SERVER_EXE}" || true
+sudo pkill -f "dotnet ${BWD_SERVER_EXE}" || true
+
 #FSTODO
 # pkill -f queue_worker.exe || true
 # pkill -f cron_checker.exe || true
@@ -77,13 +80,12 @@ echo "Done waiting for compiled servers"
 #FSTODO
 #if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
 
-if [[ -f "${FULL_API_SERVER_EXE}" && -f "${FULL_BWD_SERVER_EXE}" ]]; then
-  # msbuild won't copy onto running files, so copy them first
+if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
+  # msbuild won't compile onto files being run, so copy them first
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  cp "${API_SERVER_FILE}" "${API_SERVER_EXE}"
+  cp "${BWD_SERVER_FILE}" "${BWD_SERVER_EXE}"
   echo "Running server"
-  cd fsharp-backend
-  cp "${API_SERVER_EXE}" "${API_SERVER_EXE}2"
-  cp "${BWD_SERVER_EXE}" "${BWD_SERVER_EXE}2"
   dotnet "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
   dotnet "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
   #FSTODO
