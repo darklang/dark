@@ -5,7 +5,7 @@
   "private": true,
   "author": "",
   "devDependencies": {
-    "browserify": "16.5.2",
+    "browserify": "17.0.0",
     "browserify-incremental": "3.1.1",
     "bs-platform": "7.0.1",
     "dom-storage": "2.1.0",
