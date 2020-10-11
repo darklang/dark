@@ -246,6 +246,8 @@ def fsharp_backend_quick_build():
   build = f"cd fsharp-backend \
     && unbuffer dotnet build \
       --no-dependencies \
+      /p:DebugType=None \
+      /p:DebugSymbols=false \
       --no-restore \
       --verbosity minimal \
       --configuration Debug "

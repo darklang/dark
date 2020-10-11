@@ -225,7 +225,7 @@ let fizzboom: Expr =
             ([ "i" ],
              EIf
                ((binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 15))) "Int" "==" 0 (EInt(bigint 0))),
-                (sfn "HttpClient" "get" 0 [ EString "http://localhost:1025/delay/1" ]),
+                (sfn "HttpClient" "get" 0 [ EString "https://httpbin.org/delay/1" ]),
                 EIf
                   (binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 5))) "Int" "==" 0 (EInt(bigint 0)),
                    EString "buzz",
