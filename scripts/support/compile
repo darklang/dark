@@ -465,6 +465,17 @@ def mark(should, f):
                   or (".ml" in f)):
     should.backend_test = True
 
+  elif ("backend/" in f) \
+          and ((".mli" in f) \
+                  or (".ml" in f) \
+                  or ("_tags" in f) \
+                  or ("libtarget.js" in f)) \
+          or ("dune" in f):
+    should.backend_build = True
+
+  elif ("backend/templates/" in f) and (".html" in f):
+    should.backend_build = True
+
   elif ("fsharp-backend/global.json" in f):
     should.fsharp_tool_restore = True
 
@@ -476,9 +487,6 @@ def mark(should, f):
 
   elif ("fsharp-backend/" in f):
     should.fsharp_backend_build = True
-
-  elif ("templates/" in f) and (".html" in f):
-    should.backend_build = True
 
   #FSTODO
   elif "containers/ocaml-nginx/" in f and ".conf" in f:
