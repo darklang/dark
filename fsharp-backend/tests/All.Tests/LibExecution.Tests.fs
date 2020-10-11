@@ -9,6 +9,3 @@ let client =
       <| fun _ -> Expect.equal 1 1 "There should be 1 todo" ]
 
 let all = testList "Client" [ client ]
-
-[<EntryPoint>]
-let main _ = 0
