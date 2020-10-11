@@ -25,8 +25,8 @@ open Microsoft.Extensions.DependencyInjection
 let runAsync e =
   fun (next: HttpFunc) (ctx: HttpContext) ->
     task {
-      let fizzboom = LibExecution.Interpreter.runJSON e
-      return! text fizzboom next ctx
+      let! result = LibExecution.Interpreter.runJSON e
+      return! text result next ctx
     }
 
 let errorHandler (ex: Exception) (logger: ILogger) =

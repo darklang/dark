@@ -6,7 +6,12 @@ open Thoth.Json
 open Thoth.Json.Net
 #endif
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 // fsharplint:disable FL0039
+
+exception InternalException of string
 
 module FnDesc =
   type T =
@@ -45,6 +50,7 @@ type Dval =
   | DList of List<Dval>
   | DBool of bool
   | DLambda of Symtable * List<string> * Expr
+  | DTask of Task<Dval>
 
   member this.isSpecial: bool =
     match this with
@@ -63,12 +69,55 @@ type Dval =
       | DBool b -> Encode.bool b
       | DLambda _ -> Encode.nil
       | DSpecial (DError (e)) -> Encode.object [ "error", Encode.string (e.ToString()) ]
+      | DTask _ -> raise (InternalException "Stringifying a task is a no-no")
 
     encodeDval this
 
   static member toDList(list: List<Dval>): Dval =
     List.tryFind (fun (dv: Dval) -> dv.isSpecial) list
     |> Option.defaultValue (DList list)
+
+  member dv.toTask(): Task<Dval> =
+    match dv with
+    | DTask t -> t
+    | _ -> task { return dv }
+
+
+  member dv.map(f: Dval -> Dval): Dval =
+    match dv with
+    | DTask t ->
+        DTask
+          (task {
+            let! dv = t
+            return (f dv)
+           })
+    | _ -> dv
+
+  member dv.bind(f: Dval -> Dval): Dval =
+    match dv with
+    | DTask t ->
+        DTask
+          (task {
+            let! dv = t
+            // If `f` returns a task, don't wrap it
+            return! (f dv).toTask()
+           })
+    | _ -> f dv
+
+  member dv1.bind2 (dv2: Dval) (f: Dval -> Dval -> Dval): Dval =
+    match dv1, dv2 with
+    | _, DTask _
+    | DTask _, _ ->
+        DTask
+          (task {
+            let! t1 = dv1.toTask ()
+            let! t2 = dv2.toTask ()
+            // If `f` returns a task, don't wrap it
+            return! (f t1 t2).toTask()
+           })
+    | _ -> f dv1 dv2
+
+
 
 and Symtable = Map<string, Dval>
 
@@ -85,6 +134,7 @@ and RuntimeError =
   | NotAFunction of FnDesc.T
   | CondWithNonBool of Dval
   | FnCalledWithWrongTypes of FnDesc.T * List<Dval> * List<Param>
+  | FnCalledWhenNotSync of FnDesc.T * List<Dval> * List<Param>
   | UndefinedVariable of string
 
 
@@ -178,47 +228,82 @@ let fizzboom: Expr =
                       EString "fizz",
                       sfn "Int" "toString" 0 [ EVariable "i" ]))))) ]))
 
+let map_s (list: List<'a>) (f: 'a -> Dval): Task<List<Dval>> =
+  task {
+    let! result =
+      match list with
+      | [] -> task { return [] }
+      | head :: tail ->
+          task {
+            let firstComp =
+              task {
+                let! result = (f head).toTask()
+                return ([], result)
+              }
+
+            let! ((accum, lastcomp): (List<Dval> * Dval)) =
+              List.fold (fun (prevcomp: Task<List<Dval> * Dval>) (arg: 'a) ->
+                task {
+                  // Ensure the previous computation is done first
+                  let! ((accum, prev): (List<Dval> * Dval)) = prevcomp
+                  let accum = prev :: accum
+
+                  let! result = (f arg).toTask()
+
+                  return (accum, result)
+                }) firstComp tail
+
+            return List.rev (lastcomp :: accum)
+          }
+
+    return (result |> Seq.toList)
+  }
+
+
 
 
 
 let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): Dval =
+  let tryFindFn desc = env.functions.TryFind(desc)
   match e with
   | EInt i -> DInt i
   | EString s -> DString s
   | ELet (lhs, rhs, body) ->
       let rhs = eval env st rhs
-      let st = st.Add(lhs, rhs)
-      let result = (eval env st body)
-      result
-  | EFnCall (desc, args) ->
-      (match env.functions.TryFind desc with
+      rhs.bind (fun rhs ->
+        let st = st.Add(lhs, rhs)
+        eval env st body)
+  | EFnCall (desc, exprs) ->
+      (match tryFindFn desc with
        | Some fn ->
-           let args = (List.map (eval env st) args)
-           callFn env fn (Seq.toList args)
-       | None -> (err (NotAFunction desc)))
+           DTask
+             (task {
+               let! args = map_s exprs (eval env st)
+               return (callFn env fn (Seq.toList args))
+              })
+       | None -> err (NotAFunction desc))
   | EBinOp (arg1, desc, arg2) ->
-      (match env.functions.TryFind desc with
+      (match tryFindFn desc with
        | Some fn ->
-           let arg1 = eval env st arg1
-           let arg2 = eval env st arg2
-           callFn env fn [ arg1; arg2 ]
+           let t1 = eval env st arg1
+           let t2 = eval env st arg2
+           t1.bind2 t2 (fun arg1 arg2 -> callFn env fn [ arg1; arg2 ])
        | None -> (err (NotAFunction desc)))
   | ELambda (vars, expr) -> DLambda(st, vars, expr)
   | EVariable (name) -> Symtable.get st name
   | EIf (cond, thenbody, elsebody) ->
       let cond = eval env st cond
-      match cond with
-      | DBool (true) -> eval env st thenbody
-      | DBool (false) -> eval env st elsebody
-      | _ -> err (CondWithNonBool cond)
+      cond.bind (function
+        | DBool (true) -> eval env st thenbody
+        | DBool (false) -> eval env st elsebody
+        | _ -> err (CondWithNonBool cond))
 
 
 and callFn (env: Environment.T) (fn: Environment.BuiltInFn) (args: List<Dval>): Dval =
   match List.tryFind (fun (dv: Dval) -> dv.isSpecial) args with
   | Some special -> special
   | None ->
-      let result = fn.fn (env, args)
-      match result with
+      match fn.fn (env, args) with
       | Ok result -> result
       | Error () -> err (FnCalledWithWrongTypes(fn.name, args, fn.parameters))
 
@@ -245,11 +330,16 @@ module StdLib =
           fn =
             (function
             | env, [ DList l; DLambda (st, [ var ], body) ] ->
-                let result =
-                  (List.map (fun dv -> let st = st.Add(var, dv) in eval env st body) l)
+                Ok
+                  (DTask
+                    (task {
+                      let! result =
+                        map_s l (fun dv ->
+                          let st = st.Add(var, dv)
+                          eval env st body)
 
-                result |> Seq.toList |> Dval.toDList |> Ok
-
+                      return (result |> Dval.toDList)
+                     }))
             | _ -> Error()) }
         { name = (FnDesc.stdFnDesc "Int" "%" 0)
           parameters =
@@ -282,39 +372,42 @@ module StdLib =
             (function
             | env, [ DInt a ] -> Ok(DString(a.ToString()))
 
+            | _ -> Error()) }
+        { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)
+          parameters = [ param "url" TString "URL to fetch" ]
+          returnVal = (retVal TString "Body of response")
+          fn =
+            (function
+            | env, [ DString url ] ->
+                try
+                  Ok
+                    (DTask
+                      (task {
+                        let! response = FSharp.Data.Http.AsyncRequestString(url)
+                        return DString(response)
+                       }))
+                with e ->
+                  printfn "error in HttpClient::get: %s" (e.ToString())
+                  Error()
             | _ -> Error()) } ]
 
     fns |> List.map (fun fn -> (fn.name, fn)) |> Map
 
-(*             { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)
-                parameters = [ param "url" TString "URL to fetch" ]
-                returnVal = (retVal TString "Body of response")
-                fn =
-                    (function
-                    | env, [ DString url ] ->
-                        try
-                            let response = FSharp.Data.Http.RequestString(url)
-                            let info = JsonValue.Parse(response)
-                            Ok(DString(info?data.AsString()))
-                        with e ->
-                            printfn "error in HttpClient::get: %s" (e.ToString())
-                            Error()
+let env =
+  Environment.envWith (StdLib.functions ())
 
-                    | _ -> Error()) } *)
+let run (e: Expr): Task<Dval> = (eval env Symtable.empty e).toTask()
 
 
-let run (e: Expr): Dval =
-  let env =
-    Environment.envWith (StdLib.functions ())
-
-  eval env Symtable.empty e
-
-
-
-let runString (e: Expr): string =
-
-  (run e).ToString()
+let runString (e: Expr): Task<string> =
+  task {
+    let! result = run e
+    return result.ToString()
+  }
 
 
-
-let runJSON (e: Expr): string = ((run e).toJSON()).ToString()
+let runJSON (e: Expr): Task<string> =
+  task {
+    let! result = run e
+    return result.toJSON().ToString()
+  }
