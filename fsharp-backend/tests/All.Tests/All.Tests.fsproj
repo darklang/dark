@@ -6,10 +6,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="BwdServer.Tests.fs" />
+    <Compile Include="ApiServer.Tests.fs" />
+    <Compile Include="LibExecution.Tests.fs" />
+    <Compile Include="All.Tests.fs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
-    <ProjectReference Include="../LibExecution/LibExecution.Tests.fsproj" />
+    <ProjectReference Include="../../src/Client/Client.fsproj" />
+    <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

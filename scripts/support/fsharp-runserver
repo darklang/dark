@@ -2,9 +2,13 @@
 
 set -euo pipefail
 
-BINPATH="fsharp-backend/Build/out/netcoreapp3.1/publish/"
-BWD_SERVER_EXE="${BINPATH}/BwdServer"
-API_SERVER_EXE="${BINPATH}/ApiServer"
+BINPATH="fsharp-backend/Build/out/"
+# msbuild doesn't like to copy on top of a running server, so we have two files
+# for each
+API_SERVER_FILE="${BINPATH}/ApiServer.dll"
+BWD_SERVER_FILE="${BINPATH}/BwdServer.dll"
+API_SERVER_EXE="${BINPATH}/ApiServer2.dll"
+BWD_SERVER_EXE="${BINPATH}/BwdServer2.dll"
 #FSTODO
 # QW_EXE="$BINPATH/QueueWorker"
 # CRON_EXE="$BINPATH/CronChecker"
@@ -13,8 +17,12 @@ API_SERVER_EXE="${BINPATH}/ApiServer"
 # Stop the server processes
 echo "Stopping servers"
 sudo pkill -f nginx || true
-sudo pkill -f BwdServer2 || true
-sudo pkill -f ApiServer2 || true
+#FSTODO
+sudo pkill -f "dotnet ${API_SERVER_FILE}" || true
+sudo pkill -f "dotnet ${BWD_SERVER_FILE}" || true
+sudo pkill -f "dotnet ${API_SERVER_EXE}" || true
+sudo pkill -f "dotnet ${BWD_SERVER_EXE}" || true
+
 #FSTODO
 # pkill -f queue_worker.exe || true
 # pkill -f cron_checker.exe || true
@@ -44,11 +52,12 @@ echo "Waiting for postgres"
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
+  echo -n ""
   #FSTODO
   #if [[ ! -f "${SERVER_EXE}" || ! -f "${QW_EXE}" || ! -f "${CRON_EXE}" ]]; then
-  if [[ ! -f "${BWD_SERVER_EXE}" || ! -f "${API_SERVER_EXE}" ]]; then
-    sleep 0.01
-  fi
+  # if [[ ! -f "${BWD_SERVER_EXE}" || ! -f "${API_SERVER_EXE}" ]]; then
+  #   sleep 0.01
+  # fi
 done
 echo "Done waiting for compiled servers"
 
@@ -70,14 +79,15 @@ echo "Done waiting for compiled servers"
 
 #FSTODO
 #if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
-if [[ -f "${API_SERVER_EXE}" && -f "${BWD_SERVER_EXE}" ]]; then
-  # msbuild won't copy onto running files, so copy them first
+
+if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
+  # msbuild won't compile onto files being run, so copy them first
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  cp "${API_SERVER_FILE}" "${API_SERVER_EXE}"
+  cp "${BWD_SERVER_FILE}" "${BWD_SERVER_EXE}"
   echo "Running server"
-  cp "${API_SERVER_EXE}" "${API_SERVER_EXE}2"
-  cp "${BWD_SERVER_EXE}" "${BWD_SERVER_EXE}2"
-  "${API_SERVER_EXE}2" > "$LOGS/fsharp-apiserver.log" 2>&1 &
-  "${BWD_SERVER_EXE}2" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
+  dotnet "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
+  dotnet "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
   #FSTODO
   # "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
   # "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &

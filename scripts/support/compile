@@ -181,6 +181,34 @@ def backend_test():
           f" 2>&1")
 
 
+###########
+# F#
+###########
+
+# F# builds are really slow by default. I managed to tune them to complete
+# pretty quickly, but it's unclear whether the tuning is safe; I expect we'll
+# need to optimize it over time, and to revisit it when then assumptions
+# change.
+
+# Builds are split into
+# - dotnet tool restore: installs build tooling (paket)
+# - dotnet paket restore: installs dependencies from paket.lock
+# - dotnet build: builds executables
+
+# dotnet build is extremely slow by default. You can determine where time is
+# spent by passing `/clp:PerformanceSummary` to `dotnet build`. When I ran it,
+# most of the time was in determining dependencies between projects which can
+# be disabled with `--no-dependencies`. Some time is also spent in "restoring"
+# something - not quite sure what that does but it's clearly needed sometimes.
+
+# The solution I went with was to try and figure out the places that need
+# restore and dependencies; so far it's when changing an fsproj or sln file.
+# Apart from that, we can build with these disabled.
+
+# I found there was good speedup from using `-graph:True`. However, that makes
+# the msbuild only build one project, afaict. There's something to be done
+# there but I'm not sure what.
+
 def fsharp_backend_test():
   start = time.time()
   #FSTODO
@@ -191,7 +219,7 @@ def fsharp_backend_test():
   #    configuration = "Debug"
 
   #FSTODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
-  build = f"cd fsharp-backend && unbuffer dotnet run -p tests/All All.Tests"
+  build = f"cd fsharp-backend && unbuffer dotnet Build/out/All.Tests.dll"
   return run_test(start, build)
 
 
@@ -209,7 +237,22 @@ def fsharp_paket_restore():
   return run_backend(start, build)
 
 
-def fsharp_backend_build():
+def fsharp_backend_quick_build():
+  if os.environ.get("CI"):
+    print("quick builds are only for local development")
+    return false
+
+  start = time.time()
+  build = f"cd fsharp-backend \
+    && unbuffer dotnet build \
+      --no-dependencies \
+      --no-restore \
+      --verbosity minimal \
+      --configuration Debug "
+  return run_backend(start, build)
+
+
+def fsharp_backend_full_build():
   if os.environ.get("CI"):
     start = time.time()
     #  result = run_backend(
@@ -222,16 +265,15 @@ def fsharp_backend_build():
   start = time.time()
   if os.environ.get("CI"):
     configuration = "Release"
+    verbosity = "normal"
+    command = "publish"
   else:
     configuration = "Debug"
-
-  if os.environ.get("CI"):
-    verbosity = "normal"
-  else:
     verbosity = "minimal"
+    command = "build"
 
   build = f"cd fsharp-backend \
-    && unbuffer dotnet publish \
+    && unbuffer dotnet {command} \
       --verbosity {verbosity} \
       --configuration {configuration}"
   return run_backend(start, build)
@@ -320,7 +362,8 @@ class Should:
     self.scheduler_test = False
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
-    self.fsharp_backend_build = False
+    self.fsharp_backend_quick_build = False
+    self.fsharp_backend_full_build = False
     self.fsharp_backend_test = False
     self.npm_install = False
     self.client_build = False
@@ -348,11 +391,11 @@ def execute(should):
   if should.fsharp_tool_restore:
     if not fsharp_tool_restore(): success = False
     should.fsharp_paket_restore |= success
-    should.fsharp_backend_build |= success
+    should.fsharp_backend_full_build |= success
 
   if should.fsharp_paket_restore:
     if not fsharp_paket_restore(): success = False
-    should.fsharp_backend_build |= success
+    should.fsharp_backend_full_build |= success
 
   if should.backend_build:
     if not backend_build(): success = False
@@ -361,8 +404,13 @@ def execute(should):
     should.reload_server |= success
     should.reload_browser |= success
 
-  if should.fsharp_backend_build:
-    if not fsharp_backend_build(): success = False
+  if should.fsharp_backend_full_build:
+    if not fsharp_backend_full_build(): success = False
+    should.fsharp_backend_test |= success
+    should.reload_fsharp_server |= success
+
+  if should.fsharp_backend_quick_build:
+    if not fsharp_backend_quick_build(): success = False
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
 
@@ -465,20 +513,28 @@ def mark(should, f):
                   or (".ml" in f)):
     should.backend_test = True
 
+  elif ("backend/" in f) \
+          and ((".mli" in f) \
+                  or (".ml" in f) \
+                  or ("_tags" in f) \
+                  or ("libtarget.js" in f)) \
+          or ("dune" in f):
+    should.backend_build = True
+
+  elif ("backend/templates/" in f) and (".html" in f):
+    should.backend_build = True
+
   elif ("fsharp-backend/global.json" in f):
     should.fsharp_tool_restore = True
 
   elif ("fsharp-backend/paket.dependencies" in f):
     should.fsharp_paket_restore = True
 
-  elif ("fsharp-backend/tests/" in f):
-    should.fsharp_backend_test = True
-
   elif ("fsharp-backend/" in f):
-    should.fsharp_backend_build = True
-
-  elif ("templates/" in f) and (".html" in f):
-    should.backend_build = True
+    if (".fsproj" in f or ".sln" in f):
+      should.fsharp_backend_full_build = True
+    else:
+      should.fsharp_backend_quick_build = True
 
   #FSTODO
   elif "containers/ocaml-nginx/" in f and ".conf" in f:
