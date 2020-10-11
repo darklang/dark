@@ -185,6 +185,31 @@ def backend_test():
 # F#
 ###########
 
+def fsharp_backend_test():
+  start = time.time()
+  #FSTODO
+  #ci = "--verbose" if os.environ.get("CI") else "--quick"
+  #  if os.environ.get("CI"):
+  #    configuration = "Release"
+  #  else:
+  #    configuration = "Debug"
+  build = f"cd fsharp-backend && unbuffer dotnet Build/out/All.Tests.dll"
+  return run_test(start, build)
+
+
+def fsharp_tool_restore():
+  start = time.time()
+  build = "cd fsharp-backend && unbuffer dotnet tool restore"
+  return run_backend(start, build)
+
+
+def fsharp_paket_restore():
+  start = time.time()
+  # We run paket restore to match the lock file
+  ci = "--verbose" if os.environ.get("CI") else ""
+  build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
+  return run_backend(start, build)
+
 # F# builds are really slow by default. I managed to tune them to complete
 # pretty quickly, but it's unclear whether the tuning is safe; I expect we'll
 # need to optimize it over time, and to revisit it when then assumptions
@@ -208,41 +233,15 @@ def backend_test():
 # I found there was good speedup from using `-graph:True`. However, that makes
 # the msbuild only build one project, afaict. There's something to be done
 # there but I'm not sure what.
-
-def fsharp_backend_test():
-  start = time.time()
-  #FSTODO
-  #ci = "--verbose" if os.environ.get("CI") else "--quick"
-  #  if os.environ.get("CI"):
-  #    configuration = "Release"
-  #  else:
-  #    configuration = "Debug"
-
-  #FSTODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
-  build = f"cd fsharp-backend && unbuffer dotnet Build/out/All.Tests.dll"
-  return run_test(start, build)
-
-
-def fsharp_tool_restore():
-  start = time.time()
-  build = "cd fsharp-backend && unbuffer dotnet tool restore"
-  return run_backend(start, build)
-
-
-def fsharp_paket_restore():
-  start = time.time()
-  # We run paket restore to match the lock file
-  ci = "--verbose" if os.environ.get("CI") else ""
-  build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
-  return run_backend(start, build)
-
-
 def fsharp_backend_quick_build():
   if os.environ.get("CI"):
     print("quick builds are only for local development")
     return false
 
   start = time.time()
+  # Debug symbols are removed because running the server in dev reads the debug
+  # symbols (.pdb files), which locks them for the build server. We work around
+  # it for the main binaries, but for now let's just not generate them.
   build = f"cd fsharp-backend \
     && unbuffer dotnet build \
       --no-dependencies \
@@ -274,6 +273,7 @@ def fsharp_backend_full_build():
     verbosity = "minimal"
     command = "build"
 
+  #FSTODO publish trimmed https://docs.microsoft.com/en-us/dotnet/core/whats-new/dotnet-core-3-0#assembly-linking
   build = f"cd fsharp-backend \
     && unbuffer dotnet {command} \
       --verbosity {verbosity} \
