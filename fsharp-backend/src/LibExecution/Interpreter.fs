@@ -16,7 +16,7 @@ let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): DvalTask =
   let tryFindFn desc = env.functions.TryFind(desc)
   match e with
   | EInt i -> Plain(DInt i)
-  | EString s -> Plain(DString s)
+  | EString s -> Plain(DStr s)
   | ELet (lhs, rhs, body) ->
       let rhs = eval env st rhs
       rhs.bind (fun rhs ->

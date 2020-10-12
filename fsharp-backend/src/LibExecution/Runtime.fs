@@ -37,7 +37,7 @@ type Expr =
   | EString of string
   | ELet of string * Expr * Expr
   | EVariable of string
-  | EFnCall of FnDesc.T * List<Expr>
+  | EFnCall of FnDesc.T * List<Expr (* FSTODO: Error rail *) >
   | EBinOp of Expr * FnDesc.T * Expr
   | ELambda of List<string> * Expr
   | EIf of Expr * Expr * Expr
@@ -46,7 +46,7 @@ type Expr =
 
 and Dval =
   | DInt of bigint
-  | DString of string
+  | DStr of string
   | DSpecial of Special
   | DList of List<Dval>
   | DBool of bool
@@ -62,11 +62,8 @@ and Dval =
     let rec encodeDval (dv: Dval): JsonValue =
       match dv with
       | DInt i -> Encode.bigint i
-
-      | DString str -> Encode.string str
-
+      | DStr str -> Encode.string str
       | DList l -> l |> List.map encodeDval |> Encode.list
-
       | DBool b -> Encode.bool b
       | DLambda _ -> Encode.nil
       | DSpecial (DError (e)) -> Encode.object [ "error", Encode.string (e.ToString()) ]
@@ -130,8 +127,11 @@ and Symtable = Map<string, Dval>
 
 and Param =
   { name: string
-    tipe: DType
+    typ: DType
     doc: string }
+
+  static member make (name: string) (typ: DType) (doc: string) = { name = name; typ = typ; doc = doc }
+
 
 (* Runtime errors can be things that happen relatively commonly (such as calling
    a function with an incorrect type), or things that aren't supposed to happen
@@ -169,12 +169,47 @@ module Symtable =
 
 
 module Environment =
-  type RetVal = { tipe: DType; doc: string }
+
+  // The runtime needs to know whether to save a function's results when it
+  // runs. Pure functions that can be run on the client do not need to have
+  // their results saved.
+  // In addition, some functions can be run without side-effects; to give
+  // the user a good experience, we can run them as soon as they are added.
+  // this includes Date::now and Int::random, as well as
+  type Previewable =
+    (* Do not need to be saved, can be recalculated in JS *)
+    | Pure
+    (* Save their results. We can preview these safely *)
+    | ImpurePreviewable
+    (* Save their results, cannot be safely previewed *)
+    | Impure
+
+  type Deprecation =
+    | NotDeprecated
+    (* This has been deprecated and has a replacement we can suggest *)
+    | ReplacedBy of FnDesc.T
+    (* This has been deprecated and not replaced, provide a message for the user *)
+    | DeprecatedBecause of string
+
+  type SqlSpec =
+    (* This can be implemented by we haven't yet *)
+    | NotYetImplementedTODO
+    (* This is not a function which can be queried *)
+    | NotQueryable
+    (* This can be implemented by a builtin postgres 9.6 function. *)
+    | SqlFunction of string
 
   type BuiltInFn =
     { name: FnDesc.T
       parameters: List<Param>
-      returnVal: RetVal
+      returnType: DType
+      description: string
+      previewable: Previewable
+      deprecated: Deprecation
+      sqlSpec: SqlSpec
+      (* Functions can be run in JS if they have an implementation in this
+       * LibExecution. Functions who's implementation is in LibBackend can only be
+       * implemented on the server. *)
       fn: (T * List<Dval>) -> Result<DvalTask, unit> }
 
   and T = { functions: Map<FnDesc.T, BuiltInFn> }
