@@ -5,7 +5,6 @@ module BwdServer
 
 (* open Microsoft.AspNetCore.Http *)
 open Giraffe
-open LibExecution
 open FSharp.Control.Tasks
 
 open System
@@ -25,7 +24,7 @@ open Microsoft.Extensions.DependencyInjection
 let runAsync e =
   fun (next: HttpFunc) (ctx: HttpContext) ->
     task {
-      let! result = LibExecution.Interpreter.runJSON e
+      let! result = LibExecution.Execution.runJSON e
       return! text result next ctx
     }
 
@@ -38,9 +37,9 @@ let errorHandler (ex: Exception) (logger: ILogger) =
 let webApp =
   choose [ GET
            >=> choose [ route "/fizzbuzz"
-                        >=> runAsync Interpreter.fizzbuzz
+                        >=> runAsync LibExecution.Interpreter.fizzbuzz
                         route "/fizzboom"
-                        >=> runAsync Interpreter.fizzboom ] ]
+                        >=> runAsync LibExecution.Interpreter.fizzboom ] ]
 
 let configureApp (app: IApplicationBuilder) =
   app.UseDeveloperExceptionPage().UseGiraffeErrorHandler(errorHandler).UseGiraffe webApp

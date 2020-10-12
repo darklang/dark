@@ -4,8 +4,10 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="LibExecution.fs" />
+    <Compile Include="Runtime.fs" />
     <Compile Include="Interpreter.fs" />
+    <Compile Include="StdLib.fs" />
+    <Compile Include="Execution.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
