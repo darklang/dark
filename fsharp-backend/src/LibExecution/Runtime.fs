@@ -42,6 +42,8 @@ type Expr =
   | ELambda of List<string> * Expr
   | EIf of Expr * Expr * Expr
 
+
+
 and Dval =
   | DInt of bigint
   | DString of string
@@ -49,6 +51,7 @@ and Dval =
   | DList of List<Dval>
   | DBool of bool
   | DLambda of Symtable * List<string> * Expr
+  static member int(i: int) = DInt(bigint i)
 
   member this.isSpecial: bool =
     match this with
@@ -209,3 +212,12 @@ let map_s (list: List<'a>) (f: 'a -> DvalTask): Task<List<Dval>> =
 
     return (result |> Seq.toList)
   }
+
+module Shortcuts =
+  let fn (module_: string) (function_: string) (version: int) (args: List<Expr>): Expr =
+    EFnCall(FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args)
+
+  let binOp (arg1: Expr) (module_: string) (function_: string) (version: int) (arg2: Expr): Expr =
+    EBinOp(arg1, FnDesc.fnDesc "dark" "stdlib" module_ function_ version, arg2)
+
+  let str (str: string) = EString(str)

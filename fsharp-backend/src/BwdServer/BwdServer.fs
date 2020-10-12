@@ -34,12 +34,7 @@ let errorHandler (ex: Exception) (logger: ILogger) =
   >=> setStatusCode 500
   >=> text ex.Message
 
-let webApp =
-  choose [ GET
-           >=> choose [ route "/fizzbuzz"
-                        >=> runAsync LibExecution.Interpreter.fizzbuzz
-                        route "/fizzboom"
-                        >=> runAsync LibExecution.Interpreter.fizzboom ] ]
+let webApp = choose [ GET >=> choose [] ]
 
 let configureApp (app: IApplicationBuilder) =
   app.UseDeveloperExceptionPage().UseGiraffeErrorHandler(errorHandler).UseGiraffe webApp

@@ -12,59 +12,6 @@ open FSharp.Control.Tasks
 open Runtime
 
 // fsharplint:disable FL0039
-
-
-
-let sfn (module_: string) (function_: string) (version: int) (args: List<Expr>): Expr =
-  EFnCall(FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args)
-
-let binOp (arg1: Expr) (module_: string) (function_: string) (version: int) (arg2: Expr): Expr =
-  EBinOp(arg1, FnDesc.fnDesc "dark" "stdlib" module_ function_ version, arg2)
-
-let fizzbuzz: Expr =
-  ELet
-    ("range",
-     (sfn "Int" "range" 0 [ EInt(bigint 1); EInt(bigint 100) ]),
-     (sfn
-       "List"
-        "map"
-        0
-        [ EVariable "range"
-          (ELambda
-            ([ "i" ],
-             EIf
-               ((binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 15))) "Int" "==" 0 (EInt(bigint 0))),
-                EString "fizzbuzz",
-                EIf
-                  (binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 5))) "Int" "==" 0 (EInt(bigint 0)),
-                   EString "buzz",
-                   EIf
-                     (binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 3))) "Int" "==" 0 (EInt(bigint 0)),
-                      EString "fizz",
-                      sfn "Int" "toString" 0 [ EVariable "i" ]))))) ]))
-
-let fizzboom: Expr =
-  ELet
-    ("range",
-     (sfn "Int" "range" 0 [ EInt(bigint 1); EInt(bigint 100) ]),
-     (sfn
-       "List"
-        "map"
-        0
-        [ EVariable "range"
-          (ELambda
-            ([ "i" ],
-             EIf
-               ((binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 15))) "Int" "==" 0 (EInt(bigint 0))),
-                (sfn "HttpClient" "get" 0 [ EString "https://httpbin.org/delay/1" ]),
-                EIf
-                  (binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 5))) "Int" "==" 0 (EInt(bigint 0)),
-                   EString "buzz",
-                   EIf
-                     (binOp (binOp (EVariable "i") "Int" "%" 0 (EInt(bigint 3))) "Int" "==" 0 (EInt(bigint 0)),
-                      EString "fizz",
-                      sfn "Int" "toString" 0 [ EVariable "i" ]))))) ]))
-
 let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): DvalTask =
   let tryFindFn desc = env.functions.TryFind(desc)
   match e with

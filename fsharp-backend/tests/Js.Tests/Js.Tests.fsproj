@@ -4,10 +4,10 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Client.Tests.fs" />
+    <Compile Include="Js.Tests.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/Client/Client.fsproj" />
+    <ProjectReference Include="../../src/Js/Js.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

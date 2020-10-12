@@ -15,7 +15,7 @@ var MiniCssExtractPlugin = require("mini-css-extract-plugin");
 var CONFIG = {
   // The tags to include the generated JS and CSS will be automatically injected in the HTML template
   // See https://github.com/jantimon/html-webpack-plugin
-  fsharpEntry: "./src/Client/Client.fsproj",
+  fsharpEntry: "./src/Js/Js.fsproj",
   outputDir: "./deploy/public",
   assetsDir: "./src/Client/public",
   devServerPort: 8080,

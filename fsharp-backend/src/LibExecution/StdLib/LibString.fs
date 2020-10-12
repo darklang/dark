@@ -1,0 +1,3 @@
+module LibString
+
+let fns = []

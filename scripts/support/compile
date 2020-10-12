@@ -193,7 +193,7 @@ def fsharp_backend_test():
   #    configuration = "Release"
   #  else:
   #    configuration = "Debug"
-  build = f"cd fsharp-backend && unbuffer dotnet Build/out/All.Tests.dll"
+  build = f"cd fsharp-backend && unbuffer Build/out/Backend.Tests"
   return run_test(start, build)
 
 
