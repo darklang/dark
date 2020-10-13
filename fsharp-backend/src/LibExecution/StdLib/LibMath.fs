@@ -20,7 +20,7 @@ let fns : fn list =
     ; returnType = TFloat
     ; description =
         "Returns an approximation for the mathematical constant π, the ratio of a circle's circumference to its diameter."
-    ; fn =  (function _, [] -> DFloat pi | args -> fail args)
+    ; fn =  (function _, [] -> DFloat pi | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tau" 0
@@ -29,7 +29,7 @@ let fns : fn list =
     ; returnType = TFloat
     ; description =
         "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply Math::pi 2`."
-    ; fn =  (function _, [] -> DFloat tau | args -> fail args)
+    ; fn =  (function _, [] -> DFloat tau | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "degrees" 0
@@ -45,7 +45,7 @@ let fns : fn list =
           | _, [DFloat degrees] ->
               DFloat (degrees *. pi /. 180.0)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "turns" 0
@@ -58,7 +58,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat turns] -> DFloat (tau *. turns) | args -> fail args)
+          | _, [DFloat turns] -> DFloat (tau *. turns) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "radians" 0
@@ -70,7 +70,7 @@ let fns : fn list =
         There are `Float::multiply 2 Math::pi` radians in a circle."
     ; fn =
 
-          (function _, [DFloat rads] -> DFloat rads | args -> fail args)
+          (function _, [DFloat rads] -> DFloat rads | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cos" 0
@@ -82,7 +82,7 @@ let fns : fn list =
          One interpretation of the result relates to a right triangle: the cosine is the ratio of the lengths of the side adjacent to the angle and the hypotenuse."
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (Float.cos a) | args -> fail args)
+          (function _, [DFloat a] -> DFloat (Float.cos a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sin" 0
@@ -94,7 +94,7 @@ let fns : fn list =
          One interpretation of the result relates to a right triangle: the sine is the ratio of the lengths of the side opposite the angle and the hypotenuse."
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (Float.sin a) | args -> fail args)
+          (function _, [DFloat a] -> DFloat (Float.sin a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tan" 0
@@ -106,7 +106,7 @@ let fns : fn list =
          One interpretation of the result relates to a right triangle: the tangent is the ratio of the lengths of the side opposite the angle and the side adjacent to the angle."
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (Float.tan a) | args -> fail args)
+          (function _, [DFloat a] -> DFloat (Float.tan a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "acos" 0
@@ -127,7 +127,7 @@ let fns : fn list =
               then DOption OptNothing
               else DOption (OptJust (DFloat res))
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "asin" 0
@@ -148,7 +148,7 @@ let fns : fn list =
               then DOption OptNothing
               else DOption (OptJust (DFloat res))
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan" 0
@@ -161,7 +161,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a] -> DFloat (Float.atan a) | args -> fail args)
+          | _, [DFloat a] -> DFloat (Float.atan a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan2" 0
@@ -177,7 +177,7 @@ let fns : fn list =
           | _, [DFloat y; DFloat x] ->
               DFloat (Float.atan2 y x)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cosh" 0
@@ -188,7 +188,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a] -> DFloat (Float.cosh a) | args -> fail args)
+          | _, [DFloat a] -> DFloat (Float.cosh a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sinh" 0
@@ -199,7 +199,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
+          | _, [DFloat a] -> DFloat (Float.sinh a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tanh" 0
@@ -210,6 +210,6 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
+          | _, [DFloat a] -> DFloat (Float.sinh a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

@@ -19,7 +19,7 @@ let fns : fn list =
               url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "baseUrlForLatest" 0
@@ -34,7 +34,7 @@ let fns : fn list =
               url state.canvas_id (latest_deploy_hash state.canvas_id) `Short
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlFor" 0
@@ -53,7 +53,7 @@ let fns : fn list =
                 (Unicode_string.to_string file)
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlForLatest" 0
@@ -72,7 +72,7 @@ let fns : fn list =
                 (Unicode_string.to_string file)
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetch" 0
@@ -106,7 +106,7 @@ let fns : fn list =
 UTF-8 safe"))
               )
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetch" 1
@@ -137,7 +137,7 @@ UTF-8 safe"))
                   Dval.to_res_err
                     (Dval.dstr_of_string_exn "Response was not UTF-8 safe") )
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchBytes" 0
@@ -167,7 +167,7 @@ UTF-8 safe"))
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatest" 0
@@ -201,7 +201,7 @@ UTF-8 safe"))
 UTF-8 safe"))
               )
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetchLatest" 1
@@ -233,7 +233,7 @@ UTF-8 safe"))
                     (Dval.dstr_of_string_exn "Response was not
 UTF-8 safe") )
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatestBytes" 0
@@ -263,7 +263,7 @@ UTF-8 safe") )
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serve" 0
@@ -322,7 +322,7 @@ UTF-8 safe") )
                        (Dval.dstr_of_string_exn "Response was not UTF-8 safe"))
               )
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serve" 1
@@ -377,7 +377,7 @@ UTF-8 safe") )
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serveLatest" 0
@@ -433,7 +433,7 @@ UTF-8 safe") )
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serveLatest" 1
@@ -488,6 +488,6 @@ UTF-8 safe") )
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
-              Libexecution.Lib.fail args)
+              Libexecution.Lib.Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

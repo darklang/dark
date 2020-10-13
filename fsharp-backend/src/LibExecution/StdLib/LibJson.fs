@@ -17,7 +17,7 @@ let fns : fn list =
             ( try json |> Unicode_string.to_string |> Dval.of_unknown_json_v0
               with _ -> DNull )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "read" 1
@@ -32,7 +32,7 @@ let fns : fn list =
           | _, [DStr json] ->
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 0
@@ -47,7 +47,7 @@ let fns : fn list =
           | _, [DStr json] ->
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 1
@@ -71,6 +71,6 @@ let fns : fn list =
                      (e |> Exception.exn_to_string |> Dval.dstr_of_string_exn))
             )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

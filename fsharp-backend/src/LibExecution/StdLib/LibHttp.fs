@@ -16,7 +16,7 @@ let fns : fn list =
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "response" 0
@@ -31,7 +31,7 @@ let fns : fn list =
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
     (* TODO(ian): merge Http::respond with Http::respond_with_headers
@@ -51,7 +51,7 @@ let fns : fn list =
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHeaders" 0
@@ -67,7 +67,7 @@ let fns : fn list =
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "success" 0
@@ -79,7 +79,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
+          | _, [dv] -> DResp (Response (200, []), dv) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithHtml" 0
@@ -97,7 +97,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHtml" 0
@@ -115,7 +115,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithText" 0
@@ -133,7 +133,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithText" 0
@@ -151,7 +151,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithJson" 0
@@ -170,7 +170,7 @@ let fns : fn list =
                     , [("Content-Type", "application/json")] )
                 , dv )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithJson" 0
@@ -189,7 +189,7 @@ let fns : fn list =
                     , [("Content-Type", "application/json")] )
                 , dv )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "redirectTo" 0
@@ -204,7 +204,7 @@ let fns : fn list =
           | _, [DStr url] ->
               DResp (Redirect (Unicode_string.to_string url), DNull)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "badRequest" 0
@@ -219,7 +219,7 @@ let fns : fn list =
           | _, [DStr msg] ->
               DResp (Response (400, []), DStr msg)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "notFound" 0
@@ -231,7 +231,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
+          | _, [] -> DResp (Response (404, []), DNull) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "unauthorized" 0
@@ -243,7 +243,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
+          | _, [] -> DResp (Response (401, []), DNull) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "forbidden" 0
@@ -255,7 +255,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
+          | _, [] -> DResp (Response (403, []), DNull) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "setCookie" 0
@@ -301,7 +301,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 1
@@ -357,7 +357,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 2
@@ -516,6 +516,6 @@ let fns : fn list =
               | Error dv ->
                   dv )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

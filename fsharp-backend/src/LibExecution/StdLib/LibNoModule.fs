@@ -29,7 +29,7 @@ let fns : fn list =
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "" "toRepr" 0
@@ -44,7 +44,7 @@ let fns : fn list =
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "equals" 0
@@ -54,7 +54,7 @@ let fns : fn list =
     ; description = "Returns true if the two value are equal"
     ; fn =
 
-          (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
+          (function _, [a; b] -> DBool (equal_dval a b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "" "notEquals" 0
@@ -65,7 +65,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
+          | _, [a; b] -> DBool (not (equal_dval a b)) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "" "assoc" 0
@@ -79,7 +79,7 @@ let fns : fn list =
           | _, [DObj o; DStr k; v] ->
               DObj (Map.set o (Unicode_string.to_string k) v)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "dissoc" 0
@@ -93,7 +93,7 @@ let fns : fn list =
           | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "toForm" 0
@@ -131,7 +131,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn
                 (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Error" "toString" 0
@@ -145,7 +145,7 @@ let fns : fn list =
           | _, [DError (_, err)] ->
               Dval.dstr_of_string_exn err
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "AWS" "urlencode" 0
@@ -162,7 +162,7 @@ let fns : fn list =
               |> Stdlib_util.AWS.url_encode
               |> Dval.dstr_of_string_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Twitter" "urlencode" 0
@@ -179,6 +179,6 @@ let fns : fn list =
               |> Uri.pct_encode `Userinfo
               |> Dval.dstr_of_string_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

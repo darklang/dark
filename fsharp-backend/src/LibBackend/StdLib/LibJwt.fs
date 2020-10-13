@@ -150,7 +150,7 @@ let fns : fn list =
               sign_and_encode ~key ~extra_headers:[] ~payload
               |> Dval.dstr_of_string_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
@@ -179,7 +179,7 @@ let fns : fn list =
               sign_and_encode ~key ~extra_headers:json_hdrs ~payload
               |> Dval.dstr_of_string_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncode" 1
@@ -203,7 +203,7 @@ let fns : fn list =
                   sign_and_encode ~key ~extra_headers:[] ~payload
                   |> Dval.dstr_of_string_exn)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
@@ -233,7 +233,7 @@ let fns : fn list =
                   sign_and_encode ~key ~extra_headers:json_hdrs ~payload
                   |> Dval.dstr_of_string_exn)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "verifyAndExtract" 0
@@ -270,7 +270,7 @@ let fns : fn list =
               | None ->
                   DOption OptNothing ) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "verifyAndExtract" 1
@@ -313,6 +313,6 @@ let fns : fn list =
                 in
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

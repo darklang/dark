@@ -216,7 +216,7 @@ let call verb =
           query
           headers
     | args ->
-        fail args)
+        Error FnWrongType)
 
 
 let call_no_body verb =
@@ -225,7 +225,7 @@ let call_no_body verb =
     | _, [DStr uri; query; headers] ->
         send_request (Unicode_string.to_string uri) verb None query headers
     | args ->
-        fail args)
+        Error FnWrongType)
 
 
 let fns : fn list =
@@ -735,7 +735,7 @@ let fns : fn list =
                    "Authorization"
                    (DStr (encode_basic_auth_broken u p)))
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) (* Deprecated due to using encode_basic_auth_broken *)
     }
@@ -754,6 +754,6 @@ let fns : fn list =
                    "Authorization"
                    (DStr (encode_basic_auth u p)))
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

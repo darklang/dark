@@ -26,7 +26,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round_up a |> Dint.of_float)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float::floor"; "Float" "roundDown" 0
@@ -41,7 +41,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round_down a |> Dint.of_float)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "round" 0
@@ -55,7 +55,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round a |> Dint.of_float)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float::truncate"; "Float" "roundTowardsZero" 0
@@ -70,7 +70,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round_towards_zero a |> Dint.of_float)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "absoluteValue" 0
@@ -81,7 +81,7 @@ let fns : fn list =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (Float.abs a) | args -> fail args)
+          (function _, [DFloat a] -> DFloat (Float.abs a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "negate" 0
@@ -91,7 +91,7 @@ let fns : fn list =
     ; description = "Returns the negation of `a`, `-a`."
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (Float.neg a) | args -> fail args)
+          (function _, [DFloat a] -> DFloat (Float.neg a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "sqrt" 0
@@ -101,7 +101,7 @@ let fns : fn list =
     ; description = "Get the square root of a float"
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
+          (function _, [DFloat a] -> DFloat (sqrt a) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "power" 0
@@ -115,7 +115,7 @@ let fns : fn list =
           | _, [DFloat base; DFloat exp] ->
               DFloat (base ** exp)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "divide" 0
@@ -126,7 +126,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "add" 0
@@ -137,7 +137,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "multiply" 0
@@ -148,7 +148,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "subtract" 0
@@ -159,7 +159,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "greaterThan" 0
@@ -170,7 +170,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "greaterThanOrEqualTo" 0
@@ -181,7 +181,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "lessThan" 0
@@ -192,7 +192,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "lessThanOrEqualTo" 0
@@ -203,7 +203,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
+          | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "sum" 0
@@ -232,7 +232,7 @@ let fns : fn list =
                        "Sum expects you to pass a list of floats")
               |> Result.ok_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "min" 0
@@ -246,7 +246,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.min a b)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "max" 0
@@ -260,7 +260,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.max a b)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "clamp" 0
@@ -292,6 +292,6 @@ let fns : fn list =
                     ("Internal Float.clamp exception: " ^ Error.to_string_hum e)
               )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

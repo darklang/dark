@@ -23,7 +23,7 @@ let fns : fn list =
               ignore (User_db.set ~state true db key value) ;
               DObj value
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "add" 0
@@ -41,7 +41,7 @@ let fns : fn list =
               ignore (User_db.set ~state true db key value) ;
               Dval.dstr_of_string_exn key
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "get" 1
@@ -57,7 +57,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "get" 2
@@ -73,7 +73,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getMany" 1
@@ -102,7 +102,7 @@ let fns : fn list =
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getMany" 2
@@ -130,7 +130,7 @@ let fns : fn list =
               |> List.map (fun (_, v) -> v)
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getMany" 3
@@ -160,7 +160,7 @@ let fns : fn list =
                 List.map items (fun (_, v) -> v) |> DList |> OptJust |> DOption
               else DOption OptNothing
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getExisting" 0
@@ -188,7 +188,7 @@ let fns : fn list =
               |> List.map (fun (_, v) -> v)
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getManyWithKeys" 0
@@ -217,7 +217,7 @@ let fns : fn list =
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getManyWithKeys" 1
@@ -245,7 +245,7 @@ let fns : fn list =
               |> DvalMap.from_list
               |> DObj
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "delete" 1
@@ -262,7 +262,7 @@ let fns : fn list =
               User_db.delete ~state db key ;
               DNull
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "deleteAll" 1
@@ -278,7 +278,7 @@ let fns : fn list =
               User_db.delete_all state db ;
               DNull
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "query" 1
@@ -298,7 +298,7 @@ let fns : fn list =
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) (* see query_v2 *) }
   ; { name = fn "DB" "query" 2
@@ -316,7 +316,7 @@ let fns : fn list =
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryExactFields *)
@@ -335,7 +335,7 @@ let fns : fn list =
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryExactFields" 0
@@ -353,7 +353,7 @@ let fns : fn list =
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryWithKey" 1
@@ -373,7 +373,7 @@ let fns : fn list =
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryExactFieldsWithKey *)
@@ -393,7 +393,7 @@ let fns : fn list =
               |> DvalMap.from_list
               |> DObj
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryExactFieldsWithKey" 0
@@ -412,7 +412,7 @@ let fns : fn list =
               |> DvalMap.from_list
               |> DObj
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOne" 1
@@ -435,7 +435,7 @@ let fns : fn list =
               | _ ->
                   DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOne" 2
@@ -458,7 +458,7 @@ let fns : fn list =
               | _ ->
                   DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryOneExactFields *)
@@ -482,7 +482,7 @@ let fns : fn list =
               | _ ->
                   DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOneWithKey" 1
@@ -505,7 +505,7 @@ let fns : fn list =
               | _ ->
                   DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOneWithKey" 2
@@ -528,7 +528,7 @@ let fns : fn list =
               | _ ->
                   DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryOneExactFieldsWithKey *)
@@ -552,7 +552,7 @@ let fns : fn list =
               | _ ->
                   DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getAll" 1
@@ -572,7 +572,7 @@ let fns : fn list =
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAll" 2
@@ -589,7 +589,7 @@ let fns : fn list =
               |> List.map (fun (k, v) -> v)
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAll" 3
@@ -606,7 +606,7 @@ let fns : fn list =
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getAllWithKeys" 1
@@ -626,7 +626,7 @@ let fns : fn list =
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAllWithKeys" 2
@@ -642,7 +642,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db |> DvalMap.from_list |> DObj
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "count" 0
@@ -657,7 +657,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               User_db.count ~state db |> Dval.dint
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; (* previously called `DB::keys` *)
@@ -675,7 +675,7 @@ let fns : fn list =
               |> List.map (fun (k, v) -> Dval.dstr_of_string_exn k)
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "schema" 1
@@ -694,7 +694,7 @@ let fns : fn list =
                      (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)))
               |> Dval.to_dobj_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "generateKey" 0
@@ -708,7 +708,7 @@ let fns : fn list =
           | _, [] ->
               Uuidm.v `V4 |> Uuidm.to_string |> Dval.dstr_of_string_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "keys" 1
@@ -726,7 +726,7 @@ let fns : fn list =
               |> List.map (fun k -> Dval.dstr_of_string_exn k)
               |> DList
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "query" 4
@@ -747,7 +747,7 @@ let fns : fn list =
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryWithKey" 3
@@ -766,7 +766,7 @@ let fns : fn list =
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOne" 3
@@ -790,7 +790,7 @@ let fns : fn list =
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOne" 4
@@ -814,7 +814,7 @@ let fns : fn list =
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOneWithKey" 3
@@ -838,7 +838,7 @@ let fns : fn list =
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryCount" 0
@@ -857,6 +857,6 @@ let fns : fn list =
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

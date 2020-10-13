@@ -60,7 +60,7 @@ let fns : fn list =
                 (DObj DvalMap.empty)
                 headers
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated =
         true
@@ -121,6 +121,6 @@ let fns : fn list =
                 (DObj DvalMap.empty)
                 headers
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

@@ -21,7 +21,7 @@ let fns : fn list =
               Event_queue.enqueue ~canvas_id ~account_id space name "_" data ;
               data
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "emit" "1"
@@ -38,6 +38,6 @@ let fns : fn list =
               Event_queue.enqueue ~canvas_id ~account_id "WORKER" name "_" data ;
               data
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

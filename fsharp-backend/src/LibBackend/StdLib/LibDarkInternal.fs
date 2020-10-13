@@ -47,7 +47,7 @@ let modify_schedule fn =
             s ;
           DNull
       | args ->
-          fail args)
+          Error FnWrongType)
 
 
 let fns : fn list =
@@ -81,7 +81,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                              "Wrong number of fields from db query")
                 |> DList
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkAllCanvases" 0
@@ -114,7 +114,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; returnType = TFloat
     ; description = "Cleanup the old traces from a canvas"
     ; fn =
-        internal_fn (function state, [] -> DFloat 0.0 | args -> fail args)
+        internal_fn (function state, [] -> DFloat 0.0 | args -> Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
@@ -128,7 +128,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | state, [DUuid canvas_id] ->
                 DFloat 0.0
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "checkCanvas" 0
@@ -146,7 +146,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error _ ->
                     DBool false )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "migrateCanvas" 0
@@ -164,7 +164,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 0
@@ -186,7 +186,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error msg ->
                     Exception.code msg )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 1
@@ -215,7 +215,7 @@ that's already taken, returns an error."
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 2
@@ -271,7 +271,7 @@ that's already taken, returns an error."
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 1
@@ -298,7 +298,7 @@ that's already taken, returns an error."
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUser" 0
@@ -324,7 +324,7 @@ that's already taken, returns an error."
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "getUser" 1
@@ -351,7 +351,7 @@ that's already taken, returns an error."
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUserByEmail" 0
@@ -377,7 +377,7 @@ that's already taken, returns an error."
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setAdmin" 0
@@ -393,7 +393,7 @@ that's already taken, returns an error."
                 Stroller.heapio_identify_user username ;
                 DNull
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUsers" 0
@@ -408,7 +408,7 @@ that's already taken, returns an error."
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllCanvases" 0
@@ -436,7 +436,7 @@ that's already taken, returns an error."
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "schema" 0
@@ -478,7 +478,7 @@ that's already taken, returns an error."
                 | None ->
                     Dval.to_dobj_exn [] )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasAsText" 0
@@ -492,7 +492,7 @@ that's already taken, returns an error."
                 (* Removed, no longer useful now that you can copy from Fluid *)
                 Dval.dstr_of_string_exn ""
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "handlers" 0
@@ -516,7 +516,7 @@ that's already taken, returns an error."
                          (Libexecution.Types.string_of_id h.tlid))
                 |> fun l -> DList l
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "functions" 0
@@ -539,7 +539,7 @@ that's already taken, returns an error."
                          (Libexecution.Types.string_of_id fn.tlid))
                 |> fun l -> DList l
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canLoadTraces" 0
@@ -577,7 +577,7 @@ that's already taken, returns an error."
                   DBool true
                 with _ -> DBool false )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getCORSSetting" 0
@@ -610,7 +610,7 @@ that's already taken, returns an error."
                 in
                 !canvas.cors_setting |> cors_setting_to_dval
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setCORSSetting" 0
@@ -658,7 +658,7 @@ that's already taken, returns an error."
                     Canvas.update_cors_setting canvas settings ;
                     s |> DOption |> ResOk |> DResult )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "dbs" 0
@@ -683,7 +683,7 @@ that's already taken, returns an error."
                 |> List.map (fun s -> DStr (Unicode_string.of_string_exn s))
                 |> fun l -> DList l
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "oplistInfo" 0
@@ -746,7 +746,7 @@ that's already taken, returns an error."
                 |> convert_to_date "updated_at"
                 |> fun o -> DObj o
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "storedEvents" 0
@@ -795,7 +795,7 @@ that's already taken, returns an error."
                     in
                     DOption (OptJust event_list) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 0
@@ -822,7 +822,7 @@ that's already taken, returns an error."
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 1
@@ -849,7 +849,7 @@ that's already taken, returns an error."
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "sessionKeyToUsername" 0
@@ -869,7 +869,7 @@ that's already taken, returns an error."
                 | Some username ->
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
@@ -891,7 +891,7 @@ that's already taken, returns an error."
                 | None | _ ->
                     DOption OptNothing)
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "usernameToUserInfo" 0
@@ -917,7 +917,7 @@ that's already taken, returns an error."
                     |> OptJust
                     |> DOption )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grant" 0
@@ -966,7 +966,7 @@ that's already taken, returns an error."
                     Error e )
                 |> result_to_dval
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grantsFor" 0
@@ -993,7 +993,7 @@ that's already taken, returns an error."
                          map)
                 |> fun obj -> DObj obj
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "orgsFor" 0
@@ -1020,7 +1020,7 @@ that's already taken, returns an error."
                          map)
                 |> fun obj -> DObj obj
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkPermission" 0
@@ -1042,7 +1042,7 @@ that's already taken, returns an error."
                     "" )
                 |> Dval.dstr_of_string_exn
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "log" 0
@@ -1100,7 +1100,7 @@ that's already taken, returns an error."
                 Log.pP ~level name ~jsonparams ;
                 DObj log
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnsUsed" 0
@@ -1131,7 +1131,7 @@ that's already taken, returns an error."
                        |> Some)
                 |> DList
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fieldNamesUsed" 0
@@ -1162,7 +1162,7 @@ that's already taken, returns an error."
                        |> Some)
                 |> DList
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnMetadata" 0
@@ -1191,7 +1191,7 @@ that's already taken, returns an error."
                       (ResError (Dval.dstr_of_string_exn "function not found"))
                 )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "allFunctions" 0
@@ -1236,7 +1236,7 @@ that's already taken, returns an error."
                 in
                 DList fns
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "clearStaticAssets" 0
@@ -1254,7 +1254,7 @@ that's already taken, returns an error."
                 Static_assets.delete_assets_for_ellens_demo canvas_id ;
                 DNull
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllSchedulingRules" 0
@@ -1269,7 +1269,7 @@ that's already taken, returns an error."
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
@@ -1285,7 +1285,7 @@ that's already taken, returns an error."
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
@@ -1357,7 +1357,7 @@ that's already taken, returns an error."
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "newSessionForUsername" 1
@@ -1420,7 +1420,7 @@ that's already taken, returns an error."
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "deleteSession" 0
@@ -1440,7 +1440,7 @@ that's already taken, returns an error."
                   [String session_key]
                 |> Dval.dint
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAndLogTableSizes" 0
@@ -1506,6 +1506,6 @@ human-readable data."
                 in
                 table_stats_for_dobj |> DvalMap.from_list |> DObj
             | args ->
-                fail args)
+                Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

@@ -16,7 +16,7 @@ let fns : fn list =
           | _, [DBytes bytes] ->
               Dval.dstr_of_string_exn (Libtarget.base64url_bytes bytes)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bytes" "hexEncode" 0
@@ -43,7 +43,7 @@ let fns : fn list =
               done ;
               Buffer.contents buf |> Dval.dstr_of_string_exn
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bytes" "length" 0
@@ -57,6 +57,6 @@ let fns : fn list =
           | _, [DBytes bytes] ->
               Dval.dint (Bytes.length bytes)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

@@ -22,7 +22,7 @@ let fns =
             | OptNothing ->
                 DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Option" "map" 1
@@ -42,7 +42,7 @@ let fns =
             | OptNothing ->
                 DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Option" "map2" 0
@@ -63,7 +63,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [dv1; dv2] in
                 Dval.to_opt_just result )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Option" "andThen" 0
@@ -90,7 +90,7 @@ let fns =
             | OptNothing ->
                 DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Option" "withDefault" 0
@@ -105,6 +105,6 @@ let fns =
           | _, [DOption o; default] ->
             (match o with OptJust dv -> dv | OptNothing -> default)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

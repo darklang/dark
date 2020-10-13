@@ -53,7 +53,7 @@ let fns : fn list =
               |> Hash.hash_password Sodium.Password_hash.interactive
               |> DPassword
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Password" "check" 0
@@ -74,7 +74,7 @@ let fns : fn list =
               |> Hash.verify_password_hash existingpw
               |> DBool
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256" 0
@@ -91,7 +91,7 @@ let fns : fn list =
               |> digest_to_bytes
               |> DBytes
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha384" 0
@@ -108,7 +108,7 @@ let fns : fn list =
               |> digest_to_bytes
               |> DBytes
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "md5" 0
@@ -126,7 +126,7 @@ let fns : fn list =
               |> digest_to_bytes
               |> DBytes
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256hmac" 0
@@ -143,7 +143,7 @@ let fns : fn list =
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha1hmac" 0
@@ -160,6 +160,6 @@ let fns : fn list =
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]

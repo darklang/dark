@@ -11,7 +11,7 @@ let fns : fn list =
     ; description =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
     ; fn =
-         (function _, [DBool b] -> DBool (not b) | args -> fail args)
+         (function _, [DBool b] -> DBool (not b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "and" 0
@@ -22,7 +22,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DBool a; DBool b] -> DBool (a && b) | args -> fail args)
+          | _, [DBool a; DBool b] -> DBool (a && b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "or" 0
@@ -33,7 +33,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
+          | _, [DBool a; DBool b] -> DBool (a || b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "xor" 0
@@ -45,7 +45,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
+          | _, [DBool a; DBool b] -> DBool (a <> b) | args -> Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "isNull" 0
@@ -59,7 +59,7 @@ let fns : fn list =
           | _, [value] ->
             (match value with DNull -> DBool true | _ -> DBool false)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "isError" 0
@@ -73,6 +73,6 @@ let fns : fn list =
           | _, [value] ->
             (match value with DError _ -> DBool true | _ -> DBool false)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

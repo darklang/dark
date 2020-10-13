@@ -21,7 +21,7 @@ let fns =
             | ResError _ ->
                 DResult r )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "map" 1
@@ -41,7 +41,7 @@ let fns =
             | ResError _ ->
                 DResult r )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "mapError" 0
@@ -61,7 +61,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [err] in
                 DResult (ResError result) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "mapError" 1
@@ -81,7 +81,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [err] in
                 Dval.to_res_err result )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "withDefault" 0
@@ -96,7 +96,7 @@ let fns =
           | _, [DResult o; default] ->
             (match o with ResOk dv -> dv | ResError _ -> default)
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "fromOption" 0
@@ -115,7 +115,7 @@ let fns =
             | OptNothing ->
                 DResult (ResError (DStr error)) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "fromOption" 1
@@ -139,7 +139,7 @@ let fns =
             | OptNothing ->
                 Dval.to_res_err (DStr error) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "toOption" 0
@@ -157,7 +157,7 @@ let fns =
             | ResError _ ->
                 DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "toOption" 1
@@ -175,7 +175,7 @@ let fns =
             | ResError _ ->
                 DOption OptNothing )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "map2" 0
@@ -198,7 +198,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [dv1; dv2] in
                 Dval.to_res_ok result )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "andThen" 0
@@ -225,7 +225,7 @@ let fns =
             | ResError msg ->
                 DResult (ResError msg) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "andThen" 1
@@ -254,6 +254,6 @@ let fns =
             | ResError msg ->
                 DResult (ResError msg) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Pure
     ; deprecated = NotDeprecated } ]

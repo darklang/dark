@@ -28,6 +28,6 @@ let fns : Types.RuntimeT.fn list =
               with Invalid_argument msg ->
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
-              fail args)
+              Error FnWrongType)
     ; previewable = Impure
     ; deprecated = NotDeprecated } ]
