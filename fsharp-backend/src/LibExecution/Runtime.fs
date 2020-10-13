@@ -238,6 +238,8 @@ module Environment =
     | NotQueryable
     // This can be implemented by a builtin postgres 9.6 function.
     | SqlFunction of string
+    // This is a query function (it can't be called inside a query, but it's argument can be a query)
+    | QueryFunction
 
   type BuiltInFn =
     { name: FnDesc.T
