@@ -26,9 +26,10 @@ open FSharp.Control.Tasks
 
 exception InternalException of string
 
+
+
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
-
 module FnDesc =
   type T =
     { owner: string
@@ -59,16 +60,20 @@ type Expr =
   | ELambda of List<string> * Expr
   | EIf of Expr * Expr * Expr
 
+and LambdaBlock =
+  { parameters: List<string>
+    symtable: Symtable
+    body: Expr }
 
 // Runtime values
 and Dval =
   | DInt of bigint
   | DStr of string
   | DFakeVal of FakeDval
-  // | DChar of TextElement
+  | DChar of string // TextElements (extended grapheme clusters) are provided as string
   | DList of List<Dval>
   | DBool of bool
-  | DLambda of Symtable * List<string> * Expr
+  | DLambda of LambdaBlock
   static member int(i: int) = DInt(bigint i)
 
   member this.isFake: bool =
@@ -76,10 +81,12 @@ and Dval =
     | DFakeVal _ -> true
     | _ -> false
 
+  // FSTODO: what kind of JSON is this?
   member this.toJSON(): JsonValue =
     let rec encodeDval (dv: Dval): JsonValue =
       match dv with
       | DInt i -> Encode.bigint i
+      | DChar c -> Encode.string c
       | DStr str -> Encode.string str
       | DList l -> l |> List.map encodeDval |> Encode.list
       | DBool b -> Encode.bool b
@@ -161,7 +168,12 @@ and RuntimeError =
   | CondWithNonBool of Dval
   | FnCalledWithWrongTypes of FnDesc.T * List<Dval> * List<Param>
   | FnCalledWhenNotSync of FnDesc.T * List<Dval> * List<Param>
+  | LambdaCalledWithWrongCount of List<Dval> * List<string>
+  | LambdaCalledWithWrongType of List<Dval> * List<string>
+  | LambdaResultHasWrongType of Dval * DType
   | UndefinedVariable of string
+
+
 
 // Within a function call, we don't have the data available to make good
 // RuntimeErrors, so instead return a signal and let the calling code fill in the
@@ -196,6 +208,10 @@ and DType =
   | TVariable of string
   | TFn of List<DType> * DType
 
+// StdLib functions can go wrong for various reasons. We previous tied
+// ourselves in knots, trying to do elabortate folds to get them working. Much
+// easier to throw an exception (perhaps a lesson for Dark?)
+exception StdLibException of RuntimeError
 
 let err (e: RuntimeError): Dval = (DFakeVal(DError(e)))
 
@@ -208,58 +224,89 @@ module Symtable =
     |> Option.defaultValue (err (UndefinedVariable name))
 
 
-module Environment =
 
-  // The runtime needs to know whether to save a function's results when it
-  // runs. Pure functions that can be run on the client do not need to have
-  // their results saved.
-  // In addition, some functions can be run without side-effects; to give
-  // the user a good experience, we can run them as soon as they are added.
-  // this includes Date::now and Int::random, as well as
-  type Previewable =
-    // Do not need to be saved, can be recalculated in JS
-    | Pure
-    // Save their results. We can preview these safely
-    | ImpurePreviewable
-    // Save their results, cannot be safely previewed
-    | Impure
+// The runtime needs to know whether to save a function's results when it
+// runs. Pure functions that can be run on the client do not need to have
+// their results saved.
+// In addition, some functions can be run without side-effects; to give
+// the user a good experience, we can run them as soon as they are added.
+// this includes Date::now and Int::random, as well as
+type Previewable =
+  // Do not need to be saved, can be recalculated in JS
+  | Pure
+  // Save their results. We can preview these safely
+  | ImpurePreviewable
+  // Save their results, cannot be safely previewed
+  | Impure
 
-  type Deprecation =
-    | NotDeprecated
-    // This has been deprecated and has a replacement we can suggest
-    | ReplacedBy of FnDesc.T
-    // This has been deprecated and not replaced, provide a message for the user
-    | DeprecatedBecause of string
+type Deprecation =
+  | NotDeprecated
+  // This has been deprecated and has a replacement we can suggest
+  | ReplacedBy of FnDesc.T
+  // This has been deprecated and not replaced, provide a message for the user
+  | DeprecatedBecause of string
 
-  type SqlSpec =
-    // This can be implemented by we haven't yet
-    | NotYetImplementedTODO
-    // This is not a function which can be queried
-    | NotQueryable
-    // This can be implemented by a builtin postgres 9.6 function.
-    | SqlFunction of string
-    // This is a query function (it can't be called inside a query, but it's argument can be a query)
-    | QueryFunction
+type SqlSpec =
+  // This can be implemented by we haven't yet
+  | NotYetImplementedTODO
+  // This is not a function which can be queried
+  | NotQueryable
+  // This can be implemented by a builtin postgres 9.6 function.
+  | SqlFunction of string
+  // This is a query function (it can't be called inside a query, but it's argument can be a query)
+  | QueryFunction
 
-  type BuiltInFn =
-    { name: FnDesc.T
-      parameters: List<Param>
-      returnType: DType
-      description: string
-      previewable: Previewable
-      deprecated: Deprecation
-      sqlSpec: SqlSpec
-      (* Functions can be run in JS if they have an implementation in this
-       * LibExecution. Functions who's implementation is in LibBackend can only be
-       * implemented on the server. *)
-      fn: (T * List<Dval>) -> Result<DvalTask, FnError> }
+type BuiltInFn =
+  { name: FnDesc.T
+    parameters: List<Param>
+    returnType: DType
+    description: string
+    previewable: Previewable
+    deprecated: Deprecation
+    sqlSpec: SqlSpec
+    (* Functions can be run in JS if they have an implementation in this
+     * LibExecution. Functions who's implementation is in LibBackend can only be
+     * implemented on the server. *)
+    fn: (ExecutionState * List<Dval>) -> Result<DvalTask, FnError> }
 
-  and T = { functions: Map<FnDesc.T, BuiltInFn> }
+and ExecutionState = { functions: Map<FnDesc.T, BuiltInFn> }
+//    tlid : tlid
+// ; canvas_id : Uuidm.t
+// ; account_id : Uuidm.t
+// ; user_fns : user_fn list
+// ; user_tipes : user_tipe list
+// ; package_fns : fn list
+// ; dbs : DbT.db list
+// ; secrets : secret list
+// ; trace : on_execution_path:bool -> id -> dval -> unit
+// ; trace_tlid : tlid -> unit
+// ; callstack :
+//     (* Used for recursion detection in the editor. In the editor, we call all
+//      * paths to show live values, but with recursion that causes infinite
+//      * recursion. *)
+//     Tc.StrSet.t
+// ; context : context
+// ; execution_id : id
+// ; on_execution_path :
+//     (* Whether the currently executing code is really being executed (as
+//      * opposed to being executed for traces) *)
+//     bool
 
-  let envWith (functions: Map<FnDesc.T, BuiltInFn>): T = { functions = functions }
+// Some parts of the execution need to call AST.exec, but cannot call
+// AST.exec without a cyclic dependency. This function enables that, and it
+// is safe to do so because all of the state is in the exec_state
+// structure.
+// exec: ExecutionState -> Symtable -> Expr -> DvalTask
+// ; load_fn_result : load_fn_result_type
+// ; store_fn_result : store_fn_result_type
+// ; load_fn_arguments : load_fn_arguments_type
+// ; store_fn_arguments : store_fn_arguments_type
+// ; executing_fnname : string
+// ; fail_fn : fail_fn_type
 
 
-let map_s (list: List<'a>) (f: 'a -> DvalTask): Task<List<Dval>> =
+
+let map_s (f: 'a -> DvalTask) (list: List<'a>): Task<List<Dval>> =
   task {
     let! result =
       match list with

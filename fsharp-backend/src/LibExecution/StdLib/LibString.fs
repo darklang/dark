@@ -13,12 +13,15 @@ module LibExecution.LibString
 
 // let error_result msg =
 //   DResult(ResError(Dval.dstr_of_string_exn msg))
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 open LibExecution.Runtime
-open LibExecution.Runtime.Environment
+open FSharpPlus
+open Prelude
 
 let fn = FnDesc.stdFnDesc
 
-let fns: List<Environment.BuiltInFn> =
+let fns: List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TBool
@@ -40,51 +43,40 @@ let fns: List<Environment.BuiltInFn> =
       fn = (fun _ -> Error FnFunctionRemoved)
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "String" "foreach" 1) } ]
-// ; { name = fn "String" "foreach" 1
-//
-//   ; parameters = [Param.make "s" TStr; func ["character"]]
-//   ; returnType = TStr
-//   ; description =
-//       "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
-//   ; fn =
-//
-//         (function
-//         | state, [DStr s; DBlock b] ->
-//             let result =
-//               Unicode_string.map_characters
-//                 (fun c -> Ast.execute_dblock state b [DCharacter c])
-//                 s
-//             in
-//             ( match
-//                 List.find
-//                   (function DIncomplete _ -> true | _ -> false)
-//                   result
-//               with
-//             | Some i ->
-//                 i
-//             | None ->
-//                 result
-//                 |> list_coerce Dval.to_char
-//                 >>| String.concat
-//                 >>| (fun x -> Dval.dstr_of_string_exn x)
-//                 |> Result.map_error (fun (result, example_value) ->
-//                        RT.error
-//                          (DList result)
-//                          (DList result)
-//
-//                            ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
-//                            ^ Dval.to_developer_repr_v0 example_value
-//                            ^ " is a "
-//                            ^ Dval.pretty_tipename example_value )
-//                          "every value to be a char"
-//                          "foreach expects you to return chars")
-//                 |> Result.ok_exn )
-//         | args ->
-//             Error FnWrongType)
-//   ; sqlSpec = NotYetImplementedTODO
-// ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "String" "foreach" 1) }
+    { name = fn "String" "foreach" 1
+      parameters =
+        [ Param.make "s" TStr ""
+          Param.make "f" (TFn([ TChar ], TChar)) "" ]
+      returnType = TStr
+      description =
+        "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
+      fn =
+        (function
+        | state, [ DStr s; DLambda b ] ->
+            (String.toTextElements s
+             |> Seq.toList
+             |> Runtime.map_s (fun te -> (Interpreter.eval_lambda state b [ DChar te ]))
+             |> (fun dvals ->
+             Task
+               (task {
+                 let! dvals = dvals
+
+                 let chars =
+                   List.map (function
+                     | DChar c -> c
+                     | dv -> raise (StdLibException(LambdaResultHasWrongType(dv, TChar)))) dvals
+
+                 let str = String.concat "" chars
+
+                 return DStr str
+                }))
+             |> Ok)
+
+        | args -> Error FnWrongTypes)
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 // ; { name = fn "String" "newline" 0
 //
 //   ; parameters = []

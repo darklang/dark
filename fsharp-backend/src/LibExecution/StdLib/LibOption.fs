@@ -14,7 +14,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DOption o; DBlock b] ->
+          | state, [DOption o; DLambda b] ->
             ( match o with
             | OptJust dv ->
                 let result = Ast.execute_dblock ~state b [dv] in
@@ -35,7 +35,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DOption o; DBlock b] ->
+          | state, [DOption o; DLambda b] ->
             ( match o with
             | OptJust dv ->
                 let result = Ast.execute_dblock ~state b [dv] in
@@ -57,7 +57,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DOption o1; DOption o2; DBlock b] ->
+          | state, [DOption o1; DOption o2; DLambda b] ->
             ( match (o1, o2) with
             | OptNothing, _ | _, OptNothing ->
                 DOption OptNothing
@@ -78,7 +78,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DOption o; DBlock b] ->
+          | state, [DOption o; DLambda b] ->
             ( match o with
             | OptJust dv ->
                 let result = Ast.execute_dblock ~state b [dv] in

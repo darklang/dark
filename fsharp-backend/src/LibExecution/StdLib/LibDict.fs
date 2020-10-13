@@ -319,7 +319,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DObj o; DBlock b] ->
+          | state, [DObj o; DLambda b] ->
               let f dv = Ast.execute_dblock ~state b [dv] in
               DObj (Map.map ~f o)
           | args ->
@@ -337,7 +337,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DObj o; DBlock b] ->
+          | state, [DObj o; DLambda b] ->
               let f ~key ~(data : dval) =
                 Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
               in
@@ -357,7 +357,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DObj o; DBlock b] ->
+          | state, [DObj o; DLambda b] ->
               let incomplete = ref false in
               let f ~(key : string) ~(data : dval) : bool =
                 let result =
@@ -392,7 +392,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DObj o; DBlock b] ->
+          | state, [DObj o; DLambda b] ->
               let filter_propagating_errors ~key ~data acc =
                 match acc with
                 | Error dv ->
@@ -441,7 +441,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DObj o; DBlock b] ->
+          | state, [DObj o; DLambda b] ->
               let abortReason = ref None in
               let f ~key ~(data : dval) : dval option =
                 if !abortReason = None

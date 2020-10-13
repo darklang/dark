@@ -4,7 +4,7 @@ open FSharp.Control.Tasks
 open Runtime
 open Interpreter
 
-let fns: List<Environment.BuiltInFn> = []
+let fns: List<BuiltInFn> = []
 // [ { name = FnDesc.stdFnDesc "Int" "range" 0
 //     parameters =
 //       [ param "list" (TList(TVariable("a"))) "The list to be operated on"

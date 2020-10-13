@@ -200,7 +200,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let f (dv : dval) : bool =
                 DBool true = Ast.execute_dblock ~state b [dv]
               in
@@ -219,7 +219,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let f (dv : dval) : bool =
                 DBool true = Ast.execute_dblock ~state b [dv]
               in
@@ -242,7 +242,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let f (dv : Types.RuntimeT.dval) : bool =
                 DBool true = Ast.execute_dblock ~state b [dv]
               in
@@ -345,7 +345,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; init; DBlock b] ->
+          | state, [DList l; init; DLambda b] ->
               (* Fake cf should be propagated by the blocks so we dont need to check *)
               let f (dv1 : dval) (dv2 : dval) : dval =
                 Ast.execute_dblock ~state b [dv1; dv2]
@@ -434,7 +434,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let fn dv = Ast.execute_dblock ~state b [dv] in
               DList
                 (List.dedup_and_sort l (fun a b ->
@@ -484,7 +484,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList list; DBlock b] ->
+          | state, [DList list; DLambda b] ->
               let fn dv = Ast.execute_dblock ~state b [dv] in
               list
               |> List.sort (fun a b -> compare_dval (fn a) (fn b))
@@ -505,7 +505,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList list; DBlock b] ->
+          | state, [DList list; DLambda b] ->
               let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
               ( try
                   list
@@ -585,7 +585,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let incomplete = ref false in
               let f (dv : dval) : bool =
                 match Ast.execute_dblock ~state b [dv] with
@@ -616,7 +616,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let fakecf = ref None in
               let f (dv : dval) : bool =
                 let run = !fakecf = None in
@@ -649,7 +649,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let abortReason = ref None in
               let f (dv : dval) : bool =
                 !abortReason = None
@@ -694,7 +694,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let abortReason = ref None in
               let f (dv : dval) : dval option =
                 if !abortReason = None
@@ -753,7 +753,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let abortReason = ref None in
               let rec f = function
                 | [] ->
@@ -815,7 +815,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let abortReason = ref None in
               let rec f = function
                 | [] ->
@@ -863,7 +863,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
               DList (List.map ~f l)
           | args ->
@@ -881,7 +881,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
               Dval.to_list (List.map ~f l)
           | args ->
@@ -899,7 +899,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l; DBlock b] ->
+          | state, [DList l; DLambda b] ->
               let f (idx : int) (dv : dval) : dval =
                 Ast.execute_dblock ~state b [Dval.dint idx; dv]
               in
@@ -921,7 +921,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l1; DList l2; DBlock b] ->
+          | state, [DList l1; DList l2; DLambda b] ->
               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
               let len = min (List.length l1) (List.length l2) in
               let l1 = List.take l1 len in
@@ -947,7 +947,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DList l1; DList l2; DBlock b] ->
+          | state, [DList l1; DList l2; DLambda b] ->
               let f (l1Item : dval) (l2Item : dval) : dval =
                 Ast.execute_dblock ~state b [l1Item; l2Item]
               in

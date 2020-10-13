@@ -11,8 +11,8 @@ let run (e: Expr): Task<Dval> =
     |> List.map (fun fn -> (fn.name, fn))
     |> Map
 
-  let env = Environment.envWith (functions)
-  (Interpreter.eval env Symtable.empty e).toTask()
+  let state = { functions = functions }
+  (Interpreter.eval state Symtable.empty e).toTask()
 
 
 let runString (e: Expr): Task<string> =

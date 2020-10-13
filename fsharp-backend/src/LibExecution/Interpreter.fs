@@ -8,51 +8,81 @@ open Thoth.Json.Net
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open FSharpPlus
 
 open Runtime
 
 // fsharplint:disable FL0039
-let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): DvalTask =
-  let tryFindFn desc = env.functions.TryFind(desc)
+let rec eval (state: ExecutionState) (st: Symtable.T) (e: Expr): DvalTask =
+  let tryFindFn desc = state.functions.TryFind(desc)
   match e with
   | EInt i -> Plain(DInt i)
   | EString s -> Plain(DStr s)
   | ELet (lhs, rhs, body) ->
-      let rhs = eval env st rhs
+      let rhs = eval state st rhs
       rhs.bind (fun rhs ->
         let st = st.Add(lhs, rhs)
-        eval env st body)
+        eval state st body)
   | EFnCall (desc, exprs) ->
       (match tryFindFn desc with
        | Some fn ->
            Task
              (task {
-               let! args = Runtime.map_s exprs (eval env st)
-               return! (callFn env fn (Seq.toList args)).toTask()
+               let! args = Runtime.map_s (eval state st) exprs
+               return! (callFn state fn (Seq.toList args)).toTask()
               })
        | None -> Plain(err (NotAFunction desc)))
   | EBinOp (arg1, desc, arg2) ->
       (match tryFindFn desc with
        | Some fn ->
-           let t1 = eval env st arg1
-           let t2 = eval env st arg2
-           t1.bind2 t2 (fun arg1 arg2 -> callFn env fn [ arg1; arg2 ])
+           let t1 = eval state st arg1
+           let t2 = eval state st arg2
+           t1.bind2 t2 (fun arg1 arg2 -> callFn state fn [ arg1; arg2 ])
        | None -> Plain(err (NotAFunction desc)))
-  | ELambda (vars, expr) -> Plain(DLambda(st, vars, expr))
+  | ELambda (parameters, body) ->
+      Plain
+        (DLambda
+          ({ symtable = st
+             parameters = parameters
+             body = body }))
   | EVariable (name) -> Plain(Symtable.get st name)
   | EIf (cond, thenbody, elsebody) ->
-      let cond = eval env st cond
+      let cond = eval state st cond
       cond.bind (function
-        | DBool (true) -> eval env st thenbody
-        | DBool (false) -> eval env st elsebody
+        | DBool (true) -> eval state st thenbody
+        | DBool (false) -> eval state st elsebody
         | cond -> Task(task { return (err (CondWithNonBool cond)) }))
 
 
-and callFn (env: Environment.T) (fn: Environment.BuiltInFn) (args: List<Dval>): DvalTask =
+and callFn (state: ExecutionState) (fn: BuiltInFn) (args: List<Dval>): DvalTask =
   match List.tryFind (fun (dv: Dval) -> dv.isFake) args with
   | Some special -> Plain special
   | None ->
-      match fn.fn (env, args) with
+      match fn.fn (state, args) with
       | Ok result -> result
       | Error FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
       | Error FnWrongTypes -> Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+
+and eval_lambda (state: ExecutionState) (l: Runtime.LambdaBlock) (args: List<Dval>): DvalTask =
+  (* If one of the args is fake value used as a marker, return it instead of
+   * executing. This is the same behaviour as in fn calls. *)
+  match List.tryFind (fun (dv: Dval) -> dv.isFake) args with
+  | Some dv -> Plain(dv)
+  | None ->
+      (* One of the reasons to take a separate list of params and args is to
+       * provide this error message here. We don't have this information in
+       * other places, and the alternative is just to provide incompletes
+       * with no context *)
+      if List.length l.parameters <> List.length args then
+        Plain(err (LambdaCalledWithWrongCount(args, l.parameters)))
+      else
+        // FSTODO
+        // let bindings = List.zip_exn params args in
+        // List.iter bindings ~f:(fun ((id, paramName), dv) ->
+        //     state.trace ~on_execution_path:state.on_execution_path id dv) ;
+        let newSymtable =
+          List.zip l.parameters args
+          |> Map
+          |> Map.union l.symtable
+
+        eval state newSymtable l.body
