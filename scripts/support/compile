@@ -635,6 +635,7 @@ def ignore(filename):
       "esy.lock",
       "/home/dark/.esy",
       "node_modules",
+      "fsharp-backend/.fable"
       "fsharp-backend/Build",
       "build.ninja",
       "containers/stroller/target",
@@ -688,7 +689,7 @@ def main():
     else:
       sys.exit(1)
   else:
-    pretty_print("Nothing to compile", 43)
+    # Don't print as it can be overwhelming
     sys.exit(1)
 
 

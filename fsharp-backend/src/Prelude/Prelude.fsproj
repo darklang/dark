@@ -8,7 +8,5 @@
     <None Include="paket.references" />
     <Compile Include="Prelude.fs" />
   </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
