@@ -10,7 +10,7 @@ let fns =
     ; returnType = TUuid
     ; description = "Generate a new UUID v4 according to RFC 4122"
     ; fn =
-         (function _, [] -> DUuid (Uuidm.v `V4) | args -> Error FnWrongType)
+         (function _, [] -> DUuid (Uuidm.v `V4) | args -> incorrectArgs ())
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
     ; sqlSpec = NotYetImplementedTODO

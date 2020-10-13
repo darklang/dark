@@ -60,7 +60,7 @@ let fns : fn list =
                 (DObj DvalMap.empty)
                 headers
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated =
@@ -122,7 +122,7 @@ let fns : fn list =
                 (DObj DvalMap.empty)
                 headers
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated } ]

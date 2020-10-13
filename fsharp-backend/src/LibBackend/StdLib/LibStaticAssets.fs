@@ -19,7 +19,7 @@ let fns : fn list =
               url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -35,7 +35,7 @@ let fns : fn list =
               url state.canvas_id (latest_deploy_hash state.canvas_id) `Short
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -55,7 +55,7 @@ let fns : fn list =
                 (Unicode_string.to_string file)
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -75,7 +75,7 @@ let fns : fn list =
                 (Unicode_string.to_string file)
               |> Dval.dstr_of_string_exn
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -110,7 +110,7 @@ let fns : fn list =
 UTF-8 safe"))
               )
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -142,7 +142,7 @@ UTF-8 safe"))
                   Dval.to_res_err
                     (Dval.dstr_of_string_exn "Response was not UTF-8 safe") )
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -173,7 +173,7 @@ UTF-8 safe"))
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -208,7 +208,7 @@ UTF-8 safe"))
 UTF-8 safe"))
               )
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -241,7 +241,7 @@ UTF-8 safe"))
                     (Dval.dstr_of_string_exn "Response was not
 UTF-8 safe") )
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -272,7 +272,7 @@ UTF-8 safe") )
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -332,7 +332,7 @@ UTF-8 safe") )
                        (Dval.dstr_of_string_exn "Response was not UTF-8 safe"))
               )
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -388,7 +388,7 @@ UTF-8 safe") )
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -445,7 +445,7 @@ UTF-8 safe") )
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -501,7 +501,7 @@ UTF-8 safe") )
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
           | args ->
-              Libexecution.Lib.Error FnWrongType)
+              Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated } ]

@@ -29,7 +29,7 @@ let fns : fn list =
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -45,7 +45,7 @@ let fns : fn list =
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -56,7 +56,7 @@ let fns : fn list =
     ; description = "Returns true if the two value are equal"
     ; fn =
 
-          (function _, [a; b] -> DBool (equal_dval a b) | args -> Error FnWrongType)
+          (function _, [a; b] -> DBool (equal_dval a b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -68,7 +68,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [a; b] -> DBool (not (equal_dval a b)) | args -> Error FnWrongType)
+          | _, [a; b] -> DBool (not (equal_dval a b)) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -83,7 +83,7 @@ let fns : fn list =
           | _, [DObj o; DStr k; v] ->
               DObj (Map.set o (Unicode_string.to_string k) v)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -98,7 +98,7 @@ let fns : fn list =
           | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -137,7 +137,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn
                 (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -152,7 +152,7 @@ let fns : fn list =
           | _, [DError (_, err)] ->
               Dval.dstr_of_string_exn err
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -170,7 +170,7 @@ let fns : fn list =
               |> Stdlib_util.AWS.url_encode
               |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -188,7 +188,7 @@ let fns : fn list =
               |> Uri.pct_encode `Userinfo
               |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

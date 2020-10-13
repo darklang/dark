@@ -150,7 +150,7 @@ let fns : fn list =
               sign_and_encode ~key ~extra_headers:[] ~payload
               |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -180,7 +180,7 @@ let fns : fn list =
               sign_and_encode ~key ~extra_headers:json_hdrs ~payload
               |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -205,7 +205,7 @@ let fns : fn list =
                   sign_and_encode ~key ~extra_headers:[] ~payload
                   |> Dval.dstr_of_string_exn)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -236,7 +236,7 @@ let fns : fn list =
                   sign_and_encode ~key ~extra_headers:json_hdrs ~payload
                   |> Dval.dstr_of_string_exn)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -274,7 +274,7 @@ let fns : fn list =
               | None ->
                   DOption OptNothing ) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -318,7 +318,7 @@ let fns : fn list =
                 in
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated } ]

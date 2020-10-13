@@ -19,7 +19,7 @@ let fns : fn list =
                   (Stdlib_util.date_of_isostring (Unicode_string.to_string s))
               with e -> RT.error "Invalid date format" )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -43,7 +43,7 @@ let fns : fn list =
                 DResult
                   (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -66,7 +66,7 @@ let fns : fn list =
                 Dval.to_res_err (Dval.dstr_of_string_exn "Invalid date format")
             )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -82,7 +82,7 @@ let fns : fn list =
           | _, [DDate d] ->
               Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date d)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -99,7 +99,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn
                 (Stdlib_util.isostring_of_date_basic_datetime d)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -115,7 +115,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn
                 (Stdlib_util.isostring_of_date_basic_date d)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -125,7 +125,7 @@ let fns : fn list =
     ; returnType = TDate
     ; description = "Returns the current time."
     ; fn =
-         (function _, [] -> DDate (Time.now ()) | args -> Error FnWrongType)
+         (function _, [] -> DDate (Time.now ()) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -144,7 +144,7 @@ let fns : fn list =
                    Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
               |> DDate
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -159,7 +159,7 @@ let fns : fn list =
           | _, [DDate d; DInt s] ->
               DDate (Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -174,7 +174,7 @@ let fns : fn list =
           | _, [DDate d; DInt s] ->
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -189,7 +189,7 @@ let fns : fn list =
           | _, [DDate d; DInt s] ->
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -204,7 +204,7 @@ let fns : fn list =
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( > ) d1 d2)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -219,7 +219,7 @@ let fns : fn list =
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( < ) d1 d2)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -234,7 +234,7 @@ let fns : fn list =
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( >= ) d1 d2)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -249,7 +249,7 @@ let fns : fn list =
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( <= ) d1 d2)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -269,7 +269,7 @@ let fns : fn list =
               |> Float.iround_exn
               |> Dval.dint
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -289,7 +289,7 @@ let fns : fn list =
               |> Time.of_span_since_epoch
               |> DDate
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -364,7 +364,7 @@ let fns : fn list =
               let diff = if diff = "" then "less than a minute" else diff in
               Dval.dstr_of_string_exn diff
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) (* This doesn't mean anything *) }
@@ -379,7 +379,7 @@ let fns : fn list =
           | _, [DDate d] ->
               d |> Time.to_date Time.Zone.utc |> Date.year |> Dval.dint
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -399,7 +399,7 @@ let fns : fn list =
               |> Month.to_int
               |> Dval.dint
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -414,7 +414,7 @@ let fns : fn list =
           | _, [DDate d] ->
               d |> Time.to_date Time.Zone.utc |> Date.day |> Dval.dint
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -434,7 +434,7 @@ let fns : fn list =
               |> Day_of_week.iso_8601_weekday_number
               |> Dval.dint
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -454,7 +454,7 @@ let fns : fn list =
               |> Dint.of_float
               |> DInt
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -474,7 +474,7 @@ let fns : fn list =
               |> Dint.of_float
               |> DInt
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -494,7 +494,7 @@ let fns : fn list =
               |> Dint.of_float
               |> DInt
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -514,7 +514,7 @@ let fns : fn list =
               |> Dint.of_float
               |> DInt
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -533,7 +533,7 @@ let fns : fn list =
                    Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
               |> DDate
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

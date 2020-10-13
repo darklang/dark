@@ -26,7 +26,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round_up a |> Dint.of_float)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -42,7 +42,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round_down a |> Dint.of_float)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -57,7 +57,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round a |> Dint.of_float)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -73,7 +73,7 @@ let fns : fn list =
           | _, [DFloat a] ->
               DInt (Float.round_towards_zero a |> Dint.of_float)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -85,7 +85,7 @@ let fns : fn list =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (Float.abs a) | args -> Error FnWrongType)
+          (function _, [DFloat a] -> DFloat (Float.abs a) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -96,7 +96,7 @@ let fns : fn list =
     ; description = "Returns the negation of `a`, `-a`."
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (Float.neg a) | args -> Error FnWrongType)
+          (function _, [DFloat a] -> DFloat (Float.neg a) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -107,7 +107,7 @@ let fns : fn list =
     ; description = "Get the square root of a float"
     ; fn =
 
-          (function _, [DFloat a] -> DFloat (sqrt a) | args -> Error FnWrongType)
+          (function _, [DFloat a] -> DFloat (sqrt a) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -122,7 +122,7 @@ let fns : fn list =
           | _, [DFloat base; DFloat exp] ->
               DFloat (base ** exp)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -134,7 +134,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -146,7 +146,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -158,7 +158,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -170,7 +170,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -182,7 +182,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -194,7 +194,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -206,7 +206,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -218,7 +218,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> Error FnWrongType)
+          | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -248,7 +248,7 @@ let fns : fn list =
                        "Sum expects you to pass a list of floats")
               |> Result.ok_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -263,7 +263,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.min a b)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -278,7 +278,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.max a b)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -311,7 +311,7 @@ let fns : fn list =
                     ("Internal Float.clamp exception: " ^ Error.to_string_hum e)
               )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

@@ -47,7 +47,7 @@ let modify_schedule fn =
             s ;
           DNull
       | args ->
-          Error FnWrongType)
+          incorrectArgs ())
 
 
 let fns : fn list =
@@ -82,7 +82,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                              "Wrong number of fields from db query")
                 |> DList
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -119,7 +119,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; returnType = TFloat
     ; description = "Cleanup the old traces from a canvas"
     ; fn =
-        internal_fn (function state, [] -> DFloat 0.0 | args -> Error FnWrongType)
+        internal_fn (function state, [] -> DFloat 0.0 | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -134,7 +134,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | state, [DUuid canvas_id] ->
                 DFloat 0.0
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -153,7 +153,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error _ ->
                     DBool false )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -172,7 +172,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -195,7 +195,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error msg ->
                     Exception.code msg )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -225,7 +225,7 @@ that's already taken, returns an error."
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -282,7 +282,7 @@ that's already taken, returns an error."
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -310,7 +310,7 @@ that's already taken, returns an error."
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -337,7 +337,7 @@ that's already taken, returns an error."
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -365,7 +365,7 @@ that's already taken, returns an error."
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -392,7 +392,7 @@ that's already taken, returns an error."
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -409,7 +409,7 @@ that's already taken, returns an error."
                 Stroller.heapio_identify_user username ;
                 DNull
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -425,7 +425,7 @@ that's already taken, returns an error."
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -455,7 +455,7 @@ that's already taken, returns an error."
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -498,7 +498,7 @@ that's already taken, returns an error."
                 | None ->
                     Dval.to_dobj_exn [] )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -513,7 +513,7 @@ that's already taken, returns an error."
                 (* Removed, no longer useful now that you can copy from Fluid *)
                 Dval.dstr_of_string_exn ""
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -538,7 +538,7 @@ that's already taken, returns an error."
                          (Libexecution.Types.string_of_id h.tlid))
                 |> fun l -> DList l
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -562,7 +562,7 @@ that's already taken, returns an error."
                          (Libexecution.Types.string_of_id fn.tlid))
                 |> fun l -> DList l
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -601,7 +601,7 @@ that's already taken, returns an error."
                   DBool true
                 with _ -> DBool false )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -635,7 +635,7 @@ that's already taken, returns an error."
                 in
                 !canvas.cors_setting |> cors_setting_to_dval
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -664,7 +664,7 @@ that's already taken, returns an error."
                         |> List.map Dval.to_string_exn
                         |> Canvas.Origins
                         |> Some
-                        |> Ok
+
                     | OptJust dv ->
                         Error
                           ( "Received something other than an Nothing, Just [...], or Just \"*\": "
@@ -684,7 +684,7 @@ that's already taken, returns an error."
                     Canvas.update_cors_setting canvas settings ;
                     s |> DOption |> ResOk |> DResult )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -710,7 +710,7 @@ that's already taken, returns an error."
                 |> List.map (fun s -> DStr (Unicode_string.of_string_exn s))
                 |> fun l -> DList l
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -774,7 +774,7 @@ that's already taken, returns an error."
                 |> convert_to_date "updated_at"
                 |> fun o -> DObj o
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -824,7 +824,7 @@ that's already taken, returns an error."
                     in
                     DOption (OptJust event_list) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -852,7 +852,7 @@ that's already taken, returns an error."
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -880,7 +880,7 @@ that's already taken, returns an error."
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -901,7 +901,7 @@ that's already taken, returns an error."
                 | Some username ->
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -924,7 +924,7 @@ that's already taken, returns an error."
                 | None | _ ->
                     DOption OptNothing)
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -951,7 +951,7 @@ that's already taken, returns an error."
                     |> OptJust
                     |> DOption )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1001,7 +1001,7 @@ that's already taken, returns an error."
                     Error e )
                 |> result_to_dval
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1029,7 +1029,7 @@ that's already taken, returns an error."
                          map)
                 |> fun obj -> DObj obj
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1057,7 +1057,7 @@ that's already taken, returns an error."
                          map)
                 |> fun obj -> DObj obj
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1080,7 +1080,7 @@ that's already taken, returns an error."
                     "" )
                 |> Dval.dstr_of_string_exn
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1139,7 +1139,7 @@ that's already taken, returns an error."
                 Log.pP ~level name ~jsonparams ;
                 DObj log
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1171,7 +1171,7 @@ that's already taken, returns an error."
                        |> Some)
                 |> DList
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1203,7 +1203,7 @@ that's already taken, returns an error."
                        |> Some)
                 |> DList
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1233,7 +1233,7 @@ that's already taken, returns an error."
                       (ResError (Dval.dstr_of_string_exn "function not found"))
                 )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1279,7 +1279,7 @@ that's already taken, returns an error."
                 in
                 DList fns
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1298,7 +1298,7 @@ that's already taken, returns an error."
                 Static_assets.delete_assets_for_ellens_demo canvas_id ;
                 DNull
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1314,7 +1314,7 @@ that's already taken, returns an error."
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1331,7 +1331,7 @@ that's already taken, returns an error."
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1406,7 +1406,7 @@ that's already taken, returns an error."
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -1470,7 +1470,7 @@ that's already taken, returns an error."
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1491,7 +1491,7 @@ that's already taken, returns an error."
                   [String session_key]
                 |> Dval.dint
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -1558,7 +1558,7 @@ human-readable data."
                 in
                 table_stats_for_dobj |> DvalMap.from_list |> DObj
             | args ->
-                Error FnWrongType)
+                incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated } ]

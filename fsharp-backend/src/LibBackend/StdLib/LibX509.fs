@@ -28,7 +28,7 @@ let fns : Types.RuntimeT.fn list =
               with Invalid_argument msg ->
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated } ]

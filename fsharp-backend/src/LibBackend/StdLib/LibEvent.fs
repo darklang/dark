@@ -21,7 +21,7 @@ let fns : fn list =
               Event_queue.enqueue ~canvas_id ~account_id space name "_" data ;
               data
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -39,7 +39,7 @@ let fns : fn list =
               Event_queue.enqueue ~canvas_id ~account_id "WORKER" name "_" data ;
               data
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated } ]

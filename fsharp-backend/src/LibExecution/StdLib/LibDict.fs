@@ -16,7 +16,7 @@ let fns =
           | _, [DStr k; v] ->
               DObj (DvalMap.singleton (Unicode_string.to_string k) v)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -29,7 +29,7 @@ let fns =
     ; fn =
 
           (function
-          | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> Error FnWrongType)
+          | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -47,7 +47,7 @@ let fns =
               |> List.map (fun k -> Dval.dstr_of_string_exn k)
               |> fun l -> DList l
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -59,7 +59,7 @@ let fns =
     ; fn =
 
           (function
-          | _, [DObj o] -> DList (DvalMap.values o) | args -> Error FnWrongType)
+          | _, [DObj o] -> DList (DvalMap.values o) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -78,7 +78,7 @@ let fns =
                      DList [Dval.dstr_of_string_exn k; v])
               |> Dval.to_list
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -150,7 +150,7 @@ let fns =
               in
               (match result with Ok res -> DObj res | Error v -> v)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -230,7 +230,7 @@ let fns =
               in
               (match result with Ok res -> res | Error v -> v)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -250,7 +250,7 @@ let fns =
             | None ->
                 DNull )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -269,7 +269,7 @@ let fns =
             | None ->
                 DOption OptNothing )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -289,7 +289,7 @@ let fns =
             | None ->
                 DOption OptNothing )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -306,7 +306,7 @@ let fns =
               let key = Unicode_string.to_string s in
               DBool (DvalMap.contains_key o ~key)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -323,7 +323,7 @@ let fns =
               let f dv = Ast.execute_dblock ~state b [dv] in
               DObj (Map.map ~f o)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -343,7 +343,7 @@ let fns =
               in
               DObj (Map.mapi ~f o)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -379,7 +379,7 @@ let fns =
               then DIncomplete SourceNone (*TODO(ds) source info *)
               else DObj (Base.Map.filteri ~f o)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -425,7 +425,7 @@ let fns =
               in
               (match filtered_result with Ok o -> DObj o | Error dv -> dv)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -479,7 +479,7 @@ let fns =
               let result = Map.filter_mapi ~f o in
               (match !abortReason with None -> DObj result | Some v -> v)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -489,7 +489,7 @@ let fns =
     ; returnType = TObj
     ; description = "Returns an empty dictionary."
     ; fn =
-         (function _, [] -> DObj DvalMap.empty | args -> Error FnWrongType)
+         (function _, [] -> DObj DvalMap.empty | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -501,7 +501,7 @@ let fns =
     ; fn =
 
           (function
-          | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> Error FnWrongType)
+          | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -517,7 +517,7 @@ let fns =
           | _, [DObj l; DObj r] ->
               DObj (Stdlib_util.merge_right l r)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -534,7 +534,7 @@ let fns =
               |> Dval.to_pretty_machine_json_v1
               |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -549,7 +549,7 @@ let fns =
           | _, [DObj o; DStr k; v] ->
               DObj (Map.set o (Unicode_string.to_string k) v)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -565,7 +565,7 @@ let fns =
           | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

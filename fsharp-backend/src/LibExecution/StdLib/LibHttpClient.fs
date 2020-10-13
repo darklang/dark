@@ -19,7 +19,7 @@ let fns : fn list =
                    "Content-Type"
                    (Dval.dstr_of_string_exn "application/x-www-form-urlencoded"))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -37,7 +37,7 @@ let fns : fn list =
                    "Content-Type"
                    (Dval.dstr_of_string_exn "application/json; charset=utf-8"))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -55,7 +55,7 @@ let fns : fn list =
                    "Content-Type"
                    (Dval.dstr_of_string_exn "text/plain; charset=utf-8"))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -73,7 +73,7 @@ let fns : fn list =
                    "Content-Type"
                    (Dval.dstr_of_string_exn "text/html; charset=utf-8"))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -94,7 +94,7 @@ let fns : fn list =
               in
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated =
@@ -116,7 +116,7 @@ let fns : fn list =
               in
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

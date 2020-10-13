@@ -10,7 +10,7 @@ let fns : fn list =
     ; returnType = TObj
     ; description = "Return an empty object"
     ; fn =
-         (function _, [] -> DObj DvalMap.empty | args -> Error FnWrongType)
+         (function _, [] -> DObj DvalMap.empty | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -26,7 +26,7 @@ let fns : fn list =
           | _, [DObj l; DObj r] ->
               DObj (Stdlib_util.merge_right l r)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -43,7 +43,7 @@ let fns : fn list =
               |> Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
               |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -60,7 +60,7 @@ let fns : fn list =
               |> Dval.to_pretty_machine_json_v1
               |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

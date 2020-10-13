@@ -22,7 +22,7 @@ let fns =
             | OptNothing ->
                 DOption OptNothing )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -43,7 +43,7 @@ let fns =
             | OptNothing ->
                 DOption OptNothing )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -65,7 +65,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [dv1; dv2] in
                 Dval.to_opt_just result )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -93,7 +93,7 @@ let fns =
             | OptNothing ->
                 DOption OptNothing )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -109,7 +109,7 @@ let fns =
           | _, [DOption o; default] ->
             (match o with OptJust dv -> dv | OptNothing -> default)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

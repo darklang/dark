@@ -16,7 +16,7 @@ let fns : fn list =
           | _, [DBytes bytes] ->
               Dval.dstr_of_string_exn (Libtarget.base64url_bytes bytes)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -44,7 +44,7 @@ let fns : fn list =
               done ;
               Buffer.contents buf |> Dval.dstr_of_string_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -59,7 +59,7 @@ let fns : fn list =
           | _, [DBytes bytes] ->
               Dval.dint (Bytes.length bytes)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

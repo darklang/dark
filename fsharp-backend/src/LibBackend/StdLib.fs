@@ -16,7 +16,7 @@ let fns: List<BuiltInFn> = []
 //           List.map DInt [ lower .. upper ]
 //           |> DList
 //           |> Plain
-//           |> Ok
+//
 //       | _ -> Error()) }
 //   { name = FnDesc.stdFnDesc "List" "map" 0
 //     parameters =
@@ -49,8 +49,8 @@ let fns: List<BuiltInFn> = []
 //       (function
 //       | env, [ DInt a; DInt b ] ->
 //           try
-//             Ok(Plain(DInt(a % b)))
-//           with _ -> Ok(Plain(DInt(bigint 0)))
+//             (Plain(DInt(a % b)))
+//           with _ -> (Plain(DInt(bigint 0)))
 //       | _ -> Error()) }
 //   { name = (FnDesc.stdFnDesc "Int" "==" 0)
 //     parameters =
@@ -62,14 +62,14 @@ let fns: List<BuiltInFn> = []
 //          "True if structurally equal (they do not have to be the same piece of memory, two dicts or lists or strings with the same value will be equal), false otherwise")
 //     fn =
 //       (function
-//       | env, [ DInt a; DInt b ] -> Ok(Plain(DBool(a = b)))
+//       | env, [ DInt a; DInt b ] -> (Plain(DBool(a = b)))
 //       | _ -> Error()) }
 //   { name = (FnDesc.stdFnDesc "Int" "toString" 0)
 //     parameters = [ param "a" TInt "value" ]
 //     returnType = (retVal TString "Stringified version of a")
 //     fn =
 //       (function
-//       | env, [ DInt a ] -> Ok(Plain(DStr(a.ToString())))
+//       | env, [ DInt a ] -> (Plain(DStr(a.ToString())))
 //
 //       | _ -> Error()) }
 //   { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)

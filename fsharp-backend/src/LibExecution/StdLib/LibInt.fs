@@ -40,7 +40,7 @@ let fns : fn list =
                 else (* In case there's another failure mode, rollbar *)
                   raise e )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable =
         Pure
@@ -75,7 +75,7 @@ let fns : fn list =
                 else (* In case there's another failure mode, rollbar *)
                   raise e )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } *)
@@ -102,7 +102,7 @@ let fns : fn list =
                 else (* In case there's another failure mode, rollbar *)
                   raise e )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -153,7 +153,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use ++ or String::append to join Strings or parse Strings to Ints with String::toInt."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -186,7 +186,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -219,7 +219,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -234,7 +234,7 @@ let fns : fn list =
           | _, [DInt base; DInt exp] ->
               DInt (Dint.pow base exp)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -267,7 +267,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::divide to divide Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -279,7 +279,7 @@ let fns : fn list =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
     ; fn =
 
-          (function _, [DInt a] -> DInt (Dint.abs a) | args -> Error FnWrongType)
+          (function _, [DInt a] -> DInt (Dint.abs a) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -290,7 +290,7 @@ let fns : fn list =
     ; description = "Returns the negation of `a`, `-a`."
     ; fn =
 
-          (function _, [DInt a] -> DInt (Dint.negate a) | args -> Error FnWrongType)
+          (function _, [DInt a] -> DInt (Dint.negate a) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -323,7 +323,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -356,7 +356,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -389,7 +389,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -422,7 +422,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -439,7 +439,7 @@ let fns : fn list =
               let open Dint in
               DInt (a + one + Dint.random (b - a))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -458,7 +458,7 @@ let fns : fn list =
               let lower, upper = if a > b then (b, a + one) else (a, b + one) in
               DInt (lower + Dint.random (upper - lower))
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -482,7 +482,7 @@ let fns : fn list =
                   ^ " only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."
                 )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -494,7 +494,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DInt a] -> DFloat (Dint.to_float a) | args -> Error FnWrongType)
+          | _, [DInt a] -> DFloat (Dint.to_float a) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -524,7 +524,7 @@ let fns : fn list =
                        "Sum expects you to pass a list of ints")
               |> Result.ok_exn
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -536,7 +536,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> Error FnWrongType)
+          | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -548,7 +548,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> Error FnWrongType)
+          | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -578,7 +578,7 @@ let fns : fn list =
                     ("Internal Dint.clamp exception: " ^ Error.to_string_hum e)
               )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

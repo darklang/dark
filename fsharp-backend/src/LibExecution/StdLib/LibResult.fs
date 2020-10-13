@@ -21,7 +21,7 @@ let fns =
             | ResError _ ->
                 DResult r )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -42,7 +42,7 @@ let fns =
             | ResError _ ->
                 DResult r )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -63,7 +63,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [err] in
                 DResult (ResError result) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -84,7 +84,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [err] in
                 Dval.to_res_err result )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -100,7 +100,7 @@ let fns =
           | _, [DResult o; default] ->
             (match o with ResOk dv -> dv | ResError _ -> default)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -120,7 +120,7 @@ let fns =
             | OptNothing ->
                 DResult (ResError (DStr error)) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -145,7 +145,7 @@ let fns =
             | OptNothing ->
                 Dval.to_res_err (DStr error) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -164,7 +164,7 @@ let fns =
             | ResError _ ->
                 DOption OptNothing )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -183,7 +183,7 @@ let fns =
             | ResError _ ->
                 DOption OptNothing )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -207,7 +207,7 @@ let fns =
                 let result = Ast.execute_dblock ~state b [dv1; dv2] in
                 Dval.to_res_ok result )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -235,7 +235,7 @@ let fns =
             | ResError msg ->
                 DResult (ResError msg) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -265,7 +265,7 @@ let fns =
             | ResError msg ->
                 DResult (ResError msg) )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

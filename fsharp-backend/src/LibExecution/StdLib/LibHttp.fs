@@ -16,7 +16,7 @@ let fns : fn list =
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -32,7 +32,7 @@ let fns : fn list =
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -53,7 +53,7 @@ let fns : fn list =
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -70,7 +70,7 @@ let fns : fn list =
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -83,7 +83,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [dv] -> DResp (Response (200, []), dv) | args -> Error FnWrongType)
+          | _, [dv] -> DResp (Response (200, []), dv) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -102,7 +102,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -121,7 +121,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -140,7 +140,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -159,7 +159,7 @@ let fns : fn list =
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -179,7 +179,7 @@ let fns : fn list =
                     , [("Content-Type", "application/json")] )
                 , dv )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -199,7 +199,7 @@ let fns : fn list =
                     , [("Content-Type", "application/json")] )
                 , dv )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -215,7 +215,7 @@ let fns : fn list =
           | _, [DStr url] ->
               DResp (Redirect (Unicode_string.to_string url), DNull)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -231,7 +231,7 @@ let fns : fn list =
           | _, [DStr msg] ->
               DResp (Response (400, []), DStr msg)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -244,7 +244,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (404, []), DNull) | args -> Error FnWrongType)
+          | _, [] -> DResp (Response (404, []), DNull) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -257,7 +257,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (401, []), DNull) | args -> Error FnWrongType)
+          | _, [] -> DResp (Response (401, []), DNull) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -270,7 +270,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (403, []), DNull) | args -> Error FnWrongType)
+          | _, [] -> DResp (Response (403, []), DNull) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -317,7 +317,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -374,7 +374,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -534,7 +534,7 @@ let fns : fn list =
               | Error dv ->
                   dv )
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } ]

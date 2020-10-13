@@ -53,7 +53,7 @@ let fns : fn list =
               |> Hash.hash_password Sodium.Password_hash.interactive
               |> DPassword
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -75,7 +75,7 @@ let fns : fn list =
               |> Hash.verify_password_hash existingpw
               |> DBool
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -93,7 +93,7 @@ let fns : fn list =
               |> digest_to_bytes
               |> DBytes
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -111,7 +111,7 @@ let fns : fn list =
               |> digest_to_bytes
               |> DBytes
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -130,7 +130,7 @@ let fns : fn list =
               |> digest_to_bytes
               |> DBytes
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -148,7 +148,7 @@ let fns : fn list =
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -166,7 +166,7 @@ let fns : fn list =
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = NotDeprecated } ]

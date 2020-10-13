@@ -58,10 +58,13 @@ and callFn (state: ExecutionState) (fn: BuiltInFn) (args: List<Dval>): DvalTask 
   match List.tryFind (fun (dv: Dval) -> dv.isFake) args with
   | Some special -> Plain special
   | None ->
-      match fn.fn (state, args) with
-      | Ok result -> result
-      | Error FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
-      | Error FnWrongTypes -> Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+      try
+        fn.fn (state, args)
+      with
+      | RuntimeException rte -> Plain(err rte)
+      | FnCallException FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
+      | FnCallException FnWrongTypes -> Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+      | FakeDvalException dval -> Plain(dval)
 
 and eval_lambda (state: ExecutionState) (l: Runtime.LambdaBlock) (args: List<Dval>): DvalTask =
   (* If one of the args is fake value used as a marker, return it instead of

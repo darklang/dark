@@ -173,8 +173,6 @@ and RuntimeError =
   | LambdaResultHasWrongType of Dval * DType
   | UndefinedVariable of string
 
-
-
 // Within a function call, we don't have the data available to make good
 // RuntimeErrors, so instead return a signal and let the calling code fill in the
 // blanks.
@@ -183,7 +181,7 @@ and RuntimeError =
 // should use Results instead. But, we can't really change what a function
 // does, so sometimes we discover we made a mistake and need to paper around
 // it. In those cases, we return DErrors.
-and FnError =
+and FnCallError =
   | FnFunctionRemoved
   | FnWrongTypes
 
@@ -211,7 +209,9 @@ and DType =
 // StdLib functions can go wrong for various reasons. We previous tied
 // ourselves in knots, trying to do elabortate folds to get them working. Much
 // easier to throw an exception (perhaps a lesson for Dark?)
-exception StdLibException of RuntimeError
+exception RuntimeException of RuntimeError // when we know the runtime error to raise
+exception FnCallException of FnCallError // when we need callFn to fill in
+exception FakeDvalException of Dval // when we encounter a fakeDval, jump right own
 
 let err (e: RuntimeError): Dval = (DFakeVal(DError(e)))
 
@@ -256,6 +256,7 @@ type SqlSpec =
   // This is a query function (it can't be called inside a query, but it's argument can be a query)
   | QueryFunction
 
+
 type BuiltInFn =
   { name: FnDesc.T
     parameters: List<Param>
@@ -264,10 +265,13 @@ type BuiltInFn =
     previewable: Previewable
     deprecated: Deprecation
     sqlSpec: SqlSpec
-    (* Functions can be run in JS if they have an implementation in this
-     * LibExecution. Functions who's implementation is in LibBackend can only be
-     * implemented on the server. *)
-    fn: (ExecutionState * List<Dval>) -> Result<DvalTask, FnError> }
+    // Functions can be run in JS if they have an implementation in this
+    // LibExecution. Functions who's implementation is in LibBackend can only be
+    // implemented on the server.
+    // May throw a
+    fn: BuiltInFnSig }
+
+and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
 
 and ExecutionState = { functions: Map<FnDesc.T, BuiltInFn> }
 //    tlid : tlid
@@ -305,7 +309,11 @@ and ExecutionState = { functions: Map<FnDesc.T, BuiltInFn> }
 // ; fail_fn : fail_fn_type
 
 
-
+// Processes each item of the list in order, waiting for the previous one to
+// finish. This ensures each request in the list is processed to completion
+// before the next one is done, making sure that, for example, a HttpClient
+// call will finish before the next one starts. Will allow other requests to
+// run which waiting.
 let map_s (f: 'a -> DvalTask) (list: List<'a>): Task<List<Dval>> =
   task {
     let! result =
@@ -336,6 +344,11 @@ let map_s (f: 'a -> DvalTask) (list: List<'a>): Task<List<Dval>> =
 
     return (result |> Seq.toList)
   }
+
+let incorrectArgs () = raise (FnCallException FnWrongTypes)
+
+let removedFunction: BuiltInFnSig =
+  fun _ -> raise (FnCallException FnFunctionRemoved)
 
 module Shortcuts =
   let fn (module_: string) (function_: string) (version: int) (args: List<Expr>): Expr =

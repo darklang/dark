@@ -28,8 +28,8 @@ let fns: List<BuiltInFn> =
       description = "Returns <val true> if <param s> is the empty string <val \"\">."
       fn =
         (function
-        | _, [ DStr s ] -> Ok(Plain(DBool(s.Length = 0)))
-        | args -> Error FnWrongTypes)
+        | _, [ DStr s ] -> Plain(DBool(s = ""))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -40,7 +40,7 @@ let fns: List<BuiltInFn> =
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-      fn = (fun _ -> Error FnFunctionRemoved)
+      fn = removedFunction
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "foreach" 1) }
@@ -65,15 +65,14 @@ let fns: List<BuiltInFn> =
                  let chars =
                    List.map (function
                      | DChar c -> c
-                     | dv -> raise (StdLibException(LambdaResultHasWrongType(dv, TChar)))) dvals
+                     | dv -> raise (RuntimeException(LambdaResultHasWrongType(dv, TChar)))) dvals
 
                  let str = String.concat "" chars
 
                  return DStr str
-                }))
-             |> Ok)
+                })))
 
-        | _ -> Error FnWrongTypes)
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -83,8 +82,8 @@ let fns: List<BuiltInFn> =
       description = "Returns a string containing a single '\n'"
       fn =
         (function
-        | _, [] -> Ok(Plain(DStr "\n"))
-        | _ -> Error FnWrongTypes)
+        | _, [] -> Plain(DStr "\n")
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -92,7 +91,7 @@ let fns: List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TList TChar
       description = "Returns the list of characters (byte, not EGC) in the string"
-      fn = (fun _ -> Error FnFunctionRemoved)
+      fn = removedFunction
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toList" 1) }
@@ -108,9 +107,8 @@ let fns: List<BuiltInFn> =
              |> Seq.map (fun c -> DChar c)
              |> Seq.toList
              |> DList
-             |> Plain
-             |> Ok)
-        | args -> Error FnWrongTypes)
+             |> Plain)
+        | args -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -123,8 +121,8 @@ let fns: List<BuiltInFn> =
       description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
       fn =
         (function
-        | _, [ DStr s; DStr search; DStr replace ] -> Ok(Plain(DStr(String.replace s search replace)))
-        | _ -> Error FnWrongTypes)
+        | _, [ DStr s; DStr search; DStr replace ] -> Plain(DStr(s.Replace(search, replace)))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]
@@ -145,7 +143,7 @@ let fns: List<BuiltInFn> =
 //                   "\\d+"
 //                   "Expected a string with only numbers" )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -165,7 +163,7 @@ let fns: List<BuiltInFn> =
 //                 error_result
 //                   ("Expected a string with only numbers, got " ^ utf8) )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -185,7 +183,7 @@ let fns: List<BuiltInFn> =
 //                   utf8
 //                   "Expected a string representation of an IEEE float" )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -204,7 +202,7 @@ let fns: List<BuiltInFn> =
 //                 error_result
 //                   "Expected a string representation of an IEEE float" )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -220,7 +218,7 @@ let fns: List<BuiltInFn> =
 //             Dval.dstr_of_string_exn
 //               (String.uppercase (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -232,7 +230,7 @@ let fns: List<BuiltInFn> =
 //   ; fn =
 //
 //         (function
-//         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> Error FnWrongType)
+//         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -248,7 +246,7 @@ let fns: List<BuiltInFn> =
 //             Dval.dstr_of_string_exn
 //               (String.lowercase (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -260,7 +258,7 @@ let fns: List<BuiltInFn> =
 //   ; fn =
 //
 //         (function
-//         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> Error FnWrongType)
+//         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -275,7 +273,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr s] ->
 //             Dval.dint (String.length (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -290,7 +288,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr s] ->
 //             Dval.dint (Unicode_string.length s)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -313,7 +311,7 @@ let fns: List<BuiltInFn> =
 //             * concatenating two normalized strings does not always result in a normalized string. *)
 //             DStr (Unicode_string.append_broken s1 s2)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -329,7 +327,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr s1; DStr s2] ->
 //             DStr (Unicode_string.append s1 s2)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -345,7 +343,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr s1; DStr s2] ->
 //             DStr (Unicode_string.append s2 s1)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -375,7 +373,7 @@ let fns: List<BuiltInFn> =
 //             |> Unicode_string.lowercase
 //             |> fun s -> DStr s
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -405,7 +403,7 @@ let fns: List<BuiltInFn> =
 //             |> Unicode_string.lowercase
 //             |> fun s -> DStr s
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -436,7 +434,7 @@ let fns: List<BuiltInFn> =
 //             |> Unicode_string.lowercase
 //             |> fun s -> DStr s
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -448,7 +446,7 @@ let fns: List<BuiltInFn> =
 //   ; fn =
 //
 //         (function
-//         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> Error FnWrongType)
+//         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -467,7 +465,7 @@ let fns: List<BuiltInFn> =
 //             |> List.map (fun str -> DStr str)
 //             |> DList
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -492,7 +490,7 @@ let fns: List<BuiltInFn> =
 //             in
 //             DStr (Unicode_string.concat ~sep s)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -524,7 +522,7 @@ let fns: List<BuiltInFn> =
 //                          RT.error dv "expected a char")
 //               |> Unicode_string.of_characters )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -549,7 +547,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DCharacter c] ->
 //             DStr (Unicode_string.of_character c)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -569,7 +567,7 @@ let fns: List<BuiltInFn> =
 //                  false
 //                  (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -600,7 +598,7 @@ let fns: List<BuiltInFn> =
 //                       (Dval.dstr_of_string_exn (Unicode_string.to_string s))
 //                     "Not a valid base64 string" ) )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -618,7 +616,7 @@ let fns: List<BuiltInFn> =
 //             Dval.dstr_of_string_exn
 //               (Libtarget.digest384 (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -635,7 +633,7 @@ let fns: List<BuiltInFn> =
 //             Dval.dstr_of_string_exn
 //               (Libtarget.digest384 (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -652,7 +650,7 @@ let fns: List<BuiltInFn> =
 //             Dval.dstr_of_string_exn
 //               (Libtarget.digest256 (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -672,7 +670,7 @@ let fns: List<BuiltInFn> =
 //               Dval.dstr_of_string_exn
 //                 (Stdlib_util.random_string (Dint.to_int_exn l))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Impure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -694,7 +692,7 @@ let fns: List<BuiltInFn> =
 //                    (Dval.dstr_of_string_exn
 //                       (Stdlib_util.random_string (Dint.to_int_exn l))))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Impure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -715,7 +713,7 @@ let fns: List<BuiltInFn> =
 //                 (Dval.dstr_of_string_exn
 //                    (Stdlib_util.random_string (Dint.to_int_exn l)))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Impure
 //   ; deprecated = NotDeprecated }
@@ -732,7 +730,7 @@ let fns: List<BuiltInFn> =
 //             Dval.dstr_of_string_exn
 //               (Stdlib_util.html_escape (Unicode_string.to_string s))
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Impure
 //   ; deprecated = NotDeprecated }
@@ -754,7 +752,7 @@ let fns: List<BuiltInFn> =
 //                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 //           )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -776,7 +774,7 @@ let fns: List<BuiltInFn> =
 //                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 //           )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -791,7 +789,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr needle; DStr haystack] ->
 //             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -806,7 +804,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr haystack; DStr needle] ->
 //             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -821,7 +819,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr haystack; DStr needle] ->
 //             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -840,7 +838,7 @@ let fns: List<BuiltInFn> =
 //             let first, last = (Dint.to_int_exn f, Dint.to_int_exn l) in
 //             DStr (Unicode_string.slice s ~first ~last)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -859,7 +857,7 @@ let fns: List<BuiltInFn> =
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.first_n s n)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -878,7 +876,7 @@ let fns: List<BuiltInFn> =
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.last_n s n)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -897,7 +895,7 @@ let fns: List<BuiltInFn> =
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.drop_last_n s n)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -916,7 +914,7 @@ let fns: List<BuiltInFn> =
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.drop_first_n s n)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -947,7 +945,7 @@ let fns: List<BuiltInFn> =
 //                   ^ Int.to_string padLen
 //                   ^ " characters long." )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -978,7 +976,7 @@ let fns: List<BuiltInFn> =
 //                   ^ Int.to_string padLen
 //                   ^ " characters long." )
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -994,7 +992,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim to_trim)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -1010,7 +1008,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim_start to_trim)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -1026,7 +1024,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim_end to_trim)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -1043,7 +1041,7 @@ let fns: List<BuiltInFn> =
 //             let theBytes = Unicode_string.to_utf8_bytes str in
 //             DBytes theBytes
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -1058,7 +1056,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr subject; DStr prefix] ->
 //             DBool (Unicode_string.starts_with ~prefix subject)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
@@ -1073,7 +1071,7 @@ let fns: List<BuiltInFn> =
 //         | _, [DStr subject; DStr suffix] ->
 //             DBool (Unicode_string.ends_with ~suffix subject)
 //         | args ->
-//             Error FnWrongType)
+//             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }

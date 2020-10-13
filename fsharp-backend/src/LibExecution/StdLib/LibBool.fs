@@ -11,7 +11,7 @@ let fns : fn list =
     ; description =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
     ; fn =
-         (function _, [DBool b] -> DBool (not b) | args -> Error FnWrongType)
+         (function _, [DBool b] -> DBool (not b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -23,7 +23,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DBool a; DBool b] -> DBool (a && b) | args -> Error FnWrongType)
+          | _, [DBool a; DBool b] -> DBool (a && b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -35,7 +35,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DBool a; DBool b] -> DBool (a || b) | args -> Error FnWrongType)
+          | _, [DBool a; DBool b] -> DBool (a || b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -48,7 +48,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [DBool a; DBool b] -> DBool (a <> b) | args -> Error FnWrongType)
+          | _, [DBool a; DBool b] -> DBool (a <> b) | args -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -63,7 +63,7 @@ let fns : fn list =
           | _, [value] ->
             (match value with DNull -> DBool true | _ -> DBool false)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -78,7 +78,7 @@ let fns : fn list =
           | _, [value] ->
             (match value with DError _ -> DBool true | _ -> DBool false)
           | args ->
-              Error FnWrongType)
+              incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]
