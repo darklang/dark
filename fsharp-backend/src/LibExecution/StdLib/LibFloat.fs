@@ -7,7 +7,7 @@ module RT = Runtime
 let list_coerce ~(f : dval -> 'a option) (l : dval list) :
     ('a list, dval list * dval) Result.t =
   l
-  |> List.map ~f:(fun dv ->
+  |> List.map (fun dv ->
          match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
   |> Result.all
 
@@ -216,19 +216,19 @@ let fns : fn list =
           (function
           | _, [DList l] ->
               l
-              |> list_coerce ~f:Dval.to_float
-              >>| List.fold_left ~f:( +. ) ~init:0.0
+              |> list_coerce Dval.to_float
+              >>| List.fold_left ( +. ) 0.0
               >>| (fun x -> DFloat x)
-              |> Result.map_error ~f:(fun (result, example_value) ->
+              |> Result.map_error (fun (result, example_value) ->
                      RT.error
-                       ~actual:(DList result)
-                       ~result:(DList result)
-                       ~long:
+                       (DList result)
+                       (DList result)
+
                          ( "Float::sum requires all values to be floats, but "
                          ^ Dval.to_developer_repr_v0 example_value
                          ^ " is a "
                          ^ Dval.pretty_tipename example_value )
-                       ~expected:"every list item to be an float "
+                       "every list item to be an float "
                        "Sum expects you to pass a list of floats")
               |> Result.ok_exn
           | args ->

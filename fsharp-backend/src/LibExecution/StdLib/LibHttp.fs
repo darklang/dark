@@ -271,7 +271,7 @@ let fns : fn list =
               o
               (* Transform a DOBj into a cookie list of individual cookie params *)
               |> Map.to_alist
-              |> List.concat_map ~f:(fun (x, y) ->
+              |> List.concat_map (fun (x, y) ->
                      match (String.lowercase x, y) with
                      (* Single boolean set-cookie params *)
                      | "secure", DBool b | "httponly", DBool b ->
@@ -293,7 +293,7 @@ let fns : fn list =
                          |> Format.sprintf "Unknown set-cookie param: %s: %s" x
                          |> Exception.code)
               (* Combine it into a set-cookie header *)
-              |> String.concat ~sep:"; "
+              |> String.concat "; "
               |> Format.sprintf
                    "%s=%s; %s"
                    (Uri.pct_encode (Unicode_string.to_string name))
@@ -317,7 +317,7 @@ let fns : fn list =
               o
               (* Transform a DOBj into a cookie list of individual cookie params *)
               |> Map.to_alist
-              |> List.concat_map ~f:(fun (x, y) ->
+              |> List.concat_map (fun (x, y) ->
                      match (String.lowercase x, y) with
                      (* Single boolean set-cookie params *)
                      | "secure", DBool b | "httponly", DBool b ->
@@ -339,7 +339,7 @@ let fns : fn list =
                          |> Format.sprintf "Unknown set-cookie param: %s: %s" x
                          |> Exception.code)
               (* Combine it into a set-cookie header *)
-              |> String.concat ~sep:"; "
+              |> String.concat "; "
               |> Format.sprintf
                    "%s=%s; %s"
                    (* DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
@@ -375,7 +375,7 @@ let fns : fn list =
                   ~(data : dval)
                   (acc : (string list, dval (* type error *)) result) :
                   (string list, dval (* type error *)) result =
-                Result.bind acc ~f:(fun acc ->
+                Result.bind acc (fun acc ->
                     match (String.lowercase key, data) with
                     (* Bubble up errors for values that are invalid for all params *)
                     | _, ((DIncomplete _ | DErrorRail _ | DError _) as dv) ->
@@ -505,12 +505,12 @@ let fns : fn list =
                   (Unicode_string.to_string value)
               in
               let cookieParams =
-                o |> Map.fold ~init:(Ok []) ~f:fold_cookie_params
+                o |> Map.fold (Ok []) fold_cookie_params
               in
               ( match cookieParams with
               | Ok kvs ->
                   nameValue :: kvs
-                  |> String.concat ~sep:"; "
+                  |> String.concat "; "
                   |> Dval.dstr_of_string_exn
                   |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
               | Error dv ->

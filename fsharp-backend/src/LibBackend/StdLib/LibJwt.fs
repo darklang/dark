@@ -37,32 +37,32 @@ let sign_and_encode
   let header =
     `Assoc ([("alg", `String "RS256"); ("type", `String "JWT")] @ extra_headers)
     |> Yojson.Safe.to_string
-    |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+    |> B64.encode B64.uri_safe_alphabet false
   in
   let payload =
     payload
     |> Yojson.Safe.to_string
-    |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+    |> B64.encode B64.uri_safe_alphabet false
   in
   let body = header ^ "." ^ payload in
   let signature =
     body
     |> Cstruct.of_string
     |> (fun x -> `Message x)
-    |> Rsa.PKCS1.sign ~hash:`SHA256 ~key
+    |> Rsa.PKCS1.sign `SHA256 ~key
     |> Cstruct.to_string
-    |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+    |> B64.encode B64.uri_safe_alphabet false
   in
   body ^ "." ^ signature
 
 
 let verify_and_extract_v0 ~(key : Rsa.pub) ~(token : string) :
     (string * string) option =
-  match String.split ~on:'.' token with
+  match String.split '.' token with
   | [header; payload; signature] ->
     (* do the minimum of parsing and decoding before verifying signature.
         c.f. "cryptographic doom principle". *)
-    ( match B64.decode_opt ~alphabet:B64.uri_safe_alphabet signature with
+    ( match B64.decode_opt B64.uri_safe_alphabet signature with
     | None ->
         None
     | Some signature ->
@@ -70,13 +70,13 @@ let verify_and_extract_v0 ~(key : Rsa.pub) ~(token : string) :
            |> Cstruct.of_string
            |> (fun x -> `Message x)
            |> Rsa.PKCS1.verify
-                ~hashp:(( = ) `SHA256)
+                (( = ) `SHA256)
                 ~key
-                ~signature:(Cstruct.of_string signature)
+                (Cstruct.of_string signature)
         then
           match
-            ( B64.decode_opt ~alphabet:B64.uri_safe_alphabet header
-            , B64.decode_opt ~alphabet:B64.uri_safe_alphabet payload )
+            ( B64.decode_opt B64.uri_safe_alphabet header
+            , B64.decode_opt B64.uri_safe_alphabet payload )
           with
           | Some header, Some payload ->
               Some (header, payload)
@@ -89,11 +89,11 @@ let verify_and_extract_v0 ~(key : Rsa.pub) ~(token : string) :
 
 let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
     (string * string, string) Result.t =
-  match String.split ~on:'.' token with
+  match String.split '.' token with
   | [header; payload; signature] ->
     (* do the minimum of parsing and decoding before verifying signature.
         c.f. "cryptographic doom principle". *)
-    ( match B64.decode_opt ~alphabet:B64.uri_safe_alphabet signature with
+    ( match B64.decode_opt B64.uri_safe_alphabet signature with
     | None ->
         Error "Unable to base64-decode signature"
     | Some signature ->
@@ -101,13 +101,13 @@ let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
            |> Cstruct.of_string
            |> (fun x -> `Message x)
            |> Rsa.PKCS1.verify
-                ~hashp:(( = ) `SHA256)
+                (( = ) `SHA256)
                 ~key
-                ~signature:(Cstruct.of_string signature)
+                (Cstruct.of_string signature)
         then
           match
-            ( B64.decode_opt ~alphabet:B64.uri_safe_alphabet header
-            , B64.decode_opt ~alphabet:B64.uri_safe_alphabet payload )
+            ( B64.decode_opt B64.uri_safe_alphabet header
+            , B64.decode_opt B64.uri_safe_alphabet payload )
           with
           | Some header, Some payload ->
               Ok (header, payload)
@@ -258,7 +258,7 @@ let fns : fn list =
               ( match
                   verify_and_extract_v0
                     ~key
-                    ~token:(Unicode_string.to_string token)
+                    (Unicode_string.to_string token)
                 with
               | Some (headers, payload) ->
                   [ ("header", Dval.of_unknown_json_v1 headers)
@@ -296,7 +296,7 @@ let fns : fn list =
                   ( match
                       verify_and_extract_v1
                         ~key
-                        ~token:(Unicode_string.to_string token)
+                        (Unicode_string.to_string token)
                     with
                   | Ok (headers, payload) ->
                       [ ("header", Dval.of_unknown_json_v1 headers)

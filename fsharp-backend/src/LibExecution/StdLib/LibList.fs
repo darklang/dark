@@ -250,7 +250,7 @@ let fns : fn list =
 
           (function
           | _, [DList l; i] ->
-              DBool (List.mem ~equal:equal_dval l i)
+              DBool (List.mem equal_dval l i)
           | args ->
               fail args)
     ; previewable =
@@ -266,7 +266,7 @@ let fns : fn list =
 
           (function
           | _, [DList l; i] ->
-              DBool (List.mem ~equal:equal_dval l i)
+              DBool (List.mem equal_dval l i)
           | args ->
               fail args)
     ; previewable = Pure
@@ -281,7 +281,7 @@ let fns : fn list =
 
           (function
           | _, [DInt t; dv] ->
-              DList (List.init (Dint.to_int_exn t) ~f:(fun _ -> dv))
+              DList (List.init (Dint.to_int_exn t) (fun _ -> dv))
           | args ->
               fail args)
     ; previewable = Pure
@@ -300,8 +300,8 @@ let fns : fn list =
   ; { name = fn "List" "range" 0
 
     ; parameters =
-        [ Param.make "lowest" TInt ~d:"First, smallest number in the list"
-        ; Param.make "highest" TInt ~d:"Last, largest number in the list" ]
+        [ Param.make "lowest" TInt "First, smallest number in the list"
+        ; Param.make "highest" TInt "Last, largest number in the list" ]
     ; returnType = TList
     ; description =
         "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
@@ -311,7 +311,7 @@ let fns : fn list =
           | _, [DInt start; DInt stop] ->
               DList
                 ( List.range (Dint.to_int_exn start) (Dint.to_int_exn stop + 1)
-                |> List.map ~f:(fun i -> Dval.dint i) )
+                |> List.map (fun i -> Dval.dint i) )
           | args ->
               fail args)
     ; previewable = Pure
@@ -350,9 +350,9 @@ let fns : fn list =
                 | DList a, DList b ->
                     DList (List.append a b)
                 | _ ->
-                    RT.error ~actual:(DList [a; b]) "Flattening non-lists"
+                    RT.error (DList [a; b]) "Flattening non-lists"
               in
-              List.fold ~init:(DList []) ~f l
+              List.fold (DList []) ~f l
           | args ->
               fail args)
     ; previewable = Pure
@@ -413,7 +413,7 @@ let fns : fn list =
           | state, [DList l; DBlock b] ->
               let fn dv = Ast.execute_dblock ~state b [dv] in
               DList
-                (List.dedup_and_sort l ~compare:(fun a b ->
+                (List.dedup_and_sort l (fun a b ->
                      compare_dval (fn a) (fn b)))
           | args ->
               fail args)
@@ -441,7 +441,7 @@ let fns : fn list =
 
           (function
           | _, [DList list] ->
-              list |> List.sort ~compare:compare_dval |> DList
+              list |> List.sort compare_dval |> DList
           | args ->
               fail args)
     ; previewable = Pure
@@ -460,7 +460,7 @@ let fns : fn list =
           | state, [DList list; DBlock b] ->
               let fn dv = Ast.execute_dblock ~state b [dv] in
               list
-              |> List.sort ~compare:(fun a b -> compare_dval (fn a) (fn b))
+              |> List.sort (fun a b -> compare_dval (fn a) (fn b))
               |> DList
           | args ->
               fail args)
@@ -481,7 +481,7 @@ let fns : fn list =
               let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
               ( try
                   list
-                  |> List.sort ~compare:(fun a b ->
+                  |> List.sort (fun a b ->
                          match fn a b with
                          | DInt i ->
                              (* to_int_exn is just
@@ -513,14 +513,14 @@ let fns : fn list =
                                    ( "`f` must return one of -1, 0, 1, but returned another int: "
                                      ^ string_of_int i
                                    |> String.substr_replace_all
-                                        ~pattern:"\n"
+                                        "\n"
                                         ~with_:"" ) )
                          | nonInt ->
                              Exception.code
                                ( "`f` must return one of -1, 0, 1, but returned non-int: "
                                  ^ Dval.to_developer_repr_v0 nonInt
                                |> String.substr_replace_all
-                                    ~pattern:"\n"
+                                    "\n"
                                     ~with_:"" ))
                   |> DList
                   |> ResOk
@@ -565,7 +565,7 @@ let fns : fn list =
                     incomplete := true ;
                     false
                 | v ->
-                    RT.error "Expecting fn to return bool" ~result:v ~actual:dv
+                    RT.error "Expecting fn to return bool" v dv
               in
               if !incomplete
               then DIncomplete SourceNone
@@ -598,7 +598,7 @@ let fns : fn list =
                     fakecf := Some dv ;
                     false
                 | v ->
-                    RT.error "Expecting fn to return bool" ~result:v ~actual:dv
+                    RT.error "Expecting fn to return bool" v dv
               in
               let result = List.filter ~f l in
               (match !fakecf with None -> DList result | Some v -> v)
@@ -991,7 +991,7 @@ let fns : fn list =
                   (acc : (dval list * dval list, dval (* type error *)) result)
                   (dv : dval) :
                   (dval list * dval list, dval (* type error *)) result =
-                Result.bind acc ~f:(fun (acc_a, acc_b) ->
+                Result.bind acc (fun (acc_a, acc_b) ->
                     match dv with
                     | DList [a; b] ->
                         Ok (a :: acc_a, b :: acc_b)
@@ -1027,7 +1027,7 @@ let fns : fn list =
               let result =
                 (* We reverse here so that the [foldi] consing happens in the correct order.
                 * It does mean that the index passed by [foldi] counts from the end *)
-                l |> List.rev |> List.foldi ~init:(Ok ([], [])) ~f:fold_fn
+                l |> List.rev |> List.foldi (Ok ([], [])) fold_fn
               in
               ( match result with
               | Ok (res_a, res_b) ->
@@ -1049,8 +1049,8 @@ let fns : fn list =
           (function
           | _, [DList l; DInt index] ->
               List.nth l (Dint.to_int_exn index)
-              |> Option.map ~f:(fun a -> DOption (OptJust a))
-              |> Option.value ~default:(DOption OptNothing)
+              |> Option.map (fun a -> DOption (OptJust a))
+              |> Option.value (DOption OptNothing)
           | args ->
               fail args)
     ; previewable = Pure
@@ -1066,8 +1066,8 @@ let fns : fn list =
           (function
           | _, [DList l; DInt index] ->
               List.nth l (Dint.to_int_exn index)
-              |> Option.map ~f:(fun a -> Dval.to_opt_just a)
-              |> Option.value ~default:(DOption OptNothing)
+              |> Option.map (fun a -> Dval.to_opt_just a)
+              |> Option.value (DOption OptNothing)
           | args ->
               fail args)
     ; previewable = Pure
@@ -1085,7 +1085,7 @@ let fns : fn list =
               DOption OptNothing
           | _, [DList l] ->
               List.nth l (Random.int (List.length l))
-              |> Option.map ~f:Dval.to_opt_just
+              |> Option.map Dval.to_opt_just
               |> Option.value_exn
           | args ->
               fail args)

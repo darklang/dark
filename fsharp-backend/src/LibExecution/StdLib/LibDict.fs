@@ -42,7 +42,7 @@ let fns =
           | _, [DObj o] ->
               o
               |> DvalMap.keys
-              |> List.map ~f:(fun k -> Dval.dstr_of_string_exn k)
+              |> List.map (fun k -> Dval.dstr_of_string_exn k)
               |> fun l -> DList l
           | args ->
               fail args)
@@ -70,7 +70,7 @@ let fns =
           (function
           | _, [DObj o] ->
               DvalMap.to_list o
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> Dval.to_list
           | args ->
@@ -93,13 +93,13 @@ let fns =
                   (idx : int)
                   (acc : (dval DvalMap.t, dval (* type error *)) result)
                   (dv : dval) : (dval DvalMap.t, dval (* type error *)) result =
-                Result.bind acc ~f:(fun acc ->
+                Result.bind acc (fun acc ->
                     match dv with
                     | DList [DStr k; value] ->
                         Ok
                           ( acc
                           |> DvalMap.insert
-                               ~key:(Unicode_string.to_string k)
+                               (Unicode_string.to_string k)
                                ~value )
                     | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
                         Error dv
@@ -141,7 +141,7 @@ let fns =
                                  err_details )))
               in
               let result =
-                l |> List.foldi ~init:(Ok DvalMap.empty) ~f:fold_fn
+                l |> List.foldi (Ok DvalMap.empty) fold_fn
               in
               (match result with Ok res -> DObj res | Error v -> v)
           | args ->
@@ -165,12 +165,12 @@ let fns =
                   : (dval DvalMap.t, dval) result =
                 (* The dval for the result error could either be [Error DError] (in case of a type error)
                  * or an [Error (DOption OptNothing)] (in case there is a duplicate) *)
-                Result.bind acc ~f:(fun acc ->
+                Result.bind acc (fun acc ->
                     match dv with
                     | DList [DStr k; value] ->
                       ( match
                           DvalMap.insert_fail_override
-                            ~key:(Unicode_string.to_string k)
+                            (Unicode_string.to_string k)
                             ~value
                             acc
                         with
@@ -219,8 +219,8 @@ let fns =
               in
               let result =
                 l
-                |> List.foldi ~init:(Ok DvalMap.empty) ~f:fold_fn
-                |> Result.map ~f:(fun o -> DOption (OptJust (DObj o)))
+                |> List.foldi (Ok DvalMap.empty) fold_fn
+                |> Result.map (fun o -> DOption (OptJust (DObj o)))
               in
               (match result with Ok res -> res | Error v -> v)
           | args ->
@@ -237,7 +237,7 @@ let fns =
 
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
+            ( match DvalMap.get o (Unicode_string.to_string s) with
             | Some d ->
                 d
             | None ->
@@ -255,7 +255,7 @@ let fns =
 
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
+            ( match DvalMap.get o (Unicode_string.to_string s) with
             | Some d ->
                 DOption (OptJust d)
             | None ->
@@ -274,7 +274,7 @@ let fns =
 
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
+            ( match DvalMap.get o (Unicode_string.to_string s) with
             | Some d ->
                 Dval.to_opt_just d
             | None ->
@@ -359,8 +359,8 @@ let fns =
                 | v ->
                     RT.error
                       "Expecting fn to return bool"
-                      ~result:v
-                      ~actual:data
+                      v
+                      data
               in
               if !incomplete
               then DIncomplete SourceNone (*TODO(ds) source info *)
@@ -400,14 +400,14 @@ let fns =
                     | other ->
                         RT.error
                           "Fn returned incorrect type"
-                          ~expected:"bool"
-                          ~actual:other )
+                          "bool"
+                          other )
               in
               let filtered_result =
                 Base.Map.fold
                   o
-                  ~init:(Ok DvalMap.empty)
-                  ~f:filter_propagating_errors
+                  (Ok DvalMap.empty)
+                  filter_propagating_errors
               in
               (match filtered_result with Ok o -> DObj o | Error dv -> dv)
           | args ->
@@ -527,7 +527,7 @@ let fns =
 
           (function
           | _, [DObj o; DStr k; v] ->
-              DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
+              DObj (Map.set o (Unicode_string.to_string k) v)
           | args ->
               fail args)
     ; previewable = Pure

@@ -20,7 +20,7 @@ let fns : fn list =
           | state, [DObj value; DStr key; DDB dbname] ->
               let db = find_db state.dbs dbname in
               let key = Unicode_string.to_string key in
-              ignore (User_db.set ~state ~upsert:true db key value) ;
+              ignore (User_db.set ~state true db key value) ;
               DObj value
           | args ->
               fail args)
@@ -38,7 +38,7 @@ let fns : fn list =
           | state, [DObj value; DDB dbname] ->
               let key = Uuidm.v `V4 |> Uuidm.to_string in
               let db = find_db state.dbs dbname in
-              ignore (User_db.set ~state ~upsert:true db key value) ;
+              ignore (User_db.set ~state true db key value) ;
               Dval.dstr_of_string_exn key
           | args ->
               fail args)
@@ -89,7 +89,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               let skeys =
                 List.map
-                  ~f:(function
+                  (function
                     | DStr s ->
                         Unicode_string.to_string s
                     | t ->
@@ -98,7 +98,7 @@ let fns : fn list =
                   keys
               in
               User_db.get_many ~state db skeys
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
@@ -118,7 +118,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               let skeys =
                 List.map
-                  ~f:(function
+                  (function
                     | DStr s ->
                         Unicode_string.to_string s
                     | t ->
@@ -127,7 +127,7 @@ let fns : fn list =
                   keys
               in
               User_db.get_many ~state db skeys
-              |> List.map ~f:(fun (_, v) -> v)
+              |> List.map (fun (_, v) -> v)
               |> DList
           | args ->
               fail args)
@@ -146,7 +146,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               let skeys =
                 List.map
-                  ~f:(function
+                  (function
                     | DStr s ->
                         Unicode_string.to_string s
                     | t ->
@@ -176,7 +176,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               let skeys =
                 List.map
-                  ~f:(function
+                  (function
                     | DStr s ->
                         Unicode_string.to_string s
                     | t ->
@@ -185,7 +185,7 @@ let fns : fn list =
                   keys
               in
               User_db.get_many ~state db skeys
-              |> List.map ~f:(fun (_, v) -> v)
+              |> List.map (fun (_, v) -> v)
               |> DList
           | args ->
               fail args)
@@ -204,7 +204,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               let skeys =
                 List.map
-                  ~f:(function
+                  (function
                     | DStr s ->
                         Unicode_string.to_string s
                     | t ->
@@ -213,7 +213,7 @@ let fns : fn list =
                   keys
               in
               User_db.get_many_with_keys ~state db skeys
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
@@ -233,7 +233,7 @@ let fns : fn list =
               let db = find_db state.dbs dbname in
               let skeys =
                 List.map
-                  ~f:(function
+                  (function
                     | DStr s ->
                         Unicode_string.to_string s
                     | t ->
@@ -294,7 +294,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query_exact_fields ~state db obj
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
@@ -313,7 +313,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query_exact_fields ~state db obj
-              |> List.map ~f:(fun (k, v) -> v)
+              |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
               fail args)
@@ -332,7 +332,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query_exact_fields ~state db obj
-              |> List.map ~f:(fun (k, v) -> v)
+              |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
               fail args)
@@ -350,7 +350,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query_exact_fields ~state db obj
-              |> List.map ~f:(fun (k, v) -> v)
+              |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
               fail args)
@@ -369,7 +369,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query_exact_fields ~state db obj
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
@@ -568,7 +568,7 @@ let fns : fn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
@@ -586,7 +586,7 @@ let fns : fn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
-              |> List.map ~f:(fun (k, v) -> v)
+              |> List.map (fun (k, v) -> v)
               |> DList
           | args ->
               fail args)
@@ -603,7 +603,7 @@ let fns : fn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
-              |> List.map ~f:(fun (k, v) -> v)
+              |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
               fail args)
@@ -622,7 +622,7 @@ let fns : fn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
@@ -672,7 +672,7 @@ let fns : fn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.cols_for db
-              |> List.map ~f:(fun (k, v) -> Dval.dstr_of_string_exn k)
+              |> List.map (fun (k, v) -> Dval.dstr_of_string_exn k)
               |> DList
           | args ->
               fail args)
@@ -690,7 +690,7 @@ let fns : fn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.cols_for db
-              |> List.map ~f:(fun (k, v) ->
+              |> List.map (fun (k, v) ->
                      (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)))
               |> Dval.to_dobj_exn
           | args ->
@@ -723,7 +723,7 @@ let fns : fn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all_keys ~state db
-              |> List.map ~f:(fun k -> Dval.dstr_of_string_exn k)
+              |> List.map (fun k -> Dval.dstr_of_string_exn k)
               |> DList
           | args ->
               fail args)
@@ -731,7 +731,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "query" 4
 
-    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ["value"]]
     ; returnType = TList
     ; description =
         "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -742,7 +742,7 @@ let fns : fn list =
             ( try
                 let db = find_db state.dbs dbname in
                 User_db.query ~state db b
-                |> List.map ~f:(fun (k, v) -> v)
+                |> List.map (fun (k, v) -> v)
                 |> Dval.to_list
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
@@ -752,7 +752,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryWithKey" 3
 
-    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ["value"]]
     ; returnType = TObj
     ; description =
         "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -771,7 +771,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOne" 3
 
-    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ["value"]]
     ; returnType = TList
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -795,7 +795,7 @@ let fns : fn list =
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOne" 4
 
-    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ["value"]]
     ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -819,7 +819,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOneWithKey" 3
 
-    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ["value"]]
     ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -843,7 +843,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryCount" 0
 
-    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ["value"]]
     ; returnType = TInt
     ; description =
         "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."

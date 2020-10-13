@@ -53,31 +53,31 @@ let fns: List<Environment.BuiltInFn> =
 //         | state, [DStr s; DBlock b] ->
 //             let result =
 //               Unicode_string.map_characters
-//                 ~f:(fun c -> Ast.execute_dblock state b [DCharacter c])
+//                 (fun c -> Ast.execute_dblock state b [DCharacter c])
 //                 s
 //             in
 //             ( match
 //                 List.find
-//                   ~f:(function DIncomplete _ -> true | _ -> false)
+//                   (function DIncomplete _ -> true | _ -> false)
 //                   result
 //               with
 //             | Some i ->
 //                 i
 //             | None ->
 //                 result
-//                 |> list_coerce ~f:Dval.to_char
+//                 |> list_coerce Dval.to_char
 //                 >>| String.concat
 //                 >>| (fun x -> Dval.dstr_of_string_exn x)
-//                 |> Result.map_error ~f:(fun (result, example_value) ->
+//                 |> Result.map_error (fun (result, example_value) ->
 //                        RT.error
-//                          ~actual:(DList result)
-//                          ~result:(DList result)
-//                          ~long:
+//                          (DList result)
+//                          (DList result)
+//
 //                            ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
 //                            ^ Dval.to_developer_repr_v0 example_value
 //                            ^ " is a "
 //                            ^ Dval.pretty_tipename example_value )
-//                          ~expected:"every value to be a char"
+//                          "every value to be a char"
 //                          "foreach expects you to return chars")
 //                 |> Result.ok_exn )
 //         | args ->
@@ -113,7 +113,7 @@ let fns: List<Environment.BuiltInFn> =
 //
 //         (function
 //         | _, [DStr s] ->
-//             DList (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
+//             DList (Unicode_string.map_characters (fun c -> DCharacter c) s)
 //         | args ->
 //             fail args)
 //   ; previewable = Pure
@@ -146,8 +146,8 @@ let fns: List<Environment.BuiltInFn> =
 //             ( try DInt (Dint.of_string_exn utf8)
 //               with e ->
 //                 Exception.code
-//                   ~actual:utf8
-//                   ~expected:"\\d+"
+//                   utf8
+//                   "\\d+"
 //                   "Expected a string with only numbers" )
 //         | args ->
 //             fail args)
@@ -185,7 +185,7 @@ let fns: List<Environment.BuiltInFn> =
 //             ( try DFloat (float_of_string utf8)
 //               with e ->
 //                 Exception.code
-//                   ~actual:utf8
+//                   utf8
 //                   "Expected a string representation of an IEEE float" )
 //         | args ->
 //             fail args)
@@ -356,14 +356,14 @@ let fns: List<Environment.BuiltInFn> =
 //             let spaces = "[-\\s]+" in
 //             s
 //             |> replace
-//                  ~pattern:to_remove
-//                  ~replacement:(Unicode_string.of_string_exn "")
+//                  to_remove
+//                  (Unicode_string.of_string_exn "")
 //             |> replace
-//                  ~pattern:trim
-//                  ~replacement:(Unicode_string.of_string_exn "")
+//                  trim
+//                  (Unicode_string.of_string_exn "")
 //             |> replace
-//                  ~pattern:spaces
-//                  ~replacement:(Unicode_string.of_string_exn "-")
+//                  spaces
+//                  (Unicode_string.of_string_exn "-")
 //             |> Unicode_string.lowercase
 //             |> fun s -> DStr s
 //         | args ->
@@ -385,14 +385,14 @@ let fns: List<Environment.BuiltInFn> =
 //             let newspaces = "[-_\\s]+" in
 //             s
 //             |> replace
-//                  ~pattern:to_remove
-//                  ~replacement:(Unicode_string.of_string_exn "")
+//                  to_remove
+//                  (Unicode_string.of_string_exn "")
 //             |> replace
-//                  ~pattern:trim
-//                  ~replacement:(Unicode_string.of_string_exn "")
+//                  trim
+//                  (Unicode_string.of_string_exn "")
 //             |> replace
-//                  ~pattern:newspaces
-//                  ~replacement:(Unicode_string.of_string_exn "-")
+//                  newspaces
+//                  (Unicode_string.of_string_exn "-")
 //             |> Unicode_string.lowercase
 //             |> fun s -> DStr s
 //         | args ->
@@ -417,12 +417,12 @@ let fns: List<Environment.BuiltInFn> =
 //             s
 //             |> Unicode_string.lowercase
 //             |> replace
-//                  ~pattern:to_remove
-//                  ~replacement:(Unicode_string.of_string_exn "")
+//                  to_remove
+//                  (Unicode_string.of_string_exn "")
 //             |> Unicode_string.trim
 //             |> replace
-//                  ~pattern:to_be_hyphenated
-//                  ~replacement:(Unicode_string.of_string_exn "-")
+//                  to_be_hyphenated
+//                  (Unicode_string.of_string_exn "-")
 //             |> Unicode_string.lowercase
 //             |> fun s -> DStr s
 //         | args ->
@@ -452,7 +452,7 @@ let fns: List<Environment.BuiltInFn> =
 //         | _, [DStr s; DStr sep] ->
 //             s
 //             |> Unicode_string.split ~sep
-//             |> List.map ~f:(fun str -> DStr str)
+//             |> List.map (fun str -> DStr str)
 //             |> DList
 //         | args ->
 //             fail args)
@@ -469,7 +469,7 @@ let fns: List<Environment.BuiltInFn> =
 //         | _, [DList l; DStr sep] ->
 //             let s =
 //               List.map
-//                 ~f:(fun s ->
+//                 (fun s ->
 //                   match s with
 //                   | DStr st ->
 //                       st
@@ -502,11 +502,11 @@ let fns: List<Environment.BuiltInFn> =
 //         | _, [DList l] ->
 //             DStr
 //               ( l
-//               |> List.map ~f:(function
+//               |> List.map (function
 //                      | DCharacter c ->
 //                          c
 //                      | dv ->
-//                          RT.error ~actual:dv "expected a char")
+//                          RT.error dv "expected a char")
 //               |> Unicode_string.of_characters )
 //         | args ->
 //             fail args)
@@ -547,8 +547,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
 //               (B64.encode
-//                  ~alphabet:B64.uri_safe_alphabet
-//                  ~pad:false
+//                  B64.uri_safe_alphabet
+//                  false
 //                  (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
@@ -567,17 +567,17 @@ let fns: List<Environment.BuiltInFn> =
 //           ( try
 //               Dval.dstr_of_string_exn
 //                 (B64.decode
-//                    ~alphabet:B64.uri_safe_alphabet
+//                    B64.uri_safe_alphabet
 //                    (Unicode_string.to_string s))
 //             with Not_found_s _ | Caml.Not_found ->
 //               ( try
 //                   Dval.dstr_of_string_exn
 //                     (B64.decode
-//                        ~alphabet:B64.default_alphabet
+//                        B64.default_alphabet
 //                        (Unicode_string.to_string s))
 //                 with Not_found_s _ | Caml.Not_found ->
 //                   RT.error
-//                     ~actual:
+//
 //                       (Dval.dstr_of_string_exn (Unicode_string.to_string s))
 //                     "Not a valid base64 string" ) )
 //         | args ->
@@ -760,7 +760,7 @@ let fns: List<Environment.BuiltInFn> =
 //
 //         (function
 //         | _, [DStr needle; DStr haystack] ->
-//             DBool (Unicode_string.is_substring ~substring:needle haystack)
+//             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
 //             fail args)
 //   ; previewable = Pure
@@ -774,7 +774,7 @@ let fns: List<Environment.BuiltInFn> =
 //
 //         (function
 //         | _, [DStr haystack; DStr needle] ->
-//             DBool (Unicode_string.is_substring ~substring:needle haystack)
+//             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
 //             fail args)
 //   ; previewable = Pure
@@ -788,7 +788,7 @@ let fns: List<Environment.BuiltInFn> =
 //
 //         (function
 //         | _, [DStr haystack; DStr needle] ->
-//             DBool (Unicode_string.is_substring ~substring:needle haystack)
+//             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
 //             fail args)
 //   ; previewable = Pure

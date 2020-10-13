@@ -17,28 +17,28 @@ let params_no_body = [Param.make "uri" TStr; Param.make "query" TObj; Param.make
 type headers = (string * string) list
 
 let has_form_header (headers : headers) : bool =
-  List.exists headers ~f:(fun (k, v) ->
+  List.exists headers (fun (k, v) ->
       String.lowercase k = "content-type"
       && String.lowercase v = "application/x-www-form-urlencoded")
 
 
 let has_json_header (headers : headers) : bool =
-  List.exists headers ~f:(fun (k, v) ->
+  List.exists headers (fun (k, v) ->
       String.lowercase k = "content-type"
       && v
          |> String.lowercase
-         |> String.is_substring ~substring:"application/json")
+         |> String.is_substring "application/json")
 
 
 let has_plaintext_header (headers : headers) : bool =
-  List.exists headers ~f:(fun (k, v) ->
+  List.exists headers (fun (k, v) ->
       String.lowercase k = "content-type"
-      && v |> String.lowercase |> String.is_substring ~substring:"text/plain")
+      && v |> String.lowercase |> String.is_substring "text/plain")
 
 
 (* Adds a default Content-Type header if one is not provided *)
 let with_default_content_type ~(ct : string) (headers : headers) : headers =
-  if List.Assoc.mem headers ~equal:String.Caseless.equal "Content-Type"
+  if List.Assoc.mem headers String.Caseless.equal "Content-Type"
   then headers
   else ("Content-Type", ct) :: headers
 
@@ -65,7 +65,7 @@ let encode_request_body (headers : headers) (body : dval option) :
             * See: https://www.notion.so/darklang/Httpclient-Empty-Body-2020-03-10-5fa468b5de6c4261b5dc81ff243f79d9 for
             * more information. *)
             ( Unicode_string.to_string s
-            , with_default_content_type ~ct:"text/plain; charset=utf-8" headers
+            , with_default_content_type "text/plain; charset=utf-8" headers
             )
         | dv when has_plaintext_header headers ->
             (Dval.to_enduser_readable_text_v0 dv, headers)
@@ -81,7 +81,7 @@ let encode_request_body (headers : headers) (body : dval option) :
             * but we don't support it. *)
             ( Dval.to_pretty_machine_json_v1 dv
             , with_default_content_type
-                ~ct:"application/json; charset=utf-8"
+                "application/json; charset=utf-8"
                 headers )
       in
       (* Explicitly convert the empty String to `None`, to ensure downstream we set the right bits on the outgoing cURL request. *)
@@ -91,7 +91,7 @@ let encode_request_body (headers : headers) (body : dval option) :
   (* If we were passed an empty body, we need to ensure a Content-Type was set, or else helpful intermediary load balancers will set
    * the Content-Type to something they've plucked out of the ether, which is distinctfully non-helpful and also non-deterministic *)
   | None ->
-      (None, with_default_content_type ~ct:"text/plain; charset=utf-8" headers)
+      (None, with_default_content_type "text/plain; charset=utf-8" headers)
 
 
 let send_request
@@ -135,9 +135,9 @@ let send_request
       in
       let parsed_response_headers =
         res.headers
-        |> List.map ~f:(fun (k, v) ->
+        |> List.map (fun (k, v) ->
                (String.strip k, Dval.dstr_of_string_exn (String.strip v)))
-        |> List.filter ~f:(fun (k, _) -> String.length k > 0)
+        |> List.filter (fun (k, _) -> String.length k > 0)
         |> DvalMap.from_list
         |> fun dm -> DObj dm
       in
@@ -149,7 +149,7 @@ let send_request
             , res.body
               |> Dval.dstr_of_string
               |> Option.value
-                   ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
+                   (Dval.dstr_of_string_exn "utf-8 decoding error") )
           ; ("code", DInt (Dint.of_int res.code))
           ; ("error", Dval.dstr_of_string_exn res.error) ]
       in
@@ -166,7 +166,7 @@ let send_request
 let encode_basic_auth_broken u p =
   let input =
     if Unicode_string.is_substring
-         ~substring:(Unicode_string.of_string_exn "-")
+         (Unicode_string.of_string_exn "-")
          u
     then error "Username cannot contain a colon"
     else
@@ -177,8 +177,8 @@ let encode_basic_auth_broken u p =
   let encoded =
     Unicode_string.of_string_exn
       (B64.encode
-         ~alphabet:B64.default_alphabet
-         ~pad:true
+         B64.default_alphabet
+         true
          (Unicode_string.to_string input))
   in
   Unicode_string.append_broken (Unicode_string.of_string_exn "Basic ") encoded
@@ -187,7 +187,7 @@ let encode_basic_auth_broken u p =
 let encode_basic_auth u p =
   let input =
     if Unicode_string.is_substring
-         ~substring:(Unicode_string.of_string_exn "-")
+         (Unicode_string.of_string_exn "-")
          u
     then error "Username cannot contain a colon"
     else
@@ -198,8 +198,8 @@ let encode_basic_auth u p =
   let encoded =
     Unicode_string.of_string_exn
       (B64.encode
-         ~alphabet:B64.default_alphabet
-         ~pad:true
+         B64.default_alphabet
+         true
          (Unicode_string.to_string input))
   in
   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded

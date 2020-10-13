@@ -219,8 +219,8 @@ let fns =
                     DResult result
                 | other ->
                     RT.error
-                      ~actual:other
-                      ~expected:"a result"
+                      other
+                      "a result"
                       "Expected `f` to return a result" )
             | ResError msg ->
                 DResult (ResError msg) )
@@ -248,8 +248,8 @@ let fns =
                     Dval.to_res_err res
                 | other ->
                     RT.error
-                      ~actual:other
-                      ~expected:"a result"
+                      other
+                      "a result"
                       "Expected `f` to return a result" )
             | ResError msg ->
                 DResult (ResError msg) )

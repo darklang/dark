@@ -84,8 +84,8 @@ let fns =
                     DOption result
                 | other ->
                     RT.error
-                      ~actual:other
-                      ~expected:"an option"
+                      other
+                      "an option"
                       "Expected `f` to return an option" )
             | OptNothing ->
                 DOption OptNothing )

@@ -7,7 +7,7 @@ module RT = Runtime
 let list_coerce ~(f : dval -> 'a option) (l : dval list) :
     ('a list, dval list * dval) Result.t =
   l
-  |> List.map ~f:(fun dv ->
+  |> List.map (fun dv ->
          match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
   |> Result.all
 
@@ -77,7 +77,7 @@ let fns : fn list =
 
           (function
           | _, [DObj o; DStr k; v] ->
-              DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
+              DObj (Map.set o (Unicode_string.to_string k) v)
           | args ->
               fail args)
     ; previewable = Pure
@@ -125,8 +125,8 @@ let fns : fn list =
               let inputs =
                 o
                 |> Map.to_alist
-                |> List.map ~f:to_input
-                |> String.concat ~sep:"\n"
+                |> List.map to_input
+                |> String.concat "\n"
               in
               Dval.dstr_of_string_exn
                 (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
@@ -176,7 +176,7 @@ let fns : fn list =
           | _, [DStr s] ->
               s
               |> Unicode_string.to_string
-              |> Uri.pct_encode ~component:`Userinfo
+              |> Uri.pct_encode `Userinfo
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)

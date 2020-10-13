@@ -132,7 +132,7 @@ let fns : fn list =
           (function
           | _, [] ->
               Time.now ()
-              |> Time.to_date ~zone:Time.Zone.utc
+              |> Time.to_date Time.Zone.utc
               |> (fun x ->
                    Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
               |> DDate
@@ -359,7 +359,7 @@ let fns : fn list =
 
           (function
           | _, [DDate d] ->
-              d |> Time.to_date ~zone:Time.Zone.utc |> Date.year |> Dval.dint
+              d |> Time.to_date Time.Zone.utc |> Date.year |> Dval.dint
           | args ->
               fail args)
     ; previewable = Pure
@@ -375,7 +375,7 @@ let fns : fn list =
           (function
           | _, [DDate d] ->
               d
-              |> Time.to_date ~zone:Time.Zone.utc
+              |> Time.to_date Time.Zone.utc
               |> Date.month
               |> Month.to_int
               |> Dval.dint
@@ -392,7 +392,7 @@ let fns : fn list =
 
           (function
           | _, [DDate d] ->
-              d |> Time.to_date ~zone:Time.Zone.utc |> Date.day |> Dval.dint
+              d |> Time.to_date Time.Zone.utc |> Date.day |> Dval.dint
           | args ->
               fail args)
     ; previewable = Pure
@@ -408,7 +408,7 @@ let fns : fn list =
           (function
           | _, [DDate d] ->
               d
-              |> Time.to_date ~zone:Time.Zone.utc
+              |> Time.to_date Time.Zone.utc
               |> Date.day_of_week
               |> Day_of_week.iso_8601_weekday_number
               |> Dval.dint
@@ -502,7 +502,7 @@ let fns : fn list =
           (function
           | _, [DDate d] ->
               d
-              |> Time.to_date ~zone:Time.Zone.utc
+              |> Time.to_date Time.Zone.utc
               |> (fun x ->
                    Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
               |> DDate

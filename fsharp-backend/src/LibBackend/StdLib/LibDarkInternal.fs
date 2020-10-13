@@ -23,11 +23,11 @@ let internal_fn (f : exec_state * dval list -> dval) =
           then (
             Log.infO
               "internal_fn"
-              ~params:[("user", username); ("status", "starting")] ;
+              [("user", username); ("status", "starting")] ;
             let result = f (es, params) in
             Log.infO
               "internal_fn"
-              ~params:[("user", username); ("status", "finished")] ;
+              [("user", username); ("status", "finished")] ;
             result )
           else
             username
@@ -69,11 +69,11 @@ let fns : fn list =
         internal_fn (function
             | _, [] ->
                 Db.fetch
-                  ~name:"fetch_end_users"
+                  "fetch_end_users"
                   "SELECT email FROM accounts WHERE admin IS FALSE AND email NOT
 LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
-                  ~params:[]
-                |> List.map ~f:(function
+                  []
+                |> List.map (function
                        | [email] ->
                            Dval.dstr_of_string_exn email
                        | _ ->
@@ -205,7 +205,7 @@ that's already taken, returns an error."
                 let name = Unicode_string.to_string name in
                 let result =
                   Account.insert_user ~username ~email ~name ()
-                  |> Result.map ~f:(fun r ->
+                  |> Result.map (fun r ->
                          Stroller.heapio_identify_user username ;
                          r)
                 in
@@ -244,9 +244,9 @@ that's already taken, returns an error."
                     ~name
                     ~analytics_metadata
                     ()
-                  |> Result.map ~f:(fun () ->
+                  |> Result.map (fun () ->
                          Stroller.heapio_identify_user username)
-                  |> Result.bind ~f:(fun () ->
+                  |> Result.bind (fun () ->
                          let to_canvas_name =
                            username
                            ^ "-"
@@ -288,7 +288,7 @@ that's already taken, returns an error."
                 let name = Unicode_string.to_string name in
                 let result =
                   Account.upsert_user ~username ~email ~name ()
-                  |> Result.map ~f:(fun r ->
+                  |> Result.map (fun r ->
                          Stroller.heapio_identify_user username ;
                          r)
                 in
@@ -405,7 +405,7 @@ that's already taken, returns an error."
         internal_fn (function
             | _, [] ->
                 Account.get_users ()
-                |> List.map ~f:Dval.dstr_of_string_exn
+                |> List.map Dval.dstr_of_string_exn
                 |> DList
             | args ->
                 fail args)
@@ -419,7 +419,7 @@ that's already taken, returns an error."
     ; fn =
         internal_fn (fun _ ->
             Serialize.current_hosts ()
-            |> List.map ~f:Dval.dstr_of_string_exn
+            |> List.map Dval.dstr_of_string_exn
             |> DList)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
@@ -433,7 +433,7 @@ that's already taken, returns an error."
         internal_fn (function
             | _, [DStr account] ->
                 Serialize.hosts_for (Unicode_string.to_string account)
-                |> List.map ~f:Dval.dstr_of_string_exn
+                |> List.map Dval.dstr_of_string_exn
                 |> DList
             | args ->
                 fail args)
@@ -451,23 +451,23 @@ that's already taken, returns an error."
                 let canvas_name = Unicode_string.to_string canvas_name in
                 let c =
                   Canvas.load_only_tlids
-                    ~tlids:[Types.id_of_string tlid]
+                    [Types.id_of_string tlid]
                     canvas_name
                     []
-                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Result.map_error (String.concat ", ")
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 let db =
                   !c.dbs
                   |> IDMap.data
-                  |> List.filter_map ~f:Libexecution.Toplevel.as_db
-                  |> List.find ~f:(fun d ->
+                  |> List.filter_map Libexecution.Toplevel.as_db
+                  |> List.find (fun d ->
                          Libexecution.Types.string_of_id d.tlid = tlid)
                 in
                 ( match db with
                 | Some db ->
                     User_db.cols_for db
-                    |> List.map ~f:(fun (k, v) ->
+                    |> List.map (fun (k, v) ->
                            ( canvas_name
                              ^ "-"
                              ^ Ast.blank_to_string db.name
@@ -505,13 +505,13 @@ that's already taken, returns an error."
             | _, [DStr host] ->
                 let c =
                   Canvas.load_all (Unicode_string.to_string host) []
-                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Result.map_error (String.concat ", ")
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !c.handlers
                 |> IDMap.data
-                |> List.filter_map ~f:Libexecution.Toplevel.as_handler
-                |> List.map ~f:(fun h ->
+                |> List.filter_map Libexecution.Toplevel.as_handler
+                |> List.map (fun h ->
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id h.tlid))
                 |> fun l -> DList l
@@ -529,12 +529,12 @@ that's already taken, returns an error."
             | _, [DStr host] ->
                 let c =
                   Canvas.load_all (Unicode_string.to_string host) []
-                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Result.map_error (String.concat ", ")
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !c.user_functions
                 |> IDMap.data
-                |> List.map ~f:(fun fn ->
+                |> List.map (fun fn ->
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id fn.tlid))
                 |> fun l -> DList l
@@ -557,22 +557,22 @@ that's already taken, returns an error."
                   let c =
                     Canvas.load_only_tlids
                       (Unicode_string.to_string host)
-                      ~tlids:[Types.id_of_string tlid]
+                      [Types.id_of_string tlid]
                       []
-                    |> Result.map_error ~f:(String.concat ~sep:", ")
+                    |> Result.map_error (String.concat ", ")
                     |> Prelude.Result.ok_or_internal_exception
                          "Canvas load error"
                   in
                   let handler =
                     !c.handlers
                     |> IDMap.data
-                    |> List.map ~f:Toplevel.as_handler
-                    |> List.map ~f:(fun h -> Option.value_exn h)
-                    |> List.find_exn ~f:(fun h ->
+                    |> List.map Toplevel.as_handler
+                    |> List.map (fun h -> Option.value_exn h)
+                    |> List.find_exn (fun h ->
                            h.tlid = Types.id_of_string tlid)
                   in
                   Analysis.traceids_for_handler !c handler
-                  |> List.map ~f:(Analysis.handler_trace !c handler)
+                  |> List.map (Analysis.handler_trace !c handler)
                   |> ignore ;
                   DBool true
                 with _ -> DBool false )
@@ -598,14 +598,14 @@ that's already taken, returns an error."
                       "*" |> Dval.dstr_of_string_exn |> OptJust |> DOption
                   | Some (Origins os) ->
                       os
-                      |> List.map ~f:Dval.dstr_of_string_exn
+                      |> List.map Dval.dstr_of_string_exn
                       |> DList
                       |> OptJust
                       |> DOption
                 in
                 let canvas =
                   Canvas.load_without_tls (Unicode.to_string host)
-                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Result.map_error (String.concat ", ")
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !canvas.cors_setting |> cors_setting_to_dval
@@ -635,7 +635,7 @@ that's already taken, returns an error."
                         Ok (Some Canvas.AllOrigins)
                     | OptJust (DList os) ->
                         os
-                        |> List.map ~f:Dval.to_string_exn
+                        |> List.map Dval.to_string_exn
                         |> Canvas.Origins
                         |> Some
                         |> Ok
@@ -651,7 +651,7 @@ that's already taken, returns an error."
                 | Ok settings ->
                     let canvas =
                       Canvas.load_without_tls (Unicode.to_string host)
-                      |> Result.map_error ~f:(String.concat ~sep:", ")
+                      |> Result.map_error (String.concat ", ")
                       |> Prelude.Result.ok_or_internal_exception
                            "Canvas load error"
                     in
@@ -671,16 +671,16 @@ that's already taken, returns an error."
             | _, [DStr host] ->
                 let db_tlids =
                   Db.fetch
-                    ~name:"dbs_in_canvas"
+                    "dbs_in_canvas"
                     "SELECT tlid
                      FROM toplevel_oplists
                      JOIN canvases ON canvases.idescription = canvas_id
                      WHERE canvases.name = $1 AND tipe = 'db'"
-                    ~params:[String (Unicode_string.to_string host)]
-                  |> List.fold ~init:[] ~f:(fun acc e -> e @ acc)
+                    [String (Unicode_string.to_string host)]
+                  |> List.fold [] (fun acc e -> e @ acc)
                 in
                 db_tlids
-                |> List.map ~f:(fun s -> DStr (Unicode_string.of_string_exn s))
+                |> List.map (fun s -> DStr (Unicode_string.of_string_exn s))
                 |> fun l -> DList l
             | args ->
                 fail args)
@@ -708,16 +708,16 @@ that's already taken, returns an error."
                 in
                 let strings =
                   Db.fetch
-                    ~name:"toplevel_metadata"
+                    "toplevel_metadata"
                     "SELECT canvas_id, account_id, tlid, tipe, name, module, modifier, created_at, updated_at
                      FROM toplevel_oplists
                      WHERE canvas_id = $1 AND tlid = $2"
-                    ~params:[Uuid canvas_id; ID tlid]
+                    [Uuid canvas_id; ID tlid]
                 in
                 let zipped =
                   strings
                   |> List.hd_exn
-                  |> List.map ~f:Dval.dstr_of_string_exn
+                  |> List.map Dval.dstr_of_string_exn
                   |> List.zip_exn
                        [ "canvas_id"
                        ; "account_id"
@@ -731,7 +731,7 @@ that's already taken, returns an error."
                   |> DvalMap.from_list
                 in
                 let convert_to_date key obj =
-                  DvalMap.update obj ~key ~f:(fun v ->
+                  DvalMap.update obj ~key (fun v ->
                       match v with
                       | Some (DStr s) ->
                           s
@@ -763,19 +763,19 @@ that's already taken, returns an error."
                 in
                 let canvas =
                   Canvas.load_only_tlids
-                    ~tlids:[tlid]
+                    [tlid]
                     (Unicode_string.to_string host)
                     []
-                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Result.map_error (String.concat ", ")
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 let desc =
                   !canvas.handlers
                   |> IDMap.data
-                  |> List.filter_map ~f:Toplevel.as_handler
-                  |> List.filter ~f:(fun h -> h.tlid = tlid)
+                  |> List.filter_map Toplevel.as_handler
+                  |> List.filter (fun h -> h.tlid = tlid)
                   |> List.hd
-                  |> Option.bind ~f:Handler.event_desc_for
+                  |> Option.bind Handler.event_desc_for
                 in
                 ( match desc with
                 | None ->
@@ -784,7 +784,7 @@ that's already taken, returns an error."
                     let events = Stored_event.load_events !canvas.id d in
                     let event_list =
                       events
-                      |> List.map ~f:(fun (path, traceid, time, data) ->
+                      |> List.map (fun (path, traceid, time, data) ->
                              [ ("path", Dval.dstr_of_string_exn path)
                              ; ("traceid", DUuid traceid)
                              ; ("time", DDate time)
@@ -814,7 +814,7 @@ that's already taken, returns an error."
                       |> Unicode_string.to_string
                       |> Uuidm.of_string
                       |> Option.value_exn )
-                    ~event:(event |> Unicode_string.to_string)
+                    (event |> Unicode_string.to_string)
                     (payload |> DObj |> Dval.to_internal_roundtrippable_v0) ;
                   DResult (ResOk (DObj payload))
                 with e ->
@@ -841,7 +841,7 @@ that's already taken, returns an error."
                       |> Unicode_string.to_string
                       |> Uuidm.of_string
                       |> Option.value_exn )
-                    ~event:(event |> Unicode_string.to_string)
+                    (event |> Unicode_string.to_string)
                     (payload |> Dval.to_internal_roundtrippable_v0) ;
                   DResult (ResOk payload)
                 with e ->
@@ -882,9 +882,9 @@ that's already taken, returns an error."
             | _, [DStr host] ->
                 let host = Unicode_string.to_string host in
                 Db.fetch_one_option
-                  ~name:"canvas_id_of_canvas_name"
+                  "canvas_id_of_canvas_name"
                   "SELECT id FROM canvases WHERE name = $1"
-                  ~params:[Db.String host]
+                  [Db.String host]
                 |> (function
                 | Some [s] ->
                     DOption (OptJust (Dval.dstr_of_string_exn s))
@@ -939,13 +939,13 @@ that's already taken, returns an error."
                   username
                   |> Unicode_string.to_string
                   |> Account.id_of_username
-                  |> Result.of_option ~error:"no such user?"
+                  |> Result.of_option "no such user?"
                 in
                 let org_id =
                   org
                   |> Unicode_string.to_string
                   |> Account.id_of_username
-                  |> Result.of_option ~error:"no such org?"
+                  |> Result.of_option "no such org?"
                 in
                 let permission =
                   match Unicode_string.to_string permission with
@@ -983,10 +983,10 @@ that's already taken, returns an error."
                     ~auth_domain:(Unicode_string.to_string org)
                 in
                 grants
-                |> List.fold ~init:DvalMap.empty ~f:(fun map (user, perm) ->
+                |> List.fold DvalMap.empty (fun map (user, perm) ->
                        DvalMap.insert
-                         ~key:user
-                         ~value:
+                         user
+
                            ( perm
                            |> Authorization.permission_to_string
                            |> Dval.dstr_of_string_exn )
@@ -1007,13 +1007,13 @@ that's already taken, returns an error."
             | _, [DStr username] ->
                 let orgs =
                   Authorization.orgs_for
-                    ~username:(Unicode_string.to_string username)
+                    (Unicode_string.to_string username)
                 in
                 orgs
-                |> List.fold ~init:DvalMap.empty ~f:(fun map (org, perm) ->
+                |> List.fold DvalMap.empty (fun map (org, perm) ->
                        DvalMap.insert
-                         ~key:org
-                         ~value:
+                         org
+
                            ( perm
                            |> Authorization.permission_to_string
                            |> Dval.dstr_of_string_exn )
@@ -1067,7 +1067,7 @@ that's already taken, returns an error."
                   | None ->
                       Log.erroR
                         "DarkInternal::log no match"
-                        ~params:[("input_level", levelStr); ("log_name", name)] ;
+                        [("input_level", levelStr); ("log_name", name)] ;
                       `Info
                 in
                 (* We could just leave the dval vals as strings and use ~params, but
@@ -1088,14 +1088,14 @@ that's already taken, returns an error."
                 let log =
                   log
                   |> DvalMap.insert_no_override
-                       ~key:"level"
-                       ~value:
+                       "level"
+
                          ( level
                          |> Log.level_to_string
                          |> Dval.dstr_of_string_exn )
                   |> DvalMap.insert_no_override
-                       ~key:"name"
-                       ~value:(name |> Dval.dstr_of_string_exn)
+                       "name"
+                       (name |> Dval.dstr_of_string_exn)
                 in
                 Log.pP ~level name ~jsonparams ;
                 DObj log
@@ -1122,11 +1122,11 @@ that's already taken, returns an error."
                   |> Tablecloth.Tuple2.second
                 in
                 ops
-                |> List.filter_map ~f:Op.ast_of
-                |> List.filter_map ~f:(fun ast ->
+                |> List.filter_map Op.ast_of
+                |> List.filter_map (fun ast ->
                        ast
                        |> Internal_analysis.find_functions
-                       |> List.map ~f:Dval.dstr_of_string_exn
+                       |> List.map Dval.dstr_of_string_exn
                        |> DList
                        |> Some)
                 |> DList
@@ -1153,11 +1153,11 @@ that's already taken, returns an error."
                   |> Tablecloth.Tuple2.second
                 in
                 ops
-                |> List.filter_map ~f:Op.ast_of
-                |> List.filter_map ~f:(fun ast ->
+                |> List.filter_map Op.ast_of
+                |> List.filter_map (fun ast ->
                        ast
                        |> Internal_analysis.find_fields
-                       |> List.map ~f:Dval.dstr_of_string_exn
+                       |> List.map Dval.dstr_of_string_exn
                        |> DList
                        |> Some)
                 |> DList
@@ -1176,7 +1176,7 @@ that's already taken, returns an error."
             | _, [DStr fnname] ->
                 let fnname = Unicode_string.to_string fnname in
                 let fn =
-                  Prelude.StrDict.get ~key:fnname !Libexecution.Libs.static_fns
+                  Prelude.StrDict.get fnname !Libexecution.Libs.static_fns
                 in
                 ( match fn with
                 | Some fn ->
@@ -1205,9 +1205,9 @@ that's already taken, returns an error."
             | _, [] ->
                 let fns =
                   String.Map.fold
-                    ~init:[]
-                    ~f:(fun ~key ~data acc ->
-                      if String.is_prefix ~prefix:"DarkInternal::" key
+                    []
+                    (fun ~key ~data acc ->
+                      if String.is_prefix "DarkInternal::" key
                          || data.deprecated
                       then acc
                       else
@@ -1217,7 +1217,7 @@ that's already taken, returns an error."
                           in
                           let parameters =
                             data.parameters
-                            |> List.map ~f:(fun p ->
+                            |> List.map (fun p ->
                                    Dval.to_dobj_exn
                                      [ ("name", Dval.dstr_of_string_exn p.name)
                                      ; ( "type"
@@ -1266,7 +1266,7 @@ that's already taken, returns an error."
         internal_fn (function
             | _, [] ->
                 Event_queue.get_all_scheduling_rules ()
-                |> List.map ~f:Event_queue.Scheduling_rule.to_dval
+                |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
                 fail args)
@@ -1282,7 +1282,7 @@ that's already taken, returns an error."
         internal_fn (function
             | _, [DUuid canvas_id] ->
                 Event_queue.get_scheduling_rules_for_canvas canvas_id
-                |> List.map ~f:Event_queue.Scheduling_rule.to_dval
+                |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
                 fail args)
@@ -1337,7 +1337,7 @@ that's already taken, returns an error."
                         let err = Libexecution.Exception.exn_to_string e in
                         Log.erroR
                           "DarkInternal::newSessionForUsername"
-                          ~params:[("username", username); ("exception", err)] ;
+                          [("username", username); ("exception", err)] ;
                         let bt = Libexecution.Exception.get_backtrace () in
                         ( match
                             Rollbar.report
@@ -1400,7 +1400,7 @@ that's already taken, returns an error."
                         let err = Libexecution.Exception.exn_to_string e in
                         Log.erroR
                           "DarkInternal::newSessionForUsername_v1"
-                          ~params:[("username", username); ("exception", err)] ;
+                          [("username", username); ("exception", err)] ;
                         let bt = Libexecution.Exception.get_backtrace () in
                         ( match
                             Rollbar.report
@@ -1434,10 +1434,10 @@ that's already taken, returns an error."
             | exec_state, [DStr session_key] ->
                 let session_key = Unicode_string.to_string session_key in
                 Db.delete
-                  ~subject:session_key
-                  ~name:"delete session by session_key"
+                  session_key
+                  "delete session by session_key"
                   "DELETE FROM session WHERE session_key = $1"
-                  ~params:[String session_key]
+                  [String session_key]
                 |> Dval.dint
             | args ->
                 fail args)
@@ -1471,10 +1471,10 @@ human-readable data."
                  * {"timestamp":"2020-05-29T00:20:08.769420000Z","level":"INFO","name":"postgres_table_sizes","relation":"Total","disk_bytes":835584,"rows":139,"disk_human":"816 kB","rows_human":"139"}
                  * *)
                 table_stats
-                |> List.iter ~f:(fun ts ->
+                |> List.iter (fun ts ->
                        Log.infO
                          "postgres_table_sizes"
-                         ~jsonparams:
+
                            [ ("relation", `String ts.relation)
                            ; ("disk_bytes", `Int ts.disk_bytes)
                            ; ("rows", `Int ts.rows)
@@ -1493,7 +1493,7 @@ human-readable data."
                  * } *)
                 let table_stats_for_dobj =
                   table_stats
-                  |> List.map ~f:(fun ts ->
+                  |> List.map (fun ts ->
                          ( ts.relation
                          , [ ("disk_bytes", DInt (Dint.of_int ts.disk_bytes))
                            ; ("rows", DInt (Dint.of_int ts.rows))
