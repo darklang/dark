@@ -532,7 +532,7 @@ def mark(should, f):
     should.fsharp_paket_restore = True
 
   elif ("/fsharp-backend/" in f):
-    if (".fsproj" in f or ".sln" in f):
+    if (".fsproj" in f or ".sln" in f or "Directory.Build.props" in f):
       should.fsharp_backend_full_build = True
     elif (".fs" in f):
       should.fsharp_backend_quick_build = True
