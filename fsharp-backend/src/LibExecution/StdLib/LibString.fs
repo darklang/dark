@@ -113,23 +113,21 @@ let fns: List<BuiltInFn> =
         | args -> Error FnWrongTypes)
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "replaceAll" 0
+      parameters =
+        [ Param.make "s" TStr "The string to operate on"
+          Param.make "searchFor" TStr "The string to search for within <param s>"
+          Param.make "replaceWith" TStr "The string to replace all instances of <param searchFor> with" ]
+      returnType = TStr
+      description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
+      fn =
+        (function
+        | _, [ DStr s; DStr search; DStr replace ] -> Ok(Plain(DStr(String.replace s search replace)))
+        | _ -> Error FnWrongTypes)
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
-// ; { name = fn "String" "replaceAll" 0
-//
-//   ; parameters = [Param.make "s" TStr; Param.make "searchFor" TStr; Param.make "replaceWith" TStr]
-//   ; returnType = TStr
-//   ; description =
-//       "Replace all instances on `searchFor` in `s` with `replaceWith`"
-//   ; fn =
-//
-//         (function
-//         | _, [DStr s; DStr search; DStr replace] ->
-//             DStr (Unicode_string.replace ~search ~replace s)
-//         | args ->
-//             Error FnWrongType)
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toInt" 0
 //
 //   ; parameters = [Param.make "s" TStr]
