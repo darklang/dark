@@ -125,8 +125,8 @@ let fns: List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated } ]
-// ; { name = fn "String" "toInt" 0
+      deprecated = NotDeprecated }
+    // ; { name = fn "String" "toInt" 0
 //
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TInt
@@ -262,37 +262,33 @@ let fns: List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "length" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TInt
-//   ; description = "Returns the length of the string"
-//   ; fn =
-//
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dint (String.length (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "length" 1
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TInt
-//   ; description = "Returns the length of the string"
-//   ; fn =
-//
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dint (Unicode_string.length s)
-//         | args ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "append" 0
+    { name = fn "String" "length" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TInt
+      description = "Returns the length of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            s
+            |> System.Text.ASCIIEncoding.Unicode.GetByteCount
+            |> Dval.int
+            |> Plain
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "length" 1) }
+    { name = fn "String" "length" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TInt
+      description = "Returns the length of the string"
+      fn =
+        (function
+        | _, [ DStr s ] -> s |> String.length |> Dval.int |> Plain
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    // ; { name = fn "String" "append" 0
 //       (* This used to provide "++" as an infix op.
 //        * It was moved to [String::append_v1] instead,
 //        * because we do not yet support versioning infix operators.
@@ -1060,18 +1056,16 @@ let fns: List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "endsWith" 0
-//
-//   ; parameters = [Param.make "subject" TStr; Param.make "suffix" TStr]
-//   ; returnType = TBool
-//   ; description = "Checks if `subject` ends with `suffix`"
-//   ; fn =
-//
-//         (function
-//         | _, [DStr subject; DStr suffix] ->
-//             DBool (Unicode_string.ends_with ~suffix subject)
-//         | args ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "String" "endsWith" 0
+      parameters =
+        [ Param.make "subject" TStr "String to test"
+          Param.make "suffix" TStr "Suffix we're testing for" ]
+      returnType = TBool
+      description = "Checks if `subject` ends with `suffix`"
+      fn =
+        (function
+        | _, [ DStr subject; DStr suffix ] -> Plain(DBool(subject.EndsWith suffix))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]

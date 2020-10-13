@@ -50,7 +50,7 @@ let fns: List<BuiltInFn> = []
 //       | env, [ DInt a; DInt b ] ->
 //           try
 //             (Plain(DInt(a % b)))
-//           with _ -> (Plain(DInt(bigint 0)))
+//           with _ -> (Plain(Dval.int 0))
 //       | _ -> Error()) }
 //   { name = (FnDesc.stdFnDesc "Int" "==" 0)
 //     parameters =
