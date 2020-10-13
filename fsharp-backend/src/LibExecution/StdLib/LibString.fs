@@ -41,7 +41,7 @@ let fns: List<Environment.BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "foreach" 1) } ]
-  // ; { name = fn "String" "foreach" 1
+// ; { name = fn "String" "foreach" 1
 //
 //   ; parameters = [Param.make "s" TStr; func ["character"]]
 //   ; returnType = TStr
@@ -83,8 +83,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ; previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "newline" 0
 //
 //   ; parameters = []
@@ -93,8 +93,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; fn =
 //        (function _ -> DStr (Unicode_string.of_string_exn "\n"))
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;  previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toList" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -104,8 +104,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; fn =
 //        (fun _ -> Exception.code "This function no longer exists.")
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;  previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toList" 1
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -120,8 +120,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;  previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "replaceAll" 0
 //
 //   ; parameters = [Param.make "s" TStr; Param.make "searchFor" TStr; Param.make "replaceWith" TStr]
@@ -136,8 +136,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toInt" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -157,8 +157,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toInt" 1
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -177,8 +177,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toFloat" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -197,8 +197,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toFloat" 1
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -216,8 +216,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toUppercase" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -232,8 +232,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toUppercase" 1
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -244,8 +244,8 @@ let fns: List<Environment.BuiltInFn> =
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toLowercase" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -260,8 +260,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toLowercase" 1
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -272,8 +272,8 @@ let fns: List<Environment.BuiltInFn> =
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "length" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -287,8 +287,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "length" 1
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -302,8 +302,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "append" 0
 //       (* This used to provide "++" as an infix op.
 //        * It was moved to [String::append_v1] instead,
@@ -325,8 +325,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "append" 1
 //   ; infix_names = ["++"]
 //   ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
@@ -341,8 +341,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "prepend" 0
 //
 //   ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
@@ -357,8 +357,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "slugify" 0
 //
 //   ; parameters = [Param.make "string" TStr]
@@ -387,8 +387,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "slugify" 1
 //
 //   ; parameters = [Param.make "string" TStr]
@@ -417,8 +417,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "slugify" 2
 //
 //   ; parameters = [Param.make "string" TStr]
@@ -448,8 +448,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "reverse" 0
 //
 //   ; parameters = [Param.make "string" TStr]
@@ -460,8 +460,8 @@ let fns: List<Environment.BuiltInFn> =
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "split" 0
 //
 //   ; parameters = [Param.make "s" TStr; Param.make "separator" TStr]
@@ -479,8 +479,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "join" 0
 //
 //   ; parameters = [Param.make "l" TList; Param.make "separator" TStr]
@@ -504,8 +504,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "fromList" 0
 //
 //   ; parameters = [Param.make "l" TList]
@@ -514,8 +514,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; fn =
 //        (fun _ -> Exception.code "This function no longer exists.")
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "fromList" 1
 //
 //   ; parameters = [Param.make "l" TList]
@@ -536,8 +536,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "fromChar" 0
 //
 //   ; parameters = [Param.make "c" TCharacter]
@@ -546,8 +546,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; fn =
 //        (fun _ -> Exception.code "This function no longer exists.")
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "fromChar" 1
 //
 //   ; parameters = [Param.make "c" TCharacter]
@@ -561,8 +561,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "base64Encode" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -581,8 +581,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "base64Decode" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -612,8 +612,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "digest" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -630,8 +630,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "sha384" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -647,8 +647,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "sha256" 0
 //
 //   ; parameters = [Param.make "s" TStr]
@@ -664,8 +664,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "random" 0
 //
 //   ; parameters = [Param.make "length" TInt]
@@ -684,8 +684,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "random" 1
 //
 //   ; parameters = [Param.make "length" TInt]
@@ -706,8 +706,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "random" 2
 //
 //   ; parameters = [Param.make "length" TInt]
@@ -727,8 +727,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Impure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Impure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "htmlEscape" 0
 //
 //   ; parameters = [Param.make "html" TStr]
@@ -744,8 +744,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Impure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Impure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toUUID" 0
 //
 //   ; parameters = [Param.make "uuid" TStr]
@@ -766,8 +766,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toUUID" 1
 //
 //   ; parameters = [Param.make "uuid" TStr]
@@ -788,8 +788,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "isSubstring" 0
 //
 //   ; parameters = [Param.make "searchingFor" TStr; Param.make "lookingIn" TStr]
@@ -803,8 +803,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "isSubstring" 1
 //
 //   ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
@@ -818,8 +818,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ;   previewable = Pure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "contains" 0
 //
 //   ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
@@ -833,8 +833,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "slice" 0
 //
 //   ; parameters = [Param.make "string" TStr; Param.make "from" TInt; Param.make "to" TInt]
@@ -852,8 +852,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "first" 0
 //
 //   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
@@ -871,8 +871,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "last" 0
 //
 //   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
@@ -890,8 +890,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "dropLast" 0
 //
 //   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
@@ -909,8 +909,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "dropFirst" 0
 //
 //   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
@@ -928,8 +928,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "padStart" 0
 //
 //   ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
@@ -959,8 +959,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "padEnd" 0
 //
 //   ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
@@ -990,8 +990,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "trim" 0
 //
 //   ; parameters = [Param.make "str" TStr]
@@ -1006,8 +1006,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "trimStart" 0
 //
 //   ; parameters = [Param.make "str" TStr]
@@ -1022,8 +1022,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "trimEnd" 0
 //
 //   ; parameters = [Param.make "str" TStr]
@@ -1038,8 +1038,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toBytes" 0
 //
 //   ; parameters = [Param.make "str" TStr]
@@ -1055,8 +1055,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "startsWith" 0
 //
 //   ; parameters = [Param.make "subject" TStr; Param.make "prefix" TStr]
@@ -1070,8 +1070,8 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
-  //   ; deprecated = NotDeprecated }
+// ;   previewable = Pure
+//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "endsWith" 0
 //
 //   ; parameters = [Param.make "subject" TStr; Param.make "suffix" TStr]
@@ -1085,5 +1085,5 @@ let fns: List<Environment.BuiltInFn> =
 //         | args ->
 //             Error FnWrongType)
 //   ; sqlSpec = NotYetImplementedTODO
-  previewable = Pure
+// ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
