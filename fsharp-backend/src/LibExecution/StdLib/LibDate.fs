@@ -5,8 +5,8 @@ module RT = Runtime
 
 let fns : fn list =
   [ { name = fn "Date" "parse" 0
-    ; infix_names = []
-    ; parameters = [par "s" TStr]
+
+    ; parameters = [Param.make "s" TStr]
     ; return_type = TDate
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
@@ -21,10 +21,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "parse" 1
-    ; infix_names = []
-    ; parameters = [par "s" TStr]
+
+    ; parameters = [Param.make "s" TStr]
     ; return_type = TResult
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
@@ -44,10 +44,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "parse" 2
-    ; infix_names = []
-    ; parameters = [par "s" TStr]
+
+    ; parameters = [Param.make "s" TStr]
     ; return_type = TResult
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
@@ -66,10 +66,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toString" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TStr
     ; description =
         "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
@@ -81,10 +81,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toStringISO8601BasicDateTime" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TStr
     ; description =
         "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
@@ -97,10 +97,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toStringISO8601BasicDate" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TStr
     ; description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
     ; func =
@@ -112,18 +112,18 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "now" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TDate
     ; description = "Returns the current time."
     ; func =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "today" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TDate
     ; description = "Returns the Date with the time set to midnight"
@@ -139,10 +139,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "add" 0
-    ; infix_names = []
-    ; parameters = [par "d" TDate; par "seconds" TInt]
+
+    ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
     ; return_type = TDate
     ; description = "Returns a new Date `seconds` seconds after `d`"
     ; func =
@@ -153,10 +153,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "sub" 0
-    ; infix_names = []
-    ; parameters = [par "d" TDate; par "seconds" TInt]
+
+    ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
     ; return_type = TDate
     ; description = "Returns a new Date `seconds` seconds before `d`"
     ; func =
@@ -167,10 +167,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "subtract" 0
-    ; infix_names = []
-    ; parameters = [par "d" TDate; par "seconds" TInt]
+
+    ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
     ; return_type = TDate
     ; description = "Returns a new Date `seconds` seconds before `d`"
     ; func =
@@ -181,10 +181,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "greaterThan" 0
     ; infix_names = ["Date::>"]
-    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` > ` d2`"
     ; func =
@@ -195,10 +195,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "lessThan" 0
     ; infix_names = ["Date::<"]
-    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` < ` d2`"
     ; func =
@@ -209,10 +209,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "greaterThanOrEqualTo" 0
     ; infix_names = ["Date::>="]
-    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` >= ` d2`"
     ; func =
@@ -223,10 +223,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "lessThanOrEqualTo" 0
     ; infix_names = ["Date::<="]
-    ; parameters = [par "d1" TDate; par "d2" TDate]
+    ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` <= ` d2`"
     ; func =
@@ -237,10 +237,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toSeconds" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description =
         "Converts a Date `date` to an integer representing seconds since the Unix epoch"
@@ -256,10 +256,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "fromSeconds" 0
-    ; infix_names = []
-    ; parameters = [par "seconds" TInt]
+
+    ; parameters = [Param.make "seconds" TInt]
     ; return_type = TDate
     ; description =
         "Converts an integer representing seconds since the Unix epoch into a Date"
@@ -275,10 +275,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toHumanReadable" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TStr
     ; description = "Turn a Date into a human readable format"
     ; func =
@@ -349,10 +349,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true (* This doesn't mean anything *) }
+    ; deprecated = ReplacedBy(fn "" "" 0) (* This doesn't mean anything *) }
   ; { name = fn "Date" "year" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the year portion of the Date as an int"
     ; func =
@@ -363,10 +363,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "month" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description =
         "Returns the month portion of the Date as an int between 1 and 12"
@@ -382,10 +382,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "day" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the day portion of the Date as an int"
     ; func =
@@ -396,10 +396,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "weekday" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description =
         "Returns the weekday of `date` as an int. Monday = 1, Tuesday = 2, ... Sunday = 7 (in accordance with ISO 8601)."
@@ -415,10 +415,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "hour" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the hour portion of the Date as an int"
     ; func =
@@ -434,10 +434,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "hour" 1
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the hour portion of the Date as an int"
     ; func =
@@ -453,10 +453,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "minute" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the minute portion of the Date as an int"
     ; func =
@@ -472,10 +472,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "second" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the second portion of the Date as an int"
     ; func =
@@ -491,10 +491,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Date" "atStartOfDay" 0
-    ; infix_names = []
-    ; parameters = [par "date" TDate]
+
+    ; parameters = [Param.make "date" TDate]
     ; return_type = TDate
     ; description = "Returns the Date with the time set to midnight"
     ; func =
@@ -509,4 +509,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

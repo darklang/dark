@@ -6,8 +6,8 @@ module RT = Runtime
 
 let fns : fn list =
   [ { name = fn "" "emit" 0
-    ; infix_names = []
-    ; parameters = [par "Data" TAny; par "Space" TStr; par "Name" TStr]
+
+    ; parameters = [Param.make "Data" TAny; Param.make "Space" TStr; Param.make "Name" TStr]
     ; return_type = TAny
     ; description =
         "Emit event `name` in `space`, passing along `data` as a parameter"
@@ -23,10 +23,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "emit" "1"
-    ; infix_names = []
-    ; parameters = [par "event" TAny; par "Name" TStr]
+
+    ; parameters = [Param.make "event" TAny; Param.make "Name" TStr]
     ; return_type = TAny
     ; description = "Emit a `event` to the `name` worker"
     ; func =
@@ -40,4 +40,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

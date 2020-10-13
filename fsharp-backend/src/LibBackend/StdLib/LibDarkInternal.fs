@@ -52,15 +52,15 @@ let modify_schedule fn =
 
 let fns : fn list =
   [ { name = fn "DarkInternal" "checkAccess" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TNull
     ; description = "TODO"
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "endUsers" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TList
     ; description =
@@ -83,43 +83,43 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkAllCanvases" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TNull
     ; description = "TODO"
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "migrateAllCanvases" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TNull
     ; description = "REMOVED"
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TNull
     ; description = "Deprecated, use v1"
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 1
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TFloat
     ; description = "Cleanup the old traces from a canvas"
     ; func =
         internal_fn (function state, [] -> DFloat 0.0 | args -> fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
-    ; infix_names = []
-    ; parameters = [par "canvas_id" TUuid]
+
+    ; parameters = [Param.make "canvas_id" TUuid]
     ; return_type = TFloat
     ; description =
         "Cleanup the old traces for a specific canvas. Returns elapsed time in ms."
@@ -130,10 +130,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "checkCanvas" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TBool
     ; description = "Validate the canvas' opcodes"
     ; func =
@@ -148,10 +148,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "migrateCanvas" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TResult
     ; description = "Migrate a canvas' opcodes"
     ; func =
@@ -166,10 +166,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
+
+    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
     ; return_type = TStr
     ; description =
         "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
@@ -188,10 +188,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 1
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
+
+    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
     ; return_type = TResult
     ; description =
         "Add a user. Returns a result containing the password for the user,
@@ -217,14 +217,14 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 2
-    ; infix_names = []
+
     ; parameters =
-        [ par "username" TStr
-        ; par "email" TStr
-        ; par "name" TStr
-        ; par "analytics_metadata" TObj ]
+        [ Param.make "username" TStr
+        ; Param.make "email" TStr
+        ; Param.make "name" TStr
+        ; Param.make "analytics_metadata" TObj ]
     ; return_type = TResult
     ; description =
         "Add a user. Returns a result containing the password for the user,
@@ -273,10 +273,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 1
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
+
+    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
     ; return_type = TResult
     ; description =
         "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
@@ -300,10 +300,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUser" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr]
+
+    ; parameters = [Param.make "username" TStr]
     ; return_type = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
@@ -326,10 +326,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "getUser" 1
-    ; infix_names = []
-    ; parameters = [par "username" TStr]
+
+    ; parameters = [Param.make "username" TStr]
     ; return_type = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
@@ -353,10 +353,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUserByEmail" 0
-    ; infix_names = []
-    ; parameters = [par "email" TStr]
+
+    ; parameters = [Param.make "email" TStr]
     ; return_type = TOption
     ; description = "Return a user for the email. Does not include passwords."
     ; func =
@@ -379,10 +379,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setAdmin" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "admin" TBool]
+
+    ; parameters = [Param.make "username" TStr; Param.make "admin" TBool]
     ; return_type = TNull
     ; description = "Set whether a user is an admin. Returns null."
     ; func =
@@ -395,9 +395,9 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUsers" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TList
     ; description = "Return a list of username of all the accounts in Dark."
@@ -410,9 +410,9 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllCanvases" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TList
     ; description = "TODO"
@@ -422,10 +422,10 @@ that's already taken, returns an error."
             |> List.map ~f:Dval.dstr_of_string_exn
             |> DList)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasesFor" 0
-    ; infix_names = []
-    ; parameters = [par "account" TStr]
+
+    ; parameters = [Param.make "account" TStr]
     ; return_type = TList
     ; description =
         "Returns a list of all canvases owned by a particular account (user OR org)"
@@ -438,10 +438,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "schema" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr; par "dbid" TStr]
+
+    ; parameters = [Param.make "host" TStr; Param.make "dbid" TStr]
     ; return_type = TObj
     ; description = "Return a schema for the db"
     ; func =
@@ -480,10 +480,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasAsText" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TStr
     ; description = "TODO"
     ; func =
@@ -494,10 +494,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "handlers" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TList
     ; description = "Returns a list of toplevel ids of handlers in `host`"
     ; func =
@@ -518,10 +518,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "functions" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TList
     ; description = "Returns a list of toplevel ids of the functions in `host`"
     ; func =
@@ -541,10 +541,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canLoadTraces" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr; par "tlid" TStr]
+
+    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
     ; return_type = TBool
     ; description =
         "Takes a <var host> and a <var tlid> and returns {{true}} iff we can load and parse traces for the handler identified by <var tlid>, and {{false}} otherwise."
@@ -579,10 +579,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getCORSSetting" 0
-    ; infix_names = []
-    ; parameters = [par "canvas" TStr]
+
+    ; parameters = [Param.make "canvas" TStr]
     ; return_type = TOption
     ; description =
         "Given the full canvas name (including the username), get that canvas' global CORS setting."
@@ -612,10 +612,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setCORSSetting" 0
-    ; infix_names = []
-    ; parameters = [par "canvas" TStr; par "origins" TOption]
+
+    ; parameters = [Param.make "canvas" TStr; Param.make "origins" TOption]
     ; return_type = TResult
     ; description =
         "Given the full canvas name (including the username) and an Option of either \"*\" or a list of string origins, set that value to that canvas' global CORS setting, so that it will be used in Access-Control-Allow-Origin response headers. Returns true if it worked and false if it didn't (likely meaning: the Dark value you passed in was invalid)."
@@ -660,10 +660,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "dbs" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TList
     ; description = "Returns a list of toplevel ids of dbs in `host`"
     ; func =
@@ -685,10 +685,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "oplistInfo" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr; par "tlid" TStr]
+
+    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
     ; return_type = TObj
     ; description =
         "Returns the information from the toplevel_oplists table for the (host, tlid)"
@@ -748,10 +748,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "storedEvents" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr; par "tlid" TStr]
+
+    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
     ; return_type = TOption
     ; description =
         "Returns {{Just <var events>}}, where <var events> is the most recent stored events for the <param tlid> if it is a handler or {{Nothing}} if it is not."
@@ -797,10 +797,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 0
-    ; infix_names = []
-    ; parameters = [par "canvas_id" TStr; par "event" TStr; par "payload" TObj]
+
+    ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TObj]
     ; return_type = TResult
     ; description = "Pushes an event to Stroller"
     ; func =
@@ -824,10 +824,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 1
-    ; infix_names = []
-    ; parameters = [par "canvas_id" TStr; par "event" TStr; par "payload" TAny]
+
+    ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TAny]
     ; return_type = TResult
     ; description = "Pushes an event to Stroller"
     ; func =
@@ -851,10 +851,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "sessionKeyToUsername" 0
-    ; infix_names = []
-    ; parameters = [par "sessionKey" TStr]
+
+    ; parameters = [Param.make "sessionKey" TStr]
     ; return_type = TOption
     ; description = "Looks up the username for a session_key"
     ; func =
@@ -871,10 +871,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TOption
     ; description = "Gives canvasId for a canvasName/host"
     ; func =
@@ -893,10 +893,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "usernameToUserInfo" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr]
+
+    ; parameters = [Param.make "username" TStr]
     ; return_type = TOption
     ; description =
         "Gives userinfo {username, name, admin, email} for a username"
@@ -919,10 +919,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grant" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "org" TStr; par "permission" TStr]
+
+    ; parameters = [Param.make "username" TStr; Param.make "org" TStr; Param.make "permission" TStr]
     ; return_type = TResult
     ; description = "Set a user's permissions for a particular auth_domain."
     ; func =
@@ -968,10 +968,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grantsFor" 0
-    ; infix_names = []
-    ; parameters = [par "org" TStr]
+
+    ; parameters = [Param.make "org" TStr]
     ; return_type = TObj
     ; description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
@@ -995,10 +995,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "orgsFor" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr]
+
+    ; parameters = [Param.make "username" TStr]
     ; return_type = TObj
     ; description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
@@ -1022,10 +1022,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkPermission" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "canvas" TStr]
+
+    ; parameters = [Param.make "username" TStr; Param.make "canvas" TStr]
     ; return_type = TBool
     ; description = "Check a user's permissions for a particular canvas."
     ; func =
@@ -1044,10 +1044,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "log" 0
-    ; infix_names = []
-    ; parameters = [par "level" TStr; par "name" TStr; par "log" TObj]
+
+    ; parameters = [Param.make "level" TStr; Param.make "name" TStr; Param.make "log" TObj]
     ; return_type = TObj
     ; description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
@@ -1102,10 +1102,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnsUsed" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr; par "tlid" TStr]
+
+    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
     ; return_type = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
@@ -1133,10 +1133,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fieldNamesUsed" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr; par "tlid" TStr]
+
+    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
     ; return_type = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
@@ -1164,10 +1164,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnMetadata" 0
-    ; infix_names = []
-    ; parameters = [par "name" TStr]
+
+    ; parameters = [Param.make "name" TStr]
     ; return_type = TResult
     ; description =
         "Returns an object with the metadata of the built-in function name"
@@ -1193,9 +1193,9 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "allFunctions" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TList
     ; description =
@@ -1238,10 +1238,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "clearStaticAssets" 0
-    ; infix_names = []
-    ; parameters = [par "host" TStr]
+
+    ; parameters = [Param.make "host" TStr]
     ; return_type = TNull
     ; description =
         "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
@@ -1256,9 +1256,9 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllSchedulingRules" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TList
     ; description = "Returns a list of all queue scheduling rules."
@@ -1271,10 +1271,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
-    ; infix_names = []
-    ; parameters = [par "canvas_id" TUuid]
+
+    ; parameters = [Param.make "canvas_id" TUuid]
     ; return_type = TList
     ; description =
         "Returns a list of all queue scheduling rules for the specified canvas_id"
@@ -1287,28 +1287,28 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
-    ; infix_names = []
-    ; parameters = [par "canvas_id" TUuid; par "handler_name" TStr]
+
+    ; parameters = [Param.make "canvas_id" TUuid; Param.make "handler_name" TStr]
     ; return_type = TNull
     ; description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
     ; func = modify_schedule Event_queue.block_worker
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
-    ; infix_names = []
-    ; parameters = [par "canvas_id" TUuid; par "handler_name" TStr]
+
+    ; parameters = [Param.make "canvas_id" TUuid; Param.make "handler_name" TStr]
     ; return_type = TNull
     ; description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
     ; func = modify_schedule Event_queue.unblock_worker
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "newSessionForUsername" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr]
+
+    ; parameters = [Param.make "username" TStr]
     ; return_type = TResult
     ; description =
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
@@ -1359,10 +1359,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "newSessionForUsername" 1
-    ; infix_names = []
-    ; parameters = [par "username" TStr]
+
+    ; parameters = [Param.make "username" TStr]
     ; return_type = TResult
     ; description =
         (* We need the csrf token for dark-cli to use *)
@@ -1422,10 +1422,10 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "deleteSession" 0
-    ; infix_names = []
-    ; parameters = [par "session_key" TStr]
+
+    ; parameters = [Param.make "session_key" TStr]
     ; return_type = TInt
     ; description =
         "Delete session by session_key; return number of sessions deleted."
@@ -1442,9 +1442,9 @@ that's already taken, returns an error."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAndLogTableSizes" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TObj
     ; description =
@@ -1508,4 +1508,4 @@ human-readable data."
             | args ->
                 fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

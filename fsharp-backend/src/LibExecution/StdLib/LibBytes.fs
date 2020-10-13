@@ -5,8 +5,8 @@ module RT = Runtime
 
 let fns : fn list =
   [ { name = fn "Bytes" "base64Encode" 0
-    ; infix_names = []
-    ; parameters = [par "bytes" TBytes]
+
+    ; parameters = [Param.make "bytes" TBytes]
     ; return_type = TStr
     ; description =
         "Base64URL encodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
@@ -18,10 +18,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Bytes" "hexEncode" 0
-    ; infix_names = []
-    ; parameters = [par "bytes" TBytes]
+
+    ; parameters = [Param.make "bytes" TBytes]
     ; return_type = TStr
     ; description =
         "Hex (Base16) encodes `bytes` using an uppercase alphabet. Complies with RFC 4648 section 8."
@@ -45,10 +45,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Bytes" "length" 0
-    ; infix_names = []
-    ; parameters = [par "bytes" TBytes]
+
+    ; parameters = [Param.make "bytes" TBytes]
     ; return_type = TInt
     ; description = "Length of encoded byte string"
     ; func =
@@ -59,4 +59,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

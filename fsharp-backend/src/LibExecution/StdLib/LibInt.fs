@@ -17,7 +17,7 @@ let ( >>| ) = Result.( >>| )
 let fns : fn list =
   [ { name = fn "Int" "mod" 0
     ; infix_names = ["%"]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description =
         "Returns the result of wrapping `a` around so that `0 <= res < b`.
@@ -47,11 +47,11 @@ let fns : fn list =
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
          * The current function returns DError (it used to rollbar) on negative `b`.
          *)
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
     (*  (* See above for when to uncomment this *)
   ; { name = fn "Int" "mod" 1
     ; infix_names = ["%_v1"]
-    ; parameters = [par "value" TInt; par "modulus" TInt]
+    ; parameters = [Param.make "value" TInt; Param.make "modulus" TInt]
     ; return_type = TResult
     ; description =
         "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
@@ -76,10 +76,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } *)
+    ; deprecated = NotDeprecated } *)
   ; { name = fn "Int" "remainder" 0
-    ; infix_names = []
-    ; parameters = [par "value" TInt; par "divisor" TInt]
+
+    ; parameters = [Param.make "value" TInt; Param.make "divisor" TInt]
     ; return_type = TResult
     ; description =
         "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
@@ -102,10 +102,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "add" 0
     ; infix_names = ["+"]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Adds two integers together"
     ; func =
@@ -152,10 +152,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "subtract" 0
     ; infix_names = ["-"]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Subtracts two integers"
     ; func =
@@ -184,10 +184,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "multiply" 0
     ; infix_names = ["*"]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Multiplies two integers"
     ; func =
@@ -216,10 +216,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "power" 0
     ; infix_names = ["^"]
-    ; parameters = [par "base" TInt; par "exponent" TInt]
+    ; parameters = [Param.make "base" TInt; Param.make "exponent" TInt]
     ; return_type = TInt
     ; description = "Raise `base` to the power of `exponent`"
     ; func =
@@ -230,10 +230,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "divide" 0
-    ; infix_names = []
-    ; parameters = [par "a" TInt; par "b" TInt]
+
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Divides two integers"
     ; func =
@@ -262,10 +262,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "absoluteValue" 0
-    ; infix_names = []
-    ; parameters = [par "a" TInt]
+
+    ; parameters = [Param.make "a" TInt]
     ; return_type = TInt
     ; description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
@@ -273,20 +273,20 @@ let fns : fn list =
         InProcess
           (function _, [DInt a] -> DInt (Dint.abs a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "negate" 0
-    ; infix_names = []
-    ; parameters = [par "a" TInt]
+
+    ; parameters = [Param.make "a" TInt]
     ; return_type = TInt
     ; description = "Returns the negation of `a`, `-a`."
     ; func =
         InProcess
           (function _, [DInt a] -> DInt (Dint.negate a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "greaterThan" 0
     ; infix_names = [">"]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is greater than b"
     ; func =
@@ -315,10 +315,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "greaterThanOrEqualTo" 0
     ; infix_names = [">="]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is greater than or equal to b"
     ; func =
@@ -347,10 +347,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "lessThan" 0
     ; infix_names = ["<"]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is less than b"
     ; func =
@@ -379,10 +379,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "lessThanOrEqualTo" 0
     ; infix_names = ["<="]
-    ; parameters = [par "a" TInt; par "b" TInt]
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is less than or equal to b"
     ; func =
@@ -411,10 +411,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "random" 0
-    ; infix_names = []
-    ; parameters = [par "start" TInt; par "end" TInt]
+
+    ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
     ; return_type = TInt
     ; description = "Returns a random integer between a and b (inclusive)"
     ; func =
@@ -427,10 +427,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Int" "random" 1
-    ; infix_names = []
-    ; parameters = [par "start" TInt; par "end" TInt]
+
+    ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
     ; return_type = TInt
     ; description =
         "Returns a random integer between `start` and `end` (inclusive)."
@@ -445,10 +445,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "sqrt" 0
-    ; infix_names = []
-    ; parameters = [par "a" TInt]
+
+    ; parameters = [Param.make "a" TInt]
     ; return_type = TFloat
     ; description = "Get the square root of an Int"
     ; func =
@@ -468,10 +468,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "toFloat" 0
-    ; infix_names = []
-    ; parameters = [par "a" TInt]
+
+    ; parameters = [Param.make "a" TInt]
     ; return_type = TFloat
     ; description = "Converts an Int to a Float"
     ; func =
@@ -479,10 +479,10 @@ let fns : fn list =
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "sum" 0
-    ; infix_names = []
-    ; parameters = [par "a" TList]
+
+    ; parameters = [Param.make "a" TList]
     ; return_type = TInt
     ; description = "Returns the sum of all the ints in the list"
     ; func =
@@ -508,10 +508,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "max" 0
-    ; infix_names = []
-    ; parameters = [par "a" TInt; par "b" TInt]
+
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Returns the higher of a and b"
     ; func =
@@ -519,10 +519,10 @@ let fns : fn list =
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "min" 0
-    ; infix_names = []
-    ; parameters = [par "a" TInt; par "b" TInt]
+
+    ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Returns the lower of `a` and `b`"
     ; func =
@@ -530,10 +530,10 @@ let fns : fn list =
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Int" "clamp" 0
-    ; infix_names = []
-    ; parameters = [par "value" TInt; par "limitA" TInt; par "limitB" TInt]
+
+    ; parameters = [Param.make "value" TInt; Param.make "limitA" TInt; Param.make "limitB" TInt]
     ; return_type = TInt
     ; description =
         "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
@@ -559,4 +559,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

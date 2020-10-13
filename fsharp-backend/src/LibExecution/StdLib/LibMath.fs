@@ -15,26 +15,26 @@ let tau =
 
 let fns : fn list =
   [ { name = fn "Math" "pi" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TFloat
     ; description =
         "Returns an approximation for the mathematical constant π, the ratio of a circle's circumference to its diameter."
     ; func = InProcess (function _, [] -> DFloat pi | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tau" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TFloat
     ; description =
         "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply Math::pi 2`."
     ; func = InProcess (function _, [] -> DFloat tau | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "degrees" 0
-    ; infix_names = []
-    ; parameters = [par "angleInDegrees" TFloat]
+
+    ; parameters = [Param.make "angleInDegrees" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the equivalent of `angleInDegrees` in radians, the unit used by all of Dark's trigonometry functions.
@@ -47,10 +47,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "turns" 0
-    ; infix_names = []
-    ; parameters = [par "angleInTurns" TFloat]
+
+    ; parameters = [Param.make "angleInTurns" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the equivalent of `angleInTurns` in radians, the unit used by all of Dark's trigonometry functions.
@@ -60,10 +60,10 @@ let fns : fn list =
           (function
           | _, [DFloat turns] -> DFloat (tau *. turns) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "radians" 0
-    ; infix_names = []
-    ; parameters = [par "angleInRadians" TFloat]
+
+    ; parameters = [Param.make "angleInRadians" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns `angleInRadians` in radians, the unit used by all of Dark's trigonometry functions.
@@ -72,10 +72,10 @@ let fns : fn list =
         InProcess
           (function _, [DFloat rads] -> DFloat rads | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cos" 0
-    ; infix_names = []
-    ; parameters = [par "angleInRadians" TFloat]
+
+    ; parameters = [Param.make "angleInRadians" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the cosine of the given `angleInRadians`.
@@ -84,10 +84,10 @@ let fns : fn list =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.cos a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sin" 0
-    ; infix_names = []
-    ; parameters = [par "angleInRadians" TFloat]
+
+    ; parameters = [Param.make "angleInRadians" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the sine of the given `angleInRadians`.
@@ -96,10 +96,10 @@ let fns : fn list =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.sin a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tan" 0
-    ; infix_names = []
-    ; parameters = [par "angleInRadians" TFloat]
+
+    ; parameters = [Param.make "angleInRadians" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the tangent of the given `angleInRadians`.
@@ -108,10 +108,10 @@ let fns : fn list =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.tan a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "acos" 0
-    ; infix_names = []
-    ; parameters = [par "ratio" TFloat]
+
+    ; parameters = [Param.make "ratio" TFloat]
     ; return_type = TOption
     ; description =
         "Returns the arc cosine of `ratio`, as an Option.
@@ -129,10 +129,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "asin" 0
-    ; infix_names = []
-    ; parameters = [par "ratio" TFloat]
+
+    ; parameters = [Param.make "ratio" TFloat]
     ; return_type = TOption
     ; description =
         "Returns the arc sine of `ratio`, as an Option.
@@ -150,10 +150,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan" 0
-    ; infix_names = []
-    ; parameters = [par "ratio" TFloat]
+
+    ; parameters = [Param.make "ratio" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the arc tangent of `ratio`. The result is in radians and is between `-Math::pi/2` and `Math::pi/2`.
@@ -163,10 +163,10 @@ let fns : fn list =
           (function
           | _, [DFloat a] -> DFloat (Float.atan a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan2" 0
-    ; infix_names = []
-    ; parameters = [par "y" TFloat; par "x" TFloat]
+
+    ; parameters = [Param.make "y" TFloat; Param.make "x" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the arc tangent of `y / x`, using the signs of `y` and `x` to determine the quadrant of the result.
@@ -179,10 +179,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cosh" 0
-    ; infix_names = []
-    ; parameters = [par "angleInRadians" TFloat]
+
+    ; parameters = [Param.make "angleInRadians" TFloat]
     ; return_type = TFloat
     ; description = "Returns the hyperbolic cosine of `angleInRadians`."
     ; func =
@@ -190,10 +190,10 @@ let fns : fn list =
           (function
           | _, [DFloat a] -> DFloat (Float.cosh a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sinh" 0
-    ; infix_names = []
-    ; parameters = [par "angleInRadians" TFloat]
+
+    ; parameters = [Param.make "angleInRadians" TFloat]
     ; return_type = TFloat
     ; description = "Returns the hyperbolic sine of `angleInRadians`."
     ; func =
@@ -201,10 +201,10 @@ let fns : fn list =
           (function
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tanh" 0
-    ; infix_names = []
-    ; parameters = [par "angleInRadians" TFloat]
+
+    ; parameters = [Param.make "angleInRadians" TFloat]
     ; return_type = TFloat
     ; description = "Returns the hyperbolic tangent of `angleInRadians`."
     ; func =
@@ -212,4 +212,4 @@ let fns : fn list =
           (function
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

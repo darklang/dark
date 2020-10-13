@@ -8,8 +8,8 @@ module Dval = Libexecution.Dval
 
 let fns : fn list =
   [ { name = fn "StaticAssets" "baseUrlFor" 0
-    ; infix_names = []
-    ; parameters = [par "deploy_hash" TStr]
+
+    ; parameters = [Param.make "deploy_hash" TStr]
     ; return_type = TStr
     ; description = "Return the baseUrl for the specified deploy hash"
     ; func =
@@ -21,9 +21,9 @@ let fns : fn list =
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "baseUrlForLatest" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TStr
     ; description = "Return the baseUrl for the latest deploy"
@@ -36,10 +36,10 @@ let fns : fn list =
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlFor" 0
-    ; infix_names = []
-    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+
+    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TStr
     ; description = "Return a url for the specified file and deploy hash"
     ; func =
@@ -55,10 +55,10 @@ let fns : fn list =
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlForLatest" 0
-    ; infix_names = []
-    ; parameters = [par "file" TStr]
+
+    ; parameters = [Param.make "file" TStr]
     ; return_type = TStr
     ; description = "Return a url for the specified file and latest deploy"
     ; func =
@@ -74,10 +74,10 @@ let fns : fn list =
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetch" 0
-    ; infix_names = []
-    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+
+    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
@@ -108,10 +108,10 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetch" 1
-    ; infix_names = []
-    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+
+    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
@@ -139,10 +139,10 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchBytes" 0
-    ; infix_names = []
-    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+
+    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the bytes of the specified file from the deploy_hash"
@@ -169,10 +169,10 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatest" 0
-    ; infix_names = []
-    ; parameters = [par "file" TStr]
+
+    ; parameters = [Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -203,10 +203,10 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetchLatest" 1
-    ; infix_names = []
-    ; parameters = [par "file" TStr]
+
+    ; parameters = [Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -235,10 +235,10 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatestBytes" 0
-    ; infix_names = []
-    ; parameters = [par "file" TStr]
+
+    ; parameters = [Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the bytes of the specified file from the latest deploy"
@@ -265,10 +265,10 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serve" 0
-    ; infix_names = []
-    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+
+    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -324,10 +324,10 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serve" 1
-    ; infix_names = []
-    ; parameters = [par "deploy_hash" TStr; par "file" TStr]
+
+    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TResult
     ; description = "Return the specified file from the latest deploy"
     ; func =
@@ -379,10 +379,10 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serveLatest" 0
-    ; infix_names = []
-    ; parameters = [par "file" TStr]
+
+    ; parameters = [Param.make "file" TStr]
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -435,10 +435,10 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serveLatest" 1
-    ; infix_names = []
-    ; parameters = [par "file" TStr]
+
+    ; parameters = [Param.make "file" TStr]
     ; return_type = TResult
     ; description = "Return the specified file from the latest deploy"
     ; func =
@@ -490,4 +490,4 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

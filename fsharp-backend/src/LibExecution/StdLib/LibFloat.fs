@@ -16,8 +16,8 @@ let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
   [ { name = fn "Float::ceiling"; "Float" "roundUp" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
+
+    ; parameters = [Param.make "a" TFloat]
     ; return_type = TInt
     ; description = "Round up to an integer value"
     ; func =
@@ -28,10 +28,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float::floor"; "Float" "roundDown" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
+
+    ; parameters = [Param.make "a" TFloat]
     ; return_type = TInt
     ; description =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
@@ -43,10 +43,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "round" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
+
+    ; parameters = [Param.make "a" TFloat]
     ; return_type = TInt
     ; description = "Round to the nearest integer value"
     ; func =
@@ -57,10 +57,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float::truncate"; "Float" "roundTowardsZero" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
+
+    ; parameters = [Param.make "a" TFloat]
     ; return_type = TInt
     ; description =
         "Discard the fractional portion of the float, rounding towards zero."
@@ -72,10 +72,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "absoluteValue" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
+
+    ; parameters = [Param.make "a" TFloat]
     ; return_type = TFloat
     ; description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
@@ -83,30 +83,30 @@ let fns : fn list =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.abs a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "negate" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
+
+    ; parameters = [Param.make "a" TFloat]
     ; return_type = TFloat
     ; description = "Returns the negation of `a`, `-a`."
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.neg a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "sqrt" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat]
+
+    ; parameters = [Param.make "a" TFloat]
     ; return_type = TFloat
     ; description = "Get the square root of a float"
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "power" 0
-    ; infix_names = []
-    ; parameters = [par "base" TFloat; par "exponent" TFloat]
+
+    ; parameters = [Param.make "base" TFloat; Param.make "exponent" TFloat]
     ; return_type = TFloat
     ; description = "Returns `base` raised to the power of `exponent`"
     ; func =
@@ -117,10 +117,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "divide" 0
     ; infix_names = ["/"]
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Divide float `a` by float `b`"
     ; func =
@@ -128,10 +128,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "add" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Add float `a` to float `b`"
     ; func =
@@ -139,10 +139,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "multiply" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Multiply float `a` by float `b`"
     ; func =
@@ -150,10 +150,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "subtract" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Subtract float `b` from float `a`"
     ; func =
@@ -161,10 +161,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "greaterThan" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is greater than b"
     ; func =
@@ -172,10 +172,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "greaterThanOrEqualTo" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is greater than b"
     ; func =
@@ -183,10 +183,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "lessThan" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is less than b"
     ; func =
@@ -194,10 +194,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "lessThanOrEqualTo" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is less than b"
     ; func =
@@ -205,10 +205,10 @@ let fns : fn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "sum" 0
-    ; infix_names = []
-    ; parameters = [par "a" TList]
+
+    ; parameters = [Param.make "a" TList]
     ; return_type = TFloat
     ; description = "Returns the sum of all the floats in the list"
     ; func =
@@ -234,10 +234,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "min" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Returns the lesser of float `a` and float `b`"
     ; func =
@@ -248,10 +248,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "max" 0
-    ; infix_names = []
-    ; parameters = [par "a" TFloat; par "b" TFloat]
+
+    ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Returns the greater of float `a` and float `b`"
     ; func =
@@ -262,10 +262,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Float" "clamp" 0
-    ; infix_names = []
-    ; parameters = [par "value" TFloat; par "limitA" TFloat; par "limitB" TFloat]
+
+    ; parameters = [Param.make "value" TFloat; Param.make "limitA" TFloat; Param.make "limitB" TFloat]
     ; return_type = TFloat
     ; description =
         "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
@@ -294,4 +294,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

@@ -5,18 +5,18 @@ module RT = Runtime
 
 let fns : fn list =
   [ { name = fn "Bool" "not" 0
-    ; infix_names = []
-    ; parameters = [par "b" TBool]
+
+    ; parameters = [Param.make "b" TBool]
     ; return_type = TBool
     ; description =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
     ; func =
         InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "and" 0
     ; infix_names = ["&&"]
-    ; parameters = [par "a" TBool; par "b" TBool]
+    ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
     ; return_type = TBool
     ; description = "Returns true if both a and b are true"
     ; func =
@@ -24,10 +24,10 @@ let fns : fn list =
           (function
           | _, [DBool a; DBool b] -> DBool (a && b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "or" 0
     ; infix_names = ["||"]
-    ; parameters = [par "a" TBool; par "b" TBool]
+    ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
     ; return_type = TBool
     ; description = "Returns true if either a is true or b is true"
     ; func =
@@ -35,10 +35,10 @@ let fns : fn list =
           (function
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "xor" 0
-    ; infix_names = []
-    ; parameters = [par "a" TBool; par "b" TBool]
+
+    ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
     ; return_type = TBool
     ; description =
         "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
@@ -47,10 +47,10 @@ let fns : fn list =
           (function
           | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "isNull" 0
-    ; infix_names = []
-    ; parameters = [par "check" TAny]
+
+    ; parameters = [Param.make "check" TAny]
     ; return_type = TBool
     ; description = "Returns true if the `check` parameter is null"
     ; func =
@@ -61,10 +61,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "isError" 0
-    ; infix_names = []
-    ; parameters = [par "check" TAny]
+
+    ; parameters = [Param.make "check" TAny]
     ; return_type = TBool
     ; description = "Returns `true` if the `check` parameter is an error"
     ; func =
@@ -75,4 +75,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true } ]
+    ; deprecated = ReplacedBy(fn "" "" 0) } ]

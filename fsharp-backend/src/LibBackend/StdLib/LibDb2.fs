@@ -10,8 +10,8 @@ let find_db = Libexecution.Ast.find_db
 
 let fns : fn list =
   [ { name = fn "DB" "set" 1
-    ; infix_names = []
-    ; parameters = [par "val" TObj; par "key" TStr; par "table" TDB]
+
+    ; parameters = [Param.make "val" TObj; Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TObj
     ; description = "Upsert `val` into `table`, accessible by `key`"
     ; func =
@@ -25,10 +25,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "add" 0
-    ; infix_names = []
-    ; parameters = [par "val" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "val" TObj; Param.make "table" TDB]
     ; return_type = TStr
     ; description =
         "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
@@ -43,10 +43,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "get" 1
-    ; infix_names = []
-    ; parameters = [par "key" TStr; par "table" TDB]
+
+    ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TOption
     ; description = "Finds a value in `table` by `key"
     ; func =
@@ -59,10 +59,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "get" 2
-    ; infix_names = []
-    ; parameters = [par "key" TStr; par "table" TDB]
+
+    ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TOption
     ; description = "Finds a value in `table` by `key"
     ; func =
@@ -75,10 +75,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getMany" 1
-    ; infix_names = []
-    ; parameters = [par "keys" TList; par "table" TDB]
+
+    ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
@@ -104,10 +104,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getMany" 2
-    ; infix_names = []
-    ; parameters = [par "keys" TList; par "table" TDB]
+
+    ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [value] list of values"
@@ -132,10 +132,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getMany" 3
-    ; infix_names = []
-    ; parameters = [par "keys" TList; par "table" TDB]
+
+    ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
     ; return_type = TOption
     ; description =
         "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
@@ -162,10 +162,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getExisting" 0
-    ; infix_names = []
-    ; parameters = [par "keys" TList; par "table" TDB]
+
+    ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys` (ignoring any missing items), returning a [value] list of values"
@@ -190,10 +190,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getManyWithKeys" 0
-    ; infix_names = []
-    ; parameters = [par "keys" TList; par "table" TDB]
+
+    ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
@@ -219,10 +219,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getManyWithKeys" 1
-    ; infix_names = []
-    ; parameters = [par "keys" TList; par "table" TDB]
+
+    ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
     ; return_type = TObj
     ; description =
         "Finds many values in `table` by `keys, returning a {key:{value}, key2: {value2}} object of keys and values"
@@ -247,10 +247,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "delete" 1
-    ; infix_names = []
-    ; parameters = [par "key" TStr; par "table" TDB]
+
+    ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TNull
     ; description = "Delete `key` from `table`"
     ; func =
@@ -264,10 +264,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "deleteAll" 1
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TNull
     ; description = "Delete everything from `table`"
     ; func =
@@ -280,10 +280,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "query" 1
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
@@ -300,10 +300,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true (* see query_v2 *) }
+    ; deprecated = ReplacedBy(fn "" "" 0) (* see query_v2 *) }
   ; { name = fn "DB" "query" 2
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
@@ -318,11 +318,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryExactFields *)
   ; { name = fn "DB" "query" 3
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
@@ -337,10 +337,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryExactFields" 0
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
@@ -355,10 +355,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryWithKey" 1
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
@@ -375,11 +375,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryExactFieldsWithKey *)
   ; { name = fn "DB" "queryWithKey" 2
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TObj
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
@@ -395,10 +395,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryExactFieldsWithKey" 0
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TObj
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
@@ -414,10 +414,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOne" 1
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
@@ -437,10 +437,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOne" 2
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
@@ -460,11 +460,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryOneExactFields *)
   ; { name = fn "DB" "queryOneWithExactFields" 0
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
@@ -484,10 +484,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOneWithKey" 1
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
@@ -507,10 +507,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOneWithKey" 2
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
@@ -530,11 +530,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryOneExactFieldsWithKey *)
   ; { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
-    ; infix_names = []
-    ; parameters = [par "spec" TObj; par "table" TDB]
+
+    ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
@@ -554,10 +554,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getAll" 1
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
@@ -574,10 +574,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAll" 2
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description = "Fetch all the values in `table`."
     ; func =
@@ -591,10 +591,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAll" 3
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description = "Fetch all the values in `table`."
     ; func =
@@ -608,10 +608,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getAllWithKeys" 1
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
@@ -628,10 +628,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAllWithKeys" 2
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TObj
     ; description =
         "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
@@ -644,10 +644,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "count" 0
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TInt
     ; description = "Return the number of items stored in `table`."
     ; func =
@@ -659,11 +659,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; (* previously called `DB::keys` *)
     { name = fn "DB" "schemaFields" 1
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description = "Fetch all the fieldNames in `table`"
     ; func =
@@ -677,10 +677,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "schema" 1
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TObj
     ; description =
         "Returns an `Obj` representing { fieldName: fieldType } in `table`"
@@ -696,9 +696,9 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "generateKey" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TStr
     ; description = "Returns a random key suitable for use as a DB key"
@@ -710,10 +710,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "keys" 1
-    ; infix_names = []
-    ; parameters = [par "table" TDB]
+
+    ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description =
         "Fetch all the keys of entries in `table`. Returns an list with strings"
@@ -728,10 +728,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "query" 4
-    ; infix_names = []
-    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -749,10 +749,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryWithKey" 3
-    ; infix_names = []
-    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
     ; return_type = TObj
     ; description =
         "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -768,10 +768,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOne" 3
-    ; infix_names = []
-    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
     ; return_type = TList
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -792,10 +792,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOne" 4
-    ; infix_names = []
-    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -816,10 +816,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOneWithKey" 3
-    ; infix_names = []
-    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -840,10 +840,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryCount" 0
-    ; infix_names = []
-    ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
+
+    ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
     ; return_type = TInt
     ; description =
         "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -859,4 +859,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

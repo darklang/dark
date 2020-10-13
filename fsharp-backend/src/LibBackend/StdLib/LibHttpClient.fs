@@ -9,10 +9,10 @@ module Dint = Libexecution.Dint
 module Unicode_string = Libexecution.Unicode_string
 
 let params =
-  [par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj]
+  [Param.make "uri" TStr; Param.make "body" TAny; Param.make "query" TObj; Param.make "headers" TObj]
 
 
-let params_no_body = [par "uri" TStr; par "query" TObj; par "headers" TObj]
+let params_no_body = [Param.make "uri" TStr; Param.make "query" TObj; Param.make "headers" TObj]
 
 type headers = (string * string) list
 
@@ -230,7 +230,7 @@ let call_no_body verb =
 
 let fns : fn list =
   [ { name = fn "HttpClient" "post" 0
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description =
@@ -240,9 +240,9 @@ let fns : fn list =
           Httpclient.POST
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 0
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description =
@@ -252,9 +252,9 @@ let fns : fn list =
           Httpclient.PUT
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 0
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description =
@@ -264,9 +264,9 @@ let fns : fn list =
           Httpclient.GET
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 0
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description =
@@ -276,9 +276,9 @@ let fns : fn list =
           Httpclient.DELETE
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 0
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description =
@@ -288,9 +288,9 @@ let fns : fn list =
           Httpclient.OPTIONS
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 0
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description =
@@ -300,9 +300,9 @@ let fns : fn list =
           Httpclient.HEAD
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 0
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description =
@@ -312,9 +312,9 @@ let fns : fn list =
           Httpclient.PATCH
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 1
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description = "Make blocking HTTP POST call to `uri`"
@@ -323,9 +323,9 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 1
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description = "Make blocking HTTP PUT call to `uri`"
@@ -334,9 +334,9 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 1
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TObj
     ; description = "Make blocking HTTP GET call to `uri`"
@@ -345,7 +345,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 1
     ; infix_names =
         []
@@ -359,9 +359,9 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 1
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TObj
     ; description = "Make blocking HTTP OPTIONS call to `uri`"
@@ -370,9 +370,9 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 1
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TObj
     ; description = "Make blocking HTTP HEAD call to `uri`"
@@ -381,9 +381,9 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 1
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TObj
     ; description = "Make blocking HTTP PATCH call to `uri`"
@@ -392,9 +392,9 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 2
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -404,9 +404,9 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 2
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -416,9 +416,9 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 2
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -428,7 +428,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 2
     ; infix_names =
         []
@@ -443,9 +443,9 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 2
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -455,9 +455,9 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 2
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -467,9 +467,9 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 2
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -479,9 +479,9 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 3
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -491,9 +491,9 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 3
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -503,9 +503,9 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 3
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -515,7 +515,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 3
     ; infix_names =
         []
@@ -530,9 +530,9 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 3
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -542,9 +542,9 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 3
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -554,9 +554,9 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 3
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -566,9 +566,9 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 4
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -578,9 +578,9 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 4
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -590,9 +590,9 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 4
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -602,7 +602,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 4
     ; infix_names =
         []
@@ -617,9 +617,9 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 4
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -629,9 +629,9 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 4
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
@@ -641,9 +641,9 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 4
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
@@ -653,34 +653,34 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 5
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; func = call Httpclient.POST
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "put" 5
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; func = call Httpclient.PUT
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "get" 5
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; func = call_no_body Httpclient.GET
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "delete" 5
     ; infix_names =
         []
@@ -692,37 +692,37 @@ let fns : fn list =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; func = call_no_body Httpclient.DELETE
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "options" 5
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; func = call_no_body Httpclient.OPTIONS
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "head" 5
-    ; infix_names = []
+
     ; parameters = params_no_body
     ; return_type = TResult
     ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; func = call_no_body Httpclient.HEAD
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "patch" 5
-    ; infix_names = []
+
     ; parameters = params
     ; return_type = TResult
     ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; func = call Httpclient.PATCH
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "basicAuth" 0
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "password" TStr]
+
+    ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
     ; return_type = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
@@ -737,11 +737,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true (* Deprecated due to using encode_basic_auth_broken *)
+    ; deprecated = ReplacedBy(fn "" "" 0) (* Deprecated due to using encode_basic_auth_broken *)
     }
   ; { name = fn "HttpClient" "basicAuth" 1
-    ; infix_names = []
-    ; parameters = [par "username" TStr; par "password" TStr]
+
+    ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
     ; return_type = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
@@ -756,4 +756,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

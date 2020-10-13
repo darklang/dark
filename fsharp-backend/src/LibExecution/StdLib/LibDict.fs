@@ -5,8 +5,8 @@ module RT = Runtime
 
 let fns =
   [ { name = fn "Dict" "singleton" 0
-    ; infix_names = []
-    ; parameters = [par "key" TStr; par "value" TAny]
+
+    ; parameters = [Param.make "key" TStr; Param.make "value" TAny]
     ; return_type = TObj
     ; description =
         "Returns a new dictionary with a single entry `key`: `value`."
@@ -18,10 +18,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "size" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj]
+
+    ; parameters = [Param.make "dict" TObj]
     ; return_type = TInt
     ; description =
         "Returns the number of entries in `dict` (the number of key-value pairs)."
@@ -30,10 +30,10 @@ let fns =
           (function
           | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "keys" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj]
+
+    ; parameters = [Param.make "dict" TObj]
     ; return_type = TList
     ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
     ; func =
@@ -47,10 +47,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "values" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj]
+
+    ; parameters = [Param.make "dict" TObj]
     ; return_type = TList
     ; description = "Returns `dict`'s values in a list, in an arbitrary order."
     ; func =
@@ -58,10 +58,10 @@ let fns =
           (function
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "toList" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj]
+
+    ; parameters = [Param.make "dict" TObj]
     ; return_type = TList
     ; description =
         "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
@@ -76,10 +76,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
-    ; infix_names = []
-    ; parameters = [par "entries" TList]
+
+    ; parameters = [Param.make "entries" TList]
     ; return_type = TObj
     ; description =
         "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
@@ -147,10 +147,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "fromList" 0
-    ; infix_names = []
-    ; parameters = [par "entries" TList]
+
+    ; parameters = [Param.make "entries" TList]
     ; return_type = TOption
     ; description =
         "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
@@ -226,10 +226,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "get" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; par "key" TStr]
+
+    ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
     ; return_type = TAny
     ; description =
         "Looks up `key` in object `dict` and returns the value if found, and Error otherwise"
@@ -245,10 +245,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "get" 1
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; par "key" TStr]
+
+    ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
     ; return_type = TOption
     ; description = "Looks up `key` in object `dict` and returns an option"
     ; func =
@@ -263,10 +263,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "get" 2
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; par "key" TStr]
+
+    ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
     ; return_type = TOption
     ; description =
         "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
@@ -282,10 +282,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "member" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; par "key" TStr]
+
+    ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
     ; return_type = TBool
     ; description =
         "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
@@ -298,10 +298,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "foreach" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; func ["val"]]
+
+    ; parameters = [Param.make "dict" TObj; func ["val"]]
     ; return_type = TObj
     ; description =
         "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
@@ -314,10 +314,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "map" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+
+    ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
         "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
@@ -333,10 +333,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "filter" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+
+    ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
         "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
@@ -368,10 +368,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "filter" 1
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+
+    ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
         "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
@@ -413,10 +413,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "filterMap" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; func ["key"; "value"]]
+
+    ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
     ; description =
         {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
@@ -466,19 +466,19 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "empty" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an empty dictionary."
     ; func =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "isEmpty" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj]
+
+    ; parameters = [Param.make "dict" TObj]
     ; return_type = TBool
     ; description = "Returns `true` if the `dict` contains no entries."
     ; func =
@@ -486,10 +486,10 @@ let fns =
           (function
           | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "merge" 0
-    ; infix_names = []
-    ; parameters = [par "left" TObj; par "right" TObj]
+
+    ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
     ; return_type = TObj
     ; description =
         "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
@@ -501,10 +501,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "toJSON" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj]
+
+    ; parameters = [Param.make "dict" TObj]
     ; return_type = TStr
     ; description = "Returns `dict` as a JSON string."
     ; func =
@@ -517,10 +517,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "set" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; par "key" TStr; par "val" TAny]
+
+    ; parameters = [Param.make "dict" TObj; Param.make "key" TStr; Param.make "val" TAny]
     ; return_type = TObj
     ; description = "Returns a copy of `dict` with the `key` set to `val`."
     ; func =
@@ -531,10 +531,10 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "remove" 0
-    ; infix_names = []
-    ; parameters = [par "dict" TObj; par "key" TStr]
+
+    ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
     ; return_type = TObj
     ; description =
         "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
@@ -546,4 +546,4 @@ let fns =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

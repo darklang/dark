@@ -5,7 +5,7 @@ module RT = Runtime
 
 let fns =
   [ { name = fn "Uuid" "generate" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TUuid
     ; description = "Generate a new UUID v4 according to RFC 4122"
@@ -14,4 +14,4 @@ let fns =
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

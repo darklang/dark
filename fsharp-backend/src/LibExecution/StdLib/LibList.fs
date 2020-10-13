@@ -7,16 +7,16 @@ let list_repeat = Stdlib_util.list_repeat
 
 let fns : fn list =
   [ { name = fn "List" "singleton" 0
-    ; infix_names = []
-    ; parameters = [par "val" TAny]
+
+    ; parameters = [Param.make "val" TAny]
     ; return_type = TList
     ; description = "Returns a one-element list containing the given `val`."
     ; func = InProcess (function _, [v] -> DList [v] | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "head" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TAny
     ; description =
         "Returns the head of a list. Returns null if the empty list is passed."
@@ -28,10 +28,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "head" 1
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TOption
     ; description = "Fetches the head of the list and returns an option"
     ; func =
@@ -46,10 +46,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "head" 2
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TOption
     ; description =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
@@ -65,10 +65,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "tail" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TOption
     ; description =
         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
@@ -87,18 +87,18 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "empty" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TList
     ; description = "Returns an empty list."
     ; func = InProcess (function _, [] -> DList [] | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "push" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "val" TAny]
+
+    ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TList
     ; description = "Add element `val` to front of list `list`"
     ; func =
@@ -107,20 +107,20 @@ let fns : fn list =
           (function
           | _, [DList l; i] -> DList (i :: l) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "pushBack" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "val" TAny]
+
+    ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TList
     ; description = "Add element `val` to back of list `list`"
     ; func =
         InProcess
           (function _, [DList l; i] -> DList (l @ [i]) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "last" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TAny
     ; description =
         "Returns the last value in `list`. Returns null if the list is empty."
@@ -134,10 +134,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "last" 1
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TOption
     ; description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
@@ -151,10 +151,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "last" 2
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TOption
     ; description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
@@ -168,20 +168,20 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "reverse" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TList
     ; description = "Returns a reversed copy of `list`."
     ; func =
         InProcess
           (function _, [DList l] -> DList (List.rev l) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "findFirst" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TAny
     ; description =
         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
@@ -196,10 +196,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "findFirst" 1
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TOption
     ; description =
         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
@@ -218,10 +218,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "findFirst" 2
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TOption
     ; description =
         "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
@@ -240,10 +240,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "contains" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "val" TAny]
+
+    ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TBool
     ; description = "Returns `true` if `val` is in the list."
     ; func =
@@ -256,10 +256,10 @@ let fns : fn list =
     ; preview_safety =
         Safe
         (* Deprecated in favor of List::member for consistency with Elm's naming *)
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "member" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "val" TAny]
+
+    ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TBool
     ; description = "Returns `true` if `val` is in the list."
     ; func =
@@ -270,10 +270,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "repeat" 0
-    ; infix_names = []
-    ; parameters = [par "times" TInt; par "val" TAny]
+
+    ; parameters = [Param.make "times" TInt; Param.make "val" TAny]
     ; return_type = TList
     ; description =
         "Returns a new list containing `val` repeated `times` times."
@@ -285,10 +285,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "length" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TInt
     ; description = "Returns the number of values in `list`."
     ; func =
@@ -296,12 +296,12 @@ let fns : fn list =
           (function
           | _, [DList l] -> Dval.dint (List.length l) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "range" 0
-    ; infix_names = []
+
     ; parameters =
-        [ par "lowest" TInt ~d:"First, smallest number in the list"
-        ; par "highest" TInt ~d:"Last, largest number in the list" ]
+        [ Param.make "lowest" TInt ~d:"First, smallest number in the list"
+        ; Param.make "highest" TInt ~d:"Last, largest number in the list" ]
     ; return_type = TList
     ; description =
         "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
@@ -315,10 +315,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "fold" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "init" TAny; func ["accum"; "curr"]]
+
+    ; parameters = [Param.make "list" TList; Param.make "init" TAny; func ["accum"; "curr"]]
     ; return_type = TAny
     ; description =
         "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
@@ -334,10 +334,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "flatten" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TList
     ; description =
         "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
@@ -356,10 +356,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "interpose" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "sep" TAny]
+
+    ; parameters = [Param.make "list" TList; Param.make "sep" TAny]
     ; return_type = TList
     ; description =
         "Returns a single list containing the values of `list` separated by `sep`."
@@ -378,10 +378,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "interleave" 0
-    ; infix_names = []
-    ; parameters = [par "as" TList; par "bs" TList]
+
+    ; parameters = [Param.make "as" TList; Param.make "bs" TList]
     ; return_type = TList
     ; description =
         "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
@@ -400,10 +400,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "uniqueBy" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained."
@@ -418,10 +418,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "isEmpty" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TBool
     ; description = "Returns true if `list` has no values."
     ; func =
@@ -429,10 +429,10 @@ let fns : fn list =
           (function
           | _, [DList l] -> DBool (List.is_empty l) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "sort" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TList
     ; description =
         "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
@@ -445,10 +445,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "sortBy" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         {|Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
@@ -465,10 +465,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "sortByComparator" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["a"; "b"]]
+
+    ; parameters = [Param.make "list" TList; func ["a"; "b"]]
     ; return_type = TResult
     ; description =
         "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
@@ -530,10 +530,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "append" 0
-    ; infix_names = []
-    ; parameters = [par "as" TList; par "bs" TList]
+
+    ; parameters = [Param.make "as" TList; Param.make "bs" TList]
     ; return_type = TList
     ; description =
         "Returns a new list with all values in `as` followed by all values in `bs`, preserving the order."
@@ -545,10 +545,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "filter" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
@@ -573,10 +573,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "filter" 1
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
@@ -605,10 +605,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "filter" 2
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
@@ -647,10 +647,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "filterMap" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a new list that drops some values (filter) and transforms others (map).
@@ -694,10 +694,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "drop" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "count" TInt]
+
+    ; parameters = [Param.make "list" TList; Param.make "count" TInt]
     ; return_type = TList
     ; description = "Drops the first `count` values from `list`."
     ; func =
@@ -708,10 +708,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "dropWhile" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Drops the longest prefix of `list` which satisfies the predicate `val`"
@@ -754,10 +754,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "take" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "count" TInt]
+
+    ; parameters = [Param.make "list" TList; Param.make "count" TInt]
     ; return_type = TList
     ; description = "Drops all but the first `count` values from `list`."
     ; func =
@@ -768,10 +768,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "takeWhile" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Return the longest prefix of `list` which satisfies the predicate `val`"
@@ -814,10 +814,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "foreach" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Call `f` on every `val` in the list, returning a list of the results of
@@ -831,10 +831,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "map" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["val"]]
+
+    ; parameters = [Param.make "list" TList; func ["val"]]
     ; return_type = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a list of the results of those calls.
@@ -848,10 +848,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "indexedMap" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; func ["index"; "val"]]
+
+    ; parameters = [Param.make "list" TList; func ["index"; "val"]]
     ; return_type = TList
     ; description =
         "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
@@ -867,10 +867,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "map2shortest" 0
-    ; infix_names = []
-    ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
+
+    ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
     ; return_type = TList
     ; description =
         {|Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of values from `as` and `bs`.
@@ -892,10 +892,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "map2" 0
-    ; infix_names = []
-    ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
+
+    ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
     ; return_type = TOption
     ; description =
         {|If the lists are the same length, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
@@ -918,10 +918,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "zipShortest" 0
-    ; infix_names = []
-    ; parameters = [par "as" TList; par "bs" TList]
+
+    ; parameters = [Param.make "as" TList; Param.make "bs" TList]
     ; return_type = TList
     ; description =
         {|Returns a list of parallel pairs from `as` and `bs`.
@@ -944,10 +944,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "zip" 0
-    ; infix_names = []
-    ; parameters = [par "as" TList; par "bs" TList]
+
+    ; parameters = [Param.make "as" TList; Param.make "bs" TList]
     ; return_type = TOption
     ; description =
         {|If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
@@ -970,10 +970,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "unzip" 0
-    ; infix_names = []
-    ; parameters = [par "pairs" TList]
+
+    ; parameters = [Param.make "pairs" TList]
     ; return_type = TList
     ; description =
         {|Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
@@ -1037,10 +1037,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "getAt" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "index" TInt]
+
+    ; parameters = [Param.make "list" TList; Param.make "index" TInt]
     ; return_type = TOption
     ; description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
@@ -1054,10 +1054,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "getAt" 1
-    ; infix_names = []
-    ; parameters = [par "list" TList; par "index" TInt]
+
+    ; parameters = [Param.make "list" TList; Param.make "index" TInt]
     ; return_type = TOption
     ; description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list otherwise returns `Nothing`."
@@ -1071,10 +1071,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "List" "randomElement" 0
-    ; infix_names = []
-    ; parameters = [par "list" TList]
+
+    ; parameters = [Param.make "list" TList]
     ; return_type = TOption
     ; description =
         "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly selected value in <param list>. Returns {{Nothing}} if <param list> is empty."
@@ -1090,4 +1090,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

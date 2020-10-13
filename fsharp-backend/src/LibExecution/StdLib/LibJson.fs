@@ -5,8 +5,8 @@ module RT = Runtime
 
 let fns : fn list =
   [ { name = fn "JSON" "read" 0
-    ; infix_names = []
-    ; parameters = [par "json" TStr]
+
+    ; parameters = [Param.make "json" TStr]
     ; return_type = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
@@ -19,10 +19,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "read" 1
-    ; infix_names = []
-    ; parameters = [par "json" TStr]
+
+    ; parameters = [Param.make "json" TStr]
     ; return_type = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
@@ -34,10 +34,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 0
-    ; infix_names = []
-    ; parameters = [par "json" TStr]
+
+    ; parameters = [Param.make "json" TStr]
     ; return_type = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
@@ -49,10 +49,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 1
-    ; infix_names = []
-    ; parameters = [par "json" TStr]
+
+    ; parameters = [Param.make "json" TStr]
     ; return_type = TResult
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
@@ -73,4 +73,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

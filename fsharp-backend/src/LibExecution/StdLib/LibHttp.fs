@@ -5,8 +5,8 @@ open Lib
 
 let fns : fn list =
   [ { name = fn "Http" "respond" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
@@ -18,10 +18,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "response" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
@@ -33,14 +33,14 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
     (* TODO(ian): merge Http::respond with Http::respond_with_headers
    * -- need to figure out how to deprecate functions w/o breaking
    * user code
    *)
   ; { name = fn "Http" "respondWithHeaders" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "headers" TObj; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "headers" TObj; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
@@ -53,10 +53,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHeaders" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "headers" TObj; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "headers" TObj; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
@@ -69,10 +69,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "success" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny]
+
+    ; parameters = [Param.make "response" TAny]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
@@ -81,10 +81,10 @@ let fns : fn list =
           (function
           | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithHtml" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
@@ -99,10 +99,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHtml" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
@@ -117,10 +117,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithText" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
@@ -135,10 +135,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithText" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
@@ -153,10 +153,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithJson" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
@@ -172,10 +172,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithJson" 0
-    ; infix_names = []
-    ; parameters = [par "response" TAny; par "code" TInt]
+
+    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
@@ -191,10 +191,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "redirectTo" 0
-    ; infix_names = []
-    ; parameters = [par "url" TStr]
+
+    ; parameters = [Param.make "url" TStr]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
@@ -206,10 +206,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "badRequest" 0
-    ; infix_names = []
-    ; parameters = [par "error" TStr]
+
+    ; parameters = [Param.make "error" TStr]
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
@@ -221,9 +221,9 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "notFound" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TResp
     ; description =
@@ -233,9 +233,9 @@ let fns : fn list =
           (function
           | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "unauthorized" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TResp
     ; description =
@@ -245,9 +245,9 @@ let fns : fn list =
           (function
           | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "forbidden" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TResp
     ; description =
@@ -257,10 +257,10 @@ let fns : fn list =
           (function
           | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Http" "setCookie" 0
-    ; infix_names = []
-    ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
+
+    ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
     ; return_type = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
@@ -303,10 +303,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 1
-    ; infix_names = []
-    ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
+
+    ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
     ; return_type = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
@@ -359,10 +359,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 2
-    ; infix_names = []
-    ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
+
+    ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
     ; return_type = TObj
     ; description =
         "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
@@ -518,4 +518,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

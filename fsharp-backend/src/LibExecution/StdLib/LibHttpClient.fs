@@ -5,7 +5,7 @@ open Types.RuntimeT
 
 let fns : fn list =
   [ { name = fn "HttpClient" "formContentType" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TObj
     ; description =
@@ -21,9 +21,9 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "jsonContentType" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an object with 'Content-Type' for JSON"
@@ -38,9 +38,9 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "plainTextContentType" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an object with 'Content-Type' for plain text"
@@ -55,9 +55,9 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "htmlContentType" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an object with 'Content-Type' for html"
@@ -72,10 +72,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "bearerToken" 0
-    ; infix_names = []
-    ; parameters = [par "token" TStr]
+
+    ; parameters = [Param.make "token" TStr]
     ; return_type = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
@@ -95,8 +95,8 @@ let fns : fn list =
     ; deprecated =
         true (* Deprecated due to using Unicode_string.append_broken *) }
   ; { name = fn "HttpClient" "bearerToken" 1
-    ; infix_names = []
-    ; parameters = [par "token" TStr]
+
+    ; parameters = [Param.make "token" TStr]
     ; return_type = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
@@ -113,4 +113,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

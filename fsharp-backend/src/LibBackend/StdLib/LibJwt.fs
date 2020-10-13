@@ -131,8 +131,8 @@ let handle_error (fn : unit -> dval) =
 
 let fns : fn list =
   [ { name = fn "JWT" "signAndEncode" 0
-    ; infix_names = []
-    ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]
+
+    ; parameters = [Param.make "pemPrivKey" TStr; Param.make "payload" TAny]
     ; return_type = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
@@ -152,11 +152,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
-    ; infix_names = []
+
     ; parameters =
-        [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
+        [Param.make "pemPrivKey" TStr; Param.make "headers" TObj; Param.make "payload" TAny]
     ; return_type = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
@@ -181,10 +181,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncode" 1
-    ; infix_names = []
-    ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]
+
+    ; parameters = [Param.make "pemPrivKey" TStr; Param.make "payload" TAny]
     ; return_type = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
@@ -205,11 +205,11 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
-    ; infix_names = []
+
     ; parameters =
-        [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
+        [Param.make "pemPrivKey" TStr; Param.make "headers" TObj; Param.make "payload" TAny]
     ; return_type = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
@@ -235,10 +235,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "verifyAndExtract" 0
-    ; infix_names = []
-    ; parameters = [par "pemPubKey" TStr; par "token" TStr]
+
+    ; parameters = [Param.make "pemPubKey" TStr; Param.make "token" TStr]
     ; return_type = TOption
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
@@ -272,10 +272,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "verifyAndExtract" 1
-    ; infix_names = []
-    ; parameters = [par "pemPubKey" TStr; par "token" TStr]
+
+    ; parameters = [Param.make "pemPubKey" TStr; Param.make "token" TStr]
     ; return_type = TResult
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
@@ -315,4 +315,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

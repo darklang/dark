@@ -18,8 +18,8 @@ let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
   [ { name = fn "" "toString" 0
-    ; infix_names = []
-    ; parameters = [par "v" TAny]
+
+    ; parameters = [Param.make "v" TAny]
     ; return_type = TStr
     ; description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
@@ -31,10 +31,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "" "toRepr" 0
-    ; infix_names = []
-    ; parameters = [par "v" TAny]
+
+    ; parameters = [Param.make "v" TAny]
     ; return_type = TStr
     ; description =
         "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
@@ -46,20 +46,20 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "equals" 0
     ; infix_names = ["=="]
-    ; parameters = [par "a" TAny; par "b" TAny]
+    ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
     ; return_type = TBool
     ; description = "Returns true if the two value are equal"
     ; func =
         InProcess
           (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "" "notEquals" 0
     ; infix_names = ["!="]
-    ; parameters = [par "a" TAny; par "b" TAny]
+    ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
     ; return_type = TBool
     ; description = "Returns true if the two value are not equal"
     ; func =
@@ -67,10 +67,10 @@ let fns : fn list =
           (function
           | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "" "assoc" 0
-    ; infix_names = []
-    ; parameters = [par "obj" TObj; par "key" TStr; par "val" TAny]
+
+    ; parameters = [Param.make "obj" TObj; Param.make "key" TStr; Param.make "val" TAny]
     ; return_type = TObj
     ; description = "Return a copy of `obj` with the `key` set to `val`."
     ; func =
@@ -81,10 +81,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "dissoc" 0
-    ; infix_names = []
-    ; parameters = [par "obj" TObj; par "key" TStr]
+
+    ; parameters = [Param.make "obj" TObj; Param.make "key" TStr]
     ; return_type = TObj
     ; description = "Return a copy of `obj` with `key` unset."
     ; func =
@@ -95,10 +95,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "toForm" 0
-    ; infix_names = []
-    ; parameters = [par "obj" TObj; par "submit" TStr]
+
+    ; parameters = [Param.make "obj" TObj; Param.make "submit" TStr]
     ; return_type = TStr
     ; description =
         "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
@@ -133,10 +133,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Error" "toString" 0
-    ; infix_names = []
-    ; parameters = [par "err" TError]
+
+    ; parameters = [Param.make "err" TError]
     ; return_type = TStr
     ; description = "Return a string representing the error"
     ; func =
@@ -147,10 +147,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "AWS" "urlencode" 0
-    ; infix_names = []
-    ; parameters = [par "str" TStr]
+
+    ; parameters = [Param.make "str" TStr]
     ; return_type = TStr
     ; description = "Url encode a string per AWS' requirements"
     ; func =
@@ -164,10 +164,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
+    ; deprecated = NotDeprecated }
   ; { name = fn "Twitter" "urlencode" 0
-    ; infix_names = []
-    ; parameters = [par "s" TStr]
+
+    ; parameters = [Param.make "s" TStr]
     ; return_type = TStr
     ; description = "Url encode a string per Twitter's requirements"
     ; func =
@@ -181,4 +181,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]

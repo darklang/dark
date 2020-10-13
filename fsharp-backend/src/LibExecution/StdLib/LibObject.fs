@@ -5,17 +5,17 @@ module RT = Runtime
 
 let fns : fn list =
   [ { name = fn "Object" "empty" 0
-    ; infix_names = []
+
     ; parameters = []
     ; return_type = TObj
     ; description = "Return an empty object"
     ; func =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "merge" 0
-    ; infix_names = []
-    ; parameters = [par "left" TObj; par "right" TObj]
+
+    ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
     ; return_type = TObj
     ; description =
         "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
@@ -27,10 +27,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 0
-    ; infix_names = []
-    ; parameters = [par "obj" TObj]
+
+    ; parameters = [Param.make "obj" TObj]
     ; return_type = TStr
     ; description = "Dumps `obj` to a JSON string"
     ; func =
@@ -43,10 +43,10 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true }
+    ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 1
-    ; infix_names = []
-    ; parameters = [par "obj" TObj]
+
+    ; parameters = [Param.make "obj" TObj]
     ; return_type = TStr
     ; description = "Dumps `obj` to a JSON string"
     ; func =
@@ -59,4 +59,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Safe
-    ; deprecated = true } ]
+    ; deprecated = ReplacedBy(fn "" "" 0) } ]

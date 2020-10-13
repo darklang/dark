@@ -5,13 +5,13 @@ open Libexecution.Types.RuntimeT
 
 let fns : fn list =
   [ { name = fn "Twilio" "sendText" 0
-    ; infix_names = []
+
     ; parameters =
-        [ par "accountSID" TStr
-        ; par "authToken" TStr
-        ; par "fromNumber" TStr
-        ; par "toNumber" TStr
-        ; par "body" TStr ]
+        [ Param.make "accountSID" TStr
+        ; Param.make "authToken" TStr
+        ; Param.make "fromNumber" TStr
+        ; Param.make "toNumber" TStr
+        ; Param.make "body" TStr ]
     ; return_type = TObj
     ; description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
@@ -66,13 +66,13 @@ let fns : fn list =
         true
         (* Deprecated due to using Libhttpclient.encode_basic_auth_broken *) }
   ; { name = fn "Twilio" "sendText" 1
-    ; infix_names = []
+
     ; parameters =
-        [ par "accountSID" TStr
-        ; par "authToken" TStr
-        ; par "fromNumber" TStr
-        ; par "toNumber" TStr
-        ; par "body" TStr ]
+        [ Param.make "accountSID" TStr
+        ; Param.make "authToken" TStr
+        ; Param.make "fromNumber" TStr
+        ; Param.make "toNumber" TStr
+        ; Param.make "body" TStr ]
     ; return_type = TObj
     ; description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
@@ -123,4 +123,4 @@ let fns : fn list =
           | args ->
               fail args)
     ; preview_safety = Unsafe
-    ; deprecated = false } ]
+    ; deprecated = NotDeprecated } ]
