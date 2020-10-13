@@ -674,8 +674,10 @@ def main():
     if f == "--test":
       global run_tests
       run_tests = True
-    elif not ignore(f):
-      files.append(f)
+    else:
+      f = os.path.abspath(f) # the ignore patterns rely on absolute dirs
+      if not ignore(f):
+        files.append(f)
 
   if len(files) > 0:
     pretty_print("Compiling: " + str(files), 43)
