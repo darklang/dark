@@ -635,7 +635,7 @@ def ignore(filename):
       "esy.lock",
       "/home/dark/.esy",
       "node_modules",
-      "fsharp-backend/.fable"
+      "fsharp-backend/.fable",
       "fsharp-backend/Build",
       "build.ninja",
       "containers/stroller/target",
@@ -644,7 +644,7 @@ def ignore(filename):
       ".bs.js",
       ".bsdeps",
       ".bsbuild",
-      "/obj/fsac.cache"
+      "/obj/fsac.cache",
       ".sourcedirs.json",
       ".md",
       ".sw",
