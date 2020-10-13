@@ -13,4 +13,4 @@ let server =
 
         Expect.equal 1 1 "Result should be ok" ]
 
-let all = testList "BwdServer" [ server ]
+let tests = testList "BwdServer" [ server ]

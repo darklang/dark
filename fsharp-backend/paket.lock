@@ -16,6 +16,8 @@ NUGET
     FSharp.Core (4.7.2)
     FSharp.Data (3.3.3)
       FSharp.Core (>= 4.3.4)
+    FSharpPlus (1.2.0-ci01240)
+      FSharp.Core (>= 4.6.2)
     Giraffe (5.0.0-alpha-003)
       FSharp.Core (>= 4.7.1)
       Giraffe.ViewEngine (>= 1.0)

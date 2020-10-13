@@ -5,16 +5,18 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="BwdServer.Tests.fs" />
-    <Compile Include="ApiServer.Tests.fs" />
-    <Compile Include="LibExecution.Tests.fs" />
-    <Compile Include="All.Tests.fs" />
+    <Compile Include="BwdServer/Tests.fs" />
+    <Compile Include="ApiServer/Tests.fs" />
+    <Compile Include="LibExecution/ExecUtils.fs" />
+    <Compile Include="LibExecution/StdLib/LibString.fs" />
+    <Compile Include="LibExecution/StdLib/Tests.fs" />
+    <Compile Include="LibExecution/Tests.fs" />
+    <Compile Include="Tests.fs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
-    <ProjectReference Include="../../src/Client/Client.fsproj" />
-    <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

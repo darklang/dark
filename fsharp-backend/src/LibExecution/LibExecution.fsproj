@@ -1,11 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="LibExecution.fs" />
+    <Compile Include="Runtime.fs" />
     <Compile Include="Interpreter.fs" />
+    <Compile Include="StdLib/LibString.fs" />
+    <Compile Include="StdLib.fs" />
+    <Compile Include="Execution.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

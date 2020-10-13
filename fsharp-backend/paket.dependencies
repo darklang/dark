@@ -15,6 +15,7 @@ nuget Expecto ~> 9.0.2
 nuget TaskBuilder.fs ~> 2.1
 nuget FSharp.Data
 nuget Ply ~> 0.1
+nuget FSharpPlus ~> 1.2.0-ci01240
 
 
 group Build

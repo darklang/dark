@@ -1,13 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Client.Tests.fs" />
+    <None Include="paket.references" />
+    <Compile Include="StdLib.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/Client/Client.fsproj" />
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

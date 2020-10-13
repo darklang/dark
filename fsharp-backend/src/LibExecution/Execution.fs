@@ -1,10 +1,18 @@
-module Execution
+module LibExecution.Execution
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 open Runtime
 
+
 let run (e: Expr): Task<Dval> =
-  let env = Environment.envWith (StdLib.functions)
-  (eval env Symtable.empty e).toTask()
+  let functions =
+    StdLib.fns
+    |> List.map (fun fn -> (fn.name, fn))
+    |> Map
+
+  let state = { functions = functions }
+  (Interpreter.eval state Symtable.empty e).toTask()
 
 
 let runString (e: Expr): Task<string> =
