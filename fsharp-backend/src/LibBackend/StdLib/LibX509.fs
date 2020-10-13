@@ -29,5 +29,6 @@ let fns : Types.RuntimeT.fn list =
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated } ]

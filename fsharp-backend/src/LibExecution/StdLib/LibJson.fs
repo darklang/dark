@@ -18,7 +18,8 @@ let fns : fn list =
               with _ -> DNull )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "read" 1
 
@@ -33,7 +34,8 @@ let fns : fn list =
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 0
 
@@ -48,7 +50,8 @@ let fns : fn list =
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 1
 
@@ -72,5 +75,6 @@ let fns : fn list =
             )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated } ]

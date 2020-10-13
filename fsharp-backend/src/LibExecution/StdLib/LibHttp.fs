@@ -17,7 +17,8 @@ let fns : fn list =
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "response" 0
 
@@ -32,7 +33,8 @@ let fns : fn list =
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
     (* TODO(ian): merge Http::respond with Http::respond_with_headers
    * -- need to figure out how to deprecate functions w/o breaking
@@ -52,7 +54,8 @@ let fns : fn list =
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHeaders" 0
 
@@ -68,7 +71,8 @@ let fns : fn list =
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "success" 0
 
@@ -80,7 +84,8 @@ let fns : fn list =
 
           (function
           | _, [dv] -> DResp (Response (200, []), dv) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithHtml" 0
 
@@ -98,7 +103,8 @@ let fns : fn list =
                 , dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHtml" 0
 
@@ -116,7 +122,8 @@ let fns : fn list =
                 , dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithText" 0
 
@@ -134,7 +141,8 @@ let fns : fn list =
                 , dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithText" 0
 
@@ -152,7 +160,8 @@ let fns : fn list =
                 , dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithJson" 0
 
@@ -171,7 +180,8 @@ let fns : fn list =
                 , dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithJson" 0
 
@@ -190,7 +200,8 @@ let fns : fn list =
                 , dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "redirectTo" 0
 
@@ -205,7 +216,8 @@ let fns : fn list =
               DResp (Redirect (Unicode_string.to_string url), DNull)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "badRequest" 0
 
@@ -220,7 +232,8 @@ let fns : fn list =
               DResp (Response (400, []), DStr msg)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "notFound" 0
 
@@ -232,7 +245,8 @@ let fns : fn list =
 
           (function
           | _, [] -> DResp (Response (404, []), DNull) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "unauthorized" 0
 
@@ -244,7 +258,8 @@ let fns : fn list =
 
           (function
           | _, [] -> DResp (Response (401, []), DNull) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "forbidden" 0
 
@@ -256,7 +271,8 @@ let fns : fn list =
 
           (function
           | _, [] -> DResp (Response (403, []), DNull) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "setCookie" 0
 
@@ -302,7 +318,8 @@ let fns : fn list =
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 1
 
@@ -358,7 +375,8 @@ let fns : fn list =
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 2
 
@@ -517,5 +535,6 @@ let fns : fn list =
                   dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated } ]

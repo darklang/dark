@@ -22,7 +22,8 @@ let fns =
                 DResult r )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "map" 1
 
@@ -42,7 +43,8 @@ let fns =
                 DResult r )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "mapError" 0
 
@@ -62,7 +64,8 @@ let fns =
                 DResult (ResError result) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "mapError" 1
 
@@ -82,7 +85,8 @@ let fns =
                 Dval.to_res_err result )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "withDefault" 0
 
@@ -97,7 +101,8 @@ let fns =
             (match o with ResOk dv -> dv | ResError _ -> default)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "fromOption" 0
 
@@ -116,7 +121,8 @@ let fns =
                 DResult (ResError (DStr error)) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "fromOption" 1
 
@@ -140,7 +146,8 @@ let fns =
                 Dval.to_res_err (DStr error) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "toOption" 0
 
@@ -158,7 +165,8 @@ let fns =
                 DOption OptNothing )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "toOption" 1
 
@@ -176,7 +184,8 @@ let fns =
                 DOption OptNothing )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "map2" 0
 
@@ -199,7 +208,8 @@ let fns =
                 Dval.to_res_ok result )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Result" "andThen" 0
 
@@ -226,7 +236,8 @@ let fns =
                 DResult (ResError msg) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Result" "andThen" 1
 
@@ -255,5 +266,6 @@ let fns =
                 DResult (ResError msg) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated } ]

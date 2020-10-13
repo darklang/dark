@@ -27,7 +27,8 @@ let fns : fn list =
               DInt (Float.round_up a |> Dint.of_float)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float::floor"; "Float" "roundDown" 0
 
@@ -42,7 +43,8 @@ let fns : fn list =
               DInt (Float.round_down a |> Dint.of_float)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "round" 0
 
@@ -56,7 +58,8 @@ let fns : fn list =
               DInt (Float.round a |> Dint.of_float)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float::truncate"; "Float" "roundTowardsZero" 0
 
@@ -71,7 +74,8 @@ let fns : fn list =
               DInt (Float.round_towards_zero a |> Dint.of_float)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "absoluteValue" 0
 
@@ -82,7 +86,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DFloat a] -> DFloat (Float.abs a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "negate" 0
 
@@ -92,7 +97,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DFloat a] -> DFloat (Float.neg a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "sqrt" 0
 
@@ -102,7 +108,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "power" 0
 
@@ -116,7 +123,8 @@ let fns : fn list =
               DFloat (base ** exp)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "divide" 0
     ; infix_names = ["/"]
@@ -127,7 +135,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "add" 0
 
@@ -138,7 +147,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "multiply" 0
 
@@ -149,7 +159,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "subtract" 0
 
@@ -160,7 +171,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "greaterThan" 0
 
@@ -171,7 +183,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "greaterThanOrEqualTo" 0
 
@@ -182,7 +195,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "lessThan" 0
 
@@ -193,7 +207,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "lessThanOrEqualTo" 0
 
@@ -204,7 +219,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "sum" 0
 
@@ -233,7 +249,8 @@ let fns : fn list =
               |> Result.ok_exn
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "min" 0
 
@@ -247,7 +264,8 @@ let fns : fn list =
               DFloat (Float.min a b)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "max" 0
 
@@ -261,7 +279,8 @@ let fns : fn list =
               DFloat (Float.max a b)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Float" "clamp" 0
 
@@ -293,5 +312,6 @@ let fns : fn list =
               )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated } ]

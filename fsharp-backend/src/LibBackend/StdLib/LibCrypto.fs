@@ -54,7 +54,8 @@ let fns : fn list =
               |> DPassword
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Password" "check" 0
 
@@ -75,7 +76,8 @@ let fns : fn list =
               |> DBool
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256" 0
 
@@ -92,7 +94,8 @@ let fns : fn list =
               |> DBytes
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha384" 0
 
@@ -109,7 +112,8 @@ let fns : fn list =
               |> DBytes
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "md5" 0
 
@@ -127,7 +131,8 @@ let fns : fn list =
               |> DBytes
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256hmac" 0
 
@@ -144,7 +149,8 @@ let fns : fn list =
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha1hmac" 0
 
@@ -161,5 +167,6 @@ let fns : fn list =
               Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated } ]

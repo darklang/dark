@@ -61,7 +61,8 @@ let fns : fn list =
                 headers
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated =
         true
         (* Deprecated due to using Libhttpclient.encode_basic_auth_broken *) }
@@ -122,5 +123,6 @@ let fns : fn list =
                 headers
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated } ]

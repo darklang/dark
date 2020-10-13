@@ -11,7 +11,8 @@ let fns : fn list =
     ; description = "Return `c`'s ASCII code"
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toASCIIChar" 0
 
@@ -20,7 +21,8 @@ let fns : fn list =
     ; description = "convert an int to an ASCII character"
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toLowercase" 0
 
@@ -29,7 +31,8 @@ let fns : fn list =
     ; description = "Return the lowercase value of `c`"
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toUppercase" 0
 
@@ -38,5 +41,6 @@ let fns : fn list =
     ; description = "Return the uppercase value of `c`"
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

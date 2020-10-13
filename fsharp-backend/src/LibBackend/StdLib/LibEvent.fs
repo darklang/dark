@@ -22,7 +22,8 @@ let fns : fn list =
               data
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "emit" "1"
 
@@ -39,5 +40,6 @@ let fns : fn list =
               data
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated } ]

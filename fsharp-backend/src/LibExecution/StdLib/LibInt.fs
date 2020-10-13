@@ -41,7 +41,8 @@ let fns : fn list =
                   raise e )
           | args ->
               Error FnWrongType)
-    ; previewable =
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable =
         Pure
         (*
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
@@ -75,7 +76,8 @@ let fns : fn list =
                   raise e )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated } *)
   ; { name = fn "Int" "remainder" 0
 
@@ -101,7 +103,8 @@ let fns : fn list =
                   raise e )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "add" 0
     ; infix_names = ["+"]
@@ -151,7 +154,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "subtract" 0
     ; infix_names = ["-"]
@@ -183,7 +187,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "multiply" 0
     ; infix_names = ["*"]
@@ -215,7 +220,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "power" 0
     ; infix_names = ["^"]
@@ -229,7 +235,8 @@ let fns : fn list =
               DInt (Dint.pow base exp)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "divide" 0
 
@@ -261,7 +268,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "absoluteValue" 0
 
@@ -272,7 +280,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DInt a] -> DInt (Dint.abs a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "negate" 0
 
@@ -282,7 +291,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DInt a] -> DInt (Dint.negate a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "greaterThan" 0
     ; infix_names = [">"]
@@ -314,7 +324,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "greaterThanOrEqualTo" 0
     ; infix_names = [">="]
@@ -346,7 +357,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "lessThan" 0
     ; infix_names = ["<"]
@@ -378,7 +390,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "lessThanOrEqualTo" 0
     ; infix_names = ["<="]
@@ -410,7 +423,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "random" 0
 
@@ -426,7 +440,8 @@ let fns : fn list =
               DInt (a + one + Dint.random (b - a))
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Int" "random" 1
 
@@ -444,7 +459,8 @@ let fns : fn list =
               DInt (lower + Dint.random (upper - lower))
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "sqrt" 0
 
@@ -467,7 +483,8 @@ let fns : fn list =
                 )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "toFloat" 0
 
@@ -478,7 +495,8 @@ let fns : fn list =
 
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "sum" 0
 
@@ -507,7 +525,8 @@ let fns : fn list =
               |> Result.ok_exn
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "max" 0
 
@@ -518,7 +537,8 @@ let fns : fn list =
 
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "min" 0
 
@@ -529,7 +549,8 @@ let fns : fn list =
 
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "clamp" 0
 
@@ -558,5 +579,6 @@ let fns : fn list =
               )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated } ]

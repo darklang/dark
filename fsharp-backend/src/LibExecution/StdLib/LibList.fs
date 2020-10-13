@@ -12,7 +12,8 @@ let fns : fn list =
     ; returnType = TList
     ; description = "Returns a one-element list containing the given `val`."
     ; fn =  (function _, [v] -> DList [v] | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "head" 0
 
@@ -27,7 +28,8 @@ let fns : fn list =
             (match List.hd l with Some dv -> dv | None -> DNull)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "head" 1
 
@@ -45,7 +47,8 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "head" 2
 
@@ -64,7 +67,8 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "tail" 0
 
@@ -86,7 +90,8 @@ let fns : fn list =
                 DOption OptNothing )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "empty" 0
 
@@ -94,7 +99,8 @@ let fns : fn list =
     ; returnType = TList
     ; description = "Returns an empty list."
     ; fn =  (function _, [] -> DList [] | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "push" 0
 
@@ -106,7 +112,8 @@ let fns : fn list =
           (* fake cf handled by call *)
           (function
           | _, [DList l; i] -> DList (i :: l) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "pushBack" 0
 
@@ -116,7 +123,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DList l; i] -> DList (l @ [i]) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "last" 0
 
@@ -133,7 +141,8 @@ let fns : fn list =
               List.last_exn l
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "last" 1
 
@@ -150,7 +159,8 @@ let fns : fn list =
               DOption (OptJust (List.last_exn l))
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "last" 2
 
@@ -167,7 +177,8 @@ let fns : fn list =
               Dval.to_opt_just (List.last_exn l)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "reverse" 0
 
@@ -177,7 +188,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DList l] -> DList (List.rev l) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "findFirst" 0
 
@@ -195,7 +207,8 @@ let fns : fn list =
               (match List.find ~f l with None -> DNull | Some dv -> dv)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "findFirst" 1
 
@@ -217,7 +230,8 @@ let fns : fn list =
                   DOption (OptJust dv) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "findFirst" 2
 
@@ -239,7 +253,8 @@ let fns : fn list =
                   Dval.to_opt_just dv )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "contains" 0
 
@@ -253,7 +268,8 @@ let fns : fn list =
               DBool (List.mem equal_dval l i)
           | args ->
               Error FnWrongType)
-    ; previewable =
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable =
         Pure
         (* Deprecated in favor of List::member for consistency with Elm's naming *)
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -269,7 +285,8 @@ let fns : fn list =
               DBool (List.mem equal_dval l i)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "repeat" 0
 
@@ -284,7 +301,8 @@ let fns : fn list =
               DList (List.init (Dint.to_int_exn t) (fun _ -> dv))
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "length" 0
 
@@ -295,7 +313,8 @@ let fns : fn list =
 
           (function
           | _, [DList l] -> Dval.dint (List.length l) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "range" 0
 
@@ -314,7 +333,8 @@ let fns : fn list =
                 |> List.map (fun i -> Dval.dint i) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "fold" 0
 
@@ -333,7 +353,8 @@ let fns : fn list =
               List.fold ~f ~init l
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "flatten" 0
 
@@ -355,7 +376,8 @@ let fns : fn list =
               List.fold (DList []) ~f l
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "interpose" 0
 
@@ -377,7 +399,8 @@ let fns : fn list =
               DList (join l)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "interleave" 0
 
@@ -399,7 +422,8 @@ let fns : fn list =
               DList (f l1 l2)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "uniqueBy" 0
 
@@ -417,7 +441,8 @@ let fns : fn list =
                      compare_dval (fn a) (fn b)))
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "isEmpty" 0
 
@@ -428,7 +453,8 @@ let fns : fn list =
 
           (function
           | _, [DList l] -> DBool (List.is_empty l) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "sort" 0
 
@@ -444,7 +470,8 @@ let fns : fn list =
               list |> List.sort compare_dval |> DList
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "sortBy" 0
 
@@ -464,7 +491,8 @@ let fns : fn list =
               |> DList
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "sortByComparator" 0
 
@@ -529,7 +557,8 @@ let fns : fn list =
                   DResult (ResError (Dval.dstr_of_string_exn e.short)) )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "append" 0
 
@@ -544,7 +573,8 @@ let fns : fn list =
               DList (List.append l1 l2) (* no checking for fake cf required *)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "filter" 0
 
@@ -572,7 +602,8 @@ let fns : fn list =
               else DList (List.filter ~f l)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "filter" 1
 
@@ -604,7 +635,8 @@ let fns : fn list =
               (match !fakecf with None -> DList result | Some v -> v)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "filter" 2
 
@@ -646,7 +678,8 @@ let fns : fn list =
               (match !abortReason with None -> DList result | Some v -> v)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "filterMap" 0
 
@@ -693,7 +726,8 @@ let fns : fn list =
               (match !abortReason with None -> DList result | Some v -> v)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "drop" 0
 
@@ -707,7 +741,8 @@ let fns : fn list =
               DList (List.drop l (Dint.to_int_exn c))
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "dropWhile" 0
 
@@ -753,7 +788,8 @@ let fns : fn list =
               (match !abortReason with None -> DList result | Some v -> v)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "take" 0
 
@@ -767,7 +803,8 @@ let fns : fn list =
               DList (List.take l (Dint.to_int_exn c))
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "takeWhile" 0
 
@@ -813,7 +850,8 @@ let fns : fn list =
               (match !abortReason with None -> DList result | Some v -> v)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "foreach" 0
 
@@ -830,7 +868,8 @@ let fns : fn list =
               DList (List.map ~f l)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "map" 0
 
@@ -847,7 +886,8 @@ let fns : fn list =
               Dval.to_list (List.map ~f l)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "indexedMap" 0
 
@@ -866,7 +906,8 @@ let fns : fn list =
               Dval.to_list (List.mapi ~f l)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "map2shortest" 0
 
@@ -891,7 +932,8 @@ let fns : fn list =
               Dval.to_list (List.map2_exn ~f l1 l2)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "map2" 0
 
@@ -917,7 +959,8 @@ let fns : fn list =
                     OptNothing )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "zipShortest" 0
 
@@ -943,7 +986,8 @@ let fns : fn list =
               Dval.to_list (List.map2_exn ~f l1 l2)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "zip" 0
 
@@ -969,7 +1013,8 @@ let fns : fn list =
                     OptNothing )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "unzip" 0
 
@@ -1036,7 +1081,8 @@ let fns : fn list =
                   v )
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "getAt" 0
 
@@ -1053,7 +1099,8 @@ let fns : fn list =
               |> Option.value (DOption OptNothing)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "List" "getAt" 1
 
@@ -1070,7 +1117,8 @@ let fns : fn list =
               |> Option.value (DOption OptNothing)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "randomElement" 0
 
@@ -1089,5 +1137,6 @@ let fns : fn list =
               |> Option.value_exn
           | args ->
               Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated } ]

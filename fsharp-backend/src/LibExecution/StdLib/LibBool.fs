@@ -12,7 +12,8 @@ let fns : fn list =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
     ; fn =
          (function _, [DBool b] -> DBool (not b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "and" 0
     ; infix_names = ["&&"]
@@ -23,7 +24,8 @@ let fns : fn list =
 
           (function
           | _, [DBool a; DBool b] -> DBool (a && b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "or" 0
     ; infix_names = ["||"]
@@ -34,7 +36,8 @@ let fns : fn list =
 
           (function
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "xor" 0
 
@@ -46,7 +49,8 @@ let fns : fn list =
 
           (function
           | _, [DBool a; DBool b] -> DBool (a <> b) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "isNull" 0
 
@@ -60,7 +64,8 @@ let fns : fn list =
             (match value with DNull -> DBool true | _ -> DBool false)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "isError" 0
 
@@ -74,5 +79,6 @@ let fns : fn list =
             (match value with DError _ -> DBool true | _ -> DBool false)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

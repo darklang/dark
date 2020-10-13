@@ -11,7 +11,8 @@ let fns : fn list =
     ; description = "Return an empty object"
     ; fn =
          (function _, [] -> DObj DvalMap.empty | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "merge" 0
 
@@ -26,7 +27,8 @@ let fns : fn list =
               DObj (Stdlib_util.merge_right l r)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 0
 
@@ -42,7 +44,8 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 1
 
@@ -58,5 +61,6 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

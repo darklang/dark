@@ -21,7 +21,8 @@ let fns : fn list =
     ; description =
         "Returns an approximation for the mathematical constant π, the ratio of a circle's circumference to its diameter."
     ; fn =  (function _, [] -> DFloat pi | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tau" 0
 
@@ -30,7 +31,8 @@ let fns : fn list =
     ; description =
         "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply Math::pi 2`."
     ; fn =  (function _, [] -> DFloat tau | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "degrees" 0
 
@@ -46,7 +48,8 @@ let fns : fn list =
               DFloat (degrees *. pi /. 180.0)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "turns" 0
 
@@ -59,7 +62,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat turns] -> DFloat (tau *. turns) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "radians" 0
 
@@ -71,7 +75,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DFloat rads] -> DFloat rads | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cos" 0
 
@@ -83,7 +88,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DFloat a] -> DFloat (Float.cos a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sin" 0
 
@@ -95,7 +101,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DFloat a] -> DFloat (Float.sin a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tan" 0
 
@@ -107,7 +114,8 @@ let fns : fn list =
     ; fn =
 
           (function _, [DFloat a] -> DFloat (Float.tan a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "acos" 0
 
@@ -128,7 +136,8 @@ let fns : fn list =
               else DOption (OptJust (DFloat res))
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "asin" 0
 
@@ -149,7 +158,8 @@ let fns : fn list =
               else DOption (OptJust (DFloat res))
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan" 0
 
@@ -162,7 +172,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a] -> DFloat (Float.atan a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan2" 0
 
@@ -178,7 +189,8 @@ let fns : fn list =
               DFloat (Float.atan2 y x)
           | args ->
               Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cosh" 0
 
@@ -189,7 +201,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a] -> DFloat (Float.cosh a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sinh" 0
 
@@ -200,7 +213,8 @@ let fns : fn list =
 
           (function
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tanh" 0
 
@@ -211,5 +225,6 @@ let fns : fn list =
 
           (function
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> Error FnWrongType)
-    ; previewable = Pure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
     ; deprecated = NotDeprecated } ]

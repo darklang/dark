@@ -57,7 +57,8 @@ let fns : fn list =
     ; returnType = TNull
     ; description = "TODO"
     ; fn = internal_fn (fun _ -> DNull)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "endUsers" 0
 
@@ -82,7 +83,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 |> DList
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkAllCanvases" 0
 
@@ -90,7 +92,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; returnType = TNull
     ; description = "TODO"
     ; fn = internal_fn (fun _ -> DNull)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "migrateAllCanvases" 0
 
@@ -98,7 +101,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; returnType = TNull
     ; description = "REMOVED"
     ; fn = internal_fn (fun _ -> DNull)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 0
 
@@ -106,7 +110,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; returnType = TNull
     ; description = "Deprecated, use v1"
     ; fn = internal_fn (fun _ -> DNull)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 1
 
@@ -115,7 +120,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; description = "Cleanup the old traces from a canvas"
     ; fn =
         internal_fn (function state, [] -> DFloat 0.0 | args -> Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
 
@@ -129,7 +135,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 DFloat 0.0
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "checkCanvas" 0
 
@@ -147,7 +154,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DBool false )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "migrateCanvas" 0
 
@@ -165,7 +173,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 0
 
@@ -187,7 +196,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     Exception.code msg )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 1
 
@@ -216,7 +226,8 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 2
 
@@ -272,7 +283,8 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 1
 
@@ -299,7 +311,8 @@ that's already taken, returns an error."
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUser" 0
 
@@ -325,7 +338,8 @@ that's already taken, returns an error."
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "getUser" 1
 
@@ -352,7 +366,8 @@ that's already taken, returns an error."
                             ; ("admin", DBool admin) ])) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUserByEmail" 0
 
@@ -378,7 +393,8 @@ that's already taken, returns an error."
                             ; ("admin", DBool admin) ])) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setAdmin" 0
 
@@ -394,7 +410,8 @@ that's already taken, returns an error."
                 DNull
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUsers" 0
 
@@ -409,7 +426,8 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllCanvases" 0
 
@@ -421,7 +439,8 @@ that's already taken, returns an error."
             Serialize.current_hosts ()
             |> List.map Dval.dstr_of_string_exn
             |> DList)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasesFor" 0
 
@@ -437,7 +456,8 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "schema" 0
 
@@ -479,7 +499,8 @@ that's already taken, returns an error."
                     Dval.to_dobj_exn [] )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasAsText" 0
 
@@ -493,7 +514,8 @@ that's already taken, returns an error."
                 Dval.dstr_of_string_exn ""
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "handlers" 0
 
@@ -517,7 +539,8 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "functions" 0
 
@@ -540,7 +563,8 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canLoadTraces" 0
 
@@ -578,7 +602,8 @@ that's already taken, returns an error."
                 with _ -> DBool false )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getCORSSetting" 0
 
@@ -611,7 +636,8 @@ that's already taken, returns an error."
                 !canvas.cors_setting |> cors_setting_to_dval
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setCORSSetting" 0
 
@@ -659,7 +685,8 @@ that's already taken, returns an error."
                     s |> DOption |> ResOk |> DResult )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "dbs" 0
 
@@ -684,7 +711,8 @@ that's already taken, returns an error."
                 |> fun l -> DList l
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "oplistInfo" 0
 
@@ -747,7 +775,8 @@ that's already taken, returns an error."
                 |> fun o -> DObj o
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "storedEvents" 0
 
@@ -796,7 +825,8 @@ that's already taken, returns an error."
                     DOption (OptJust event_list) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 0
 
@@ -823,7 +853,8 @@ that's already taken, returns an error."
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 1
 
@@ -850,7 +881,8 @@ that's already taken, returns an error."
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "sessionKeyToUsername" 0
 
@@ -870,7 +902,8 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
 
@@ -892,7 +925,8 @@ that's already taken, returns an error."
                     DOption OptNothing)
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "usernameToUserInfo" 0
 
@@ -918,7 +952,8 @@ that's already taken, returns an error."
                     |> DOption )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grant" 0
 
@@ -967,7 +1002,8 @@ that's already taken, returns an error."
                 |> result_to_dval
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grantsFor" 0
 
@@ -994,7 +1030,8 @@ that's already taken, returns an error."
                 |> fun obj -> DObj obj
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "orgsFor" 0
 
@@ -1021,7 +1058,8 @@ that's already taken, returns an error."
                 |> fun obj -> DObj obj
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkPermission" 0
 
@@ -1043,7 +1081,8 @@ that's already taken, returns an error."
                 |> Dval.dstr_of_string_exn
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "log" 0
 
@@ -1101,7 +1140,8 @@ that's already taken, returns an error."
                 DObj log
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnsUsed" 0
 
@@ -1132,7 +1172,8 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fieldNamesUsed" 0
 
@@ -1163,7 +1204,8 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnMetadata" 0
 
@@ -1192,7 +1234,8 @@ that's already taken, returns an error."
                 )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "allFunctions" 0
 
@@ -1237,7 +1280,8 @@ that's already taken, returns an error."
                 DList fns
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "clearStaticAssets" 0
 
@@ -1255,7 +1299,8 @@ that's already taken, returns an error."
                 DNull
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllSchedulingRules" 0
 
@@ -1270,7 +1315,8 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
 
@@ -1286,7 +1332,8 @@ that's already taken, returns an error."
                 |> DList
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
 
@@ -1295,7 +1342,8 @@ that's already taken, returns an error."
     ; description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
     ; fn = modify_schedule Event_queue.block_worker
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
 
@@ -1304,7 +1352,8 @@ that's already taken, returns an error."
     ; description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
     ; fn = modify_schedule Event_queue.unblock_worker
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "newSessionForUsername" 0
 
@@ -1358,7 +1407,8 @@ that's already taken, returns an error."
                                 "Failed to create session")) ) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "newSessionForUsername" 1
 
@@ -1421,7 +1471,8 @@ that's already taken, returns an error."
                                 "Failed to create session")) ) )
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "deleteSession" 0
 
@@ -1441,7 +1492,8 @@ that's already taken, returns an error."
                 |> Dval.dint
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAndLogTableSizes" 0
 
@@ -1507,5 +1559,6 @@ human-readable data."
                 table_stats_for_dobj |> DvalMap.from_list |> DObj
             | args ->
                 Error FnWrongType)
-    ; previewable = Impure
+    ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
     ; deprecated = NotDeprecated } ]
