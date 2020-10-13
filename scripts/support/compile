@@ -202,6 +202,10 @@ def fsharp_tool_restore():
   build = "cd fsharp-backend && unbuffer dotnet tool restore"
   return run_backend(start, build)
 
+def fsharp_paket_install():
+  start = time.time()
+  build = "cd fsharp-backend && unbuffer dotnet paket install"
+  return run_backend(start, build)
 
 def fsharp_paket_restore():
   start = time.time()
@@ -218,6 +222,7 @@ def fsharp_paket_restore():
 # Builds are split into
 # - dotnet tool restore: installs build tooling (paket)
 # - dotnet paket restore: installs dependencies from paket.lock
+# - dotnet paket install: installs dependencies from the internet, updates paket.lock
 # - dotnet build: builds executables
 
 # dotnet build is extremely slow by default. You can determine where time is
@@ -364,6 +369,7 @@ class Should:
     self.scheduler_test = False
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
+    self.fsharp_paket_install = False
     self.fsharp_backend_quick_build = False
     self.fsharp_backend_full_build = False
     self.fsharp_backend_test = False
@@ -397,6 +403,10 @@ def execute(should):
 
   if should.fsharp_paket_restore:
     if not fsharp_paket_restore(): success = False
+    should.fsharp_backend_full_build |= success
+
+  if should.fsharp_paket_install:
+    if not fsharp_paket_install(): success = False
     should.fsharp_backend_full_build |= success
 
   if should.backend_build:
@@ -529,6 +539,9 @@ def mark(should, f):
     should.fsharp_tool_restore = True
 
   elif ("/fsharp-backend/paket.dependencies" in f):
+    should.fsharp_paket_install = True
+
+  elif ("/fsharp-backend/" in f and "paket.references" in f):
     should.fsharp_paket_restore = True
 
   elif ("/fsharp-backend/" in f):
@@ -630,6 +643,7 @@ def ignore(filename):
       ".bs.js",
       ".bsdeps",
       ".bsbuild",
+      "/obj/fsac.cache"
       ".sourcedirs.json",
       ".md",
       ".sw",
