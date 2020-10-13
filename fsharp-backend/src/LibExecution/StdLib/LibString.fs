@@ -54,7 +54,7 @@ let fns: List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr s; DLambda b ] ->
-            (String.toTextElements s
+            (String.toEgcSeq s
              |> Seq.toList
              |> Runtime.map_s (fun te -> (Interpreter.eval_lambda state b [ DChar te ]))
              |> (fun dvals ->
@@ -103,7 +103,7 @@ let fns: List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             (s
-             |> String.toTextElements
+             |> String.toEgcSeq
              |> Seq.map (fun c -> DChar c)
              |> Seq.toList
              |> DList
@@ -283,7 +283,7 @@ let fns: List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, [ DStr s ] -> s |> String.length |> Dval.int |> Plain
+        | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Plain
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
