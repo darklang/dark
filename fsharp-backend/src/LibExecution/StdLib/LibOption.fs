@@ -7,7 +7,7 @@ let fns =
   [ { name = fn "Option" "map" 0
 
     ; parameters = [Param.make "option" TOption; func ["val"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "If `option` is `Just value`, returns `Just (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Just`).
         If `result` is `Nothing`, returns `Nothing`."
@@ -28,7 +28,7 @@ let fns =
   ; { name = fn "Option" "map" 1
 
     ; parameters = [Param.make "option" TOption; func ["val"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "If <var option> is {{Just <var value>}}, then return {{Just (f <var value>)}}. The lambda <var f> applied to <var value> and the result is wrapped in {{Just}}. Otherwise if the result is {{Nothing}}, then return {{Nothing}}."
     ; fn =
@@ -49,7 +49,7 @@ let fns =
 
     ; parameters =
         [Param.make "option1" TOption; Param.make "option2" TOption; func ["v1"; "v2"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "If both arguments are {{Just}} (<param option1> is {{Just <var v1>}} and <param option2> is {{Just <var v2>}}), then return {{Just (f <var v1> <var v2>)}} -- The lambda <param f> should have two parameters, representing <var v1> and <var v2>. But if either <param option1> or <param option2> are {{Nothing}}, returns {{Nothing}} without applying <param f>."
     ; fn =
@@ -69,7 +69,7 @@ let fns =
   ; { name = fn "Option" "andThen" 0
 
     ; parameters = [Param.make "option" TOption; func ["val"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "If <param option> is {{Just <var input>}}, returns {{f <var input>}}. Where the lambda <param f> is applied to <var input> and must return {{Just <var output>}} or {{Nothing}}. Otherwise if <param option> is {{Nothing}}, returns {{Nothing}}."
     ; fn =
@@ -96,7 +96,7 @@ let fns =
   ; { name = fn "Option" "withDefault" 0
 
     ; parameters = [Param.make "option" TOption; Param.make "default" TAny]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "If <param option> is {{Just <var value>}}, returns <var value>. Returns <param default> otherwise."
     ; fn =

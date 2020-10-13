@@ -12,7 +12,7 @@ let fns : fn list =
   [ { name = fn "DB" "set" 1
 
     ; parameters = [Param.make "val" TObj; Param.make "key" TStr; Param.make "table" TDB]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Upsert `val` into `table`, accessible by `key`"
     ; fn =
 
@@ -29,7 +29,7 @@ let fns : fn list =
   ; { name = fn "DB" "add" 0
 
     ; parameters = [Param.make "val" TObj; Param.make "table" TDB]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
     ; fn =
@@ -47,7 +47,7 @@ let fns : fn list =
   ; { name = fn "DB" "get" 1
 
     ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description = "Finds a value in `table` by `key"
     ; fn =
 
@@ -63,7 +63,7 @@ let fns : fn list =
   ; { name = fn "DB" "get" 2
 
     ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description = "Finds a value in `table` by `key"
     ; fn =
 
@@ -79,7 +79,7 @@ let fns : fn list =
   ; { name = fn "DB" "getMany" 1
 
     ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
     ; fn =
@@ -108,7 +108,7 @@ let fns : fn list =
   ; { name = fn "DB" "getMany" 2
 
     ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [value] list of values"
     ; fn =
@@ -136,7 +136,7 @@ let fns : fn list =
   ; { name = fn "DB" "getMany" 3
 
     ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
     ; fn =
@@ -166,7 +166,7 @@ let fns : fn list =
   ; { name = fn "DB" "getExisting" 0
 
     ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Finds many values in `table` by `keys` (ignoring any missing items), returning a [value] list of values"
     ; fn =
@@ -194,7 +194,7 @@ let fns : fn list =
   ; { name = fn "DB" "getManyWithKeys" 0
 
     ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
     ; fn =
@@ -223,7 +223,7 @@ let fns : fn list =
   ; { name = fn "DB" "getManyWithKeys" 1
 
     ; parameters = [Param.make "keys" TList; Param.make "table" TDB]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Finds many values in `table` by `keys, returning a {key:{value}, key2: {value2}} object of keys and values"
     ; fn =
@@ -251,7 +251,7 @@ let fns : fn list =
   ; { name = fn "DB" "delete" 1
 
     ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
-    ; return_type = TNull
+    ; returnType = TNull
     ; description = "Delete `key` from `table`"
     ; fn =
 
@@ -268,7 +268,7 @@ let fns : fn list =
   ; { name = fn "DB" "deleteAll" 1
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TNull
+    ; returnType = TNull
     ; description = "Delete everything from `table`"
     ; fn =
 
@@ -284,7 +284,7 @@ let fns : fn list =
   ; { name = fn "DB" "query" 1
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning a [[key, value]] list of lists"
@@ -304,7 +304,7 @@ let fns : fn list =
   ; { name = fn "DB" "query" 2
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
     ; fn =
@@ -323,7 +323,7 @@ let fns : fn list =
   ; { name = fn "DB" "query" 3
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
     ; fn =
@@ -341,7 +341,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryExactFields" 0
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
     ; fn =
@@ -359,7 +359,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryWithKey" 1
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning a [[key, value]] list of lists"
@@ -380,7 +380,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryWithKey" 2
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object"
@@ -399,7 +399,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryExactFieldsWithKey" 0
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
@@ -418,7 +418,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOne" 1
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
     ; fn =
@@ -441,7 +441,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOne" 2
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
     ; fn =
@@ -465,7 +465,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOneWithExactFields" 0
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
     ; fn =
@@ -488,7 +488,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOneWithKey" 1
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
     ; fn =
@@ -511,7 +511,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOneWithKey" 2
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
     ; fn =
@@ -535,7 +535,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
 
     ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
     ; fn =
@@ -558,7 +558,7 @@ let fns : fn list =
   ; { name = fn "DB" "getAll" 1
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
         lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
@@ -578,7 +578,7 @@ let fns : fn list =
   ; { name = fn "DB" "getAll" 2
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Fetch all the values in `table`."
     ; fn =
 
@@ -595,7 +595,7 @@ let fns : fn list =
   ; { name = fn "DB" "getAll" 3
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Fetch all the values in `table`."
     ; fn =
 
@@ -612,7 +612,7 @@ let fns : fn list =
   ; { name = fn "DB" "getAllWithKeys" 1
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
         lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
@@ -632,7 +632,7 @@ let fns : fn list =
   ; { name = fn "DB" "getAllWithKeys" 2
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
     ; fn =
@@ -648,7 +648,7 @@ let fns : fn list =
   ; { name = fn "DB" "count" 0
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Return the number of items stored in `table`."
     ; fn =
 
@@ -664,7 +664,7 @@ let fns : fn list =
     { name = fn "DB" "schemaFields" 1
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Fetch all the fieldNames in `table`"
     ; fn =
 
@@ -681,7 +681,7 @@ let fns : fn list =
   ; { name = fn "DB" "schema" 1
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns an `Obj` representing { fieldName: fieldType } in `table`"
     ; fn =
@@ -700,7 +700,7 @@ let fns : fn list =
   ; { name = fn "DB" "generateKey" 0
 
     ; parameters = []
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Returns a random key suitable for use as a DB key"
     ; fn =
 
@@ -714,7 +714,7 @@ let fns : fn list =
   ; { name = fn "DB" "keys" 1
 
     ; parameters = [Param.make "table" TDB]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the keys of entries in `table`. Returns an list with strings"
     ; fn =
@@ -732,7 +732,7 @@ let fns : fn list =
   ; { name = fn "DB" "query" 4
 
     ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
     ; fn =
@@ -753,7 +753,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryWithKey" 3
 
     ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
     ; fn =
@@ -772,7 +772,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOne" 3
 
     ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
     ; fn =
@@ -796,7 +796,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOne" 4
 
     ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
     ; fn =
@@ -820,7 +820,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryOneWithKey" 3
 
     ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
     ; fn =
@@ -844,7 +844,7 @@ let fns : fn list =
   ; { name = fn "DB" "queryCount" 0
 
     ; parameters = [Param.make "table" TDB; Param.make "filter" TBlock ~args:["value"]]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
     ; fn =

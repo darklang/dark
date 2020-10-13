@@ -7,7 +7,7 @@ let fns : fn list =
   [ { name = fn "Bytes" "base64Encode" 0
 
     ; parameters = [Param.make "bytes" TBytes]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Base64URL encodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
     ; fn =
@@ -22,7 +22,7 @@ let fns : fn list =
   ; { name = fn "Bytes" "hexEncode" 0
 
     ; parameters = [Param.make "bytes" TBytes]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Hex (Base16) encodes `bytes` using an uppercase alphabet. Complies with RFC 4648 section 8."
     ; fn =
@@ -49,7 +49,7 @@ let fns : fn list =
   ; { name = fn "Bytes" "length" 0
 
     ; parameters = [Param.make "bytes" TBytes]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Length of encoded byte string"
     ; fn =
 

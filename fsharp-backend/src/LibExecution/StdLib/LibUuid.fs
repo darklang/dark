@@ -7,7 +7,7 @@ let fns =
   [ { name = fn "Uuid" "generate" 0
 
     ; parameters = []
-    ; return_type = TUuid
+    ; returnType = TUuid
     ; description = "Generate a new UUID v4 according to RFC 4122"
     ; fn =
          (function _, [] -> DUuid (Uuidm.v `V4) | args -> fail args)

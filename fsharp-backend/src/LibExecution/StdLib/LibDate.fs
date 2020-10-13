@@ -7,7 +7,7 @@ let fns : fn list =
   [ { name = fn "Date" "parse" 0
 
     ; parameters = [Param.make "s" TStr]
-    ; return_type = TDate
+    ; returnType = TDate
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
     ; fn =
@@ -25,7 +25,7 @@ let fns : fn list =
   ; { name = fn "Date" "parse" 1
 
     ; parameters = [Param.make "s" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
     ; fn =
@@ -48,7 +48,7 @@ let fns : fn list =
   ; { name = fn "Date" "parse" 2
 
     ; parameters = [Param.make "s" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
     ; fn =
@@ -70,7 +70,7 @@ let fns : fn list =
   ; { name = fn "Date" "toString" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
     ; fn =
@@ -85,7 +85,7 @@ let fns : fn list =
   ; { name = fn "Date" "toStringISO8601BasicDateTime" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
     ; fn =
@@ -101,7 +101,7 @@ let fns : fn list =
   ; { name = fn "Date" "toStringISO8601BasicDate" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
     ; fn =
 
@@ -116,7 +116,7 @@ let fns : fn list =
   ; { name = fn "Date" "now" 0
 
     ; parameters = []
-    ; return_type = TDate
+    ; returnType = TDate
     ; description = "Returns the current time."
     ; fn =
          (function _, [] -> DDate (Time.now ()) | args -> fail args)
@@ -125,7 +125,7 @@ let fns : fn list =
   ; { name = fn "Date" "today" 0
 
     ; parameters = []
-    ; return_type = TDate
+    ; returnType = TDate
     ; description = "Returns the Date with the time set to midnight"
     ; fn =
 
@@ -143,7 +143,7 @@ let fns : fn list =
   ; { name = fn "Date" "add" 0
 
     ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
-    ; return_type = TDate
+    ; returnType = TDate
     ; description = "Returns a new Date `seconds` seconds after `d`"
     ; fn =
 
@@ -157,7 +157,7 @@ let fns : fn list =
   ; { name = fn "Date" "sub" 0
 
     ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
-    ; return_type = TDate
+    ; returnType = TDate
     ; description = "Returns a new Date `seconds` seconds before `d`"
     ; fn =
 
@@ -171,7 +171,7 @@ let fns : fn list =
   ; { name = fn "Date" "subtract" 0
 
     ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
-    ; return_type = TDate
+    ; returnType = TDate
     ; description = "Returns a new Date `seconds` seconds before `d`"
     ; fn =
 
@@ -185,7 +185,7 @@ let fns : fn list =
   ; { name = fn "Date" "greaterThan" 0
     ; infix_names = ["Date::>"]
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns whether `d1` > ` d2`"
     ; fn =
 
@@ -199,7 +199,7 @@ let fns : fn list =
   ; { name = fn "Date" "lessThan" 0
     ; infix_names = ["Date::<"]
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns whether `d1` < ` d2`"
     ; fn =
 
@@ -213,7 +213,7 @@ let fns : fn list =
   ; { name = fn "Date" "greaterThanOrEqualTo" 0
     ; infix_names = ["Date::>="]
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns whether `d1` >= ` d2`"
     ; fn =
 
@@ -227,7 +227,7 @@ let fns : fn list =
   ; { name = fn "Date" "lessThanOrEqualTo" 0
     ; infix_names = ["Date::<="]
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns whether `d1` <= ` d2`"
     ; fn =
 
@@ -241,7 +241,7 @@ let fns : fn list =
   ; { name = fn "Date" "toSeconds" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Converts a Date `date` to an integer representing seconds since the Unix epoch"
     ; fn =
@@ -260,7 +260,7 @@ let fns : fn list =
   ; { name = fn "Date" "fromSeconds" 0
 
     ; parameters = [Param.make "seconds" TInt]
-    ; return_type = TDate
+    ; returnType = TDate
     ; description =
         "Converts an integer representing seconds since the Unix epoch into a Date"
     ; fn =
@@ -279,7 +279,7 @@ let fns : fn list =
   ; { name = fn "Date" "toHumanReadable" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Turn a Date into a human readable format"
     ; fn =
 
@@ -353,7 +353,7 @@ let fns : fn list =
   ; { name = fn "Date" "year" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the year portion of the Date as an int"
     ; fn =
 
@@ -367,7 +367,7 @@ let fns : fn list =
   ; { name = fn "Date" "month" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Returns the month portion of the Date as an int between 1 and 12"
     ; fn =
@@ -386,7 +386,7 @@ let fns : fn list =
   ; { name = fn "Date" "day" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the day portion of the Date as an int"
     ; fn =
 
@@ -400,7 +400,7 @@ let fns : fn list =
   ; { name = fn "Date" "weekday" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Returns the weekday of `date` as an int. Monday = 1, Tuesday = 2, ... Sunday = 7 (in accordance with ISO 8601)."
     ; fn =
@@ -419,7 +419,7 @@ let fns : fn list =
   ; { name = fn "Date" "hour" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the hour portion of the Date as an int"
     ; fn =
 
@@ -438,7 +438,7 @@ let fns : fn list =
   ; { name = fn "Date" "hour" 1
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the hour portion of the Date as an int"
     ; fn =
 
@@ -457,7 +457,7 @@ let fns : fn list =
   ; { name = fn "Date" "minute" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the minute portion of the Date as an int"
     ; fn =
 
@@ -476,7 +476,7 @@ let fns : fn list =
   ; { name = fn "Date" "second" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the second portion of the Date as an int"
     ; fn =
 
@@ -495,7 +495,7 @@ let fns : fn list =
   ; { name = fn "Date" "atStartOfDay" 0
 
     ; parameters = [Param.make "date" TDate]
-    ; return_type = TDate
+    ; returnType = TDate
     ; description = "Returns the Date with the time set to midnight"
     ; fn =
 

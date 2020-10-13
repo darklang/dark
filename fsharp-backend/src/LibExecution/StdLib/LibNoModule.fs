@@ -20,7 +20,7 @@ let fns : fn list =
   [ { name = fn "" "toString" 0
 
     ; parameters = [Param.make "v" TAny]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
     ; fn =
@@ -35,7 +35,7 @@ let fns : fn list =
   ; { name = fn "" "toRepr" 0
 
     ; parameters = [Param.make "v" TAny]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
     ; fn =
@@ -50,7 +50,7 @@ let fns : fn list =
   ; { name = fn "" "equals" 0
     ; infix_names = ["=="]
     ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if the two value are equal"
     ; fn =
 
@@ -60,7 +60,7 @@ let fns : fn list =
   ; { name = fn "" "notEquals" 0
     ; infix_names = ["!="]
     ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if the two value are not equal"
     ; fn =
 
@@ -71,7 +71,7 @@ let fns : fn list =
   ; { name = fn "" "assoc" 0
 
     ; parameters = [Param.make "obj" TObj; Param.make "key" TStr; Param.make "val" TAny]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Return a copy of `obj` with the `key` set to `val`."
     ; fn =
 
@@ -85,7 +85,7 @@ let fns : fn list =
   ; { name = fn "" "dissoc" 0
 
     ; parameters = [Param.make "obj" TObj; Param.make "key" TStr]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Return a copy of `obj` with `key` unset."
     ; fn =
 
@@ -99,7 +99,7 @@ let fns : fn list =
   ; { name = fn "" "toForm" 0
 
     ; parameters = [Param.make "obj" TObj; Param.make "submit" TStr]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
     ; fn =
@@ -137,7 +137,7 @@ let fns : fn list =
   ; { name = fn "Error" "toString" 0
 
     ; parameters = [Param.make "err" TError]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Return a string representing the error"
     ; fn =
 
@@ -151,7 +151,7 @@ let fns : fn list =
   ; { name = fn "AWS" "urlencode" 0
 
     ; parameters = [Param.make "str" TStr]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Url encode a string per AWS' requirements"
     ; fn =
 
@@ -168,7 +168,7 @@ let fns : fn list =
   ; { name = fn "Twitter" "urlencode" 0
 
     ; parameters = [Param.make "s" TStr]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Url encode a string per Twitter's requirements"
     ; fn =
 

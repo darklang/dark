@@ -7,7 +7,7 @@ let fns : fn list =
   [ { name = fn "HttpClient" "formContentType" 0
 
     ; parameters = []
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns an object with 'Content-Type' for url-encoded HTML forms"
     ; fn =
@@ -25,7 +25,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "jsonContentType" 0
 
     ; parameters = []
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Returns an object with 'Content-Type' for JSON"
     ; fn =
 
@@ -42,7 +42,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "plainTextContentType" 0
 
     ; parameters = []
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Returns an object with 'Content-Type' for plain text"
     ; fn =
 
@@ -59,7 +59,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "htmlContentType" 0
 
     ; parameters = []
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Returns an object with 'Content-Type' for html"
     ; fn =
 
@@ -76,7 +76,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "bearerToken" 0
 
     ; parameters = [Param.make "token" TStr]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
     ; fn =
@@ -97,7 +97,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "bearerToken" 1
 
     ; parameters = [Param.make "token" TStr]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
     ; fn =

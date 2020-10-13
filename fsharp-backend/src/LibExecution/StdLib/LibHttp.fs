@@ -7,7 +7,7 @@ let fns : fn list =
   [ { name = fn "Http" "respond" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
     ; fn =
@@ -22,7 +22,7 @@ let fns : fn list =
   ; { name = fn "Http" "response" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
     ; fn =
@@ -41,7 +41,7 @@ let fns : fn list =
   ; { name = fn "Http" "respondWithHeaders" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "headers" TObj; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
     ; fn =
@@ -57,7 +57,7 @@ let fns : fn list =
   ; { name = fn "Http" "responseWithHeaders" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "headers" TObj; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
     ; fn =
@@ -73,7 +73,7 @@ let fns : fn list =
   ; { name = fn "Http" "success" 0
 
     ; parameters = [Param.make "response" TAny]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
     ; fn =
@@ -85,7 +85,7 @@ let fns : fn list =
   ; { name = fn "Http" "respondWithHtml" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
     ; fn =
@@ -103,7 +103,7 @@ let fns : fn list =
   ; { name = fn "Http" "responseWithHtml" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
     ; fn =
@@ -121,7 +121,7 @@ let fns : fn list =
   ; { name = fn "Http" "respondWithText" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
     ; fn =
@@ -139,7 +139,7 @@ let fns : fn list =
   ; { name = fn "Http" "responseWithText" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
     ; fn =
@@ -157,7 +157,7 @@ let fns : fn list =
   ; { name = fn "Http" "respondWithJson" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
     ; fn =
@@ -176,7 +176,7 @@ let fns : fn list =
   ; { name = fn "Http" "responseWithJson" 0
 
     ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
     ; fn =
@@ -195,7 +195,7 @@ let fns : fn list =
   ; { name = fn "Http" "redirectTo" 0
 
     ; parameters = [Param.make "url" TStr]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
     ; fn =
@@ -210,7 +210,7 @@ let fns : fn list =
   ; { name = fn "Http" "badRequest" 0
 
     ; parameters = [Param.make "error" TStr]
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
     ; fn =
@@ -225,7 +225,7 @@ let fns : fn list =
   ; { name = fn "Http" "notFound" 0
 
     ; parameters = []
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
     ; fn =
@@ -237,7 +237,7 @@ let fns : fn list =
   ; { name = fn "Http" "unauthorized" 0
 
     ; parameters = []
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
     ; fn =
@@ -249,7 +249,7 @@ let fns : fn list =
   ; { name = fn "Http" "forbidden" 0
 
     ; parameters = []
-    ; return_type = TResp
+    ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
     ; fn =
@@ -261,7 +261,7 @@ let fns : fn list =
   ; { name = fn "Http" "setCookie" 0
 
     ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
     ; fn =
@@ -307,7 +307,7 @@ let fns : fn list =
   ; { name = fn "Http" "setCookie" 1
 
     ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
     ; fn =
@@ -363,7 +363,7 @@ let fns : fn list =
   ; { name = fn "Http" "setCookie" 2
 
     ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
     ; fn =

@@ -8,7 +8,7 @@ let fns : fn list =
   [ { name = fn "" "emit" 0
 
     ; parameters = [Param.make "Data" TAny; Param.make "Space" TStr; Param.make "Name" TStr]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Emit event `name` in `space`, passing along `data` as a parameter"
     ; fn =
@@ -27,7 +27,7 @@ let fns : fn list =
   ; { name = fn "" "emit" "1"
 
     ; parameters = [Param.make "event" TAny; Param.make "Name" TStr]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description = "Emit a `event` to the `name` worker"
     ; fn =
 

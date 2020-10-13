@@ -7,7 +7,7 @@ let fns : fn list =
   [ { name = fn "Bool" "not" 0
 
     ; parameters = [Param.make "b" TBool]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
     ; fn =
@@ -17,7 +17,7 @@ let fns : fn list =
   ; { name = fn "Bool" "and" 0
     ; infix_names = ["&&"]
     ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if both a and b are true"
     ; fn =
 
@@ -28,7 +28,7 @@ let fns : fn list =
   ; { name = fn "Bool" "or" 0
     ; infix_names = ["||"]
     ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if either a is true or b is true"
     ; fn =
 
@@ -39,7 +39,7 @@ let fns : fn list =
   ; { name = fn "Bool" "xor" 0
 
     ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description =
         "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
     ; fn =
@@ -51,7 +51,7 @@ let fns : fn list =
   ; { name = fn "Bool" "isNull" 0
 
     ; parameters = [Param.make "check" TAny]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if the `check` parameter is null"
     ; fn =
 
@@ -65,7 +65,7 @@ let fns : fn list =
   ; { name = fn "Bool" "isError" 0
 
     ; parameters = [Param.make "check" TAny]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns `true` if the `check` parameter is an error"
     ; fn =
 

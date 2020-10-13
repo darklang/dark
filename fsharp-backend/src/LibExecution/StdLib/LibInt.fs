@@ -18,7 +18,7 @@ let fns : fn list =
   [ { name = fn "Int" "mod" 0
     ; infix_names = ["%"]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Returns the result of wrapping `a` around so that `0 <= res < b`.
          The modulus `b` must be 0 or negative.
@@ -52,7 +52,7 @@ let fns : fn list =
   ; { name = fn "Int" "mod" 1
     ; infix_names = ["%_v1"]
     ; parameters = [Param.make "value" TInt; Param.make "modulus" TInt]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
          If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
@@ -80,7 +80,7 @@ let fns : fn list =
   ; { name = fn "Int" "remainder" 0
 
     ; parameters = [Param.make "value" TInt; Param.make "divisor" TInt]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
         For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
@@ -106,7 +106,7 @@ let fns : fn list =
   ; { name = fn "Int" "add" 0
     ; infix_names = ["+"]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Adds two integers together"
     ; fn =
 
@@ -156,7 +156,7 @@ let fns : fn list =
   ; { name = fn "Int" "subtract" 0
     ; infix_names = ["-"]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Subtracts two integers"
     ; fn =
 
@@ -188,7 +188,7 @@ let fns : fn list =
   ; { name = fn "Int" "multiply" 0
     ; infix_names = ["*"]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Multiplies two integers"
     ; fn =
 
@@ -220,7 +220,7 @@ let fns : fn list =
   ; { name = fn "Int" "power" 0
     ; infix_names = ["^"]
     ; parameters = [Param.make "base" TInt; Param.make "exponent" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Raise `base` to the power of `exponent`"
     ; fn =
 
@@ -234,7 +234,7 @@ let fns : fn list =
   ; { name = fn "Int" "divide" 0
 
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Divides two integers"
     ; fn =
 
@@ -266,7 +266,7 @@ let fns : fn list =
   ; { name = fn "Int" "absoluteValue" 0
 
     ; parameters = [Param.make "a" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
     ; fn =
@@ -277,7 +277,7 @@ let fns : fn list =
   ; { name = fn "Int" "negate" 0
 
     ; parameters = [Param.make "a" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the negation of `a`, `-a`."
     ; fn =
 
@@ -287,7 +287,7 @@ let fns : fn list =
   ; { name = fn "Int" "greaterThan" 0
     ; infix_names = [">"]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is greater than b"
     ; fn =
 
@@ -319,7 +319,7 @@ let fns : fn list =
   ; { name = fn "Int" "greaterThanOrEqualTo" 0
     ; infix_names = [">="]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is greater than or equal to b"
     ; fn =
 
@@ -351,7 +351,7 @@ let fns : fn list =
   ; { name = fn "Int" "lessThan" 0
     ; infix_names = ["<"]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is less than b"
     ; fn =
 
@@ -383,7 +383,7 @@ let fns : fn list =
   ; { name = fn "Int" "lessThanOrEqualTo" 0
     ; infix_names = ["<="]
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is less than or equal to b"
     ; fn =
 
@@ -415,7 +415,7 @@ let fns : fn list =
   ; { name = fn "Int" "random" 0
 
     ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns a random integer between a and b (inclusive)"
     ; fn =
 
@@ -431,7 +431,7 @@ let fns : fn list =
   ; { name = fn "Int" "random" 1
 
     ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Returns a random integer between `start` and `end` (inclusive)."
     ; fn =
@@ -449,7 +449,7 @@ let fns : fn list =
   ; { name = fn "Int" "sqrt" 0
 
     ; parameters = [Param.make "a" TInt]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Get the square root of an Int"
     ; fn =
 
@@ -472,7 +472,7 @@ let fns : fn list =
   ; { name = fn "Int" "toFloat" 0
 
     ; parameters = [Param.make "a" TInt]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Converts an Int to a Float"
     ; fn =
 
@@ -483,7 +483,7 @@ let fns : fn list =
   ; { name = fn "Int" "sum" 0
 
     ; parameters = [Param.make "a" TList]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the sum of all the ints in the list"
     ; fn =
 
@@ -512,7 +512,7 @@ let fns : fn list =
   ; { name = fn "Int" "max" 0
 
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the higher of a and b"
     ; fn =
 
@@ -523,7 +523,7 @@ let fns : fn list =
   ; { name = fn "Int" "min" 0
 
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the lower of `a` and `b`"
     ; fn =
 
@@ -534,7 +534,7 @@ let fns : fn list =
   ; { name = fn "Int" "clamp" 0
 
     ; parameters = [Param.make "value" TInt; Param.make "limitA" TInt; Param.make "limitB" TInt]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
          If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.

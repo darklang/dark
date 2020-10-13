@@ -7,7 +7,7 @@ let fns : Types.RuntimeT.fn list =
   [ { name = fn "X509" "pemCertificatePublicKey" 0
 
     ; parameters = [Param.make "pemCert" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
     ; fn =

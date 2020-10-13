@@ -7,7 +7,7 @@ let fns : fn list =
   [ { name = fn "Object" "empty" 0
 
     ; parameters = []
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Return an empty object"
     ; fn =
          (function _, [] -> DObj DvalMap.empty | args -> fail args)
@@ -16,7 +16,7 @@ let fns : fn list =
   ; { name = fn "Object" "merge" 0
 
     ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
     ; fn =
@@ -31,7 +31,7 @@ let fns : fn list =
   ; { name = fn "Object" "toJSON" 0
 
     ; parameters = [Param.make "obj" TObj]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Dumps `obj` to a JSON string"
     ; fn =
 
@@ -47,7 +47,7 @@ let fns : fn list =
   ; { name = fn "Object" "toJSON" 1
 
     ; parameters = [Param.make "obj" TObj]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Dumps `obj` to a JSON string"
     ; fn =
 

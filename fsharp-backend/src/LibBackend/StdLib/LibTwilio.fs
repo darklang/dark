@@ -12,7 +12,7 @@ let fns : fn list =
         ; Param.make "fromNumber" TStr
         ; Param.make "toNumber" TStr
         ; Param.make "body" TStr ]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
     ; fn =
@@ -73,7 +73,7 @@ let fns : fn list =
         ; Param.make "fromNumber" TStr
         ; Param.make "toNumber" TStr
         ; Param.make "body" TStr ]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
     ; fn =

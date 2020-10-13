@@ -7,7 +7,7 @@ let fns : fn list =
   [ { name = fn "JSON" "read" 0
 
     ; parameters = [Param.make "json" TStr]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
     ; fn =
@@ -23,7 +23,7 @@ let fns : fn list =
   ; { name = fn "JSON" "read" 1
 
     ; parameters = [Param.make "json" TStr]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
     ; fn =
@@ -38,7 +38,7 @@ let fns : fn list =
   ; { name = fn "JSON" "parse" 0
 
     ; parameters = [Param.make "json" TStr]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
     ; fn =
@@ -53,7 +53,7 @@ let fns : fn list =
   ; { name = fn "JSON" "parse" 1
 
     ; parameters = [Param.make "json" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
     ; fn =

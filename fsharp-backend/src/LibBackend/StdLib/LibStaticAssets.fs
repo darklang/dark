@@ -10,7 +10,7 @@ let fns : fn list =
   [ { name = fn "StaticAssets" "baseUrlFor" 0
 
     ; parameters = [Param.make "deploy_hash" TStr]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Return the baseUrl for the specified deploy hash"
     ; fn =
 
@@ -25,7 +25,7 @@ let fns : fn list =
   ; { name = fn "StaticAssets" "baseUrlForLatest" 0
 
     ; parameters = []
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Return the baseUrl for the latest deploy"
     ; fn =
 
@@ -40,7 +40,7 @@ let fns : fn list =
   ; { name = fn "StaticAssets" "urlFor" 0
 
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Return a url for the specified file and deploy hash"
     ; fn =
 
@@ -59,7 +59,7 @@ let fns : fn list =
   ; { name = fn "StaticAssets" "urlForLatest" 0
 
     ; parameters = [Param.make "file" TStr]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Return a url for the specified file and latest deploy"
     ; fn =
 
@@ -78,7 +78,7 @@ let fns : fn list =
   ; { name = fn "StaticAssets" "fetch" 0
 
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
     ; fn =
@@ -112,7 +112,7 @@ UTF-8 safe"))
   ; { name = fn "StaticAssets" "fetch" 1
 
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
     ; fn =
@@ -143,7 +143,7 @@ UTF-8 safe"))
   ; { name = fn "StaticAssets" "fetchBytes" 0
 
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the bytes of the specified file from the deploy_hash"
     ; fn =
@@ -173,7 +173,7 @@ UTF-8 safe"))
   ; { name = fn "StaticAssets" "fetchLatest" 0
 
     ; parameters = [Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; fn =
@@ -207,7 +207,7 @@ UTF-8 safe"))
   ; { name = fn "StaticAssets" "fetchLatest" 1
 
     ; parameters = [Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; fn =
@@ -239,7 +239,7 @@ UTF-8 safe") )
   ; { name = fn "StaticAssets" "fetchLatestBytes" 0
 
     ; parameters = [Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the bytes of the specified file from the latest deploy"
     ; fn =
@@ -269,7 +269,7 @@ UTF-8 safe") )
   ; { name = fn "StaticAssets" "serve" 0
 
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; fn =
@@ -283,7 +283,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _erroreturn_type =
+              let body, code, headers, _erroreturnType =
                 Legacy.HttpclientV2.http_call_with_code
                   url
                   []
@@ -328,7 +328,7 @@ UTF-8 safe") )
   ; { name = fn "StaticAssets" "serve" 1
 
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description = "Return the specified file from the latest deploy"
     ; fn =
 
@@ -341,7 +341,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _erroreturn_type =
+              let body, code, headers, _erroreturnType =
                 Legacy.HttpclientV2.http_call_with_code
                   ~raw_bytes:true
                   url
@@ -383,7 +383,7 @@ UTF-8 safe") )
   ; { name = fn "StaticAssets" "serveLatest" 0
 
     ; parameters = [Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; fn =
@@ -397,7 +397,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _erroreturn_type =
+              let body, code, headers, _erroreturnType =
                 Legacy.HttpclientV2.http_call_with_code
                   ~raw_bytes:true
                   url
@@ -439,7 +439,7 @@ UTF-8 safe") )
   ; { name = fn "StaticAssets" "serveLatest" 1
 
     ; parameters = [Param.make "file" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description = "Return the specified file from the latest deploy"
     ; fn =
 
@@ -452,7 +452,7 @@ UTF-8 safe") )
                   `Short
                   (Unicode_string.to_string file)
               in
-              let body, code, headers, _erroreturn_type =
+              let body, code, headers, _erroreturnType =
                 Legacy.HttpclientV2.http_call_with_code
                   ~raw_bytes:true
                   url

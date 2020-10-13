@@ -20,7 +20,7 @@ let fns : fn list =
     { name = fn "Password" "hash" 0
 
     ; parameters = [Param.make "pw" TStr]
-    ; return_type = TPassword
+    ; returnType = TPassword
     ; description =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
@@ -59,7 +59,7 @@ let fns : fn list =
   ; { name = fn "Password" "check" 0
 
     ; parameters = [Param.make "existingpwr" TPassword; Param.make "rawpw" TStr]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
@@ -80,7 +80,7 @@ let fns : fn list =
   ; { name = fn "Crypto" "sha256" 0
 
     ; parameters = [Param.make "data" TBytes]
-    ; return_type = TBytes
+    ; returnType = TBytes
     ; description = "Computes the SHA-256 digest of the given `data`."
     ; fn =
 
@@ -97,7 +97,7 @@ let fns : fn list =
   ; { name = fn "Crypto" "sha384" 0
 
     ; parameters = [Param.make "data" TBytes]
-    ; return_type = TBytes
+    ; returnType = TBytes
     ; description = "Computes the SHA-384 digest of the given `data`."
     ; fn =
 
@@ -114,7 +114,7 @@ let fns : fn list =
   ; { name = fn "Crypto" "md5" 0
 
     ; parameters = [Param.make "data" TBytes]
-    ; return_type = TBytes
+    ; returnType = TBytes
     ; description =
         "Computes the md5 digest of the given `data`. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
     ; fn =
@@ -132,7 +132,7 @@ let fns : fn list =
   ; { name = fn "Crypto" "sha256hmac" 0
 
     ; parameters = [Param.make "key" TBytes; Param.make "data" TBytes]
-    ; return_type = TBytes
+    ; returnType = TBytes
     ; description =
         "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
     ; fn =
@@ -149,7 +149,7 @@ let fns : fn list =
   ; { name = fn "Crypto" "sha1hmac" 0
 
     ; parameters = [Param.make "key" TBytes; Param.make "data" TBytes]
-    ; return_type = TBytes
+    ; returnType = TBytes
     ; description =
         "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given `key` and `data`."
     ; fn =

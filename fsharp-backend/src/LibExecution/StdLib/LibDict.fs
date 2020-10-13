@@ -7,7 +7,7 @@ let fns =
   [ { name = fn "Dict" "singleton" 0
 
     ; parameters = [Param.make "key" TStr; Param.make "value" TAny]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns a new dictionary with a single entry `key`: `value`."
     ; fn =
@@ -22,7 +22,7 @@ let fns =
   ; { name = fn "Dict" "size" 0
 
     ; parameters = [Param.make "dict" TObj]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Returns the number of entries in `dict` (the number of key-value pairs)."
     ; fn =
@@ -34,7 +34,7 @@ let fns =
   ; { name = fn "Dict" "keys" 0
 
     ; parameters = [Param.make "dict" TObj]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
     ; fn =
 
@@ -51,7 +51,7 @@ let fns =
   ; { name = fn "Dict" "values" 0
 
     ; parameters = [Param.make "dict" TObj]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Returns `dict`'s values in a list, in an arbitrary order."
     ; fn =
 
@@ -62,7 +62,7 @@ let fns =
   ; { name = fn "Dict" "toList" 0
 
     ; parameters = [Param.make "dict" TObj]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
     ; fn =
@@ -80,7 +80,7 @@ let fns =
   ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
 
     ; parameters = [Param.make "entries" TList]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
         If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
@@ -151,7 +151,7 @@ let fns =
   ; { name = fn "Dict" "fromList" 0
 
     ; parameters = [Param.make "entries" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
         If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
@@ -230,7 +230,7 @@ let fns =
   ; { name = fn "Dict" "get" 0
 
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Looks up `key` in object `dict` and returns the value if found, and Error otherwise"
     ; fn =
@@ -249,7 +249,7 @@ let fns =
   ; { name = fn "Dict" "get" 1
 
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description = "Looks up `key` in object `dict` and returns an option"
     ; fn =
 
@@ -267,7 +267,7 @@ let fns =
   ; { name = fn "Dict" "get" 2
 
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
     ; fn =
@@ -286,7 +286,7 @@ let fns =
   ; { name = fn "Dict" "member" 0
 
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description =
         "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
     ; fn =
@@ -302,7 +302,7 @@ let fns =
   ; { name = fn "Dict" "foreach" 0
 
     ; parameters = [Param.make "dict" TObj; func ["val"]]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
     ; fn =
@@ -318,7 +318,7 @@ let fns =
   ; { name = fn "Dict" "map" 0
 
     ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
         Consider `Dict::filterMap` if you also want to drop some of the entries."
@@ -337,7 +337,7 @@ let fns =
   ; { name = fn "Dict" "filter" 0
 
     ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
         Consider `Dict::filterMap` if you also want to transform the entries."
@@ -372,7 +372,7 @@ let fns =
   ; { name = fn "Dict" "filter" 1
 
     ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
     ; fn =
@@ -417,7 +417,7 @@ let fns =
   ; { name = fn "Dict" "filterMap" 0
 
     ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
         If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
@@ -470,7 +470,7 @@ let fns =
   ; { name = fn "Dict" "empty" 0
 
     ; parameters = []
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Returns an empty dictionary."
     ; fn =
          (function _, [] -> DObj DvalMap.empty | args -> fail args)
@@ -479,7 +479,7 @@ let fns =
   ; { name = fn "Dict" "isEmpty" 0
 
     ; parameters = [Param.make "dict" TObj]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns `true` if the `dict` contains no entries."
     ; fn =
 
@@ -490,7 +490,7 @@ let fns =
   ; { name = fn "Dict" "merge" 0
 
     ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
     ; fn =
@@ -505,7 +505,7 @@ let fns =
   ; { name = fn "Dict" "toJSON" 0
 
     ; parameters = [Param.make "dict" TObj]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description = "Returns `dict` as a JSON string."
     ; fn =
 
@@ -521,7 +521,7 @@ let fns =
   ; { name = fn "Dict" "set" 0
 
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr; Param.make "val" TAny]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Returns a copy of `dict` with the `key` set to `val`."
     ; fn =
 
@@ -535,7 +535,7 @@ let fns =
   ; { name = fn "Dict" "remove" 0
 
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
     ; fn =

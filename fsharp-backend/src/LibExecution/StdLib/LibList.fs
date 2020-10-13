@@ -9,7 +9,7 @@ let fns : fn list =
   [ { name = fn "List" "singleton" 0
 
     ; parameters = [Param.make "val" TAny]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Returns a one-element list containing the given `val`."
     ; fn =  (function _, [v] -> DList [v] | args -> fail args)
     ; previewable = Pure
@@ -17,7 +17,7 @@ let fns : fn list =
   ; { name = fn "List" "head" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Returns the head of a list. Returns null if the empty list is passed."
     ; fn =
@@ -32,7 +32,7 @@ let fns : fn list =
   ; { name = fn "List" "head" 1
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description = "Fetches the head of the list and returns an option"
     ; fn =
 
@@ -50,7 +50,7 @@ let fns : fn list =
   ; { name = fn "List" "head" 2
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
     ; fn =
@@ -69,7 +69,7 @@ let fns : fn list =
   ; { name = fn "List" "tail" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
     ; fn =
@@ -91,7 +91,7 @@ let fns : fn list =
   ; { name = fn "List" "empty" 0
 
     ; parameters = []
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Returns an empty list."
     ; fn =  (function _, [] -> DList [] | args -> fail args)
     ; previewable = Pure
@@ -99,7 +99,7 @@ let fns : fn list =
   ; { name = fn "List" "push" 0
 
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Add element `val` to front of list `list`"
     ; fn =
 
@@ -111,7 +111,7 @@ let fns : fn list =
   ; { name = fn "List" "pushBack" 0
 
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Add element `val` to back of list `list`"
     ; fn =
 
@@ -121,7 +121,7 @@ let fns : fn list =
   ; { name = fn "List" "last" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Returns the last value in `list`. Returns null if the list is empty."
     ; fn =
@@ -138,7 +138,7 @@ let fns : fn list =
   ; { name = fn "List" "last" 1
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
     ; fn =
@@ -155,7 +155,7 @@ let fns : fn list =
   ; { name = fn "List" "last" 2
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
     ; fn =
@@ -172,7 +172,7 @@ let fns : fn list =
   ; { name = fn "List" "reverse" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Returns a reversed copy of `list`."
     ; fn =
 
@@ -182,7 +182,7 @@ let fns : fn list =
   ; { name = fn "List" "findFirst" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
     ; fn =
@@ -200,7 +200,7 @@ let fns : fn list =
   ; { name = fn "List" "findFirst" 1
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
     ; fn =
@@ -222,7 +222,7 @@ let fns : fn list =
   ; { name = fn "List" "findFirst" 2
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
     ; fn =
@@ -244,7 +244,7 @@ let fns : fn list =
   ; { name = fn "List" "contains" 0
 
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns `true` if `val` is in the list."
     ; fn =
 
@@ -260,7 +260,7 @@ let fns : fn list =
   ; { name = fn "List" "member" 0
 
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns `true` if `val` is in the list."
     ; fn =
 
@@ -274,7 +274,7 @@ let fns : fn list =
   ; { name = fn "List" "repeat" 0
 
     ; parameters = [Param.make "times" TInt; Param.make "val" TAny]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns a new list containing `val` repeated `times` times."
     ; fn =
@@ -289,7 +289,7 @@ let fns : fn list =
   ; { name = fn "List" "length" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Returns the number of values in `list`."
     ; fn =
 
@@ -302,7 +302,7 @@ let fns : fn list =
     ; parameters =
         [ Param.make "lowest" TInt ~d:"First, smallest number in the list"
         ; Param.make "highest" TInt ~d:"Last, largest number in the list" ]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
     ; fn =
@@ -319,7 +319,7 @@ let fns : fn list =
   ; { name = fn "List" "fold" 0
 
     ; parameters = [Param.make "list" TList; Param.make "init" TAny; func ["accum"; "curr"]]
-    ; return_type = TAny
+    ; returnType = TAny
     ; description =
         "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
     ; fn =
@@ -338,7 +338,7 @@ let fns : fn list =
   ; { name = fn "List" "flatten" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
     ; fn =
@@ -360,7 +360,7 @@ let fns : fn list =
   ; { name = fn "List" "interpose" 0
 
     ; parameters = [Param.make "list" TList; Param.make "sep" TAny]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns a single list containing the values of `list` separated by `sep`."
     ; fn =
@@ -382,7 +382,7 @@ let fns : fn list =
   ; { name = fn "List" "interleave" 0
 
     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
     ; fn =
@@ -404,7 +404,7 @@ let fns : fn list =
   ; { name = fn "List" "uniqueBy" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained."
     ; fn =
@@ -422,7 +422,7 @@ let fns : fn list =
   ; { name = fn "List" "isEmpty" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if `list` has no values."
     ; fn =
 
@@ -433,7 +433,7 @@ let fns : fn list =
   ; { name = fn "List" "sort" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
          Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
@@ -449,7 +449,7 @@ let fns : fn list =
   ; { name = fn "List" "sortBy" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         {|Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
           For example, `List::sortBy ["x","jkl","ab"] \val -> String::length val` returns `[ "x", "ab", "jkl" ]`.
@@ -469,7 +469,7 @@ let fns : fn list =
   ; { name = fn "List" "sortByComparator" 0
 
     ; parameters = [Param.make "list" TList; func ["a"; "b"]]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
         `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
@@ -534,7 +534,7 @@ let fns : fn list =
   ; { name = fn "List" "append" 0
 
     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Returns a new list with all values in `as` followed by all values in `bs`, preserving the order."
     ; fn =
@@ -549,7 +549,7 @@ let fns : fn list =
   ; { name = fn "List" "filter" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
     ; fn =
@@ -577,7 +577,7 @@ let fns : fn list =
   ; { name = fn "List" "filter" 1
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
         Preserves the order of values that were not dropped.
@@ -609,7 +609,7 @@ let fns : fn list =
   ; { name = fn "List" "filter" 2
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
         Preserves the order of values that were not dropped.
@@ -651,7 +651,7 @@ let fns : fn list =
   ; { name = fn "List" "filterMap" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a new list that drops some values (filter) and transforms others (map).
         If `f val` returns `Nothing`, drops `val` from the list.
@@ -698,7 +698,7 @@ let fns : fn list =
   ; { name = fn "List" "drop" 0
 
     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Drops the first `count` values from `list`."
     ; fn =
 
@@ -712,7 +712,7 @@ let fns : fn list =
   ; { name = fn "List" "dropWhile" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Drops the longest prefix of `list` which satisfies the predicate `val`"
     ; fn =
@@ -758,7 +758,7 @@ let fns : fn list =
   ; { name = fn "List" "take" 0
 
     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
-    ; return_type = TList
+    ; returnType = TList
     ; description = "Drops all but the first `count` values from `list`."
     ; fn =
 
@@ -772,7 +772,7 @@ let fns : fn list =
   ; { name = fn "List" "takeWhile" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Return the longest prefix of `list` which satisfies the predicate `val`"
     ; fn =
@@ -818,7 +818,7 @@ let fns : fn list =
   ; { name = fn "List" "foreach" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Call `f` on every `val` in the list, returning a list of the results of
   those calls"
@@ -835,7 +835,7 @@ let fns : fn list =
   ; { name = fn "List" "map" 0
 
     ; parameters = [Param.make "list" TList; func ["val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Calls `f` on every `val` in `list`, returning a list of the results of those calls.
         Consider `List::filterMap` if you also want to drop some of the values."
@@ -852,7 +852,7 @@ let fns : fn list =
   ; { name = fn "List" "indexedMap" 0
 
     ; parameters = [Param.make "list" TList; func ["index"; "val"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
         Consider `List::map` if you don't need the index."
@@ -871,7 +871,7 @@ let fns : fn list =
   ; { name = fn "List" "map2shortest" 0
 
     ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         {|Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of values from `as` and `bs`.
         If the lists differ in length, values from the longer list are dropped.
@@ -896,7 +896,7 @@ let fns : fn list =
   ; { name = fn "List" "map2" 0
 
     ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         {|If the lists are the same length, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
          calling `f a b` on every pair of values from `as` and `bs`.
@@ -922,7 +922,7 @@ let fns : fn list =
   ; { name = fn "List" "zipShortest" 0
 
     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         {|Returns a list of parallel pairs from `as` and `bs`.
         If the lists differ in length, values from the longer list are dropped.
@@ -948,7 +948,7 @@ let fns : fn list =
   ; { name = fn "List" "zip" 0
 
     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         {|If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"], [3,"z"]]`.
@@ -974,7 +974,7 @@ let fns : fn list =
   ; { name = fn "List" "unzip" 0
 
     ; parameters = [Param.make "pairs" TList]
-    ; return_type = TList
+    ; returnType = TList
     ; description =
         {|Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
         one with every first value, and one with every second value. For example, if `pairs` is `[[1,"x"], [2,"y"], [3,"z"]]`, returns `[[1,2,3], ["x","y","z"]]`.|}
@@ -1041,7 +1041,7 @@ let fns : fn list =
   ; { name = fn "List" "getAt" 0
 
     ; parameters = [Param.make "list" TList; Param.make "index" TInt]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
     ; fn =
@@ -1058,7 +1058,7 @@ let fns : fn list =
   ; { name = fn "List" "getAt" 1
 
     ; parameters = [Param.make "list" TList; Param.make "index" TInt]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list otherwise returns `Nothing`."
     ; fn =
@@ -1075,7 +1075,7 @@ let fns : fn list =
   ; { name = fn "List" "randomElement" 0
 
     ; parameters = [Param.make "list" TList]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly selected value in <param list>. Returns {{Nothing}} if <param list> is empty."
     ; fn =

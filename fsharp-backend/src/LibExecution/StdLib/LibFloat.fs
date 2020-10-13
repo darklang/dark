@@ -18,7 +18,7 @@ let fns : fn list =
   [ { name = fn "Float::ceiling"; "Float" "roundUp" 0
 
     ; parameters = [Param.make "a" TFloat]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Round up to an integer value"
     ; fn =
 
@@ -32,7 +32,7 @@ let fns : fn list =
   ; { name = fn "Float::floor"; "Float" "roundDown" 0
 
     ; parameters = [Param.make "a" TFloat]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
     ; fn =
@@ -47,7 +47,7 @@ let fns : fn list =
   ; { name = fn "Float" "round" 0
 
     ; parameters = [Param.make "a" TFloat]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description = "Round to the nearest integer value"
     ; fn =
 
@@ -61,7 +61,7 @@ let fns : fn list =
   ; { name = fn "Float::truncate"; "Float" "roundTowardsZero" 0
 
     ; parameters = [Param.make "a" TFloat]
-    ; return_type = TInt
+    ; returnType = TInt
     ; description =
         "Discard the fractional portion of the float, rounding towards zero."
     ; fn =
@@ -76,7 +76,7 @@ let fns : fn list =
   ; { name = fn "Float" "absoluteValue" 0
 
     ; parameters = [Param.make "a" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
     ; fn =
@@ -87,7 +87,7 @@ let fns : fn list =
   ; { name = fn "Float" "negate" 0
 
     ; parameters = [Param.make "a" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Returns the negation of `a`, `-a`."
     ; fn =
 
@@ -97,7 +97,7 @@ let fns : fn list =
   ; { name = fn "Float" "sqrt" 0
 
     ; parameters = [Param.make "a" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Get the square root of a float"
     ; fn =
 
@@ -107,7 +107,7 @@ let fns : fn list =
   ; { name = fn "Float" "power" 0
 
     ; parameters = [Param.make "base" TFloat; Param.make "exponent" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Returns `base` raised to the power of `exponent`"
     ; fn =
 
@@ -121,7 +121,7 @@ let fns : fn list =
   ; { name = fn "Float" "divide" 0
     ; infix_names = ["/"]
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Divide float `a` by float `b`"
     ; fn =
 
@@ -132,7 +132,7 @@ let fns : fn list =
   ; { name = fn "Float" "add" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Add float `a` to float `b`"
     ; fn =
 
@@ -143,7 +143,7 @@ let fns : fn list =
   ; { name = fn "Float" "multiply" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Multiply float `a` by float `b`"
     ; fn =
 
@@ -154,7 +154,7 @@ let fns : fn list =
   ; { name = fn "Float" "subtract" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Subtract float `b` from float `a`"
     ; fn =
 
@@ -165,7 +165,7 @@ let fns : fn list =
   ; { name = fn "Float" "greaterThan" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is greater than b"
     ; fn =
 
@@ -176,7 +176,7 @@ let fns : fn list =
   ; { name = fn "Float" "greaterThanOrEqualTo" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is greater than b"
     ; fn =
 
@@ -187,7 +187,7 @@ let fns : fn list =
   ; { name = fn "Float" "lessThan" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is less than b"
     ; fn =
 
@@ -198,7 +198,7 @@ let fns : fn list =
   ; { name = fn "Float" "lessThanOrEqualTo" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TBool
+    ; returnType = TBool
     ; description = "Returns true if a is less than b"
     ; fn =
 
@@ -209,7 +209,7 @@ let fns : fn list =
   ; { name = fn "Float" "sum" 0
 
     ; parameters = [Param.make "a" TList]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Returns the sum of all the floats in the list"
     ; fn =
 
@@ -238,7 +238,7 @@ let fns : fn list =
   ; { name = fn "Float" "min" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Returns the lesser of float `a` and float `b`"
     ; fn =
 
@@ -252,7 +252,7 @@ let fns : fn list =
   ; { name = fn "Float" "max" 0
 
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description = "Returns the greater of float `a` and float `b`"
     ; fn =
 
@@ -266,7 +266,7 @@ let fns : fn list =
   ; { name = fn "Float" "clamp" 0
 
     ; parameters = [Param.make "value" TFloat; Param.make "limitA" TFloat; Param.make "limitB" TFloat]
-    ; return_type = TFloat
+    ; returnType = TFloat
     ; description =
         "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
          If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.

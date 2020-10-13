@@ -133,7 +133,7 @@ let fns : fn list =
   [ { name = fn "JWT" "signAndEncode" 0
 
     ; parameters = [Param.make "pemPrivKey" TStr; Param.make "payload" TAny]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
     ; fn =
@@ -157,7 +157,7 @@ let fns : fn list =
 
     ; parameters =
         [Param.make "pemPrivKey" TStr; Param.make "headers" TObj; Param.make "payload" TAny]
-    ; return_type = TStr
+    ; returnType = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
     ; fn =
@@ -185,7 +185,7 @@ let fns : fn list =
   ; { name = fn "JWT" "signAndEncode" 1
 
     ; parameters = [Param.make "pemPrivKey" TStr; Param.make "payload" TAny]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
     ; fn =
@@ -210,7 +210,7 @@ let fns : fn list =
 
     ; parameters =
         [Param.make "pemPrivKey" TStr; Param.make "headers" TObj; Param.make "payload" TAny]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
     ; fn =
@@ -239,7 +239,7 @@ let fns : fn list =
   ; { name = fn "JWT" "verifyAndExtract" 0
 
     ; parameters = [Param.make "pemPubKey" TStr; Param.make "token" TStr]
-    ; return_type = TOption
+    ; returnType = TOption
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
     ; fn =
@@ -276,7 +276,7 @@ let fns : fn list =
   ; { name = fn "JWT" "verifyAndExtract" 1
 
     ; parameters = [Param.make "pemPubKey" TStr; Param.make "token" TStr]
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
     ; fn =

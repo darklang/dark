@@ -232,7 +232,7 @@ let fns : fn list =
   [ { name = fn "HttpClient" "post" 0
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
     ; fn =
@@ -244,7 +244,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "put" 0
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
     ; fn =
@@ -256,7 +256,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "get" 0
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
     ; fn =
@@ -268,7 +268,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "delete" 0
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
     ; fn =
@@ -280,7 +280,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "options" 0
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
     ; fn =
@@ -292,7 +292,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "head" 0
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
     ; fn =
@@ -304,7 +304,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "patch" 0
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
     ; fn =
@@ -316,7 +316,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "post" 1
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Make blocking HTTP POST call to `uri`"
     ; fn =
         Legacy.LibhttpclientV0.call
@@ -327,7 +327,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "put" 1
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Make blocking HTTP PUT call to `uri`"
     ; fn =
         Legacy.LibhttpclientV0.call
@@ -338,7 +338,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "get" 1
 
     ; parameters = params_no_body
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Make blocking HTTP GET call to `uri`"
     ; fn =
         Legacy.LibhttpclientV0.call_no_body
@@ -352,7 +352,7 @@ let fns : fn list =
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; parameters = params_no_body
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Make blocking HTTP DELETE call to `uri`"
     ; fn =
         Legacy.LibhttpclientV0.call_no_body
@@ -363,7 +363,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "options" 1
 
     ; parameters = params_no_body
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Make blocking HTTP OPTIONS call to `uri`"
     ; fn =
         Legacy.LibhttpclientV0.call_no_body
@@ -374,7 +374,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "head" 1
 
     ; parameters = params_no_body
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Make blocking HTTP HEAD call to `uri`"
     ; fn =
         Legacy.LibhttpclientV0.call_no_body
@@ -385,7 +385,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "patch" 1
 
     ; parameters = params
-    ; return_type = TObj
+    ; returnType = TObj
     ; description = "Make blocking HTTP PATCH call to `uri`"
     ; fn =
         Legacy.LibhttpclientV0.call
@@ -396,7 +396,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "post" 2
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; fn =
@@ -408,7 +408,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "put" 2
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; fn =
@@ -420,7 +420,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "get" 2
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; fn =
@@ -435,7 +435,7 @@ let fns : fn list =
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; fn =
@@ -447,7 +447,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "options" 2
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; fn =
@@ -459,7 +459,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "head" 2
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; fn =
@@ -471,7 +471,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "patch" 2
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; fn =
@@ -483,7 +483,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "post" 3
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -495,7 +495,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "put" 3
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -507,7 +507,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "get" 3
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -522,7 +522,7 @@ let fns : fn list =
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -534,7 +534,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "options" 3
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -546,7 +546,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "head" 3
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -558,7 +558,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "patch" 3
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -570,7 +570,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "post" 4
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -582,7 +582,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "put" 4
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -594,7 +594,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "get" 4
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -609,7 +609,7 @@ let fns : fn list =
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -621,7 +621,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "options" 4
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -633,7 +633,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "head" 4
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -645,7 +645,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "patch" 4
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn =
@@ -657,7 +657,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "post" 5
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call Httpclient.POST
@@ -666,7 +666,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "put" 5
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call Httpclient.PUT
@@ -675,7 +675,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "get" 5
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.GET
@@ -687,7 +687,7 @@ let fns : fn list =
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.DELETE
@@ -696,7 +696,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "options" 5
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.OPTIONS
@@ -705,7 +705,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "head" 5
 
     ; parameters = params_no_body
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.HEAD
@@ -714,7 +714,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "patch" 5
 
     ; parameters = params
-    ; return_type = TResult
+    ; returnType = TResult
     ; description =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call Httpclient.PATCH
@@ -723,7 +723,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "basicAuth" 0
 
     ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
     ; fn =
@@ -742,7 +742,7 @@ let fns : fn list =
   ; { name = fn "HttpClient" "basicAuth" 1
 
     ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
-    ; return_type = TObj
+    ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
     ; fn =
