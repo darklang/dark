@@ -151,7 +151,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
 
@@ -180,7 +180,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncode" 1
 
@@ -204,7 +204,7 @@ let fns : fn list =
                   |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
 
@@ -234,7 +234,7 @@ let fns : fn list =
                   |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "verifyAndExtract" 0
 
@@ -271,7 +271,7 @@ let fns : fn list =
                   DOption OptNothing ) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "verifyAndExtract" 1
 
@@ -314,5 +314,5 @@ let fns : fn list =
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

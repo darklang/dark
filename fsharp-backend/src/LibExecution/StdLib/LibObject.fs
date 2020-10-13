@@ -11,7 +11,7 @@ let fns : fn list =
     ; description = "Return an empty object"
     ; func =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "merge" 0
 
@@ -26,7 +26,7 @@ let fns : fn list =
               DObj (Stdlib_util.merge_right l r)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 0
 
@@ -42,7 +42,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 1
 
@@ -58,5 +58,5 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

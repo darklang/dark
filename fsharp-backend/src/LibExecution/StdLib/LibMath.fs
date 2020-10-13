@@ -21,7 +21,7 @@ let fns : fn list =
     ; description =
         "Returns an approximation for the mathematical constant π, the ratio of a circle's circumference to its diameter."
     ; func = InProcess (function _, [] -> DFloat pi | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tau" 0
 
@@ -30,7 +30,7 @@ let fns : fn list =
     ; description =
         "Returns an approximation for the mathematical constant τ, the number of radians in one turn. Equivalent to `Float::multiply Math::pi 2`."
     ; func = InProcess (function _, [] -> DFloat tau | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "degrees" 0
 
@@ -46,7 +46,7 @@ let fns : fn list =
               DFloat (degrees *. pi /. 180.0)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "turns" 0
 
@@ -59,7 +59,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat turns] -> DFloat (tau *. turns) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "radians" 0
 
@@ -71,7 +71,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DFloat rads] -> DFloat rads | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cos" 0
 
@@ -83,7 +83,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.cos a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sin" 0
 
@@ -95,7 +95,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.sin a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tan" 0
 
@@ -107,7 +107,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DFloat a] -> DFloat (Float.tan a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "acos" 0
 
@@ -128,7 +128,7 @@ let fns : fn list =
               else DOption (OptJust (DFloat res))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "asin" 0
 
@@ -149,7 +149,7 @@ let fns : fn list =
               else DOption (OptJust (DFloat res))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan" 0
 
@@ -162,7 +162,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a] -> DFloat (Float.atan a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan2" 0
 
@@ -178,7 +178,7 @@ let fns : fn list =
               DFloat (Float.atan2 y x)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cosh" 0
 
@@ -189,7 +189,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a] -> DFloat (Float.cosh a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sinh" 0
 
@@ -200,7 +200,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tanh" 0
 
@@ -211,5 +211,5 @@ let fns : fn list =
         InProcess
           (function
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

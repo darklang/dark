@@ -11,7 +11,7 @@ let fns : fn list =
     ; description = "Return `c`'s ASCII code"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toASCIIChar" 0
 
@@ -20,7 +20,7 @@ let fns : fn list =
     ; description = "convert an int to an ASCII character"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toLowercase" 0
 
@@ -29,7 +29,7 @@ let fns : fn list =
     ; description = "Return the lowercase value of `c`"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toUppercase" 0
 
@@ -38,5 +38,5 @@ let fns : fn list =
     ; description = "Return the uppercase value of `c`"
     ; func =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

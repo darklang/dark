@@ -20,7 +20,7 @@ let fns : fn list =
               with e -> RT.error "Invalid date format" )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "parse" 1
 
@@ -43,7 +43,7 @@ let fns : fn list =
                   (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "parse" 2
 
@@ -65,7 +65,7 @@ let fns : fn list =
             )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toString" 0
 
@@ -80,7 +80,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date d)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toStringISO8601BasicDateTime" 0
 
@@ -96,7 +96,7 @@ let fns : fn list =
                 (Stdlib_util.isostring_of_date_basic_datetime d)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toStringISO8601BasicDate" 0
 
@@ -111,7 +111,7 @@ let fns : fn list =
                 (Stdlib_util.isostring_of_date_basic_date d)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "now" 0
 
@@ -120,7 +120,7 @@ let fns : fn list =
     ; description = "Returns the current time."
     ; func =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "today" 0
 
@@ -138,7 +138,7 @@ let fns : fn list =
               |> DDate
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "add" 0
 
@@ -152,7 +152,7 @@ let fns : fn list =
               DDate (Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "sub" 0
 
@@ -166,7 +166,7 @@ let fns : fn list =
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "subtract" 0
 
@@ -180,7 +180,7 @@ let fns : fn list =
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "greaterThan" 0
     ; infix_names = ["Date::>"]
@@ -194,7 +194,7 @@ let fns : fn list =
               DBool (Time.( > ) d1 d2)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "lessThan" 0
     ; infix_names = ["Date::<"]
@@ -208,7 +208,7 @@ let fns : fn list =
               DBool (Time.( < ) d1 d2)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "greaterThanOrEqualTo" 0
     ; infix_names = ["Date::>="]
@@ -222,7 +222,7 @@ let fns : fn list =
               DBool (Time.( >= ) d1 d2)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "lessThanOrEqualTo" 0
     ; infix_names = ["Date::<="]
@@ -236,7 +236,7 @@ let fns : fn list =
               DBool (Time.( <= ) d1 d2)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toSeconds" 0
 
@@ -255,7 +255,7 @@ let fns : fn list =
               |> Dval.dint
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "fromSeconds" 0
 
@@ -274,7 +274,7 @@ let fns : fn list =
               |> DDate
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "toHumanReadable" 0
 
@@ -348,7 +348,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn diff
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) (* This doesn't mean anything *) }
   ; { name = fn "Date" "year" 0
 
@@ -362,7 +362,7 @@ let fns : fn list =
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.year |> Dval.dint
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "month" 0
 
@@ -381,7 +381,7 @@ let fns : fn list =
               |> Dval.dint
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "day" 0
 
@@ -395,7 +395,7 @@ let fns : fn list =
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.day |> Dval.dint
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "weekday" 0
 
@@ -414,7 +414,7 @@ let fns : fn list =
               |> Dval.dint
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "hour" 0
 
@@ -433,7 +433,7 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Date" "hour" 1
 
@@ -452,7 +452,7 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "minute" 0
 
@@ -471,7 +471,7 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "second" 0
 
@@ -490,7 +490,7 @@ let fns : fn list =
               |> DInt
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "atStartOfDay" 0
 
@@ -508,5 +508,5 @@ let fns : fn list =
               |> DDate
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

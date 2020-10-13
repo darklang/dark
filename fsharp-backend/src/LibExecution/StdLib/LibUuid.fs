@@ -13,5 +13,5 @@ let fns =
         InProcess (function _, [] -> DUuid (Uuidm.v `V4) | args -> fail args)
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

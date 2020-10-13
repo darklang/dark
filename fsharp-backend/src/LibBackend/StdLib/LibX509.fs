@@ -29,5 +29,5 @@ let fns : Types.RuntimeT.fn list =
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

@@ -18,7 +18,7 @@ let fns : fn list =
               with _ -> DNull )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "read" 1
 
@@ -33,7 +33,7 @@ let fns : fn list =
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 0
 
@@ -48,7 +48,7 @@ let fns : fn list =
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 1
 
@@ -72,5 +72,5 @@ let fns : fn list =
             )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

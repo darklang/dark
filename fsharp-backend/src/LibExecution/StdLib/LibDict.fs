@@ -17,7 +17,7 @@ let fns =
               DObj (DvalMap.singleton (Unicode_string.to_string k) v)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "size" 0
 
@@ -29,7 +29,7 @@ let fns =
         InProcess
           (function
           | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "keys" 0
 
@@ -46,7 +46,7 @@ let fns =
               |> fun l -> DList l
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "values" 0
 
@@ -57,7 +57,7 @@ let fns =
         InProcess
           (function
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "toList" 0
 
@@ -75,7 +75,7 @@ let fns =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
 
@@ -146,7 +146,7 @@ let fns =
               (match result with Ok res -> DObj res | Error v -> v)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "fromList" 0
 
@@ -225,7 +225,7 @@ let fns =
               (match result with Ok res -> res | Error v -> v)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "get" 0
 
@@ -244,7 +244,7 @@ let fns =
                 DNull )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "get" 1
 
@@ -262,7 +262,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "get" 2
 
@@ -281,7 +281,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "member" 0
 
@@ -297,7 +297,7 @@ let fns =
               DBool (DvalMap.contains_key o ~key)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "foreach" 0
 
@@ -313,7 +313,7 @@ let fns =
               DObj (Map.map ~f o)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "map" 0
 
@@ -332,7 +332,7 @@ let fns =
               DObj (Map.mapi ~f o)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "filter" 0
 
@@ -367,7 +367,7 @@ let fns =
               else DObj (Base.Map.filteri ~f o)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Dict" "filter" 1
 
@@ -412,7 +412,7 @@ let fns =
               (match filtered_result with Ok o -> DObj o | Error dv -> dv)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "filterMap" 0
 
@@ -465,7 +465,7 @@ let fns =
               (match !abortReason with None -> DObj result | Some v -> v)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "empty" 0
 
@@ -474,7 +474,7 @@ let fns =
     ; description = "Returns an empty dictionary."
     ; func =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "isEmpty" 0
 
@@ -485,7 +485,7 @@ let fns =
         InProcess
           (function
           | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "merge" 0
 
@@ -500,7 +500,7 @@ let fns =
               DObj (Stdlib_util.merge_right l r)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "toJSON" 0
 
@@ -516,7 +516,7 @@ let fns =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "set" 0
 
@@ -530,7 +530,7 @@ let fns =
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "remove" 0
 
@@ -545,5 +545,5 @@ let fns =
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

@@ -20,7 +20,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "application/x-www-form-urlencoded"))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "jsonContentType" 0
 
@@ -37,7 +37,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "application/json; charset=utf-8"))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "plainTextContentType" 0
 
@@ -54,7 +54,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "text/plain; charset=utf-8"))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "htmlContentType" 0
 
@@ -71,7 +71,7 @@ let fns : fn list =
                    (Dval.dstr_of_string_exn "text/html; charset=utf-8"))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "bearerToken" 0
 
@@ -91,7 +91,7 @@ let fns : fn list =
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated =
         true (* Deprecated due to using Unicode_string.append_broken *) }
   ; { name = fn "HttpClient" "bearerToken" 1
@@ -112,5 +112,5 @@ let fns : fn list =
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

@@ -23,7 +23,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Option" "map" 1
 
@@ -43,7 +43,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Option" "map2" 0
 
@@ -64,7 +64,7 @@ let fns =
                 Dval.to_opt_just result )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Option" "andThen" 0
 
@@ -91,7 +91,7 @@ let fns =
                 DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Option" "withDefault" 0
 
@@ -106,5 +106,5 @@ let fns =
             (match o with OptJust dv -> dv | OptNothing -> default)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

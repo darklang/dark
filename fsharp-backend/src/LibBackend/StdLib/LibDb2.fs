@@ -24,7 +24,7 @@ let fns : fn list =
               DObj value
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "add" 0
 
@@ -42,7 +42,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn key
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "get" 1
 
@@ -58,7 +58,7 @@ let fns : fn list =
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "get" 2
 
@@ -74,7 +74,7 @@ let fns : fn list =
               User_db.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getMany" 1
 
@@ -103,7 +103,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getMany" 2
 
@@ -131,7 +131,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getMany" 3
 
@@ -161,7 +161,7 @@ let fns : fn list =
               else DOption OptNothing
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getExisting" 0
 
@@ -189,7 +189,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getManyWithKeys" 0
 
@@ -218,7 +218,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getManyWithKeys" 1
 
@@ -246,7 +246,7 @@ let fns : fn list =
               |> DObj
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "delete" 1
 
@@ -263,7 +263,7 @@ let fns : fn list =
               DNull
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "deleteAll" 1
 
@@ -279,7 +279,7 @@ let fns : fn list =
               DNull
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "query" 1
 
@@ -299,7 +299,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) (* see query_v2 *) }
   ; { name = fn "DB" "query" 2
 
@@ -317,7 +317,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryExactFields *)
   ; { name = fn "DB" "query" 3
@@ -336,7 +336,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryExactFields" 0
 
@@ -354,7 +354,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryWithKey" 1
 
@@ -374,7 +374,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryExactFieldsWithKey *)
   ; { name = fn "DB" "queryWithKey" 2
@@ -394,7 +394,7 @@ let fns : fn list =
               |> DObj
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryExactFieldsWithKey" 0
 
@@ -413,7 +413,7 @@ let fns : fn list =
               |> DObj
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOne" 1
 
@@ -436,7 +436,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOne" 2
 
@@ -459,7 +459,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryOneExactFields *)
   ; { name = fn "DB" "queryOneWithExactFields" 0
@@ -483,7 +483,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOneWithKey" 1
 
@@ -506,7 +506,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOneWithKey" 2
 
@@ -529,7 +529,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
     (* see queryOneExactFieldsWithKey *)
   ; { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
@@ -553,7 +553,7 @@ let fns : fn list =
                   DOption OptNothing )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getAll" 1
 
@@ -573,7 +573,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAll" 2
 
@@ -590,7 +590,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAll" 3
 
@@ -607,7 +607,7 @@ let fns : fn list =
               |> Dval.to_list
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "getAllWithKeys" 1
 
@@ -627,7 +627,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "getAllWithKeys" 2
 
@@ -643,7 +643,7 @@ let fns : fn list =
               User_db.get_all ~state db |> DvalMap.from_list |> DObj
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "count" 0
 
@@ -658,7 +658,7 @@ let fns : fn list =
               User_db.count ~state db |> Dval.dint
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; (* previously called `DB::keys` *)
     { name = fn "DB" "schemaFields" 1
@@ -676,7 +676,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "schema" 1
 
@@ -695,7 +695,7 @@ let fns : fn list =
               |> Dval.to_dobj_exn
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "generateKey" 0
 
@@ -709,7 +709,7 @@ let fns : fn list =
               Uuidm.v `V4 |> Uuidm.to_string |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "keys" 1
 
@@ -727,7 +727,7 @@ let fns : fn list =
               |> DList
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "query" 4
 
@@ -748,7 +748,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryWithKey" 3
 
@@ -767,7 +767,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOne" 3
 
@@ -791,7 +791,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DB" "queryOne" 4
 
@@ -815,7 +815,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryOneWithKey" 3
 
@@ -839,7 +839,7 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DB" "queryCount" 0
 
@@ -858,5 +858,5 @@ let fns : fn list =
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

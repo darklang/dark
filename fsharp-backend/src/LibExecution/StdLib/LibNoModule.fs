@@ -30,7 +30,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "" "toRepr" 0
 
@@ -45,7 +45,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "equals" 0
     ; infix_names = ["=="]
@@ -55,7 +55,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "" "notEquals" 0
     ; infix_names = ["!="]
@@ -66,7 +66,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "" "assoc" 0
 
@@ -80,7 +80,7 @@ let fns : fn list =
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "dissoc" 0
 
@@ -94,7 +94,7 @@ let fns : fn list =
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "toForm" 0
 
@@ -132,7 +132,7 @@ let fns : fn list =
                 (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Error" "toString" 0
 
@@ -146,7 +146,7 @@ let fns : fn list =
               Dval.dstr_of_string_exn err
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "AWS" "urlencode" 0
 
@@ -163,7 +163,7 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Twitter" "urlencode" 0
 
@@ -180,5 +180,5 @@ let fns : fn list =
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

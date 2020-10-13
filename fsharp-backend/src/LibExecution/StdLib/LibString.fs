@@ -82,7 +82,7 @@ let fns: List<Environment.BuiltInFn> =
 //                 |> Result.ok_exn )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "newline" 0
 //
@@ -91,7 +91,7 @@ let fns: List<Environment.BuiltInFn> =
 //   ; description = "Returns a string containing a single '\n'"
 //   ; func =
 //       InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toList" 0
 //
@@ -101,7 +101,7 @@ let fns: List<Environment.BuiltInFn> =
 //       "Returns the list of characters (byte, not EGC) in the string"
 //   ; func =
 //       InProcess (fun _ -> Exception.code "This function no longer exists.")
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toList" 1
 //
@@ -116,7 +116,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DList (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "replaceAll" 0
 //
@@ -131,7 +131,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.replace ~search ~replace s)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toInt" 0
 //
@@ -151,7 +151,7 @@ let fns: List<Environment.BuiltInFn> =
 //                   "Expected a string with only numbers" )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toInt" 1
 //
@@ -170,7 +170,7 @@ let fns: List<Environment.BuiltInFn> =
 //                   ("Expected a string with only numbers, got " ^ utf8) )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toFloat" 0
 //
@@ -189,7 +189,7 @@ let fns: List<Environment.BuiltInFn> =
 //                   "Expected a string representation of an IEEE float" )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toFloat" 1
 //
@@ -207,7 +207,7 @@ let fns: List<Environment.BuiltInFn> =
 //                   "Expected a string representation of an IEEE float" )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toUppercase" 0
 //
@@ -222,7 +222,7 @@ let fns: List<Environment.BuiltInFn> =
 //               (String.uppercase (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toUppercase" 1
 //
@@ -233,7 +233,7 @@ let fns: List<Environment.BuiltInFn> =
 //       InProcess
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toLowercase" 0
 //
@@ -248,7 +248,7 @@ let fns: List<Environment.BuiltInFn> =
 //               (String.lowercase (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toLowercase" 1
 //
@@ -259,7 +259,7 @@ let fns: List<Environment.BuiltInFn> =
 //       InProcess
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "length" 0
 //
@@ -273,7 +273,7 @@ let fns: List<Environment.BuiltInFn> =
 //             Dval.dint (String.length (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "length" 1
 //
@@ -287,7 +287,7 @@ let fns: List<Environment.BuiltInFn> =
 //             Dval.dint (Unicode_string.length s)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "append" 0
 //       (* This used to provide "++" as an infix op.
@@ -309,7 +309,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.append_broken s1 s2)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "append" 1
 //   ; infix_names = ["++"]
@@ -324,7 +324,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.append s1 s2)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "prepend" 0
 //
@@ -339,7 +339,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.append s2 s1)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "slugify" 0
 //
@@ -368,7 +368,7 @@ let fns: List<Environment.BuiltInFn> =
 //             |> fun s -> DStr s
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "slugify" 1
 //
@@ -397,7 +397,7 @@ let fns: List<Environment.BuiltInFn> =
 //             |> fun s -> DStr s
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "slugify" 2
 //
@@ -427,7 +427,7 @@ let fns: List<Environment.BuiltInFn> =
 //             |> fun s -> DStr s
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "reverse" 0
 //
@@ -438,7 +438,7 @@ let fns: List<Environment.BuiltInFn> =
 //       InProcess
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "split" 0
 //
@@ -456,7 +456,7 @@ let fns: List<Environment.BuiltInFn> =
 //             |> DList
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "join" 0
 //
@@ -480,7 +480,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.concat ~sep s)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "fromList" 0
 //
@@ -489,7 +489,7 @@ let fns: List<Environment.BuiltInFn> =
 //   ; description = "Returns the list of characters as a string"
 //   ; func =
 //       InProcess (fun _ -> Exception.code "This function no longer exists.")
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "fromList" 1
 //
@@ -510,7 +510,7 @@ let fns: List<Environment.BuiltInFn> =
 //               |> Unicode_string.of_characters )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "fromChar" 0
 //
@@ -519,7 +519,7 @@ let fns: List<Environment.BuiltInFn> =
 //   ; description = "Converts a char to a string"
 //   ; func =
 //       InProcess (fun _ -> Exception.code "This function no longer exists.")
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "fromChar" 1
 //
@@ -533,7 +533,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.of_character c)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "base64Encode" 0
 //
@@ -552,7 +552,7 @@ let fns: List<Environment.BuiltInFn> =
 //                  (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "base64Decode" 0
 //
@@ -582,7 +582,7 @@ let fns: List<Environment.BuiltInFn> =
 //                     "Not a valid base64 string" ) )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "digest" 0
 //
@@ -599,7 +599,7 @@ let fns: List<Environment.BuiltInFn> =
 //               (Libtarget.digest384 (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "sha384" 0
 //
@@ -615,7 +615,7 @@ let fns: List<Environment.BuiltInFn> =
 //               (Libtarget.digest384 (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "sha256" 0
 //
@@ -631,7 +631,7 @@ let fns: List<Environment.BuiltInFn> =
 //               (Libtarget.digest256 (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "random" 0
 //
@@ -650,7 +650,7 @@ let fns: List<Environment.BuiltInFn> =
 //                 (Stdlib_util.random_string (Dint.to_int_exn l))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Unsafe
+//   ; previewable = Impure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "random" 1
 //
@@ -671,7 +671,7 @@ let fns: List<Environment.BuiltInFn> =
 //                       (Stdlib_util.random_string (Dint.to_int_exn l))))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Unsafe
+//   ; previewable = Impure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "random" 2
 //
@@ -691,7 +691,7 @@ let fns: List<Environment.BuiltInFn> =
 //                    (Stdlib_util.random_string (Dint.to_int_exn l)))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Unsafe
+//   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "htmlEscape" 0
 //
@@ -707,7 +707,7 @@ let fns: List<Environment.BuiltInFn> =
 //               (Stdlib_util.html_escape (Unicode_string.to_string s))
 //         | args ->
 //             fail args)
-//   ; preview_safety = Unsafe
+//   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toUUID" 0
 //
@@ -728,7 +728,7 @@ let fns: List<Environment.BuiltInFn> =
 //           )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toUUID" 1
 //
@@ -749,7 +749,7 @@ let fns: List<Environment.BuiltInFn> =
 //           )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "isSubstring" 0
 //
@@ -763,7 +763,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DBool (Unicode_string.is_substring ~substring:needle haystack)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "isSubstring" 1
 //
@@ -777,7 +777,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DBool (Unicode_string.is_substring ~substring:needle haystack)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "contains" 0
 //
@@ -791,7 +791,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DBool (Unicode_string.is_substring ~substring:needle haystack)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "slice" 0
 //
@@ -809,7 +809,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.slice s ~first ~last)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "first" 0
 //
@@ -827,7 +827,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.first_n s n)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "last" 0
 //
@@ -845,7 +845,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.last_n s n)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "dropLast" 0
 //
@@ -863,7 +863,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.drop_last_n s n)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "dropFirst" 0
 //
@@ -881,7 +881,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.drop_first_n s n)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "padStart" 0
 //
@@ -911,7 +911,7 @@ let fns: List<Environment.BuiltInFn> =
 //                   ^ " characters long." )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "padEnd" 0
 //
@@ -941,7 +941,7 @@ let fns: List<Environment.BuiltInFn> =
 //                   ^ " characters long." )
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "trim" 0
 //
@@ -956,7 +956,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.trim to_trim)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "trimStart" 0
 //
@@ -971,7 +971,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.trim_start to_trim)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "trimEnd" 0
 //
@@ -986,7 +986,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DStr (Unicode_string.trim_end to_trim)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toBytes" 0
 //
@@ -1002,7 +1002,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DBytes theBytes
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "startsWith" 0
 //
@@ -1016,7 +1016,7 @@ let fns: List<Environment.BuiltInFn> =
 //             DBool (Unicode_string.starts_with ~prefix subject)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "endsWith" 0
 //
@@ -1030,5 +1030,5 @@ let fns: List<Environment.BuiltInFn> =
 //             DBool (Unicode_string.ends_with ~suffix subject)
 //         | args ->
 //             fail args)
-//   ; preview_safety = Safe
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }

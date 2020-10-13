@@ -61,7 +61,7 @@ let fns : fn list =
                 headers
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated =
         true
         (* Deprecated due to using Libhttpclient.encode_basic_auth_broken *) }
@@ -122,5 +122,5 @@ let fns : fn list =
                 headers
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

@@ -41,8 +41,8 @@ let fns : fn list =
                   raise e )
           | args ->
               fail args)
-    ; preview_safety =
-        Safe
+    ; previewable =
+        Pure
         (*
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
          * The current function returns DError (it used to rollbar) on negative `b`.
@@ -75,7 +75,7 @@ let fns : fn list =
                   raise e )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } *)
   ; { name = fn "Int" "remainder" 0
 
@@ -101,7 +101,7 @@ let fns : fn list =
                   raise e )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "add" 0
     ; infix_names = ["+"]
@@ -151,7 +151,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "subtract" 0
     ; infix_names = ["-"]
@@ -183,7 +183,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "multiply" 0
     ; infix_names = ["*"]
@@ -215,7 +215,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "power" 0
     ; infix_names = ["^"]
@@ -229,7 +229,7 @@ let fns : fn list =
               DInt (Dint.pow base exp)
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "divide" 0
 
@@ -261,7 +261,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "absoluteValue" 0
 
@@ -272,7 +272,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DInt a] -> DInt (Dint.abs a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "negate" 0
 
@@ -282,7 +282,7 @@ let fns : fn list =
     ; func =
         InProcess
           (function _, [DInt a] -> DInt (Dint.negate a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "greaterThan" 0
     ; infix_names = [">"]
@@ -314,7 +314,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "greaterThanOrEqualTo" 0
     ; infix_names = [">="]
@@ -346,7 +346,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "lessThan" 0
     ; infix_names = ["<"]
@@ -378,7 +378,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "lessThanOrEqualTo" 0
     ; infix_names = ["<="]
@@ -410,7 +410,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "random" 0
 
@@ -426,7 +426,7 @@ let fns : fn list =
               DInt (a + one + Dint.random (b - a))
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Int" "random" 1
 
@@ -444,7 +444,7 @@ let fns : fn list =
               DInt (lower + Dint.random (upper - lower))
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "sqrt" 0
 
@@ -467,7 +467,7 @@ let fns : fn list =
                 )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "toFloat" 0
 
@@ -478,7 +478,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "sum" 0
 
@@ -507,7 +507,7 @@ let fns : fn list =
               |> Result.ok_exn
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "max" 0
 
@@ -518,7 +518,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "min" 0
 
@@ -529,7 +529,7 @@ let fns : fn list =
         InProcess
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Int" "clamp" 0
 
@@ -558,5 +558,5 @@ let fns : fn list =
               )
           | args ->
               fail args)
-    ; preview_safety = Safe
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

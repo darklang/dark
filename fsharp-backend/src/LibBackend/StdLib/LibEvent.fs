@@ -22,7 +22,7 @@ let fns : fn list =
               data
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "emit" "1"
 
@@ -39,5 +39,5 @@ let fns : fn list =
               data
           | args ->
               fail args)
-    ; preview_safety = Unsafe
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]
