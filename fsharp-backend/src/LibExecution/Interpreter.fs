@@ -49,9 +49,10 @@ let rec eval (env: Environment.T) (st: Symtable.T) (e: Expr): DvalTask =
 
 
 and callFn (env: Environment.T) (fn: Environment.BuiltInFn) (args: List<Dval>): DvalTask =
-  match List.tryFind (fun (dv: Dval) -> dv.isSpecial) args with
+  match List.tryFind (fun (dv: Dval) -> dv.isFake) args with
   | Some special -> Plain special
   | None ->
       match fn.fn (env, args) with
       | Ok result -> result
-      | Error () -> Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+      | Error FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
+      | Error FnWrongTypes -> Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))

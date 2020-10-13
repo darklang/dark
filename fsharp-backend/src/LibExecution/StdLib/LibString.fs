@@ -14,31 +14,33 @@ module LibExecution.LibString
 // let error_result msg =
 //   DResult(ResError(Dval.dstr_of_string_exn msg))
 open LibExecution.Runtime
+open LibExecution.Runtime.Environment
 
 let fn = FnDesc.stdFnDesc
 
 let fns: List<Environment.BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
-      parameters = [ Param.make "s" TString "" ]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TBool
       description = "Returns <val true> if <param s> is the empty string <val \"\">."
       fn =
         (function
         | _, [ DStr s ] -> Ok(Plain(DBool(s.Length = 0)))
-        | args -> Error())
-      previewable = Environment.Pure
-      sqlSpec = Environment.NotYetImplementedTODO
-      deprecated = Environment.NotDeprecated } ]
-// ; { prefix_names = ["String::foreach"]
-//   ; infix_names = []
-//   ; parameters = [par "s" TStr; func ["char"]]
-//   ; returnType = TStr
-//   ; description =
-//       "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-//   ; func =
-//       InProcess (fun _ -> Exception.code "This function no longer exists.")
-//   ; preview_safety = Safe
-//   ; deprecated = true }
+        | args -> Error FnWrongTypes)
+      previewable = Pure
+      sqlSpec = NotYetImplementedTODO
+      deprecated = NotDeprecated }
+    { name = fn "String" "foreach" 0
+      parameters =
+        [ Param.make "s" TStr "string to iterate over"
+          Param.make "f" (TFn([ TChar ], TChar)) "function used to convert one character to another" ]
+      returnType = TStr
+      description =
+        "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
+      fn = (fun _ -> Error FnFunctionRemoved)
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "foreach" 1) } ]
 // ; { prefix_names = ["String::foreach_v1"]
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr; func ["character"]]
