@@ -9,7 +9,7 @@ module Unicode_string = Libexecution.Unicode_string
 let find_db = Libexecution.Ast.find_db
 
 let fns : fn list =
-  [ { prefix_names = ["DB::set_v1"]
+  [ { name = fn "DB" "set" 1
     ; infix_names = []
     ; parameters = [par "val" TObj; par "key" TStr; par "table" TDB]
     ; return_type = TObj
@@ -26,7 +26,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::add_v0"]
+  ; { name = fn "DB" "add" 0
     ; infix_names = []
     ; parameters = [par "val" TObj; par "table" TDB]
     ; return_type = TStr
@@ -44,7 +44,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::get_v1"]
+  ; { name = fn "DB" "get" 1
     ; infix_names = []
     ; parameters = [par "key" TStr; par "table" TDB]
     ; return_type = TOption
@@ -60,7 +60,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::get_v2"]
+  ; { name = fn "DB" "get" 2
     ; infix_names = []
     ; parameters = [par "key" TStr; par "table" TDB]
     ; return_type = TOption
@@ -76,7 +76,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::getMany_v1"]
+  ; { name = fn "DB" "getMany" 1
     ; infix_names = []
     ; parameters = [par "keys" TList; par "table" TDB]
     ; return_type = TList
@@ -105,7 +105,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::getMany_v2"]
+  ; { name = fn "DB" "getMany" 2
     ; infix_names = []
     ; parameters = [par "keys" TList; par "table" TDB]
     ; return_type = TList
@@ -133,7 +133,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::getMany_v3"]
+  ; { name = fn "DB" "getMany" 3
     ; infix_names = []
     ; parameters = [par "keys" TList; par "table" TDB]
     ; return_type = TOption
@@ -163,7 +163,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::getExisting"]
+  ; { name = fn "DB" "getExisting" 0
     ; infix_names = []
     ; parameters = [par "keys" TList; par "table" TDB]
     ; return_type = TList
@@ -191,7 +191,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::getManyWithKeys"]
+  ; { name = fn "DB" "getManyWithKeys" 0
     ; infix_names = []
     ; parameters = [par "keys" TList; par "table" TDB]
     ; return_type = TList
@@ -220,7 +220,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::getManyWithKeys_v1"]
+  ; { name = fn "DB" "getManyWithKeys" 1
     ; infix_names = []
     ; parameters = [par "keys" TList; par "table" TDB]
     ; return_type = TObj
@@ -248,7 +248,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::delete_v1"]
+  ; { name = fn "DB" "delete" 1
     ; infix_names = []
     ; parameters = [par "key" TStr; par "table" TDB]
     ; return_type = TNull
@@ -265,7 +265,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::deleteAll_v1"]
+  ; { name = fn "DB" "deleteAll" 1
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TNull
@@ -281,7 +281,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::query_v1"]
+  ; { name = fn "DB" "query" 1
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TList
@@ -301,7 +301,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true (* see query_v2 *) }
-  ; { prefix_names = ["DB::query_v2"]
+  ; { name = fn "DB" "query" 2
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TList
@@ -320,7 +320,7 @@ let fns : fn list =
     ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryExactFields *)
-  ; { prefix_names = ["DB::query_v3"]
+  ; { name = fn "DB" "query" 3
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TList
@@ -338,7 +338,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::queryExactFields"]
+  ; { name = fn "DB" "queryExactFields" 0
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TList
@@ -356,7 +356,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::queryWithKey_v1"]
+  ; { name = fn "DB" "queryWithKey" 1
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TList
@@ -377,7 +377,7 @@ let fns : fn list =
     ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryExactFieldsWithKey *)
-  ; { prefix_names = ["DB::queryWithKey_v2"]
+  ; { name = fn "DB" "queryWithKey" 2
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TObj
@@ -396,7 +396,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::queryExactFieldsWithKey"]
+  ; { name = fn "DB" "queryExactFieldsWithKey" 0
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TObj
@@ -415,7 +415,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::queryOne_v1"]
+  ; { name = fn "DB" "queryOne" 1
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TOption
@@ -438,7 +438,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::queryOne_v2"]
+  ; { name = fn "DB" "queryOne" 2
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TOption
@@ -462,7 +462,7 @@ let fns : fn list =
     ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryOneExactFields *)
-  ; { prefix_names = ["DB::queryOneWithExactFields"]
+  ; { name = fn "DB" "queryOneWithExactFields" 0
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TOption
@@ -485,7 +485,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::queryOneWithKey_v1"]
+  ; { name = fn "DB" "queryOneWithKey" 1
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TOption
@@ -508,7 +508,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::queryOneWithKey_v2"]
+  ; { name = fn "DB" "queryOneWithKey" 2
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TOption
@@ -532,7 +532,7 @@ let fns : fn list =
     ; preview_safety = Unsafe
     ; deprecated = true }
     (* see queryOneExactFieldsWithKey *)
-  ; { prefix_names = ["DB::queryOneWithExactFieldsWithKey"]
+  ; { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
     ; infix_names = []
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TOption
@@ -555,7 +555,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::getAll_v1"]
+  ; { name = fn "DB" "getAll" 1
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TList
@@ -575,7 +575,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::getAll_v2"]
+  ; { name = fn "DB" "getAll" 2
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TList
@@ -592,7 +592,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::getAll_v3"]
+  ; { name = fn "DB" "getAll" 3
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TList
@@ -609,7 +609,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::getAllWithKeys_v1"]
+  ; { name = fn "DB" "getAllWithKeys" 1
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TList
@@ -629,7 +629,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::getAllWithKeys_v2"]
+  ; { name = fn "DB" "getAllWithKeys" 2
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TObj
@@ -645,7 +645,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::count"]
+  ; { name = fn "DB" "count" 0
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TInt
@@ -661,7 +661,7 @@ let fns : fn list =
     ; preview_safety = Unsafe
     ; deprecated = false }
   ; (* previously called `DB::keys` *)
-    { prefix_names = ["DB::schemaFields_v1"]
+    { name = fn "DB" "schemaFields" 1
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TList
@@ -678,7 +678,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::schema_v1"]
+  ; { name = fn "DB" "schema" 1
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TObj
@@ -697,7 +697,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::generateKey"]
+  ; { name = fn "DB" "generateKey" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TStr
@@ -711,7 +711,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::keys_v1"]
+  ; { name = fn "DB" "keys" 1
     ; infix_names = []
     ; parameters = [par "table" TDB]
     ; return_type = TList
@@ -729,7 +729,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::query_v4"]
+  ; { name = fn "DB" "query" 4
     ; infix_names = []
     ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; return_type = TList
@@ -750,7 +750,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::queryWithKey_v3"]
+  ; { name = fn "DB" "queryWithKey" 3
     ; infix_names = []
     ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; return_type = TObj
@@ -769,7 +769,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::queryOne_v3"]
+  ; { name = fn "DB" "queryOne" 3
     ; infix_names = []
     ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; return_type = TList
@@ -793,7 +793,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DB::queryOne_v4"]
+  ; { name = fn "DB" "queryOne" 4
     ; infix_names = []
     ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; return_type = TOption
@@ -817,7 +817,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::queryOneWithKey_v3"]
+  ; { name = fn "DB" "queryOneWithKey" 3
     ; infix_names = []
     ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; return_type = TOption
@@ -841,7 +841,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DB::queryCount"]
+  ; { name = fn "DB" "queryCount" 0
     ; infix_names = []
     ; parameters = [par "table" TDB; par "filter" TBlock ~args:["value"]]
     ; return_type = TInt

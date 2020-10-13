@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { prefix_names = ["Uuid::generate"]
+  [ { name = fn "Uuid" "generate" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TUuid

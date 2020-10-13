@@ -15,7 +15,7 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
 let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
-  [ { prefix_names = ["Int::mod"]
+  [ { name = fn "Int" "mod" 0
     ; infix_names = ["%"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
@@ -43,13 +43,13 @@ let fns : fn list =
               fail args)
     ; preview_safety =
         Safe
-        (* 
-         * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types. 
+        (*
+         * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
          * The current function returns DError (it used to rollbar) on negative `b`.
          *)
     ; deprecated = false }
     (*  (* See above for when to uncomment this *)
-  ; { prefix_names = ["Int::mod_v1"]
+  ; { name = fn "Int" "mod" 1
     ; infix_names = ["%_v1"]
     ; parameters = [par "value" TInt; par "modulus" TInt]
     ; return_type = TResult
@@ -77,7 +77,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false } *)
-  ; { prefix_names = ["Int::remainder"]
+  ; { name = fn "Int" "remainder" 0
     ; infix_names = []
     ; parameters = [par "value" TInt; par "divisor" TInt]
     ; return_type = TResult
@@ -103,7 +103,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::add"]
+  ; { name = fn "Int" "add" 0
     ; infix_names = ["+"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
@@ -153,7 +153,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::subtract"]
+  ; { name = fn "Int" "subtract" 0
     ; infix_names = ["-"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
@@ -185,7 +185,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::multiply"]
+  ; { name = fn "Int" "multiply" 0
     ; infix_names = ["*"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
@@ -217,7 +217,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::power"]
+  ; { name = fn "Int" "power" 0
     ; infix_names = ["^"]
     ; parameters = [par "base" TInt; par "exponent" TInt]
     ; return_type = TInt
@@ -231,7 +231,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::divide"]
+  ; { name = fn "Int" "divide" 0
     ; infix_names = []
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
@@ -263,7 +263,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::absoluteValue"]
+  ; { name = fn "Int" "absoluteValue" 0
     ; infix_names = []
     ; parameters = [par "a" TInt]
     ; return_type = TInt
@@ -274,7 +274,7 @@ let fns : fn list =
           (function _, [DInt a] -> DInt (Dint.abs a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::negate"]
+  ; { name = fn "Int" "negate" 0
     ; infix_names = []
     ; parameters = [par "a" TInt]
     ; return_type = TInt
@@ -284,7 +284,7 @@ let fns : fn list =
           (function _, [DInt a] -> DInt (Dint.negate a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::greaterThan"]
+  ; { name = fn "Int" "greaterThan" 0
     ; infix_names = [">"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TBool
@@ -316,7 +316,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::greaterThanOrEqualTo"]
+  ; { name = fn "Int" "greaterThanOrEqualTo" 0
     ; infix_names = [">="]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TBool
@@ -348,7 +348,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::lessThan"]
+  ; { name = fn "Int" "lessThan" 0
     ; infix_names = ["<"]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TBool
@@ -380,7 +380,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::lessThanOrEqualTo"]
+  ; { name = fn "Int" "lessThanOrEqualTo" 0
     ; infix_names = ["<="]
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TBool
@@ -412,7 +412,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::random"]
+  ; { name = fn "Int" "random" 0
     ; infix_names = []
     ; parameters = [par "start" TInt; par "end" TInt]
     ; return_type = TInt
@@ -428,7 +428,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["Int::random_v1"]
+  ; { name = fn "Int" "random" 1
     ; infix_names = []
     ; parameters = [par "start" TInt; par "end" TInt]
     ; return_type = TInt
@@ -446,7 +446,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Int::sqrt"]
+  ; { name = fn "Int" "sqrt" 0
     ; infix_names = []
     ; parameters = [par "a" TInt]
     ; return_type = TFloat
@@ -469,7 +469,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::toFloat"]
+  ; { name = fn "Int" "toFloat" 0
     ; infix_names = []
     ; parameters = [par "a" TInt]
     ; return_type = TFloat
@@ -480,7 +480,7 @@ let fns : fn list =
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::sum"]
+  ; { name = fn "Int" "sum" 0
     ; infix_names = []
     ; parameters = [par "a" TList]
     ; return_type = TInt
@@ -509,7 +509,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::max"]
+  ; { name = fn "Int" "max" 0
     ; infix_names = []
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
@@ -520,7 +520,7 @@ let fns : fn list =
           | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::min"]
+  ; { name = fn "Int" "min" 0
     ; infix_names = []
     ; parameters = [par "a" TInt; par "b" TInt]
     ; return_type = TInt
@@ -531,7 +531,7 @@ let fns : fn list =
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Int::clamp"]
+  ; { name = fn "Int" "clamp" 0
     ; infix_names = []
     ; parameters = [par "value" TInt; par "limitA" TInt; par "limitB" TInt]
     ; return_type = TInt

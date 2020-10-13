@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : fn list =
-  [ { prefix_names = ["Object::empty"]
+  [ { name = fn "Object" "empty" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
@@ -13,7 +13,7 @@ let fns : fn list =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Object::merge"]
+  ; { name = fn "Object" "merge" 0
     ; infix_names = []
     ; parameters = [par "left" TObj; par "right" TObj]
     ; return_type = TObj
@@ -28,7 +28,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Object::toJSON"]
+  ; { name = fn "Object" "toJSON" 0
     ; infix_names = []
     ; parameters = [par "obj" TObj]
     ; return_type = TStr
@@ -44,7 +44,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Object::toJSON_v1"]
+  ; { name = fn "Object" "toJSON" 1
     ; infix_names = []
     ; parameters = [par "obj" TObj]
     ; return_type = TStr

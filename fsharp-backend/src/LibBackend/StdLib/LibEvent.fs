@@ -5,7 +5,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : fn list =
-  [ { prefix_names = ["emit"]
+  [ { name = fn "" "emit" 0
     ; infix_names = []
     ; parameters = [par "Data" TAny; par "Space" TStr; par "Name" TStr]
     ; return_type = TAny
@@ -24,7 +24,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["emit_v1"]
+  ; { name = fn "" "emit" "1"
     ; infix_names = []
     ; parameters = [par "event" TAny; par "Name" TStr]
     ; return_type = TAny

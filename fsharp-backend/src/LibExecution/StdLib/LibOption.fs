@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { prefix_names = ["Option::map"]
+  [ { name = fn "Option" "map" 0
     ; infix_names = []
     ; parameters = [par "option" TOption; func ["val"]]
     ; return_type = TOption
@@ -25,7 +25,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Option::map_v1"]
+  ; { name = fn "Option" "map" 1
     ; infix_names = []
     ; parameters = [par "option" TOption; func ["val"]]
     ; return_type = TOption
@@ -45,7 +45,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Option::map2"]
+  ; { name = fn "Option" "map2" 0
     ; infix_names = []
     ; parameters =
         [par "option1" TOption; par "option2" TOption; func ["v1"; "v2"]]
@@ -66,7 +66,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Option::andThen"]
+  ; { name = fn "Option" "andThen" 0
     ; infix_names = []
     ; parameters = [par "option" TOption; func ["val"]]
     ; return_type = TOption
@@ -93,7 +93,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Option::withDefault"]
+  ; { name = fn "Option" "withDefault" 0
     ; infix_names = []
     ; parameters = [par "option" TOption; par "default" TAny]
     ; return_type = TAny

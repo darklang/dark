@@ -4,7 +4,7 @@ open Types.RuntimeT
 open Lib
 
 let fns : fn list =
-  [ { prefix_names = ["Http::respond"]
+  [ { name = fn "Http" "respond" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -19,7 +19,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Http::response"]
+  ; { name = fn "Http" "response" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -38,7 +38,7 @@ let fns : fn list =
    * -- need to figure out how to deprecate functions w/o breaking
    * user code
    *)
-  ; { prefix_names = ["Http::respondWithHeaders"]
+  ; { name = fn "Http" "respondWithHeaders" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "headers" TObj; par "code" TInt]
     ; return_type = TResp
@@ -54,7 +54,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Http::responseWithHeaders"]
+  ; { name = fn "Http" "responseWithHeaders" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "headers" TObj; par "code" TInt]
     ; return_type = TResp
@@ -70,7 +70,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::success"]
+  ; { name = fn "Http" "success" 0
     ; infix_names = []
     ; parameters = [par "response" TAny]
     ; return_type = TResp
@@ -82,7 +82,7 @@ let fns : fn list =
           | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::respondWithHtml"]
+  ; { name = fn "Http" "respondWithHtml" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -100,7 +100,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Http::responseWithHtml"]
+  ; { name = fn "Http" "responseWithHtml" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -118,7 +118,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::respondWithText"]
+  ; { name = fn "Http" "respondWithText" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -136,7 +136,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Http::responseWithText"]
+  ; { name = fn "Http" "responseWithText" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -154,7 +154,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::respondWithJson"]
+  ; { name = fn "Http" "respondWithJson" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -173,7 +173,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Http::responseWithJson"]
+  ; { name = fn "Http" "responseWithJson" 0
     ; infix_names = []
     ; parameters = [par "response" TAny; par "code" TInt]
     ; return_type = TResp
@@ -192,7 +192,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::redirectTo"]
+  ; { name = fn "Http" "redirectTo" 0
     ; infix_names = []
     ; parameters = [par "url" TStr]
     ; return_type = TResp
@@ -207,7 +207,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::badRequest"]
+  ; { name = fn "Http" "badRequest" 0
     ; infix_names = []
     ; parameters = [par "error" TStr]
     ; return_type = TResp
@@ -222,7 +222,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::notFound"]
+  ; { name = fn "Http" "notFound" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TResp
@@ -234,7 +234,7 @@ let fns : fn list =
           | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::unauthorized"]
+  ; { name = fn "Http" "unauthorized" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TResp
@@ -246,7 +246,7 @@ let fns : fn list =
           | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::forbidden"]
+  ; { name = fn "Http" "forbidden" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TResp
@@ -258,7 +258,7 @@ let fns : fn list =
           | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Http::setCookie"]
+  ; { name = fn "Http" "setCookie" 0
     ; infix_names = []
     ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
     ; return_type = TObj
@@ -304,7 +304,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Http::setCookie_v1"]
+  ; { name = fn "Http" "setCookie" 1
     ; infix_names = []
     ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
     ; return_type = TObj
@@ -360,7 +360,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Http::setCookie_v2"]
+  ; { name = fn "Http" "setCookie" 2
     ; infix_names = []
     ; parameters = [par "name" TStr; par "value" TStr; par "params" TObj]
     ; return_type = TObj
@@ -380,7 +380,7 @@ let fns : fn list =
                     (* Bubble up errors for values that are invalid for all params *)
                     | _, ((DIncomplete _ | DErrorRail _ | DError _) as dv) ->
                         Error dv
-                    (* 
+                    (*
                      * Single boolean set-cookie params *)
                     | "secure", v | "httponly", v ->
                       ( match v with

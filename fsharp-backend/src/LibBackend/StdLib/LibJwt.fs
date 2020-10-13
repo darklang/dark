@@ -130,7 +130,7 @@ let handle_error (fn : unit -> dval) =
 
 
 let fns : fn list =
-  [ { prefix_names = ["JWT::signAndEncode"]
+  [ { name = fn "JWT" "signAndEncode" 0
     ; infix_names = []
     ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]
     ; return_type = TStr
@@ -153,7 +153,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["JWT::signAndEncodeWithHeaders"]
+  ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
     ; infix_names = []
     ; parameters =
         [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
@@ -182,7 +182,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["JWT::signAndEncode_v1"]
+  ; { name = fn "JWT" "signAndEncode" 1
     ; infix_names = []
     ; parameters = [par "pemPrivKey" TStr; par "payload" TAny]
     ; return_type = TResult
@@ -206,7 +206,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["JWT::signAndEncodeWithHeaders_v1"]
+  ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
     ; infix_names = []
     ; parameters =
         [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
@@ -236,7 +236,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["JWT::verifyAndExtract"]
+  ; { name = fn "JWT" "verifyAndExtract" 0
     ; infix_names = []
     ; parameters = [par "pemPubKey" TStr; par "token" TStr]
     ; return_type = TOption
@@ -273,7 +273,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["JWT::verifyAndExtract_v1"]
+  ; { name = fn "JWT" "verifyAndExtract" 1
     ; infix_names = []
     ; parameters = [par "pemPubKey" TStr; par "token" TStr]
     ; return_type = TResult

@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : fn list =
-  [ { prefix_names = ["Bytes::base64Encode"]
+  [ { name = fn "Bytes" "base64Encode" 0
     ; infix_names = []
     ; parameters = [par "bytes" TBytes]
     ; return_type = TStr
@@ -19,7 +19,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Bytes::hexEncode"]
+  ; { name = fn "Bytes" "hexEncode" 0
     ; infix_names = []
     ; parameters = [par "bytes" TBytes]
     ; return_type = TStr
@@ -46,7 +46,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Bytes::length"]
+  ; { name = fn "Bytes" "length" 0
     ; infix_names = []
     ; parameters = [par "bytes" TBytes]
     ; return_type = TInt

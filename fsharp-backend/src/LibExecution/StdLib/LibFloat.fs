@@ -15,7 +15,7 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
 let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
-  [ { prefix_names = ["Float::ceiling"; "Float::roundUp"]
+  [ { name = fn "Float::ceiling"; "Float" "roundUp" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TInt
@@ -29,7 +29,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::floor"; "Float::roundDown"]
+  ; { name = fn "Float::floor"; "Float" "roundDown" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TInt
@@ -44,7 +44,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::round"]
+  ; { name = fn "Float" "round" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TInt
@@ -58,7 +58,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::truncate"; "Float::roundTowardsZero"]
+  ; { name = fn "Float::truncate"; "Float" "roundTowardsZero" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TInt
@@ -73,7 +73,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::absoluteValue"]
+  ; { name = fn "Float" "absoluteValue" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TFloat
@@ -84,7 +84,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.abs a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::negate"]
+  ; { name = fn "Float" "negate" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TFloat
@@ -94,7 +94,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.neg a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::sqrt"]
+  ; { name = fn "Float" "sqrt" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat]
     ; return_type = TFloat
@@ -104,7 +104,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::power"]
+  ; { name = fn "Float" "power" 0
     ; infix_names = []
     ; parameters = [par "base" TFloat; par "exponent" TFloat]
     ; return_type = TFloat
@@ -118,7 +118,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::divide"]
+  ; { name = fn "Float" "divide" 0
     ; infix_names = ["/"]
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TFloat
@@ -129,7 +129,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::add"]
+  ; { name = fn "Float" "add" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TFloat
@@ -140,7 +140,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::multiply"]
+  ; { name = fn "Float" "multiply" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TFloat
@@ -151,7 +151,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::subtract"]
+  ; { name = fn "Float" "subtract" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TFloat
@@ -162,7 +162,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::greaterThan"]
+  ; { name = fn "Float" "greaterThan" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TBool
@@ -173,7 +173,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::greaterThanOrEqualTo"]
+  ; { name = fn "Float" "greaterThanOrEqualTo" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TBool
@@ -184,7 +184,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::lessThan"]
+  ; { name = fn "Float" "lessThan" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TBool
@@ -195,7 +195,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::lessThanOrEqualTo"]
+  ; { name = fn "Float" "lessThanOrEqualTo" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TBool
@@ -206,7 +206,7 @@ let fns : fn list =
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::sum"]
+  ; { name = fn "Float" "sum" 0
     ; infix_names = []
     ; parameters = [par "a" TList]
     ; return_type = TFloat
@@ -235,7 +235,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::min"]
+  ; { name = fn "Float" "min" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TFloat
@@ -249,7 +249,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::max"]
+  ; { name = fn "Float" "max" 0
     ; infix_names = []
     ; parameters = [par "a" TFloat; par "b" TFloat]
     ; return_type = TFloat
@@ -263,7 +263,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Float::clamp"]
+  ; { name = fn "Float" "clamp" 0
     ; infix_names = []
     ; parameters = [par "value" TFloat; par "limitA" TFloat; par "limitB" TFloat]
     ; return_type = TFloat
@@ -281,7 +281,7 @@ let fns : fn list =
                   DFloat clamped
               | Error e ->
                   (* Since min and max are pre-sorted, this can only happen if min or max are NaN.
-                   * TODO: eliminate NaNs so that this can't happen 
+                   * TODO: eliminate NaNs so that this can't happen
                    * (at time of writing (f86edaa1c58c94e27186060ae4fe8745112dd0e5), NaNs can't be parsed,
                    * so this can't happen in practice) *)
                   let info =

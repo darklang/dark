@@ -4,7 +4,7 @@ open Lib
 open Types.RuntimeT
 
 let fns : fn list =
-  [ { prefix_names = ["HttpClient::formContentType"]
+  [ { name = fn "HttpClient" "formContentType" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
@@ -22,7 +22,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::jsonContentType"]
+  ; { name = fn "HttpClient" "jsonContentType" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
@@ -39,7 +39,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::plainTextContentType"]
+  ; { name = fn "HttpClient" "plainTextContentType" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
@@ -56,7 +56,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::htmlContentType"]
+  ; { name = fn "HttpClient" "htmlContentType" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
@@ -73,7 +73,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::bearerToken"]
+  ; { name = fn "HttpClient" "bearerToken" 0
     ; infix_names = []
     ; parameters = [par "token" TStr]
     ; return_type = TObj
@@ -94,7 +94,7 @@ let fns : fn list =
     ; preview_safety = Safe
     ; deprecated =
         true (* Deprecated due to using Unicode_string.append_broken *) }
-  ; { prefix_names = ["HttpClient::bearerToken_v1"]
+  ; { name = fn "HttpClient" "bearerToken" 1
     ; infix_names = []
     ; parameters = [par "token" TStr]
     ; return_type = TObj

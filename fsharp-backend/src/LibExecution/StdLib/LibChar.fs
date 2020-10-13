@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : fn list =
-  [ { prefix_names = ["Char::toASCIICode"]
+  [ { name = fn "Char" "toASCIICode" 0
     ; infix_names = []
     ; parameters = [par "c" TCharacter]
     ; return_type = TInt
@@ -13,7 +13,7 @@ let fns : fn list =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Char::toASCIIChar"]
+  ; { name = fn "Char" "toASCIIChar" 0
     ; infix_names = []
     ; parameters = [par "i" TInt]
     ; return_type = TCharacter
@@ -22,7 +22,7 @@ let fns : fn list =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Char::toLowercase"]
+  ; { name = fn "Char" "toLowercase" 0
     ; infix_names = []
     ; parameters = [par "c" TCharacter]
     ; return_type = TCharacter
@@ -31,7 +31,7 @@ let fns : fn list =
         InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Char::toUppercase"]
+  ; { name = fn "Char" "toUppercase" 0
     ; infix_names = []
     ; parameters = [par "c" TCharacter]
     ; return_type = TCharacter

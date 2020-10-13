@@ -4,7 +4,7 @@ open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 
 let fns : fn list =
-  [ { prefix_names = ["Twilio::sendText"]
+  [ { name = fn "Twilio" "sendText" 0
     ; infix_names = []
     ; parameters =
         [ par "accountSID" TStr
@@ -65,7 +65,7 @@ let fns : fn list =
     ; deprecated =
         true
         (* Deprecated due to using Libhttpclient.encode_basic_auth_broken *) }
-  ; { prefix_names = ["Twilio::sendText_v1"]
+  ; { name = fn "Twilio" "sendText" 1
     ; infix_names = []
     ; parameters =
         [ par "accountSID" TStr

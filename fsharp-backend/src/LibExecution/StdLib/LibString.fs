@@ -41,7 +41,7 @@ let fns: List<Environment.BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "foreach" 1) } ]
-// ; { prefix_names = ["String::foreach_v1"]
+// ; { name = fn "String" "foreach" 1
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr; func ["character"]]
 //   ; returnType = TStr
@@ -84,7 +84,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::newline"]
+// ; { name = fn "String" "newline" 0
 //   ; infix_names = []
 //   ; parameters = []
 //   ; returnType = TStr
@@ -93,7 +93,7 @@ let fns: List<Environment.BuiltInFn> =
 //       InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::toList"]
+// ; { name = fn "String" "toList" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TList
@@ -103,7 +103,7 @@ let fns: List<Environment.BuiltInFn> =
 //       InProcess (fun _ -> Exception.code "This function no longer exists.")
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::toList_v1"]
+// ; { name = fn "String" "toList" 1
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TList
@@ -118,7 +118,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::replaceAll"]
+// ; { name = fn "String" "replaceAll" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr; par "searchFor" TStr; par "replaceWith" TStr]
 //   ; returnType = TStr
@@ -133,7 +133,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::toInt"]
+// ; { name = fn "String" "toInt" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TInt
@@ -153,7 +153,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::toInt_v1"]
+// ; { name = fn "String" "toInt" 1
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TResult
@@ -172,7 +172,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::toFloat"]
+// ; { name = fn "String" "toFloat" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TFloat
@@ -191,7 +191,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::toFloat_v1"]
+// ; { name = fn "String" "toFloat" 1
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TResult
@@ -209,7 +209,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::toUppercase"]
+// ; { name = fn "String" "toUppercase" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -224,7 +224,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::toUppercase_v1"]
+// ; { name = fn "String" "toUppercase" 1
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -235,7 +235,7 @@ let fns: List<Environment.BuiltInFn> =
 //         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::toLowercase"]
+// ; { name = fn "String" "toLowercase" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -250,7 +250,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::toLowercase_v1"]
+// ; { name = fn "String" "toLowercase" 1
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -261,7 +261,7 @@ let fns: List<Environment.BuiltInFn> =
 //         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::length"]
+// ; { name = fn "String" "length" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TInt
@@ -275,7 +275,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::length_v1"]
+// ; { name = fn "String" "length" 1
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TInt
@@ -289,8 +289,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names =
-//       ["String::append"]
+// ; { name = fn "String" "append" 0
 //       (* This used to provide "++" as an infix op.
 //        * It was moved to [String::append_v1] instead,
 //        * because we do not yet support versioning infix operators.
@@ -312,7 +311,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::append_v1"]
+// ; { name = fn "String" "append" 1
 //   ; infix_names = ["++"]
 //   ; parameters = [par "s1" TStr; par "s2" TStr]
 //   ; returnType = TStr
@@ -327,7 +326,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::prepend"]
+// ; { name = fn "String" "prepend" 0
 //   ; infix_names = []
 //   ; parameters = [par "s1" TStr; par "s2" TStr]
 //   ; returnType = TStr
@@ -342,7 +341,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::slugify"]
+// ; { name = fn "String" "slugify" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr]
 //   ; returnType = TStr
@@ -371,7 +370,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::slugify_v1"]
+// ; { name = fn "String" "slugify" 1
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr]
 //   ; returnType = TStr
@@ -400,7 +399,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::slugify_v2"]
+// ; { name = fn "String" "slugify" 2
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr]
 //   ; returnType = TStr
@@ -430,7 +429,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::reverse"]
+// ; { name = fn "String" "reverse" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr]
 //   ; returnType = TStr
@@ -441,7 +440,7 @@ let fns: List<Environment.BuiltInFn> =
 //         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::split"]
+// ; { name = fn "String" "split" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr; par "separator" TStr]
 //   ; returnType = TList
@@ -459,7 +458,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::join"]
+// ; { name = fn "String" "join" 0
 //   ; infix_names = []
 //   ; parameters = [par "l" TList; par "separator" TStr]
 //   ; returnType = TStr
@@ -483,7 +482,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::fromList"]
+// ; { name = fn "String" "fromList" 0
 //   ; infix_names = []
 //   ; parameters = [par "l" TList]
 //   ; returnType = TStr
@@ -492,7 +491,7 @@ let fns: List<Environment.BuiltInFn> =
 //       InProcess (fun _ -> Exception.code "This function no longer exists.")
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::fromList_v1"]
+// ; { name = fn "String" "fromList" 1
 //   ; infix_names = []
 //   ; parameters = [par "l" TList]
 //   ; returnType = TStr
@@ -513,7 +512,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::fromChar"]
+// ; { name = fn "String" "fromChar" 0
 //   ; infix_names = []
 //   ; parameters = [par "c" TCharacter]
 //   ; returnType = TCharacter
@@ -522,7 +521,7 @@ let fns: List<Environment.BuiltInFn> =
 //       InProcess (fun _ -> Exception.code "This function no longer exists.")
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::fromChar_v1"]
+// ; { name = fn "String" "fromChar" 1
 //   ; infix_names = []
 //   ; parameters = [par "c" TCharacter]
 //   ; returnType = TStr
@@ -536,7 +535,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::base64Encode"]
+// ; { name = fn "String" "base64Encode" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -555,7 +554,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::base64Decode"]
+// ; { name = fn "String" "base64Decode" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -585,7 +584,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::digest"]
+// ; { name = fn "String" "digest" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -602,7 +601,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::sha384"]
+// ; { name = fn "String" "sha384" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -618,7 +617,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::sha256"]
+// ; { name = fn "String" "sha256" 0
 //   ; infix_names = []
 //   ; parameters = [par "s" TStr]
 //   ; returnType = TStr
@@ -634,7 +633,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::random"]
+// ; { name = fn "String" "random" 0
 //   ; infix_names = []
 //   ; parameters = [par "length" TInt]
 //   ; returnType = TStr
@@ -653,7 +652,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Unsafe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::random_v1"]
+// ; { name = fn "String" "random" 1
 //   ; infix_names = []
 //   ; parameters = [par "length" TInt]
 //   ; returnType = TResult
@@ -674,7 +673,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Unsafe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::random_v2"]
+// ; { name = fn "String" "random" 2
 //   ; infix_names = []
 //   ; parameters = [par "length" TInt]
 //   ; returnType = TResult
@@ -694,7 +693,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Unsafe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::htmlEscape"]
+// ; { name = fn "String" "htmlEscape" 0
 //   ; infix_names = []
 //   ; parameters = [par "html" TStr]
 //   ; returnType = TStr
@@ -710,7 +709,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Unsafe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::toUUID"]
+// ; { name = fn "String" "toUUID" 0
 //   ; infix_names = []
 //   ; parameters = [par "uuid" TStr]
 //   ; returnType = TUuid
@@ -731,7 +730,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::toUUID_v1"]
+// ; { name = fn "String" "toUUID" 1
 //   ; infix_names = []
 //   ; parameters = [par "uuid" TStr]
 //   ; returnType = TResult
@@ -752,7 +751,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::isSubstring"]
+// ; { name = fn "String" "isSubstring" 0
 //   ; infix_names = []
 //   ; parameters = [par "searchingFor" TStr; par "lookingIn" TStr]
 //   ; returnType = TBool
@@ -766,7 +765,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::isSubstring_v1"]
+// ; { name = fn "String" "isSubstring" 1
 //   ; infix_names = []
 //   ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
 //   ; returnType = TBool
@@ -780,7 +779,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = true }
-// ; { prefix_names = ["String::contains"]
+// ; { name = fn "String" "contains" 0
 //   ; infix_names = []
 //   ; parameters = [par "lookingIn" TStr; par "searchingFor" TStr]
 //   ; returnType = TBool
@@ -794,7 +793,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::slice"]
+// ; { name = fn "String" "slice" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr; par "from" TInt; par "to" TInt]
 //   ; returnType = TStr
@@ -812,7 +811,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::first"]
+// ; { name = fn "String" "first" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr; par "characterCount" TInt]
 //   ; returnType = TStr
@@ -830,7 +829,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::last"]
+// ; { name = fn "String" "last" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr; par "characterCount" TInt]
 //   ; returnType = TStr
@@ -848,7 +847,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::dropLast"]
+// ; { name = fn "String" "dropLast" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr; par "characterCount" TInt]
 //   ; returnType = TStr
@@ -866,7 +865,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::dropFirst"]
+// ; { name = fn "String" "dropFirst" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr; par "characterCount" TInt]
 //   ; returnType = TStr
@@ -884,7 +883,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::padStart"]
+// ; { name = fn "String" "padStart" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
 //   ; returnType = TStr
@@ -914,7 +913,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::padEnd"]
+// ; { name = fn "String" "padEnd" 0
 //   ; infix_names = []
 //   ; parameters = [par "string" TStr; par "padWith" TStr; par "goalLength" TInt]
 //   ; returnType = TStr
@@ -944,7 +943,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::trim"]
+// ; { name = fn "String" "trim" 0
 //   ; infix_names = []
 //   ; parameters = [par "str" TStr]
 //   ; returnType = TStr
@@ -959,7 +958,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::trimStart"]
+// ; { name = fn "String" "trimStart" 0
 //   ; infix_names = []
 //   ; parameters = [par "str" TStr]
 //   ; returnType = TStr
@@ -974,7 +973,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::trimEnd"]
+// ; { name = fn "String" "trimEnd" 0
 //   ; infix_names = []
 //   ; parameters = [par "str" TStr]
 //   ; returnType = TStr
@@ -989,7 +988,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::toBytes"]
+// ; { name = fn "String" "toBytes" 0
 //   ; infix_names = []
 //   ; parameters = [par "str" TStr]
 //   ; returnType = TBytes
@@ -1005,7 +1004,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::startsWith"]
+// ; { name = fn "String" "startsWith" 0
 //   ; infix_names = []
 //   ; parameters = [par "subject" TStr; par "prefix" TStr]
 //   ; returnType = TBool
@@ -1019,7 +1018,7 @@ let fns: List<Environment.BuiltInFn> =
 //             fail args)
 //   ; preview_safety = Safe
 //   ; deprecated = false }
-// ; { prefix_names = ["String::endsWith"]
+// ; { name = fn "String" "endsWith" 0
 //   ; infix_names = []
 //   ; parameters = [par "subject" TStr; par "suffix" TStr]
 //   ; returnType = TBool

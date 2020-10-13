@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { prefix_names = ["Result::map"]
+  [ { name = fn "Result" "map" 0
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
@@ -24,7 +24,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Result::map_v1"]
+  ; { name = fn "Result" "map" 1
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
@@ -44,7 +44,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Result::mapError"]
+  ; { name = fn "Result" "mapError" 0
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
@@ -64,7 +64,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Result::mapError_v1"]
+  ; { name = fn "Result" "mapError" 1
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
@@ -84,7 +84,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Result::withDefault"]
+  ; { name = fn "Result" "withDefault" 0
     ; infix_names = []
     ; parameters = [par "result" TResult; par "default" TAny]
     ; return_type = TAny
@@ -99,7 +99,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Result::fromOption"]
+  ; { name = fn "Result" "fromOption" 0
     ; infix_names = []
     ; parameters = [par "option" TOption; par "error" TStr]
     ; return_type = TResult
@@ -118,7 +118,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Result::fromOption_v1"]
+  ; { name = fn "Result" "fromOption" 1
     ; infix_names = []
     ; parameters = [par "option" TOption; par "error" TStr]
     ; return_type = TResult
@@ -142,7 +142,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Result::toOption"]
+  ; { name = fn "Result" "toOption" 0
     ; infix_names = []
     ; parameters = [par "result" TResult]
     ; return_type = TOption
@@ -160,7 +160,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Result::toOption_v1"]
+  ; { name = fn "Result" "toOption" 1
     ; infix_names = []
     ; parameters = [par "result" TResult]
     ; return_type = TOption
@@ -178,7 +178,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Result::map2"]
+  ; { name = fn "Result" "map2" 0
     ; infix_names = []
     ; parameters =
         [par "result1" TResult; par "result2" TResult; func ["v1"; "v2"]]
@@ -201,7 +201,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Result::andThen"]
+  ; { name = fn "Result" "andThen" 0
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult
@@ -228,7 +228,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Result::andThen_v1"]
+  ; { name = fn "Result" "andThen" 1
     ; infix_names = []
     ; parameters = [par "result" TResult; func ["val"]]
     ; return_type = TResult

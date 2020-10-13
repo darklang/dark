@@ -17,7 +17,7 @@ let fns : fn list =
   [ (* ====================================== *)
     (* Password *)
     (* ====================================== *)
-    { prefix_names = ["Password::hash"]
+    { name = fn "Password" "hash" 0
     ; infix_names = []
     ; parameters = [par "pw" TStr]
     ; return_type = TPassword
@@ -56,7 +56,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Password::check"]
+  ; { name = fn "Password" "check" 0
     ; infix_names = []
     ; parameters = [par "existingpwr" TPassword; par "rawpw" TStr]
     ; return_type = TBool
@@ -77,7 +77,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Crypto::sha256"]
+  ; { name = fn "Crypto" "sha256" 0
     ; infix_names = []
     ; parameters = [par "data" TBytes]
     ; return_type = TBytes
@@ -94,7 +94,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Crypto::sha384"]
+  ; { name = fn "Crypto" "sha384" 0
     ; infix_names = []
     ; parameters = [par "data" TBytes]
     ; return_type = TBytes
@@ -111,7 +111,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Crypto::md5"]
+  ; { name = fn "Crypto" "md5" 0
     ; infix_names = []
     ; parameters = [par "data" TBytes]
     ; return_type = TBytes
@@ -129,7 +129,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Crypto::sha256hmac"]
+  ; { name = fn "Crypto" "sha256hmac" 0
     ; infix_names = []
     ; parameters = [par "key" TBytes; par "data" TBytes]
     ; return_type = TBytes
@@ -146,7 +146,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Crypto::sha1hmac"]
+  ; { name = fn "Crypto" "sha1hmac" 0
     ; infix_names = []
     ; parameters = [par "key" TBytes; par "data" TBytes]
     ; return_type = TBytes

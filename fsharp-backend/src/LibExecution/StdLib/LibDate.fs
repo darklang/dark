@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : fn list =
-  [ { prefix_names = ["Date::parse"]
+  [ { name = fn "Date" "parse" 0
     ; infix_names = []
     ; parameters = [par "s" TStr]
     ; return_type = TDate
@@ -22,7 +22,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Date::parse_v1"]
+  ; { name = fn "Date" "parse" 1
     ; infix_names = []
     ; parameters = [par "s" TStr]
     ; return_type = TResult
@@ -45,7 +45,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Date::parse_v2"]
+  ; { name = fn "Date" "parse" 2
     ; infix_names = []
     ; parameters = [par "s" TStr]
     ; return_type = TResult
@@ -67,7 +67,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::toString"]
+  ; { name = fn "Date" "toString" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TStr
@@ -82,7 +82,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::toStringISO8601BasicDateTime"]
+  ; { name = fn "Date" "toStringISO8601BasicDateTime" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TStr
@@ -98,7 +98,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::toStringISO8601BasicDate"]
+  ; { name = fn "Date" "toStringISO8601BasicDate" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TStr
@@ -113,7 +113,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::now"]
+  ; { name = fn "Date" "now" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TDate
@@ -122,7 +122,7 @@ let fns : fn list =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["Date::today"]
+  ; { name = fn "Date" "today" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TDate
@@ -140,7 +140,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::add"]
+  ; { name = fn "Date" "add" 0
     ; infix_names = []
     ; parameters = [par "d" TDate; par "seconds" TInt]
     ; return_type = TDate
@@ -154,7 +154,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::sub"]
+  ; { name = fn "Date" "sub" 0
     ; infix_names = []
     ; parameters = [par "d" TDate; par "seconds" TInt]
     ; return_type = TDate
@@ -168,7 +168,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Date::subtract"]
+  ; { name = fn "Date" "subtract" 0
     ; infix_names = []
     ; parameters = [par "d" TDate; par "seconds" TInt]
     ; return_type = TDate
@@ -182,7 +182,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::greaterThan"]
+  ; { name = fn "Date" "greaterThan" 0
     ; infix_names = ["Date::>"]
     ; parameters = [par "d1" TDate; par "d2" TDate]
     ; return_type = TBool
@@ -196,7 +196,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::lessThan"]
+  ; { name = fn "Date" "lessThan" 0
     ; infix_names = ["Date::<"]
     ; parameters = [par "d1" TDate; par "d2" TDate]
     ; return_type = TBool
@@ -210,7 +210,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::greaterThanOrEqualTo"]
+  ; { name = fn "Date" "greaterThanOrEqualTo" 0
     ; infix_names = ["Date::>="]
     ; parameters = [par "d1" TDate; par "d2" TDate]
     ; return_type = TBool
@@ -224,7 +224,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::lessThanOrEqualTo"]
+  ; { name = fn "Date" "lessThanOrEqualTo" 0
     ; infix_names = ["Date::<="]
     ; parameters = [par "d1" TDate; par "d2" TDate]
     ; return_type = TBool
@@ -238,7 +238,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::toSeconds"]
+  ; { name = fn "Date" "toSeconds" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -257,7 +257,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::fromSeconds"]
+  ; { name = fn "Date" "fromSeconds" 0
     ; infix_names = []
     ; parameters = [par "seconds" TInt]
     ; return_type = TDate
@@ -276,7 +276,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::toHumanReadable"]
+  ; { name = fn "Date" "toHumanReadable" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TStr
@@ -350,7 +350,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true (* This doesn't mean anything *) }
-  ; { prefix_names = ["Date::year"]
+  ; { name = fn "Date" "year" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -364,7 +364,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::month"]
+  ; { name = fn "Date" "month" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -383,7 +383,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::day"]
+  ; { name = fn "Date" "day" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -397,7 +397,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::weekday"]
+  ; { name = fn "Date" "weekday" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -416,7 +416,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::hour"]
+  ; { name = fn "Date" "hour" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -435,7 +435,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Date::hour_v1"]
+  ; { name = fn "Date" "hour" 1
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -454,7 +454,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::minute"]
+  ; { name = fn "Date" "minute" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -473,7 +473,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::second"]
+  ; { name = fn "Date" "second" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TInt
@@ -492,7 +492,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Date::atStartOfDay"]
+  ; { name = fn "Date" "atStartOfDay" 0
     ; infix_names = []
     ; parameters = [par "date" TDate]
     ; return_type = TDate

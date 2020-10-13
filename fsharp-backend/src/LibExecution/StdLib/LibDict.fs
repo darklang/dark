@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns =
-  [ { prefix_names = ["Dict::singleton"]
+  [ { name = fn "Dict" "singleton" 0
     ; infix_names = []
     ; parameters = [par "key" TStr; par "value" TAny]
     ; return_type = TObj
@@ -19,7 +19,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::size"]
+  ; { name = fn "Dict" "size" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TInt
@@ -31,7 +31,7 @@ let fns =
           | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::keys"]
+  ; { name = fn "Dict" "keys" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
@@ -48,7 +48,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::values"]
+  ; { name = fn "Dict" "values" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
@@ -59,7 +59,7 @@ let fns =
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::toList"]
+  ; { name = fn "Dict" "toList" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TList
@@ -77,7 +77,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::fromListOverwritingDuplicates"]
+  ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
     ; infix_names = []
     ; parameters = [par "entries" TList]
     ; return_type = TObj
@@ -148,7 +148,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::fromList"]
+  ; { name = fn "Dict" "fromList" 0
     ; infix_names = []
     ; parameters = [par "entries" TList]
     ; return_type = TOption
@@ -227,7 +227,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::get"]
+  ; { name = fn "Dict" "get" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TAny
@@ -246,7 +246,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Dict::get_v1"]
+  ; { name = fn "Dict" "get" 1
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TOption
@@ -264,7 +264,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Dict::get_v2"]
+  ; { name = fn "Dict" "get" 2
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TOption
@@ -283,7 +283,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::member"]
+  ; { name = fn "Dict" "member" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TBool
@@ -299,7 +299,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::foreach"]
+  ; { name = fn "Dict" "foreach" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; func ["val"]]
     ; return_type = TObj
@@ -315,7 +315,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Dict::map"]
+  ; { name = fn "Dict" "map" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
@@ -334,7 +334,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::filter"]
+  ; { name = fn "Dict" "filter" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
@@ -369,7 +369,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Dict::filter_v1"]
+  ; { name = fn "Dict" "filter" 1
     ; infix_names = []
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
@@ -414,7 +414,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::filterMap"]
+  ; { name = fn "Dict" "filterMap" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; func ["key"; "value"]]
     ; return_type = TObj
@@ -467,7 +467,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::empty"]
+  ; { name = fn "Dict" "empty" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj
@@ -476,7 +476,7 @@ let fns =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::isEmpty"]
+  ; { name = fn "Dict" "isEmpty" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TBool
@@ -487,7 +487,7 @@ let fns =
           | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::merge"]
+  ; { name = fn "Dict" "merge" 0
     ; infix_names = []
     ; parameters = [par "left" TObj; par "right" TObj]
     ; return_type = TObj
@@ -502,7 +502,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::toJSON"]
+  ; { name = fn "Dict" "toJSON" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj]
     ; return_type = TStr
@@ -518,7 +518,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::set"]
+  ; { name = fn "Dict" "set" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr; par "val" TAny]
     ; return_type = TObj
@@ -532,7 +532,7 @@ let fns =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Dict::remove"]
+  ; { name = fn "Dict" "remove" 0
     ; infix_names = []
     ; parameters = [par "dict" TObj; par "key" TStr]
     ; return_type = TObj

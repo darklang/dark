@@ -4,7 +4,7 @@ open Libexecution.Lib
 module U = Libexecution.Unicode_string
 
 let fns : Types.RuntimeT.fn list =
-  [ { prefix_names = ["X509::pemCertificatePublicKey"]
+  [ { name = fn "X509" "pemCertificatePublicKey" 0
     ; infix_names = []
     ; parameters = [par "pemCert" TStr]
     ; return_type = TResult

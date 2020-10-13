@@ -51,7 +51,7 @@ let modify_schedule fn =
 
 
 let fns : fn list =
-  [ { prefix_names = ["DarkInternal::checkAccess"]
+  [ { name = fn "DarkInternal" "checkAccess" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TNull
@@ -59,7 +59,7 @@ let fns : fn list =
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::endUsers"]
+  ; { name = fn "DarkInternal" "endUsers" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TList
@@ -84,7 +84,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::checkAllCanvases"]
+  ; { name = fn "DarkInternal" "checkAllCanvases" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TNull
@@ -92,7 +92,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::migrateAllCanvases"]
+  ; { name = fn "DarkInternal" "migrateAllCanvases" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TNull
@@ -100,7 +100,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::cleanupOldTraces"]
+  ; { name = fn "DarkInternal" "cleanupOldTraces" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TNull
@@ -108,7 +108,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; func = internal_fn (fun _ -> DNull)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::cleanupOldTraces_v1"]
+  ; { name = fn "DarkInternal" "cleanupOldTraces" 1
     ; infix_names = []
     ; parameters = []
     ; return_type = TFloat
@@ -117,7 +117,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         internal_fn (function state, [] -> DFloat 0.0 | args -> fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::cleanupOldTracesForCanvas_v1"]
+  ; { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
     ; infix_names = []
     ; parameters = [par "canvas_id" TUuid]
     ; return_type = TFloat
@@ -131,7 +131,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::checkCanvas"]
+  ; { name = fn "DarkInternal" "checkCanvas" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TBool
@@ -149,7 +149,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::migrateCanvas"]
+  ; { name = fn "DarkInternal" "migrateCanvas" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TResult
@@ -167,7 +167,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::upsertUser"]
+  ; { name = fn "DarkInternal" "upsertUser" 0
     ; infix_names = []
     ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
     ; return_type = TStr
@@ -189,7 +189,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::insertUser_v1"]
+  ; { name = fn "DarkInternal" "insertUser" 1
     ; infix_names = []
     ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
     ; return_type = TResult
@@ -218,7 +218,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::insertUser_v2"]
+  ; { name = fn "DarkInternal" "insertUser" 2
     ; infix_names = []
     ; parameters =
         [ par "username" TStr
@@ -274,7 +274,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::upsertUser_v1"]
+  ; { name = fn "DarkInternal" "upsertUser" 1
     ; infix_names = []
     ; parameters = [par "username" TStr; par "email" TStr; par "name" TStr]
     ; return_type = TResult
@@ -301,7 +301,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getUser"]
+  ; { name = fn "DarkInternal" "getUser" 0
     ; infix_names = []
     ; parameters = [par "username" TStr]
     ; return_type = TOption
@@ -327,7 +327,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::getUser_v1"]
+  ; { name = fn "DarkInternal" "getUser" 1
     ; infix_names = []
     ; parameters = [par "username" TStr]
     ; return_type = TOption
@@ -354,7 +354,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getUserByEmail"]
+  ; { name = fn "DarkInternal" "getUserByEmail" 0
     ; infix_names = []
     ; parameters = [par "email" TStr]
     ; return_type = TOption
@@ -380,7 +380,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::setAdmin"]
+  ; { name = fn "DarkInternal" "setAdmin" 0
     ; infix_names = []
     ; parameters = [par "username" TStr; par "admin" TBool]
     ; return_type = TNull
@@ -396,7 +396,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getUsers"]
+  ; { name = fn "DarkInternal" "getUsers" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TList
@@ -411,7 +411,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getAllCanvases"]
+  ; { name = fn "DarkInternal" "getAllCanvases" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TList
@@ -423,7 +423,7 @@ that's already taken, returns an error."
             |> DList)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::canvasesFor"]
+  ; { name = fn "DarkInternal" "canvasesFor" 0
     ; infix_names = []
     ; parameters = [par "account" TStr]
     ; return_type = TList
@@ -439,7 +439,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::schema"]
+  ; { name = fn "DarkInternal" "schema" 0
     ; infix_names = []
     ; parameters = [par "host" TStr; par "dbid" TStr]
     ; return_type = TObj
@@ -481,7 +481,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::canvasAsText"]
+  ; { name = fn "DarkInternal" "canvasAsText" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TStr
@@ -495,7 +495,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::handlers"]
+  ; { name = fn "DarkInternal" "handlers" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TList
@@ -519,7 +519,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::functions"]
+  ; { name = fn "DarkInternal" "functions" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TList
@@ -542,7 +542,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::canLoadTraces"]
+  ; { name = fn "DarkInternal" "canLoadTraces" 0
     ; infix_names = []
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TBool
@@ -580,7 +580,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getCORSSetting"]
+  ; { name = fn "DarkInternal" "getCORSSetting" 0
     ; infix_names = []
     ; parameters = [par "canvas" TStr]
     ; return_type = TOption
@@ -613,7 +613,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::setCORSSetting"]
+  ; { name = fn "DarkInternal" "setCORSSetting" 0
     ; infix_names = []
     ; parameters = [par "canvas" TStr; par "origins" TOption]
     ; return_type = TResult
@@ -661,7 +661,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::dbs"]
+  ; { name = fn "DarkInternal" "dbs" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TList
@@ -686,7 +686,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::oplistInfo"]
+  ; { name = fn "DarkInternal" "oplistInfo" 0
     ; infix_names = []
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TObj
@@ -749,7 +749,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::storedEvents"]
+  ; { name = fn "DarkInternal" "storedEvents" 0
     ; infix_names = []
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TOption
@@ -798,7 +798,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::pushStrollerEvent"]
+  ; { name = fn "DarkInternal" "pushStrollerEvent" 0
     ; infix_names = []
     ; parameters = [par "canvas_id" TStr; par "event" TStr; par "payload" TObj]
     ; return_type = TResult
@@ -825,7 +825,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::pushStrollerEvent_v1"]
+  ; { name = fn "DarkInternal" "pushStrollerEvent" 1
     ; infix_names = []
     ; parameters = [par "canvas_id" TStr; par "event" TStr; par "payload" TAny]
     ; return_type = TResult
@@ -852,7 +852,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::sessionKeyToUsername"]
+  ; { name = fn "DarkInternal" "sessionKeyToUsername" 0
     ; infix_names = []
     ; parameters = [par "sessionKey" TStr]
     ; return_type = TOption
@@ -872,7 +872,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::canvasIdOfCanvasName"]
+  ; { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TOption
@@ -894,7 +894,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::usernameToUserInfo"]
+  ; { name = fn "DarkInternal" "usernameToUserInfo" 0
     ; infix_names = []
     ; parameters = [par "username" TStr]
     ; return_type = TOption
@@ -920,7 +920,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::grant"]
+  ; { name = fn "DarkInternal" "grant" 0
     ; infix_names = []
     ; parameters = [par "username" TStr; par "org" TStr; par "permission" TStr]
     ; return_type = TResult
@@ -969,7 +969,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::grantsFor"]
+  ; { name = fn "DarkInternal" "grantsFor" 0
     ; infix_names = []
     ; parameters = [par "org" TStr]
     ; return_type = TObj
@@ -996,7 +996,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::orgsFor"]
+  ; { name = fn "DarkInternal" "orgsFor" 0
     ; infix_names = []
     ; parameters = [par "username" TStr]
     ; return_type = TObj
@@ -1023,7 +1023,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::checkPermission"]
+  ; { name = fn "DarkInternal" "checkPermission" 0
     ; infix_names = []
     ; parameters = [par "username" TStr; par "canvas" TStr]
     ; return_type = TBool
@@ -1045,7 +1045,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::log"]
+  ; { name = fn "DarkInternal" "log" 0
     ; infix_names = []
     ; parameters = [par "level" TStr; par "name" TStr; par "log" TObj]
     ; return_type = TObj
@@ -1103,7 +1103,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::fnsUsed"]
+  ; { name = fn "DarkInternal" "fnsUsed" 0
     ; infix_names = []
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TList
@@ -1134,7 +1134,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::fieldNamesUsed"]
+  ; { name = fn "DarkInternal" "fieldNamesUsed" 0
     ; infix_names = []
     ; parameters = [par "host" TStr; par "tlid" TStr]
     ; return_type = TList
@@ -1165,7 +1165,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::fnMetadata"]
+  ; { name = fn "DarkInternal" "fnMetadata" 0
     ; infix_names = []
     ; parameters = [par "name" TStr]
     ; return_type = TResult
@@ -1194,7 +1194,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::allFunctions"]
+  ; { name = fn "DarkInternal" "allFunctions" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TList
@@ -1239,7 +1239,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::clearStaticAssets"]
+  ; { name = fn "DarkInternal" "clearStaticAssets" 0
     ; infix_names = []
     ; parameters = [par "host" TStr]
     ; return_type = TNull
@@ -1257,7 +1257,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getAllSchedulingRules"]
+  ; { name = fn "DarkInternal" "getAllSchedulingRules" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TList
@@ -1272,7 +1272,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getSchedulingRulesForCanvas"]
+  ; { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
     ; infix_names = []
     ; parameters = [par "canvas_id" TUuid]
     ; return_type = TList
@@ -1288,7 +1288,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::addWorkerSchedulingBlock"]
+  ; { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
     ; infix_names = []
     ; parameters = [par "canvas_id" TUuid; par "handler_name" TStr]
     ; return_type = TNull
@@ -1297,7 +1297,7 @@ that's already taken, returns an error."
     ; func = modify_schedule Event_queue.block_worker
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::removeWorkerSchedulingBlock"]
+  ; { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
     ; infix_names = []
     ; parameters = [par "canvas_id" TUuid; par "handler_name" TStr]
     ; return_type = TNull
@@ -1306,7 +1306,7 @@ that's already taken, returns an error."
     ; func = modify_schedule Event_queue.unblock_worker
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::newSessionForUsername"]
+  ; { name = fn "DarkInternal" "newSessionForUsername" 0
     ; infix_names = []
     ; parameters = [par "username" TStr]
     ; return_type = TResult
@@ -1360,7 +1360,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["DarkInternal::newSessionForUsername_v1"]
+  ; { name = fn "DarkInternal" "newSessionForUsername" 1
     ; infix_names = []
     ; parameters = [par "username" TStr]
     ; return_type = TResult
@@ -1423,7 +1423,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::deleteSession"]
+  ; { name = fn "DarkInternal" "deleteSession" 0
     ; infix_names = []
     ; parameters = [par "session_key" TStr]
     ; return_type = TInt
@@ -1443,7 +1443,7 @@ that's already taken, returns an error."
                 fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["DarkInternal::getAndLogTableSizes"]
+  ; { name = fn "DarkInternal" "getAndLogTableSizes" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TObj

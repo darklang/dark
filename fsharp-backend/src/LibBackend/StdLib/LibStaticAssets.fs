@@ -7,7 +7,7 @@ module Unicode_string = Libexecution.Unicode_string
 module Dval = Libexecution.Dval
 
 let fns : fn list =
-  [ { prefix_names = ["StaticAssets::baseUrlFor"]
+  [ { name = fn "StaticAssets" "baseUrlFor" 0
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr]
     ; return_type = TStr
@@ -22,7 +22,7 @@ let fns : fn list =
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::baseUrlForLatest"]
+  ; { name = fn "StaticAssets" "baseUrlForLatest" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TStr
@@ -37,7 +37,7 @@ let fns : fn list =
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::urlFor"]
+  ; { name = fn "StaticAssets" "urlFor" 0
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr; par "file" TStr]
     ; return_type = TStr
@@ -56,7 +56,7 @@ let fns : fn list =
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::urlForLatest"]
+  ; { name = fn "StaticAssets" "urlForLatest" 0
     ; infix_names = []
     ; parameters = [par "file" TStr]
     ; return_type = TStr
@@ -75,7 +75,7 @@ let fns : fn list =
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::fetch"]
+  ; { name = fn "StaticAssets" "fetch" 0
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr; par "file" TStr]
     ; return_type = TResult
@@ -109,7 +109,7 @@ UTF-8 safe"))
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["StaticAssets::fetch_v1"]
+  ; { name = fn "StaticAssets" "fetch" 1
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr; par "file" TStr]
     ; return_type = TResult
@@ -140,7 +140,7 @@ UTF-8 safe"))
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::fetchBytes"]
+  ; { name = fn "StaticAssets" "fetchBytes" 0
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr; par "file" TStr]
     ; return_type = TResult
@@ -170,7 +170,7 @@ UTF-8 safe"))
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::fetchLatest"]
+  ; { name = fn "StaticAssets" "fetchLatest" 0
     ; infix_names = []
     ; parameters = [par "file" TStr]
     ; return_type = TResult
@@ -204,7 +204,7 @@ UTF-8 safe"))
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["StaticAssets::fetchLatest_v1"]
+  ; { name = fn "StaticAssets" "fetchLatest" 1
     ; infix_names = []
     ; parameters = [par "file" TStr]
     ; return_type = TResult
@@ -236,7 +236,7 @@ UTF-8 safe") )
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::fetchLatestBytes"]
+  ; { name = fn "StaticAssets" "fetchLatestBytes" 0
     ; infix_names = []
     ; parameters = [par "file" TStr]
     ; return_type = TResult
@@ -266,7 +266,7 @@ UTF-8 safe") )
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::serve"]
+  ; { name = fn "StaticAssets" "serve" 0
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr; par "file" TStr]
     ; return_type = TResult
@@ -325,7 +325,7 @@ UTF-8 safe") )
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["StaticAssets::serve_v1"]
+  ; { name = fn "StaticAssets" "serve" 1
     ; infix_names = []
     ; parameters = [par "deploy_hash" TStr; par "file" TStr]
     ; return_type = TResult
@@ -380,7 +380,7 @@ UTF-8 safe") )
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["StaticAssets::serveLatest"]
+  ; { name = fn "StaticAssets" "serveLatest" 0
     ; infix_names = []
     ; parameters = [par "file" TStr]
     ; return_type = TResult
@@ -436,7 +436,7 @@ UTF-8 safe") )
               Libexecution.Lib.fail args)
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["StaticAssets::serveLatest_v1"]
+  ; { name = fn "StaticAssets" "serveLatest" 1
     ; infix_names = []
     ; parameters = [par "file" TStr]
     ; return_type = TResult

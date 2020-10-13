@@ -14,7 +14,7 @@ let tau =
 
 
 let fns : fn list =
-  [ { prefix_names = ["Math::pi"]
+  [ { name = fn "Math" "pi" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TFloat
@@ -23,7 +23,7 @@ let fns : fn list =
     ; func = InProcess (function _, [] -> DFloat pi | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::tau"]
+  ; { name = fn "Math" "tau" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TFloat
@@ -32,7 +32,7 @@ let fns : fn list =
     ; func = InProcess (function _, [] -> DFloat tau | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::degrees"]
+  ; { name = fn "Math" "degrees" 0
     ; infix_names = []
     ; parameters = [par "angleInDegrees" TFloat]
     ; return_type = TFloat
@@ -48,7 +48,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::turns"]
+  ; { name = fn "Math" "turns" 0
     ; infix_names = []
     ; parameters = [par "angleInTurns" TFloat]
     ; return_type = TFloat
@@ -61,7 +61,7 @@ let fns : fn list =
           | _, [DFloat turns] -> DFloat (tau *. turns) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::radians"]
+  ; { name = fn "Math" "radians" 0
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -73,7 +73,7 @@ let fns : fn list =
           (function _, [DFloat rads] -> DFloat rads | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::cos"]
+  ; { name = fn "Math" "cos" 0
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -85,7 +85,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.cos a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::sin"]
+  ; { name = fn "Math" "sin" 0
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -97,7 +97,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.sin a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::tan"]
+  ; { name = fn "Math" "tan" 0
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -109,7 +109,7 @@ let fns : fn list =
           (function _, [DFloat a] -> DFloat (Float.tan a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::acos"]
+  ; { name = fn "Math" "acos" 0
     ; infix_names = []
     ; parameters = [par "ratio" TFloat]
     ; return_type = TOption
@@ -130,7 +130,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::asin"]
+  ; { name = fn "Math" "asin" 0
     ; infix_names = []
     ; parameters = [par "ratio" TFloat]
     ; return_type = TOption
@@ -151,7 +151,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::atan"]
+  ; { name = fn "Math" "atan" 0
     ; infix_names = []
     ; parameters = [par "ratio" TFloat]
     ; return_type = TFloat
@@ -164,7 +164,7 @@ let fns : fn list =
           | _, [DFloat a] -> DFloat (Float.atan a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::atan2"]
+  ; { name = fn "Math" "atan2" 0
     ; infix_names = []
     ; parameters = [par "y" TFloat; par "x" TFloat]
     ; return_type = TFloat
@@ -180,7 +180,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::cosh"]
+  ; { name = fn "Math" "cosh" 0
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -191,7 +191,7 @@ let fns : fn list =
           | _, [DFloat a] -> DFloat (Float.cosh a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::sinh"]
+  ; { name = fn "Math" "sinh" 0
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat
@@ -202,7 +202,7 @@ let fns : fn list =
           | _, [DFloat a] -> DFloat (Float.sinh a) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Math::tanh"]
+  ; { name = fn "Math" "tanh" 0
     ; infix_names = []
     ; parameters = [par "angleInRadians" TFloat]
     ; return_type = TFloat

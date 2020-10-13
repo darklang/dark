@@ -229,7 +229,7 @@ let call_no_body verb =
 
 
 let fns : fn list =
-  [ { prefix_names = ["HttpClient::post"]
+  [ { name = fn "HttpClient" "post" 0
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -241,7 +241,7 @@ let fns : fn list =
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::put"]
+  ; { name = fn "HttpClient" "put" 0
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -253,7 +253,7 @@ let fns : fn list =
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::get"]
+  ; { name = fn "HttpClient" "get" 0
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -265,7 +265,7 @@ let fns : fn list =
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::delete"]
+  ; { name = fn "HttpClient" "delete" 0
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -277,7 +277,7 @@ let fns : fn list =
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::options"]
+  ; { name = fn "HttpClient" "options" 0
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -289,7 +289,7 @@ let fns : fn list =
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::head"]
+  ; { name = fn "HttpClient" "head" 0
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -301,7 +301,7 @@ let fns : fn list =
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::patch"]
+  ; { name = fn "HttpClient" "patch" 0
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -313,7 +313,7 @@ let fns : fn list =
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::post_v1"]
+  ; { name = fn "HttpClient" "post" 1
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -324,7 +324,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::put_v1"]
+  ; { name = fn "HttpClient" "put" 1
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -335,7 +335,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::get_v1"]
+  ; { name = fn "HttpClient" "get" 1
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TObj
@@ -346,7 +346,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::delete_v1"]
+  ; { name = fn "HttpClient" "delete" 1
     ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -360,7 +360,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::options_v1"]
+  ; { name = fn "HttpClient" "options" 1
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TObj
@@ -371,7 +371,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::head_v1"]
+  ; { name = fn "HttpClient" "head" 1
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TObj
@@ -382,7 +382,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::patch_v1"]
+  ; { name = fn "HttpClient" "patch" 1
     ; infix_names = []
     ; parameters = params
     ; return_type = TObj
@@ -393,7 +393,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::post_v2"]
+  ; { name = fn "HttpClient" "post" 2
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -405,7 +405,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::put_v2"]
+  ; { name = fn "HttpClient" "put" 2
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -417,7 +417,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::get_v2"]
+  ; { name = fn "HttpClient" "get" 2
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -429,7 +429,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::delete_v2"]
+  ; { name = fn "HttpClient" "delete" 2
     ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -444,7 +444,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::options_v2"]
+  ; { name = fn "HttpClient" "options" 2
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -456,7 +456,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::head_v2"]
+  ; { name = fn "HttpClient" "head" 2
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -468,7 +468,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::patch_v2"]
+  ; { name = fn "HttpClient" "patch" 2
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -480,7 +480,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::post_v3"]
+  ; { name = fn "HttpClient" "post" 3
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -492,7 +492,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::put_v3"]
+  ; { name = fn "HttpClient" "put" 3
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -504,7 +504,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::get_v3"]
+  ; { name = fn "HttpClient" "get" 3
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -516,7 +516,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::delete_v3"]
+  ; { name = fn "HttpClient" "delete" 3
     ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -531,7 +531,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::options_v3"]
+  ; { name = fn "HttpClient" "options" 3
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -543,7 +543,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::head_v3"]
+  ; { name = fn "HttpClient" "head" 3
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -555,7 +555,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::patch_v3"]
+  ; { name = fn "HttpClient" "patch" 3
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -567,7 +567,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::post_v4"]
+  ; { name = fn "HttpClient" "post" 4
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -579,7 +579,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::put_v4"]
+  ; { name = fn "HttpClient" "put" 4
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -591,7 +591,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::get_v4"]
+  ; { name = fn "HttpClient" "get" 4
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -603,7 +603,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::delete_v4"]
+  ; { name = fn "HttpClient" "delete" 4
     ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -618,7 +618,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::options_v4"]
+  ; { name = fn "HttpClient" "options" 4
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -630,7 +630,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::head_v4"]
+  ; { name = fn "HttpClient" "head" 4
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -642,7 +642,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::patch_v4"]
+  ; { name = fn "HttpClient" "patch" 4
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -654,7 +654,7 @@ let fns : fn list =
           Dval.to_pretty_machine_json_v1
     ; preview_safety = Unsafe
     ; deprecated = true }
-  ; { prefix_names = ["HttpClient::post_v5"]
+  ; { name = fn "HttpClient" "post" 5
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -663,7 +663,7 @@ let fns : fn list =
     ; func = call Httpclient.POST
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::put_v5"]
+  ; { name = fn "HttpClient" "put" 5
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -672,7 +672,7 @@ let fns : fn list =
     ; func = call Httpclient.PUT
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::get_v5"]
+  ; { name = fn "HttpClient" "get" 5
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -681,7 +681,7 @@ let fns : fn list =
     ; func = call_no_body Httpclient.GET
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::delete_v5"]
+  ; { name = fn "HttpClient" "delete" 5
     ; infix_names =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -693,7 +693,7 @@ let fns : fn list =
     ; func = call_no_body Httpclient.DELETE
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::options_v5"]
+  ; { name = fn "HttpClient" "options" 5
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -702,7 +702,7 @@ let fns : fn list =
     ; func = call_no_body Httpclient.OPTIONS
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::head_v5"]
+  ; { name = fn "HttpClient" "head" 5
     ; infix_names = []
     ; parameters = params_no_body
     ; return_type = TResult
@@ -711,7 +711,7 @@ let fns : fn list =
     ; func = call_no_body Httpclient.HEAD
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::patch_v5"]
+  ; { name = fn "HttpClient" "patch" 5
     ; infix_names = []
     ; parameters = params
     ; return_type = TResult
@@ -720,7 +720,7 @@ let fns : fn list =
     ; func = call Httpclient.PATCH
     ; preview_safety = Unsafe
     ; deprecated = false }
-  ; { prefix_names = ["HttpClient::basicAuth"]
+  ; { name = fn "HttpClient" "basicAuth" 0
     ; infix_names = []
     ; parameters = [par "username" TStr; par "password" TStr]
     ; return_type = TObj
@@ -739,7 +739,7 @@ let fns : fn list =
     ; preview_safety = Unsafe
     ; deprecated = true (* Deprecated due to using encode_basic_auth_broken *)
     }
-  ; { prefix_names = ["HttpClient::basicAuth_v1"]
+  ; { name = fn "HttpClient" "basicAuth" 1
     ; infix_names = []
     ; parameters = [par "username" TStr; par "password" TStr]
     ; return_type = TObj

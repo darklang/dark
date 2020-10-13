@@ -17,7 +17,7 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 let ( >>| ) = Result.( >>| )
 
 let fns : fn list =
-  [ { prefix_names = ["toString"]
+  [ { name = fn "" "toString" 0
     ; infix_names = []
     ; parameters = [par "v" TAny]
     ; return_type = TStr
@@ -32,7 +32,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["toRepr"]
+  ; { name = fn "" "toRepr" 0
     ; infix_names = []
     ; parameters = [par "v" TAny]
     ; return_type = TStr
@@ -47,7 +47,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["equals"]
+  ; { name = fn "" "equals" 0
     ; infix_names = ["=="]
     ; parameters = [par "a" TAny; par "b" TAny]
     ; return_type = TBool
@@ -57,7 +57,7 @@ let fns : fn list =
           (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["notEquals"]
+  ; { name = fn "" "notEquals" 0
     ; infix_names = ["!="]
     ; parameters = [par "a" TAny; par "b" TAny]
     ; return_type = TBool
@@ -68,7 +68,7 @@ let fns : fn list =
           | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["assoc"]
+  ; { name = fn "" "assoc" 0
     ; infix_names = []
     ; parameters = [par "obj" TObj; par "key" TStr; par "val" TAny]
     ; return_type = TObj
@@ -82,7 +82,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["dissoc"]
+  ; { name = fn "" "dissoc" 0
     ; infix_names = []
     ; parameters = [par "obj" TObj; par "key" TStr]
     ; return_type = TObj
@@ -96,7 +96,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["toForm"]
+  ; { name = fn "" "toForm" 0
     ; infix_names = []
     ; parameters = [par "obj" TObj; par "submit" TStr]
     ; return_type = TStr
@@ -134,7 +134,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["Error::toString"]
+  ; { name = fn "Error" "toString" 0
     ; infix_names = []
     ; parameters = [par "err" TError]
     ; return_type = TStr
@@ -148,7 +148,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["AWS::urlencode"]
+  ; { name = fn "AWS" "urlencode" 0
     ; infix_names = []
     ; parameters = [par "str" TStr]
     ; return_type = TStr
@@ -165,7 +165,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Twitter::urlencode"]
+  ; { name = fn "Twitter" "urlencode" 0
     ; infix_names = []
     ; parameters = [par "s" TStr]
     ; return_type = TStr

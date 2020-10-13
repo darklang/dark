@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : fn list =
-  [ { prefix_names = ["Bool::not"]
+  [ { name = fn "Bool" "not" 0
     ; infix_names = []
     ; parameters = [par "b" TBool]
     ; return_type = TBool
@@ -14,7 +14,7 @@ let fns : fn list =
         InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Bool::and"]
+  ; { name = fn "Bool" "and" 0
     ; infix_names = ["&&"]
     ; parameters = [par "a" TBool; par "b" TBool]
     ; return_type = TBool
@@ -25,7 +25,7 @@ let fns : fn list =
           | _, [DBool a; DBool b] -> DBool (a && b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Bool::or"]
+  ; { name = fn "Bool" "or" 0
     ; infix_names = ["||"]
     ; parameters = [par "a" TBool; par "b" TBool]
     ; return_type = TBool
@@ -36,7 +36,7 @@ let fns : fn list =
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Bool::xor"]
+  ; { name = fn "Bool" "xor" 0
     ; infix_names = []
     ; parameters = [par "a" TBool; par "b" TBool]
     ; return_type = TBool
@@ -48,7 +48,7 @@ let fns : fn list =
           | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Bool::isNull"]
+  ; { name = fn "Bool" "isNull" 0
     ; infix_names = []
     ; parameters = [par "check" TAny]
     ; return_type = TBool
@@ -62,7 +62,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Bool::isError"]
+  ; { name = fn "Bool" "isError" 0
     ; infix_names = []
     ; parameters = [par "check" TAny]
     ; return_type = TBool

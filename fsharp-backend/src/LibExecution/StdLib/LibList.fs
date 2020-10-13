@@ -6,7 +6,7 @@ module RT = Runtime
 let list_repeat = Stdlib_util.list_repeat
 
 let fns : fn list =
-  [ { prefix_names = ["List::singleton"]
+  [ { name = fn "List" "singleton" 0
     ; infix_names = []
     ; parameters = [par "val" TAny]
     ; return_type = TList
@@ -14,7 +14,7 @@ let fns : fn list =
     ; func = InProcess (function _, [v] -> DList [v] | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::head"]
+  ; { name = fn "List" "head" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TAny
@@ -29,7 +29,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::head_v1"]
+  ; { name = fn "List" "head" 1
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TOption
@@ -47,7 +47,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::head_v2"]
+  ; { name = fn "List" "head" 2
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TOption
@@ -66,7 +66,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::tail"]
+  ; { name = fn "List" "tail" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TOption
@@ -88,7 +88,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::empty"]
+  ; { name = fn "List" "empty" 0
     ; infix_names = []
     ; parameters = []
     ; return_type = TList
@@ -96,7 +96,7 @@ let fns : fn list =
     ; func = InProcess (function _, [] -> DList [] | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::push"]
+  ; { name = fn "List" "push" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "val" TAny]
     ; return_type = TList
@@ -108,7 +108,7 @@ let fns : fn list =
           | _, [DList l; i] -> DList (i :: l) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::pushBack"]
+  ; { name = fn "List" "pushBack" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "val" TAny]
     ; return_type = TList
@@ -118,7 +118,7 @@ let fns : fn list =
           (function _, [DList l; i] -> DList (l @ [i]) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::last"]
+  ; { name = fn "List" "last" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TAny
@@ -135,7 +135,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::last_v1"]
+  ; { name = fn "List" "last" 1
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TOption
@@ -152,7 +152,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::last_v2"]
+  ; { name = fn "List" "last" 2
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TOption
@@ -169,7 +169,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::reverse"]
+  ; { name = fn "List" "reverse" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TList
@@ -179,7 +179,7 @@ let fns : fn list =
           (function _, [DList l] -> DList (List.rev l) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::findFirst"]
+  ; { name = fn "List" "findFirst" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TAny
@@ -197,7 +197,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::findFirst_v1"]
+  ; { name = fn "List" "findFirst" 1
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TOption
@@ -219,7 +219,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::findFirst_v2"]
+  ; { name = fn "List" "findFirst" 2
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TOption
@@ -241,7 +241,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::contains"]
+  ; { name = fn "List" "contains" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "val" TAny]
     ; return_type = TBool
@@ -257,7 +257,7 @@ let fns : fn list =
         Safe
         (* Deprecated in favor of List::member for consistency with Elm's naming *)
     ; deprecated = true }
-  ; { prefix_names = ["List::member"]
+  ; { name = fn "List" "member" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "val" TAny]
     ; return_type = TBool
@@ -271,7 +271,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::repeat"]
+  ; { name = fn "List" "repeat" 0
     ; infix_names = []
     ; parameters = [par "times" TInt; par "val" TAny]
     ; return_type = TList
@@ -286,7 +286,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::length"]
+  ; { name = fn "List" "length" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TInt
@@ -297,7 +297,7 @@ let fns : fn list =
           | _, [DList l] -> Dval.dint (List.length l) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::range"]
+  ; { name = fn "List" "range" 0
     ; infix_names = []
     ; parameters =
         [ par "lowest" TInt ~d:"First, smallest number in the list"
@@ -316,7 +316,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::fold"]
+  ; { name = fn "List" "fold" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "init" TAny; func ["accum"; "curr"]]
     ; return_type = TAny
@@ -335,7 +335,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::flatten"]
+  ; { name = fn "List" "flatten" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TList
@@ -357,7 +357,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::interpose"]
+  ; { name = fn "List" "interpose" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "sep" TAny]
     ; return_type = TList
@@ -379,7 +379,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::interleave"]
+  ; { name = fn "List" "interleave" 0
     ; infix_names = []
     ; parameters = [par "as" TList; par "bs" TList]
     ; return_type = TList
@@ -401,7 +401,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::uniqueBy"]
+  ; { name = fn "List" "uniqueBy" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -419,7 +419,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::isEmpty"]
+  ; { name = fn "List" "isEmpty" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TBool
@@ -430,7 +430,7 @@ let fns : fn list =
           | _, [DList l] -> DBool (List.is_empty l) | args -> fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::sort"]
+  ; { name = fn "List" "sort" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TList
@@ -446,7 +446,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::sortBy"]
+  ; { name = fn "List" "sortBy" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -466,7 +466,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::sortByComparator"]
+  ; { name = fn "List" "sortByComparator" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["a"; "b"]]
     ; return_type = TResult
@@ -531,7 +531,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::append"]
+  ; { name = fn "List" "append" 0
     ; infix_names = []
     ; parameters = [par "as" TList; par "bs" TList]
     ; return_type = TList
@@ -546,7 +546,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::filter"]
+  ; { name = fn "List" "filter" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -574,7 +574,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::filter_v1"]
+  ; { name = fn "List" "filter" 1
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -606,7 +606,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::filter_v2"]
+  ; { name = fn "List" "filter" 2
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -648,7 +648,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::filterMap"]
+  ; { name = fn "List" "filterMap" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -695,7 +695,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::drop"]
+  ; { name = fn "List" "drop" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "count" TInt]
     ; return_type = TList
@@ -709,7 +709,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::dropWhile"]
+  ; { name = fn "List" "dropWhile" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -755,7 +755,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::take"]
+  ; { name = fn "List" "take" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "count" TInt]
     ; return_type = TList
@@ -769,7 +769,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::takeWhile"]
+  ; { name = fn "List" "takeWhile" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -815,7 +815,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::foreach"]
+  ; { name = fn "List" "foreach" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -832,7 +832,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::map"]
+  ; { name = fn "List" "map" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["val"]]
     ; return_type = TList
@@ -849,7 +849,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::indexedMap"]
+  ; { name = fn "List" "indexedMap" 0
     ; infix_names = []
     ; parameters = [par "list" TList; func ["index"; "val"]]
     ; return_type = TList
@@ -868,7 +868,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::map2shortest"]
+  ; { name = fn "List" "map2shortest" 0
     ; infix_names = []
     ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
     ; return_type = TList
@@ -893,7 +893,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::map2"]
+  ; { name = fn "List" "map2" 0
     ; infix_names = []
     ; parameters = [par "as" TList; par "bs" TList; func ["a"; "b"]]
     ; return_type = TOption
@@ -919,7 +919,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::zipShortest"]
+  ; { name = fn "List" "zipShortest" 0
     ; infix_names = []
     ; parameters = [par "as" TList; par "bs" TList]
     ; return_type = TList
@@ -945,7 +945,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::zip"]
+  ; { name = fn "List" "zip" 0
     ; infix_names = []
     ; parameters = [par "as" TList; par "bs" TList]
     ; return_type = TOption
@@ -971,7 +971,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::unzip"]
+  ; { name = fn "List" "unzip" 0
     ; infix_names = []
     ; parameters = [par "pairs" TList]
     ; return_type = TList
@@ -1038,7 +1038,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::getAt"]
+  ; { name = fn "List" "getAt" 0
     ; infix_names = []
     ; parameters = [par "list" TList; par "index" TInt]
     ; return_type = TOption
@@ -1055,7 +1055,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["List::getAt_v1"]
+  ; { name = fn "List" "getAt" 1
     ; infix_names = []
     ; parameters = [par "list" TList; par "index" TInt]
     ; return_type = TOption
@@ -1072,7 +1072,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["List::randomElement"]
+  ; { name = fn "List" "randomElement" 0
     ; infix_names = []
     ; parameters = [par "list" TList]
     ; return_type = TOption

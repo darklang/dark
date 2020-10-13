@@ -4,7 +4,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : fn list =
-  [ { prefix_names = ["JSON::read"]
+  [ { name = fn "JSON" "read" 0
     ; infix_names = []
     ; parameters = [par "json" TStr]
     ; return_type = TAny
@@ -20,7 +20,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["JSON::read_v1"]
+  ; { name = fn "JSON" "read" 1
     ; infix_names = []
     ; parameters = [par "json" TStr]
     ; return_type = TAny
@@ -35,7 +35,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["JSON::parse_v0"]
+  ; { name = fn "JSON" "parse" 0
     ; infix_names = []
     ; parameters = [par "json" TStr]
     ; return_type = TAny
@@ -50,7 +50,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["JSON::parse_v1"]
+  ; { name = fn "JSON" "parse" 1
     ; infix_names = []
     ; parameters = [par "json" TStr]
     ; return_type = TResult
