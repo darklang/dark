@@ -23,8 +23,8 @@ let fns : fn list =
         "Returns the result of wrapping `a` around so that `0 <= res < b`.
          The modulus `b` must be 0 or negative.
          Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DInt v; DInt m] ->
             ( try DInt (Dint.modulo_exn v m)
@@ -57,9 +57,9 @@ let fns : fn list =
         "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
          If `modulus` is positive, returns `Ok res`. Returns an `Error` if `modulus` is 0 or negative.
          Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
-    ; func =
+    ; fn =
         (* TODO: A future version should support all non-zero modulus values and should include the infix "%" *)
-        InProcess
+
           (function
           | _, [DInt v; DInt m] ->
             ( try DResult (ResOk (DInt (Dint.modulo_exn v m)))
@@ -86,8 +86,8 @@ let fns : fn list =
         For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
         The sign of `divisor` doesn't influence the outcome.
         Returns an `Error` if `divisor` is 0."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt v; DInt d] ->
             ( try DResult (ResOk (DInt (Dint.rem_exn v d)))
@@ -108,8 +108,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Adds two integers together"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DInt (Dint.( + ) a b)
@@ -158,8 +158,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Subtracts two integers"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DInt (Dint.( - ) a b)
@@ -190,8 +190,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Multiplies two integers"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DInt (Dint.( * ) a b)
@@ -222,8 +222,8 @@ let fns : fn list =
     ; parameters = [Param.make "base" TInt; Param.make "exponent" TInt]
     ; return_type = TInt
     ; description = "Raise `base` to the power of `exponent`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt base; DInt exp] ->
               DInt (Dint.pow base exp)
@@ -236,8 +236,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Divides two integers"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DInt (Dint.( / ) a b)
@@ -269,8 +269,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [DInt a] -> DInt (Dint.abs a) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -279,8 +279,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt]
     ; return_type = TInt
     ; description = "Returns the negation of `a`, `-a`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [DInt a] -> DInt (Dint.negate a) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -289,8 +289,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is greater than b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DBool (a > b)
@@ -321,8 +321,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is greater than or equal to b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DBool (a >= b)
@@ -353,8 +353,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is less than b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DBool (a < b)
@@ -385,8 +385,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TBool
     ; description = "Returns true if a is less than or equal to b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               DBool (a <= b)
@@ -417,8 +417,8 @@ let fns : fn list =
     ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
     ; return_type = TInt
     ; description = "Returns a random integer between a and b (inclusive)"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           (*( +1 as Random.int is exclusive *)
           | _, [DInt a; DInt b] ->
@@ -434,8 +434,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Returns a random integer between `start` and `end` (inclusive)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] ->
               let open Dint in
@@ -451,8 +451,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt]
     ; return_type = TFloat
     ; description = "Get the square root of an Int"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a] ->
               DFloat (Dint.to_float a |> sqrt)
@@ -474,8 +474,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt]
     ; return_type = TFloat
     ; description = "Converts an Int to a Float"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
     ; previewable = Pure
@@ -485,8 +485,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TList]
     ; return_type = TInt
     ; description = "Returns the sum of all the ints in the list"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] ->
               l
@@ -514,8 +514,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Returns the higher of a and b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> fail args)
     ; previewable = Pure
@@ -525,8 +525,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
     ; return_type = TInt
     ; description = "Returns the lower of `a` and `b`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> fail args)
     ; previewable = Pure
@@ -539,8 +539,8 @@ let fns : fn list =
         "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
          If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
          `limitA` and `limitB` can be provided in any order."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt v; DInt a; DInt b] ->
               let min, max = if a < b then (a, b) else (b, a) in

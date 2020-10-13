@@ -9,8 +9,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TObj
     ; description = "Return an empty object"
-    ; func =
-        InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
+    ; fn =
+         (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "merge" 0
@@ -19,8 +19,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj l; DObj r] ->
               DObj (Stdlib_util.merge_right l r)
@@ -33,8 +33,8 @@ let fns : fn list =
     ; parameters = [Param.make "obj" TObj]
     ; return_type = TStr
     ; description = "Dumps `obj` to a JSON string"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o] ->
               DObj o
@@ -49,8 +49,8 @@ let fns : fn list =
     ; parameters = [Param.make "obj" TObj]
     ; return_type = TStr
     ; description = "Dumps `obj` to a JSON string"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o] ->
               DObj o

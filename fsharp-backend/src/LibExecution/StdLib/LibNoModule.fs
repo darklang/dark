@@ -23,8 +23,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
@@ -38,8 +38,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
@@ -52,8 +52,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
     ; return_type = TBool
     ; description = "Returns true if the two value are equal"
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -62,8 +62,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
     ; return_type = TBool
     ; description = "Returns true if the two value are not equal"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
     ; previewable = Pure
@@ -73,8 +73,8 @@ let fns : fn list =
     ; parameters = [Param.make "obj" TObj; Param.make "key" TStr; Param.make "val" TAny]
     ; return_type = TObj
     ; description = "Return a copy of `obj` with the `key` set to `val`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr k; v] ->
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
@@ -87,8 +87,8 @@ let fns : fn list =
     ; parameters = [Param.make "obj" TObj; Param.make "key" TStr]
     ; return_type = TObj
     ; description = "Return a copy of `obj` with `key` unset."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))
@@ -102,8 +102,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr uri] ->
               let fmt =
@@ -139,8 +139,8 @@ let fns : fn list =
     ; parameters = [Param.make "err" TError]
     ; return_type = TStr
     ; description = "Return a string representing the error"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DError (_, err)] ->
               Dval.dstr_of_string_exn err
@@ -153,8 +153,8 @@ let fns : fn list =
     ; parameters = [Param.make "str" TStr]
     ; return_type = TStr
     ; description = "Url encode a string per AWS' requirements"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr str] ->
               str
@@ -170,8 +170,8 @@ let fns : fn list =
     ; parameters = [Param.make "s" TStr]
     ; return_type = TStr
     ; description = "Url encode a string per Twitter's requirements"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr s] ->
               s

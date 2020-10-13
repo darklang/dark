@@ -9,8 +9,8 @@ let fns =
     ; parameters = []
     ; return_type = TUuid
     ; description = "Generate a new UUID v4 according to RFC 4122"
-    ; func =
-        InProcess (function _, [] -> DUuid (Uuidm.v `V4) | args -> fail args)
+    ; fn =
+         (function _, [] -> DUuid (Uuidm.v `V4) | args -> fail args)
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
     ; previewable = Impure

@@ -10,8 +10,8 @@ let fns =
     ; return_type = TObj
     ; description =
         "Returns a new dictionary with a single entry `key`: `value`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr k; v] ->
               DObj (DvalMap.singleton (Unicode_string.to_string k) v)
@@ -25,8 +25,8 @@ let fns =
     ; return_type = TInt
     ; description =
         "Returns the number of entries in `dict` (the number of key-value pairs)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> fail args)
     ; previewable = Pure
@@ -36,8 +36,8 @@ let fns =
     ; parameters = [Param.make "dict" TObj]
     ; return_type = TList
     ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o] ->
               o
@@ -53,8 +53,8 @@ let fns =
     ; parameters = [Param.make "dict" TObj]
     ; return_type = TList
     ; description = "Returns `dict`'s values in a list, in an arbitrary order."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
     ; previewable = Pure
@@ -65,8 +65,8 @@ let fns =
     ; return_type = TList
     ; description =
         "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o] ->
               DvalMap.to_list o
@@ -85,8 +85,8 @@ let fns =
         "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
         If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
         This function is the opposite of `Dict::toList`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l] ->
               let fold_fn
@@ -156,8 +156,8 @@ let fns =
         "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
         If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
         Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l] ->
               let fold_fn
@@ -233,8 +233,8 @@ let fns =
     ; return_type = TAny
     ; description =
         "Looks up `key` in object `dict` and returns the value if found, and Error otherwise"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr s] ->
             ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
@@ -251,8 +251,8 @@ let fns =
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
     ; return_type = TOption
     ; description = "Looks up `key` in object `dict` and returns an option"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr s] ->
             ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
@@ -270,8 +270,8 @@ let fns =
     ; return_type = TOption
     ; description =
         "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr s] ->
             ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
@@ -289,8 +289,8 @@ let fns =
     ; return_type = TBool
     ; description =
         "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr s] ->
               let key = Unicode_string.to_string s in
@@ -305,8 +305,8 @@ let fns =
     ; return_type = TObj
     ; description =
         "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DObj o; DBlock b] ->
               let f dv = Ast.execute_dblock ~state b [dv] in
@@ -322,8 +322,8 @@ let fns =
     ; description =
         "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
         Consider `Dict::filterMap` if you also want to drop some of the entries."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DObj o; DBlock b] ->
               let f ~key ~(data : dval) =
@@ -341,8 +341,8 @@ let fns =
     ; description =
         "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
         Consider `Dict::filterMap` if you also want to transform the entries."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DObj o; DBlock b] ->
               let incomplete = ref false in
@@ -375,8 +375,8 @@ let fns =
     ; return_type = TObj
     ; description =
         "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DObj o; DBlock b] ->
               let filter_propagating_errors ~key ~data acc =
@@ -423,8 +423,8 @@ let fns =
         If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
         If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
         This function combines `Dict::filter` and `Dict::map`.|}
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DObj o; DBlock b] ->
               let abortReason = ref None in
@@ -472,8 +472,8 @@ let fns =
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an empty dictionary."
-    ; func =
-        InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
+    ; fn =
+         (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Dict" "isEmpty" 0
@@ -481,8 +481,8 @@ let fns =
     ; parameters = [Param.make "dict" TObj]
     ; return_type = TBool
     ; description = "Returns `true` if the `dict` contains no entries."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> fail args)
     ; previewable = Pure
@@ -493,8 +493,8 @@ let fns =
     ; return_type = TObj
     ; description =
         "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj l; DObj r] ->
               DObj (Stdlib_util.merge_right l r)
@@ -507,8 +507,8 @@ let fns =
     ; parameters = [Param.make "dict" TObj]
     ; return_type = TStr
     ; description = "Returns `dict` as a JSON string."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o] ->
               DObj o
@@ -523,8 +523,8 @@ let fns =
     ; parameters = [Param.make "dict" TObj; Param.make "key" TStr; Param.make "val" TAny]
     ; return_type = TObj
     ; description = "Returns a copy of `dict` with the `key` set to `val`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr k; v] ->
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
@@ -538,8 +538,8 @@ let fns =
     ; return_type = TObj
     ; description =
         "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))

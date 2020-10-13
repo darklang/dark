@@ -7,10 +7,10 @@ open Libexecution.Types.RuntimeT
 open Types
 module Unicode = Libexecution.Unicode_string
 
-(* Apply this to function to wrap that function in an InProcess that checks
+(* Apply this to function to wrap that function in an  that checks
  * permissions for the dark internal functions and logs status. *)
 let internal_fn (f : exec_state * dval list -> dval) =
-  InProcess
+
     (fun (es, params) ->
       match es.account_id |> Account.username_of_id with
       | None ->
@@ -56,7 +56,7 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TNull
     ; description = "TODO"
-    ; func = internal_fn (fun _ -> DNull)
+    ; fn = internal_fn (fun _ -> DNull)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "endUsers" 0
@@ -65,7 +65,7 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Return a <type list> of all user email addresses for non-admins and not in @darklang.com or @example.com"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [] ->
                 Db.fetch
@@ -89,7 +89,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; parameters = []
     ; return_type = TNull
     ; description = "TODO"
-    ; func = internal_fn (fun _ -> DNull)
+    ; fn = internal_fn (fun _ -> DNull)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "migrateAllCanvases" 0
@@ -97,7 +97,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; parameters = []
     ; return_type = TNull
     ; description = "REMOVED"
-    ; func = internal_fn (fun _ -> DNull)
+    ; fn = internal_fn (fun _ -> DNull)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 0
@@ -105,7 +105,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; parameters = []
     ; return_type = TNull
     ; description = "Deprecated, use v1"
-    ; func = internal_fn (fun _ -> DNull)
+    ; fn = internal_fn (fun _ -> DNull)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 1
@@ -113,7 +113,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; parameters = []
     ; return_type = TFloat
     ; description = "Cleanup the old traces from a canvas"
-    ; func =
+    ; fn =
         internal_fn (function state, [] -> DFloat 0.0 | args -> fail args)
     ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -123,7 +123,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; return_type = TFloat
     ; description =
         "Cleanup the old traces for a specific canvas. Returns elapsed time in ms."
-    ; func =
+    ; fn =
         internal_fn (function
             | state, [DUuid canvas_id] ->
                 DFloat 0.0
@@ -136,7 +136,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; parameters = [Param.make "host" TStr]
     ; return_type = TBool
     ; description = "Validate the canvas' opcodes"
-    ; func =
+    ; fn =
         internal_fn (function
             | state, [DStr host] ->
                 let open Prelude.Result in
@@ -154,7 +154,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; parameters = [Param.make "host" TStr]
     ; return_type = TResult
     ; description = "Migrate a canvas' opcodes"
-    ; func =
+    ; fn =
         internal_fn (function
             | state, [DStr host] ->
                 let open Prelude.Result in
@@ -173,7 +173,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; return_type = TStr
     ; description =
         "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
                 let username = Unicode_string.to_string username in
@@ -197,7 +197,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         "Add a user. Returns a result containing the password for the user,
 which was randomly generated. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
                 let username = Unicode_string.to_string username in
@@ -230,7 +230,7 @@ that's already taken, returns an error."
         "Add a user. Returns a result containing the password for the user,
 which was randomly generated. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name; DObj analytics_metadata]
               ->
@@ -280,7 +280,7 @@ that's already taken, returns an error."
     ; return_type = TResult
     ; description =
         "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->
                 let username = Unicode_string.to_string username in
@@ -307,7 +307,7 @@ that's already taken, returns an error."
     ; return_type = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username] ->
                 let info =
@@ -333,7 +333,7 @@ that's already taken, returns an error."
     ; return_type = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username] ->
                 let info =
@@ -359,7 +359,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "email" TStr]
     ; return_type = TOption
     ; description = "Return a user for the email. Does not include passwords."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr email] ->
                 let info =
@@ -385,7 +385,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "username" TStr; Param.make "admin" TBool]
     ; return_type = TNull
     ; description = "Set whether a user is an admin. Returns null."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username; DBool admin] ->
                 let username = Unicode_string.to_string username in
@@ -401,7 +401,7 @@ that's already taken, returns an error."
     ; parameters = []
     ; return_type = TList
     ; description = "Return a list of username of all the accounts in Dark."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [] ->
                 Account.get_users ()
@@ -416,7 +416,7 @@ that's already taken, returns an error."
     ; parameters = []
     ; return_type = TList
     ; description = "TODO"
-    ; func =
+    ; fn =
         internal_fn (fun _ ->
             Serialize.current_hosts ()
             |> List.map ~f:Dval.dstr_of_string_exn
@@ -429,7 +429,7 @@ that's already taken, returns an error."
     ; return_type = TList
     ; description =
         "Returns a list of all canvases owned by a particular account (user OR org)"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr account] ->
                 Serialize.hosts_for (Unicode_string.to_string account)
@@ -444,7 +444,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "host" TStr; Param.make "dbid" TStr]
     ; return_type = TObj
     ; description = "Return a schema for the db"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr canvas_name; DStr tlid] ->
                 let tlid = Unicode_string.to_string tlid in
@@ -486,7 +486,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "host" TStr]
     ; return_type = TStr
     ; description = "TODO"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host] ->
                 (* Removed, no longer useful now that you can copy from Fluid *)
@@ -500,7 +500,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "host" TStr]
     ; return_type = TList
     ; description = "Returns a list of toplevel ids of handlers in `host`"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host] ->
                 let c =
@@ -524,7 +524,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "host" TStr]
     ; return_type = TList
     ; description = "Returns a list of toplevel ids of the functions in `host`"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host] ->
                 let c =
@@ -548,7 +548,7 @@ that's already taken, returns an error."
     ; return_type = TBool
     ; description =
         "Takes a <var host> and a <var tlid> and returns {{true}} iff we can load and parse traces for the handler identified by <var tlid>, and {{false}} otherwise."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
               ( try
@@ -586,7 +586,7 @@ that's already taken, returns an error."
     ; return_type = TOption
     ; description =
         "Given the full canvas name (including the username), get that canvas' global CORS setting."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host] ->
                 let cors_setting_to_dval (setting : Canvas.cors_setting option)
@@ -619,7 +619,7 @@ that's already taken, returns an error."
     ; return_type = TResult
     ; description =
         "Given the full canvas name (including the username) and an Option of either \"*\" or a list of string origins, set that value to that canvas' global CORS setting, so that it will be used in Access-Control-Allow-Origin response headers. Returns true if it worked and false if it didn't (likely meaning: the Dark value you passed in was invalid)."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host; DOption s] ->
                 let cors_setting (opt : optionT) :
@@ -666,7 +666,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "host" TStr]
     ; return_type = TList
     ; description = "Returns a list of toplevel ids of dbs in `host`"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host] ->
                 let db_tlids =
@@ -692,7 +692,7 @@ that's already taken, returns an error."
     ; return_type = TObj
     ; description =
         "Returns the information from the toplevel_oplists table for the (host, tlid)"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host; DStr tlid_str] ->
                 let account =
@@ -755,7 +755,7 @@ that's already taken, returns an error."
     ; return_type = TOption
     ; description =
         "Returns {{Just <var events>}}, where <var events> is the most recent stored events for the <param tlid> if it is a handler or {{Nothing}} if it is not."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host; DStr tlid_str] ->
                 let tlid =
@@ -803,7 +803,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TObj]
     ; return_type = TResult
     ; description = "Pushes an event to Stroller"
-    ; func =
+    ; fn =
         internal_fn (function
             | exec_state, [DStr canvas_id; DStr event; DObj payload] ->
               ( try
@@ -830,7 +830,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TAny]
     ; return_type = TResult
     ; description = "Pushes an event to Stroller"
-    ; func =
+    ; fn =
         internal_fn (function
             | exec_state, [DStr canvas_id; DStr event; payload] ->
               ( try
@@ -857,7 +857,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "sessionKey" TStr]
     ; return_type = TOption
     ; description = "Looks up the username for a session_key"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr sessionKey] ->
                 let sessionKey = sessionKey |> Unicode_string.to_string in
@@ -877,7 +877,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "host" TStr]
     ; return_type = TOption
     ; description = "Gives canvasId for a canvasName/host"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host] ->
                 let host = Unicode_string.to_string host in
@@ -900,7 +900,7 @@ that's already taken, returns an error."
     ; return_type = TOption
     ; description =
         "Gives userinfo {username, name, admin, email} for a username"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username] ->
                 let username = Unicode_string.to_string username in
@@ -925,7 +925,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "username" TStr; Param.make "org" TStr; Param.make "permission" TStr]
     ; return_type = TResult
     ; description = "Set a user's permissions for a particular auth_domain."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username; DStr org; DStr permission] ->
                 let result_to_dval r =
@@ -975,7 +975,7 @@ that's already taken, returns an error."
     ; return_type = TObj
     ; description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr org] ->
                 let grants =
@@ -1002,7 +1002,7 @@ that's already taken, returns an error."
     ; return_type = TObj
     ; description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username] ->
                 let orgs =
@@ -1028,7 +1028,7 @@ that's already taken, returns an error."
     ; parameters = [Param.make "username" TStr; Param.make "canvas" TStr]
     ; return_type = TBool
     ; description = "Check a user's permissions for a particular canvas."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr username; DStr canvas] ->
                 let auth_domain =
@@ -1051,7 +1051,7 @@ that's already taken, returns an error."
     ; return_type = TObj
     ; description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr level; DStr name; DObj log] ->
                 let name = name |> Unicode_string.to_string in
@@ -1109,7 +1109,7 @@ that's already taken, returns an error."
     ; return_type = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
                 let host = Unicode_string.to_string host in
@@ -1140,7 +1140,7 @@ that's already taken, returns an error."
     ; return_type = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host; DStr tlid] ->
                 let host = Unicode_string.to_string host in
@@ -1171,7 +1171,7 @@ that's already taken, returns an error."
     ; return_type = TResult
     ; description =
         "Returns an object with the metadata of the built-in function name"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr fnname] ->
                 let fnname = Unicode_string.to_string fnname in
@@ -1200,7 +1200,7 @@ that's already taken, returns an error."
     ; return_type = TList
     ; description =
         "Returns a list of objects, representing the functions available in the standard library. Does not return DarkInternal functions"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [] ->
                 let fns =
@@ -1245,7 +1245,7 @@ that's already taken, returns an error."
     ; return_type = TNull
     ; description =
         "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DStr host] ->
                 let host = Unicode_string.to_string host in
@@ -1262,7 +1262,7 @@ that's already taken, returns an error."
     ; parameters = []
     ; return_type = TList
     ; description = "Returns a list of all queue scheduling rules."
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [] ->
                 Event_queue.get_all_scheduling_rules ()
@@ -1278,7 +1278,7 @@ that's already taken, returns an error."
     ; return_type = TList
     ; description =
         "Returns a list of all queue scheduling rules for the specified canvas_id"
-    ; func =
+    ; fn =
         internal_fn (function
             | _, [DUuid canvas_id] ->
                 Event_queue.get_scheduling_rules_for_canvas canvas_id
@@ -1294,7 +1294,7 @@ that's already taken, returns an error."
     ; return_type = TNull
     ; description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-    ; func = modify_schedule Event_queue.block_worker
+    ; fn = modify_schedule Event_queue.block_worker
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
@@ -1303,7 +1303,7 @@ that's already taken, returns an error."
     ; return_type = TNull
     ; description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-    ; func = modify_schedule Event_queue.unblock_worker
+    ; fn = modify_schedule Event_queue.unblock_worker
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "newSessionForUsername" 0
@@ -1312,7 +1312,7 @@ that's already taken, returns an error."
     ; return_type = TResult
     ; description =
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
-    ; func =
+    ; fn =
         internal_fn (function
             | exec_state, [DStr username] ->
                 let username = Unicode_string.to_string username in
@@ -1367,7 +1367,7 @@ that's already taken, returns an error."
     ; description =
         (* We need the csrf token for dark-cli to use *)
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey and csrfToken."
-    ; func =
+    ; fn =
         internal_fn (function
             | exec_state, [DStr username] ->
                 let username = Unicode_string.to_string username in
@@ -1429,7 +1429,7 @@ that's already taken, returns an error."
     ; return_type = TInt
     ; description =
         "Delete session by session_key; return number of sessions deleted."
-    ; func =
+    ; fn =
         internal_fn (function
             | exec_state, [DStr session_key] ->
                 let session_key = Unicode_string.to_string session_key in
@@ -1452,7 +1452,7 @@ that's already taken, returns an error."
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
 in OCaml; its primary purpose is to send data to honeycomb, but also gives
 human-readable data."
-    ; func =
+    ; fn =
         internal_fn (function
             | exec_state, [] ->
                 let table_stats = Db.table_stats () in

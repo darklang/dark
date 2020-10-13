@@ -12,8 +12,8 @@ let fns : fn list =
     ; parameters = [Param.make "deploy_hash" TStr]
     ; return_type = TStr
     ; description = "Return the baseUrl for the specified deploy hash"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr deploy_hash] ->
               url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
@@ -27,8 +27,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TStr
     ; description = "Return the baseUrl for the latest deploy"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [] ->
               url state.canvas_id (latest_deploy_hash state.canvas_id) `Short
@@ -42,8 +42,8 @@ let fns : fn list =
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TStr
     ; description = "Return a url for the specified file and deploy hash"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr deploy_hash; DStr file] ->
               url_for
@@ -61,8 +61,8 @@ let fns : fn list =
     ; parameters = [Param.make "file" TStr]
     ; return_type = TStr
     ; description = "Return a url for the specified file and latest deploy"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr file] ->
               url_for
@@ -81,8 +81,8 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr deploy_hash; DStr file] ->
               let url =
@@ -115,8 +115,8 @@ UTF-8 safe"))
     ; return_type = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr deploy_hash; DStr file] ->
               let url =
@@ -146,8 +146,8 @@ UTF-8 safe"))
     ; return_type = TResult
     ; description =
         "Return the bytes of the specified file from the deploy_hash"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr deploy_hash; DStr file] ->
               let url =
@@ -176,8 +176,8 @@ UTF-8 safe"))
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr file] ->
               let url =
@@ -210,8 +210,8 @@ UTF-8 safe"))
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr file] ->
               let url =
@@ -242,8 +242,8 @@ UTF-8 safe") )
     ; return_type = TResult
     ; description =
         "Return the bytes of the specified file from the latest deploy"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr file] ->
               let url =
@@ -272,8 +272,8 @@ UTF-8 safe") )
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr deploy_hash; DStr file] ->
               let url =
@@ -330,8 +330,8 @@ UTF-8 safe") )
     ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
     ; return_type = TResult
     ; description = "Return the specified file from the latest deploy"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr deploy_hash; DStr file] ->
               let url =
@@ -386,8 +386,8 @@ UTF-8 safe") )
     ; return_type = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr file] ->
               let url =
@@ -441,8 +441,8 @@ UTF-8 safe") )
     ; parameters = [Param.make "file" TStr]
     ; return_type = TResult
     ; description = "Return the specified file from the latest deploy"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr file] ->
               let url =

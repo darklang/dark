@@ -10,8 +10,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Returns an object with 'Content-Type' for url-encoded HTML forms"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] ->
               DObj
@@ -27,8 +27,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an object with 'Content-Type' for JSON"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] ->
               DObj
@@ -44,8 +44,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an object with 'Content-Type' for plain text"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] ->
               DObj
@@ -61,8 +61,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TObj
     ; description = "Returns an object with 'Content-Type' for html"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] ->
               DObj
@@ -79,8 +79,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr token] ->
               let auth_string =
@@ -100,8 +100,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr token] ->
               let auth_string =

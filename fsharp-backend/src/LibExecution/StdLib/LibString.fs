@@ -47,8 +47,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | state, [DStr s; DBlock b] ->
 //             let result =
@@ -89,8 +89,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = []
 //   ; returnType = TStr
 //   ; description = "Returns a string containing a single '\n'"
-//   ; func =
-//       InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
+//   ; fn =
+//        (function _ -> DStr (Unicode_string.of_string_exn "\n"))
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "toList" 0
@@ -99,8 +99,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TList
 //   ; description =
 //       "Returns the list of characters (byte, not EGC) in the string"
-//   ; func =
-//       InProcess (fun _ -> Exception.code "This function no longer exists.")
+//   ; fn =
+//        (fun _ -> Exception.code "This function no longer exists.")
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "toList" 1
@@ -109,8 +109,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TList
 //   ; description =
 //       "Returns the list of Characters (EGC, not byte) in the string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             DList (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
@@ -124,8 +124,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Replace all instances on `searchFor` in `s` with `replaceWith`"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s; DStr search; DStr replace] ->
 //             DStr (Unicode_string.replace ~search ~replace s)
@@ -138,8 +138,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TInt
 //   ; description = "Returns the int value of the string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -159,8 +159,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TResult
 //   ; description =
 //       "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -177,8 +177,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TFloat
 //   ; description = "Returns the float value of the string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -196,8 +196,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TResult
 //   ; description = "Returns the float value of the string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -214,8 +214,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TStr
 //   ; description = "Returns the string, uppercased"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -229,8 +229,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TStr
 //   ; description = "Returns the string, uppercased"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> fail args)
 //   ; previewable = Pure
@@ -240,8 +240,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TStr
 //   ; description = "Returns the string, lowercased"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -255,8 +255,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TStr
 //   ; description = "Returns the string, lowercased"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> fail args)
 //   ; previewable = Pure
@@ -266,8 +266,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TInt
 //   ; description = "Returns the length of the string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dint (String.length (Unicode_string.to_string s))
@@ -280,8 +280,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TInt
 //   ; description = "Returns the length of the string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dint (Unicode_string.length s)
@@ -299,8 +299,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
 //   ; returnType = TStr
 //   ; description = "Concatenates the two strings and returns the joined string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s1; DStr s2] ->
 //             (* This implementation does not normalize post-concatenation.
@@ -317,8 +317,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s1; DStr s2] ->
 //             DStr (Unicode_string.append s1 s2)
@@ -332,8 +332,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s1; DStr s2] ->
 //             DStr (Unicode_string.append s2 s1)
@@ -346,8 +346,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "string" TStr]
 //   ; returnType = TStr
 //   ; description = "Turns a string into a slug"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             let replace = Unicode_string.regexp_replace in
@@ -375,8 +375,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "string" TStr]
 //   ; returnType = TStr
 //   ; description = "Turns a string into a slug"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             let replace = Unicode_string.regexp_replace in
@@ -405,8 +405,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             (* Should work the same as https://blog.tersmitten.nl/slugify/ *)
@@ -434,8 +434,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "string" TStr]
 //   ; returnType = TStr
 //   ; description = "Reverses `string`"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> fail args)
 //   ; previewable = Pure
@@ -446,8 +446,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TList
 //   ; description =
 //       "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s; DStr sep] ->
 //             s
@@ -463,8 +463,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "l" TList; Param.make "separator" TStr]
 //   ; returnType = TStr
 //   ; description = "Combines a list of strings with the provided separator"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DList l; DStr sep] ->
 //             let s =
@@ -487,8 +487,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "l" TList]
 //   ; returnType = TStr
 //   ; description = "Returns the list of characters as a string"
-//   ; func =
-//       InProcess (fun _ -> Exception.code "This function no longer exists.")
+//   ; fn =
+//        (fun _ -> Exception.code "This function no longer exists.")
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "fromList" 1
@@ -496,8 +496,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "l" TList]
 //   ; returnType = TStr
 //   ; description = "Returns the list of characters as a string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DList l] ->
 //             DStr
@@ -517,8 +517,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "c" TCharacter]
 //   ; returnType = TCharacter
 //   ; description = "Converts a char to a string"
-//   ; func =
-//       InProcess (fun _ -> Exception.code "This function no longer exists.")
+//   ; fn =
+//        (fun _ -> Exception.code "This function no longer exists.")
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "String" "fromChar" 1
@@ -526,8 +526,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "c" TCharacter]
 //   ; returnType = TStr
 //   ; description = "Converts a char to a string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DCharacter c] ->
 //             DStr (Unicode_string.of_character c)
@@ -541,8 +541,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -560,8 +560,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //           ( try
@@ -591,8 +591,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; description =
 //       "Take a string and hash it to a cryptographically-secure digest.
 // Don't rely on either the size or the algorithm."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -607,8 +607,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Take a string and hash it using SHA384. Please use Crypto::sha384 instead."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -623,8 +623,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Take a string and hash it using SHA256. Please use Crypto::sha256 instead."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -639,8 +639,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Generate a string of length `length` from random characters."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DInt l] ->
 //             if l < Dint.zero
@@ -658,8 +658,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TResult
 //   ; description =
 //       "Generate a string of length `length` from random characters."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DInt l] ->
 //             if l < Dint.zero
@@ -679,8 +679,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TResult
 //   ; description =
 //       "Generate a string of length `length` from random characters."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DInt l] ->
 //             if l < Dint.zero
@@ -699,8 +699,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Escape an untrusted string in order to include it safely in HTML output."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -715,8 +715,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TUuid
 //   ; description =
 //       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //           ( match Uuidm.of_string (Unicode_string.to_string s) with
@@ -736,8 +736,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TResult
 //   ; description =
 //       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s] ->
 //           ( match Uuidm.of_string (Unicode_string.to_string s) with
@@ -756,8 +756,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "searchingFor" TStr; Param.make "lookingIn" TStr]
 //   ; returnType = TBool
 //   ; description = "Checks if `lookingIn` contains `searchingFor`"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr needle; DStr haystack] ->
 //             DBool (Unicode_string.is_substring ~substring:needle haystack)
@@ -770,8 +770,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
 //   ; returnType = TBool
 //   ; description = "Checks if `lookingIn` contains `searchingFor`"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr haystack; DStr needle] ->
 //             DBool (Unicode_string.is_substring ~substring:needle haystack)
@@ -784,8 +784,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
 //   ; returnType = TBool
 //   ; description = "Checks if `lookingIn` contains `searchingFor`"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr haystack; DStr needle] ->
 //             DBool (Unicode_string.is_substring ~substring:needle haystack)
@@ -801,8 +801,8 @@ let fns: List<Environment.BuiltInFn> =
 //       "Returns the substring of `string` between the `from` and `to` indices.
 //        Negative indices start counting from the end of `string`.
 //        Indices represent characters."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s; DInt f; DInt l] ->
 //             let first, last = (Dint.to_int_exn f, Dint.to_int_exn l) in
@@ -819,8 +819,8 @@ let fns: List<Environment.BuiltInFn> =
 //       "Returns the first `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns `string`.
 //       If `characterCount` is negative, returns the empty string."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
@@ -837,8 +837,8 @@ let fns: List<Environment.BuiltInFn> =
 //       "Returns the last `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns `string`.
 //       If `characterCount` is negative, returns the empty string."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
@@ -855,8 +855,8 @@ let fns: List<Environment.BuiltInFn> =
 //       "Returns all but the last `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns the empty string.
 //       If `characterCount` is negative, returns `string`."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
@@ -873,8 +873,8 @@ let fns: List<Environment.BuiltInFn> =
 //       "Returns all but the first `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns the empty string.
 //       If `characterCount` is negative, returns `string`."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
@@ -890,8 +890,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; description =
 //       "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
 //       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | state, [DStr s; DStr pad_with; DInt l] ->
 //             let padLen = Unicode_string.length pad_with in
@@ -920,8 +920,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; description =
 //       "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
 //       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | state, [DStr s; DStr pad_with; DInt l] ->
 //             let padLen = Unicode_string.length pad_with in
@@ -949,8 +949,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim to_trim)
@@ -964,8 +964,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim_start to_trim)
@@ -979,8 +979,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TStr
 //   ; description =
 //       "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim_end to_trim)
@@ -994,8 +994,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; returnType = TBytes
 //   ; description =
 //       "Converts the given unicode string to a utf8-encoded byte sequence."
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr str] ->
 //             let theBytes = Unicode_string.to_utf8_bytes str in
@@ -1009,8 +1009,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "subject" TStr; Param.make "prefix" TStr]
 //   ; returnType = TBool
 //   ; description = "Checks if `subject` starts with `prefix`"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr subject; DStr prefix] ->
 //             DBool (Unicode_string.starts_with ~prefix subject)
@@ -1023,8 +1023,8 @@ let fns: List<Environment.BuiltInFn> =
 //   ; parameters = [Param.make "subject" TStr; Param.make "suffix" TStr]
 //   ; returnType = TBool
 //   ; description = "Checks if `subject` ends with `suffix`"
-//   ; func =
-//       InProcess
+//   ; fn =
+//
 //         (function
 //         | _, [DStr subject; DStr suffix] ->
 //             DBool (Unicode_string.ends_with ~suffix subject)

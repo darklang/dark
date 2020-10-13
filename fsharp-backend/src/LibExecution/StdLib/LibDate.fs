@@ -10,8 +10,8 @@ let fns : fn list =
     ; return_type = TDate
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr s] ->
             ( try
@@ -28,8 +28,8 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr s] ->
             ( try
@@ -51,8 +51,8 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr s] ->
             ( try
@@ -73,8 +73,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date d)
@@ -88,8 +88,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               Dval.dstr_of_string_exn
@@ -103,8 +103,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TStr
     ; description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               Dval.dstr_of_string_exn
@@ -118,8 +118,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TDate
     ; description = "Returns the current time."
-    ; func =
-        InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
+    ; fn =
+         (function _, [] -> DDate (Time.now ()) | args -> fail args)
     ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Date" "today" 0
@@ -127,8 +127,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TDate
     ; description = "Returns the Date with the time set to midnight"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] ->
               Time.now ()
@@ -145,8 +145,8 @@ let fns : fn list =
     ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
     ; return_type = TDate
     ; description = "Returns a new Date `seconds` seconds after `d`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d; DInt s] ->
               DDate (Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
@@ -159,8 +159,8 @@ let fns : fn list =
     ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
     ; return_type = TDate
     ; description = "Returns a new Date `seconds` seconds before `d`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d; DInt s] ->
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
@@ -173,8 +173,8 @@ let fns : fn list =
     ; parameters = [Param.make "d" TDate; Param.make "seconds" TInt]
     ; return_type = TDate
     ; description = "Returns a new Date `seconds` seconds before `d`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d; DInt s] ->
               DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
@@ -187,8 +187,8 @@ let fns : fn list =
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` > ` d2`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( > ) d1 d2)
@@ -201,8 +201,8 @@ let fns : fn list =
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` < ` d2`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( < ) d1 d2)
@@ -215,8 +215,8 @@ let fns : fn list =
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` >= ` d2`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( >= ) d1 d2)
@@ -229,8 +229,8 @@ let fns : fn list =
     ; parameters = [Param.make "d1" TDate; Param.make "d2" TDate]
     ; return_type = TBool
     ; description = "Returns whether `d1` <= ` d2`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d1; DDate d2] ->
               DBool (Time.( <= ) d1 d2)
@@ -244,8 +244,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Converts a Date `date` to an integer representing seconds since the Unix epoch"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d
@@ -263,8 +263,8 @@ let fns : fn list =
     ; return_type = TDate
     ; description =
         "Converts an integer representing seconds since the Unix epoch into a Date"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt s] ->
               s
@@ -281,8 +281,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TStr
     ; description = "Turn a Date into a human readable format"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate date] ->
               let time = date |> Time.to_span_since_epoch |> Time.Span.to_sec in
@@ -355,8 +355,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the year portion of the Date as an int"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.year |> Dval.dint
@@ -370,8 +370,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Returns the month portion of the Date as an int between 1 and 12"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d
@@ -388,8 +388,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the day portion of the Date as an int"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d |> Time.to_date ~zone:Time.Zone.utc |> Date.day |> Dval.dint
@@ -403,8 +403,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Returns the weekday of `date` as an int. Monday = 1, Tuesday = 2, ... Sunday = 7 (in accordance with ISO 8601)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d
@@ -421,8 +421,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the hour portion of the Date as an int"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d
@@ -440,8 +440,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the hour portion of the Date as an int"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d
@@ -459,8 +459,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the minute portion of the Date as an int"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d
@@ -478,8 +478,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TInt
     ; description = "Returns the second portion of the Date as an int"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d
@@ -497,8 +497,8 @@ let fns : fn list =
     ; parameters = [Param.make "date" TDate]
     ; return_type = TDate
     ; description = "Returns the Date with the time set to midnight"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DDate d] ->
               d

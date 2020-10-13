@@ -24,8 +24,8 @@ let fns : fn list =
     ; description =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr s] ->
               s
@@ -63,8 +63,8 @@ let fns : fn list =
     ; description =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DPassword existingpw; DStr rawpw] ->
               rawpw
@@ -82,8 +82,8 @@ let fns : fn list =
     ; parameters = [Param.make "data" TBytes]
     ; return_type = TBytes
     ; description = "Computes the SHA-256 digest of the given `data`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes data] ->
               Cstruct.of_bytes data
@@ -99,8 +99,8 @@ let fns : fn list =
     ; parameters = [Param.make "data" TBytes]
     ; return_type = TBytes
     ; description = "Computes the SHA-384 digest of the given `data`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes data] ->
               Cstruct.of_bytes data
@@ -117,8 +117,8 @@ let fns : fn list =
     ; return_type = TBytes
     ; description =
         "Computes the md5 digest of the given `data`. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes data] ->
               Cstruct.of_bytes data
@@ -135,8 +135,8 @@ let fns : fn list =
     ; return_type = TBytes
     ; description =
         "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes key; DBytes data] ->
               let key = Cstruct.of_bytes key in
@@ -152,8 +152,8 @@ let fns : fn list =
     ; return_type = TBytes
     ; description =
         "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given `key` and `data`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes key; DBytes data] ->
               let key = Cstruct.of_bytes key in

@@ -15,8 +15,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | ( s
             , [ DStr accountSID
@@ -76,8 +76,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | ( s
             , [ DStr accountSID

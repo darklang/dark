@@ -20,8 +20,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat]
     ; return_type = TInt
     ; description = "Round up to an integer value"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a] ->
               DInt (Float.round_up a |> Dint.of_float)
@@ -35,8 +35,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a] ->
               DInt (Float.round_down a |> Dint.of_float)
@@ -49,8 +49,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat]
     ; return_type = TInt
     ; description = "Round to the nearest integer value"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a] ->
               DInt (Float.round a |> Dint.of_float)
@@ -64,8 +64,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Discard the fractional portion of the float, rounding towards zero."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a] ->
               DInt (Float.round_towards_zero a |> Dint.of_float)
@@ -79,8 +79,8 @@ let fns : fn list =
     ; return_type = TFloat
     ; description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [DFloat a] -> DFloat (Float.abs a) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -89,8 +89,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat]
     ; return_type = TFloat
     ; description = "Returns the negation of `a`, `-a`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [DFloat a] -> DFloat (Float.neg a) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -99,8 +99,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat]
     ; return_type = TFloat
     ; description = "Get the square root of a float"
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -109,8 +109,8 @@ let fns : fn list =
     ; parameters = [Param.make "base" TFloat; Param.make "exponent" TFloat]
     ; return_type = TFloat
     ; description = "Returns `base` raised to the power of `exponent`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat base; DFloat exp] ->
               DFloat (base ** exp)
@@ -123,8 +123,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Divide float `a` by float `b`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> fail args)
     ; previewable = Pure
@@ -134,8 +134,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Add float `a` to float `b`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> fail args)
     ; previewable = Pure
@@ -145,8 +145,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Multiply float `a` by float `b`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> fail args)
     ; previewable = Pure
@@ -156,8 +156,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Subtract float `b` from float `a`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> fail args)
     ; previewable = Pure
@@ -167,8 +167,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is greater than b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> fail args)
     ; previewable = Pure
@@ -178,8 +178,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is greater than b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> fail args)
     ; previewable = Pure
@@ -189,8 +189,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is less than b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> fail args)
     ; previewable = Pure
@@ -200,8 +200,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TBool
     ; description = "Returns true if a is less than b"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
     ; previewable = Pure
@@ -211,8 +211,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TList]
     ; return_type = TFloat
     ; description = "Returns the sum of all the floats in the list"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] ->
               l
@@ -240,8 +240,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Returns the lesser of float `a` and float `b`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.min a b)
@@ -254,8 +254,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
     ; return_type = TFloat
     ; description = "Returns the greater of float `a` and float `b`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat a; DFloat b] ->
               DFloat (Float.max a b)
@@ -271,8 +271,8 @@ let fns : fn list =
         "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
          If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
          `limitA` and `limitB` can be provided in any order."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DFloat v; DFloat a; DFloat b] ->
               let min, max = if a < b then (a, b) else (b, a) in

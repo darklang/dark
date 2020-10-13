@@ -10,8 +10,8 @@ let fns : fn list =
     ; return_type = TBool
     ; description =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
-    ; func =
-        InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
+    ; fn =
+         (function _, [DBool b] -> DBool (not b) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Bool" "and" 0
@@ -19,8 +19,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
     ; return_type = TBool
     ; description = "Returns true if both a and b are true"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBool a; DBool b] -> DBool (a && b) | args -> fail args)
     ; previewable = Pure
@@ -30,8 +30,8 @@ let fns : fn list =
     ; parameters = [Param.make "a" TBool; Param.make "b" TBool]
     ; return_type = TBool
     ; description = "Returns true if either a is true or b is true"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
     ; previewable = Pure
@@ -42,8 +42,8 @@ let fns : fn list =
     ; return_type = TBool
     ; description =
         "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBool a; DBool b] -> DBool (a <> b) | args -> fail args)
     ; previewable = Pure
@@ -53,8 +53,8 @@ let fns : fn list =
     ; parameters = [Param.make "check" TAny]
     ; return_type = TBool
     ; description = "Returns true if the `check` parameter is null"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [value] ->
             (match value with DNull -> DBool true | _ -> DBool false)
@@ -67,8 +67,8 @@ let fns : fn list =
     ; parameters = [Param.make "check" TAny]
     ; return_type = TBool
     ; description = "Returns `true` if the `check` parameter is an error"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [value] ->
             (match value with DError _ -> DBool true | _ -> DBool false)

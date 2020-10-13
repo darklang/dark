@@ -14,8 +14,8 @@ let fns : fn list =
     ; parameters = [Param.make "val" TObj; Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TObj
     ; description = "Upsert `val` into `table`, accessible by `key`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DObj value; DStr key; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -32,8 +32,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DObj value; DDB dbname] ->
               let key = Uuidm.v `V4 |> Uuidm.to_string in
@@ -49,8 +49,8 @@ let fns : fn list =
     ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TOption
     ; description = "Finds a value in `table` by `key"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr key; DDB dbname] ->
               let key = Unicode_string.to_string key in
@@ -65,8 +65,8 @@ let fns : fn list =
     ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TOption
     ; description = "Finds a value in `table` by `key"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr key; DDB dbname] ->
               let key = Unicode_string.to_string key in
@@ -82,8 +82,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList keys; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -111,8 +111,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [value] list of values"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList keys; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -139,8 +139,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList keys; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -169,8 +169,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys` (ignoring any missing items), returning a [value] list of values"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList keys; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -197,8 +197,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList keys; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -226,8 +226,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Finds many values in `table` by `keys, returning a {key:{value}, key2: {value2}} object of keys and values"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList keys; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -253,8 +253,8 @@ let fns : fn list =
     ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
     ; return_type = TNull
     ; description = "Delete `key` from `table`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr key; DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -270,8 +270,8 @@ let fns : fn list =
     ; parameters = [Param.make "table" TDB]
     ; return_type = TNull
     ; description = "Delete everything from `table`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -288,8 +288,8 @@ let fns : fn list =
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning a [[key, value]] list of lists"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -307,8 +307,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -326,8 +326,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -344,8 +344,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -363,8 +363,8 @@ let fns : fn list =
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning a [[key, value]] list of lists"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -384,8 +384,8 @@ let fns : fn list =
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -403,8 +403,8 @@ let fns : fn list =
     ; description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
         , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -421,8 +421,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
@@ -444,8 +444,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
@@ -468,8 +468,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
@@ -491,8 +491,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
@@ -514,8 +514,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
@@ -538,8 +538,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
@@ -562,8 +562,8 @@ let fns : fn list =
     ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
         lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -580,8 +580,8 @@ let fns : fn list =
     ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description = "Fetch all the values in `table`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -597,8 +597,8 @@ let fns : fn list =
     ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description = "Fetch all the values in `table`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -616,8 +616,8 @@ let fns : fn list =
     ; description =
         "Fetch all the values in `table`. Returns a list of lists such that the inner
         lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -635,8 +635,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -650,8 +650,8 @@ let fns : fn list =
     ; parameters = [Param.make "table" TDB]
     ; return_type = TInt
     ; description = "Return the number of items stored in `table`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -666,8 +666,8 @@ let fns : fn list =
     ; parameters = [Param.make "table" TDB]
     ; return_type = TList
     ; description = "Fetch all the fieldNames in `table`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -684,8 +684,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Returns an `Obj` representing { fieldName: fieldType } in `table`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -702,8 +702,8 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TStr
     ; description = "Returns a random key suitable for use as a DB key"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] ->
               Uuidm.v `V4 |> Uuidm.to_string |> Dval.dstr_of_string_exn
@@ -717,8 +717,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Fetch all the keys of entries in `table`. Returns an list with strings"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
@@ -735,8 +735,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname; DBlock b] ->
             ( try
@@ -756,8 +756,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname; DBlock b] ->
             ( try
@@ -775,8 +775,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname; DBlock b] ->
             ( try
@@ -799,8 +799,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname; DBlock b] ->
             ( try
@@ -823,8 +823,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname; DBlock b] ->
             ( try
@@ -847,8 +847,8 @@ let fns : fn list =
     ; return_type = TInt
     ; description =
         "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DDB dbname; DBlock b] ->
             ( try

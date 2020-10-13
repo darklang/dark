@@ -11,7 +11,7 @@ let fns : fn list =
     ; parameters = [Param.make "val" TAny]
     ; return_type = TList
     ; description = "Returns a one-element list containing the given `val`."
-    ; func = InProcess (function _, [v] -> DList [v] | args -> fail args)
+    ; fn =  (function _, [v] -> DList [v] | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "head" 0
@@ -20,8 +20,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Returns the head of a list. Returns null if the empty list is passed."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] ->
             (match List.hd l with Some dv -> dv | None -> DNull)
@@ -34,8 +34,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList]
     ; return_type = TOption
     ; description = "Fetches the head of the list and returns an option"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] ->
             ( match List.hd l with
@@ -53,8 +53,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] ->
             ( match List.hd l with
@@ -72,11 +72,11 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
-    ; func =
+    ; fn =
         (* This matches Elm's implementation, with the added benefit that the error rail
          * means you don't need to handle unwrapping the option
          * unless the passed list is truly empty (which shouldn't happen in most practical uses). *)
-        InProcess
+
           (function
           | _, [DList l] ->
             ( match List.tl l with
@@ -93,7 +93,7 @@ let fns : fn list =
     ; parameters = []
     ; return_type = TList
     ; description = "Returns an empty list."
-    ; func = InProcess (function _, [] -> DList [] | args -> fail args)
+    ; fn =  (function _, [] -> DList [] | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "List" "push" 0
@@ -101,8 +101,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TList
     ; description = "Add element `val` to front of list `list`"
-    ; func =
-        InProcess
+    ; fn =
+
           (* fake cf handled by call *)
           (function
           | _, [DList l; i] -> DList (i :: l) | args -> fail args)
@@ -113,8 +113,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TList
     ; description = "Add element `val` to back of list `list`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [DList l; i] -> DList (l @ [i]) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -124,8 +124,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Returns the last value in `list`. Returns null if the list is empty."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList []] ->
               DNull
@@ -141,8 +141,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList []] ->
               DOption OptNothing
@@ -158,8 +158,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList []] ->
               DOption OptNothing
@@ -174,8 +174,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList]
     ; return_type = TList
     ; description = "Returns a reversed copy of `list`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function _, [DList l] -> DList (List.rev l) | args -> fail args)
     ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -185,8 +185,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let f (dv : dval) : bool =
@@ -203,8 +203,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let f (dv : dval) : bool =
@@ -225,8 +225,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let f (dv : Types.RuntimeT.dval) : bool =
@@ -246,8 +246,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TBool
     ; description = "Returns `true` if `val` is in the list."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l; i] ->
               DBool (List.mem ~equal:equal_dval l i)
@@ -262,8 +262,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
     ; return_type = TBool
     ; description = "Returns `true` if `val` is in the list."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l; i] ->
               DBool (List.mem ~equal:equal_dval l i)
@@ -277,8 +277,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Returns a new list containing `val` repeated `times` times."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt t; dv] ->
               DList (List.init (Dint.to_int_exn t) ~f:(fun _ -> dv))
@@ -291,8 +291,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList]
     ; return_type = TInt
     ; description = "Returns the number of values in `list`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] -> Dval.dint (List.length l) | args -> fail args)
     ; previewable = Pure
@@ -305,8 +305,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DInt start; DInt stop] ->
               DList
@@ -322,8 +322,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; init; DBlock b] ->
               (* Fake cf should be propagated by the blocks so we dont need to check *)
@@ -341,8 +341,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] ->
               let f a b =
@@ -363,8 +363,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Returns a single list containing the values of `list` separated by `sep`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l; i] ->
               let rec join ls =
@@ -385,8 +385,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l1; DList l2] ->
               let rec f l1 l2 =
@@ -407,8 +407,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let fn dv = Ast.execute_dblock ~state b [dv] in
@@ -424,8 +424,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList]
     ; return_type = TBool
     ; description = "Returns true if `list` has no values."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l] -> DBool (List.is_empty l) | args -> fail args)
     ; previewable = Pure
@@ -437,8 +437,8 @@ let fns : fn list =
     ; description =
         "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
          Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList list] ->
               list |> List.sort ~compare:compare_dval |> DList
@@ -454,8 +454,8 @@ let fns : fn list =
         {|Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
           For example, `List::sortBy ["x","jkl","ab"] \val -> String::length val` returns `[ "x", "ab", "jkl" ]`.
           Consider `List::sort` if the list values can be directly compared, or `List::sortByComparator` if you want more control over the sorting process.|}
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList list; DBlock b] ->
               let fn dv = Ast.execute_dblock ~state b [dv] in
@@ -474,8 +474,8 @@ let fns : fn list =
         "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
         `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
         Consider `List::sort` or `List::sortBy` if you don't need this level of control."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList list; DBlock b] ->
               let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
@@ -537,8 +537,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Returns a new list with all values in `as` followed by all values in `bs`, preserving the order."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l1; DList l2] ->
               DList (List.append l1 l2) (* no checking for fake cf required *)
@@ -552,8 +552,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let incomplete = ref false in
@@ -582,8 +582,8 @@ let fns : fn list =
         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
         Preserves the order of values that were not dropped.
         Consider `List::filterMap` if you also want to transform the values."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let fakecf = ref None in
@@ -614,8 +614,8 @@ let fns : fn list =
         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
         Preserves the order of values that were not dropped.
         Consider `List::filterMap` if you also want to transform the values."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let abortReason = ref None in
@@ -658,8 +658,8 @@ let fns : fn list =
         If `f val` returns `Just newValue`, replaces `val` with `newValue`.
         Preserves the order of values that were not dropped.
         This function combines `List::filter` and `List::map`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let abortReason = ref None in
@@ -700,8 +700,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
     ; return_type = TList
     ; description = "Drops the first `count` values from `list`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l; DInt c] ->
               DList (List.drop l (Dint.to_int_exn c))
@@ -715,8 +715,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Drops the longest prefix of `list` which satisfies the predicate `val`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let abortReason = ref None in
@@ -760,8 +760,8 @@ let fns : fn list =
     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
     ; return_type = TList
     ; description = "Drops all but the first `count` values from `list`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l; DInt c] ->
               DList (List.take l (Dint.to_int_exn c))
@@ -775,8 +775,8 @@ let fns : fn list =
     ; return_type = TList
     ; description =
         "Return the longest prefix of `list` which satisfies the predicate `val`"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let abortReason = ref None in
@@ -822,8 +822,8 @@ let fns : fn list =
     ; description =
         "Call `f` on every `val` in the list, returning a list of the results of
   those calls"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
@@ -839,8 +839,8 @@ let fns : fn list =
     ; description =
         "Calls `f` on every `val` in `list`, returning a list of the results of those calls.
         Consider `List::filterMap` if you also want to drop some of the values."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
@@ -856,8 +856,8 @@ let fns : fn list =
     ; description =
         "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
         Consider `List::map` if you don't need the index."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l; DBlock b] ->
               let f (idx : int) (dv : dval) : dval =
@@ -877,8 +877,8 @@ let fns : fn list =
         If the lists differ in length, values from the longer list are dropped.
         For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y")]`.
         Use `List::map2` if you want to enforce equivalent lengths for `as` and `bs`.|}
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l1; DList l2; DBlock b] ->
               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
@@ -902,8 +902,8 @@ let fns : fn list =
          calling `f a b` on every pair of values from `as` and `bs`.
          For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y"), (f 3 "z")]`.
          If the lists differ in length, returns `Nothing` (consider `List::map2shortest` if you want to drop values from the longer list instead).|}
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l1; DList l2; DBlock b] ->
               let f (l1Item : dval) (l2Item : dval) : dval =
@@ -929,8 +929,8 @@ let fns : fn list =
         For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"]]`.
         Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.
         See `List::unzip` if you want to deconstruct the result into `as` and `bs` again.|}
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l1; DList l2] ->
               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
@@ -954,8 +954,8 @@ let fns : fn list =
         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"], [3,"z"]]`.
         See `List::unzip` if you want to deconstruct `list` into `as` and `bs` again.
         If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop values from the longer list instead).|}
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DList l1; DList l2] ->
               let f (l1Item : dval) (l2Item : dval) : dval =
@@ -978,9 +978,9 @@ let fns : fn list =
     ; description =
         {|Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
         one with every first value, and one with every second value. For example, if `pairs` is `[[1,"x"], [2,"y"], [3,"z"]]`, returns `[[1,2,3], ["x","y","z"]]`.|}
-    ; func =
+    ; fn =
         (* We should deprecate this once we have tuples and homogenous lists *)
-        InProcess
+
           (function
           | state, [DList l] ->
               let idx_from_rev_idx (rev_idx : int) (l : 'a list) : int =
@@ -1044,8 +1044,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l; DInt index] ->
               List.nth l (Dint.to_int_exn index)
@@ -1061,8 +1061,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list otherwise returns `Nothing`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList l; DInt index] ->
               List.nth l (Dint.to_int_exn index)
@@ -1078,8 +1078,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly selected value in <param list>. Returns {{Nothing}} if <param list> is empty."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DList []] ->
               DOption OptNothing

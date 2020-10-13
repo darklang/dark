@@ -10,8 +10,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
@@ -25,8 +25,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
@@ -44,8 +44,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
@@ -60,8 +60,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
@@ -76,8 +76,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
     ; previewable = Pure
@@ -88,8 +88,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp
@@ -106,8 +106,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp
@@ -124,8 +124,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp
@@ -142,8 +142,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp
@@ -160,8 +160,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp
@@ -179,8 +179,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [dv; DInt code] ->
               DResp
@@ -198,8 +198,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr url] ->
               DResp (Redirect (Unicode_string.to_string url), DNull)
@@ -213,8 +213,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr msg] ->
               DResp (Response (400, []), DStr msg)
@@ -228,8 +228,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
     ; previewable = Pure
@@ -240,8 +240,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
     ; previewable = Pure
@@ -252,8 +252,8 @@ let fns : fn list =
     ; return_type = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
     ; previewable = Pure
@@ -264,8 +264,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr name; DStr value; DObj o] ->
               o
@@ -310,8 +310,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr name; DStr value; DObj o] ->
               o
@@ -366,8 +366,8 @@ let fns : fn list =
     ; return_type = TObj
     ; description =
         "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | state, [DStr name; DStr value; DObj o] ->
               let fold_cookie_params

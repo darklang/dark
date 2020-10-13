@@ -136,8 +136,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr key; payload] ->
               let (`RSA key) =
@@ -160,8 +160,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr key; DObj headers; payload] ->
               let (`RSA key) =
@@ -188,8 +188,8 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr key; payload] ->
               handle_error (fun () ->
@@ -213,8 +213,8 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr key; DObj headers; payload] ->
               handle_error (fun () ->
@@ -242,8 +242,8 @@ let fns : fn list =
     ; return_type = TOption
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr key; DStr token] ->
             ( match
@@ -279,8 +279,8 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr key; DStr token] ->
             ( try

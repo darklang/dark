@@ -10,8 +10,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr json] ->
             ( try json |> Unicode_string.to_string |> Dval.of_unknown_json_v0
@@ -26,8 +26,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr json] ->
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
@@ -41,8 +41,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr json] ->
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
@@ -56,8 +56,8 @@ let fns : fn list =
     ; return_type = TResult
     ; description =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr json] ->
             ( try

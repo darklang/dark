@@ -11,8 +11,8 @@ let fns : fn list =
     ; return_type = TAny
     ; description =
         "Emit event `name` in `space`, passing along `data` as a parameter"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | {canvas_id; account_id; _}, [data; DStr space; DStr name] ->
               (* See client/src/Entry.ml for the "_" *)
@@ -29,8 +29,8 @@ let fns : fn list =
     ; parameters = [Param.make "event" TAny; Param.make "Name" TStr]
     ; return_type = TAny
     ; description = "Emit a `event` to the `name` worker"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | {canvas_id; account_id; _}, [data; DStr name] ->
               (* See client/src/Entry.ml for the "_" *)

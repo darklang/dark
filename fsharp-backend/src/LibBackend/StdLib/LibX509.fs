@@ -10,8 +10,8 @@ let fns : Types.RuntimeT.fn list =
     ; return_type = TResult
     ; description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DStr cert] ->
             ( try

@@ -10,8 +10,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Base64URL encodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes bytes] ->
               Dval.dstr_of_string_exn (Libtarget.base64url_bytes bytes)
@@ -25,8 +25,8 @@ let fns : fn list =
     ; return_type = TStr
     ; description =
         "Hex (Base16) encodes `bytes` using an uppercase alphabet. Complies with RFC 4648 section 8."
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes bytes] ->
               let hexUppercaseLookup = "0123456789ABCDEF" in
@@ -51,8 +51,8 @@ let fns : fn list =
     ; parameters = [Param.make "bytes" TBytes]
     ; return_type = TInt
     ; description = "Length of encoded byte string"
-    ; func =
-        InProcess
+    ; fn =
+
           (function
           | _, [DBytes bytes] ->
               Dval.dint (Bytes.length bytes)
