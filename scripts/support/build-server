@@ -55,46 +55,46 @@ def compile(files):
 
 def initial_backend_compile():
   files = [
-      "backend/bin/server.ml",
-      "backend/test/test.ml",
-      "esy.json",
+      "./backend/bin/server.ml",
+      "./backend/test/test.ml",
+      "./esy.json",
   ]
   return compile(files)
 
 
 def initial_fsharp_backend_compile():
   files = [
-      "fsharp-backend/global.json",
-      "fsharp-backend/paket.lock",
-      "fsharp-backend/src/Client/App.fs",
-      "fsharp-backend/src/Server/Server.fs",
-      "fsharp-backend/src/LibExecution/LibExecution.fs",
+      "./fsharp-backend/global.json",
+      "./fsharp-backend/paket.lock",
+      "./fsharp-backend/src/Client/App.fs",
+      "./fsharp-backend/src/Server/Server.fs",
+      "./fsharp-backend/src/LibExecution/LibExecution.fs",
   ]
   return compile(files)
 
 
 def initial_client_compile():
   files = [
-      "package.json",
-      "client/src/Types.ml",
-      "client/styles/app.scss",
-      "client/test/ast_test.ml",
+      "./package.json",
+      "./client/src/Types.ml",
+      "./client/styles/app.scss",
+      "./client/test/ast_test.ml",
   ]
   return compile(files)
 
 
 def initial_stroller_compile():
-  files = ["containers/stroller/src/main.rs"]
+  files = ["./containers/stroller/src/main.rs"]
   return compile(files)
 
 
 def initial_scheduler_compile():
-  files = [ "containers/queue-scheduler/src/main.rs" ]
+  files = [ "./containers/queue-scheduler/src/main.rs" ]
   return compile(files)
 
 
 def run_server():
-  exit = compile(["scripts/support/runserver"])
+  exit = compile(["./scripts/support/runserver"])
   print("--------------------------")
   print("-- Started server ")
   print("--------------------------")

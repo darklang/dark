@@ -498,24 +498,23 @@ def execute(should):
 
   return success
 
-
 def mark(should, f):
   # Ocaml
-  if ("libshared/" in f) \
+  if ("/libshared/" in f) \
           and ((".mli" in f) \
             or (".ml" in f)):
     should.backend_build = True
     should.client_build = True
 
-  elif "esy.json" in f:
+  elif "/esy.json" in f:
     should.esy_install = True
 
-  elif ("backend/test/" in f) \
+  elif ("/backend/test/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
     should.backend_test = True
 
-  elif ("backend/" in f) \
+  elif ("/backend/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f) \
                   or ("_tags" in f) \
@@ -523,57 +522,58 @@ def mark(should, f):
           or ("dune" in f):
     should.backend_build = True
 
-  elif ("backend/templates/" in f) and (".html" in f):
+  elif ("/backend/templates/" in f) and (".html" in f):
     should.backend_build = True
 
-  elif ("fsharp-backend/global.json" in f):
+  elif ("/fsharp-backend/global.json" in f):
     should.fsharp_tool_restore = True
 
-  elif ("fsharp-backend/paket.dependencies" in f):
+  elif ("/fsharp-backend/paket.dependencies" in f):
     should.fsharp_paket_restore = True
 
-  elif ("fsharp-backend/" in f):
+  elif ("/fsharp-backend/" in f):
     if (".fsproj" in f or ".sln" in f):
       should.fsharp_backend_full_build = True
-    else:
+    elif (".fs" in f):
       should.fsharp_backend_quick_build = True
 
   #FSTODO
-  elif "containers/ocaml-nginx/" in f and ".conf" in f:
+  elif "/containers/ocaml-nginx/" in f and ".conf" in f:
     should.reload_server = True
     should.test_nginx = True
 
   # Touch this to rerun the server
-  elif "scripts/support/runserver" in f:
+  elif "/scripts/support/runserver" in f:
     should.reload_server = True
     should.generate_etags = True
 
-  elif "scripts/support/fsharp-runserver" in f:
+  elif "/scripts/support/fsharp-runserver" in f:
     should.reload_fsharp_server = True
     should.generate_etags = True
 
   # Rust
   # Touch this to rerun all rust programs
-  elif "scripts/support/run-rust" in f:
+  elif "/scripts/support/run-rust" in f:
     should.reload_stroller = True
     should.reload_scheduler = True
 
-  elif ("stroller/" in f) \
+  elif ("/stroller/" in f) \
           and (("Cargo.toml" in f) \
                   or ("Cargo.lock" in f) \
                   or (".rs" in f)):
     should.stroller_build = True
 
-  elif ("queue-scheduler/" in f) \
+  elif ("/queue-scheduler/" in f) \
           and (("Cargo.toml" in f) \
                   or ("Cargo.lock" in f) \
                   or (".rs" in f)):
     should.scheduler_build = True
 
   # JS
-  elif "package.json" in f:
+  elif "/package.json" in f:
     should.npm_install = True
-  elif ("client/" in f) \
+
+  elif ("/client/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)
                   or (".js" in f)):
@@ -581,16 +581,16 @@ def mark(should, f):
     # as part of this step.
     should.client_build = True
 
-  elif "bsconfig.json" in f:
+  elif "/bsconfig.json" in f:
     should.client_build = True
 
   elif ".scss" in f:
     should.sass_compile = True
 
-  elif "client/static/" in f:
+  elif "/client/static/" in f:
     should.copy_static = True
 
-  elif ("scripts" in f or ".sh" in f) and is_script(f):
+  elif ("/scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
   elif (".yml" in f or ".yaml" in f):
@@ -636,10 +636,6 @@ def ignore(filename):
   ]
   if "runserver" in filename:
     return False
-  if "fsharp-backend" in filename and ("/obj/" in filename or "/bin/"
-                                       in filename or filename.endswith("/obj")
-                                       or filename.endswith("/bin")):
-    return True
   for i in ignores:
     if i in filename:
       return True
