@@ -41,7 +41,7 @@ let fns: List<BuiltInFn> =
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
       fn = (fun _ -> Error FnFunctionRemoved)
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "foreach" 1) }
     { name = fn "String" "foreach" 1
@@ -73,47 +73,47 @@ let fns: List<BuiltInFn> =
                 }))
              |> Ok)
 
-        | args -> Error FnWrongTypes)
+        | _ -> Error FnWrongTypes)
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "newline" 0
+      parameters = []
+      returnType = TStr
+      description = "Returns a string containing a single '\n'"
+      fn =
+        (function
+        | _, [] -> Ok(Plain(DStr "\n"))
+        | _ -> Error FnWrongTypes)
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "toList" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TList TChar
+      description = "Returns the list of characters (byte, not EGC) in the string"
+      fn = (fun _ -> Error FnFunctionRemoved)
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toList" 1) }
+    { name = fn "String" "toList" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TList TChar
+      description = "Returns the list of Characters (EGC, not byte) in the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            (s
+             |> String.toTextElements
+             |> Seq.map (fun c -> DChar c)
+             |> Seq.toList
+             |> DList
+             |> Plain
+             |> Ok)
+        | args -> Error FnWrongTypes)
+      sqlSpec = NotQueryable
+      previewable = Pure
       deprecated = NotDeprecated } ]
-// ; { name = fn "String" "newline" 0
-//
-//   ; parameters = []
-//   ; returnType = TStr
-//   ; description = "Returns a string containing a single '\n'"
-//   ; fn =
-//        (function _ -> DStr (Unicode_string.of_string_exn "\n"))
-//   ; sqlSpec = NotYetImplementedTODO
-// ;  previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "toList" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TList
-//   ; description =
-//       "Returns the list of characters (byte, not EGC) in the string"
-//   ; fn =
-//        (fun _ -> Exception.code "This function no longer exists.")
-//   ; sqlSpec = NotYetImplementedTODO
-// ;  previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "toList" 1
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TList
-//   ; description =
-//       "Returns the list of Characters (EGC, not byte) in the string"
-//   ; fn =
-//
-//         (function
-//         | _, [DStr s] ->
-//             DList (Unicode_string.map_characters (fun c -> DCharacter c) s)
-//         | args ->
-//             Error FnWrongType)
-//   ; sqlSpec = NotYetImplementedTODO
-// ;  previewable = Pure
-//   ; deprecated = NotDeprecated }
 // ; { name = fn "String" "replaceAll" 0
 //
 //   ; parameters = [Param.make "s" TStr; Param.make "searchFor" TStr; Param.make "replaceWith" TStr]
