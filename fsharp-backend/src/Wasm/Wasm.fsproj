@@ -7,6 +7,11 @@
   <ItemGroup>
     <Compile Include="Startup.fs" />
   </ItemGroup>
+  <Target Name="CopyIndexHtml" BeforeTargets="Build">
+    <Copy SourceFiles="static/index.html"
+          DestinationFiles="../../Build/out/wwwroot/index.html"
+          OverwriteReadOnlyFiles='true' />
+  </Target>
   <ItemGroup>
     <PackageReference Include="Bolero" Version="0.*" />
     <PackageReference Include="Bolero.Build" Version="0.*" />
