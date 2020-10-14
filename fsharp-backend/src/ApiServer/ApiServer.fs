@@ -16,7 +16,7 @@ let app =
   application {
     url "http://0.0.0.0:9000"
     use_router webApp
-  (* use_static "public" *)
+    use_static "src/ApiServer/static"
   (* use_gzip *)
   }
 
