@@ -21,9 +21,9 @@ done
 
 if [[ -v CURRENTLY_REBUILDING_DOCKER ]];
 then
-  NAME=$(docker ps --last 2 --filter "ancestor=dark" --filter status=running --quiet | tail -n 1)
+  NAME=$(docker ps --last 2 --filter "name=dark-builder" --filter status=running --quiet | tail -n 1)
 else
-  NAME=$(docker ps --last 1 --filter "ancestor=dark" --filter status=running --quiet)
+  NAME=$(docker ps --last 1 --filter "name=dark-builder" --filter status=running --quiet)
 fi
 
 if [[ "$NAME" == "" ]]; then
