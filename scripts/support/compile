@@ -680,7 +680,8 @@ def main():
         files.append(f)
 
   if len(files) > 0:
-    pretty_print("Compiling: " + str(files), 43)
+    pretty_files = [ file[15:] for file in files ] # trim /home/dark/app/
+    pretty_print("Compiling: " + ", ".join(pretty_files), 43)
 
     should = Should()
     for f in files:
