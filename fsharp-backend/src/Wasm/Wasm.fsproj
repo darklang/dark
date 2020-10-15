@@ -4,7 +4,7 @@
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Startup.fs" />
+    <Compile Include="Wasm.fs" />
   </ItemGroup>
   <Target Name="CopyIndexHtml" BeforeTargets="Build">
     <Copy SourceFiles="static/index.html" DestinationFiles="../../Build/out/wwwroot/index.html" OverwriteReadOnlyFiles="true" />
