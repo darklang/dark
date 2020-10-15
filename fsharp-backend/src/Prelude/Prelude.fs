@@ -12,6 +12,5 @@ module String =
       while tee.MoveNext() do
         yield tee.GetTextElement()
     }
-
   let lengthInEgcs (s: string): int =
     System.Globalization.StringInfo(s).LengthInTextElements
