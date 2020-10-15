@@ -20,6 +20,6 @@ module Program =
 
   [<EntryPoint>]
   let Main args =
-      let builder = WebAssemblyHostBuilder.CreateDefault([||])
-      builder.Build().RunAsync() |> ignore
-      0
+    let builder = WebAssemblyHostBuilder.CreateDefault([||])
+    builder.Build().RunAsync() |> ignore
+    0
