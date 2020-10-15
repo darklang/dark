@@ -1,11 +1,6 @@
 ﻿module LibExecution.Interpreter
 
-#if FABLE_COMPILER
-open Thoth.Json
-#else
 open Thoth.Json.Net
-#endif
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus

@@ -635,7 +635,6 @@ def ignore(filename):
       "esy.lock",
       "/home/dark/.esy",
       "node_modules",
-      "fsharp-backend/.fable",
       "fsharp-backend/Build",
       "build.ninja",
       "containers/stroller/target",

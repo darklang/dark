@@ -13,12 +13,7 @@ module LibExecution.Runtime
 // types will always be converted to these types for execution.
 
 
-#if FABLE_COMPILER
-open Thoth.Json
-#else
 open Thoth.Json.Net
-#endif
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
