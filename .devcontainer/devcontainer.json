@@ -12,7 +12,14 @@
   },
 
   // Add the IDs of extensions you want installed when the container is created.
-  "extensions": []
+  "extensions": [
+    "ionide.ionide-fsharp",
+    "shuumatsu.vscode-ocamlformat",
+    "esbenp.prettier-vscode",
+    "ms-python.python",
+    "matklad.rust-analyzer"
+  ],
+  /* "extensions": [ "ms-azuretools.vscode-docker", "bungcip.better-toml", "golang.go", ], */
 
   // Ports are loaded in the build process
   // "forwardPorts": [],
