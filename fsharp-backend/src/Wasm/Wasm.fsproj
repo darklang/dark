@@ -1,20 +1,19 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Wasm.fs" />
   </ItemGroup>
-  <Target Name="CopyIndexHtml" BeforeTargets="Build">
-    <Copy SourceFiles="static/index.html" DestinationFiles="../../Build/out/wwwroot/index.html" OverwriteReadOnlyFiles="true" />
-  </Target>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="5.0.0-rc.1.20451.17" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="5.0.0-rc.1.20451.17" PrivateAssets="all" />
     <PackageReference Include="System.Net.Http.Json" Version="5.0.0-rc.1.20451.14" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-  </ItemGroup>
+  <Target Name="CopyIndexHtml" BeforeTargets="Build">
+    <Copy SourceFiles="static/index.html" DestinationFiles="../../Build/out/wwwroot/index.html" OverwriteReadOnlyFiles="true" />
+  </Target>
 </Project>
