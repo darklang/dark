@@ -256,8 +256,8 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/netcoreapp3.1/publish/ApiServer
-            - fsharp-backend/Build/out/netcoreapp3.1/publish/BwdServer
+            - fsharp-backend/Build/out/net5.0/publish/ApiServer
+            - fsharp-backend/Build/out/net5.0/publish/BwdServer
       - show-large-files-and-directories
       - save_cache:
           paths: [fsharp-backend/Build]
