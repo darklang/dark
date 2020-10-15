@@ -251,13 +251,14 @@ jobs:
       - show-large-files-and-directories
       - run: scripts/support/compile --test fsharp-backend/global.json
       - assert-clean-worktree
-      - persist_to_workspace:
-          # Do this before reducing size of cache
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/net5.0/publish/ApiServer
-            - fsharp-backend/Build/out/net5.0/publish/BwdServer
+      # FSTODO: disable until the bug goes away
+      # - persist_to_workspace:
+      #     # Do this before reducing size of cache
+      #     root: "."
+      #     paths:
+      #       # Just enough for integration tests and deploy
+      #       - fsharp-backend/Build/out/net5.0/publish/ApiServer
+      #       - fsharp-backend/Build/out/net5.0/publish/BwdServer
       - show-large-files-and-directories
       - save_cache:
           paths: [fsharp-backend/Build]
