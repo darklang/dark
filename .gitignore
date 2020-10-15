@@ -17,7 +17,6 @@ _esy/
 /backend/static/
 
 # F#
-fsharp-backend/.fable/
 fsharp-backend/.fake/
 fsharp-backend/deploy/
 fsharp-backend/packages/

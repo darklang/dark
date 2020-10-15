@@ -15,7 +15,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:0aa2706
+      - image: darklang/dark-base:43f4624
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -24,7 +24,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:0aa2706
+      - image: darklang/dark-rust:43f4624
 
 commands:
   show-large-files-and-directories:
@@ -251,13 +251,14 @@ jobs:
       - show-large-files-and-directories
       - run: scripts/support/compile --test fsharp-backend/global.json
       - assert-clean-worktree
-      - persist_to_workspace:
-          # Do this before reducing size of cache
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/netcoreapp3.1/publish/ApiServer
-            - fsharp-backend/Build/out/netcoreapp3.1/publish/BwdServer
+      # FSTODO: disable until the bug goes away
+      # - persist_to_workspace:
+      #     # Do this before reducing size of cache
+      #     root: "."
+      #     paths:
+      #       # Just enough for integration tests and deploy
+      #       - fsharp-backend/Build/out/net5.0/publish/ApiServer
+      #       - fsharp-backend/Build/out/net5.0/publish/BwdServer
       - show-large-files-and-directories
       - save_cache:
           paths: [fsharp-backend/Build]

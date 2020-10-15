@@ -41,7 +41,7 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   docker build -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
-  c=$(docker ps --filter "ancestor=dark" -q)
+  c=$(docker ps --filter "name=dark-builder" -q)
   if [[ -n "${c}" ]]; then
     docker kill "${c}";
   fi
@@ -175,7 +175,7 @@ $FSWATCH | docker run \
              -i \
              --dns 8.8.8.8 \
              --dns 8.8.4.4 \
-             --name dark-dev \
+             --name dark-builder \
              --hostname dark-dev \
              --env-file "$ENV_FILE" \
              --env HOST_PWD="$PWD" \

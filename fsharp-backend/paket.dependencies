@@ -1,29 +1,20 @@
 version 6.0.0-alpha014
 
 source https://api.nuget.org/v3/index.json
-framework: netcoreapp3.1
+framework: net5.0
 storage: none
 
-nuget Fable.Core ~> 3.1.6
-nuget Fable.Mocha ~> 2.9.1
-nuget Thoth.Json ~> 4.1.0
-nuget Thoth.Json.Net ~> 4.1.0
+nuget FSharp.Core ~> 5.0.0-beta.20417.1
 
+// Web servers
 nuget Saturn ~> 0.15.0-preview01
+
+// Tests
 nuget Expecto ~> 9.0.2
 
+// LibExecution
+nuget Thoth.Json.Net ~> 4.1.0
 nuget TaskBuilder.fs ~> 2.1
 nuget FSharp.Data
 nuget Ply ~> 0.1
 nuget FSharpPlus ~> 1.2.0-ci01240
-
-
-group Build
-    source https://api.nuget.org/v3/index.json
-    framework: netstandard2.0
-    storage: none
-
-    nuget Fable.Core ~> 3.1.6
-    nuget Fake.Core.Target ~> 5.20.3
-    nuget Fake.DotNet.Cli ~> 5.20.3
-    nuget Fake.IO.FileSystem ~> 5.20.3
