@@ -269,7 +269,9 @@ def fsharp_backend_full_build():
     start = time.time()
 
   start = time.time()
-  if os.environ.get("CI"):
+  #FSTODO: there is a bug in the .NET linker, come back to it later.
+  #https://github.com/mono/linker/issues/1508
+  if false and os.environ.get("CI"):
     configuration = "Release"
     verbosity = "normal"
     command = "publish"
@@ -537,6 +539,8 @@ def mark(should, f):
 
   elif ("/fsharp-backend/global.json" in f):
     should.fsharp_tool_restore = True
+    should.fsharp_paket_restore = True
+    should.fsharp_backend_full_build = True
 
   elif ("/fsharp-backend/paket.dependencies" in f):
     should.fsharp_paket_install = True
