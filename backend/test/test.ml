@@ -5,7 +5,7 @@ open Libbackend
 
 let () =
   let suites =
-    [ ("http", Test_http.suite)
+    (*[ ("http", Test_http.suite)
     ; ("accounts", Test_account.suite)
     ; ("webserver", Test_webserver.suite)
     ; ("language", Test_language.suite)
@@ -20,7 +20,8 @@ let () =
     ; ("analysis", Test_analysis.suite)
     ; ("package_manager", Test_package_manager.suite)
     ; ("garbage_collection", Test_garbage_collection.suite)
-    ; ("event-queue", Test_event_queue.suite) ]
+    ; ("event-queue", Test_event_queue.suite) ] *)
+    [ ("string-libs", Test_string_libs.suite) ]
   in
   Init.init ~run_side_effects:true ;
   Log.set_level `All ;
