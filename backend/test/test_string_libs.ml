@@ -4,25 +4,6 @@ open Types.RuntimeT
 open Utils
 open Libshared.FluidShortcuts
 
-let filename = "String_tests.fs"
-let file = Out_channel.create ~append:false ~binary:false ~fail_if_exists:false ~perm:0o640 filename
-
-(* Sometimes we exec_ast but don't check_dval, which is unsuitable for this test *)
-let code : string ref = ref ""
-
-let fixup_dval str =
-  str |> Tc.String.split ~on:"\n" |> Tc.String.join ~sep:"\\n"
-
-let check_dval str actual expected =
-  let result = check_dval str actual expected in
-  let pretty = expected |> Dval.to_developer_repr_v0 |> fixup_dval in
-  Out_channel.output_string file (!code ^ " = " ^ pretty ^ "\n");
-  result
-
-let exec_ast ast =
-  code := Pretty.eToHumanString ast ;
-  exec_ast ast
-
 let t_string_length_v1_works_on_emoji () =
   check_dval
     "stringLength"

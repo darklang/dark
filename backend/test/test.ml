@@ -5,7 +5,7 @@ open Libbackend
 
 let () =
   let suites =
-    (*[ ("http", Test_http.suite)
+    [ ("http", Test_http.suite)
     ; ("accounts", Test_account.suite)
     ; ("webserver", Test_webserver.suite)
     ; ("language", Test_language.suite)
@@ -20,22 +20,29 @@ let () =
     ; ("analysis", Test_analysis.suite)
     ; ("package_manager", Test_package_manager.suite)
     ; ("garbage_collection", Test_garbage_collection.suite)
-    ; ("event-queue", Test_event_queue.suite) ] *)
-    [ ("string-libs", Test_string_libs.suite) ]
+    ; ("event-queue", Test_event_queue.suite) ]
   in
   Init.init ~run_side_effects:true ;
   Log.set_level `All ;
   Account.init_testing () ;
   let wrapped_suites =
-    let wrap f () =
-      try f ()
+    let wrap testname f () =
+      try
+        Utils.comment := testname ;
+        Utils.code := None ;
+        f ()
       with e ->
         Exception.reraise_after e (fun bt ->
             print_endline (Exception.to_string e) ;
             print_endline (Exception.backtrace_to_string bt))
     in
-    List.map suites ~f:(fun (n, ts) ->
-        (n, List.map ts ~f:(fun (n, m, t) -> (n, m, wrap t))))
+    List.map suites ~f:(fun (suitename, ts) ->
+        let pre () = Utils.pre_suite suitename in
+        let post () = Utils.post_suite suitename in
+        let pre_test = ("pre-" ^ suitename, `Quick, pre) in
+        let post_test = ("post-" ^ suitename, `Quick, post) in
+        let tests = List.map ts ~f:(fun (testname, speed, t) -> (testname, speed, wrap testname t)) in
+        (suitename, pre_test :: tests @ [post_test]))
   in
   let suite, exit = Junit_alcotest.run_and_report "all" wrapped_suites in
   let report = Junit.make [suite] in
