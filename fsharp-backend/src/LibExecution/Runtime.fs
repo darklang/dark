@@ -27,13 +27,18 @@ exception InternalException of string
 // module, and version information.
 module FnDesc =
   type T =
-    { owner: string
-      package: string
-      module_: string
-      function_: string
-      version: int }
+    { owner : string
+      package : string
+      module_ : string
+      function_ : string
+      version : int }
 
-  let fnDesc (owner: string) (package: string) (module_: string) (function_: string) (version: int): T =
+  let fnDesc (owner : string)
+             (package : string)
+             (module_ : string)
+             (function_ : string)
+             (version : int)
+             : T =
     { owner = owner
       package = package
       module_ = module_
@@ -41,12 +46,13 @@ module FnDesc =
       version = version }
 
 
-  let stdFnDesc (module_: string) (function_: string) (version: int): T =
+  let stdFnDesc (module_ : string) (function_ : string) (version : int) : T =
     fnDesc "dark" "stdlib" module_ function_ version
 
 // Expressions - the main part of the language
 type Expr =
   | EInt of bigint
+  | EBool of bool
   | EString of string
   | ELet of string * Expr * Expr
   | EVariable of string
@@ -55,30 +61,28 @@ type Expr =
   | ELambda of List<string> * Expr
   | EIf of Expr * Expr * Expr
 
-and LambdaBlock =
-  { parameters: List<string>
-    symtable: Symtable
-    body: Expr }
+and LambdaBlock = { parameters : List<string>; symtable : Symtable; body : Expr }
 
 // Runtime values
 and Dval =
   | DInt of bigint
-  | DStr of string
-  | DFakeVal of FakeDval
-  | DChar of string // TextElements (extended grapheme clusters) are provided as string
-  | DList of List<Dval>
   | DBool of bool
+  | DStr of string
+  | DChar of string // TextElements (extended grapheme clusters) are provided as strings
+  | DFakeVal of FakeDval
+  | DList of List<Dval>
   | DLambda of LambdaBlock
-  static member int(i: int) = DInt(bigint i)
 
-  member this.isFake: bool =
+  static member int(i : int) = DInt(bigint i)
+
+  member this.isFake : bool =
     match this with
     | DFakeVal _ -> true
     | _ -> false
 
   // FSTODO: what kind of JSON is this?
-  member this.toJSON(): JsonValue =
-    let rec encodeDval (dv: Dval): JsonValue =
+  member this.toJSON() : JsonValue =
+    let rec encodeDval (dv : Dval) : JsonValue =
       match dv with
       | DInt i -> Encode.bigint i
       | DChar c -> Encode.string c
@@ -86,12 +90,13 @@ and Dval =
       | DList l -> l |> List.map encodeDval |> Encode.list
       | DBool b -> Encode.bool b
       | DLambda _ -> Encode.nil
-      | DFakeVal (DError (e)) -> Encode.object [ "error", Encode.string (e.ToString()) ]
+      | DFakeVal (DError (e)) ->
+          Encode.object [ "error", Encode.string (e.ToString()) ]
 
     encodeDval this
 
-  static member toDList(list: List<Dval>): Dval =
-    List.tryFind (fun (dv: Dval) -> dv.isFake) list
+  static member toDList(list : List<Dval>) : Dval =
+    List.tryFind (fun (dv : Dval) -> dv.isFake) list
     |> Option.defaultValue (DList list)
 
 // We want Dark to by asynchronous (eg, while some code is doing IO, we want
@@ -104,12 +109,12 @@ and DvalTask =
   | Plain of Dval
   | Task of Task<Dval>
 
-  member dt.toTask(): Task<Dval> =
+  member dt.toTask() : Task<Dval> =
     match dt with
     | Task t -> t
     | Plain dv -> task { return dv }
 
-  member dt.bind(f: Dval -> DvalTask): DvalTask =
+  member dt.bind(f : Dval -> DvalTask) : DvalTask =
     match dt with
     | Task t ->
         Task
@@ -120,7 +125,7 @@ and DvalTask =
            })
     | Plain dv -> (f dv)
 
-  member dt.map(f: Dval -> Dval): DvalTask =
+  member dt.map(f : Dval -> Dval) : DvalTask =
     match dt with
     | Task t ->
         Task
@@ -130,7 +135,7 @@ and DvalTask =
            })
     | Plain dv -> Plain dv
 
-  member dt1.bind2 (dt2: DvalTask) (f: Dval -> Dval -> DvalTask): DvalTask =
+  member dt1.bind2 (dt2 : DvalTask) (f : Dval -> Dval -> DvalTask) : DvalTask =
     match dt1, dt2 with
     | _, Task _
     | Task _, _ ->
@@ -147,11 +152,12 @@ and DvalTask =
 and Symtable = Map<string, Dval>
 
 and Param =
-  { name: string
-    typ: DType
-    doc: string }
+  { name : string
+    typ : DType
+    doc : string }
 
-  static member make (name: string) (typ: DType) (doc: string) = { name = name; typ = typ; doc = doc }
+  static member make (name : string) (typ : DType) (doc : string) =
+    { name = name; typ = typ; doc = doc }
 
 
 // Runtime errors can be things that happen relatively commonly (such as calling
@@ -208,15 +214,14 @@ exception RuntimeException of RuntimeError // when we know the runtime error to 
 exception FnCallException of FnCallError // when we need callFn to fill in
 exception FakeDvalException of Dval // when we encounter a fakeDval, jump right own
 
-let err (e: RuntimeError): Dval = (DFakeVal(DError(e)))
+let err (e : RuntimeError) : Dval = (DFakeVal(DError(e)))
 
 module Symtable =
   type T = Symtable
-  let empty: T = Map []
+  let empty : T = Map []
 
-  let get (st: T) (name: string): Dval =
-    st.TryFind(name)
-    |> Option.defaultValue (err (UndefinedVariable name))
+  let get (st : T) (name : string) : Dval =
+    st.TryFind(name) |> Option.defaultValue (err (UndefinedVariable name))
 
 
 
@@ -253,22 +258,22 @@ type SqlSpec =
 
 
 type BuiltInFn =
-  { name: FnDesc.T
-    parameters: List<Param>
-    returnType: DType
-    description: string
-    previewable: Previewable
-    deprecated: Deprecation
-    sqlSpec: SqlSpec
+  { name : FnDesc.T
+    parameters : List<Param>
+    returnType : DType
+    description : string
+    previewable : Previewable
+    deprecated : Deprecation
+    sqlSpec : SqlSpec
     // Functions can be run in JS if they have an implementation in this
     // LibExecution. Functions who's implementation is in LibBackend can only be
     // implemented on the server.
     // May throw a
-    fn: BuiltInFnSig }
+    fn : BuiltInFnSig }
 
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
 
-and ExecutionState = { functions: Map<FnDesc.T, BuiltInFn> }
+and ExecutionState = { functions : Map<FnDesc.T, BuiltInFn> }
 //    tlid : tlid
 // ; canvas_id : Uuidm.t
 // ; account_id : Uuidm.t
@@ -309,7 +314,7 @@ and ExecutionState = { functions: Map<FnDesc.T, BuiltInFn> }
 // before the next one is done, making sure that, for example, a HttpClient
 // call will finish before the next one starts. Will allow other requests to
 // run which waiting.
-let map_s (f: 'a -> DvalTask) (list: List<'a>): Task<List<Dval>> =
+let map_s (f : 'a -> DvalTask) (list : List<'a>) : Task<List<Dval>> =
   task {
     let! result =
       match list with
@@ -322,11 +327,11 @@ let map_s (f: 'a -> DvalTask) (list: List<'a>): Task<List<Dval>> =
                 return ([], result)
               }
 
-            let! ((accum, lastcomp): (List<Dval> * Dval)) =
-              List.fold (fun (prevcomp: Task<List<Dval> * Dval>) (arg: 'a) ->
+            let! ((accum, lastcomp) : (List<Dval> * Dval)) =
+              List.fold (fun (prevcomp : Task<List<Dval> * Dval>) (arg : 'a) ->
                 task {
                   // Ensure the previous computation is done first
-                  let! ((accum, prev): (List<Dval> * Dval)) = prevcomp
+                  let! ((accum, prev) : (List<Dval> * Dval)) = prevcomp
                   let accum = prev :: accum
 
                   let! result = (f arg).toTask()
@@ -342,14 +347,23 @@ let map_s (f: 'a -> DvalTask) (list: List<'a>): Task<List<Dval>> =
 
 let incorrectArgs () = raise (FnCallException FnWrongTypes)
 
-let removedFunction: BuiltInFnSig =
+let removedFunction : BuiltInFnSig =
   fun _ -> raise (FnCallException FnFunctionRemoved)
 
 module Shortcuts =
-  let fn (module_: string) (function_: string) (version: int) (args: List<Expr>): Expr =
+  let fn (module_ : string)
+         (function_ : string)
+         (version : int)
+         (args : List<Expr>)
+         : Expr =
     EFnCall(FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args)
 
-  let binOp (arg1: Expr) (module_: string) (function_: string) (version: int) (arg2: Expr): Expr =
+  let binOp (arg1 : Expr)
+            (module_ : string)
+            (function_ : string)
+            (version : int)
+            (arg2 : Expr)
+            : Expr =
     EBinOp(arg1, FnDesc.fnDesc "dark" "stdlib" module_ function_ version, arg2)
 
-  let str (str: string) = EString(str)
+  let str (str : string) = EString(str)

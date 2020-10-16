@@ -8,10 +8,11 @@ open FSharpPlus
 open Runtime
 
 // fsharplint:disable FL0039
-let rec eval (state: ExecutionState) (st: Symtable.T) (e: Expr): DvalTask =
+let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   let tryFindFn desc = state.functions.TryFind(desc)
   match e with
   | EInt i -> Plain(DInt i)
+  | EBool b -> Plain(DBool b)
   | EString s -> Plain(DStr s)
   | ELet (lhs, rhs, body) ->
       let rhs = eval state st rhs
@@ -35,11 +36,7 @@ let rec eval (state: ExecutionState) (st: Symtable.T) (e: Expr): DvalTask =
            t1.bind2 t2 (fun arg1 arg2 -> callFn state fn [ arg1; arg2 ])
        | None -> Plain(err (NotAFunction desc)))
   | ELambda (parameters, body) ->
-      Plain
-        (DLambda
-          ({ symtable = st
-             parameters = parameters
-             body = body }))
+      Plain(DLambda({ symtable = st; parameters = parameters; body = body }))
   | EVariable (name) -> Plain(Symtable.get st name)
   | EIf (cond, thenbody, elsebody) ->
       let cond = eval state st cond
@@ -49,22 +46,27 @@ let rec eval (state: ExecutionState) (st: Symtable.T) (e: Expr): DvalTask =
         | cond -> Task(task { return (err (CondWithNonBool cond)) }))
 
 
-and callFn (state: ExecutionState) (fn: BuiltInFn) (args: List<Dval>): DvalTask =
-  match List.tryFind (fun (dv: Dval) -> dv.isFake) args with
+and callFn (state : ExecutionState) (fn : BuiltInFn) (args : List<Dval>) : DvalTask =
+  match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
   | Some special -> Plain special
   | None ->
       try
         fn.fn (state, args)
       with
       | RuntimeException rte -> Plain(err rte)
-      | FnCallException FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
-      | FnCallException FnWrongTypes -> Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+      | FnCallException FnFunctionRemoved ->
+          Plain(err (FunctionRemoved fn.name))
+      | FnCallException FnWrongTypes ->
+          Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
       | FakeDvalException dval -> Plain(dval)
 
-and eval_lambda (state: ExecutionState) (l: Runtime.LambdaBlock) (args: List<Dval>): DvalTask =
+and eval_lambda (state : ExecutionState)
+                (l : Runtime.LambdaBlock)
+                (args : List<Dval>)
+                : DvalTask =
   (* If one of the args is fake value used as a marker, return it instead of
    * executing. This is the same behaviour as in fn calls. *)
-  match List.tryFind (fun (dv: Dval) -> dv.isFake) args with
+  match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
   | Some dv -> Plain(dv)
   | None ->
       (* One of the reasons to take a separate list of params and args is to
@@ -79,8 +81,6 @@ and eval_lambda (state: ExecutionState) (l: Runtime.LambdaBlock) (args: List<Dva
         // List.iter bindings ~f:(fun ((id, paramName), dv) ->
         //     state.trace ~on_execution_path:state.on_execution_path id dv) ;
         let newSymtable =
-          List.zip l.parameters args
-          |> Map
-          |> Map.union l.symtable
+          List.zip l.parameters args |> Map |> Map.union l.symtable
 
         eval state newSymtable l.body
