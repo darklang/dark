@@ -42,11 +42,8 @@ module FluidUtil = struct
   (* Get just the function version *)
   let versionDisplayName (fnName : string) : string =
     let _, _, version = splitFnName fnName in
-    if version = "0" then "" else "v" ^ version
-
-
-  let partialName = fnDisplayName
-
+    (* For tests always show v0 *)
+    "_v" ^ version
 
   let partialName = fnDisplayName
 
@@ -642,6 +639,7 @@ module FluidToken = struct
     | TFloatFractional (_, f, _) ->
         f
     | TString (_, str, _) ->
+        let str = Core_kernel.String.substr_replace_all ~pattern:"\"" ~with_:"\\\"" str in
         "\"" ^ str ^ "\""
     | TStringMLStart (_, str, _, _) ->
         "\"" ^ str
@@ -670,7 +668,7 @@ module FluidToken = struct
     | TSep _ ->
         " "
     | TNewline _ ->
-        "\n"
+        "\\n"
     | TLetKeyword _ ->
         "let "
     | TLetAssignment _ ->
@@ -714,7 +712,7 @@ module FluidToken = struct
     | TListClose _ ->
         "]"
     | TListComma (_, _) ->
-        ","
+        ";"
     | TRecordOpen _ ->
         "{"
     | TRecordClose _ ->
@@ -722,7 +720,7 @@ module FluidToken = struct
     | TRecordFieldname f ->
         canBeEmpty f.fieldName
     | TRecordSep _ ->
-        " : "
+        " = "
     | TConstructorName (_, name) ->
         canBeEmpty name
     | TPipe _ ->
@@ -1283,11 +1281,11 @@ module Builder = struct
     ; ffTokenization = FeatureFlagOnlyDisabled }
 
 
-  let lineLimit = 120
+  let lineLimit = 40000
 
-  let strLimit = 40
+  let strLimit = 40000 (* Just dont *)
 
-  let listLimit = 60
+  let listLimit = 40000
 
   let add (token : fluidToken) (b : t) : t =
     let tokenLength = token |> T.toText |> String.length in
