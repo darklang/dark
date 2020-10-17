@@ -87,11 +87,12 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
   | _ -> convert' ast, R.EBool true
 
 
-let t (input : string) : Test =
-  testTask input {
-    let source = parse input
+let t (code : string) (comment : string) : Test =
+  let name = $"{comment} ({code})"
+  testTask name {
+    let source = parse code
     let actualProg, expectedResult = convert source
     let! actual = LibExecution.Execution.run actualProg
     let! expected = LibExecution.Execution.run expectedResult
-    return (Expect.equal actual expected input)
+    return (Expect.equal actual expected "")
   }

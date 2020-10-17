@@ -12,7 +12,6 @@
     <Compile Include="BwdServer/Tests.fs" />
     <Compile Include="ApiServer/Tests.fs" />
     <Compile Include="LibExecution/ExecUtils.fs" />
-    <Compile Include="LibExecution/StdLib/LibString.fs" />
     <Compile Include="LibExecution/StdLib/Tests.fs" />
     <Compile Include="LibExecution/Tests.fs" />
     <Compile Include="Tests.fs" />

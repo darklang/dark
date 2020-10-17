@@ -553,6 +553,8 @@ def mark(should, f):
       should.fsharp_backend_full_build = True
     elif (".fs" in f):
       should.fsharp_backend_quick_build = True
+    elif ("/tests/" in f):
+      should.fsharp_backend_test = True
 
   #FSTODO
   elif "/containers/ocaml-nginx/" in f and ".conf" in f:
