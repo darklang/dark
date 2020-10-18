@@ -9,7 +9,6 @@ module LibExecution.LibString
 //        | Some v -> Result.Ok v
 //        | None -> Result.Error(l, dv))
 //   |> Result.all
-//
 
 // let error_result msg =
 //   DResult(ResError(Dval.dstr_of_string_exn msg))
@@ -136,13 +135,11 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "String" "toInt" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TInt
-//   ; description = "Returns the int value of the string"
-//   ; fn =
-//
+    //      { name = fn "String" "toInt" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TInt
+//      ; description = "Returns the int value of the string"
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -154,17 +151,15 @@ let fns : List<BuiltInFn> =
 //                   "Expected a string with only numbers" )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "toInt" 1
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TResult
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "toInt" 1
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TResult
+//      ; description =
 //       "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -174,16 +169,14 @@ let fns : List<BuiltInFn> =
 //                   ("Expected a string with only numbers, got " ^ utf8) )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "toFloat" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TFloat
-//   ; description = "Returns the float value of the string"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "toFloat" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TFloat
+//      ; description = "Returns the float value of the string"
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -194,16 +187,14 @@ let fns : List<BuiltInFn> =
 //                   "Expected a string representation of an IEEE float" )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "toFloat" 1
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TResult
-//   ; description = "Returns the float value of the string"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "toFloat" 1
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TResult
+//      ; description = "Returns the float value of the string"
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             let utf8 = Unicode_string.to_string s in
@@ -213,65 +204,57 @@ let fns : List<BuiltInFn> =
 //                   "Expected a string representation of an IEEE float" )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "toUppercase" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description = "Returns the string, uppercased"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "toUppercase" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description = "Returns the string, uppercased"
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
 //               (String.uppercase (Unicode_string.to_string s))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "toUppercase" 1
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description = "Returns the string, uppercased"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "toUppercase" 1
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description = "Returns the string, uppercased"
+//      ; fn =
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "toLowercase" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description = "Returns the string, lowercased"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "toLowercase" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description = "Returns the string, lowercased"
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
 //               (String.lowercase (Unicode_string.to_string s))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "toLowercase" 1
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description = "Returns the string, lowercased"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "toLowercase" 1
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description = "Returns the string, lowercased"
+//      ; fn =
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
     { name = fn "String" "length" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
@@ -295,18 +278,16 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "String" "append" 0
+    //      { name = fn "String" "append" 0
 //       (* This used to provide "++" as an infix op.
 //        * It was moved to [String::append_v1] instead,
 //        * because we do not yet support versioning infix operators.
 //        * We decided this was safe under the assumption that no one should be
 //        * (and very likely no one is) relying on broken normalization. *)
-//
-//   ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//   ; returnType = TStr
-//   ; description = "Concatenates the two strings and returns the joined string"
-//   ; fn =
-//
+//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
+//      ; returnType = TStr
+//      ; description = "Concatenates the two strings and returns the joined string"
+//      ; fn =
 //         (function
 //         | _, [DStr s1; DStr s2] ->
 //             (* This implementation does not normalize post-concatenation.
@@ -315,48 +296,43 @@ let fns : List<BuiltInFn> =
 //             DStr (Unicode_string.append_broken s1 s2)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "append" 1
-//   ; infix_names = ["++"]
-//   ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "append" 1
+//      ; infix_names = ["++"]
+//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s1; DStr s2] ->
 //             DStr (Unicode_string.append s1 s2)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "prepend" 0
-//
-//   ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "prepend" 0
+//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s1; DStr s2] ->
 //             DStr (Unicode_string.append s2 s1)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "slugify" 0
-//
-//   ; parameters = [Param.make "string" TStr]
-//   ; returnType = TStr
-//   ; description = "Turns a string into a slug"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "slugify" 0
+//      ; parameters = [Param.make "string" TStr]
+//      ; returnType = TStr
+//      ; description = "Turns a string into a slug"
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             let replace = Unicode_string.regexp_replace in
@@ -377,16 +353,14 @@ let fns : List<BuiltInFn> =
 //             |> fun s -> DStr s
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "slugify" 1
-//
-//   ; parameters = [Param.make "string" TStr]
-//   ; returnType = TStr
-//   ; description = "Turns a string into a slug"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "slugify" 1
+//      ; parameters = [Param.make "string" TStr]
+//      ; returnType = TStr
+//      ; description = "Turns a string into a slug"
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             let replace = Unicode_string.regexp_replace in
@@ -407,17 +381,15 @@ let fns : List<BuiltInFn> =
 //             |> fun s -> DStr s
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "slugify" 2
-//
-//   ; parameters = [Param.make "string" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "slugify" 2
+//      ; parameters = [Param.make "string" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             (* Should work the same as https://blog.tersmitten.nl/slugify/ *)
@@ -438,29 +410,25 @@ let fns : List<BuiltInFn> =
 //             |> fun s -> DStr s
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "reverse" 0
-//
-//   ; parameters = [Param.make "string" TStr]
-//   ; returnType = TStr
-//   ; description = "Reverses `string`"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "reverse" 0
+//      ; parameters = [Param.make "string" TStr]
+//      ; returnType = TStr
+//      ; description = "Reverses `string`"
+//      ; fn =
 //         (function
 //         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "split" 0
-//
-//   ; parameters = [Param.make "s" TStr; Param.make "separator" TStr]
-//   ; returnType = TList
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "split" 0
+//      ; parameters = [Param.make "s" TStr; Param.make "separator" TStr]
+//      ; returnType = TList
+//      ; description =
 //       "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s; DStr sep] ->
 //             s
@@ -469,16 +437,14 @@ let fns : List<BuiltInFn> =
 //             |> DList
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "join" 0
-//
-//   ; parameters = [Param.make "l" TList; Param.make "separator" TStr]
-//   ; returnType = TStr
-//   ; description = "Combines a list of strings with the provided separator"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "join" 0
+//      ; parameters = [Param.make "l" TList; Param.make "separator" TStr]
+//      ; returnType = TStr
+//      ; description = "Combines a list of strings with the provided separator"
+//      ; fn =
 //         (function
 //         | _, [DList l; DStr sep] ->
 //             let s =
@@ -494,26 +460,23 @@ let fns : List<BuiltInFn> =
 //             DStr (Unicode_string.concat ~sep s)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "fromList" 0
-//
-//   ; parameters = [Param.make "l" TList]
-//   ; returnType = TStr
-//   ; description = "Returns the list of characters as a string"
-//   ; fn =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "fromList" 0
+//      ; parameters = [Param.make "l" TList]
+//      ; returnType = TStr
+//      ; description = "Returns the list of characters as a string"
+//      ; fn =
 //        (fun _ -> Exception.code "This function no longer exists.")
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "fromList" 1
-//
-//   ; parameters = [Param.make "l" TList]
-//   ; returnType = TStr
-//   ; description = "Returns the list of characters as a string"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "fromList" 1
+//      ; parameters = [Param.make "l" TList]
+//      ; returnType = TStr
+//      ; description = "Returns the list of characters as a string"
+//      ; fn =
 //         (function
 //         | _, [DList l] ->
 //             DStr
@@ -526,42 +489,37 @@ let fns : List<BuiltInFn> =
 //               |> Unicode_string.of_characters )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "fromChar" 0
-//
-//   ; parameters = [Param.make "c" TCharacter]
-//   ; returnType = TCharacter
-//   ; description = "Converts a char to a string"
-//   ; fn =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "fromChar" 0
+//      ; parameters = [Param.make "c" TCharacter]
+//      ; returnType = TCharacter
+//      ; description = "Converts a char to a string"
+//      ; fn =
 //        (fun _ -> Exception.code "This function no longer exists.")
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "fromChar" 1
-//
-//   ; parameters = [Param.make "c" TCharacter]
-//   ; returnType = TStr
-//   ; description = "Converts a char to a string"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "fromChar" 1
+//      ; parameters = [Param.make "c" TCharacter]
+//      ; returnType = TStr
+//      ; description = "Converts a char to a string"
+//      ; fn =
 //         (function
 //         | _, [DCharacter c] ->
 //             DStr (Unicode_string.of_character c)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "base64Encode" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "base64Encode" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
@@ -571,17 +529,15 @@ let fns : List<BuiltInFn> =
 //                  (Unicode_string.to_string s))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "base64Decode" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "base64Decode" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //           ( try
@@ -597,74 +553,65 @@ let fns : List<BuiltInFn> =
 //                        (Unicode_string.to_string s))
 //                 with Not_found_s _ | Caml.Not_found ->
 //                   RT.error
-//
 //                       (Dval.dstr_of_string_exn (Unicode_string.to_string s))
 //                     "Not a valid base64 string" ) )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "digest" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "digest" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Take a string and hash it to a cryptographically-secure digest.
 // Don't rely on either the size or the algorithm."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
 //               (Libtarget.digest384 (Unicode_string.to_string s))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "sha384" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "sha384" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Take a string and hash it using SHA384. Please use Crypto::sha384 instead."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
 //               (Libtarget.digest384 (Unicode_string.to_string s))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "sha256" 0
-//
-//   ; parameters = [Param.make "s" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "sha256" 0
+//      ; parameters = [Param.make "s" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Take a string and hash it using SHA256. Please use Crypto::sha256 instead."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
 //               (Libtarget.digest256 (Unicode_string.to_string s))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "random" 0
-//
-//   ; parameters = [Param.make "length" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "random" 0
+//      ; parameters = [Param.make "length" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "Generate a string of length `length` from random characters."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DInt l] ->
 //             if l < Dint.zero
@@ -674,17 +621,15 @@ let fns : List<BuiltInFn> =
 //                 (Stdlib_util.random_string (Dint.to_int_exn l))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "random" 1
-//
-//   ; parameters = [Param.make "length" TInt]
-//   ; returnType = TResult
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Impure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "random" 1
+//      ; parameters = [Param.make "length" TInt]
+//      ; returnType = TResult
+//      ; description =
 //       "Generate a string of length `length` from random characters."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DInt l] ->
 //             if l < Dint.zero
@@ -696,17 +641,15 @@ let fns : List<BuiltInFn> =
 //                       (Stdlib_util.random_string (Dint.to_int_exn l))))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "random" 2
-//
-//   ; parameters = [Param.make "length" TInt]
-//   ; returnType = TResult
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Impure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "random" 2
+//      ; parameters = [Param.make "length" TInt]
+//      ; returnType = TResult
+//      ; description =
 //       "Generate a string of length `length` from random characters."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DInt l] ->
 //             if l < Dint.zero
@@ -717,34 +660,30 @@ let fns : List<BuiltInFn> =
 //                    (Stdlib_util.random_string (Dint.to_int_exn l)))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "htmlEscape" 0
-//
-//   ; parameters = [Param.make "html" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Impure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "htmlEscape" 0
+//      ; parameters = [Param.make "html" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Escape an untrusted string in order to include it safely in HTML output."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //             Dval.dstr_of_string_exn
 //               (Stdlib_util.html_escape (Unicode_string.to_string s))
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "toUUID" 0
-//
-//   ; parameters = [Param.make "uuid" TStr]
-//   ; returnType = TUuid
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Impure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "toUUID" 0
+//      ; parameters = [Param.make "uuid" TStr]
+//      ; returnType = TUuid
+//      ; description =
 //       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //           ( match Uuidm.of_string (Unicode_string.to_string s) with
@@ -756,17 +695,15 @@ let fns : List<BuiltInFn> =
 //           )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "toUUID" 1
-//
-//   ; parameters = [Param.make "uuid" TStr]
-//   ; returnType = TResult
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "toUUID" 1
+//      ; parameters = [Param.make "uuid" TStr]
+//      ; returnType = TResult
+//      ; description =
 //       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s] ->
 //           ( match Uuidm.of_string (Unicode_string.to_string s) with
@@ -778,158 +715,140 @@ let fns : List<BuiltInFn> =
 //           )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "isSubstring" 0
-//
-//   ; parameters = [Param.make "searchingFor" TStr; Param.make "lookingIn" TStr]
-//   ; returnType = TBool
-//   ; description = "Checks if `lookingIn` contains `searchingFor`"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "isSubstring" 0
+//      ; parameters = [Param.make "searchingFor" TStr; Param.make "lookingIn" TStr]
+//      ; returnType = TBool
+//      ; description = "Checks if `lookingIn` contains `searchingFor`"
+//      ; fn =
 //         (function
 //         | _, [DStr needle; DStr haystack] ->
 //             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "isSubstring" 1
-//
-//   ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
-//   ; returnType = TBool
-//   ; description = "Checks if `lookingIn` contains `searchingFor`"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "isSubstring" 1
+//      ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
+//      ; returnType = TBool
+//      ; description = "Checks if `lookingIn` contains `searchingFor`"
+//      ; fn =
 //         (function
 //         | _, [DStr haystack; DStr needle] ->
 //             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "String" "contains" 0
-//
-//   ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
-//   ; returnType = TBool
-//   ; description = "Checks if `lookingIn` contains `searchingFor`"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = ReplacedBy(fn "" "" 0) }
+//      { name = fn "String" "contains" 0
+//      ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
+//      ; returnType = TBool
+//      ; description = "Checks if `lookingIn` contains `searchingFor`"
+//      ; fn =
 //         (function
 //         | _, [DStr haystack; DStr needle] ->
 //             DBool (Unicode_string.is_substring needle haystack)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "slice" 0
-//
-//   ; parameters = [Param.make "string" TStr; Param.make "from" TInt; Param.make "to" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "slice" 0
+//      ; parameters = [Param.make "string" TStr; Param.make "from" TInt; Param.make "to" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "Returns the substring of `string` between the `from` and `to` indices.
 //        Negative indices start counting from the end of `string`.
 //        Indices represent characters."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s; DInt f; DInt l] ->
 //             let first, last = (Dint.to_int_exn f, Dint.to_int_exn l) in
 //             DStr (Unicode_string.slice s ~first ~last)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "first" 0
-//
-//   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "first" 0
+//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "Returns the first `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns `string`.
 //       If `characterCount` is negative, returns the empty string."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.first_n s n)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "last" 0
-//
-//   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "last" 0
+//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "Returns the last `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns `string`.
 //       If `characterCount` is negative, returns the empty string."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.last_n s n)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "dropLast" 0
-//
-//   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "dropLast" 0
+//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "Returns all but the last `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns the empty string.
 //       If `characterCount` is negative, returns `string`."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.drop_last_n s n)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "dropFirst" 0
-//
-//   ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "dropFirst" 0
+//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "Returns all but the first `characterCount` characters of `string`, as a String.
 //       If `characterCount` is longer than `string`, returns the empty string.
 //       If `characterCount` is negative, returns `string`."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr s; DInt n] ->
 //             let n = Dint.to_int_exn n in
 //             DStr (Unicode_string.drop_first_n s n)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "padStart" 0
-//
-//   ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "padStart" 0
+//      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
 //       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | state, [DStr s; DStr pad_with; DInt l] ->
 //             let padLen = Unicode_string.length pad_with in
@@ -949,18 +868,16 @@ let fns : List<BuiltInFn> =
 //                   ^ " characters long." )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "padEnd" 0
-//
-//   ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "padEnd" 0
+//      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
+//      ; returnType = TStr
+//      ; description =
 //       "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
 //       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | state, [DStr s; DStr pad_with; DInt l] ->
 //             let padLen = Unicode_string.length pad_with in
@@ -980,9 +897,9 @@ let fns : List<BuiltInFn> =
 //                   ^ " characters long." )
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
     { name = fn "String" "trim" 0
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
@@ -995,70 +912,62 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "String" "trimStart" 0
-//
-//   ; parameters = [Param.make "str" TStr]
-//   ; returnType = TStr
-//   ; description =
+    //      { name = fn "String" "trimStart" 0
+//      ; parameters = [Param.make "str" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim_start to_trim)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "trimEnd" 0
-//
-//   ; parameters = [Param.make "str" TStr]
-//   ; returnType = TStr
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "trimEnd" 0
+//      ; parameters = [Param.make "str" TStr]
+//      ; returnType = TStr
+//      ; description =
 //       "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr to_trim] ->
 //             DStr (Unicode_string.trim_end to_trim)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "toBytes" 0
-//
-//   ; parameters = [Param.make "str" TStr]
-//   ; returnType = TBytes
-//   ; description =
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "toBytes" 0
+//      ; parameters = [Param.make "str" TStr]
+//      ; returnType = TBytes
+//      ; description =
 //       "Converts the given unicode string to a utf8-encoded byte sequence."
-//   ; fn =
-//
+//      ; fn =
 //         (function
 //         | _, [DStr str] ->
 //             let theBytes = Unicode_string.to_utf8_bytes str in
 //             DBytes theBytes
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "startsWith" 0
-//
-//   ; parameters = [Param.make "subject" TStr; Param.make "prefix" TStr]
-//   ; returnType = TBool
-//   ; description = "Checks if `subject` starts with `prefix`"
-//   ; fn =
-//
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
+//      { name = fn "String" "startsWith" 0
+//      ; parameters = [Param.make "subject" TStr; Param.make "prefix" TStr]
+//      ; returnType = TBool
+//      ; description = "Checks if `subject` starts with `prefix`"
+//      ; fn =
 //         (function
 //         | _, [DStr subject; DStr prefix] ->
 //             DBool (Unicode_string.starts_with ~prefix subject)
 //         | args ->
 //             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
+//      ; sqlSpec = NotYetImplementedTODO
+//      ; previewable = Pure
+//      ; deprecated = NotDeprecated }
     { name = fn "String" "endsWith" 0
       parameters =
         [ Param.make "subject" TStr "String to test"
