@@ -21,7 +21,7 @@ open Prelude
 
 let fn = FnDesc.stdFnDesc
 
-let fns: List<BuiltInFn> =
+let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TBool
@@ -36,7 +36,10 @@ let fns: List<BuiltInFn> =
     { name = fn "String" "foreach" 0
       parameters =
         [ Param.make "s" TStr "string to iterate over"
-          Param.make "f" (TFn([ TChar ], TChar)) "function used to convert one character to another" ]
+          Param.make
+            "f"
+            (TFn([ TChar ], TChar))
+            "function used to convert one character to another" ]
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
@@ -46,8 +49,7 @@ let fns: List<BuiltInFn> =
       deprecated = ReplacedBy(fn "String" "foreach" 1) }
     { name = fn "String" "foreach" 1
       parameters =
-        [ Param.make "s" TStr ""
-          Param.make "f" (TFn([ TChar ], TChar)) "" ]
+        [ Param.make "s" TStr ""; Param.make "f" (TFn([ TChar ], TChar)) "" ]
       returnType = TStr
       description =
         "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
@@ -56,7 +58,8 @@ let fns: List<BuiltInFn> =
         | state, [ DStr s; DLambda b ] ->
             (String.toEgcSeq s
              |> Seq.toList
-             |> Runtime.map_s (fun te -> (Interpreter.eval_lambda state b [ DChar te ]))
+             |> Runtime.map_s (fun te ->
+                  (Interpreter.eval_lambda state b [ DChar te ]))
              |> (fun dvals ->
              Task
                (task {
@@ -65,7 +68,10 @@ let fns: List<BuiltInFn> =
                  let chars =
                    List.map (function
                      | DChar c -> c
-                     | dv -> raise (RuntimeException(LambdaResultHasWrongType(dv, TChar)))) dvals
+                     | dv ->
+                         raise
+                           (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
+                     dvals
 
                  let str = String.concat "" chars
 
@@ -116,12 +122,16 @@ let fns: List<BuiltInFn> =
       parameters =
         [ Param.make "s" TStr "The string to operate on"
           Param.make "searchFor" TStr "The string to search for within <param s>"
-          Param.make "replaceWith" TStr "The string to replace all instances of <param searchFor> with" ]
+          Param.make
+            "replaceWith"
+            TStr
+            "The string to replace all instances of <param searchFor> with" ]
       returnType = TStr
       description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
       fn =
         (function
-        | _, [ DStr s; DStr search; DStr replace ] -> Plain(DStr(s.Replace(search, replace)))
+        | _, [ DStr s; DStr search; DStr replace ] ->
+            Plain(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -269,10 +279,7 @@ let fns: List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            s
-            |> System.Text.ASCIIEncoding.Unicode.GetByteCount
-            |> Dval.int
-            |> Plain
+            s |> System.Text.ASCIIEncoding.Unicode.GetByteCount |> Dval.int |> Plain
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -976,23 +983,19 @@ let fns: List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 // ;   previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "trim" 0
-//
-//   ; parameters = [Param.make "str" TStr]
-//   ; returnType = TStr
-//   ; description =
-//       "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//   ; fn =
-//
-//         (function
-//         | _, [DStr to_trim] ->
-//             DStr (Unicode_string.trim to_trim)
-//         | args ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ;   previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "String" "trimStart" 0
+    { name = fn "String" "trim" 0
+      parameters = [ Param.make "str" TStr "" ]
+      returnType = TStr
+      description =
+        "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+      fn =
+        (function
+        | _, [ DStr toTrim ] -> Plain(DStr(toTrim.Trim()))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    // ; { name = fn "String" "trimStart" 0
 //
 //   ; parameters = [Param.make "str" TStr]
 //   ; returnType = TStr
