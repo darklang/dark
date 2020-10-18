@@ -53,12 +53,12 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
     | SynExpr.Const (SynConst.String (str, _), _) -> R.EString(str)
     | SynExpr.App (_,
                    _,
-                   SynExpr.Ident op_ColonColon,  // :: separator for modules
-                   SynExpr.Tuple (_,
-                                  [ SynExpr.Ident modName;
-                                    SynExpr.App (_, _, SynExpr.Ident fnName, arg, _) ],
-                                  _,
-                                  _),
+                   SynExpr.LongIdent (_,
+                                      // Note to self: LongIdent = Ident list
+                                      LongIdentWithDots ([ modName; fnName ], _),
+                                      _,
+                                      _),
+                   _,
                    _) -> // fn calls with modules
         let name, version =
           match fnName.idText.Split "_v" with
@@ -66,7 +66,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
           | _ -> failwith $"Version name isn't expected format {fnName.idText}"
 
         let fnDesc = R.FnDesc.stdFnDesc modName.idText name version
-        R.EFnCall(fnDesc, [ c arg ])
+        R.EFnCall(fnDesc, [])
     | SynExpr.App (_, _, SynExpr.Ident op_Equality, arg, _) -> // binops
         let fnDesc = R.FnDesc.stdFnDesc "" "==" 0
         R.EFnCall(fnDesc, [ c arg ])
