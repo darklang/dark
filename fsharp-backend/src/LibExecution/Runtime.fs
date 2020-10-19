@@ -91,12 +91,33 @@ and LambdaBlock =
 // Runtime values
 and Dval =
   | DInt of bigint
+  | DFloat of double
   | DBool of bool
+  | DNull
   | DStr of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
-  | DFakeVal of FakeDval
+  (* compound types *)
   | DList of List<Dval>
+  | DObj of Map<string, Dval>
+  (* special types - see notes above *)
   | DLambda of LambdaBlock
+  | DFakeVal of FakeDval
+  (* user types: awaiting a better type system *)
+  // FSTODO
+  (* | DResp of (dhttp * dval) *)
+  | DDB of string
+  // FSTODO
+  (* | DDate of time *)
+  // FSTODO
+  (* | DPassword of PasswordBytes.t *)
+  // FSTODO
+  (* | DUuid of uuid *)
+  | DOption of Option<Dval>
+  | DResult of Result<Dval, Dval>
+  // FSTODO
+  (* | DBytes of RawBytes.t *)
+
+
 
   static member int(i : int) = DInt(bigint i)
 
@@ -124,10 +145,13 @@ and Dval =
   // Split into multiple files, each for the different kinds of serializers
   member this.toJSON() : JsonValue =
     let rec encodeDval (dv : Dval) : JsonValue =
+      let encodeWithType name value = Encode.object [ name, Encode.string value ]
       match dv with
       | DInt i -> Encode.bigint i
       | DChar c -> Encode.string c
+      | DFloat d -> Encode.float d
       | DStr str -> Encode.string str
+      | DNull -> Encode.unit ()
       | DList l -> l |> List.map encodeDval |> Encode.list
       | DBool b -> Encode.bool b
       | DLambda _ -> Encode.nil
@@ -136,6 +160,16 @@ and Dval =
       | DFakeVal (DIncomplete (_)) -> Encode.object [ "incomplete", Encode.unit () ]
       | DFakeVal (DErrorRail (value)) ->
           Encode.object [ "errorrail", encodeDval value ]
+      | DObj obj ->
+          Encode.object
+            (obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v))
+      | DDB name -> encodeWithType "db" name
+      | DOption (Some dv) -> encodeDval dv
+      | DOption (None) -> Encode.unit ()
+      | DResult (Ok dv) -> encodeDval dv
+      | DResult (Error dv) -> Encode.object [ "error", encodeDval dv ]
+    // FSTODO
+    (* | _ -> Encode.unit () *)
 
     encodeDval this
 
@@ -207,6 +241,9 @@ and Param =
 // Runtime errors can be things that happen relatively commonly (such as calling
 // a function with an incorrect type), or things that aren't supposed to happen
 // but technically can (such as accessing a variable which doesn't exist) *)
+// FSTODO: this will be better for everyone if it's just a string. We can turn
+// these into functions to create the string if we want. The type safety here
+// isn't worth the storage/serialization challenges of changing these later.
 and RuntimeError =
   | NotAFunction of FnDesc.T
   | FunctionRemoved of FnDesc.T
@@ -216,7 +253,9 @@ and RuntimeError =
   | LambdaCalledWithWrongCount of List<Dval> * List<string>
   | LambdaCalledWithWrongType of List<Dval> * List<string>
   | LambdaResultHasWrongType of Dval * DType
+  | InvalidFloatExpression of int * int
   | UndefinedVariable of string
+  | UndefinedConstructor of string
 
 // Within a function call, we don't have the data available to make good
 // RuntimeErrors, so instead return a signal and let the calling code fill in the

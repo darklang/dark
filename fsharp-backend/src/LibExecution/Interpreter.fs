@@ -18,9 +18,22 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   | ERightPartial (_, _, expr)
   | ELeftPartial (_, _, expr) -> eval state st expr
   | EPipeTarget id -> incomplete id
-  | EInteger (_id, i) -> Plain(DInt i)
-  | EBool (_id, b) -> Plain(DBool b)
+  | ELet (_id, lhs, rhs, body) ->
+      // FSTODO: match with ast.ml
+      let rhs = eval state st rhs
+      rhs.bind (fun rhs ->
+        let st = st.Add(lhs, rhs)
+        eval state st body)
   | EString (_id, s) -> Plain(DStr s)
+  | EBool (_id, b) -> Plain(DBool b)
+  | EInteger (_id, i) -> Plain(DInt i)
+  | EFloat (_id, whole, fractional) ->
+      // FSTODO - add sourceID to errors
+      try
+        Plain(DFloat(float $"{whole}.{fractional}"))
+      with _ -> Plain(err (InvalidFloatExpression(whole, fractional)))
+  | ENull _id -> Plain(DNull)
+  | ECharacter (_id, s) -> Plain(DChar s)
   | EList (_id, exprs) ->
       // We ignore incompletes but not error rail.
       // TODO: Other places where lists are created propagate incompletes
@@ -35,11 +48,10 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
           | Some er -> return er
           | None -> return (DList filtered)
          })
-  | ELet (_id, lhs, rhs, body) ->
-      let rhs = eval state st rhs
-      rhs.bind (fun rhs ->
-        let st = st.Add(lhs, rhs)
-        eval state st body)
+  | EVariable (_id, name) ->
+      // FSTODO: match ast.ml
+      Plain(Symtable.get st name)
+  | ERecord (id, _) -> incomplete id // FSTODO
   | EFnCall (_id, desc, exprs, ster) ->
       (match tryFindFn desc with
        | Some fn ->
@@ -56,15 +68,82 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
            let t2 = eval state st arg2
            t1.bind2 t2 (fun arg1 arg2 -> callFn state fn [ arg1; arg2 ])
        | None -> Plain(err (NotAFunction desc)))
+  | EFeatureFlag (id, _, cond, oldcode, newcode) ->
+      (* True gives newexpr, unlike in If statements
+         *
+         * In If statements, we use a false/null as false, and anything else is
+         * true. But this won't work for feature flags. If statements are built
+         * as you build you code, with no existing users. But feature flags are
+         * created when you have users and don't want to break your code. As a
+         * result, anything that isn't an explicitly signalling to use the new
+         * code, should use the old code:
+         * - errors should be ignored: use old code
+         * - incompletes should be ignored: use old code
+         * - errorrail should not be propaged: use old code
+         * - values which are "truthy" in if statements are not truthy here:
+         * imagine you are writing the FF cond and you get a list or object,
+         * and you're about to do some other work on it. Should we immediately
+         * start serving the new code to all your traffic? No. So only `true`
+         * gets new code. *)
+      (* let cond = eval state st cond *)
+      (* cond.bind (function *)
+      (*   | DBool (true) -> eval state st thenbody *)
+      (*   | DBool (false) -> eval state st elsebody *)
+      (*   | cond -> Task(task { return (err (CondWithNonBool cond)) })) *)
+
+      let cond =
+        (* under no circumstances should this cause code to fail *)
+        try
+          eval state st cond
+        with e -> Plain(DBool false)
+
+      (cond.bind (function
+        | DBool true ->
+            // FSTODO
+            (* preview st oldcode *)
+            eval state st newcode
+        // FSTODO
+        | DFakeVal _ ->
+            // FSTODO
+            (* preview st newcode *)
+            eval state st oldcode
+        | _ ->
+            // FSTODO
+            (* preview st newcode *)
+            eval state st oldcode))
+
+  // FSTODO
   | ELambda (_id, parameters, body) ->
       Plain(DLambda({ symtable = st; parameters = parameters; body = body }))
-  | EVariable (_id, name) -> Plain(Symtable.get st name)
   | EIf (_id, cond, thenbody, elsebody) ->
       let cond = eval state st cond
       cond.bind (function
         | DBool (true) -> eval state st thenbody
         | DBool (false) -> eval state st elsebody
         | cond -> Task(task { return (err (CondWithNonBool cond)) }))
+  | EConstructor (id, name, args) ->
+      (match (name, args) with
+       | "Nothing", [] -> Plain(DOption None)
+       | "Just", [ arg ] ->
+           Task
+             (task {
+               let! dv = (eval state st arg).toTask()
+               return DOption(Some dv)
+              })
+       | "Ok", [ arg ] ->
+           Task
+             (task {
+               let! dv = (eval state st arg).toTask()
+               return DResult(Ok dv)
+              })
+       | "Error", [ arg ] ->
+           Task
+             (task {
+               let! dv = (eval state st arg).toTask()
+               return DResult(Error dv)
+              })
+       | _ -> Plain(DFakeVal(DError(UndefinedConstructor name))))
+
 
 
 and callFn (state : ExecutionState) (fn : BuiltInFn) (args : List<Dval>) : DvalTask =

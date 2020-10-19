@@ -104,7 +104,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
 let t (code : string) (comment : string) : Test =
   let name = $"{comment} ({code})"
   if code.StartsWith "//" then
-    pTestTask name { return (Expect.equal "skipped" "skipped" "") }
+    ptestTask name { return (Expect.equal "skipped" "skipped" "") }
   else
     testTask name {
       let source = parse code
