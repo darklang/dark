@@ -467,7 +467,7 @@ module Shortcuts =
     // get enough bytes for an int64, trim it to an int63 for now to match ocaml.
     let bytes = Array.init 8 (fun _ -> (byte) 0)
     random.NextBytes(bytes)
-    let rand64 : int64 = System.BitConverter.ToInt64(bytes, 8)
+    let rand64 : int64 = System.BitConverter.ToInt64(bytes, 0)
     let mask : int64 = 9223372036854775807L
     rand64 &&& mask
 
