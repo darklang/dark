@@ -57,6 +57,7 @@ type Expr =
   | EInteger of id * bigint
   | EBool of id * bool
   | EString of id * string
+  | ECharacter of id * string
   | EFloat of id * int * int
   | ENull of id
   | EBlank of id
@@ -527,6 +528,8 @@ module Shortcuts =
 
   let estr (str : string) : Expr = EString(gid (), str)
   let eint (i : int) : Expr = EInteger(gid (), bigint i)
+  let echar (c : char) : Expr = ECharacter(gid (), string c)
+  let echarStr (c : string) : Expr = ECharacter(gid (), c)
   let eblank () : Expr = EBlank(gid ())
   let ebool (b : bool) : Expr = EBool(gid (), b)
   let efloat (whole : int) (fraction : int) : Expr = EFloat(gid (), whole, fraction)
