@@ -54,6 +54,10 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
     | SynExpr.Const (SynConst.Int32 n, _) -> eint n
     | SynExpr.Const (SynConst.Char c, _) -> echar c
     | SynExpr.Const (SynConst.Bool b, _) -> ebool b
+    | SynExpr.Const (SynConst.Double d, _) ->
+        let parts = d.ToString().Split "."
+        printf $"{parts}"
+        efloat (int parts.[0]) (int parts.[1])
     | SynExpr.Const (SynConst.String (s, _), _) -> estr s
     | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> elist
     | SynExpr.ArrayOrListOfSeqExpr (_,
