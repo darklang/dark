@@ -44,14 +44,16 @@ let parse (input) : SynExpr =
   | _ -> failwith $" - wrong shape tree: {results}"
 
 
+open R.Shortcuts
 
 let convert (ast : SynExpr) : R.Expr * R.Expr =
+
   let rec convert' (expr : SynExpr) : R.Expr =
     let c = convert'
     match expr with
-    | SynExpr.Const (SynConst.Int32 n, _) -> R.EInt(bigint n)
-    | SynExpr.Const (SynConst.String (str, _), _) -> R.EString(str)
-    | SynExpr.ArrayOrList (_, [], _) -> R.EList([])
+    | SynExpr.Const (SynConst.Int32 n, _) -> eint n
+    | SynExpr.Const (SynConst.String (s, _), _) -> estr s
+    | SynExpr.ArrayOrList (_, [], _) -> elist []
     | SynExpr.App (_,
                    _,
                    SynExpr.LongIdent (_,
@@ -63,18 +65,17 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                    _) -> // fn calls with modules
         let name, version =
           match fnName.idText.Split "_v" with
-          | [| name; version |] -> name, int version
+          | [| name; version |] -> (name, int version)
           | _ -> failwith $"Version name isn't expected format {fnName.idText}"
 
-        let fnDesc = R.FnDesc.stdFnDesc modName.idText name version
-        R.EFnCall(fnDesc, [])
+        efn modName.idText name version []
     | SynExpr.App (_, _, SynExpr.Ident op_Equality, arg, _) -> // binops
-        let fnDesc = R.FnDesc.stdFnDesc "" "==" 0
-        R.EFnCall(fnDesc, [ c arg ])
+        efn "" "==" 0 [ c arg ]
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App (_, _, (SynExpr.App _ as expr), arg, _) -> // binops
         match c expr with
-        | R.EFnCall (name, args) -> R.EFnCall(name, args @ [ c arg ])
+        | R.EFnCall (id, name, args, ster) ->
+            R.EFnCall(id, name, args @ [ c arg ], ster)
         | expr -> failwith $"Unsupported expression: {expr}"
     | expr -> failwith $"Unsupported expression: {expr}"
 
@@ -85,7 +86,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                  SynExpr.App (_, _, SynExpr.Ident op_Equality, arg2, _),
                  arg1,
                  _) -> (convert' arg1, convert' arg2)
-  | _ -> convert' ast, R.EBool true
+  | _ -> convert' ast, ebool true
 
 
 let t (code : string) (comment : string) : Test =

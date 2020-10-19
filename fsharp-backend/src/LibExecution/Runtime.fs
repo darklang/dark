@@ -53,21 +53,39 @@ module FnDesc =
     fnDesc "dark" "stdlib" module_ function_ version
 
 // Expressions - the main part of the language
-
 type Expr =
-  | EBlank of id
-  | EInt of id * bigint
+  | EInteger of id * bigint
   | EBool of id * bool
   | EString of id * string
-  | EList of id * List<Expr>
+  | EFloat of id * int * int
+  | ENull of id
+  | EBlank of id
   | ELet of id * string * Expr * Expr
-  | EVariable of id * string
-  | EFnCall of id * FnDesc.T * List<Expr> // FSTODO: Error rail
-  | EBinOp of id * Expr * FnDesc.T * Expr
-  | ELambda of id * List<string> * Expr
   | EIf of id * Expr * Expr * Expr
+  | EBinOp of id * FnDesc.T * Expr * Expr * SendToRail
+  | ELambda of id * List<id * string> * Expr
+  | EFieldAccess of id * Expr * string
+  | EVariable of id * string
+  | EFnCall of id * FnDesc.T * List<Expr> * SendToRail
+  | EPartial of id * string * Expr
+  | ERightPartial of id * string * Expr
+  | ELeftPartial of id * string * Expr
+  | EList of id * List<Expr>
+  | ERecord of id * List<string * Expr>
+  | EPipe of id * Expr * Expr * List<Expr>
+  | EConstructor of id * string * List<Expr>
+  | EMatch of id //FSTODO pattern
+  | EPipeTarget of id
+  | EFeatureFlag of id * string * Expr * Expr * Expr
 
-and LambdaBlock = { parameters : List<string>; symtable : Symtable; body : Expr }
+and SendToRail =
+  | Rail
+  | NoRail
+
+and LambdaBlock =
+  { parameters : List<id * string>
+    symtable : Symtable
+    body : Expr }
 
 // Runtime values
 and Dval =
@@ -453,20 +471,183 @@ module Shortcuts =
     let mask : int64 = 9223372036854775807L
     rand64 &&& mask
 
-  let fn (module_ : string)
-         (function_ : string)
-         (version : int)
-         (args : List<Expr>)
-         : Expr =
-    EFnCall(gid (), FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args)
+  let efn' (module_ : string)
+           (function_ : string)
+           (version : int)
+           (args : List<Expr>)
+           (ster : SendToRail)
+           : Expr =
+    EFnCall
+      (gid (), FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args, ster)
 
-  let binOp (arg1 : Expr)
-            (module_ : string)
-            (function_ : string)
-            (version : int)
-            (arg2 : Expr)
-            : Expr =
+  let efn (module_ : string)
+          (function_ : string)
+          (version : int)
+          (args : List<Expr>)
+          : Expr =
+    efn' module_ function_ version args NoRail
+
+  let erailFn (module_ : string)
+              (function_ : string)
+              (version : int)
+              (args : List<Expr>)
+              : Expr =
+    efn' module_ function_ version args Rail
+
+  let ebinOp' (module_ : string)
+              (function_ : string)
+              (version : int)
+              (arg1 : Expr)
+              (arg2 : Expr)
+              (ster : SendToRail)
+              : Expr =
     EBinOp
-      (gid (), arg1, FnDesc.fnDesc "dark" "stdlib" module_ function_ version, arg2)
+      (gid (),
+       FnDesc.fnDesc "dark" "stdlib" module_ function_ version,
+       arg1,
+       arg2,
+       ster)
 
-  let str (str : string) = EString(gid (), str)
+  let ebinOp (module_ : string)
+             (function_ : string)
+             (version : int)
+             (arg1 : Expr)
+             (arg2 : Expr)
+             : Expr =
+    ebinOp' module_ function_ version arg1 arg2 NoRail
+
+  // An ebinOp that's on the rail
+  let erailBinOp (module_ : string)
+                 (function_ : string)
+                 (version : int)
+                 (arg1 : Expr)
+                 (arg2 : Expr)
+                 : Expr =
+    ebinOp' module_ function_ version arg1 arg2 Rail
+
+  let estr (str : string) : Expr = EString(gid (), str)
+  let eint (i : int) : Expr = EInteger(gid (), bigint i)
+  let eblank () : Expr = EBlank(gid ())
+  let ebool (b : bool) : Expr = EBool(gid (), b)
+  let efloat (whole : int) (fraction : int) : Expr = EFloat(gid (), whole, fraction)
+  let enull () : Expr = ENull(gid ())
+
+  let erecord (rows : (string * Expr) list) : Expr = ERecord(gid (), rows)
+
+  let elist (elems : Expr list) : Expr = EList(gid (), elems)
+  let epipeTarget () = EPipeTarget(gid ())
+(*  *)
+(*  *)
+(* let partial (str : string) (e : t) : Expr = EPartial (gid () ,str, e) *)
+(*  *)
+(* let rightPartial (str : string) (e : t) : Expr = *)
+(*   ERightPartial (gid () ,str, e) *)
+(*  *)
+(*  *)
+(* let leftPartial (str : string) (e : t) : Expr = *)
+(*   ELeftPartial (gid () ,str, e) *)
+(*  *)
+(*  *)
+(* let var (name : string) : Expr = EVariable (gid () ,name) *)
+(*  *)
+(* let fieldAccess (expr : t) (fieldName : string) : Expr = *)
+(*   EFieldAccess (gid () ,expr, fieldName) *)
+(*  *)
+(*  *)
+(* let if' (cond : t) (then' : t) (else' : t) : Expr = *)
+(*   EIf (gid () ,cond, then', else') *)
+(*  *)
+(*  *)
+(* let let' (varName : string) (rhs : t) (body : t) : Expr = *)
+(*   ELet (gid () ,varName, rhs, body) *)
+(*  *)
+(*  *)
+(* let lambda (varNames : string list) (body : t) : Expr = *)
+(*   ELambda (gid () ,List.map (fun name -> (gid (), name)) varNames , body) *)
+(*  *)
+(*  *)
+(* let pipe (first : t) (rest : Expr list) : Expr = *)
+(*   EPipe (gid () ,first :: rest) *)
+(*  *)
+(*  *)
+(* let constructor (name : string) (args : Expr list) : Expr = *)
+(*   EConstructor (gid () ,name, args) *)
+(*  *)
+(*  *)
+(* let just (arg : t) : Expr = EConstructor (gid () ,"Just", [arg]) *)
+(*  *)
+(* let nothing () : Expr = EConstructor (gid () ,"Nothing", []) *)
+(*  *)
+(* let error (arg : t) : Expr = EConstructor (gid () ,"Error", [arg]) *)
+(*  *)
+(* let ok (arg : t) : Expr = EConstructor (gid () ,"Ok", [arg]) *)
+(*  *)
+(* let match' (cond : t) (matches : (FluidPattern.t * t) list) : Expr = *)
+(*   EMatch (gid () ,cond, matches) *)
+(*  *)
+(*  *)
+(* let pInt (int : int) : FluidPattern.t = *)
+(*   FPInteger (mid, id, string_of_int int) *)
+(*  *)
+(*  *)
+(* let pIntStr (int : string) : FluidPattern.t = *)
+(*   FPInteger (mid, id, int) *)
+(*  *)
+(*  *)
+(* let pVar (name : string) : FluidPattern.t = *)
+(*   FPVariable (mid, id, name) *)
+(*  *)
+(*  *)
+(* let pConstructor *)
+(*     ?(mid = gid ()) *)
+(*     ?(id = gid ()) *)
+(*     (name : string) *)
+(*     (patterns : FluidPattern.t list) : FluidPattern.t = *)
+(*   FPConstructor (mid, id, name, patterns) *)
+(*  *)
+(*  *)
+(* let pJust (arg : FluidPattern.t) : FluidPattern.t *)
+(*     = *)
+(*   FPConstructor (mid, id, "Just", [arg]) *)
+(*  *)
+(*  *)
+(* let pNothing () : FluidPattern.t = *)
+(*   FPConstructor (mid, id, "Nothing", []) *)
+(*  *)
+(*  *)
+(* let pError (arg : FluidPattern.t) : *)
+(*     FluidPattern.t = *)
+(*   FPConstructor (mid, id, "Error", [arg]) *)
+(*  *)
+(*  *)
+(* let pOk (arg : FluidPattern.t) : FluidPattern.t = *)
+(*   FPConstructor (mid, id, "Ok", [arg]) *)
+(*  *)
+(*  *)
+(* let pBool (b : bool) : FluidPattern.t = *)
+(*   FPBool (mid, id, b) *)
+(*  *)
+(*  *)
+(* let pString (str : string) : FluidPattern.t = *)
+(*   FPString {matchID = mid; patternID = id; str} *)
+(*  *)
+(*  *)
+(* let pFloatStr *)
+(*     (whole : string) (fraction : string) : *)
+(*     FluidPattern.t = *)
+(*   FPFloat (mid, id, whole, fraction) *)
+(*  *)
+(*  *)
+(* let pFloat (whole : int) (fraction : int) : *)
+(*     FluidPattern.t = *)
+(*   FPFloat (mid, id, string_of_int whole, string_of_int fraction) *)
+(*  *)
+(*  *)
+(* let pNull () : FluidPattern.t = FPNull (mid, id) *)
+(*  *)
+(* let pBlank () : FluidPattern.t = FPBlank (mid, id) *)
+(*  *)
+(* let flag ?(name = "flag-1") cond oldCode newCode = *)
+(*   EFeatureFlag (gid () ,name, cond, oldCode, newCode) *)
+(*  *)
+(*  *)

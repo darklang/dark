@@ -11,9 +11,14 @@ open Runtime
 let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   let tryFindFn desc = state.functions.TryFind(desc)
   let sourceID id = SourceID(state.tlid, id)
+  let incomplete id = Plain(DFakeVal(DIncomplete(SourceID(state.tlid, id))))
   match e with
-  | EBlank id -> Plain(DFakeVal(DIncomplete(sourceID id)))
-  | EInt (_id, i) -> Plain(DInt i)
+  | EBlank id -> incomplete id
+  | EPartial (_, _, expr)
+  | ERightPartial (_, _, expr)
+  | ELeftPartial (_, _, expr) -> eval state st expr
+  | EPipeTarget id -> incomplete id
+  | EInteger (_id, i) -> Plain(DInt i)
   | EBool (_id, b) -> Plain(DBool b)
   | EString (_id, s) -> Plain(DStr s)
   | EList (_id, exprs) ->
@@ -35,7 +40,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
       rhs.bind (fun rhs ->
         let st = st.Add(lhs, rhs)
         eval state st body)
-  | EFnCall (_id, desc, exprs) ->
+  | EFnCall (_id, desc, exprs, ster) ->
       (match tryFindFn desc with
        | Some fn ->
            Task
@@ -44,7 +49,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                return! (callFn state fn (Seq.toList args)).toTask()
               })
        | None -> Plain(err (NotAFunction desc)))
-  | EBinOp (_id, arg1, desc, arg2) ->
+  | EBinOp (_id, desc, arg1, arg2, ster) ->
       (match tryFindFn desc with
        | Some fn ->
            let t1 = eval state st arg1
@@ -84,17 +89,19 @@ and eval_lambda (state : ExecutionState)
   match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
   | Some dv -> Plain(dv)
   | None ->
+      let parameters = List.map snd l.parameters
       (* One of the reasons to take a separate list of params and args is to
        * provide this error message here. We don't have this information in
        * other places, and the alternative is just to provide incompletes
        * with no context *)
       if List.length l.parameters <> List.length args then
-        Plain(err (LambdaCalledWithWrongCount(args, l.parameters)))
+        Plain(err (LambdaCalledWithWrongCount(args, parameters)))
       else
         // FSTODO
         // let bindings = List.zip_exn params args in
         // List.iter bindings ~f:(fun ((id, paramName), dv) ->
         //     state.trace ~on_execution_path:state.on_execution_path id dv) ;
-        let newSymtable = List.zip l.parameters args |> Map |> Map.union l.symtable
+        // #FSTODO is this being overwritten correctly? so latest items win?
+        let newSymtable = List.zip parameters args |> Map |> Map.union l.symtable
 
         eval state newSymtable l.body
