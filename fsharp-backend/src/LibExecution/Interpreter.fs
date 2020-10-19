@@ -10,16 +10,32 @@ open Runtime
 // fsharplint:disable FL0039
 let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   let tryFindFn desc = state.functions.TryFind(desc)
+  let sourceID id = SourceID(state.tlid, id)
   match e with
-  | EInt i -> Plain(DInt i)
-  | EBool b -> Plain(DBool b)
-  | EString s -> Plain(DStr s)
-  | ELet (lhs, rhs, body) ->
+  | EBlank id -> Plain(DFakeVal(DIncomplete(sourceID id)))
+  | EInt (_id, i) -> Plain(DInt i)
+  | EBool (_id, b) -> Plain(DBool b)
+  | EString (_id, s) -> Plain(DStr s)
+  | EList (_id, exprs) ->
+      // We ignore incompletes but not error rail.
+      // TODO: Other places where lists are created propagate incompletes
+      // instead of ignoring, this is probably a mistake.
+      Task
+        (task {
+          let! results = Runtime.map_s (eval state st) exprs
+          let filtered = List.filter (fun (dv : Dval) -> not dv.isIncomplete) results
+          // TODO: why do we only find errorRail, and not errors. Seems like
+          // a mistake
+          match List.tryFind (fun (dv : Dval) -> dv.isErrorRail) filtered with
+          | Some er -> return er
+          | None -> return (DList filtered)
+         })
+  | ELet (_id, lhs, rhs, body) ->
       let rhs = eval state st rhs
       rhs.bind (fun rhs ->
         let st = st.Add(lhs, rhs)
         eval state st body)
-  | EFnCall (desc, exprs) ->
+  | EFnCall (_id, desc, exprs) ->
       (match tryFindFn desc with
        | Some fn ->
            Task
@@ -28,17 +44,17 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                return! (callFn state fn (Seq.toList args)).toTask()
               })
        | None -> Plain(err (NotAFunction desc)))
-  | EBinOp (arg1, desc, arg2) ->
+  | EBinOp (_id, arg1, desc, arg2) ->
       (match tryFindFn desc with
        | Some fn ->
            let t1 = eval state st arg1
            let t2 = eval state st arg2
            t1.bind2 t2 (fun arg1 arg2 -> callFn state fn [ arg1; arg2 ])
        | None -> Plain(err (NotAFunction desc)))
-  | ELambda (parameters, body) ->
+  | ELambda (_id, parameters, body) ->
       Plain(DLambda({ symtable = st; parameters = parameters; body = body }))
-  | EVariable (name) -> Plain(Symtable.get st name)
-  | EIf (cond, thenbody, elsebody) ->
+  | EVariable (_id, name) -> Plain(Symtable.get st name)
+  | EIf (_id, cond, thenbody, elsebody) ->
       let cond = eval state st cond
       cond.bind (function
         | DBool (true) -> eval state st thenbody
@@ -54,8 +70,7 @@ and callFn (state : ExecutionState) (fn : BuiltInFn) (args : List<Dval>) : DvalT
         fn.fn (state, args)
       with
       | RuntimeException rte -> Plain(err rte)
-      | FnCallException FnFunctionRemoved ->
-          Plain(err (FunctionRemoved fn.name))
+      | FnCallException FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
       | FnCallException FnWrongTypes ->
           Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
       | FakeDvalException dval -> Plain(dval)
@@ -80,7 +95,6 @@ and eval_lambda (state : ExecutionState)
         // let bindings = List.zip_exn params args in
         // List.iter bindings ~f:(fun ((id, paramName), dv) ->
         //     state.trace ~on_execution_path:state.on_execution_path id dv) ;
-        let newSymtable =
-          List.zip l.parameters args |> Map |> Map.union l.symtable
+        let newSymtable = List.zip l.parameters args |> Map |> Map.union l.symtable
 
         eval state newSymtable l.body

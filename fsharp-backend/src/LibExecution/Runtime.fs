@@ -21,7 +21,10 @@ open FSharp.Control.Tasks
 
 exception InternalException of string
 
+type pos = { x : int; y : int }
 
+type tlid = int64
+type id = int64
 
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
@@ -50,16 +53,19 @@ module FnDesc =
     fnDesc "dark" "stdlib" module_ function_ version
 
 // Expressions - the main part of the language
+
 type Expr =
-  | EInt of bigint
-  | EBool of bool
-  | EString of string
-  | ELet of string * Expr * Expr
-  | EVariable of string
-  | EFnCall of FnDesc.T * List<Expr> // FSTODO: Error rail
-  | EBinOp of Expr * FnDesc.T * Expr
-  | ELambda of List<string> * Expr
-  | EIf of Expr * Expr * Expr
+  | EBlank of id
+  | EInt of id * bigint
+  | EBool of id * bool
+  | EString of id * string
+  | EList of id * List<Expr>
+  | ELet of id * string * Expr * Expr
+  | EVariable of id * string
+  | EFnCall of id * FnDesc.T * List<Expr> // FSTODO: Error rail
+  | EBinOp of id * Expr * FnDesc.T * Expr
+  | ELambda of id * List<string> * Expr
+  | EIf of id * Expr * Expr * Expr
 
 and LambdaBlock = { parameters : List<string>; symtable : Symtable; body : Expr }
 
@@ -80,7 +86,23 @@ and Dval =
     | DFakeVal _ -> true
     | _ -> false
 
+  member this.isIncomplete : bool =
+    match this with
+    | DFakeVal (DIncomplete _) -> true
+    | _ -> false
+
+  member this.isErrorRail : bool =
+    match this with
+    | DFakeVal (DErrorRail _) -> true
+    | _ -> false
+
+  member this.isDError : bool =
+    match this with
+    | DFakeVal (DError _) -> true
+    | _ -> false
+
   // FSTODO: what kind of JSON is this?
+  // Split into multiple files, each for the different kinds of serializers
   member this.toJSON() : JsonValue =
     let rec encodeDval (dv : Dval) : JsonValue =
       match dv with
@@ -92,6 +114,9 @@ and Dval =
       | DLambda _ -> Encode.nil
       | DFakeVal (DError (e)) ->
           Encode.object [ "error", Encode.string (e.ToString()) ]
+      | DFakeVal (DIncomplete (_)) -> Encode.object [ "incomplete", Encode.unit () ]
+      | DFakeVal (DErrorRail (value)) ->
+          Encode.object [ "errorrail", encodeDval value ]
 
     encodeDval this
 
@@ -186,6 +211,13 @@ and FnCallError =
   | FnFunctionRemoved
   | FnWrongTypes
 
+// Record the source of an incomplete or error. Would be useful to add more
+// information later, such as the iteration count that let to this, or
+// something like a stack trace
+and DvalSource =
+  | SourceNone
+  | SourceID of tlid * id
+
 // A Fake Dval is some control-flow that's modelled in the interpreter as a
 // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
 // it instead of operating on it, including when they're put in a list, in a
@@ -196,13 +228,68 @@ and FakeDval =
   // some kind, but occasionally we'll paint ourselves into a corner and need
   // to represent a runtime error using this.
   | DError of RuntimeError
+  // A DIncomplete represents incomplete computation, whose source is
+  // always a Blank. When the code runs into a blank, it must return
+  // incomplete because the code is not finished. An incomplete value
+  // results in a 500 because it is a developer error.
+  //
+  // Propagating DIncompletes is straightforward: any computation
+  // relying on an incomplete must itself be incomplete.
+  //
+  // Some examples:
+  // - calling a function with an incomplete as a parameter is an
+  //   incomplete function call.
+  // - an if statement with an incomplete in the cond must be incomplete.
+  //
+  // But computation that doesn't rely on the incomplete value can
+  // ignore it:
+  //
+  // - an if statement which with a blank in the ifbody and a
+  //   complete expression in the elsebody will execute just fine if
+  //   cond is false. It has not hit any part of the program that is
+  //   being worked on.
+  //
+  // - a list with blanks in it can just ignore the blanks.
+  // - an incomplete in a list should be filtered out, because the
+  //   program has not been completed, and so that list entry just
+  //   doesn't "exist" yet.
+  // - incompletes in keys or values of objects cause the entire row
+  //   to be ignored.
+  | DIncomplete of DvalSource
+  // DErrorRail represents a value which has been sent over to the
+  // errorrail. Because the computation is happening on the errorrail,
+  // no other computation occurs.
+  //
+  // In all cases, we can consider it equivalent to goto
+  // end_of_function.
+  //
+  // - an if with an derrorrail in an subexpression is a derrorrail
+  // -  a list containing a derrorrail is a derrorail
+  | DErrorRail of Dval
 
 and DType =
-  | TStr
+  | TAny
   | TInt
+  | TFloat
   | TBool
-  | TChar
+  | TNull
+  | TStr
   | TList of DType
+  | TDict of DType * DType
+  | TIncomplete
+  | TError
+  | TLambda
+  | TResp
+  | TDB
+  | TDate
+  | TChar
+  | TPassword
+  | TUuid
+  | TOption of DType
+  | TErrorRail
+  | TUserType of string * int
+  | TBytes
+  | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
   | TVariable of string
   | TFn of List<DType> * DType
@@ -213,6 +300,13 @@ and DType =
 exception RuntimeException of RuntimeError // when we know the runtime error to raise
 exception FnCallException of FnCallError // when we need callFn to fill in
 exception FakeDvalException of Dval // when we encounter a fakeDval, jump right own
+
+// .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
+// OS-generated truly-random number.
+// https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
+// also use a single global value for the VM, so that users cannot be
+// guaranteed to get multiple consequetive values (as other requests may intervene)
+let random : System.Random = System.Random()
 
 let err (e : RuntimeError) : Dval = (DFakeVal(DError(e)))
 
@@ -273,7 +367,7 @@ type BuiltInFn =
 
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
 
-and ExecutionState = { functions : Map<FnDesc.T, BuiltInFn> }
+and ExecutionState = { functions : Map<FnDesc.T, BuiltInFn>; tlid : tlid }
 //    tlid : tlid
 // ; canvas_id : Uuidm.t
 // ; account_id : Uuidm.t
@@ -351,12 +445,20 @@ let removedFunction : BuiltInFnSig =
   fun _ -> raise (FnCallException FnFunctionRemoved)
 
 module Shortcuts =
+  let gid () : int64 =
+    // get enough bytes for an int64, trim it to an int63 for now to match ocaml.
+    let bytes = Array.init 8 (fun _ -> (byte) 0)
+    random.NextBytes(bytes)
+    let rand64 : int64 = System.BitConverter.ToInt64(bytes, 8)
+    let mask : int64 = 9223372036854775807L
+    rand64 &&& mask
+
   let fn (module_ : string)
          (function_ : string)
          (version : int)
          (args : List<Expr>)
          : Expr =
-    EFnCall(FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args)
+    EFnCall(gid (), FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args)
 
   let binOp (arg1 : Expr)
             (module_ : string)
@@ -364,6 +466,7 @@ module Shortcuts =
             (version : int)
             (arg2 : Expr)
             : Expr =
-    EBinOp(arg1, FnDesc.fnDesc "dark" "stdlib" module_ function_ version, arg2)
+    EBinOp
+      (gid (), arg1, FnDesc.fnDesc "dark" "stdlib" module_ function_ version, arg2)
 
-  let str (str : string) = EString(str)
+  let str (str : string) = EString(gid (), str)

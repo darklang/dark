@@ -8,7 +8,7 @@ open Runtime
 let run (e : Expr) : Task<Dval> =
   let functions = StdLib.fns |> List.map (fun fn -> (fn.name, fn)) |> Map
 
-  let state = { functions = functions }
+  let state = { functions = functions; tlid = (int64 7) }
   (Interpreter.eval state Symtable.empty e).toTask()
 
 
