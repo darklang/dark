@@ -69,14 +69,14 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                                       LongIdentWithDots ([ modName; fnName ], _),
                                       _,
                                       _),
-                   _,
+                   arg,
                    _) -> // fn calls with modules
         let name, version =
           match fnName.idText.Split "_v" with
           | [| name; version |] -> (name, int version)
           | _ -> failwith $"Version name isn't expected format {fnName.idText}"
 
-        efn modName.idText name version []
+        efn modName.idText name version [ c arg ]
     | SynExpr.App (_, _, SynExpr.Ident op_Equality, arg, _) -> // binops
         efn "" "==" 0 [ c arg ]
     // Callers with multiple args are encoded as apps wrapping other apps.
