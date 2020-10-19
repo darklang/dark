@@ -103,10 +103,13 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
 
 let t (code : string) (comment : string) : Test =
   let name = $"{comment} ({code})"
-  testTask name {
-    let source = parse code
-    let actualProg, expectedResult = convert source
-    let! actual = LibExecution.Execution.run actualProg
-    let! expected = LibExecution.Execution.run expectedResult
-    return (Expect.equal actual expected "")
-  }
+  if code.StartsWith "//" then
+    pTestTask name { return (Expect.equal "skipped" "skipped" "") }
+  else
+    testTask name {
+      let source = parse code
+      let actualProg, expectedResult = convert source
+      let! actual = LibExecution.Execution.run actualProg
+      let! expected = LibExecution.Execution.run expectedResult
+      return (Expect.equal actual expected "")
+    }
