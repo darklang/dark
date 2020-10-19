@@ -53,7 +53,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
     match expr with
     | SynExpr.Const (SynConst.Int32 n, _) -> eint n
     | SynExpr.Const (SynConst.String (s, _), _) -> estr s
-    | SynExpr.ArrayOrList (_, [], _) -> elist []
+    | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> elist
     | SynExpr.App (_,
                    _,
                    SynExpr.LongIdent (_,
