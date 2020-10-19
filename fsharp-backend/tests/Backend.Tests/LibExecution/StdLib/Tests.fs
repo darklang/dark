@@ -8,14 +8,17 @@ let fileTests () : Test =
   System.IO.Directory.GetFiles(dir, "*")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.map (fun filename ->
-       (dir + filename)
-       |> System.IO.File.ReadLines
-       |> Seq.map (fun (line : string) ->
-            let split = line.Split(" // ")
-            let comment = if split.Length = 1 then "" else split.[1]
-            ExecUtils.t split.[0] comment)
-       |> Seq.toList
-       |> testList $"Tests from {filename}")
+       if filename.Contains "" then // tweak to run subset of tests
+         (dir + filename)
+         |> System.IO.File.ReadLines
+         |> Seq.map (fun (line : string) ->
+              let split = line.Split(" // ")
+              let comment = if split.Length = 1 then "" else split.[1]
+              ExecUtils.t split.[0] comment)
+         |> Seq.toList
+         |> testList $"Tests from {filename}"
+       else
+         testList $"Tests from {filename}" [])
   |> Array.toList
   |> testList "All files"
 
