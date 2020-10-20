@@ -29,6 +29,7 @@ module String = struct
     then (slice ~from:0 ~to_:index s, slice ~from:index ~to_:l s)
     else (s, "")
 
+
   let rec segment ~(size : int) (s : string) : string list =
     let front, back = splitAt ~index:size s in
     if back = "" then [front] else front :: segment ~size back

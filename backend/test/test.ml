@@ -41,8 +41,11 @@ let () =
         let post () = Utils.post_suite suitename in
         let pre_test = ("pre-" ^ suitename, `Quick, pre) in
         let post_test = ("post-" ^ suitename, `Quick, post) in
-        let tests = List.map ts ~f:(fun (testname, speed, t) -> (testname, speed, wrap testname t)) in
-        (suitename, pre_test :: tests @ [post_test]))
+        let tests =
+          List.map ts ~f:(fun (testname, speed, t) ->
+              (testname, speed, wrap testname t))
+        in
+        (suitename, (pre_test :: tests) @ [post_test]))
   in
   let suite, exit = Junit_alcotest.run_and_report "all" wrapped_suites in
   let report = Junit.make [suite] in

@@ -8,27 +8,26 @@ open Tc
  * FluidPrinter.ml *)
 
 let asserT msg ~debug v = ()
+
 let recover msg ~debug v = v
 
 module E = FluidExpression
 module Pattern = FluidPattern
 
-
 (* FluidUtil.ml *)
 module FluidUtil = struct
-
   let splitFnName (fnName : string) : string option * string * string =
     let pattern = Re2.create_exn "^((\\w+)::)?([^_]+)(_v(\\d+))?$" in
     let mResult = Re2.find_submatches pattern fnName in
     match mResult with
     | Ok captures ->
-        ( match captures with
-        | [|_; _; mod_; Some fn; _; Some v|] ->
-            (mod_, fn, v)
-        | [|_; _; mod_; Some fn; _; None|] ->
-            (mod_, fn, "0")
-        | _ ->
-            (None, "Error found while parsing name", "0"))
+      ( match captures with
+      | [|_; _; mod_; Some fn; _; Some v|] ->
+          (mod_, fn, v)
+      | [|_; _; mod_; Some fn; _; None|] ->
+          (mod_, fn, "0")
+      | _ ->
+          (None, "Error found while parsing name", "0") )
     | Error _ ->
         (None, fnName, "0")
 
@@ -45,10 +44,12 @@ module FluidUtil = struct
     (* For tests always show v0 *)
     "_v" ^ version
 
+
   let partialName = fnDisplayName
 
   let ghostPartialName (fnName : string) =
     partialName fnName ^ versionDisplayName fnName
+
 
   let fnDisplayNameWithVersion (fnName : string) =
     partialName fnName ^ versionDisplayName fnName
@@ -57,17 +58,17 @@ end
 (* Types.ml *)
 module ID = struct
   type t = Libexecution.Types.id
+
   let toString = Types.string_of_id
 end
 
 type parentBlockID = ID.t
+
 type analysisID = ID.t
 
 type placeholder =
   { name : string
   ; tipe : string }
-
-
 
 type fluidToken =
   | TInteger of ID.t * string * parentBlockID option
@@ -197,7 +198,6 @@ type featureFlagTokenization =
 (* -------------------------------------- *)
 (* FluidToken.ml *)
 (* -------------------------------------- *)
-
 
 module FluidToken = struct
   let fakeid = Types.id_of_int (-1)
@@ -569,7 +569,9 @@ module FluidToken = struct
         false
 
 
-  let isSkippable (t : fluidToken) : bool = match t with TIndent _ -> true | _ -> false
+  let isSkippable (t : fluidToken) : bool =
+    match t with TIndent _ -> true | _ -> false
+
 
   let isAtom (t : fluidToken) : bool =
     match t with
@@ -579,7 +581,9 @@ module FluidToken = struct
         isKeyword t || isBlank t
 
 
-  let isNewline (t : fluidToken) : bool = match t with TNewline _ -> true | _ -> false
+  let isNewline (t : fluidToken) : bool =
+    match t with TNewline _ -> true | _ -> false
+
 
   let isLet (t : fluidToken) : bool =
     match t with TLetAssignment _ | TLetVarName _ -> true | _ -> false
@@ -621,13 +625,15 @@ module FluidToken = struct
 
 
   let isListSymbol (t : fluidToken) : bool =
-    match t with TListOpen _ | TListClose _ | TListComma _ -> true | _ -> false
+    match t with
+    | TListOpen _ | TListClose _ | TListComma _ ->
+        true
+    | _ ->
+        false
 
 
   let toText (t : fluidToken) : string =
-    let shouldntBeEmpty name =
-      name
-    in
+    let shouldntBeEmpty name = name in
     let canBeEmpty name = if name = "" then "___" else name in
     match t with
     | TInteger (_, i, _) ->
@@ -639,7 +645,9 @@ module FluidToken = struct
     | TFloatFractional (_, f, _) ->
         f
     | TString (_, str, _) ->
-        let str = Core_kernel.String.substr_replace_all ~pattern:"\"" ~with_:"\\\"" str in
+        let str =
+          Core_kernel.String.substr_replace_all ~pattern:"\"" ~with_:"\\\"" str
+        in
         "\"" ^ str ^ "\""
     | TStringMLStart (_, str, _, _) ->
         "\"" ^ str
@@ -1066,7 +1074,6 @@ module FluidToken = struct
     empty @ keyword @ typename @ category
 
 
-
   (* Since tokens don't have unique IDs, it is hard to look at two tokens streams
    * and find which tokens represent the same thing. You can use toText and ID,
    * but that doesn't work where the content has changed, which is a thing we
@@ -1130,7 +1137,8 @@ module FluidToken = struct
     | TFieldOp (id1, l1, _), TFieldOp (id2, l2, _) ->
         id1 = id2 && l1 = l2
     | TFieldName (id1, l1, val1, _), TFieldName (id2, l2, val2, _)
-    | TFieldPartial (id1, l1, _, val1, _), TFieldPartial (id2, l2, _, val2, _) ->
+    | TFieldPartial (id1, l1, _, val1, _), TFieldPartial (id2, l2, _, val2, _)
+      ->
         id1 = id2 && l1 = l2 && val1 = val2
     | TLambdaVar (id1, _, ind1, val1, _), TLambdaVar (id2, _, ind2, val2, _) ->
         id1 = id2 && ind1 = ind2 && val1 = val2
@@ -1152,12 +1160,13 @@ module FluidToken = struct
         && d1.patternID = d2.patternID
         && d1.str = d2.str
         && d1.branchIdx = d2.branchIdx
-    | TFnName (id1, _, _, fullname1, rail1), TFnName (id2, _, _, fullname2, rail2)
-      ->
+    | ( TFnName (id1, _, _, fullname1, rail1)
+      , TFnName (id2, _, _, fullname2, rail2) ) ->
         id1 = id2 && fullname1 = fullname2 && rail1 = rail2
     | TFnVersion (id1, _, _, fullname1), TFnVersion (id2, _, _, fullname2) ->
         id1 = id2 && fullname1 = fullname2
-    | TPatternVariable (m1, p1, val1, ind1), TPatternVariable (m2, p2, val2, ind2)
+    | ( TPatternVariable (m1, p1, val1, ind1)
+      , TPatternVariable (m2, p2, val2, ind2) )
     | ( TPatternConstructorName (m1, p1, val1, ind1)
       , TPatternConstructorName (m2, p2, val2, ind2) )
     | TPatternInteger (m1, p1, val1, ind1), TPatternInteger (m2, p2, val2, ind2)
@@ -1245,6 +1254,7 @@ module FluidToken = struct
     | TFlagEnabledKeyword _, _ ->
         false
 end
+
 module T = FluidToken
 
 (* -------------------------------------- *)
@@ -1384,7 +1394,8 @@ let rec patternToToken (p : FluidPattern.t) ~(idx : int) : fluidToken list =
       [TPatternBlank (mid, id, idx)]
 
 
-let rec toTokens' ?(parens=false) ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
+let rec toTokens' ?(parens = false) ?(parentID = None) (e : E.t) (b : Builder.t)
+    : Builder.t =
   let open Builder in
   let ghostPartial id newName oldName =
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
@@ -1397,7 +1408,7 @@ let rec toTokens' ?(parens=false) ?(parentID = None) (e : E.t) (b : Builder.t) :
    *)
   let nest
       ?(placeholderFor : (ID.t * string * int) option = None)
-      ?(parens=true)
+      ?(parens = true)
       ~indent
       (e : E.t)
       (b : Builder.t) : Builder.t =
@@ -1466,16 +1477,26 @@ let rec toTokens' ?(parens=false) ?(parentID = None) (e : E.t) (b : Builder.t) :
   let parens =
     (* Some things never need parens *)
     match e with
-    | EInteger _ -> false
-    | EString _ -> false
-    | EFloat _ -> false
-    | EBool _ -> false
-    | EVariable _ -> false
-    | ERecord _ -> false
-    | EList _ -> false
-    | EConstructor (_, _, []) -> false
-    | EFnCall (_, _, [], _) -> false
-    | _ -> parens
+    | EInteger _ ->
+        false
+    | EString _ ->
+        false
+    | EFloat _ ->
+        false
+    | EBool _ ->
+        false
+    | EVariable _ ->
+        false
+    | ERecord _ ->
+        false
+    | EList _ ->
+        false
+    | EConstructor (_, _, []) ->
+        false
+    | EFnCall (_, _, [], _) ->
+        false
+    | _ ->
+        parens
   in
   let b = if parens then b |> add (TParenOpen id) else b in
   let b =
@@ -1491,7 +1512,9 @@ let rec toTokens' ?(parens=false) ?(parentID = None) (e : E.t) (b : Builder.t) :
           if whole = "" then [] else [TFloatWhole (id, whole, parentID)]
         in
         let fraction =
-          if fraction = "" then [] else [TFloatFractional (id, fraction, parentID)]
+          if fraction = ""
+          then []
+          else [TFloatFractional (id, fraction, parentID)]
         in
         b |> addMany (whole @ [TFloatPoint (id, parentID)] @ fraction)
     | EBlank id ->
@@ -1528,7 +1551,8 @@ let rec toTokens' ?(parens=false) ?(parentID = None) (e : E.t) (b : Builder.t) :
                      |> addIter (List.reverse revrest) ~f:(fun i s b ->
                             b
                             |> add
-                                 (TStringMLMiddle (id, s, strLimit * (i + 1), str))
+                                 (TStringMLMiddle
+                                    (id, s, strLimit * (i + 1), str))
                             |> add (TNewline None))
                      |> add (TStringMLEnd (id, ending, endingOffset, str))) ) )
     | EIf (id, cond, if', else') ->
@@ -1746,7 +1770,6 @@ let rec toTokens' ?(parens=false) ?(parentID = None) (e : E.t) (b : Builder.t) :
   if parens then b |> add (TParenClose id) else b
 
 
-
 let infoize tokens : tokenInfo list =
   let row, col, pos = (ref 0, ref 0, ref 0) in
   List.map tokens ~f:(fun token ->
@@ -1795,9 +1818,10 @@ let tokenizeWithFFTokenization
 let tokenize : E.t -> FluidToken.tokenInfo list =
   tokenizeWithFFTokenization FeatureFlagOnlyDisabled
 
+
 (* FluidPrint.ml *)
 let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
 
-let eToHumanString (expr : E.t) : string =
-  expr |> tokenize |> tokensToString
+
+let eToHumanString (expr : E.t) : string = expr |> tokenize |> tokensToString

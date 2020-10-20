@@ -98,6 +98,7 @@ let at_dval =
       | _, _ ->
           compare_dval a b = 0)
 
+
 let check_dval = AT.check at_dval
 
 let check_execution_result = AT.check (AT.of_pp pp_execution_result)
@@ -192,35 +193,48 @@ let file : Out_channel.t ref = ref stderr
 
 (* Sometimes we exec_ast but don't check_dval, which is unsuitable for this test, so save it rather than always outputting *)
 let code : string option ref = ref None
+
 let comment : string ref = ref "none-yet"
 
 let pre_suite (name : string) : unit =
   let filename = "test-suite-" ^ name in
   if do_porting
   then
-    file := Out_channel.create ~append:false ~binary:false ~fail_if_exists:false ~perm:0o640 filename ;
+    file :=
+      Out_channel.create
+        ~append:false
+        ~binary:false
+        ~fail_if_exists:false
+        ~perm:0o640
+        filename ;
   ()
 
+
 let post_suite (name : string) : unit =
-  if do_porting
-  then Out_channel.close !file
+  if do_porting then Out_channel.close !file
+
 
 let fixup_dval str =
   str |> Tc.String.split ~on:"\n" |> Tc.String.join ~sep:"\\n"
 
+
 let check_dval str actual expected =
   let result = check_dval str actual expected in
-  if do_porting
-  then (
+  ( if do_porting
+  then
     let pretty = expected |> Dval.to_developer_repr_v0 |> fixup_dval in
     let codestr =
       match !code with
-      | None -> "" (* ignore files with no ast *)
-      | Some codestr -> codestr
+      | None ->
+          "" (* ignore files with no ast *)
+      | Some codestr ->
+          codestr
     in
     if codestr <> ""
     then
-      Out_channel.output_string !file (codestr ^ " = " ^ pretty ^ " // " ^ !comment ^ "\n"));
+      Out_channel.output_string
+        !file
+        (codestr ^ " = " ^ pretty ^ " // " ^ !comment ^ "\n") ) ;
   result
 
 
