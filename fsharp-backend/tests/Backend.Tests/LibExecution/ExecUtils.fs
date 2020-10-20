@@ -101,7 +101,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
   | _ -> convert' ast, ebool true
 
 
-let t (code : string) (comment : string) : Test =
+let t (comment : string) (code : string) : Test =
   let name = $"{comment} ({code})"
   if code.StartsWith "//" then
     ptestTask name { return (Expect.equal "skipped" "skipped" "") }
