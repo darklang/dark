@@ -16,6 +16,7 @@ module LibExecution.Runtime
 open Thoth.Json.Net
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open System.Text.RegularExpressions
 
 // fsharplint:disable FL0039
 
@@ -54,11 +55,11 @@ module FnDesc =
 
 // Expressions - the main part of the language
 type Expr =
-  | EInteger of id * bigint
+  | EInteger of id * string
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
-  | EFloat of id * int * int
+  | EFloat of id * string * string // first string might have a sign in it
   | ENull of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
@@ -253,7 +254,7 @@ and RuntimeError =
   | LambdaCalledWithWrongCount of List<Dval> * List<string>
   | LambdaCalledWithWrongType of List<Dval> * List<string>
   | LambdaResultHasWrongType of Dval * DType
-  | InvalidFloatExpression of int * int
+  | InvalidFloatExpression of string * string
   | UndefinedVariable of string
   | UndefinedConstructor of string
 
@@ -566,65 +567,75 @@ module Shortcuts =
     ebinOp' module_ function_ version arg1 arg2 Rail
 
   let estr (str : string) : Expr = EString(gid (), str)
-  let eint (i : int) : Expr = EInteger(gid (), bigint i)
+  let eint (i : int) : Expr = EInteger(gid (), i.ToString())
+
+  let eintStr (i : string) : Expr =
+    assert ((new Regex(@"-?\d+")).IsMatch(i))
+    EInteger(gid (), i)
+
   let echar (c : char) : Expr = ECharacter(gid (), string c)
   let echarStr (c : string) : Expr = ECharacter(gid (), c)
   let eblank () : Expr = EBlank(gid ())
   let ebool (b : bool) : Expr = EBool(gid (), b)
-  let efloat (whole : int) (fraction : int) : Expr = EFloat(gid (), whole, fraction)
+
+  let efloat (whole : int) (fraction : int) : Expr =
+    EFloat(gid (), whole.ToString(), fraction.ToString())
+
+  let efloatStr (whole : string) (fraction : string) : Expr =
+    // FSTODO: don't actually assert, report to rollbar
+    assert ((new Regex(@"-?\d+")).IsMatch(whole))
+    assert ((new Regex(@"\d+")).IsMatch(fraction))
+    EFloat(gid (), whole, fraction)
+
   let enull () : Expr = ENull(gid ())
 
   let erecord (rows : (string * Expr) list) : Expr = ERecord(gid (), rows)
 
   let elist (elems : Expr list) : Expr = EList(gid (), elems)
   let epipeTarget () = EPipeTarget(gid ())
-(*  *)
-(*  *)
-(* let partial (str : string) (e : t) : Expr = EPartial (gid () ,str, e) *)
-(*  *)
-(* let rightPartial (str : string) (e : t) : Expr = *)
-(*   ERightPartial (gid () ,str, e) *)
-(*  *)
-(*  *)
-(* let leftPartial (str : string) (e : t) : Expr = *)
-(*   ELeftPartial (gid () ,str, e) *)
-(*  *)
-(*  *)
-(* let var (name : string) : Expr = EVariable (gid () ,name) *)
-(*  *)
-(* let fieldAccess (expr : t) (fieldName : string) : Expr = *)
-(*   EFieldAccess (gid () ,expr, fieldName) *)
-(*  *)
-(*  *)
-(* let if' (cond : t) (then' : t) (else' : t) : Expr = *)
-(*   EIf (gid () ,cond, then', else') *)
-(*  *)
-(*  *)
-(* let let' (varName : string) (rhs : t) (body : t) : Expr = *)
-(*   ELet (gid () ,varName, rhs, body) *)
-(*  *)
-(*  *)
-(* let lambda (varNames : string list) (body : t) : Expr = *)
-(*   ELambda (gid () ,List.map (fun name -> (gid (), name)) varNames , body) *)
-(*  *)
-(*  *)
-(* let pipe (first : t) (rest : Expr list) : Expr = *)
-(*   EPipe (gid () ,first :: rest) *)
-(*  *)
-(*  *)
-(* let constructor (name : string) (args : Expr list) : Expr = *)
-(*   EConstructor (gid () ,name, args) *)
-(*  *)
-(*  *)
-(* let just (arg : t) : Expr = EConstructor (gid () ,"Just", [arg]) *)
-(*  *)
-(* let nothing () : Expr = EConstructor (gid () ,"Nothing", []) *)
-(*  *)
-(* let error (arg : t) : Expr = EConstructor (gid () ,"Error", [arg]) *)
-(*  *)
-(* let ok (arg : t) : Expr = EConstructor (gid () ,"Ok", [arg]) *)
-(*  *)
-(* let match' (cond : t) (matches : (FluidPattern.t * t) list) : Expr = *)
+
+
+  let epartial (str : string) (e : Expr) : Expr = EPartial(gid (), str, e)
+
+  let erightPartial (str : string) (e : Expr) : Expr = ERightPartial(gid (), str, e)
+
+
+  let eleftPartial (str : string) (e : Expr) : Expr = ELeftPartial(gid (), str, e)
+
+
+  let evar (name : string) : Expr = EVariable(gid (), name)
+
+  (* let fieldAccess (expr : Expr) (fieldName : string) : Expr = *)
+  (*   EFieldAccess (gid () ,expr, fieldName) *)
+
+  let eif (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
+    EIf(gid (), cond, then', else')
+
+
+  let elet (varName : string) (rhs : Expr) (body : Expr) : Expr =
+    ELet(gid (), varName, rhs, body)
+
+
+  let elambda (varNames : string list) (body : Expr) : Expr =
+    ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
+
+
+  (* let pipe (first : Expr) (rest : Expr list) : Expr = *)
+  (*   EPipe (gid () ,first :: rest) *)
+
+  let econstructor (name : string) (args : Expr list) : Expr =
+    EConstructor(gid (), name, args)
+
+
+  let ejust (arg : Expr) : Expr = EConstructor(gid (), "Just", [ arg ])
+
+  let enothing () : Expr = EConstructor(gid (), "Nothing", [])
+
+  let eerror (arg : Expr) : Expr = EConstructor(gid (), "Error", [ arg ])
+
+  let eok (arg : Expr) : Expr = EConstructor(gid (), "Ok", [ arg ])
+
+(* let match' (cond : Expr) (matches : (FluidPattern.t * t) list) : Expr = *)
 (*   EMatch (gid () ,cond, matches) *)
 (*  *)
 (*  *)

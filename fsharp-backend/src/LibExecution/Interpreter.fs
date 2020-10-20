@@ -26,7 +26,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         eval state st body)
   | EString (_id, s) -> Plain(DStr s)
   | EBool (_id, b) -> Plain(DBool b)
-  | EInteger (_id, i) -> Plain(DInt i)
+  | EInteger (_id, i) -> Plain(DInt(System.Numerics.BigInteger.Parse i))
   | EFloat (_id, whole, fractional) ->
       // FSTODO - add sourceID to errors
       try
