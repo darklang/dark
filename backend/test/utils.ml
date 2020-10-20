@@ -179,6 +179,66 @@ let check_error_contains (name : string) (result : dval) (substring : string) =
 
 
 (* ------------------- *)
+(* Wrapping test fns for porting *)
+(* ------------------- *)
+
+(* set to true to get files with all the exec_ast tests written to files in ~/app *)
+let do_porting = false
+
+(* Whenever a test is run, save its actual and expected for running tests in
+ * stringified form. The intent is to port this to be able to run on multiple
+ * platforms. *)
+
+let file : Out_channel.t ref = ref stderr
+
+(* Sometimes we exec_ast but don't check_dval, which is unsuitable for this test, so save it rather than always outputting *)
+let code : string option ref = ref None
+
+let comment : string ref = ref "none-yet"
+
+let pre_suite (name : string) : unit =
+  let filename = "test-suite-" ^ name in
+  if do_porting
+  then
+    file :=
+      Out_channel.create
+        ~append:false
+        ~binary:false
+        ~fail_if_exists:false
+        ~perm:0o640
+        filename ;
+  ()
+
+
+let post_suite (name : string) : unit =
+  if do_porting then Out_channel.close !file
+
+
+let fixup_dval str =
+  str |> Tc.String.split ~on:"\n" |> Tc.String.join ~sep:"\\n"
+
+
+let check_dval str actual expected =
+  let result = check_dval str actual expected in
+  ( if do_porting
+  then
+    let pretty = expected |> Dval.to_developer_repr_v0 |> fixup_dval in
+    let codestr =
+      match !code with
+      | None ->
+          "" (* ignore files with no ast *)
+      | Some codestr ->
+          codestr
+    in
+    if codestr <> ""
+    then
+      Out_channel.output_string
+        !file
+        (codestr ^ " = " ^ pretty ^ " // " ^ !comment ^ "\n") ) ;
+  result
+
+
+(* ------------------- *)
 (* Set up test data *)
 (* ------------------- *)
 
@@ -448,6 +508,7 @@ let exec_handler ?(ops = []) (ast : Libshared.FluidExpression.t) : dval =
 let exec_ast
     ?(ops = []) ?(canvas_name = "test") (ast : Libshared.FluidExpression.t) :
     dval =
+  code := Some (Pretty.eToHumanString ast) ;
   let c, state, input_vars = test_execution_data ~canvas_name ops in
   let result = Ast.execute_ast ~input_vars ~state ast in
   result

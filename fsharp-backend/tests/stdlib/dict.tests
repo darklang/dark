@@ -1,0 +1,28 @@
+Dict.singleton_v0 "one" 1 = { \n  one: 1\n} // Dict stdlibs work
+Dict.member_v0\n  {\n    otherKey = 5\n  }\n  "someKey" = false // Dict stdlibs work
+Dict.member_v0\n  {\n    otherKey = 5\n    someKey = 5\n  }\n  "someKey" = true // Dict stdlibs work
+Dict.keys_v0 {\n                key1 = "val1"\n              } = [ \n  "key1"\n] // Dict stdlibs work
+Dict.values_v0 {\n                  key1 = "val1"\n                } = [ \n  "val1"\n] // Dict stdlibs work
+Dict.toList_v0 {} = [] // Dict stdlibs work
+Dict.toList_v0 {\n                  a = 1\n                  b = 2\n                  c = 3\n                } = [ \n  [ \n    "a", 1\n  ], [ \n    "b", 2\n  ], [ \n    "c", 3\n  ]\n] // Dict stdlibs work
+Dict.fromListOverwritingDuplicates_v0 [] = {} // Dict stdlibs work
+Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3]] = { \n  c: 3,\n  b: 2,\n  a: 1\n} // Dict stdlibs work
+Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["a";3]] = { \n  b: 2,\n  a: 3\n} // Dict stdlibs work
+Dict.fromList_v0 [] = Just {} // Dict stdlibs work
+Dict.fromList_v0 [["a";1];["b";2];["c";3]] = Just { \n    c: 3,\n    b: 2,\n    a: 1\n  } // Dict stdlibs work
+Dict.fromList_v0 [["a";1];["b";2];["a";3]] = Nothing // Dict stdlibs work
+Dict.get_v1\n  {\n    key1 = "val1"\n  }\n  "key1" = Just "val1" // Dict stdlibs work
+Dict.foreach_v0\n  {\n    key1 = "val1"\n    key2 = "val2"\n  }\n  (\x -> x ++ "_append") = { \n  key2: "val2_append",\n  key1: "val1_append"\n} // Dict stdlibs work
+Dict.map_v0\n  {\n    key1 = "val1"\n    key2 = "val2"\n  }\n  (\k, x -> k ++ x) = { \n  key2: "key2val2",\n  key1: "key1val1"\n} // Dict stdlibs work
+Dict.empty_v0 = {} // Dict stdlibs work
+Dict.isEmpty_v0 {} = true // Dict stdlibs work
+Dict.isEmpty_v0 {\n                   a = 1\n                 } = false // Dict stdlibs work
+Dict.merge_v0\n  {\n    key1 = "val1"\n  }\n  {\n    key2 = "val2"\n  } = { \n  key2: "val2",\n  key1: "val1"\n} // Dict stdlibs work
+Dict.toJSON_v0 {\n                  key1 = "val1"\n                  key2 = "val2"\n                } = "{ "key1": "val1", "key2": "val2" }" // Dict stdlibs work
+Dict.filter_v1\n  {\n    key1 = "val1"\n    key2 = "val2"\n  }\n  (\k, v -> v == "val1") = { \n  key1: "val1"\n} // Dict stdlibs work
+Dict.filter_v1\n  {\n    key1 = "val1"\n    key2 = "val2"\n  }\n  (\k, v -> k == "key1") = { \n  key1: "val1"\n} // Dict stdlibs work
+Dict.filter_v1\n  {\n    key1 = 1\n    key2 = blank\n    key3 = 3\n  }\n  (\k, v -> v > 0) = { \n  key3: 3,\n  key1: 1\n} // Dict stdlibs work
+Dict.filterMap_v0 {} (\key, value -> 0) = {} // Dict stdlibs work
+Dict.filterMap_v0\n  {\n    a = "x"\n    b = "y"\n    c = "z"\n  }\n  (\key, value -> if value == "y"\n                  then\n                    Nothing\n                  else\n                    (Just (key ++ value))) = { \n  c: "cz",\n  a: "ax"\n} // Dict stdlibs work
+Dict.size_v0 {} = 0 // Dict stdlibs work
+Dict.size_v0 {\n                a = 3\n                b = 1\n                c = 1\n              } = 3 // Dict stdlibs work

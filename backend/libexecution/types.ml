@@ -313,8 +313,6 @@ module RuntimeT = struct
           Error "Expected an object"
   end
 
-  (* To support migrating to fluid, these take a type parameter, which is
-   * concretely defined to use `expr` at the bottom. *)
   type dval_map = dval DvalMap.t
 
   and optionT =

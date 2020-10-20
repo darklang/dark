@@ -4,7 +4,22 @@ open FSharp.Control.Tasks
 open Runtime
 open Interpreter
 
-let fns: List<BuiltInFn> = LibString.fns
+let any =
+  [ { name = FnDesc.stdFnDesc "" "==" 0
+      description = "Equality" // FSTODO
+      parameters =
+        [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "b") "" ]
+      returnType = TBool
+      fn =
+        (function
+        | _, [ a; b ] -> (Plain(DBool(a = b)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
+
+
+let fns : List<BuiltInFn> = (LibString.fns @ any)
 // [ { name = FnDesc.stdFnDesc "Int" "range" 0
 //     parameters =
 //       [ param "list" (TList(TVariable("a"))) "The list to be operated on"

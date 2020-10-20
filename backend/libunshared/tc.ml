@@ -16,9 +16,24 @@ include (
       (*  and module IntSet := Tablecloth.IntSet *)
       with module StrDict := Tablecloth.StrDict
       with module Option := Tablecloth.Option
-      (* with module String := Tablecloth.String *)
+      with module String := Tablecloth.String
       with module Result := Tablecloth.Result
       with module List := Tablecloth.List )
+
+module String = struct
+  include Tablecloth.String
+
+  let splitAt ~(index : int) (s : string) : string * string =
+    let l = String.length s in
+    if index < l
+    then (slice ~from:0 ~to_:index s, slice ~from:index ~to_:l s)
+    else (s, "")
+
+
+  let rec segment ~(size : int) (s : string) : string list =
+    let front, back = splitAt ~index:size s in
+    if back = "" then [front] else front :: segment ~size back
+end
 
 module Result = struct
   include Tablecloth.Result

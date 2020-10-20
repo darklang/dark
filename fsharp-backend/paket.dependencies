@@ -11,6 +11,7 @@ nuget Saturn ~> 0.15.0-preview01
 
 // Tests
 nuget Expecto ~> 9.0.2
+nuget FSharp.Compiler.Service
 
 // LibExecution
 nuget Thoth.Json.Net ~> 4.1.0
