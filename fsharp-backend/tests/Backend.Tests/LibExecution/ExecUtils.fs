@@ -46,6 +46,8 @@ let parse (input) : SynExpr =
 
 open R.Shortcuts
 
+exception MyException of string
+
 let convert (ast : SynExpr) : R.Expr * R.Expr =
 
   let rec convert' (expr : SynExpr) : R.Expr =
@@ -55,10 +57,12 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
     | SynExpr.Const (SynConst.Char c, _) -> echar c
     | SynExpr.Const (SynConst.Bool b, _) -> ebool b
     | SynExpr.Const (SynConst.Double d, _) ->
-        let parts = d.ToString().Split "."
-        printf $"{parts}"
-        efloat (int parts.[0]) (int parts.[1])
+        let parts = (sprintf "%f" d).Split "."
+        if parts.Length <> 2 then (raise (MyException $"Parts are {parts}, d is {d}"))
+        efloatStr (parts.[0]) (string (int parts.[1]))
     | SynExpr.Const (SynConst.String (s, _), _) -> estr s
+    | SynExpr.Ident ident when ident.idText = "Nothing" -> enothing ()
+    | SynExpr.Ident op_Equality -> efn "" "==" 0 []
     | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> elist
     | SynExpr.ArrayOrListOfSeqExpr (_,
                                     SynExpr.CompExpr (_,
@@ -66,25 +70,21 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                                                       SynExpr.Tuple (_, exprs, _, _),
                                                       _),
                                     _) -> exprs |> List.map c |> elist
-    | SynExpr.App (_,
-                   _,
-                   SynExpr.LongIdent (_,
-                                      // Note to self: LongIdent = Ident list
-                                      LongIdentWithDots ([ modName; fnName ], _),
-                                      _,
-                                      _),
-                   arg,
-                   _) -> // fn calls with modules
+
+    | SynExpr.LongIdent (_,
+                         // Note to self: LongIdent = Ident list
+                         LongIdentWithDots ([ modName; fnName ], _),
+                         _,
+                         _) ->
         let name, version =
           match fnName.idText.Split "_v" with
           | [| name; version |] -> (name, int version)
           | _ -> failwith $"Version name isn't expected format {fnName.idText}"
 
-        efn modName.idText name version [ c arg ]
-    | SynExpr.App (_, _, SynExpr.Ident op_Equality, arg, _) -> // binops
-        efn "" "==" 0 [ c arg ]
+        efn modName.idText name version []
+    | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
     // Callers with multiple args are encoded as apps wrapping other apps.
-    | SynExpr.App (_, _, (SynExpr.App _ as expr), arg, _) -> // binops
+    | SynExpr.App (_, _, (expr), arg, _) -> // binops
         match c expr with
         | R.EFnCall (id, name, args, ster) ->
             R.EFnCall(id, name, args @ [ c arg ], ster)
@@ -107,9 +107,13 @@ let t (code : string) (comment : string) : Test =
     ptestTask name { return (Expect.equal "skipped" "skipped" "") }
   else
     testTask name {
-      let source = parse code
-      let actualProg, expectedResult = convert source
-      let! actual = LibExecution.Execution.run actualProg
-      let! expected = LibExecution.Execution.run expectedResult
-      return (Expect.equal actual expected "")
+      try
+        let source = parse code
+        let actualProg, expectedResult = convert source
+        let! actual = LibExecution.Execution.run actualProg
+        let! expected = LibExecution.Execution.run expectedResult
+        return (Expect.equal actual expected "")
+      with
+      | MyException msg -> return (Expect.equal "" msg "")
+      | e -> return (Expect.equal "" (e.ToString()) "")
     }
