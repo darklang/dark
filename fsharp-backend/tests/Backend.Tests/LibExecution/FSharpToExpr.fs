@@ -1,4 +1,4 @@
-module ExecUtils
+module FSharpToExpr
 
 open Expecto
 
@@ -61,8 +61,12 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
         if parts.Length <> 2 then (raise (MyException $"Parts are {parts}, d is {d}"))
         efloatStr (parts.[0]) (string (int parts.[1]))
     | SynExpr.Const (SynConst.String (s, _), _) -> estr s
+    | SynExpr.Ident ident when ident.idText = "op_Addition" ->
+        ebinOp "" "+" 0 (epipeTarget ()) (epipeTarget ())
+    | SynExpr.Ident ident when ident.idText = "op_Equality" ->
+        ebinOp "" "==" 0 (epipeTarget ()) (epipeTarget ())
     | SynExpr.Ident ident when ident.idText = "Nothing" -> enothing ()
-    | SynExpr.Ident op_Equality -> efn "" "==" 0 []
+    | SynExpr.Ident name -> efn "" name.idText 0 []
     | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> elist
     | SynExpr.ArrayOrListOfSeqExpr (_,
                                     SynExpr.CompExpr (_,
@@ -88,6 +92,10 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
         match c expr with
         | R.EFnCall (id, name, args, ster) ->
             R.EFnCall(id, name, args @ [ c arg ], ster)
+        | R.EBinOp (id, name, R.EPipeTarget _, arg2, ster) ->
+            R.EBinOp(id, name, c arg, arg2, ster)
+        | R.EBinOp (id, name, arg1, R.EPipeTarget _, ster) ->
+            R.EBinOp(id, name, arg1, c arg, ster)
         | expr -> failwith $"Unsupported expression: {expr}"
     | expr -> failwith $"Unsupported expression: {expr}"
 
@@ -95,9 +103,10 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
   match ast with
   | SynExpr.App (_,
                  _,
-                 SynExpr.App (_, _, SynExpr.Ident op_Equality, arg2, _),
-                 arg1,
-                 _) -> (convert' arg1, convert' arg2)
+                 SynExpr.App (_, _, SynExpr.Ident ident, actual, _),
+                 expected,
+                 _) when ident.idText = "op_Equality" ->
+      (convert' actual, convert' expected)
   | _ -> convert' ast, ebool true
 
 
@@ -112,7 +121,11 @@ let t (comment : string) (code : string) : Test =
         let actualProg, expectedResult = convert source
         let! actual = LibExecution.Execution.run actualProg
         let! expected = LibExecution.Execution.run expectedResult
-        return (Expect.equal actual expected "")
+
+        return (Expect.equal
+                  actual
+                  expected
+                  $"{source} => {actualProg} = {expectedResult}")
       with
       | MyException msg -> return (Expect.equal "" msg "")
       | e -> return (Expect.equal "" (e.ToString()) "")

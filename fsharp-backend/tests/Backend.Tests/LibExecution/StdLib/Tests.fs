@@ -39,7 +39,7 @@ let fileTests () : Test =
            let newTestCase =
              if !singleTestMode then
                // Add a single test case
-               ExecUtils.t !currentTestName !currentTestString
+               FSharpToExpr.t !currentTestName !currentTestString
              else
                // Put currentTests in a group and add them
                testList !currentTestName !currentTests
@@ -55,6 +55,7 @@ let fileTests () : Test =
          (dir + filename)
          |> System.IO.File.ReadLines
          |> Seq.iteri (fun i line ->
+              let i = i + 1
               match line with
               // [tests] indicator
               | Regex "^\[tests\.(.*)\]$" [ name ] ->
@@ -75,13 +76,13 @@ let fileTests () : Test =
               | Regex "^\s*$" [] -> ()
               // 1-line test
               | Regex "^(.*)\s*$" [ code ] ->
-                  currentTests := !currentTests @ [ ExecUtils.t "" code ]
+                  currentTests := !currentTests @ [ FSharpToExpr.t $"line {i}" code ]
               // 1-line test w/ comment
               | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
                   currentTests
                   := !currentTests
-                  @ [ ExecUtils.t $"{comment} (line {i + 1})" code ]
-              | _ -> raise (System.Exception $"can't parse line {i + 1}: {line}"))
+                  @ [ FSharpToExpr.t $"{comment} (line {i})" code ]
+              | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()
          testList $"Tests from {filename}" !allTests
