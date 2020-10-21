@@ -49,9 +49,24 @@ open R.Shortcuts
 exception MyException of string
 
 let convert (ast : SynExpr) : R.Expr * R.Expr =
+  let parseFloat d : string * string =
+    let parts = (sprintf "%f" d).Split "."
+    if parts.Length <> 2 then (raise (MyException $"Parts are {parts}, d is {d}"))
+    (parts.[0], string (int parts.[1]))
+
   let rec convertPattern (pat : SynPat) : R.Pattern =
     match pat with
+    | SynPat.Named (SynPat.Wild (_), name, _, _, _) when name.idText = "blank" ->
+        pBlank ()
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
+    | SynPat.Const (SynConst.Int32 n, _) -> pInt n
+    | SynPat.Const (SynConst.Char c, _) -> pChar c
+    | SynPat.Const (SynConst.Bool b, _) -> pBool b
+    | SynPat.Null _ -> pNull ()
+    | SynPat.Const (SynConst.Double d, _) ->
+        let whole, fraction = parseFloat d
+        pFloatStr whole fraction
+    | SynPat.Const (SynConst.String (s, _), _) -> pString s
     | _ -> failwith $" - unhandled pattern: {pat} "
 
   let convertLambdaVar (var : SynSimplePat) : string =
@@ -75,15 +90,17 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
 
     match expr with
     | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
+    | SynExpr.Null _ -> eNull ()
     | SynExpr.Const (SynConst.Char c, _) -> eChar c
     | SynExpr.Const (SynConst.Bool b, _) -> eBool b
     | SynExpr.Const (SynConst.Double d, _) ->
-        let parts = (sprintf "%f" d).Split "."
-        if parts.Length <> 2 then (raise (MyException $"Parts are {parts}, d is {d}"))
-        eFloatStr (parts.[0]) (string (int parts.[1]))
+        let whole, fraction = parseFloat d
+        eFloatStr whole fraction
     | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
     | SynExpr.Ident ident when ident.idText = "op_Addition" ->
         eBinOp "" "+" 0 (eBlank ()) (eBlank ())
+    | SynExpr.Ident ident when ident.idText = "op_PlusPlus" ->
+        eBinOp "" "++" 0 (eBlank ()) (eBlank ())
     | SynExpr.Ident ident when ident.idText = "op_Equality" ->
         eBinOp "" "==" 0 (eBlank ()) (eBlank ())
     | SynExpr.Ident ident when ident.idText = "op_GreaterThan" ->
@@ -147,6 +164,12 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                                    _) ],
                         body,
                         _) -> eLet name.idText (c rhs) (c body)
+    | SynExpr.Match (_, cond, clauses, _) ->
+        let convertClause (Clause (pat, _, expr, _, _) : SynMatchClause)
+                          : R.Pattern * R.Expr =
+          (convertPattern pat, c expr)
+
+        eMatch (c cond) (List.map convertClause clauses)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
     // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
     // op_PipeRight, and the inner app has two arguments. Those arguments might
