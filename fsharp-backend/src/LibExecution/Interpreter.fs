@@ -241,6 +241,13 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
               executeMatch [] ((pid, v) :: builtUpTraces) st expr
             else
               traceNonMatch st expr builtUpTraces pid v
+        | PCharacter (pid, c) ->
+            let v = DChar(c)
+            if v = dv then
+              executeMatch [] ((pid, v) :: builtUpTraces) st expr
+            else
+              traceNonMatch st expr builtUpTraces pid v
+
         | PString (pid, str) ->
             let v = DStr(str)
             if v = dv then
@@ -267,6 +274,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
               executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
         | PBlank (_pid) ->
             (* never matches *)
+            // FSTODO: is this the same in the AST?
             // traceNonMatch st expr builtUpTraces pid (incomplete pid)
             ()
         | PConstructor (pid, name, args) ->

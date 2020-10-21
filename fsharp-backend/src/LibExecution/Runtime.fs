@@ -110,6 +110,7 @@ and Pattern =
   | PConstructor of id * string * List<Pattern>
   | PInteger of id * string
   | PBool of id * bool
+  | PCharacter of id * string
   | PString of id * string
   | PFloat of id * string * string
   | PNull of id
@@ -713,6 +714,9 @@ module Shortcuts =
   let pOk (arg : Pattern) : Pattern = PConstructor(gid (), "Ok", [ arg ])
 
   let pBool (b : bool) : Pattern = PBool(gid (), b)
+
+  let pChar (c : char) : Pattern = PCharacter(gid (), string c)
+  let pCharStr (c : string) : Pattern = PCharacter(gid (), c)
 
   let pString (str : string) : Pattern = PString(gid (), str)
 
