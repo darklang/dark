@@ -77,6 +77,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
     | SynExpr.Ident ident when ident.idText = "op_PipeRight" ->
         ePipe (eBlank ()) (eBlank ()) []
     | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
+    | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
     | SynExpr.Ident name -> eVar name.idText
     | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> eList
     // A literal list is sometimes made up of nested Sequentials
@@ -98,7 +99,8 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                                                       SynExpr.Tuple (_, exprs, _, _),
                                                       _),
                                     _) -> exprs |> List.map c |> eList
-
+    | SynExpr.ArrayOrListOfSeqExpr (_, SynExpr.CompExpr (_, _, expr, _), _) ->
+        eList [ c expr ]
     | SynExpr.LongIdent (_,
                          // Note to self: LongIdent = Ident list
                          LongIdentWithDots ([ modName; fnName ], _),
