@@ -440,30 +440,28 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "join" 0
-//      ; parameters = [Param.make "l" TList; Param.make "separator" TStr]
-//      ; returnType = TStr
-//      ; description = "Combines a list of strings with the provided separator"
-//      ; fn =
-//         (function
-//         | _, [DList l; DStr sep] ->
-//             let s =
-//               List.map
-//                 (fun s ->
-//                   match s with
-//                   | DStr st ->
-//                       st
-//                   | _ ->
-//                       Exception.code "Expected string")
-//                 l
-//             in
-//             DStr (Unicode_string.concat ~sep s)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "fromList" 0
+    { name = fn "String" "join" 0
+      parameters = [ Param.make "l" (TList TStr) ""; Param.make "separator" TStr "" ]
+      returnType = TStr
+      description = "Combines a list of strings with the provided separator"
+      fn =
+        (function
+        | _, [ DList l; DStr sep ] ->
+            let strs =
+              List.map (fun s ->
+                match s with
+                | DStr st -> st
+                | _ ->
+                    raise
+                      (RuntimeException(JustAString(SourceNone, "Expected String"))))
+                l
+
+            Plain(DStr(String.concat sep strs))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "fromList" 0
 //      ; parameters = [Param.make "l" TList]
 //      ; returnType = TStr
 //      ; description = "Returns the list of characters as a string"

@@ -23,42 +23,31 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "List" "head" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TAny
-//     ; description =
-//         "Returns the head of a list. Returns null if the empty list is passed."
-//     ; fn =
-//
-//           (function
-//           | _, [DList l] ->
-//             (match List.hd l with Some dv -> dv | None -> DNull)
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "head" 1
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TOption
-//     ; description = "Fetches the head of the list and returns an option"
-//     ; fn =
-//
-//           (function
-//           | _, [DList l] ->
-//             ( match List.hd l with
-//             | Some dv ->
-//                 DOption (OptJust dv)
-//             | None ->
-//                 DOption OptNothing )
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "head" 2
+    { name = fn "List" "head" 0
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = varA
+      description =
+        "Returns the head of a list. Returns null if the empty list is passed."
+      fn =
+        (function
+        | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Plain
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "head" 1
+
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TOption varA
+      description = "Fetches the head of the list and returns an option"
+      fn =
+        (function
+        | _, [ DList l ] -> Plain(DOption(List.tryHead l))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //   ; { name = fn "List" "head" 2
 //
 //     ; parameters = [Param.make "list" TList]
 //     ; returnType = TOption
