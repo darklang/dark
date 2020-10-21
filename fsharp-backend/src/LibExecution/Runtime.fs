@@ -37,6 +37,15 @@ module FnDesc =
       function_ : string
       version : int }
 
+    member this.ToString : string =
+      let module_ = if this.module_ = "" then "" else $"{this.module_}::"
+      let fn = $"{this.module_}{this.function_}_v{this.version}"
+
+      if this.owner = "dark" && module_ = "stdlib" then
+        fn
+      else
+        $"{this.owner}/{this.package}::{fn}"
+
   let fnDesc (owner : string)
              (package : string)
              (module_ : string)

@@ -61,6 +61,18 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
 
   let rec convert' (expr : SynExpr) : R.Expr =
     let c = convert'
+
+    // Add a pipetarget after creating it
+    let cPlusPipeTarget (e : SynExpr) : R.Expr =
+      match c e with
+      | R.EFnCall (id, name, args, ster) ->
+          R.EFnCall(id, name, ePipeTarget () :: args, ster)
+      | R.EBinOp (id, name, R.EBlank _, arg2, ster) ->
+          R.EBinOp(id, name, ePipeTarget (), arg2, ster)
+      | R.EBinOp (id, name, arg1, R.EBlank _, ster) ->
+          R.EBinOp(id, name, ePipeTarget (), arg1, ster)
+      | other -> other
+
     match expr with
     | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
     | SynExpr.Const (SynConst.Char c, _) -> eChar c
@@ -74,8 +86,8 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
         eBinOp "" "+" 0 (eBlank ()) (eBlank ())
     | SynExpr.Ident ident when ident.idText = "op_Equality" ->
         eBinOp "" "==" 0 (eBlank ()) (eBlank ())
-    | SynExpr.Ident ident when ident.idText = "op_PipeRight" ->
-        ePipe (eBlank ()) (eBlank ()) []
+    | SynExpr.Ident ident when ident.idText = "op_GreaterThan" ->
+        eBinOp "" ">" 0 (eBlank ()) (eBlank ())
     | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
     | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
     | SynExpr.Ident name -> eVar name.idText
@@ -109,12 +121,14 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
         let name, version =
           match fnName.idText.Split "_v" with
           | [| name; version |] -> (name, int version)
-          | _ -> failwith $"Version name isn't expected format {fnName.idText}"
+          | _ -> failwith $"Version name isn't expected format: \"{fnName.idText}\""
 
         eFn modName.idText name version []
     | SynExpr.Lambda (_, _, SynSimplePats.SimplePats (vars, _), body, _) ->
         let vars = List.map convertLambdaVar vars
         eLambda vars (c body)
+    | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
+        eIf (c cond) (c thenExpr) (c elseExpr)
     // When we add patterns on the lhs of lets, the pattern below could be
     // expanded to use convertPat
     | SynExpr.LetOrUse (_,
@@ -134,28 +148,41 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                         body,
                         _) -> eLet name.idText (c rhs) (c body)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
+    // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
+    // op_PipeRight, and the inner app has two arguments. Those arguments might
+    // also be pipes
+    | SynExpr.App (_,
+                   _,
+                   SynExpr.Ident pipe,
+                   SynExpr.App (_, _, nestedPipes, arg, _),
+                   _) when pipe.idText = "op_PipeRight" ->
+        match c nestedPipes with
+        | R.EPipe (id, arg1, R.EBlank _, rest) as pipe ->
+            // when we just built the lowest, the second one goes here
+            R.EPipe(id, arg1, cPlusPipeTarget arg, rest)
+        | R.EPipe (id, arg1, arg2, rest) as pipe ->
+            R.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+        // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
+        | other ->
+            // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
+            // the very bottom on the pipe chain, this is the first and second expressions
+            ePipe (other) (cPlusPipeTarget arg) []
+    | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText =
+                                                             "op_PipeRight" ->
+        // the very bottom on the pipe chain, this is just the first expression
+        ePipe (c expr) (eBlank ()) []
     // Callers with multiple args are encoded as apps wrapping other apps.
-    | SynExpr.App (_, _, nested, arg, _) -> // binops
-        match c nested with
+    | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
+        match c funcExpr with
         | R.EFnCall (id, name, args, ster) ->
             R.EFnCall(id, name, args @ [ c arg ], ster)
         | R.EBinOp (id, name, R.EBlank _, arg2, ster) ->
             R.EBinOp(id, name, c arg, arg2, ster)
         | R.EBinOp (id, name, arg1, R.EBlank _, ster) ->
             R.EBinOp(id, name, arg1, c arg, ster)
-        | R.EPipe (id, arg1, arg2, args) ->
-            let arg =
-              match c arg with
-              | R.EFnCall (id, name, args, ster) ->
-                  R.EFnCall(id, name, ePipeTarget () :: args, ster)
-              | R.EBinOp (id, name, arg1, arg2, ster) ->
-                  R.EBinOp(id, name, arg1, arg2, ster)
-              | a -> a
-
-            if arg1.isBlank then R.EPipe(id, arg, arg2, args)
-            else if arg2.isBlank then R.EPipe(id, arg1, arg, args)
-            else R.EPipe(id, arg1, arg2, args @ [ arg ])
-        | e -> failwith $"Unsupported expression: {(expr, e, arg)}"
+        | R.EPipe (id, arg1, arg2, rest) as pipe ->
+            R.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+        | e -> failwith $"Unsupported expression in app: {expr},\n\n{e},\n\n{arg})"
     | expr -> failwith $"Unsupported expression: {expr}"
 
   // Split equality into actual vs expected
@@ -165,6 +192,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                  SynExpr.App (_, _, SynExpr.Ident ident, actual, _),
                  expected,
                  _) when ident.idText = "op_Equality" ->
+      // failwith $"whole thing: {actual}"
       (convert' actual, convert' expected)
   | _ -> convert' ast, eBool true
 
