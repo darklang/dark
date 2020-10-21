@@ -36,7 +36,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
     { name = fn "List" "head" 1
-
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
       description = "Fetches the head of the list and returns an option"

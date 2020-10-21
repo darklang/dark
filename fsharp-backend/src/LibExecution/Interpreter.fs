@@ -376,7 +376,8 @@ and eval_lambda (state : ExecutionState)
         // let bindings = List.zip_exn params args in
         // List.iter bindings (fun ((id, paramName), dv) ->
         //     state.trace state.on_execution_path id dv) ;
-        // #FSTODO is this being overwritten correctly? so latest items win?
-        let newSymtable = List.zip parameters args |> Map |> Map.union l.symtable
+        let paramSyms = List.zip parameters args |> Map
+        // paramSyms is higher priority
+        let newSymtable = Map.union paramSyms l.symtable
 
         eval state newSymtable l.body
