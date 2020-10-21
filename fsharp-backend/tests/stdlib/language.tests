@@ -15,75 +15,75 @@
 [test.matchInt]
 (match 5 with
 | 5 -> "int"
-//| 5.6 -> "float"
-//| false -> "bool"
-//| "myStr" -> "string"
-//| null -> "null"
-//| blank -> "blank"
+| 5.6 -> "float"
+| false -> "bool"
+| "myStr" -> "string"
+| null -> "null"
+| blank -> "blank"
 //| Ok x -> "ok: " ++ x
 //| Nothing -> "constructor nothing"
 | name -> name ++ "var") = "int"
-//
-//[test.matchFloat]
-//(match 5.6 with
-// | 5 -> "int"
-// | 5.6 -> "float"
-// | false -> "bool"
-// | "myStr" -> "string"
-// | null -> "null"
-// | blank -> "blank"
+
+[test.matchFloat]
+(match 5.6 with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
 // | Ok x -> "ok: " ++ x
 // | Nothing -> "constructor nothing"
-// | name -> name ++ "var") = "float"
-//
-//[test.matchBool]
-//(match false with
-// | 5 -> "int"
-// | 5.6 -> "float"
-// | false -> "bool"
-// | "myStr" -> "string"
-// | null -> "null"
-// | blank -> "blank"
+ | name -> name ++ "var") = "float"
+
+[test.matchBool]
+(match false with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
 // | Ok x -> ++_v0 "ok: " x
 // | Nothing -> "constructor nothing"
-// | name -> name ++ "var") = "bool"
-//
-//[test.matchString]
-//(match "myStr" with
-// | 5 -> "int"
-// | 5.6 -> "float"
-// | false -> "bool"
-// | "myStr" -> "string"
-// | null -> "null"
-// | blank -> "blank"
-// | Ok x -> ++_v0 "ok: " x
-// | Nothing -> "constructor nothing"
-// | name -> name ++ "var") = "string"
-//
-//[test.matchString2]
-//(match "otherStr" with
-// | 5 -> "int"
-// | 5.6 -> "float"
-// | false -> "bool"
-// | "myStr" -> "string"
-// | null -> "null"
-// | blank -> "blank"
+ | name -> name ++ "var") = "bool"
+
+[test.matchString]
+(match "myStr" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
 // | Ok x -> "ok: " ++ x
 // | Nothing -> "constructor nothing"
-// | name -> name ++ "var") = "otherStrvar"
-//
-//[test.matchNull]
-//(match null with
-// | 5 -> "int"
-// | 5.6 -> "float"
-// | false -> "bool"
-// | "myStr" -> "string"
-// | null -> "null"
-// | blank -> "blank"
+ | name -> name ++ "var") = "string"
+
+[test.matchString2]
+(match "otherStr" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
 // | Ok x -> "ok: " ++ x
 // | Nothing -> "constructor nothing"
-// | name -> name ++ "var") = "null"
-//
+ | name -> name ++ "var") = "otherStrvar"
+
+[test.matchNull]
+(match null with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+// | Ok x -> "ok: " ++ x
+// | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "null"
+
 //[test.matchConstructorWithArg]
 //(match Ok "x" with
 // | 5 -> "int"
