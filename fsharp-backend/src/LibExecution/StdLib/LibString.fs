@@ -207,21 +207,18 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toUppercase" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, uppercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (String.uppercase (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toUppercase" 1
+    { name = fn "String" "toUppercase" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description = "Returns the string, uppercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Plain(DStr(String.toUpper s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
+    //      { name = fn "String" "toUppercase" 1
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TStr
 //      ; description = "Returns the string, uppercased"
@@ -490,29 +487,26 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "fromChar" 0
-//      ; parameters = [Param.make "c" TCharacter]
-//      ; returnType = TCharacter
-//      ; description = "Converts a char to a string"
-//      ; fn =
-//        (fun _ -> Exception.code "This function no longer exists.")
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "fromChar" 1
-//      ; parameters = [Param.make "c" TCharacter]
-//      ; returnType = TStr
-//      ; description = "Converts a char to a string"
-//      ; fn =
-//         (function
-//         | _, [DCharacter c] ->
-//             DStr (Unicode_string.of_character c)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "base64Encode" 0
+    { name = fn "String" "fromChar" 0
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TChar
+      description = "Converts a char to a string"
+      fn = (fun _ -> failwith "This function no longer exists.")
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "fromChar" 0) }
+    { name = fn "String" "fromChar" 1
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TStr
+      description = "Converts a char to a string"
+      fn =
+        (function
+        | _, [ DChar c ] -> Plain(DStr(c))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "base64Encode" 0
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TStr
 //      ; description =

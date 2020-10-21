@@ -849,24 +849,27 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "foreach" 0
-//
-//     ; parameters = [Param.make "list" TList; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Call `f` on every `val` in the list, returning a list of the results of
-//   those calls"
-//     ; fn =
-//
-//           (function
-//           | state, [DList l; DLambda b] ->
-//               let f (dv : dval) : dval = Ast.execute_dblock ~state b [dv] in
-//               DList (List.map ~f l)
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "foreach" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make "fn" (TFn([ varA ], varB)) "" ]
+      returnType = TList varB
+      description =
+        "Call `f` on every `val` in the list, returning a list of the results of those calls"
+      fn =
+        (function
+        | state, [ DList l; DLambda b ] ->
+            (Task
+              (task {
+                let! result =
+                  map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
+
+                return (result |> Dval.toDList)
+               }))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "List" "map" 0) }
     { name = FnDesc.stdFnDesc "List" "map" 0
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
