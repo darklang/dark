@@ -9,9 +9,62 @@ open Runtime
 
 // fsharplint:disable FL0039
 let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
-  let tryFindFn desc = state.functions.TryFind(desc)
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = Plain(DFakeVal(DIncomplete(SourceID(state.tlid, id))))
+  (* This is a super hacky way to inject params as the result of
+   * pipelining using the `Pipe` construct
+   *
+   * It's definitely not a good thing to be doing, as we're mutating
+   * the ASTs exprs to inject dvals into them
+   *
+   * `Pipe` as a separate construct in the AST as opposed to just
+   * being a function application is probably the root cause of this.
+   * Right now, we don't have function application in the language as
+   * FnCall is the AST element that actually handles interacting with
+   * the OCaml runtime to do useful work. We're going to need to make
+   * this a functional language with functions-as-values and application
+   * as a first-class concept sooner rather than later.
+   *)
+
+  let injectParamAndExecute (state : ExecutionState)
+                            (st : Symtable)
+                            (arg : DvalTask)
+                            (expr : Expr)
+                            : DvalTask =
+    arg.bind (fun arg ->
+      let result =
+        match expr with
+        | ELambda (id, _, _) ->
+            let result = eval state st expr
+            result.bind (function
+              | DLambda b -> eval_lambda state b [ arg ]
+              | _ ->
+                  // This should never happen, but the user should be allowed to
+                  // recover so this shouldn't be an exception *)
+                  Plain
+                    (errSStr
+                      (sourceID id)
+                       "Internal type error: lambda did not produce a block"))
+        | EBinOp (id, name, EPipeTarget _, right, ster) ->
+            let result = eval state st right
+            result.bind (fun r -> callFn state name [ arg; r ] ster)
+        | EFnCall (id, name, EPipeTarget _ :: exprs, ster) ->
+            Task
+              (task {
+                let! args = Runtime.map_s (eval state st) exprs
+                return! (callFn state name (arg :: args) ster).toTask()
+               })
+        // If there's a hole, just run the computation straight through, as
+        // if it wasn't there
+        | EBlank _ -> Plain arg
+        | _ ->
+            (* calculate the results inside this regardless *)
+            Plain(DFakeVal(DIncomplete SourceNone))
+
+      // partial w/ exception, full with dincomplete, or option dval?
+      // trace on_execution_path (Libshared.FluidExpression.toID exp) result ;
+      result)
+
   match e with
   | EBlank id -> incomplete id
   | EPartial (_, _, expr)
@@ -26,12 +79,8 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         eval state st body)
   | EString (_id, s) -> Plain(DStr s)
   | EBool (_id, b) -> Plain(DBool b)
-  | EInteger (_id, i) -> Plain(DInt(System.Numerics.BigInteger.Parse i))
-  | EFloat (_id, whole, fractional) ->
-      // FSTODO - add sourceID to errors
-      try
-        Plain(DFloat(float $"{whole}.{fractional}"))
-      with _ -> Plain(err (InvalidFloatExpression(whole, fractional)))
+  | EInteger (_id, i) -> Plain(Dval.int i)
+  | EFloat (_id, whole, fractional) -> Plain(Dval.float whole fractional)
   | ENull _id -> Plain(DNull)
   | ECharacter (_id, s) -> Plain(DChar s)
   | EList (_id, exprs) ->
@@ -53,21 +102,19 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
       Plain(Symtable.get st name)
   | ERecord (id, _) -> incomplete id // FSTODO
   | EFnCall (_id, desc, exprs, ster) ->
-      (match tryFindFn desc with
-       | Some fn ->
-           Task
-             (task {
-               let! args = Runtime.map_s (eval state st) exprs
-               return! (callFn state fn (Seq.toList args)).toTask()
-              })
-       | None -> Plain(err (NotAFunction desc)))
+      Task
+        (task {
+          let! args = Runtime.map_s (eval state st) exprs
+          return! (callFn state desc (Seq.toList args) ster).toTask()
+         })
   | EBinOp (_id, desc, arg1, arg2, ster) ->
-      (match tryFindFn desc with
-       | Some fn ->
-           let t1 = eval state st arg1
-           let t2 = eval state st arg2
-           t1.bind2 t2 (fun arg1 arg2 -> callFn state fn [ arg1; arg2 ])
-       | None -> Plain(err (NotAFunction desc)))
+      Task
+        (task {
+          let! t1 = (eval state st arg1).toTask()
+          let! t2 = (eval state st arg2).toTask()
+          return! (callFn state desc [ t1; t2 ] ster).toTask()
+         })
+  | EFieldAccess _ -> failwith "todo"
   | EFeatureFlag (id, _, cond, oldcode, newcode) ->
       (* True gives newexpr, unlike in If statements
          *
@@ -115,6 +162,147 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   // FSTODO
   | ELambda (_id, parameters, body) ->
       Plain(DLambda({ symtable = st; parameters = parameters; body = body }))
+  | EPipe (id, e1, e2, rest) ->
+      let rest = e2 :: rest
+      (* For each expr, execute it, and then thread the previous result thru *)
+
+      let fst = eval state st e1
+      List.fold (fun previous next ->
+        let result = injectParamAndExecute state st previous next
+        result.bind (function
+          | DFakeVal (DIncomplete _) -> previous
+          (* let execution through *)
+          (* DErrorRail is handled by inject_param_and_execute *)
+          | _ -> result)) fst rest
+  | EMatch (id, matchExpr, cases) ->
+      let hasMatched = ref false
+      let matchResult = ref (incomplete id)
+
+      let executeMatch (new_defs : (string * Dval) list)
+                       (traces : (id * Dval) list)
+                       (st : DvalMap)
+                       (expr : Expr)
+                       : unit =
+        (* Once a pattern is matched, this function is called to execute its
+           * `expr`. It tracks whether this is the first pattern to execute,
+           * and calls preview if it is not. Handles calling trace on the
+           * traces that have been collected by pattern matching. *)
+        let newVars = Map.ofList new_defs
+        let newSt = Map.union newVars st
+        if !hasMatched then
+          ()
+        // FSTODO
+        (* We matched, but we've already matched a pattern previously *)
+        // List.iter (fun (id, dval) -> trace false id dval) traces
+        // FSTODO
+        // preview newSt expr
+        else
+          // FSTODO
+          // List.iter (fun (id, dval) -> trace on_execution_path id dval) traces
+          hasMatched := true
+          matchResult := eval state newSt expr
+
+      let traceIncompletes traces = ()
+      // FSTODO
+      // List.iter traces (fun (id, _) -> trace false id (incomplete id))
+
+      let traceNonMatch (st : DvalMap)
+                        (expr : Expr)
+                        (traces : (id * Dval) list)
+                        (id : id)
+                        (value : Dval)
+                        : unit =
+        // FSTODO
+        // preview st expr
+        // FSTODO
+        // traceIncompletes traces
+        // FSTODO
+        // trace false id value
+        ()
+
+      let rec matchAndExecute dv (builtUpTraces : (id * Dval) list) (pattern, expr) =
+        (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
+           * matches. Tracks whether a branch has already been executed and
+           * will exceute later matches in preview mode.  Ensures all patterns
+           * and branches are properly traced.  Recurse on partial matches
+           * (constructors); builtUpTraces is the set of traces that have been
+           * built up by recursing: they can only be matched when the pattern
+           * is ready to match. *)
+        match pattern with
+        | PInteger (pid, i) ->
+            let v = Dval.int i
+            if v = dv then
+              executeMatch [] ((pid, v) :: builtUpTraces) st expr
+            else
+              traceNonMatch st expr builtUpTraces pid v
+        | PBool (pid, bool) ->
+            let v = DBool bool
+            if v = dv then
+              executeMatch [] ((pid, v) :: builtUpTraces) st expr
+            else
+              traceNonMatch st expr builtUpTraces pid v
+        | PString (pid, str) ->
+            let v = DStr(str)
+            if v = dv then
+              executeMatch [] ((pid, v) :: builtUpTraces) st expr
+            else
+              traceNonMatch st expr builtUpTraces pid v
+        | PFloat (pid, whole, fraction) ->
+            let v = Dval.float whole fraction
+            if v = dv then
+              executeMatch [] ((pid, v) :: builtUpTraces) st expr
+            else
+              traceNonMatch st expr builtUpTraces pid v
+        | PNull (pid) ->
+            let v = DNull
+            if v = dv then
+              executeMatch [] ((pid, v) :: builtUpTraces) st expr
+            else
+              traceNonMatch st expr builtUpTraces pid v
+        | PVariable (pid, v) ->
+            (* only matches allowed values *)
+            if dv.isFake then
+              traceNonMatch st expr builtUpTraces pid dv
+            else
+              executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
+        | PBlank (_pid) ->
+            (* never matches *)
+            // traceNonMatch st expr builtUpTraces pid (incomplete pid)
+            ()
+        | PConstructor (pid, name, args) ->
+            (match (name, args, dv) with
+             | "Just", [ p ], DOption (Some v)
+             | "Ok", [ p ], DResult (Ok v)
+             | "Error", [ p ], DResult (Error v) ->
+                 matchAndExecute v ((pid, dv) :: builtUpTraces) (p, expr)
+             | "Nothing", [], DOption None ->
+                 executeMatch [] ((pid, dv) :: builtUpTraces) st expr
+             | "Nothing", [], _ ->
+                 traceNonMatch st expr builtUpTraces pid (DOption None)
+             | _ ->
+                 // let error =
+                 //   if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
+                 //     incomplete pid
+                 //   else
+                 //     Plain(DFakeVal(DError(UndefinedConstructor name)))
+                 // FSTODO
+                 // traceNonMatch st expr builtUpTraces pid error
+                 // FSTODO
+                 (* Trace each argument too. TODO: recurse *)
+                 // List.iter args (fun pat ->
+                 //   let id = Libshared.FluidPattern.toID pat
+                 //   trace false id (incomplete id))
+                 ())
+
+      Task
+        (task {
+          let! matchVal = (eval state st matchExpr).toTask()
+
+          List.iter (fun (pattern, expr) ->
+            matchAndExecute matchVal [] (pattern, expr)) cases
+
+          return! (!matchResult).toTask()
+         })
   | EIf (_id, cond, thenbody, elsebody) ->
       let cond = eval state st cond
       cond.bind (function
@@ -146,18 +334,26 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
 
 
 
-and callFn (state : ExecutionState) (fn : BuiltInFn) (args : List<Dval>) : DvalTask =
-  match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
-  | Some special -> Plain special
-  | None ->
-      try
-        fn.fn (state, args)
-      with
-      | RuntimeException rte -> Plain(err rte)
-      | FnCallException FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
-      | FnCallException FnWrongTypes ->
-          Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
-      | FakeDvalException dval -> Plain(dval)
+and callFn (state : ExecutionState)
+           (desc : FnDesc.T)
+           (args : List<Dval>)
+           (ster : SendToRail)
+           : DvalTask =
+  //FSTODO: sendToRail
+  match state.functions.TryFind desc with
+  | None -> Plain(err (NotAFunction desc))
+  | Some fn ->
+      match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
+      | Some special -> Plain special
+      | None ->
+          try
+            fn.fn (state, args)
+          with
+          | RuntimeException rte -> Plain(err rte)
+          | FnCallException FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
+          | FnCallException FnWrongTypes ->
+              Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+          | FakeDvalException dval -> Plain(dval)
 
 and eval_lambda (state : ExecutionState)
                 (l : Runtime.LambdaBlock)
@@ -178,8 +374,8 @@ and eval_lambda (state : ExecutionState)
       else
         // FSTODO
         // let bindings = List.zip_exn params args in
-        // List.iter bindings ~f:(fun ((id, paramName), dv) ->
-        //     state.trace ~on_execution_path:state.on_execution_path id dv) ;
+        // List.iter bindings (fun ((id, paramName), dv) ->
+        //     state.trace state.on_execution_path id dv) ;
         // #FSTODO is this being overwritten correctly? so latest items win?
         let newSymtable = List.zip parameters args |> Map |> Map.union l.symtable
 

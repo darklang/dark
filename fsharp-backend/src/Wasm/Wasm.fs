@@ -12,7 +12,7 @@ module Program =
   [<Microsoft.JSInterop.JSInvokable>]
   let run (arg : int) : Task<string> =
     task {
-      let prog = LibExecution.Runtime.Shortcuts.eint arg
+      let prog = LibExecution.Runtime.Shortcuts.eInt arg
       let! result = LibExecution.Execution.run (prog)
       return result.ToString()
     }

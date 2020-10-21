@@ -66,12 +66,11 @@ let fileTests () : Test =
                   finish ()
                   singleTestMode := true
                   currentTestName := name
-
+              // Skip comment-only lines
+              | Regex "^\s*//.*" [] -> ()
               // Append to the current test string
               | _ when !singleTestMode ->
                   currentTestString := !currentTestString + line
-              // Skip comment-only lines
-              | Regex "^\s*//.*" [] -> ()
               // Skip whitespace lines
               | Regex "^\s*$" [] -> ()
               // 1-line test

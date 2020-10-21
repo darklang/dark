@@ -49,31 +49,55 @@ open R.Shortcuts
 exception MyException of string
 
 let convert (ast : SynExpr) : R.Expr * R.Expr =
+  let rec convertPattern (pat : SynPat) : R.Pattern =
+    match pat with
+    | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
+    | _ -> failwith $" - unhandled pattern: {pat} "
+
+  let convertLambdaVar (var : SynSimplePat) : string =
+    match var with
+    | SynSimplePat.Id (name, _, _, _, _, _) -> name.idText
+    | _ -> failwith $"unsupported lambdaVar {var}"
 
   let rec convert' (expr : SynExpr) : R.Expr =
     let c = convert'
     match expr with
-    | SynExpr.Const (SynConst.Int32 n, _) -> eint n
-    | SynExpr.Const (SynConst.Char c, _) -> echar c
-    | SynExpr.Const (SynConst.Bool b, _) -> ebool b
+    | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
+    | SynExpr.Const (SynConst.Char c, _) -> eChar c
+    | SynExpr.Const (SynConst.Bool b, _) -> eBool b
     | SynExpr.Const (SynConst.Double d, _) ->
         let parts = (sprintf "%f" d).Split "."
         if parts.Length <> 2 then (raise (MyException $"Parts are {parts}, d is {d}"))
-        efloatStr (parts.[0]) (string (int parts.[1]))
-    | SynExpr.Const (SynConst.String (s, _), _) -> estr s
+        eFloatStr (parts.[0]) (string (int parts.[1]))
+    | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
     | SynExpr.Ident ident when ident.idText = "op_Addition" ->
-        ebinOp "" "+" 0 (epipeTarget ()) (epipeTarget ())
+        eBinOp "" "+" 0 (eBlank ()) (eBlank ())
     | SynExpr.Ident ident when ident.idText = "op_Equality" ->
-        ebinOp "" "==" 0 (epipeTarget ()) (epipeTarget ())
-    | SynExpr.Ident ident when ident.idText = "Nothing" -> enothing ()
-    | SynExpr.Ident name -> efn "" name.idText 0 []
-    | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> elist
+        eBinOp "" "==" 0 (eBlank ()) (eBlank ())
+    | SynExpr.Ident ident when ident.idText = "op_PipeRight" ->
+        ePipe (eBlank ()) (eBlank ()) []
+    | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
+    | SynExpr.Ident name -> eVar name.idText
+    | SynExpr.ArrayOrList (_, exprs, _) -> exprs |> List.map c |> eList
+    // A literal list is sometimes made up of nested Sequentials
+    | SynExpr.ArrayOrListOfSeqExpr (_,
+                                    SynExpr.CompExpr (_,
+                                                      _,
+                                                      (SynExpr.Sequential _ as seq),
+                                                      _),
+                                    _) ->
+        let rec seqAsList expr : List<SynExpr> =
+          match expr with
+          | SynExpr.Sequential (_, _, expr1, expr2, _) -> expr1 :: seqAsList expr2
+          | _ -> [ expr ]
+
+        seq |> seqAsList |> List.map c |> eList
     | SynExpr.ArrayOrListOfSeqExpr (_,
                                     SynExpr.CompExpr (_,
                                                       _,
                                                       SynExpr.Tuple (_, exprs, _, _),
                                                       _),
-                                    _) -> exprs |> List.map c |> elist
+                                    _) -> exprs |> List.map c |> eList
 
     | SynExpr.LongIdent (_,
                          // Note to self: LongIdent = Ident list
@@ -85,18 +109,51 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
           | [| name; version |] -> (name, int version)
           | _ -> failwith $"Version name isn't expected format {fnName.idText}"
 
-        efn modName.idText name version []
+        eFn modName.idText name version []
+    | SynExpr.Lambda (_, _, SynSimplePats.SimplePats (vars, _), body, _) ->
+        let vars = List.map convertLambdaVar vars
+        eLambda vars (c body)
+    // When we add patterns on the lhs of lets, the pattern below could be
+    // expanded to use convertPat
+    | SynExpr.LetOrUse (_,
+                        _,
+                        [ Binding (_,
+                                   _,
+                                   _,
+                                   _,
+                                   _,
+                                   _,
+                                   _,
+                                   SynPat.Named (SynPat.Wild (_), name, _, _, _),
+                                   _,
+                                   rhs,
+                                   _,
+                                   _) ],
+                        body,
+                        _) -> eLet name.idText (c rhs) (c body)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
     // Callers with multiple args are encoded as apps wrapping other apps.
-    | SynExpr.App (_, _, (expr), arg, _) -> // binops
-        match c expr with
+    | SynExpr.App (_, _, nested, arg, _) -> // binops
+        match c nested with
         | R.EFnCall (id, name, args, ster) ->
             R.EFnCall(id, name, args @ [ c arg ], ster)
-        | R.EBinOp (id, name, R.EPipeTarget _, arg2, ster) ->
+        | R.EBinOp (id, name, R.EBlank _, arg2, ster) ->
             R.EBinOp(id, name, c arg, arg2, ster)
-        | R.EBinOp (id, name, arg1, R.EPipeTarget _, ster) ->
+        | R.EBinOp (id, name, arg1, R.EBlank _, ster) ->
             R.EBinOp(id, name, arg1, c arg, ster)
-        | expr -> failwith $"Unsupported expression: {expr}"
+        | R.EPipe (id, arg1, arg2, args) ->
+            let arg =
+              match c arg with
+              | R.EFnCall (id, name, args, ster) ->
+                  R.EFnCall(id, name, ePipeTarget () :: args, ster)
+              | R.EBinOp (id, name, arg1, arg2, ster) ->
+                  R.EBinOp(id, name, arg1, arg2, ster)
+              | a -> a
+
+            if arg1.isBlank then R.EPipe(id, arg, arg2, args)
+            else if arg2.isBlank then R.EPipe(id, arg1, arg, args)
+            else R.EPipe(id, arg1, arg2, args @ [ arg ])
+        | e -> failwith $"Unsupported expression: {(expr, e, arg)}"
     | expr -> failwith $"Unsupported expression: {expr}"
 
   // Split equality into actual vs expected
@@ -107,7 +164,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                  expected,
                  _) when ident.idText = "op_Equality" ->
       (convert' actual, convert' expected)
-  | _ -> convert' ast, ebool true
+  | _ -> convert' ast, eBool true
 
 
 let t (comment : string) (code : string) : Test =
@@ -125,7 +182,8 @@ let t (comment : string) (code : string) : Test =
         return (Expect.equal
                   actual
                   expected
-                  $"{source} => {actualProg} = {expectedResult}")
+                  // $"{source} => {actualProg} = {expectedResult}")
+                  $"{actualProg} = {expectedResult}")
       with
       | MyException msg -> return (Expect.equal "" msg "")
       | e -> return (Expect.equal "" (e.ToString()) "")
