@@ -11,7 +11,7 @@ let fn = FnDesc.stdFnDesc
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fns : List<BuiltInFn> =
+let basicFns : List<BuiltInFn> =
   [ { name = fn "Int" "mod" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -112,28 +112,6 @@ let fns : List<BuiltInFn> =
         | state, [ _; (DStr _ as a) ] ->
             // FSTODO
             Plain(errStr "")
-        //    ("The first param ("
-        //    + Dval.to_developer_repr_v0 a
-        //    + ") is a Float, but "
-        //    + state.executing_fnname
-        //    + " only works on Ints. Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-    { name = fn "" "+" 0
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Adds two integers together"
-      fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Plain(DInt(a + b))
-        | state, [ (DFloat _ as a); _ ]
-        | state, [ (DStr _ as a); _ ]
-        | state, [ _; (DFloat _ as a) ]
-        | state, [ _; (DStr _ as a) ] -> Plain(errStr "")
-        // FSTODO
-        // Plain(errStr
         //    ("The first param ("
         //    + Dval.to_developer_repr_v0 a
         //    + ") is a Float, but "
@@ -280,39 +258,34 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "greaterThan" 0
-    //   ; infix_names = [">"]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is greater than b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DBool (a > b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "greaterThan" 0
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TBool
+      description = "Returns true if a is greater than b"
+      fn =
+        (function
+        | _, [ DInt a; DInt b ] -> Plain(DBool(a > b))
+        // FSTODO
+        // | state, [ (DFloat _ as a); _ ] ->
+        //     DError
+        //       (SourceNone,
+        //        "The first param ("
+        //        ^ Dval.to_developer_repr_v0 a
+        //        ^ ") is a Float, but "
+        //        ^ state.executing_fnname
+        //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
+        // | state, [ _; (DFloat _ as b) ] ->
+        //     DError
+        //       (SourceNone,
+        //        "The second param ("
+        //        ^ Dval.to_developer_repr_v0 b
+        //        ^ ") is a Float, but "
+        //        ^ state.executing_fnname
+        //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Int" "greaterThanOrEqualTo" 0
     //   ; infix_names = [">="]
     //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
@@ -558,3 +531,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+// Add infix functions that are identical except for the name
+let infixFns =
+  let fns =
+    List.choose (function
+      | builtin ->
+          let d = builtin.name
+          match d.function_, d.version with
+          | "add", 0 -> Some { builtin with name = fn "" "+" 0 }
+          | "greaterThan", 0 -> Some { builtin with name = fn "" ">" 0 }
+          | _ -> None) basicFns
+
+  assert (fns.Length = 2) // make sure we got them all
+  fns
+
+let fns = infixFns @ basicFns
