@@ -19,7 +19,30 @@ let any =
       deprecated = NotDeprecated } ]
 
 
-let fns : List<BuiltInFn> = (LibString.fns @ LibList.fns @ LibInt.fns @ any)
+let prefixFns : List<BuiltInFn> = (LibString.fns @ LibList.fns @ LibInt.fns @ any)
+
+// Add infix functions that are identical except for the name
+let infixFns =
+  let fns =
+    List.choose (function
+      | builtin ->
+          let d = builtin.name
+
+          let opName =
+            match d.module_, d.function_, d.version with
+            | "Int", "add", 0 -> Some "+"
+            | "Int", "greaterThan", 0 -> Some ">"
+            | "String", "append", 1 -> Some "++"
+            | _ -> None
+
+          Option.map (fun opName ->
+            { builtin with name = FnDesc.stdFnDesc "" opName 0 }) opName) prefixFns
+
+  assert (fns.Length = 3) // make sure we got them all
+  fns
+
+let fns = infixFns @ prefixFns
+
 // [ { name = FnDesc.stdFnDesc "Int" "range" 0
 //     parameters =
 //       [ param "list" (TList(TVariable("a"))) "The list to be operated on"

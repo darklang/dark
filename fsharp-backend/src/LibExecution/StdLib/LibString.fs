@@ -275,43 +275,45 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "append" 0
-//       (* This used to provide "++" as an infix op.
-//        * It was moved to [String::append_v1] instead,
-//        * because we do not yet support versioning infix operators.
-//        * We decided this was safe under the assumption that no one should be
-//        * (and very likely no one is) relying on broken normalization. *)
-//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//      ; returnType = TStr
-//      ; description = "Concatenates the two strings and returns the joined string"
-//      ; fn =
-//         (function
-//         | _, [DStr s1; DStr s2] ->
-//             (* This implementation does not normalize post-concatenation.
-//             * This is a problem because it breaks our guarantees about strings always being normalized;
-//             * concatenating two normalized strings does not always result in a normalized string. *)
-//             DStr (Unicode_string.append_broken s1 s2)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "append" 1
-//      ; infix_names = ["++"]
-//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
-//      ; fn =
-//         (function
-//         | _, [DStr s1; DStr s2] ->
-//             DStr (Unicode_string.append s1 s2)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "prepend" 0
+    { name = fn "String" "append" 0
+      (* This used to provide "++" as an infix op.
+       * It was moved to [String::append_v1] instead,
+       * because we do not yet support versioning infix operators.
+       * We decided this was safe under the assumption that no one should be
+       * (and very likely no one is) relying on broken normalization. *)
+      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
+      returnType = TStr
+      description = "Concatenates the two strings and returns the joined string"
+      fn =
+        (function
+        | _, [ DStr s1; DStr s2 ] ->
+            // This implementation does not normalize post-concatenation.
+            // This is a problem because it breaks our guarantees about strings always being normalized;
+            // concatenating two normalized strings does not always result in a normalized string.
+            // replicating known broken behaviour feels wrong, but maybe necessary
+            Plain
+              (DStr
+                (System.Text.Encoding.UTF8.GetString
+                  (Array.append
+                    (System.Text.Encoding.UTF8.GetBytes s1)
+                     (System.Text.Encoding.UTF8.GetBytes s2))))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "append" 1) }
+    { name = fn "String" "append" 1
+      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
+      returnType = TStr
+      description =
+        "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
+      fn =
+        (function
+        | _, [ DStr s1; DStr s2 ] -> Plain(DStr(s1 + s2))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "prepend" 0
 //      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
 //      ; returnType = TStr
 //      ; description =

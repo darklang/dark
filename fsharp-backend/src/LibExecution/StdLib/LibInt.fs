@@ -11,7 +11,7 @@ let fn = FnDesc.stdFnDesc
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let basicFns : List<BuiltInFn> =
+let fns : List<BuiltInFn> =
   [ { name = fn "Int" "mod" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -531,19 +531,3 @@ let basicFns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]
-
-// Add infix functions that are identical except for the name
-let infixFns =
-  let fns =
-    List.choose (function
-      | builtin ->
-          let d = builtin.name
-          match d.function_, d.version with
-          | "add", 0 -> Some { builtin with name = fn "" "+" 0 }
-          | "greaterThan", 0 -> Some { builtin with name = fn "" ">" 0 }
-          | _ -> None) basicFns
-
-  assert (fns.Length = 2) // make sure we got them all
-  fns
-
-let fns = infixFns @ basicFns
