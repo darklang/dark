@@ -1,4 +1,4 @@
-module LibExecution.StdLib.Tests
+module Tests.LibExecution
 
 // Create test cases from .tests files in the tests/stdlib dir
 
@@ -12,10 +12,12 @@ let t (comment : string) (code : string) : Test =
   else
     testTask name {
       try
+        let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns @ Tests.LibTest.fns
+
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convert source
-        let! actual = LibExecution.Execution.run actualProg
-        let! expected = LibExecution.Execution.run expectedResult
+        let! actual = LibExecution.Execution.run actualProg fns
+        let! expected = LibExecution.Execution.run expectedResult fns
 
         return (Expect.equal
                   actual
@@ -41,7 +43,7 @@ let t (comment : string) (code : string) : Test =
 //   indicator, are all a single test named "name", and should be parsed as
 //   one.
 let fileTests () : Test =
-  let dir = "tests/stdlib/"
+  let dir = "tests/testfiles/"
   System.IO.Directory.GetFiles(dir, "*")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.map (fun filename ->

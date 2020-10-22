@@ -10,10 +10,14 @@
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BwdServer/Tests.fs" />
-    <Compile Include="ApiServer/Tests.fs" />
-    <Compile Include="LibExecution/FSharpToExpr.fs" />
-    <Compile Include="LibExecution/Tests.fs" />
+    <!-- Utils -->
+    <Compile Include="FSharpToExpr.fs" />
+    <Compile Include="LibTest.fs" />
+    <!-- Test collections -->
+    <Compile Include="ApiServer.Tests.fs" />
+    <Compile Include="BwdServer.Tests.fs" />
+    <Compile Include="LibExecution.Tests.fs" />
+    <!-- Entry point -->
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

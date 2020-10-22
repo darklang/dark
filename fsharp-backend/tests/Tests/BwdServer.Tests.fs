@@ -1,4 +1,4 @@
-module BwdServer.Tests
+module Tests.BwdServer
 
 open Expecto
 
