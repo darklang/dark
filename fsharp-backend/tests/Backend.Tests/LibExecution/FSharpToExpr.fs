@@ -144,12 +144,18 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                          LongIdentWithDots ([ modName; fnName ], _),
                          _,
                          _) ->
-        let name, version =
+        let name, version, ster =
           match fnName.idText.Split "_v" with
-          | [| name; version |] -> (name, int version)
+          | [| name; versionString |] ->
+              match versionString.Split "_" with
+              | [| version; "ster" |] -> (name, int version, R.Rail)
+              | [| version |] -> (name, int version, R.NoRail)
+              | _ ->
+                  failwith $"Version name isn't expected format: \"{versionString}\""
           | _ -> failwith $"Version name isn't expected format: \"{fnName.idText}\""
 
-        eFn modName.idText name version []
+        let desc = R.FnDesc.stdFnDesc modName.idText name version
+        R.EFnCall(gid (), desc, [], ster)
     | SynExpr.Lambda (_, _, SynSimplePats.SimplePats (vars, _), body, _) ->
         let vars = List.map convertLambdaVar vars
         eLambda vars (c body)

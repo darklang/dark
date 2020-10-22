@@ -176,6 +176,11 @@ and Dval =
     | DFakeVal (DError _) -> true
     | _ -> false
 
+  member this.unwrapFromErrorRail : Dval =
+    match this with
+    | DFakeVal (DErrorRail dv) -> dv
+    | other -> other
+
   // FSTODO: what kind of JSON is this?
   // Split into multiple files, each for the different kinds of serializers
   member this.toJSON() : JsonValue =

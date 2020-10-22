@@ -47,12 +47,12 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                        "Internal type error: lambda did not produce a block"))
         | EBinOp (id, name, EPipeTarget _, right, ster) ->
             let result = eval state st right
-            result.bind (fun r -> callFn state name [ arg; r ] ster)
+            result.bind (fun r -> callFn state id name [ arg; r ] ster)
         | EFnCall (id, name, EPipeTarget _ :: exprs, ster) ->
             Task
               (task {
                 let! args = Runtime.map_s (eval state st) exprs
-                return! (callFn state name (arg :: args) ster).toTask()
+                return! (callFn state id name (arg :: args) ster).toTask()
                })
         // If there's a hole, just run the computation straight through, as
         // if it wasn't there
@@ -101,18 +101,18 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
       // FSTODO: match ast.ml
       Plain(Symtable.get st name)
   | ERecord (id, _) -> incomplete id // FSTODO
-  | EFnCall (_id, desc, exprs, ster) ->
+  | EFnCall (id, desc, exprs, ster) ->
       Task
         (task {
           let! args = Runtime.map_s (eval state st) exprs
-          return! (callFn state desc (Seq.toList args) ster).toTask()
+          return! (callFn state id desc (Seq.toList args) ster).toTask()
          })
-  | EBinOp (_id, desc, arg1, arg2, ster) ->
+  | EBinOp (id, desc, arg1, arg2, ster) ->
       Task
         (task {
           let! t1 = (eval state st arg1).toTask()
           let! t2 = (eval state st arg2).toTask()
-          return! (callFn state desc [ t1; t2 ] ster).toTask()
+          return! (callFn state id desc [ t1; t2 ] ster).toTask()
          })
   | EFieldAccess _ -> failwith "todo"
   | EFeatureFlag (id, _, cond, oldcode, newcode) ->
@@ -343,25 +343,39 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
 
 
 and callFn (state : ExecutionState)
+           (id : id)
            (desc : FnDesc.T)
            (args : List<Dval>)
            (ster : SendToRail)
            : DvalTask =
-  //FSTODO: sendToRail
-  match state.functions.TryFind desc with
-  | None -> Plain(err (NotAFunction desc))
-  | Some fn ->
-      match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
-      | Some special -> Plain special
-      | None ->
-          try
-            fn.fn (state, args)
-          with
-          | RuntimeException rte -> Plain(err rte)
-          | FnCallException FnFunctionRemoved -> Plain(err (FunctionRemoved fn.name))
-          | FnCallException FnWrongTypes ->
-              Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
-          | FakeDvalException dval -> Plain(dval)
+  let result =
+    match state.functions.TryFind desc with
+    | None -> Plain(err (NotAFunction desc))
+    | Some fn ->
+        match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
+        | Some special -> Plain special
+        | None ->
+            try
+              fn.fn (state, args)
+            with
+            | RuntimeException rte -> Plain(err rte)
+            | FnCallException FnFunctionRemoved ->
+                Plain(err (FunctionRemoved fn.name))
+            | FnCallException FnWrongTypes ->
+                Plain(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+            | FakeDvalException dval -> Plain(dval)
+
+  if ster = Rail then
+    result.map (fun result ->
+      match result.unwrapFromErrorRail with
+      | DOption (Some v) -> v
+      | DResult (Ok v) -> v
+      | DFakeVal _ as f -> f
+      // There should only be DOptions and DResults here, but hypothetically we got
+      // something else, they would go on the error rail too.
+      | other -> DFakeVal(DErrorRail other))
+  else
+    result
 
 and eval_lambda (state : ExecutionState)
                 (l : Runtime.LambdaBlock)

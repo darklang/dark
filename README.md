@@ -115,7 +115,8 @@ Unit tests run when you specify `--test` to `scripts/builder`. You can run them 
 
 - `scripts/runtests` # client
 - `scripts/run-backend-tests`
-- `scripts/run-rust-tests`
+- `scripts/run-rust-tests containers/stroller`
+- `scripts/run-rust-tests containers/queue-scheduler`
 
 Integration tests:
 

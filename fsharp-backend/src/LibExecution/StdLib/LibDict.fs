@@ -258,7 +258,6 @@ let fns : List<BuiltInFn> =
       returnType = TOption varA
       description = "Looks up `key` in object `dict` and returns an option"
       fn =
-
         (function
         | _, [ DObj o; DStr s ] -> Plain(DOption(Map.tryFind s o))
         | args -> incorrectArgs ())
