@@ -1,5 +1,7 @@
 module FSharpToExpr
 
+// Converts strings of F# into Dark. Used for testing.
+
 open FSharp.Compiler
 open FSharp.Compiler.SyntaxTree
 open FSharp.Compiler.SourceCodeServices
@@ -224,7 +226,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
         | e -> failwith $"Unsupported expression in app: {expr},\n\n{e},\n\n{arg})"
     | expr -> failwith $"Unsupported expression: {expr}"
 
-  // Split equality into actual vs expected
+  // Split equality into actual vs expected in tests.
   match ast with
   | SynExpr.App (_,
                  _,

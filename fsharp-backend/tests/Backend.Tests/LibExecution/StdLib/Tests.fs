@@ -1,5 +1,7 @@
 module LibExecution.StdLib.Tests
 
+// Create test cases from .tests files in the tests/stdlib dir
+
 open Expecto
 open Prelude
 
