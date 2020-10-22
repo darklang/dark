@@ -143,18 +143,18 @@ Nothing = Nothing
 [tests.incomplete_propagation]
 [ 5; 6; List.head_v0 blank ] = [ 5; 6 ]
 [ 5; 6; blank] = [ 5, 6 ]
-//{ i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }
+{ i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }
 5 |> blank |> (+) 3 = 8
 5 |> (+) blank |> (+) 3 = 8
 5 |> (+) blank = 5
 
 [tests.errorrail]
 Dict.get_v1 {} "i" = Nothing
-//Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
-////[5] |> List.head_v1 |>+ 3 |>\x -> if (x + 4) > 1   then   x   else   (1 + x) = 8
-////[] |> List.head_v1 |>+ 3 |>\x -> if (x + 4) > 1   then   x   else   (1 + x) = ErrorRail Nothing
+Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
+([5] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 8
+([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailNothing_v0
 
-//[tests.errorrailPropagation]
+[tests.errorrailPropagation]
 ////List.push_v0 [1;2;3;4] (List.head_v1 []) = Test.errorRailNothing_v0_ster
 ////List.filter_v1 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
 ////List.map_v0 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
