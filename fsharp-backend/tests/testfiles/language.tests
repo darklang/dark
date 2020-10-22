@@ -161,7 +161,7 @@ Nothing = Nothing
 ////List.filter_v1 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
 ////List.map_v0 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
 ////List.fold_v0 [1;2;3;4] 1 (\x, y -> List.head_v1 []) = ErrorRail Nothing
-Error (List.head_v1 []) = Test.errorRailNothing_v0_ster 5
+(List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 
 //[tests.returns]
 //// FSTODO

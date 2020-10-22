@@ -253,7 +253,7 @@ and DvalTask =
             let! dv = t
             return (f dv)
            })
-    | Plain dv -> Plain dv
+    | Plain dv -> Plain(f dv)
 
   member dt1.bind2 (dt2 : DvalTask) (f : Dval -> Dval -> DvalTask) : DvalTask =
     match dt1, dt2 with
