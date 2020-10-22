@@ -100,7 +100,24 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   | EVariable (_id, name) ->
       // FSTODO: match ast.ml
       Plain(Symtable.get st name)
-  | ERecord (id, _) -> incomplete id // FSTODO
+  | ERecord (id, pairs) ->
+      let skipEmptyKeys =
+        pairs
+        |> List.choose (function
+             | ("", e) -> None
+             | k, e -> Some(k, e))
+
+      Task
+        (task {
+          let! (resolved : List<string * Dval>) =
+            Runtime.map_s (fun (k, v) -> (eval state st v).map(fun dv -> (k, dv)))
+              skipEmptyKeys
+
+          return (resolved
+                  // allow users to edit code safely
+                  |> List.filter (fun (k, v : Dval) -> not v.isIncomplete)
+                  |> Dval.obj)
+         })
   | EFnCall (id, desc, exprs, ster) ->
       Task
         (task {
@@ -324,19 +341,19 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
            Task
              (task {
                let! dv = (eval state st arg).toTask()
-               return DOption(Some dv)
+               return Dval.optionJust dv
               })
        | "Ok", [ arg ] ->
            Task
              (task {
                let! dv = (eval state st arg).toTask()
-               return DResult(Ok dv)
+               return Dval.resultOk dv
               })
        | "Error", [ arg ] ->
            Task
              (task {
                let! dv = (eval state st arg).toTask()
-               return DResult(Error dv)
+               return Dval.resultError dv
               })
        | _ -> Plain(DFakeVal(DError(UndefinedConstructor name))))
 

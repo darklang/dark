@@ -180,7 +180,13 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
           (convertPattern pat, c expr)
 
         eMatch (c cond) (List.map convertClause clauses)
-    | SynExpr.Record (_, _, [], _) -> eRecord []
+    | SynExpr.Record (_, _, fields, _) ->
+        fields
+        |> List.map (function
+             | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
+                 (name.idText, c expr)
+             | f -> failwith $"Not an expected field {f}")
+        |> eRecord
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
     // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
     // op_PipeRight, and the inner app has two arguments. Those arguments might

@@ -147,15 +147,6 @@ and Dval =
   // FSTODO
   (* | DBytes of RawBytes.t *)
 
-  static member int(i : int) = DInt(bigint i)
-  static member int(i : string) = DInt(System.Numerics.BigInteger.Parse i)
-
-  static member float (whole : string) (fractional : string) : Dval =
-    // FSTODO - add sourceID to errors
-    try
-      (DFloat(float $"{whole}.{fractional}"))
-    with _ -> ((DFakeVal(DError((InvalidFloatExpression(whole, fractional))))))
-
   member this.isFake : bool =
     match this with
     | DFakeVal _ -> true
@@ -213,9 +204,38 @@ and Dval =
 
     encodeDval this
 
-  static member toDList(list : List<Dval>) : Dval =
+  static member int(i : int) = DInt(bigint i)
+  static member int(i : string) = DInt(System.Numerics.BigInteger.Parse i)
+
+  static member float (whole : string) (fractional : string) : Dval =
+    // FSTODO - add sourceID to errors
+    try
+      (DFloat(float $"{whole}.{fractional}"))
+    with _ -> ((DFakeVal(DError((InvalidFloatExpression(whole, fractional))))))
+
+  // Dvals should never be constructed that contain fakevals - the fakeval
+  // should always propagate (though, there are specific cases in the
+  // interpreter where they are discarded instead of propagated; still they are
+  // never put into other dvals). These static members check before creating the values
+
+  static member list(list : List<Dval>) : Dval =
     List.tryFind (fun (dv : Dval) -> dv.isFake) list
     |> Option.defaultValue (DList list)
+
+  static member obj(fields : List<string * Dval>) : Dval =
+    List.tryFind (fun (k, dv : Dval) -> dv.isFake) fields
+    |> Option.map snd
+    |> Option.defaultValue (DObj(Map fields))
+
+  static member resultOk(dv : Dval) : Dval = if dv.isFake then dv else DResult(Ok dv)
+
+  static member resultError(dv : Dval) : Dval =
+    if dv.isFake then dv else DResult(Error dv)
+
+  static member optionJust(dv : Dval) : Dval =
+    if dv.isFake then dv else DOption(Some dv)
+
+
 
 // We want Dark to by asynchronous (eg, while some code is doing IO, we want
 // other code to run instead). F#/.NET uses Tasks for that. However, it's
@@ -223,64 +243,66 @@ and Dval =
 // the return value in DvalTask, and simple DInts don't have to create an
 // entire Task. (I previously tried making DTask part of the Dval, but the
 // types were hard to get right and ensure execution happened as expected)
-and DvalTask =
-  | Plain of Dval
-  | Task of Task<Dval>
+and FastTask<'a> =
+  | Plain of 'a
+  | Task of Task<'a>
 
-  member dt.toTask() : Task<Dval> =
-    match dt with
+  member ft.toTask() : Task<'a> =
+    match ft with
     | Task t -> t
-    | Plain dv -> task { return dv }
+    | Plain p -> task { return p }
 
-  member dt.bind(f : Dval -> DvalTask) : DvalTask =
-    match dt with
+  member ft.bind(f : 'a -> FastTask<'b>) : FastTask<'b> =
+    match ft with
     | Task t ->
         Task
           (task {
             let! resolved = t
 
             match f resolved with
-            | Plain dv -> return dv
+            | Plain p -> return p
             | Task t -> return! t
            })
     | Plain dv -> (f dv)
 
-  member dt.map(f : Dval -> Dval) : DvalTask =
+  member dt.map(f : 'a -> 'b) : FastTask<'b> =
     match dt with
     | Task t ->
         Task
           (task {
-            let! dv = t
-            return (f dv)
+            let! resolved = t
+            return (f resolved)
            })
     | Plain dv -> Plain(f dv)
 
-  member dt1.bind2 (dt2 : DvalTask) (f : Dval -> Dval -> DvalTask) : DvalTask =
-    match dt1, dt2 with
+  member ft1.bind2 (ft2 : FastTask<'b>) (f : 'a -> 'b -> FastTask<'c>)
+                   : FastTask<'c> =
+    match ft1, ft2 with
     | Task t1, Task t2 ->
         Task
           (task {
-            let! dv1 = t1
-            let! dv2 = t2
+            let! v1 = t1
+            let! v2 = t2
             // If `f` returns a task, don't wrap it
-            return! (f dv1 dv2).toTask()
+            return! (f v1 v2).toTask()
            })
-    | Plain dv1, Task t2 ->
+    | Plain v1, Task t2 ->
         Task
           (task {
-            let! dv2 = t2
+            let! v2 = t2
             // If `f` returns a task, don't wrap it
-            return! (f dv1 dv2).toTask()
+            return! (f v1 v2).toTask()
            })
-    | Task t1, Plain dv2 ->
+    | Task t1, Plain v2 ->
         Task
           (task {
-            let! dv1 = t1
+            let! v1 = t1
             // If `f` returns a task, don't wrap it
-            return! (f dv1 dv2).toTask()
+            return! (f v1 v2).toTask()
            })
-    | Plain dv1, Plain dv2 -> f dv1 dv2
+    | Plain v1, Plain v2 -> f v1 v2
 
+and DvalTask = FastTask<Dval>
 
 and Symtable = Map<string, Dval>
 
@@ -528,7 +550,10 @@ and ExecutionState = { functions : Map<FnDesc.T, BuiltInFn>; tlid : tlid }
 // before the next one is done, making sure that, for example, a HttpClient
 // call will finish before the next one starts. Will allow other requests to
 // run which waiting.
-let map_s (f : 'a -> DvalTask) (list : List<'a>) : Task<List<Dval>> =
+//
+// Why can't this be done in a simple map? We need to resolve element i in
+// element (i+1)'s task expression.
+let map_s (f : 'a -> FastTask<'b>) (list : List<'a>) : Task<List<'b>> =
   task {
     let! result =
       match list with
@@ -541,11 +566,11 @@ let map_s (f : 'a -> DvalTask) (list : List<'a>) : Task<List<Dval>> =
                 return ([], result)
               }
 
-            let! ((accum, lastcomp) : (List<Dval> * Dval)) =
-              List.fold (fun (prevcomp : Task<List<Dval> * Dval>) (arg : 'a) ->
+            let! ((accum, lastcomp) : (List<'b> * 'b)) =
+              List.fold (fun (prevcomp : Task<List<'b> * 'b>) (arg : 'a) ->
                 task {
                   // Ensure the previous computation is done first
-                  let! ((accum, prev) : (List<Dval> * Dval)) = prevcomp
+                  let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
                   let accum = prev :: accum
 
                   let! result = (f arg).toTask()

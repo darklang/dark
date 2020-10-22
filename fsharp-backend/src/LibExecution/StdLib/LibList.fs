@@ -864,7 +864,7 @@ let fns : List<BuiltInFn> =
                 let! result =
                   map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
 
-                return (result |> Dval.toDList)
+                return Dval.list result
                }))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -888,7 +888,7 @@ let fns : List<BuiltInFn> =
                 let! result =
                   map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
 
-                return (result |> Dval.toDList)
+                return Dval.list result
                }))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
