@@ -13,7 +13,6 @@
     <Compile Include="BwdServer/Tests.fs" />
     <Compile Include="ApiServer/Tests.fs" />
     <Compile Include="LibExecution/FSharpToExpr.fs" />
-    <Compile Include="LibExecution/StdLib/Tests.fs" />
     <Compile Include="LibExecution/Tests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>

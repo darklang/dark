@@ -147,21 +147,22 @@ Nothing = Nothing
 5 |> blank |> (+) 3 = 8
 5 |> (+) blank |> (+) 3 = 8
 5 |> (+) blank = 5
-//
+
 //[tests.errorrail]
 //// FSTODO
-////Error (List.last_v1 []) = ErrorRail: Nothing
-////Dict.get_v1 {} "i" = Nothing // Errorrail simple
-////[5] |> List.head_v1 |>+ 3 |>\x -> if (x + 4) > 1   then   x   else   (1 + x) = 8 // Errorrail simple
-////[] |> List.head_v1 |>+ 3 |>\x -> if (x + 4) > 1   then   x   else   (1 + x) = ErrorRail: Nothing // Errorrail simple
-//
+////Error (List.last_v1 []) = ErrorRail Nothing
+//Dict.get_v1 {} "i" = Nothing
+//Dict.get_v1_ster {} "i" = Nothing
+////[5] |> List.head_v1 |>+ 3 |>\x -> if (x + 4) > 1   then   x   else   (1 + x) = 8
+////[] |> List.head_v1 |>+ 3 |>\x -> if (x + 4) > 1   then   x   else   (1 + x) = ErrorRail Nothing
+
 //[tests.errorrailPropagation]
-////List.push_v0 [1;2;3;4] (List.head_v1 []) = ErrorRail: Nothing // Error rail is propagated by functions
-////List.filter_v1 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail: Nothing // Error rail is propagated by functions
-////List.map_v0 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail: Nothing // Error rail is propagated by functions
-////List.fold_v0 [1;2;3;4] 1 (\x, y -> List.head_v1 []) = ErrorRail: Nothing // Error rail is propagated by functions
-////Error (List.last_v1 []) = ErrorRail: Nothing // DError propagation
-//
+////List.push_v0 [1;2;3;4] (List.head_v1 []) = Test.ErrorRailNothing_v0_ster
+////List.filter_v1 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
+////List.map_v0 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
+////List.fold_v0 [1;2;3;4] 1 (\x, y -> List.head_v1 []) = ErrorRail Nothing
+Error (List.head_v1 []) = Test.errorRailNothing_v0_ster 5
+
 //[tests.returns]
 //// FSTODO
 ////myGoodFn_v0 = "str" // Type checking for return types
