@@ -67,6 +67,15 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
         let whole, fraction = parseFloat d
         pFloatStr whole fraction
     | SynPat.Const (SynConst.String (s, _), _) -> pString s
+    | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
+                        _,
+                        _,
+                        Pats args,
+                        _,
+                        _) ->
+        let args = List.map convertPattern args
+        pConstructor constructorName.idText args
+
     | _ -> failwith $" - unhandled pattern: {pat} "
 
   let convertLambdaVar (var : SynSimplePat) : string =
@@ -101,7 +110,7 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
         eBinOp "" "+" 0 (eBlank ()) (eBlank ())
     | SynExpr.Ident ident when ident.idText = "op_PlusPlus" ->
         eBinOp "" "++" 0 (eBlank ()) (eBlank ())
-    | SynExpr.Ident ident when ident.idText = "op_Equality" ->
+    | SynExpr.Ident ident when ident.idText = "op_EqualsEquals" ->
         eBinOp "" "==" 0 (eBlank ()) (eBlank ())
     | SynExpr.Ident ident when ident.idText = "op_GreaterThan" ->
         eBinOp "" ">" 0 (eBlank ()) (eBlank ())
@@ -194,6 +203,13 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                                                              "op_PipeRight" ->
         // the very bottom on the pipe chain, this is just the first expression
         ePipe (c expr) (eBlank ()) []
+    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when List.contains
+                                                            name.idText
+                                                            [ "Ok"
+                                                              "Nothing"
+                                                              "Just"
+                                                              "Error" ] ->
+        eConstructor name.idText [ c arg ]
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
         match c funcExpr with
