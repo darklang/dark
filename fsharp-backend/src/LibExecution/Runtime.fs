@@ -386,7 +386,7 @@ and DType =
   | TNull
   | TStr
   | TList of DType
-  | TDict of DType * DType
+  | TDict of DType
   | TIncomplete
   | TError
   | TLambda
