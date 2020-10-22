@@ -1,12 +1,28 @@
 module LibExecution.StdLib.Tests
 
 open Expecto
+open Prelude
 
-open System.Text.RegularExpressions
+let t (comment : string) (code : string) : Test =
+  let name = $"{comment} ({code})"
+  if code.StartsWith "//" then
+    ptestTask name { return (Expect.equal "skipped" "skipped" "") }
+  else
+    testTask name {
+      try
+        let source = FSharpToExpr.parse code
+        let actualProg, expectedResult = FSharpToExpr.convert source
+        let! actual = LibExecution.Execution.run actualProg
+        let! expected = LibExecution.Execution.run expectedResult
 
-let (|Regex|_|) pattern input =
-  let m = Regex.Match(input, pattern)
-  if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
+        return (Expect.equal
+                  actual
+                  expected
+                  // $"{source} => {actualProg} = {expectedResult}")
+                  $"{actualProg} = {expectedResult}")
+      with e -> return (Expect.equal "" e.Message "Error message")
+    }
+
 
 // Read all test files. Test file format is as follows:
 //
@@ -39,7 +55,7 @@ let fileTests () : Test =
            let newTestCase =
              if !singleTestMode then
                // Add a single test case
-               FSharpToExpr.t !currentTestName !currentTestString
+               t !currentTestName !currentTestString
              else
                // Put currentTests in a group and add them
                testList !currentTestName !currentTests
@@ -75,12 +91,10 @@ let fileTests () : Test =
               | Regex "^\s*$" [] -> ()
               // 1-line test
               | Regex "^(.*)\s*$" [ code ] ->
-                  currentTests := !currentTests @ [ FSharpToExpr.t $"line {i}" code ]
+                  currentTests := !currentTests @ [ t $"line {i}" code ]
               // 1-line test w/ comment
               | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                  currentTests
-                  := !currentTests
-                  @ [ FSharpToExpr.t $"{comment} (line {i})" code ]
+                  currentTests := !currentTests @ [ t $"{comment} (line {i})" code ]
               | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()

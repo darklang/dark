@@ -1,12 +1,13 @@
 module FSharpToExpr
 
-open Expecto
-
-module R = LibExecution.Runtime
 open FSharp.Compiler
 open FSharp.Compiler.SyntaxTree
-open FSharp.Compiler.Range
 open FSharp.Compiler.SourceCodeServices
+
+open Prelude
+
+module R = LibExecution.Runtime
+open R.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"
@@ -44,15 +45,11 @@ let parse (input) : SynExpr =
   | _ -> failwith $" - wrong shape tree: {results}"
 
 
-open R.Shortcuts
-
-exception MyException of string
-
 let convert (ast : SynExpr) : R.Expr * R.Expr =
   let parseFloat d : string * string =
-    let parts = (sprintf "%f" d).Split "."
-    if parts.Length <> 2 then (raise (MyException $"Parts are {parts}, d is {d}"))
-    (parts.[0], string (int parts.[1]))
+    match sprintf "%f" d with
+    | Regex "(.*)\.(.*)" [ whole; fraction ] -> (whole, fraction |> int |> string)
+    | str -> failwith $"Could not parse {str}"
 
   let rec convertPattern (pat : SynPat) : R.Pattern =
     match pat with
@@ -145,14 +142,10 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
                          _,
                          _) ->
         let name, version, ster =
-          match fnName.idText.Split "_v" with
-          | [| name; versionString |] ->
-              match versionString.Split "_" with
-              | [| version; "ster" |] -> (name, int version, R.Rail)
-              | [| version |] -> (name, int version, R.NoRail)
-              | _ ->
-                  failwith $"Version name isn't expected format: \"{versionString}\""
-          | _ -> failwith $"Version name isn't expected format: \"{fnName.idText}\""
+          match fnName.idText with
+          | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, R.Rail)
+          | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, R.NoRail)
+          | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
 
         let desc = R.FnDesc.stdFnDesc modName.idText name version
         R.EFnCall(gid (), desc, [], ster)
@@ -241,26 +234,3 @@ let convert (ast : SynExpr) : R.Expr * R.Expr =
       // failwith $"whole thing: {actual}"
       (convert' actual, convert' expected)
   | _ -> convert' ast, eBool true
-
-
-let t (comment : string) (code : string) : Test =
-  let name = $"{comment} ({code})"
-  if code.StartsWith "//" then
-    ptestTask name { return (Expect.equal "skipped" "skipped" "") }
-  else
-    testTask name {
-      try
-        let source = parse code
-        let actualProg, expectedResult = convert source
-        let! actual = LibExecution.Execution.run actualProg
-        let! expected = LibExecution.Execution.run expectedResult
-
-        return (Expect.equal
-                  actual
-                  expected
-                  // $"{source} => {actualProg} = {expectedResult}")
-                  $"{actualProg} = {expectedResult}")
-      with
-      | MyException msg -> return (Expect.equal "" msg "")
-      | e -> return (Expect.equal "" (e.ToString()) "")
-    }
