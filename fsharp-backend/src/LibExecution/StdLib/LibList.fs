@@ -98,21 +98,19 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "push" 0
-//
-//     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
-//     ; returnType = TList
-//     ; description = "Add element `val` to front of list `list`"
-//     ; fn =
-//
-//           (* fake cf handled by call *)
-//           (function
-//           | _, [DList l; i] -> DList (i :: l) | args -> incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "pushBack" 0
-//
+    { name = fn "List" "push" 0
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
+      returnType = TList varA
+      description = "Add element {{val}} to front of list {{list}}"
+      fn =
+        // fakeval handled by call *)
+        (function
+        | _, [ DList l; i ] -> Plain(DList(i :: l))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    // ; { name = fn "List" "pushBack" 0
 //     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
 //     ; returnType = TList
 //     ; description = "Add element `val` to back of list `list`"
