@@ -155,10 +155,10 @@ Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
 ([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailNothing_v0
 
 [tests.errorrailPropagation]
-////List.push_v0 [1;2;3;4] (List.head_v1 []) = Test.errorRailNothing_v0_ster
-////List.filter_v1 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
-////List.map_v0 [1;2;3;4] (\x -> List.head_v1 []) = ErrorRail Nothing
-////List.fold_v0 [1;2;3;4] 1 (\x, y -> List.head_v1 []) = ErrorRail Nothing
+List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+//List.filter_v1 [1;2;3;4] (fun x -> List.head_v1_ster []) = ErrorRail Nothing
+List.map_v0 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+//List.fold_v0 [1;2;3;4] 1 (\x, y -> List.head_v1 []) = Test.errorRailNothing_v0_ster
 ({ x = (List.head_v1_ster []) }) = Test.errorRailNothing_v0_ster
 Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 
