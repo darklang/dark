@@ -106,7 +106,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         |> List.choose (function
              | ("", e) -> None
              | k, e -> Some(k, e))
-
+      // FSTODO: we actually want to stop on the first incomplete/error/etc, thing, not do them all.
       Task
         (task {
           let! (resolved : List<string * Dval>) =
