@@ -66,8 +66,6 @@ def initial_fsharp_backend_compile():
   files = [
       "fsharp-backend/global.json",
       "fsharp-backend/paket.lock",
-      "fsharp-backend/src/Client/App.fs",
-      "fsharp-backend/src/Server/Server.fs",
       "fsharp-backend/src/LibExecution/LibExecution.fs",
   ]
   return compile(files)

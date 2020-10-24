@@ -22,24 +22,29 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 
 let runAsync e =
-  fun (next: HttpFunc) (ctx: HttpContext) ->
+  fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let! result = LibExecution.Execution.runJSON e
+      let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
+      let! result = LibExecution.Execution.run e fns
+      let result = result.toJSON().ToString()
       return! text result next ctx
     }
 
-let errorHandler (ex: Exception) (logger: ILogger) =
-  logger.LogError(EventId(), ex, "An unhandled exception has occurred while executing the request.")
-  clearResponse
-  >=> setStatusCode 500
-  >=> text ex.Message
+let errorHandler (ex : Exception) (logger : ILogger) =
+  logger.LogError
+    (EventId(),
+     ex,
+     "An unhandled exception has occurred while executing the request.")
+  clearResponse >=> setStatusCode 500 >=> text ex.Message
 
 let webApp = choose [ GET >=> choose [] ]
 
-let configureApp (app: IApplicationBuilder) =
-  app.UseDeveloperExceptionPage().UseGiraffeErrorHandler(errorHandler).UseGiraffe webApp
+let configureApp (app : IApplicationBuilder) =
+  app.UseDeveloperExceptionPage().UseGiraffeErrorHandler(errorHandler)
+     .UseGiraffe webApp
 
-let configureServices (services: IServiceCollection) = services.AddGiraffe() |> ignore
+let configureServices (services : IServiceCollection) =
+  services.AddGiraffe() |> ignore
 
 
 
@@ -47,7 +52,8 @@ let configureServices (services: IServiceCollection) = services.AddGiraffe() |> 
 let main _ =
   Host.CreateDefaultBuilder()
       .ConfigureWebHostDefaults(fun webHostBuilder ->
-      webHostBuilder.Configure(configureApp).ConfigureServices(configureServices).UseUrls("http://*:9001")
+      webHostBuilder.Configure(configureApp).ConfigureServices(configureServices)
+                    .UseUrls("http://*:9001")
       (* .ConfigureLogging(configureLogging) *)
       |> ignore).Build().Run()
   0

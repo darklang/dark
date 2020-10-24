@@ -37,6 +37,15 @@ module FnDesc =
       function_ : string
       version : int }
 
+    member this.ToString : string =
+      let module_ = if this.module_ = "" then "" else $"{this.module_}::"
+      let fn = $"{this.module_}{this.function_}_v{this.version}"
+
+      if this.owner = "dark" && module_ = "stdlib" then
+        fn
+      else
+        $"{this.owner}/{this.package}::{fn}"
+
   let fnDesc (owner : string)
              (package : string)
              (module_ : string)
@@ -52,6 +61,8 @@ module FnDesc =
 
   let stdFnDesc (module_ : string) (function_ : string) (version : int) : T =
     fnDesc "dark" "stdlib" module_ function_ version
+
+
 
 // Expressions - the main part of the language
 type Expr =
@@ -76,9 +87,14 @@ type Expr =
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of id * string * List<Expr>
-  | EMatch of id //FSTODO pattern
+  | EMatch of id * Expr * List<Pattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
+
+  member this.isBlank : bool =
+    match this with
+    | EBlank _ -> true
+    | _ -> false
 
 and SendToRail =
   | Rail
@@ -88,6 +104,19 @@ and LambdaBlock =
   { parameters : List<id * string>
     symtable : Symtable
     body : Expr }
+
+and Pattern =
+  | PVariable of id * string
+  | PConstructor of id * string * List<Pattern>
+  | PInteger of id * string
+  | PBool of id * bool
+  | PCharacter of id * string
+  | PString of id * string
+  | PFloat of id * string * string
+  | PNull of id
+  | PBlank of id
+
+and DvalMap = Map<string, Dval>
 
 // Runtime values
 and Dval =
@@ -99,7 +128,7 @@ and Dval =
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
   (* compound types *)
   | DList of List<Dval>
-  | DObj of Map<string, Dval>
+  | DObj of DvalMap
   (* special types - see notes above *)
   | DLambda of LambdaBlock
   | DFakeVal of FakeDval
@@ -117,10 +146,6 @@ and Dval =
   | DResult of Result<Dval, Dval>
   // FSTODO
   (* | DBytes of RawBytes.t *)
-
-
-
-  static member int(i : int) = DInt(bigint i)
 
   member this.isFake : bool =
     match this with
@@ -141,6 +166,11 @@ and Dval =
     match this with
     | DFakeVal (DError _) -> true
     | _ -> false
+
+  member this.unwrapFromErrorRail : Dval =
+    match this with
+    | DFakeVal (DErrorRail dv) -> dv
+    | other -> other
 
   // FSTODO: what kind of JSON is this?
   // Split into multiple files, each for the different kinds of serializers
@@ -174,9 +204,38 @@ and Dval =
 
     encodeDval this
 
-  static member toDList(list : List<Dval>) : Dval =
+  static member int(i : int) = DInt(bigint i)
+  static member int(i : string) = DInt(System.Numerics.BigInteger.Parse i)
+
+  static member float (whole : string) (fractional : string) : Dval =
+    // FSTODO - add sourceID to errors
+    try
+      (DFloat(float $"{whole}.{fractional}"))
+    with _ -> ((DFakeVal(DError((InvalidFloatExpression(whole, fractional))))))
+
+  // Dvals should never be constructed that contain fakevals - the fakeval
+  // should always propagate (though, there are specific cases in the
+  // interpreter where they are discarded instead of propagated; still they are
+  // never put into other dvals). These static members check before creating the values
+
+  static member list(list : List<Dval>) : Dval =
     List.tryFind (fun (dv : Dval) -> dv.isFake) list
     |> Option.defaultValue (DList list)
+
+  static member obj(fields : List<string * Dval>) : Dval =
+    List.tryFind (fun (k, dv : Dval) -> dv.isFake) fields
+    |> Option.map snd
+    |> Option.defaultValue (DObj(Map fields))
+
+  static member resultOk(dv : Dval) : Dval = if dv.isFake then dv else DResult(Ok dv)
+
+  static member resultError(dv : Dval) : Dval =
+    if dv.isFake then dv else DResult(Error dv)
+
+  static member optionJust(dv : Dval) : Dval =
+    if dv.isFake then dv else DOption(Some dv)
+
+
 
 // We want Dark to by asynchronous (eg, while some code is doing IO, we want
 // other code to run instead). F#/.NET uses Tasks for that. However, it's
@@ -184,49 +243,66 @@ and Dval =
 // the return value in DvalTask, and simple DInts don't have to create an
 // entire Task. (I previously tried making DTask part of the Dval, but the
 // types were hard to get right and ensure execution happened as expected)
-and DvalTask =
-  | Plain of Dval
-  | Task of Task<Dval>
+and FastTask<'a> =
+  | Plain of 'a
+  | Task of Task<'a>
 
-  member dt.toTask() : Task<Dval> =
-    match dt with
+  member ft.toTask() : Task<'a> =
+    match ft with
     | Task t -> t
-    | Plain dv -> task { return dv }
+    | Plain p -> task { return p }
 
-  member dt.bind(f : Dval -> DvalTask) : DvalTask =
+  member ft.bind(f : 'a -> FastTask<'b>) : FastTask<'b> =
+    match ft with
+    | Task t ->
+        Task
+          (task {
+            let! resolved = t
+
+            match f resolved with
+            | Plain p -> return p
+            | Task t -> return! t
+           })
+    | Plain dv -> (f dv)
+
+  member dt.map(f : 'a -> 'b) : FastTask<'b> =
     match dt with
     | Task t ->
         Task
           (task {
             let! resolved = t
-            // If `f` returns a task, don't wrap it
-            return! (f resolved).toTask()
+            return (f resolved)
            })
-    | Plain dv -> (f dv)
+    | Plain dv -> Plain(f dv)
 
-  member dt.map(f : Dval -> Dval) : DvalTask =
-    match dt with
-    | Task t ->
+  member ft1.bind2 (ft2 : FastTask<'b>) (f : 'a -> 'b -> FastTask<'c>)
+                   : FastTask<'c> =
+    match ft1, ft2 with
+    | Task t1, Task t2 ->
         Task
           (task {
-            let! dv = t
-            return (f dv)
+            let! v1 = t1
+            let! v2 = t2
+            // If `f` returns a task, don't wrap it
+            return! (f v1 v2).toTask()
            })
-    | Plain dv -> Plain dv
-
-  member dt1.bind2 (dt2 : DvalTask) (f : Dval -> Dval -> DvalTask) : DvalTask =
-    match dt1, dt2 with
-    | _, Task _
-    | Task _, _ ->
+    | Plain v1, Task t2 ->
         Task
           (task {
-            let! t1 = dt1.toTask ()
-            let! t2 = dt2.toTask ()
+            let! v2 = t2
             // If `f` returns a task, don't wrap it
-            return! (f t1 t2).toTask()
+            return! (f v1 v2).toTask()
            })
-    | Plain dv1, Plain dv2 -> f dv1 dv2
+    | Task t1, Plain v2 ->
+        Task
+          (task {
+            let! v1 = t1
+            // If `f` returns a task, don't wrap it
+            return! (f v1 v2).toTask()
+           })
+    | Plain v1, Plain v2 -> f v1 v2
 
+and DvalTask = FastTask<Dval>
 
 and Symtable = Map<string, Dval>
 
@@ -257,6 +333,9 @@ and RuntimeError =
   | InvalidFloatExpression of string * string
   | UndefinedVariable of string
   | UndefinedConstructor of string
+  // We want to remove this and make it just a string. So let's start here. And
+  // include a DvalSource while we're at it
+  | JustAString of DvalSource * string
 
 // Within a function call, we don't have the data available to make good
 // RuntimeErrors, so instead return a signal and let the calling code fill in the
@@ -334,7 +413,7 @@ and DType =
   | TNull
   | TStr
   | TList of DType
-  | TDict of DType * DType
+  | TDict of DType
   | TIncomplete
   | TError
   | TLambda
@@ -368,6 +447,10 @@ exception FakeDvalException of Dval // when we encounter a fakeDval, jump right 
 let random : System.Random = System.Random()
 
 let err (e : RuntimeError) : Dval = (DFakeVal(DError(e)))
+let errStr (s : string) : Dval = (DFakeVal(DError(JustAString(SourceNone, s))))
+
+let errSStr (source : DvalSource) (s : string) : Dval =
+  (DFakeVal(DError(JustAString(source, s))))
 
 module Symtable =
   type T = Symtable
@@ -467,7 +550,10 @@ and ExecutionState = { functions : Map<FnDesc.T, BuiltInFn>; tlid : tlid }
 // before the next one is done, making sure that, for example, a HttpClient
 // call will finish before the next one starts. Will allow other requests to
 // run which waiting.
-let map_s (f : 'a -> DvalTask) (list : List<'a>) : Task<List<Dval>> =
+//
+// Why can't this be done in a simple map? We need to resolve element i in
+// element (i+1)'s task expression.
+let map_s (f : 'a -> FastTask<'b>) (list : List<'a>) : Task<List<'b>> =
   task {
     let! result =
       match list with
@@ -480,11 +566,11 @@ let map_s (f : 'a -> DvalTask) (list : List<'a>) : Task<List<Dval>> =
                 return ([], result)
               }
 
-            let! ((accum, lastcomp) : (List<Dval> * Dval)) =
-              List.fold (fun (prevcomp : Task<List<Dval> * Dval>) (arg : 'a) ->
+            let! ((accum, lastcomp) : (List<'b> * 'b)) =
+              List.fold (fun (prevcomp : Task<List<'b> * 'b>) (arg : 'a) ->
                 task {
                   // Ensure the previous computation is done first
-                  let! ((accum, prev) : (List<Dval> * Dval)) = prevcomp
+                  let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
                   let accum = prev :: accum
 
                   let! result = (f arg).toTask()
@@ -512,7 +598,7 @@ module Shortcuts =
     let mask : int64 = 9223372036854775807L
     rand64 &&& mask
 
-  let efn' (module_ : string)
+  let eFn' (module_ : string)
            (function_ : string)
            (version : int)
            (args : List<Expr>)
@@ -521,21 +607,21 @@ module Shortcuts =
     EFnCall
       (gid (), FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args, ster)
 
-  let efn (module_ : string)
+  let eFn (module_ : string)
           (function_ : string)
           (version : int)
           (args : List<Expr>)
           : Expr =
-    efn' module_ function_ version args NoRail
+    eFn' module_ function_ version args NoRail
 
-  let erailFn (module_ : string)
+  let eRailFn (module_ : string)
               (function_ : string)
               (version : int)
               (args : List<Expr>)
               : Expr =
-    efn' module_ function_ version args Rail
+    eFn' module_ function_ version args Rail
 
-  let ebinOp' (module_ : string)
+  let eBinOp' (module_ : string)
               (function_ : string)
               (version : int)
               (arg1 : Expr)
@@ -549,158 +635,130 @@ module Shortcuts =
        arg2,
        ster)
 
-  let ebinOp (module_ : string)
+  let eBinOp (module_ : string)
              (function_ : string)
              (version : int)
              (arg1 : Expr)
              (arg2 : Expr)
              : Expr =
-    ebinOp' module_ function_ version arg1 arg2 NoRail
+    eBinOp' module_ function_ version arg1 arg2 NoRail
 
   // An ebinOp that's on the rail
-  let erailBinOp (module_ : string)
+  let eRailBinOp (module_ : string)
                  (function_ : string)
                  (version : int)
                  (arg1 : Expr)
                  (arg2 : Expr)
                  : Expr =
-    ebinOp' module_ function_ version arg1 arg2 Rail
+    eBinOp' module_ function_ version arg1 arg2 Rail
 
-  let estr (str : string) : Expr = EString(gid (), str)
-  let eint (i : int) : Expr = EInteger(gid (), i.ToString())
+  let eStr (str : string) : Expr = EString(gid (), str)
+  let eInt (i : int) : Expr = EInteger(gid (), i.ToString())
 
-  let eintStr (i : string) : Expr =
+  let eIntStr (i : string) : Expr =
     assert ((new Regex(@"-?\d+")).IsMatch(i))
     EInteger(gid (), i)
 
-  let echar (c : char) : Expr = ECharacter(gid (), string c)
-  let echarStr (c : string) : Expr = ECharacter(gid (), c)
-  let eblank () : Expr = EBlank(gid ())
-  let ebool (b : bool) : Expr = EBool(gid (), b)
+  let eChar (c : char) : Expr = ECharacter(gid (), string c)
+  let eCharStr (c : string) : Expr = ECharacter(gid (), c)
+  let eBlank () : Expr = EBlank(gid ())
+  let eBool (b : bool) : Expr = EBool(gid (), b)
 
-  let efloat (whole : int) (fraction : int) : Expr =
+  let eFloat (whole : int) (fraction : int) : Expr =
     EFloat(gid (), whole.ToString(), fraction.ToString())
 
-  let efloatStr (whole : string) (fraction : string) : Expr =
+  let eFloatStr (whole : string) (fraction : string) : Expr =
     // FSTODO: don't actually assert, report to rollbar
     assert ((new Regex(@"-?\d+")).IsMatch(whole))
     assert ((new Regex(@"\d+")).IsMatch(fraction))
     EFloat(gid (), whole, fraction)
 
-  let enull () : Expr = ENull(gid ())
+  let eNull () : Expr = ENull(gid ())
 
-  let erecord (rows : (string * Expr) list) : Expr = ERecord(gid (), rows)
+  let eRecord (rows : (string * Expr) list) : Expr = ERecord(gid (), rows)
 
-  let elist (elems : Expr list) : Expr = EList(gid (), elems)
-  let epipeTarget () = EPipeTarget(gid ())
-
-
-  let epartial (str : string) (e : Expr) : Expr = EPartial(gid (), str, e)
-
-  let erightPartial (str : string) (e : Expr) : Expr = ERightPartial(gid (), str, e)
+  let eList (elems : Expr list) : Expr = EList(gid (), elems)
+  let ePipeTarget () = EPipeTarget(gid ())
 
 
-  let eleftPartial (str : string) (e : Expr) : Expr = ELeftPartial(gid (), str, e)
+  let ePartial (str : string) (e : Expr) : Expr = EPartial(gid (), str, e)
+
+  let eRightPartial (str : string) (e : Expr) : Expr = ERightPartial(gid (), str, e)
 
 
-  let evar (name : string) : Expr = EVariable(gid (), name)
+  let eLeftPartial (str : string) (e : Expr) : Expr = ELeftPartial(gid (), str, e)
+
+
+  let eVar (name : string) : Expr = EVariable(gid (), name)
 
   (* let fieldAccess (expr : Expr) (fieldName : string) : Expr = *)
   (*   EFieldAccess (gid () ,expr, fieldName) *)
 
-  let eif (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
+  let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
     EIf(gid (), cond, then', else')
 
 
-  let elet (varName : string) (rhs : Expr) (body : Expr) : Expr =
+  let eLet (varName : string) (rhs : Expr) (body : Expr) : Expr =
     ELet(gid (), varName, rhs, body)
 
 
-  let elambda (varNames : string list) (body : Expr) : Expr =
+  let eLambda (varNames : string list) (body : Expr) : Expr =
     ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
 
 
-  (* let pipe (first : Expr) (rest : Expr list) : Expr = *)
-  (*   EPipe (gid () ,first :: rest) *)
+  let ePipe (first : Expr) (second : Expr) (rest : Expr list) : Expr =
+    EPipe(gid (), first, second, rest)
 
-  let econstructor (name : string) (args : Expr list) : Expr =
+  let eConstructor (name : string) (args : Expr list) : Expr =
     EConstructor(gid (), name, args)
 
 
-  let ejust (arg : Expr) : Expr = EConstructor(gid (), "Just", [ arg ])
+  let eJust (arg : Expr) : Expr = EConstructor(gid (), "Just", [ arg ])
 
-  let enothing () : Expr = EConstructor(gid (), "Nothing", [])
+  let eNothing () : Expr = EConstructor(gid (), "Nothing", [])
 
-  let eerror (arg : Expr) : Expr = EConstructor(gid (), "Error", [ arg ])
+  let eError (arg : Expr) : Expr = EConstructor(gid (), "Error", [ arg ])
 
-  let eok (arg : Expr) : Expr = EConstructor(gid (), "Ok", [ arg ])
+  let eOk (arg : Expr) : Expr = EConstructor(gid (), "Ok", [ arg ])
 
-(* let match' (cond : Expr) (matches : (FluidPattern.t * t) list) : Expr = *)
-(*   EMatch (gid () ,cond, matches) *)
-(*  *)
-(*  *)
-(* let pInt (int : int) : FluidPattern.t = *)
-(*   FPInteger (mid, id, string_of_int int) *)
-(*  *)
-(*  *)
-(* let pIntStr (int : string) : FluidPattern.t = *)
-(*   FPInteger (mid, id, int) *)
-(*  *)
-(*  *)
-(* let pVar (name : string) : FluidPattern.t = *)
-(*   FPVariable (mid, id, name) *)
-(*  *)
-(*  *)
-(* let pConstructor *)
-(*     ?(mid = gid ()) *)
-(*     ?(id = gid ()) *)
-(*     (name : string) *)
-(*     (patterns : FluidPattern.t list) : FluidPattern.t = *)
-(*   FPConstructor (mid, id, name, patterns) *)
-(*  *)
-(*  *)
-(* let pJust (arg : FluidPattern.t) : FluidPattern.t *)
-(*     = *)
-(*   FPConstructor (mid, id, "Just", [arg]) *)
-(*  *)
-(*  *)
-(* let pNothing () : FluidPattern.t = *)
-(*   FPConstructor (mid, id, "Nothing", []) *)
-(*  *)
-(*  *)
-(* let pError (arg : FluidPattern.t) : *)
-(*     FluidPattern.t = *)
-(*   FPConstructor (mid, id, "Error", [arg]) *)
-(*  *)
-(*  *)
-(* let pOk (arg : FluidPattern.t) : FluidPattern.t = *)
-(*   FPConstructor (mid, id, "Ok", [arg]) *)
-(*  *)
-(*  *)
-(* let pBool (b : bool) : FluidPattern.t = *)
-(*   FPBool (mid, id, b) *)
-(*  *)
-(*  *)
-(* let pString (str : string) : FluidPattern.t = *)
-(*   FPString {matchID = mid; patternID = id; str} *)
-(*  *)
-(*  *)
-(* let pFloatStr *)
-(*     (whole : string) (fraction : string) : *)
-(*     FluidPattern.t = *)
-(*   FPFloat (mid, id, whole, fraction) *)
-(*  *)
-(*  *)
-(* let pFloat (whole : int) (fraction : int) : *)
-(*     FluidPattern.t = *)
-(*   FPFloat (mid, id, string_of_int whole, string_of_int fraction) *)
-(*  *)
-(*  *)
-(* let pNull () : FluidPattern.t = FPNull (mid, id) *)
-(*  *)
-(* let pBlank () : FluidPattern.t = FPBlank (mid, id) *)
-(*  *)
-(* let flag ?(name = "flag-1") cond oldCode newCode = *)
-(*   EFeatureFlag (gid () ,name, cond, oldCode, newCode) *)
-(*  *)
-(*  *)
+  let eMatch (cond : Expr) (matches : List<Pattern * Expr>) : Expr =
+    EMatch(gid (), cond, matches)
+
+
+  let pInt (int : int) : Pattern = PInteger(gid (), int.ToString())
+
+
+  let pIntStr (int : string) : Pattern = PInteger(gid (), int)
+
+  let pVar (name : string) : Pattern = PVariable(gid (), name)
+
+  let pConstructor (name : string) (patterns : Pattern list) : Pattern =
+    PConstructor(gid (), name, patterns)
+
+  let pJust (arg : Pattern) : Pattern = PConstructor(gid (), "Just", [ arg ])
+
+  let pNothing () : Pattern = PConstructor(gid (), "Nothing", [])
+
+  let pError (arg : Pattern) : Pattern = PConstructor(gid (), "Error", [ arg ])
+
+  let pOk (arg : Pattern) : Pattern = PConstructor(gid (), "Ok", [ arg ])
+
+  let pBool (b : bool) : Pattern = PBool(gid (), b)
+
+  let pChar (c : char) : Pattern = PCharacter(gid (), string c)
+  let pCharStr (c : string) : Pattern = PCharacter(gid (), c)
+
+  let pString (str : string) : Pattern = PString(gid (), str)
+
+  let pFloatStr (whole : string) (fraction : string) : Pattern =
+    PFloat(gid (), whole, fraction)
+
+  let pFloat (whole : int) (fraction : int) : Pattern =
+    PFloat(gid (), whole.ToString(), fraction.ToString())
+
+  let pNull () : Pattern = PNull(gid ())
+
+  let pBlank () : Pattern = PBlank(gid ())
+
+  let eflag name cond oldCode newCode =
+    EFeatureFlag(gid (), name, cond, oldCode, newCode)

@@ -1,4 +1,0 @@
-Bytes.hexEncode_v0 (Crypto.sha256_v0 (String.toBytes_v0 "")) = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855" // Crypto.sha digest functions work
-Bytes.hexEncode_v0 (Crypto.sha384_v0 (String.toBytes_v0 "")) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B" // Crypto.sha digest functions work
-Bytes.hexEncode_v0 (Crypto.md5_v0 (String.toBytes_v0 "")) = "D41D8CD98F00B204E9800998ECF8427E" // Crypto.sha digest functions work
-Bytes.length_v0 (String.toBytes_v0 "abcdef") = 6

@@ -19,7 +19,31 @@ let any =
       deprecated = NotDeprecated } ]
 
 
-let fns : List<BuiltInFn> = (LibString.fns @ any)
+let prefixFns : List<BuiltInFn> =
+  (LibString.fns @ LibList.fns @ LibInt.fns @ LibDict.fns @ any)
+
+// Add infix functions that are identical except for the name
+let infixFns =
+  let fns =
+    List.choose (function
+      | builtin ->
+          let d = builtin.name
+
+          let opName =
+            match d.module_, d.function_, d.version with
+            | "Int", "add", 0 -> Some "+"
+            | "Int", "greaterThan", 0 -> Some ">"
+            | "String", "append", 1 -> Some "++"
+            | _ -> None
+
+          Option.map (fun opName ->
+            { builtin with name = FnDesc.stdFnDesc "" opName 0 }) opName) prefixFns
+
+  assert (fns.Length = 3) // make sure we got them all
+  fns
+
+let fns = infixFns @ prefixFns
+
 // [ { name = FnDesc.stdFnDesc "Int" "range" 0
 //     parameters =
 //       [ param "list" (TList(TVariable("a"))) "The list to be operated on"
@@ -31,60 +55,6 @@ let fns : List<BuiltInFn> = (LibString.fns @ any)
 //           List.map DInt [ lower .. upper ]
 //           |> DList
 //           |> Plain
-//
-//       | _ -> Error()) }
-//   { name = FnDesc.stdFnDesc "List" "map" 0
-//     parameters =
-//       [ param "list" (TList(TVariable("a"))) "The list to be operated on"
-//         param "fn" (TFn([ TVariable("a") ], TVariable("b"))) "Function to be called on each member" ]
-//     returnType =
-//       (retVal
-//         (TList(TVariable("b")))
-//          "A list created by the elements of `list` with `fn` called on each of them in order")
-//     fn =
-//       (function
-//       | env, [ DList l; DLambda (st, [ var ], body) ] ->
-//           Ok
-//             (Task
-//               (task {
-//                 let! result =
-//                   map_s l (fun dv ->
-//                     let st = st.Add(var, dv)
-//                     eval env st body)
-//
-//                 return (result |> Dval.toDList)
-//                }))
-//       | _ -> Error()) }
-//   { name = (FnDesc.stdFnDesc "Int" "%" 0)
-//     parameters =
-//       [ param "a" TInt "Numerator"
-//         param "b" TInt "Denominator" ]
-//     returnType = (retVal TInt "Returns the modulus of a / b")
-//     fn =
-//       (function
-//       | env, [ DInt a; DInt b ] ->
-//           try
-//             (Plain(DInt(a % b)))
-//           with _ -> (Plain(Dval.int 0))
-//       | _ -> Error()) }
-//   { name = (FnDesc.stdFnDesc "Int" "==" 0)
-//     parameters =
-//       [ param "a" TInt "a"
-//         param "b" TInt "b" ]
-//     returnType =
-//       (retVal
-//         TBool
-//          "True if structurally equal (they do not have to be the same piece of memory, two dicts or lists or strings with the same value will be equal), false otherwise")
-//     fn =
-//       (function
-//       | env, [ DInt a; DInt b ] -> (Plain(DBool(a = b)))
-//       | _ -> Error()) }
-//   { name = (FnDesc.stdFnDesc "Int" "toString" 0)
-//     parameters = [ param "a" TInt "value" ]
-//     returnType = (retVal TString "Stringified version of a")
-//     fn =
-//       (function
-//       | env, [ DInt a ] -> (Plain(DStr(a.ToString())))
 //
 //       | _ -> Error()) }
 //   { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)

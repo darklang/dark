@@ -207,21 +207,18 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toUppercase" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, uppercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (String.uppercase (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toUppercase" 1
+    { name = fn "String" "toUppercase" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description = "Returns the string, uppercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Plain(DStr(String.toUpper s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
+    //      { name = fn "String" "toUppercase" 1
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TStr
 //      ; description = "Returns the string, uppercased"
@@ -278,43 +275,45 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "append" 0
-//       (* This used to provide "++" as an infix op.
-//        * It was moved to [String::append_v1] instead,
-//        * because we do not yet support versioning infix operators.
-//        * We decided this was safe under the assumption that no one should be
-//        * (and very likely no one is) relying on broken normalization. *)
-//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//      ; returnType = TStr
-//      ; description = "Concatenates the two strings and returns the joined string"
-//      ; fn =
-//         (function
-//         | _, [DStr s1; DStr s2] ->
-//             (* This implementation does not normalize post-concatenation.
-//             * This is a problem because it breaks our guarantees about strings always being normalized;
-//             * concatenating two normalized strings does not always result in a normalized string. *)
-//             DStr (Unicode_string.append_broken s1 s2)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "append" 1
-//      ; infix_names = ["++"]
-//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
-//      ; fn =
-//         (function
-//         | _, [DStr s1; DStr s2] ->
-//             DStr (Unicode_string.append s1 s2)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "prepend" 0
+    { name = fn "String" "append" 0
+      (* This used to provide "++" as an infix op.
+       * It was moved to [String::append_v1] instead,
+       * because we do not yet support versioning infix operators.
+       * We decided this was safe under the assumption that no one should be
+       * (and very likely no one is) relying on broken normalization. *)
+      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
+      returnType = TStr
+      description = "Concatenates the two strings and returns the joined string"
+      fn =
+        (function
+        | _, [ DStr s1; DStr s2 ] ->
+            // This implementation does not normalize post-concatenation.
+            // This is a problem because it breaks our guarantees about strings always being normalized;
+            // concatenating two normalized strings does not always result in a normalized string.
+            // replicating known broken behaviour feels wrong, but maybe necessary
+            Plain
+              (DStr
+                (System.Text.Encoding.UTF8.GetString
+                  (Array.append
+                    (System.Text.Encoding.UTF8.GetBytes s1)
+                     (System.Text.Encoding.UTF8.GetBytes s2))))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "append" 1) }
+    { name = fn "String" "append" 1
+      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
+      returnType = TStr
+      description =
+        "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
+      fn =
+        (function
+        | _, [ DStr s1; DStr s2 ] -> Plain(DStr(s1 + s2))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "prepend" 0
 //      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
 //      ; returnType = TStr
 //      ; description =
@@ -440,30 +439,28 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "join" 0
-//      ; parameters = [Param.make "l" TList; Param.make "separator" TStr]
-//      ; returnType = TStr
-//      ; description = "Combines a list of strings with the provided separator"
-//      ; fn =
-//         (function
-//         | _, [DList l; DStr sep] ->
-//             let s =
-//               List.map
-//                 (fun s ->
-//                   match s with
-//                   | DStr st ->
-//                       st
-//                   | _ ->
-//                       Exception.code "Expected string")
-//                 l
-//             in
-//             DStr (Unicode_string.concat ~sep s)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "fromList" 0
+    { name = fn "String" "join" 0
+      parameters = [ Param.make "l" (TList TStr) ""; Param.make "separator" TStr "" ]
+      returnType = TStr
+      description = "Combines a list of strings with the provided separator"
+      fn =
+        (function
+        | _, [ DList l; DStr sep ] ->
+            let strs =
+              List.map (fun s ->
+                match s with
+                | DStr st -> st
+                | _ ->
+                    raise
+                      (RuntimeException(JustAString(SourceNone, "Expected String"))))
+                l
+
+            Plain(DStr(String.concat sep strs))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "fromList" 0
 //      ; parameters = [Param.make "l" TList]
 //      ; returnType = TStr
 //      ; description = "Returns the list of characters as a string"
@@ -492,29 +489,26 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "fromChar" 0
-//      ; parameters = [Param.make "c" TCharacter]
-//      ; returnType = TCharacter
-//      ; description = "Converts a char to a string"
-//      ; fn =
-//        (fun _ -> Exception.code "This function no longer exists.")
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "fromChar" 1
-//      ; parameters = [Param.make "c" TCharacter]
-//      ; returnType = TStr
-//      ; description = "Converts a char to a string"
-//      ; fn =
-//         (function
-//         | _, [DCharacter c] ->
-//             DStr (Unicode_string.of_character c)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "base64Encode" 0
+    { name = fn "String" "fromChar" 0
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TChar
+      description = "Converts a char to a string"
+      fn = (fun _ -> failwith "This function no longer exists.")
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "fromChar" 0) }
+    { name = fn "String" "fromChar" 1
+      parameters = [ Param.make "c" TChar "" ]
+      returnType = TStr
+      description = "Converts a char to a string"
+      fn =
+        (function
+        | _, [ DChar c ] -> Plain(DStr(c))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "base64Encode" 0
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TStr
 //      ; description =

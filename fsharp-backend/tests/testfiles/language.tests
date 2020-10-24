@@ -1,0 +1,177 @@
+(5 + 3) = 8 // binop
+
+[test.lambda]
+(let x = 5 in
+ let y = (fun c -> x + c) in
+ let x = 6 in
+ [1; 2; 3; 4] |> List.map_v0 y) = [ 6; 7; 8; 9 ]
+
+[test.lambda2]
+(String.join_v0
+  (List.foreach_v0
+    (String.toList_v1 "some string")
+    (fun var -> String.toUppercase_v0 (String.fromChar_v1 var))) "") = "SOME STRING"
+
+[test.matchInt]
+(match 5 with
+| 5 -> "int"
+| 5.6 -> "float"
+| false -> "bool"
+| "myStr" -> "string"
+| null -> "null"
+| blank -> "blank"
+| Ok x -> "ok: " ++ x
+| Nothing -> "constructor nothing"
+| name -> name ++ "var") = "int"
+
+[test.matchFloat]
+(match 5.6 with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "float"
+
+[test.matchBool]
+(match false with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "bool"
+
+[test.matchString]
+(match "myStr" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "string"
+
+[test.matchString2]
+(match "otherStr" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "otherStrvar"
+
+[test.matchNull]
+(match null with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "null"
+
+[test.matchConstructorWithArg]
+(match Ok "x" with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "ok: x"
+
+[test.matchEmptyConstructor]
+(match Nothing with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "constructor nothing"
+
+[test.dontMatch]
+(match "not matched: " with
+ | 5 -> "int"
+ | 5.6 -> "float"
+ | false -> "bool"
+ | "myStr" -> "string"
+ | null -> "null"
+ | blank -> "blank"
+ | Ok x -> "ok: " ++ x
+ | Nothing -> "constructor nothing"
+ | name -> name ++ "var") = "not matched: var"
+
+[tests.match]
+(match 6 with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = "pass"
+(match "x" with | "y" -> "fail" | "x" -> "pass" | var -> "fail") = "pass"
+(match true with | false -> "fail" | true -> "pass" | var -> "fail") = "pass"
+(match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
+(match null with | null -> "pass" | var -> "fail") = "pass"
+(match 2.0 with | blank -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
+
+[test.pipes]
+([5]
+ |> List.head_v0
+ |> Int.add_v0 1
+ |> (+) 3
+ |> blank
+ |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
+
+[tests.constructors]
+Nothing = Nothing
+((List.head_v1 []) == Nothing) = true
+
+[tests.incomplete_propagation]
+[ 5; 6; List.head_v0 blank ] = [ 5; 6 ]
+[ 5; 6; blank] = [ 5, 6 ]
+{ i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }
+5 |> blank |> (+) 3 = 8
+5 |> (+) blank |> (+) 3 = 8
+5 |> (+) blank = 5
+
+[tests.errorrail]
+Dict.get_v1 {} "i" = Nothing
+Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
+([5] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 8
+([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailNothing_v0
+
+[tests.errorrailPropagation]
+List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+//List.filter_v1 [1;2;3;4] (fun x -> List.head_v1_ster []) = ErrorRail Nothing
+List.map_v0 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+//List.fold_v0 [1;2;3;4] 1 (\x, y -> List.head_v1 []) = Test.errorRailNothing_v0_ster
+({ x = (List.head_v1_ster []) }) = Test.errorRailNothing_v0_ster
+Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+
+//[tests.returns]
+//// FSTODO
+////myGoodFn_v0 = "str" // Type checking for return types
+////myAnyFn_v0 = 5 // Type checking for return types
+
+[tests.shadowing]
+(let x = 5 in let x = 6 in x) = 6
+(let x = 35 in (match 6 with | x -> x)) = 6
+(let x = 35 in (match Ok 6 with | Ok x -> x)) = 6
+(let x = 35 in List.map_v0 [1;2;3;4] (fun x -> x + 2)) = [ 3; 4; 5; 6 ]
+(let x = 35 in (match Ok 6 with | Ok x -> (List.map_v0 [1; 2; 3; 4] (fun x -> x + 2)))) = [ 3; 4; 5; 6]
+(List.map_v0 [1;2;3;4] (fun x -> (let x = 35 in (match Ok 6 with | Ok x -> x + 2)))) = [ 8; 8; 8; 8 ]
+(List.map_v0 [1;2;3;4] (fun x -> (match Ok 6 with | Ok x -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]

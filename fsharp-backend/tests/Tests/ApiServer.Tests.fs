@@ -1,4 +1,4 @@
-module ApiServer.Tests
+module Tests.ApiServer
 
 open Expecto
 
