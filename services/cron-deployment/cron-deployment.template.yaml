@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: cron-ctr
-          image: "gcr.io/balmy-ground-195100/dark-gcp-cron:{CRON_IMAGE}"
+          image: "gcr.io/balmy-ground-195100/gcp-cronchecker:{CRON_IMAGE}"
           # Resource request intentionally less than resource limit, to ensure
           # this pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6

@@ -177,28 +177,28 @@ done
 # Tell Kubernetes what to do
 #########################
 if [[ ! -v SERVER_IMAGE_ID ]]; then
-  SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp -q | head -n 1)"
+  SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-server -q | head -n 1)"
 fi
 if [[ ! -v QW_IMAGE_ID ]]; then
-  QW_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-qw -q | head -n 1)"
+  QW_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-queueworker -q | head -n 1)"
 fi
 if [[ ! -v CRON_IMAGE_ID ]]; then
-  CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-cron -q | head -n 1)"
+  CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-cronchecker -q | head -n 1)"
 fi
 if [[ ! -v GARBAGE_COLLECTOR_IMAGE_ID ]]; then
-  GARBAGE_COLLECTOR_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-garbagecollector -q | head -n 1)"
+  GARBAGE_COLLECTOR_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-garbagecollector -q | head -n 1)"
 fi
 if [[ ! -v STROLLER_IMAGE_ID ]]; then
-  STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-stroller -q | head -n 1)"
+  STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}stroller -q | head -n 1)"
 fi
 if [[ ! -v QUEUE_SCHEDULER_IMAGE_ID ]]; then
-  QUEUE_SCHEDULER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-queue-scheduler -q | head -n 1)"
+  QUEUE_SCHEDULER_IMAGE_ID="$(docker images $GCR/${PREFIX}queue-scheduler -q | head -n 1)"
 fi
 if [[ ! -v TUNNEL_IMAGE_ID ]]; then
   TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 fi
 if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
-  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-postgres-honeytail -q | head -n 1)"
+  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}postgres-honeytail -q | head -n 1)"
 fi
 
 # get creds

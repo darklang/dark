@@ -292,7 +292,7 @@ jobs:
     steps:
       - checkout
       - prep-container-creation
-      - run: cd containers/postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
+      - run: cd containers/postgres-honeytail && docker build -t postgres-honeytail .
 
   validate-honeycomb-config:
     executor: my-executor
@@ -380,14 +380,14 @@ jobs:
           name: Save image IDs
           command: |
             mkdir gcr-image-ids
-            time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
-            time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
-            time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
-            time docker images gcr.io/balmy-ground-195100/dark-gcp-garbagecollector -q | head -n 1 > gcr-image-ids/garbagecollector
-            time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
-            time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
+            time docker images gcr.io/balmy-ground-195100/gcp-server -q | head -n 1 > gcr-image-ids/server
+            time docker images gcr.io/balmy-ground-195100/gcp-queueworker -q | head -n 1 > gcr-image-ids/qw
+            time docker images gcr.io/balmy-ground-195100/gcp-cronchecker -q | head -n 1 > gcr-image-ids/cron
+            time docker images gcr.io/balmy-ground-195100/gcp-garbagecollector -q | head -n 1 > gcr-image-ids/garbagecollector
+            time docker images gcr.io/balmy-ground-195100/stroller -q | head -n 1 > gcr-image-ids/stroller
+            time docker images gcr.io/balmy-ground-195100/queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
             time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
-            time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
+            time docker images gcr.io/balmy-ground-195100/postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
       - persist_to_workspace:
           root: "."
           paths: [gcr-image-ids]

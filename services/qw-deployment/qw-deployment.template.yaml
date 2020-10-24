@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: qw-ctr
-          image: "gcr.io/balmy-ground-195100/dark-gcp-qw:{QW_IMAGE}"
+          image: "gcr.io/balmy-ground-195100/gcp-queueworker:{QW_IMAGE}"
           # Resource request intentionally less than resource limit, to ensure
           # this pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
@@ -80,7 +80,7 @@ spec:
         # Stroller (push proxy) config
         #########################
         - name: stroller
-          image: "gcr.io/balmy-ground-195100/dark-gcp-stroller:{STROLLER_IMAGE}"
+          image: "gcr.io/balmy-ground-195100/stroller:{STROLLER_IMAGE}"
           resources:
             requests:
               memory: "50Mi"
