@@ -6,4 +6,4 @@ COPY --chown=dark . ./
 
 RUN ./scripts/support/check-linked-libs bin/garbage_collector_worker.exe
 
-CMD "./gcp-run-garbage-collector"
+CMD "./gcp-run-garbagecollector"
