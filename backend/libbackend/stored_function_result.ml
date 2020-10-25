@@ -95,10 +95,10 @@ let trim_results_for_handler
           "SELECT DISTINCT trace_id
            FROM stored_events_v2
            WHERE canvas_id = $1
-             AND module = $1
-             AND path LIKE $2
-             AND modifier = $3
-             AND timestamp < $3
+             AND module = $2
+             AND path LIKE $3
+             AND modifier = $4
+             AND timestamp < $5
            LIMIT 1000"
           ~params:
             [ Db.Uuid canvas_id
