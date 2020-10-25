@@ -460,48 +460,6 @@ let upsert_admins () : unit =
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "paul@darklang.com"
     ; name = "Paul Biggar" } ;
-  upsert_admin_exn
-    { username = "ellen"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcHcxNmRhelJaTGNrYXhZV1psLytXdyRpUHJ1V1NQV2xya1RDZjRDbGlwNTkyaC9tSlZvaTVWSTliRlp0c2xrVmg0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ellen@darklang.com"
-    ; name = "Ellen Chisa" } ;
-  upsert_admin_exn
-    { username = "alice"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVGllNGtJT3kyMVFjL1dGUnhScC9PdyROMnp1ZVZnczhIcjl0ODZEREN2VFBYMVNHOE1Za1plSUZCSWFzck9aR1J3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "alice@darklang.com"
-    ; name = "Alice Wong" } ;
-  upsert_admin_exn
-    { username = "ismith"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbHlXamc0MHA3MWRBZ1kyTmFTTVhIZyRnaWZ1UGpsSnoxMFNUVDlZYWR5Tis1SVovRFVxSXdZeXVtL0Z2TkFOa1ZnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ismith@darklang.com"
-    ; name = "Ian Smith" } ;
-  upsert_admin_exn
-    { username = "sydney"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "sydney@darklang.com"
-    ; name = "Sydney Noteboom" } ;
-  upsert_admin_exn
-    { username = "julian"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRmFQeGdPZXhaZTFZL2pSYkZ4azFNQSRFR0ZyNEkyeDVqaDIvL243UEIzeUhkcTIwaUZUUi91RXE1RDJkQ0o0eE5BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "julian@darklang.com"
-    ; name = "Julian Ceipek" } ;
-  upsert_admin_exn
-    { username = "dean"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWjdFdjJlZ2ZmMnZRaFhjQWlpOWlPZyRrL2F1bGFEU0tra3BQMmNKTHF6S3NaU3d5WXdmWm1pNkQ4Yy96alJrT3YwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "dean@darklang.com"
-    ; name = "Dean Strelau" } ;
   ()
 
 
