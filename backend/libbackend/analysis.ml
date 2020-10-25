@@ -166,6 +166,10 @@ let user_fn_trace (c : Canvas.canvas) (fn : RTT.user_fn) (trace_id : traceid) :
   (trace_id, Some {input = ivs; timestamp; function_results})
 
 
+let traceid_of_tlid (tlid : tlid) : Uuidm.t =
+  Uuidm.v5 Uuidm.nil (string_of_id tlid)
+
+
 let traceids_for_handler (c : Canvas.canvas) (h : RTT.HandlerT.handler) :
     traceid list =
   match Handler.event_desc_for h with
@@ -176,7 +180,7 @@ let traceids_for_handler (c : Canvas.canvas) (h : RTT.HandlerT.handler) :
              if String.Caseless.equal hmodule "HTTP"
              then
                (* Ensure we only return trace_ids that would bind to this handler
-              * if the trace was executed for real now *)
+                * if the trace was executed for real now *)
                c.handlers
                |> Toplevel.handlers
                (* Filter and order the handlers that would match the trace's path *)
@@ -188,7 +192,7 @@ let traceids_for_handler (c : Canvas.canvas) (h : RTT.HandlerT.handler) :
                (* Don't use HTTP filtering stack for non-HTTP traces *)
                Some trace_id)
       (* If there's no matching traces, add the default trace *)
-      |> (function [] -> [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)] | x -> x)
+      |> (function [] -> [traceid_of_tlid h.tlid] | x -> x)
   | None ->
       (* If the event description isn't complete, add the default trace *)
       [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
