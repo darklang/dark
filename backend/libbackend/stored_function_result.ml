@@ -60,6 +60,63 @@ let load ~canvas_id ~trace_id tlid : function_result list =
  * All the comments and warnings there apply. Please read them. *)
 type trim_results_action = Stored_event.trim_events_action
 
+(* Works for both handlers and functions *)
+let trim_toplevel
+    span
+    (action : trim_results_action)
+    ~canvas_id
+    ~canvas_name
+    ~tlid
+    ~before
+    ~traces
+    ~limit
+    ~(typ : string) =
+  let db_fn trim_events_action =
+    match action with Count -> Db.fetch_count | Delete -> Db.delete
+  in
+  let action_str =
+    match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
+  in
+  Telemetry.Span.set_attrs
+    span
+    [ ("limit", `Int limit)
+    ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
+    ; ("canvas_name", `String canvas_name)
+    ; ("tlid", `String (string_of_id tlid))
+    ; ("type", `String "function")
+    ; ("action", `String action_str) ] ;
+  let count =
+    (db_fn action)
+      ~name:"gc_function_results_for_handler"
+      (* can't do limit on delete, so use nested clause. Chose the
+       * fields to match the idx_function_results_v2_most_recent index
+       * *)
+      (Printf.sprintf
+         "WITH to_delete AS (SELECT canvas_id, trace_id, tlid, timestamp
+                                     FROM function_results_v2
+                                    WHERE canvas_id = $1
+                                      AND tlid = $2
+                                      AND timestamp < $3
+                                      AND (NOT trace_id = ANY (string_to_array($4, $5)::uuid[]))
+                                    LIMIT $6)
+                %s FROM function_results_v2
+                  WHERE (canvas_id, trace_id, tlid, timestamp) IN
+                    (SELECT canvas_id, trace_id, tlid, timestamp
+                     FROM to_delete);"
+         action_str)
+      ~params:
+        [ Db.Uuid canvas_id
+        ; Db.ID tlid
+        ; Db.Time before
+        ; traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List
+        ; String Db.array_separator
+        ; Db.Int limit ]
+  in
+
+  Telemetry.Span.set_attr span "row_count" (`Int count) ;
+  count
+
+
 let trim_results_for_handler
     (span : Libcommon.Telemetry.Span.t)
     (action : trim_results_action)
@@ -72,23 +129,11 @@ let trim_results_for_handler
     ~(modifier : string)
     (canvas_id : Uuidm.t) : int =
   Telemetry.with_span span "trim_results_for_handler" (fun span ->
-      let db_fn trim_events_action =
-        match action with Count -> Db.fetch_count | Delete -> Db.delete
-      in
-      let action_str =
-        match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
-      in
       Telemetry.Span.set_attrs
         span
-        [ ("limit", `Int limit)
-        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
-        ; ("canvas_name", `String canvas_name)
-        ; ("type", `String "handler")
-        ; ("module", `String module_)
+        [ ("module", `String module_)
         ; ("path", `String path)
-        ; ("modifier", `String modifier)
-        ; ("tlid", `String (string_of_id tlid))
-        ; ("action", `String action_str) ] ;
+        ; ("modifier", `String modifier) ] ;
       let valid_traces =
         Db.fetch
           ~name:"valid_traces"
@@ -117,22 +162,16 @@ let trim_results_for_handler
           Telemetry.Span.set_attr span "too_many" (`Bool true) ;
           0 )
         else
-          (db_fn action)
-            ~name:"gc_function_results"
-            (Printf.sprintf
-               "%s FROM function_results_v2
-                WHERE canvas_id = $1
-                  AND tlid = $2
-                  AND timestamp < $3
-                  AND trace_id NOT IN ($4)
-                  LIMIT $5"
-               action_str)
-            ~params:
-              [ Db.Uuid canvas_id
-              ; Db.ID tlid
-              ; Db.Time before
-              ; valid_traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List
-              ; Db.Int limit ]
+          trim_toplevel
+            span
+            action
+            ~canvas_id
+            ~canvas_name
+            ~typ:"handler"
+            ~tlid
+            ~before
+            ~traces:valid_traces
+            ~limit
       in
       Telemetry.Span.set_attr span "row_count" (`Int count) ;
       count)
@@ -180,40 +219,16 @@ let trim_results_for_function
     ~(tlid : id)
     (canvas_id : Uuidm.t) : int =
   Telemetry.with_span span "trim_results_for_function" (fun span ->
-      let db_fn trim_events_action =
-        match action with Count -> Db.fetch_count | Delete -> Db.delete
-      in
-      let action_str =
-        match action with Count -> "SELECT count(*)" | Delete -> "DELETE"
-      in
-      Telemetry.Span.set_attrs
+      trim_toplevel
         span
-        [ ("limit", `Int limit)
-        ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
-        ; ("canvas_name", `String canvas_name)
-        ; ("tlid", `String (string_of_id tlid))
-        ; ("type", `String "function")
-        ; ("action", `String action_str) ] ;
-      let count =
-        (db_fn action)
-          ~name:"gc_function_results"
-          (Printf.sprintf
-             "%s FROM function_results_v2
-                WHERE canvas_id = $1
-                  AND tlid = $2
-                  AND timestamp < $3
-                  AND trace_id NOT IN ($4)
-                  LIMIT $5"
-             action_str)
-          ~params:
-            [ Db.Uuid canvas_id
-            ; Db.ID tlid
-            ; Db.Time before
-            ; traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List
-            ; Db.Int limit ]
-      in
-      Telemetry.Span.set_attr span "row_count" (`Int count) ;
-      count)
+        action
+        ~typ:"function"
+        ~canvas_id
+        ~canvas_name
+        ~tlid
+        ~before
+        ~traces
+        ~limit)
 
 
 let get_canvas_functions ~span ~canvas_name ~canvas_id () : tlid list =
