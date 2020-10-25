@@ -65,8 +65,11 @@ let trim_results_for_handler
     (action : trim_results_action)
     ~(before : Time.t)
     ~(limit : int)
+    ~(tlid : tlid)
     ~(canvas_name : string)
-    ~(tlid : id)
+    ~(module_ : string)
+    ~(path : string)
+    ~(modifier : string)
     (canvas_id : Uuidm.t) : int =
   Telemetry.with_span span "trim_results_for_handler" (fun span ->
       let db_fn trim_events_action =
@@ -81,6 +84,9 @@ let trim_results_for_handler
         ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
         ; ("canvas_name", `String canvas_name)
         ; ("type", `String "handler")
+        ; ("module", `String module_)
+        ; ("path", `String path)
+        ; ("modifier", `String modifier)
         ; ("tlid", `String (string_of_id tlid))
         ; ("action", `String action_str) ] ;
       let valid_traces =
@@ -89,10 +95,17 @@ let trim_results_for_handler
           "SELECT DISTINCT trace_id
            FROM stored_events_v2
            WHERE canvas_id = $1
-             AND tlid = $2
+             AND module = $1
+             AND path LIKE $2
+             AND modifier = $3
              AND timestamp < $3
            LIMIT 1000"
-          ~params:[Db.Uuid canvas_id; Db.ID tlid; Db.Time before]
+          ~params:
+            [ Db.Uuid canvas_id
+            ; Db.String module_
+            ; Db.String path
+            ; Db.String modifier
+            ; Db.Time before ]
         |> List.map ~f:(fun uuid ->
                uuid |> List.hd_exn |> Uuidm.of_string |> Option.value_exn)
       in
@@ -130,30 +143,18 @@ let trim_results_for_handlers
     ~(limit : int)
     ~(canvas_name : string)
     (canvas_id : Uuidm.t) : int * int =
-  let handlers =
-    Telemetry.with_span
-      span
-      "get_handlers_for_canvas"
-      ~attrs:[("canvas_name", `String canvas_name)]
-      (fun span ->
-        Db.fetch
-          ~name:"get_handlers_for_gc"
-          "SELECT tlid
-            FROM toplevel_oplists
-            WHERE canvas_id = $1
-            AND tipe = 'handler';"
-          ~params:[Db.Uuid canvas_id]
-        (* List.hd_exn - we're only returning one field from this query *)
-        |> List.map ~f:(fun tlid -> tlid |> List.hd_exn |> id_of_string))
-  in
+  let handlers = Stored_event.get_handlers_for_canvas canvas_id in
   let row_count =
     handlers
-    |> List.map ~f:(fun tlid ->
+    |> List.map ~f:(fun (tlid, (module_, path, modifier)) ->
            trim_results_for_handler
              span
              action
              ~before
              ~tlid
+             ~module_
+             ~path
+             ~modifier
              ~canvas_name
              ~limit
              canvas_id)
@@ -259,7 +260,8 @@ let trim_results_for_functions
   in
   let all_functions = get_canvas_functions ~span ~canvas_name ~canvas_id () in
   let all_function_traces =
-    let traceid_of_tlid (tlid : tlid) : Uuidm.t = (* Copied from analysis.ml *)
+    let traceid_of_tlid (tlid : tlid) : Uuidm.t =
+      (* Copied from analysis.ml *)
       Uuidm.v5 Uuidm.nil (string_of_id tlid)
     in
     all_functions |> List.map ~f:traceid_of_tlid
@@ -281,7 +283,6 @@ let trim_results_for_functions
   in
   (List.length all_functions, row_count)
 
-(* TODO one week vs 1 day? *)
 
 let trim_results_for_canvas
     (span : Libcommon.Telemetry.Span.t)

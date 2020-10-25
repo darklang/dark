@@ -26,4 +26,3 @@ val trim_results_for_canvas :
   -> canvas_name:string
   -> Uuidm.t
   -> int
-

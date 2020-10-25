@@ -1,10 +1,10 @@
 (** Stored events. These are the "input values" for handler traces, containing
   * the `request` or `event` for a trace.
-  * 
+  *
   * We keep traces around for a week, and also keep the last 10 regardless of age.
   *
   * Traces are also used for 404s - which are just traces for which a handler doesn't exist.
-  * Note that traces are stored for routes (technically for an `event_desc`), not for handlers. 
+  * Note that traces are stored for routes (technically for an `event_desc`), not for handlers.
   * There is a GC process to clean these up.
   *)
 
@@ -28,19 +28,20 @@ let event_subject module_ path modifier = module_ ^ "_" ^ path ^ "_" ^ modifier
 
 (* Note that this returns munged version of the name, that are designed for
  * pattern matching using postgres' LIKE syntax. *)
-let get_handlers_for_canvas (canvas_id : Uuidm.t) : event_desc list =
+let get_handlers_for_canvas (canvas_id : Uuidm.t) :
+    (Types.tlid * event_desc) list =
   Db.fetch
     ~name:"get_handlers_for_canvas"
-    "SELECT module, name, modifier FROM toplevel_oplists
-        WHERE canvas_id = $1
-          AND module IS NOT NULL
-          AND name IS NOT NULL
-          AND modifier IS NOT NULL
-          AND tipe = 'handler'::toplevel_type"
+    "SELECT tlid, module, name, modifier FROM toplevel_oplists
+            WHERE canvas_id = $1
+              AND module IS NOT NULL
+              AND name IS NOT NULL
+              AND modifier IS NOT NULL
+              AND tipe = 'handler'::toplevel_type"
     ~params:[Db.Uuid canvas_id]
   |> List.map ~f:(function
-         | [modu; n; modi] ->
-             (modu, n, modi)
+         | [tlid; modu; n; modi] ->
+             (Types.id_of_string tlid, (modu, n, modi))
          | _ ->
              Exception.internal "Bad DB format for get_handlers_for_canvas")
 
@@ -248,7 +249,7 @@ let get_404s ~limit (canvas_id : Uuidm.t) : four_oh_four list =
   in
   events
   |> List.filter ~f:(fun e ->
-         not (List.exists handlers ~f:(fun h -> match_event h e)))
+         not (List.exists handlers ~f:(fun (_tlid, h) -> match_event h e)))
 
 
 (* Cut back version of get_404s which hits the index. *)
@@ -267,7 +268,7 @@ let get_404_descs ~limit (canvas_id : Uuidm.t) : event_desc list =
   in
   events
   |> List.filter ~f:(fun e ->
-         not (List.exists handlers ~f:(fun h -> match_event h e)))
+         not (List.exists handlers ~f:(fun (_tlid, h) -> match_event h e)))
 
 
 let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
@@ -521,7 +522,7 @@ let trim_events_for_canvas
       in
       let row_count : int =
         handlers
-        |> List.map ~f:(fun (module_, path, modifier) ->
+        |> List.map ~f:(fun (tlid_, (module_, path, modifier)) ->
                repeat_while_hitting_limit ~span ~action ~limit ~f:(fun () ->
                    trim_events_for_handler
                      ~span
