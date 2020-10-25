@@ -124,13 +124,15 @@ let trim_results_for_handler
                 WHERE canvas_id = $1
                   AND tlid = $2
                   AND timestamp < $3
-                  AND trace_id NOT IN ($4)"
+                  AND trace_id NOT IN ($4)
+                  LIMIT $5"
                action_str)
             ~params:
               [ Db.Uuid canvas_id
               ; Db.ID tlid
               ; Db.Time before
-              ; valid_traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List ]
+              ; valid_traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List
+              ; Db.Int limit ]
       in
       Telemetry.Span.set_attr span "row_count" (`Int count) ;
       count)
@@ -147,17 +149,22 @@ let trim_results_for_handlers
   let row_count =
     handlers
     |> List.map ~f:(fun (tlid, (module_, path, modifier)) ->
-           trim_results_for_handler
-             span
-             action
-             ~before
-             ~tlid
-             ~module_
-             ~path
-             ~modifier
-             ~canvas_name
+           Stored_event.repeat_while_hitting_limit
+             ~span
+             ~action
              ~limit
-             canvas_id)
+             ~f:(fun () ->
+               trim_results_for_handler
+                 span
+                 action
+                 ~before
+                 ~tlid
+                 ~module_
+                 ~path
+                 ~modifier
+                 ~canvas_name
+                 ~limit
+                 canvas_id))
     |> Tc.List.sum
   in
   (List.length handlers, row_count)
@@ -195,13 +202,15 @@ let trim_results_for_function
                 WHERE canvas_id = $1
                   AND tlid = $2
                   AND timestamp < $3
-                  AND trace_id NOT IN ($4)"
+                  AND trace_id NOT IN ($4)
+                  LIMIT $5"
              action_str)
           ~params:
             [ Db.Uuid canvas_id
             ; Db.ID tlid
             ; Db.Time before
-            ; traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List ]
+            ; traces |> List.map ~f:(fun t -> Db.Uuid t) |> Db.List
+            ; Db.Int limit ]
       in
       Telemetry.Span.set_attr span "row_count" (`Int count) ;
       count)
@@ -270,15 +279,20 @@ let trim_results_for_functions
   let row_count =
     all_functions
     |> List.map ~f:(fun tlid ->
-           trim_results_for_function
-             span
-             action
-             ~before
-             ~traces:all_traces
-             ~tlid
-             ~canvas_name
+           Stored_event.repeat_while_hitting_limit
+             ~span
+             ~action
              ~limit
-             canvas_id)
+             ~f:(fun () ->
+               trim_results_for_function
+                 span
+                 action
+                 ~before
+                 ~traces:all_traces
+                 ~tlid
+                 ~canvas_name
+                 ~limit
+                 canvas_id))
     |> Tc.List.sum
   in
   (List.length all_functions, row_count)

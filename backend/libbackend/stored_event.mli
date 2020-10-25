@@ -58,6 +58,13 @@ type trim_events_canvases =
   | All
   | JustOne of string
 
+val repeat_while_hitting_limit :
+     action:trim_events_action
+  -> span:Libcommon.Telemetry.Span.t
+  -> limit:int
+  -> f:(unit -> int)
+  -> int
+
 val trim_events_for_canvas :
      span:Libcommon.Telemetry.Span.t
   -> action:trim_events_action
