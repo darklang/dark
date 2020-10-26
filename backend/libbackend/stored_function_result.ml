@@ -83,7 +83,7 @@ let trim_toplevel
     ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
     ; ("canvas_name", `String canvas_name)
     ; ("tlid", `String (string_of_id tlid))
-    ; ("type", `String "function")
+    ; ("type", `String typ)
     ; ("action", `String action_str) ] ;
   let count =
     (db_fn action)
