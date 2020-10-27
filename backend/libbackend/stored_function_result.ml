@@ -83,7 +83,7 @@ let trim_toplevel
     ; ("canvas_id", `String (canvas_id |> Uuidm.to_string))
     ; ("canvas_name", `String canvas_name)
     ; ("tlid", `String (string_of_id tlid))
-    ; ("type", `String "function")
+    ; ("type", `String typ)
     ; ("action", `String action_str) ] ;
   let count =
     (db_fn action)
@@ -177,6 +177,8 @@ let trim_results_for_handler
       count)
 
 
+(* TODO: The index is set up trace_id first, not tlid first. That means we
+ * should delete by trace, not by handler *)
 let trim_results_for_handlers
     (span : Libcommon.Telemetry.Span.t)
     (action : trim_results_action)
@@ -184,29 +186,39 @@ let trim_results_for_handlers
     ~(limit : int)
     ~(canvas_name : string)
     (canvas_id : Uuidm.t) : int * int =
-  let handlers = Stored_event.get_handlers_for_canvas canvas_id in
-  let row_count =
-    handlers
-    |> List.map ~f:(fun (tlid, (module_, path, modifier)) ->
-           Stored_event.repeat_while_hitting_limit
-             ~span
-             ~action
-             ~limit
-             ~f:(fun () ->
-               trim_results_for_handler
-                 span
-                 action
-                 ~before
-                 ~tlid
-                 ~module_
-                 ~path
-                 ~modifier
-                 ~canvas_name
-                 ~limit
-                 canvas_id))
-    |> Tc.List.sum
-  in
-  (List.length handlers, row_count)
+  if Tc.List.member
+       canvas_id
+       [ Uuidm.of_string "730b77ce-f505-49a8-80c5-8cabb481d60d"
+         |> Option.value_exn ]
+  then (
+    Log.infO
+      ~params:[("canvas_id", Uuidm.to_string canvas_id)]
+      "skipping large canvas" ;
+    (0, 0) )
+  else
+    let handlers = Stored_event.get_handlers_for_canvas canvas_id in
+    let row_count =
+      handlers
+      |> List.map ~f:(fun (tlid, (module_, path, modifier)) ->
+             Stored_event.repeat_while_hitting_limit
+               ~span
+               ~action
+               ~limit
+               ~f:(fun () ->
+                 trim_results_for_handler
+                   span
+                   action
+                   ~before
+                   ~tlid
+                   ~module_
+                   ~path
+                   ~modifier
+                   ~canvas_name
+                   ~limit
+                   canvas_id))
+      |> Tc.List.sum
+    in
+    (List.length handlers, row_count)
 
 
 let trim_results_for_function
