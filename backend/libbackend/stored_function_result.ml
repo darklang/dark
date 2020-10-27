@@ -176,6 +176,7 @@ let trim_results_for_handler
       Telemetry.Span.set_attr span "row_count" (`Int count) ;
       count)
 
+
 (* TODO: The index is set up trace_id first, not tlid first. That means we
  * should delete by trace, not by handler *)
 let trim_results_for_handlers
@@ -185,10 +186,15 @@ let trim_results_for_handlers
     ~(limit : int)
     ~(canvas_name : string)
     (canvas_id : Uuidm.t) : int * int =
-  if Tc.List.member canvas_id [Uuidm.of_string "730b77ce-f505-49a8-80c5-8cabb481d60d" |> Option.value_exn]
+  if Tc.List.member
+       canvas_id
+       [ Uuidm.of_string "730b77ce-f505-49a8-80c5-8cabb481d60d"
+         |> Option.value_exn ]
   then (
-    Log.infO ~params:[("canvas_id", Uuidm.to_string canvas_id)] "skipping large canvas" ;
-    (0, 0))
+    Log.infO
+      ~params:[("canvas_id", Uuidm.to_string canvas_id)]
+      "skipping large canvas" ;
+    (0, 0) )
   else
     let handlers = Stored_event.get_handlers_for_canvas canvas_id in
     let row_count =
