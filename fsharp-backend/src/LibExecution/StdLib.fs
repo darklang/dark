@@ -1,6 +1,7 @@
 module LibExecution.StdLib
 
 open FSharp.Control.Tasks
+open Prelude
 open Runtime
 open Interpreter
 
@@ -12,7 +13,7 @@ let any =
       returnType = TBool
       fn =
         (function
-        | _, [ a; b ] -> (Plain(DBool(a = b)))
+        | _, [ a; b ] -> (Value(DBool(a = b)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -25,19 +26,18 @@ let prefixFns : List<BuiltInFn> =
 // Add infix functions that are identical except for the name
 let infixFns =
   let fns =
-    List.choose (function
-      | builtin ->
-          let d = builtin.name
+    List.choose (fun builtin ->
+      let d = builtin.name
 
-          let opName =
-            match d.module_, d.function_, d.version with
-            | "Int", "add", 0 -> Some "+"
-            | "Int", "greaterThan", 0 -> Some ">"
-            | "String", "append", 1 -> Some "++"
-            | _ -> None
+      let opName =
+        match d.module_, d.function_, d.version with
+        | "Int", "add", 0 -> Some "+"
+        | "Int", "greaterThan", 0 -> Some ">"
+        | "String", "append", 1 -> Some "++"
+        | _ -> None
 
-          Option.map (fun opName ->
-            { builtin with name = FnDesc.stdFnDesc "" opName 0 }) opName) prefixFns
+      Option.map (fun opName -> { builtin with name = FnDesc.stdFnDesc "" opName 0 })
+        opName) prefixFns
 
   assert (fns.Length = 3) // make sure we got them all
   fns
@@ -54,7 +54,7 @@ let fns = infixFns @ prefixFns
 //       | _, [ DInt lower; DInt upper ] ->
 //           List.map DInt [ lower .. upper ]
 //           |> DList
-//           |> Plain
+//           |> Value
 //
 //       | _ -> Error()) }
 //   { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)

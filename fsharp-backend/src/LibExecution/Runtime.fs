@@ -18,6 +18,8 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open System.Text.RegularExpressions
 
+open Prelude
+
 // fsharplint:disable FL0039
 
 exception InternalException of string
@@ -236,73 +238,7 @@ and Dval =
     if dv.isFake then dv else DOption(Some dv)
 
 
-
-// We want Dark to by asynchronous (eg, while some code is doing IO, we want
-// other code to run instead). F#/.NET uses Tasks for that. However, it's
-// expensive to use create tasks for simple Dvals like DInts. Instead, we wrap
-// the return value in DvalTask, and simple DInts don't have to create an
-// entire Task. (I previously tried making DTask part of the Dval, but the
-// types were hard to get right and ensure execution happened as expected)
-and FastTask<'a> =
-  | Plain of 'a
-  | Task of Task<'a>
-
-  member ft.toTask() : Task<'a> =
-    match ft with
-    | Task t -> t
-    | Plain p -> task { return p }
-
-  member ft.bind(f : 'a -> FastTask<'b>) : FastTask<'b> =
-    match ft with
-    | Task t ->
-        Task
-          (task {
-            let! resolved = t
-
-            match f resolved with
-            | Plain p -> return p
-            | Task t -> return! t
-           })
-    | Plain dv -> (f dv)
-
-  member dt.map(f : 'a -> 'b) : FastTask<'b> =
-    match dt with
-    | Task t ->
-        Task
-          (task {
-            let! resolved = t
-            return (f resolved)
-           })
-    | Plain dv -> Plain(f dv)
-
-  member ft1.bind2 (ft2 : FastTask<'b>) (f : 'a -> 'b -> FastTask<'c>)
-                   : FastTask<'c> =
-    match ft1, ft2 with
-    | Task t1, Task t2 ->
-        Task
-          (task {
-            let! v1 = t1
-            let! v2 = t2
-            // If `f` returns a task, don't wrap it
-            return! (f v1 v2).toTask()
-           })
-    | Plain v1, Task t2 ->
-        Task
-          (task {
-            let! v2 = t2
-            // If `f` returns a task, don't wrap it
-            return! (f v1 v2).toTask()
-           })
-    | Task t1, Plain v2 ->
-        Task
-          (task {
-            let! v1 = t1
-            // If `f` returns a task, don't wrap it
-            return! (f v1 v2).toTask()
-           })
-    | Plain v1, Plain v2 -> f v1 v2
-
-and DvalTask = FastTask<Dval>
+and DvalTask = Prelude.TaskOrValue<Dval>
 
 and Symtable = Map<string, Dval>
 
@@ -544,45 +480,6 @@ and ExecutionState = { functions : Map<FnDesc.T, BuiltInFn>; tlid : tlid }
 // ; executing_fnname : string
 // ; fail_fn : fail_fn_type
 
-
-// Processes each item of the list in order, waiting for the previous one to
-// finish. This ensures each request in the list is processed to completion
-// before the next one is done, making sure that, for example, a HttpClient
-// call will finish before the next one starts. Will allow other requests to
-// run which waiting.
-//
-// Why can't this be done in a simple map? We need to resolve element i in
-// element (i+1)'s task expression.
-let map_s (f : 'a -> FastTask<'b>) (list : List<'a>) : Task<List<'b>> =
-  task {
-    let! result =
-      match list with
-      | [] -> task { return [] }
-      | head :: tail ->
-          task {
-            let firstComp =
-              task {
-                let! result = (f head).toTask()
-                return ([], result)
-              }
-
-            let! ((accum, lastcomp) : (List<'b> * 'b)) =
-              List.fold (fun (prevcomp : Task<List<'b> * 'b>) (arg : 'a) ->
-                task {
-                  // Ensure the previous computation is done first
-                  let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                  let accum = prev :: accum
-
-                  let! result = (f arg).toTask()
-
-                  return (accum, result)
-                }) firstComp tail
-
-            return List.rev (lastcomp :: accum)
-          }
-
-    return (result |> Seq.toList)
-  }
 
 let incorrectArgs () = raise (FnCallException FnWrongTypes)
 

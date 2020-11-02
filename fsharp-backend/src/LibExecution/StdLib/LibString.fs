@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
       description = "Returns <val true> if <param s> is the empty string <val \"\">."
       fn =
         (function
-        | _, [ DStr s ] -> Plain(DBool(s = ""))
+        | _, [ DStr s ] -> Value(DBool(s = ""))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -57,25 +57,23 @@ let fns : List<BuiltInFn> =
         | state, [ DStr s; DLambda b ] ->
             (String.toEgcSeq s
              |> Seq.toList
-             |> Runtime.map_s (fun te ->
+             |> Prelude.map_s (fun te ->
                   (Interpreter.eval_lambda state b [ DChar te ]))
              |> (fun dvals ->
-             Task
-               (task {
-                 let! dvals = dvals
+             (taskv {
+               let! dvals = dvals
 
-                 let chars =
-                   List.map (function
-                     | DChar c -> c
-                     | dv ->
-                         raise
-                           (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
-                     dvals
+               let chars =
+                 List.map (function
+                   | DChar c -> c
+                   | dv ->
+                       raise (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
+                   dvals
 
-                 let str = String.concat "" chars
+               let str = String.concat "" chars
 
-                 return DStr str
-                })))
+               return DStr str
+              })))
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -87,7 +85,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a string containing a single '\n'"
       fn =
         (function
-        | _, [] -> Plain(DStr "\n")
+        | _, [] -> Value(DStr "\n")
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -112,7 +110,7 @@ let fns : List<BuiltInFn> =
              |> Seq.map (fun c -> DChar c)
              |> Seq.toList
              |> DList
-             |> Plain)
+             |> Value)
         | args -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -130,7 +128,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr search; DStr replace ] ->
-            Plain(DStr(s.Replace(search, replace)))
+            Value(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -213,7 +211,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, uppercased"
       fn =
         (function
-        | _, [ DStr s ] -> Plain(DStr(String.toUpper s))
+        | _, [ DStr s ] -> Value(DStr(String.toUpper s))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -259,7 +257,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            s |> System.Text.ASCIIEncoding.Unicode.GetByteCount |> Dval.int |> Plain
+            s |> System.Text.ASCIIEncoding.Unicode.GetByteCount |> Dval.int |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -270,7 +268,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Plain
+        | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -291,7 +289,7 @@ let fns : List<BuiltInFn> =
             // This is a problem because it breaks our guarantees about strings always being normalized;
             // concatenating two normalized strings does not always result in a normalized string.
             // replicating known broken behaviour feels wrong, but maybe necessary
-            Plain
+            Value
               (DStr
                 (System.Text.Encoding.UTF8.GetString
                   (Array.append
@@ -308,7 +306,7 @@ let fns : List<BuiltInFn> =
         "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
       fn =
         (function
-        | _, [ DStr s1; DStr s2 ] -> Plain(DStr(s1 + s2))
+        | _, [ DStr s1; DStr s2 ] -> Value(DStr(s1 + s2))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -455,7 +453,7 @@ let fns : List<BuiltInFn> =
                       (RuntimeException(JustAString(SourceNone, "Expected String"))))
                 l
 
-            Plain(DStr(String.concat sep strs))
+            Value(DStr(String.concat sep strs))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -503,7 +501,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a char to a string"
       fn =
         (function
-        | _, [ DChar c ] -> Plain(DStr(c))
+        | _, [ DChar c ] -> Value(DStr(c))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -901,7 +899,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of `str` with all leading and trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
       fn =
         (function
-        | _, [ DStr toTrim ] -> Plain(DStr(toTrim.Trim()))
+        | _, [ DStr toTrim ] -> Value(DStr(toTrim.Trim()))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -970,7 +968,7 @@ let fns : List<BuiltInFn> =
       description = "Checks if `subject` ends with `suffix`"
       fn =
         (function
-        | _, [ DStr subject; DStr suffix ] -> Plain(DBool(subject.EndsWith suffix))
+        | _, [ DStr subject; DStr suffix ] -> Value(DBool(subject.EndsWith suffix))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

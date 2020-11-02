@@ -21,7 +21,7 @@ let fns : List<BuiltInFn> =
       description = "Return an errorRail wrapping nothing."
       fn =
         (function
-        | state, [] -> Plain(DFakeVal(DErrorRail(DOption None)))
+        | state, [] -> Value(DFakeVal(DErrorRail(DOption None)))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
