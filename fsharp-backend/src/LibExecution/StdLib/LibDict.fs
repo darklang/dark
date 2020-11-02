@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a new dictionary with a single entry `key`: `value`."
       fn =
         (function
-        | _, [ DStr k; v ] -> Plain(DObj(Map.ofList [ (k, v) ]))
+        | _, [ DStr k; v ] -> Value(DObj(Map.ofList [ (k, v) ]))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -247,8 +247,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DObj o; DStr s ] ->
             (match Map.tryFind s o with
-             | Some d -> Plain(d)
-             | None -> Plain(DNull))
+             | Some d -> Value(d)
+             | None -> Value(DNull))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -259,7 +259,7 @@ let fns : List<BuiltInFn> =
       description = "Looks up `key` in object `dict` and returns an option"
       fn =
         (function
-        | _, [ DObj o; DStr s ] -> Plain(DOption(Map.tryFind s o))
+        | _, [ DObj o; DStr s ] -> Value(DOption(Map.tryFind s o))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -551,7 +551,7 @@ let fns : List<BuiltInFn> =
         "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
       fn =
         (function
-        | _, [ DObj o; DStr k ] -> Plain(DObj(Map.remove k o))
+        | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -22,12 +22,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DInt v; DInt m ] ->
             (try
-              Plain(DInt(v % m))
+              Value(DInt(v % m))
              with
              // FSTODO
              // | DivideByZeroException _ ->
              //     let pretty = Dval.to_developer_repr_v0 (DInt m)
-             //     Plain
+             //     Value
              //       (err
              //         ("Expected the argument `b` argument passed to `{state.executingFnName}` to be positive, but it was `{m}`."))
              _ ->
@@ -105,13 +105,13 @@ let fns : List<BuiltInFn> =
       description = "Adds two integers together"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Plain(DInt(a + b))
+        | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
         | state, [ (DFloat _ as a); _ ]
         | state, [ (DStr _ as a); _ ]
         | state, [ _; (DFloat _ as a) ]
         | state, [ _; (DStr _ as a) ] ->
             // FSTODO
-            Plain(errStr "")
+            Value(errStr "")
         //    ("The first param ("
         //    + Dval.to_developer_repr_v0 a
         //    + ") is a Float, but "
@@ -264,7 +264,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if a is greater than b"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Plain(DBool(a > b))
+        | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
         // FSTODO
         // | state, [ (DFloat _ as a); _ ] ->
         //     DError
@@ -524,9 +524,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt v; DInt a; DInt b ] ->
             let min, max = if a < b then (a, b) else (b, a)
-            if v < min then Plain(DInt min)
-            else if v > max then Plain(DInt max)
-            else Plain(DInt v)
+            if v < min then Value(DInt min)
+            else if v > max then Value(DInt max)
+            else Value(DInt v)
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

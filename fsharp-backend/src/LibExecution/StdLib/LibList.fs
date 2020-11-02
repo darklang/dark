@@ -18,7 +18,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a one-element list containing the given `val`."
       fn =
         (function
-        | _, [ v ] -> Plain(DList [ v ])
+        | _, [ v ] -> Value(DList [ v ])
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
         "Returns the head of a list. Returns null if the empty list is passed."
       fn =
         (function
-        | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Plain
+        | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
       description = "Fetches the head of the list and returns an option"
       fn =
         (function
-        | _, [ DList l ] -> Plain(DOption(List.tryHead l))
+        | _, [ DList l ] -> Value(DOption(List.tryHead l))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
       fn =
         // fakeval handled by call *)
         (function
-        | _, [ DList l; i ] -> Plain(DList(i :: l))
+        | _, [ DList l; i ] -> Value(DList(i :: l))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1131,8 +1131,8 @@ let fns : List<BuiltInFn> =
       fn =
 
         (function
-        | _, [ DList [] ] -> Plain(DOption None)
-        | _, [ DList l ] -> Plain(l.[Runtime.random.Next l.Length])
+        | _, [ DList [] ] -> Value(DOption None)
+        | _, [ DList l ] -> Value(l.[Runtime.random.Next l.Length])
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
