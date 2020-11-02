@@ -857,13 +857,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DLambda b ] ->
-            (Task
-              (task {
-                let! result =
-                  map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
+            taskv {
+              let! result =
+                map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
 
-                return Dval.list result
-               }))
+              return Dval.list result
+            }
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -881,13 +880,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l; DLambda b ] ->
-            (Task
-              (task {
-                let! result =
-                  map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
+            taskv {
+              let! result =
+                map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
 
-                return Dval.list result
-               }))
+              return Dval.list result
+            }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
