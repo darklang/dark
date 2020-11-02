@@ -20,8 +20,12 @@ let any =
       deprecated = NotDeprecated } ]
 
 
-let prefixFns : List<BuiltInFn> = []
-// (LibString.fns @ LibList.fns @ LibInt.fns @ LibDict.fns @ any)
+let prefixFns : List<BuiltInFn> =
+  (LibString.fns
+   // @ LibList.fns
+   @ LibInt.fns
+   // @ LibDict.fns
+   @ any)
 
 // Add infix functions that are identical except for the name
 let infixFns =
@@ -39,7 +43,7 @@ let infixFns =
       Option.map (fun opName -> { builtin with name = FnDesc.stdFnDesc "" opName 0 })
         opName) prefixFns
 
-  // assert (fns.Length = 3) // make sure we got them all
+  assert (fns.Length = 3) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns

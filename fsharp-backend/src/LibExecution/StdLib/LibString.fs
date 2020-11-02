@@ -57,25 +57,23 @@ let fns : List<BuiltInFn> =
         | state, [ DStr s; DLambda b ] ->
             (String.toEgcSeq s
              |> Seq.toList
-             |> Runtime.map_s (fun te ->
+             |> Prelude.map_s (fun te ->
                   (Interpreter.eval_lambda state b [ DChar te ]))
              |> (fun dvals ->
-             Task
-               (task {
-                 let! dvals = dvals
+             (taskv {
+               let! dvals = dvals
 
-                 let chars =
-                   List.map (function
-                     | DChar c -> c
-                     | dv ->
-                         raise
-                           (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
-                     dvals
+               let chars =
+                 List.map (function
+                   | DChar c -> c
+                   | dv ->
+                       raise (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
+                   dvals
 
-                 let str = String.concat "" chars
+               let str = String.concat "" chars
 
-                 return DStr str
-                })))
+               return DStr str
+              })))
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
