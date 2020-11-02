@@ -16,8 +16,8 @@ let t (comment : string) (code : string) : Test =
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convert source
-        let! actual = LibExecution.Execution.run actualProg fns
-        let! expected = LibExecution.Execution.run expectedResult fns
+        let! actual = LibExecution.Execution.run [] fns actualProg
+        let! expected = LibExecution.Execution.run [] fns expectedResult
 
         return (Expect.equal
                   actual

@@ -21,12 +21,49 @@ open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 
+type DarkMiddleware<'a, 'b> = 'a -> ('a -> 'b) -> 'b
+
 let runAsync e =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      let executionID = 1
+      let url = ctx.GetRequestUrl()
+
+      // let darkMiddleware =
+      //   req
+      //   |> loadHttpHandler
+      //   |> createHTTPRequestObject
+      //   |> addJsonBody
+      //   |> addFormBody
+      //   |> addCookies
+      //   |> addHeaders
+      //   |> processErrorRail
+      //
+      // bindHttpVariables
+      // ctx
+      // |> catchExceptionsMiddleware
+      // |> httpsRedirectMiddleware
+      // |> textPingMiddleware // move inside Dark stack
+      // |> sitemapFaviconMiddleware // move inside Dark stack
+      // |> getCanvasIDMiddleware
+      // |> findUserMiddleware
+      // |> useDarkFaviconMiddleware // if 404ing, use the Dark favicon
+      // |> optionsHandlerMiddleware // move inside Dark stack
+      // |> headHandlerMiddleware // move inside Dark stack
+      // |> recordEventMiddleware
+      // |> record404Middleware
+      // |> recordHeapioMiddleware
+      // |> recordHoneycombMiddleware
+      // |> darkHandler
+
+
+      // middleware: get user, 404 of not
       let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
-      let! result = LibExecution.Execution.run e fns
+
+      let! result = LibExecution.Execution.run [] fns e
+
       let result = result.toJSON().ToString()
+
       return! text result next ctx
     }
 
