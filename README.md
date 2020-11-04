@@ -88,7 +88,7 @@ Test it:
 # Make sure you haven't broken your DNS.
 ping -c 1 www.google.com
 # Check that .localhost names work
-dig testing.builtwithdark.localhost @127.0.0.1
+dig testing.builtwithdark.localhost@127.0.0.1
 ```
 
 ### Building and running for the first time
