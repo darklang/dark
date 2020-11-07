@@ -12,6 +12,7 @@
     <Compile Include="StdLib/LibDict.fs" />
     <Compile Include="StdLib/LibString.fs" />
     <Compile Include="StdLib/LibInt.fs" />
+    <Compile Include="StdLib/LibMiddleware.fs" />
     <Compile Include="StdLib.fs" />
     <Compile Include="Execution.fs" />
   </ItemGroup>

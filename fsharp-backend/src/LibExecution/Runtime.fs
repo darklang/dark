@@ -14,8 +14,6 @@ module LibExecution.Runtime
 
 
 open Thoth.Json.Net
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open System.Text.RegularExpressions
 
 open Prelude
@@ -353,7 +351,7 @@ and DType =
   | TIncomplete
   | TError
   | TLambda
-  | TResp
+  | THTTPResponse
   | TDB
   | TDate
   | TChar
@@ -367,6 +365,11 @@ and DType =
   // A named variable, eg `a` in `List<a>`
   | TVariable of string
   | TFn of List<DType> * DType
+  | TRecord of List<string * DType> // has exactly these fields
+  // This allows you to build up a record to eventually be the right shape.
+  | TRecordWithFields of List<string * DType>
+  | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+  | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
 
 // StdLib functions can go wrong for various reasons. We previous tied
 // ourselves in knots, trying to do elabortate folds to get them working. Much
