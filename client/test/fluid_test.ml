@@ -3182,14 +3182,51 @@ let run () =
         (key K.Right)
         "let ~*** = ___\n5" ;
       t "bs over empty let" emptyLet ~pos:3 bs "~5" ;
+      t "bs over empty let, after space " emptyLet ~pos:4 bs "~5" ;
       t "del empty let" emptyLet ~pos:0 del "~5" ;
       t "bs over empty let - underscore" (let' "_" b b) ~pos:3 bs "~___" ;
+      t
+        "bs over empty let - underscore, after space"
+        (let' "_" b b)
+        ~pos:4
+        bs
+        "~___" ;
       t "del empty let - underscore" (let' "_" b b) ~pos:0 del "~___" ;
       t "bs over non-empty let" nonEmptyLet ~pos:3 bs "let~ *** = 6\n5" ;
+      t
+        "bs over non-empty let, after space"
+        nonEmptyLet
+        ~pos:4
+        bs
+        "let ~*** = 6\n5" ;
       t "del non-empty let" nonEmptyLet ~pos:0 del "~let *** = 6\n5" ;
-      t "bs with let empty body" (let' "" (int 5) b) ~pos:3 bs "~5" ;
+      t "bs with let, empty body" (let' "" (int 5) b) ~pos:3 bs "~5" ;
+      t
+        "bs with let, empty body, after space"
+        (let' "" (int 5) b)
+        ~pos:4
+        bs
+        "~5" ;
+      t
+        "bs with let, complex rhs"
+        (let' "" (let' "" (int 5) (int 6)) b)
+        ~pos:3
+        bs
+        "~let *** = 5\n6" ;
+      t
+        "bs with nested let to remove"
+        (let' "x" (int 5) (let' "" (let' "y" (int 6) b) (int 7)))
+        ~pos:13
+        bs
+        "let x = 5\n~let y = 6\n7" ;
       t "del with let empty body" (let' "" (int 5) b) ~pos:0 del "~5" ;
       t "bs with let empty body" (let' "_" (int 5) b) ~pos:3 bs "~5" ;
+      t
+        "bs with let empty body, after space"
+        (let' "_" (int 5) b)
+        ~pos:4
+        bs
+        "~5" ;
       t "del with let empty body" (let' "_" (int 5) b) ~pos:0 del "~5" ;
       t
         "insert space on blank let"
