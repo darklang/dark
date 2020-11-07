@@ -1853,7 +1853,7 @@ let replacePartialWithArguments
     then Rail
     else NoRail
   in
-  (* Compare two parameters, params are aligned if both name 
+  (* Compare two parameters, params are aligned if both name
     * and type are the same, or if both type and position are the same *)
   let compareParams p1 p2 =
     match (p1, p2) with
@@ -2950,12 +2950,16 @@ let doExplicitBackspace (currCaretTarget : caretTarget) (ast : FluidAST.t) :
                    ( Expr (EPipe (id, List.removeAt ~index:(idx + 1) exprs))
                    , caretTargetForEndOfExpr' expr ))
           |> recoverOpt "doExplicitBackspace ARPipe" ~default:None )
-    (*
-     * Delete leading keywords of empty expressions
-     *)
+    (* Delete leading keywords of empty expressions *)
     | ARLet (_, LPKeyword), ELet (_, varName, expr, EBlank _)
     | ARLet (_, LPKeyword), ELet (_, varName, EBlank _, expr)
       when varName = "" || varName = "_" ->
+        Some (Expr expr, caretTargetForStartOfExpr' expr)
+    (* Removing a let wrapping another let *)
+    | ( ARLet (_, LPKeyword)
+      , ELet (_, varName, ELet (id, nestedVarName, rhs, EBlank _), body) )
+      when varName = "" || varName = "_" ->
+        let expr = ELet (id, nestedVarName, rhs, body) in
         Some (Expr expr, caretTargetForStartOfExpr' expr)
     | ARIf (_, IPIfKeyword), EIf (_, EBlank _, EBlank _, EBlank _)
     | ARLambda (_, LBPSymbol), ELambda (_, _, EBlank _) ->
@@ -4249,7 +4253,7 @@ let rec updateKey
         doBackspace ~pos ti astInfo
     (* Special case for deleting blanks in front of a list *)
     | DeleteContentForward, L (TListOpen _, _), R (TBlank _, rti) ->
-      (* If L is a TListOpen and R is a TBlank, mNext can be a comma or a list close. 
+      (* If L is a TListOpen and R is a TBlank, mNext can be a comma or a list close.
        * In case of a list close, we just replace the expr with the empty list
        *)
       ( match mNext with
@@ -4711,7 +4715,7 @@ let rec updateKey
         astInfo
   in
   (* If we were on a partial and have moved off it, we may want to commit that
-   * partial. For example, if we fully typed out "String::append", then move 
+   * partial. For example, if we fully typed out "String::append", then move
    * away, we want that to become `String::append ___ ___`.
    *
    * We "commit the partial" using the old state, and then we do the action
