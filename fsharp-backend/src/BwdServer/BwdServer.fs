@@ -100,7 +100,7 @@ let configureApp (app : IApplicationBuilder) =
      .UseGiraffe webApp
 
 let configureLogging (builder : ILoggingBuilder) =
-  let filter (l : LogLevel) = l.Equals LogLevel.Error
+  let filter (l : LogLevel) : bool = true
 
   // Configure the logging factory
   builder.AddFilter(filter) // Optional filter
@@ -112,12 +112,15 @@ let configureLogging (builder : ILoggingBuilder) =
 let configureServices (services : IServiceCollection) =
   services.AddGiraffe() |> ignore
 
-
-[<EntryPoint>]
-let main _ =
+let webserver port =
+  let url = $"http://*:{port}"
   Host.CreateDefaultBuilder()
       .ConfigureWebHostDefaults(fun webHostBuilder ->
       webHostBuilder.Configure(configureApp).ConfigureServices(configureServices)
-                    .ConfigureLogging(configureLogging).UseUrls("http://*:9001")
-      |> ignore).Build().Run()
+                    .ConfigureLogging(configureLogging).UseUrls(url)
+      |> ignore).Build()
+
+[<EntryPoint>]
+let main _ =
+  (webserver 9001).Run()
   0

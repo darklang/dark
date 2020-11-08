@@ -1,0 +1,6 @@
+HTTP/1.1 400 Bad Request
+Connection: close
+Date: XXX, XX XXX XXXX XX:XX:XX XXX
+Server: Kestrel
+Content-Length: 0
+

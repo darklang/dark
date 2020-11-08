@@ -85,6 +85,10 @@ if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   cp "${API_SERVER_FILE}" "${API_SERVER_EXE}"
   cp "${BWD_SERVER_FILE}" "${BWD_SERVER_EXE}"
+  cp "${BINPATH}/BwdServer.deps.json" "${BINPATH}/BwdServer2.deps.json"
+  cp "${BINPATH}/BwdServer.runtimeconfig.dev.json" "${BINPATH}/BwdServer2.runtimeconfig.dev.json"
+  cp "${BINPATH}/BwdServer.runtimeconfig.json" "${BINPATH}/BwdServer2.runtimeconfig.json"
+  cp "${BINPATH}/BwdServer.xml" "${BINPATH}/BwdServer2.xml"
   echo "Running server"
   dotnet "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
   dotnet "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &
