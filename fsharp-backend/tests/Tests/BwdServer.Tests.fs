@@ -10,59 +10,71 @@ open System.Threading
 open System.Net
 open System.Net.Sockets
 
-let server =
-  testList
-    "Server"
-    [ testTask "connect to server and make request" {
-        // TODO: This test relies on the server running already. Run the server
-        // instead as part of the test suite.
-        let read file = System.IO.File.ReadAllBytes $"tests/httptestfiles/{file}"
-        let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
-        let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
-        let body = read "basic.body"
-        let headers = read "basic.headers"
-        let expectedResponse = read "basic.expected"
+let t name =
+  testTask "connect to server and make request" {
+    // TODO: This test relies on the server running already. Run the server
+    // instead as part of the test suite.
+    let read file = System.IO.File.ReadAllBytes $"tests/httptestfiles/{file}"
+    let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
+    let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
-        let client = new TcpClient()
-        let mutable connected = false
-        for i in 1 .. 10 do
-          try
-            if not connected then
-              do! client.ConnectAsync("127.0.0.1", 9001)
-              connected <- true
-          with _ -> do! System.Threading.Tasks.Task.Delay 1000
+    let body = read $"{name}.body"
+    let headers = read $"{name}.headers"
+    let expectedResponse = read $"{name}.expected"
 
-        let stream = client.GetStream()
-        stream.ReadTimeout <- 10000
+    // Web server might not be loaded yet
+    let client = new TcpClient()
+    let mutable connected = false
+    for i in 1 .. 10 do
+      try
+        if not connected then
+          do! client.ConnectAsync("127.0.0.1", 9001)
+          connected <- true
+      with _ -> do! System.Threading.Tasks.Task.Delay 1000
 
-        let start = "GET / HTTP/1.1\nHost: 127.0.0.1:9001\n"B
-        let newline = "\n"B
+    let stream = client.GetStream()
+    stream.ReadTimeout <- 1000 // responses should be instant, right?
 
-        stream.Write(start, 0, start.Length)
-        stream.Write(headers, 0, headers.Length)
-        stream.Write(newline, 0, newline.Length)
-        stream.Write(body, 0, body.Length)
-        stream.Write(newline, 0, newline.Length)
-        stream.Write(newline, 0, newline.Length)
+    let start =
+      $"GET / HTTP/1.1\nHost: {name}.builtwithdark.localhost:9001\n" |> toBytes
 
-        let length = 10000
-        let response = Array.zeroCreate length
-        let byteCount = stream.Read(response, 0, length)
-        let response = Array.take byteCount response
+    let newline = "\n"B
 
-        stream.Close()
-        client.Close()
+    stream.Write(start, 0, start.Length)
+    stream.Write(headers, 0, headers.Length)
+    stream.Write(newline, 0, newline.Length)
+    stream.Write(body, 0, body.Length)
+    stream.Write(newline, 0, newline.Length)
+    stream.Write(newline, 0, newline.Length)
 
-        let response =
-          FsRegEx.replace
-            "Date: ..., .. ... .... ..:..:.. ..."
-            "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
-            (toStr response)
+    let length = 10000
+    let response = Array.zeroCreate length
+    let byteCount = stream.Read(response, 0, length)
+    let response = Array.take byteCount response
 
-        let expected = FsRegEx.replace "\n" "\r\n" (toStr expectedResponse)
+    stream.Close()
+    client.Close()
 
-        Expect.equal expected response "Result should be ok"
-      } ]
+    let response =
+      FsRegEx.replace
+        "Date: ..., .. ... .... ..:..:.. ..."
+        "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
+        (toStr response)
 
-let tests = testList "BwdServer" [ server ]
+    let expected = FsRegEx.replace "\n" "\r\n" (toStr expectedResponse)
+
+    Expect.equal expected response "Result should be ok"
+  }
+
+let testsFromFiles =
+  // get all files
+  let dir = "tests/httptestfiles/"
+  System.IO.Directory.GetFiles(dir, "*.expected")
+  |> Array.map (System.IO.Path.GetFileName)
+  |> Array.map (fun filename -> filename.Split(".").[0])
+  |> Array.toList
+  |> List.map t
+
+
+let tests = testList "BwdServer" testsFromFiles
