@@ -1,6 +1,7 @@
-HTTP/1.1 400 Bad Request
-Connection: close
+HTTP/1.1 200 OK
 Date: XXX, XX XXX XXXX XX:XX:XX XXX
-Server: Kestrel
-Content-Length: 0
+Content-Type: text/plain; charset=utf-8
+Server: darklang
+Content-Length: 12
 
+"hello world"

@@ -19,9 +19,25 @@ let t name =
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
     let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
-    let body = read $"{name}.body"
-    let headers = read $"{name}.headers"
-    let expectedResponse = read $"{name}.expected"
+    let setHeadersToCRLF (text : byte array) : byte array =
+      // We keep our test files with an LF line ending, but the HTTP spec
+      // requires headers (but not the body) to have CRLF line endings
+      let mutable justSawNewline = false
+      let mutable inHeaderSection = true
+      text
+      |> Array.toList
+      |> List.collect (fun b ->
+           justSawNewline <- false
+           if inHeaderSection && b = byte '\n' then
+             if justSawNewline then inHeaderSection <- false
+             justSawNewline <- true
+             [ byte '\r'; b ]
+           else
+             [ b ])
+      |> List.toArray
+
+    let request = read $"{name}.request" |> setHeadersToCRLF
+    let expectedResponse = read $"{name}.expected" |> setHeadersToCRLF
 
     // Web server might not be loaded yet
     let client = new TcpClient()
@@ -35,18 +51,7 @@ let t name =
 
     let stream = client.GetStream()
     stream.ReadTimeout <- 1000 // responses should be instant, right?
-
-    let start =
-      $"GET / HTTP/1.1\nHost: {name}.builtwithdark.localhost:9001\n" |> toBytes
-
-    let newline = "\n"B
-
-    stream.Write(start, 0, start.Length)
-    stream.Write(headers, 0, headers.Length)
-    stream.Write(newline, 0, newline.Length)
-    stream.Write(body, 0, body.Length)
-    stream.Write(newline, 0, newline.Length)
-    stream.Write(newline, 0, newline.Length)
+    stream.Write(request, 0, request.Length)
 
     let length = 10000
     let response = Array.zeroCreate length
@@ -62,9 +67,7 @@ let t name =
         "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
         (toStr response)
 
-    let expected = FsRegEx.replace "\n" "\r\n" (toStr expectedResponse)
-
-    Expect.equal expected response "Result should be ok"
+    Expect.equal (toStr expectedResponse) response "Result should be ok"
   }
 
 let testsFromFiles =

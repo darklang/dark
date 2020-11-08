@@ -1,0 +1,5 @@
+GET / HTTP/1.1
+Host: basic.builtwithdark.localhost:9001
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 0
+
