@@ -117,8 +117,10 @@ let webserver port =
   Host.CreateDefaultBuilder()
       .ConfigureWebHostDefaults(fun webHostBuilder ->
       webHostBuilder.Configure(configureApp).ConfigureServices(configureServices)
+                    .UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
                     .ConfigureLogging(configureLogging).UseUrls(url)
       |> ignore).Build()
+
 
 [<EntryPoint>]
 let main _ =
