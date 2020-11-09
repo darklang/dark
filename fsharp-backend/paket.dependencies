@@ -12,7 +12,6 @@ nuget Saturn ~> 0.15.0-preview01
 // Tests
 nuget Expecto ~> 9.0.2
 nuget FSharp.Compiler.Service
-nuget FsRegEx ~> 0.7.2
 
 // LibExecution
 nuget Thoth.Json.Net ~> 4.1.0
@@ -20,3 +19,5 @@ nuget TaskBuilder.fs ~> 2.1
 nuget FSharp.Data
 nuget Ply ~> 0.1
 nuget FSharpPlus ~> 1.2.0-ci01240
+nuget FsRegEx ~> 0.7.2
+nuget FSharpx.Extras ~> 2.5.0

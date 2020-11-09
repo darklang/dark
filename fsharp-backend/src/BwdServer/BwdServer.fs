@@ -21,6 +21,7 @@ open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Prelude
+open FSharpx
 
 let getCanvasIDMiddleware : HttpHandler =
   fun next ctx ->
@@ -57,15 +58,24 @@ let recordHoneycombMiddleware : HttpHandler =
     // FSTODO
     next ctx
 
+let sanitizeUrlPath (path : string) : string =
+  path
+  |> FsRegEx.replace "//+" "/"
+  |> String.trimEnd [| '/' |]
+  |> fun str -> if str = "" then "/" else str
+
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     // httpsRedirect // TODO use built-in handler
     task {
       let executionID = 1
-      let url = ctx.GetRequestUrl()
+      let url = ctx.GetRequestUrl() |> sanitizeUrlPath |> System.Uri
+
+      // let program = Serialization.load_http_from_cache (id)
       let headers = "todo"
       let body = "todo"
-      let expr = LibExecution.Runtime.Shortcuts.eFn "" "test" 0 []
+
+      let expr = LibExecution.Runtime.Shortcuts.eFn "" "" 0 []
 
       let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
 
@@ -77,9 +87,7 @@ let runDarkHandler : HttpHandler =
     }
 
 let webApp : HttpHandler =
-  getCanvasIDMiddleware
-  >=> findUserMiddleware
-  >=> recordEventMiddleware
+  recordEventMiddleware
   >=> record404Middleware
   >=> recordHeapioMiddleware
   >=> recordHoneycombMiddleware

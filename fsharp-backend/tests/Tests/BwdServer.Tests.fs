@@ -80,4 +80,18 @@ let testsFromFiles =
   |> List.map t
 
 
-let tests = testList "BwdServer" testsFromFiles
+let unitTests =
+  List.mapi (fun i (input, expected) ->
+    test $"sanitizeUrlPath - {i}" {
+      Expect.equal (BwdServer.sanitizeUrlPath input) expected "" })
+    [ ("//", "/")
+      ("/abc//", "/abc")
+      ("/", "/")
+      ("/abcabc//xyz///", "/abcabc/xyz")
+      ("", "/") ]
+
+
+let tests =
+  testList
+    "BwdServer"
+    [ testList "From files" testsFromFiles; testList "unit tests" unitTests ]
