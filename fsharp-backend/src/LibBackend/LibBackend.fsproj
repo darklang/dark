@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Serialization.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,42 +1,52 @@
 module BwdServer
 
-(* open Giraffe.Core *)
-(* open Giraffe.ResponseWriters *)
-
 (* open Microsoft.AspNetCore.Http *)
-open Giraffe
 open FSharp.Control.Tasks
 
 open System
 (* open System.Security.Claims *)
-(* open System.Threading *)
+open System.Threading.Tasks
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 (* open Microsoft.AspNetCore.Http.Features *)
-(* open Microsoft.AspNetCore.Authentication *)
 open Microsoft.Extensions.Hosting
-(* open Microsoft.AspNetCore.Authentication.Cookies *)
 (* open Microsoft.Extensions.Configuration *)
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Prelude
 open FSharpx
 
-let getCanvasIDMiddleware : HttpHandler =
-  fun next ctx ->
-    // FSTODO
-    next ctx
+// This boilerplate is copied from Giraffe. I elected not to use Giraffe
+// because we don't need any of its feature, but the types it chose are very
+// nice.
+// https://github.com/giraffe-fsharp/Giraffe/blob/9598682f4f68e23217c4199a48f30ca3457b037e/src/Giraffe/Core.fs
 
-let findUserMiddleware : HttpHandler =
-  fun next ctx ->
-    // FSTODO
-    next ctx
+type HttpFuncResult = Task<HttpContext option>
+type HttpFunc = HttpContext -> HttpFuncResult
+type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
 
-let useDarkFaviconMiddleware : HttpHandler =
-  fun next ctx ->
-    // FSTODO
-    next ctx
+let compose (handler1 : HttpHandler) (handler2 : HttpHandler) : HttpHandler =
+  fun (final : HttpFunc) ->
+    let func = final |> handler2 |> handler1
+    fun (ctx : HttpContext) ->
+      match ctx.Response.HasStarted with
+      | true -> final ctx
+      | false -> func ctx
+
+let (>=>) = compose
+
+type BwdMiddleware(next : RequestDelegate, handler : HttpHandler) =
+  let earlyReturn = Some >> Task.FromResult
+  let func : HttpFunc = handler earlyReturn
+
+  member __.Invoke(ctx : HttpContext) =
+    task {
+      let! result = func ctx
+      if (result.IsNone) then return! next.Invoke ctx
+    }
+
+// End stuff copied from Giraffe
 
 let recordEventMiddleware : HttpHandler =
   fun next ctx ->
@@ -64,48 +74,40 @@ let sanitizeUrlPath (path : string) : string =
   |> String.trimEnd [| '/' |]
   |> fun str -> if str = "" then "/" else str
 
+let normalizeRequest : HttpHandler =
+  fun next ctx ->
+    ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
+    next ctx
+
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
-    // httpsRedirect // TODO use built-in handler
     task {
-      let executionID = 1
-      let url = ctx.GetRequestUrl() |> sanitizeUrlPath |> System.Uri
+      let executionID = 1 // FSTODO: do at start and run through middleware
+      let canvasId = ""
 
-      // let program = Serialization.load_http_from_cache (id)
-      let headers = "todo"
-      let body = "todo"
+      // let program = LibBackend.Serialization.loadHttpFromCache canvasID
 
       let expr = LibExecution.Runtime.Shortcuts.eFn "" "" 0 []
-
       let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
-
       let! result = LibExecution.Execution.run [] fns expr
-
       let result = result.toJSON().ToString()
+      let bytes = System.Text.Encoding.UTF8.GetBytes result
+      do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
 
-      return! text result next ctx
+      return! next ctx
     }
 
 let webApp : HttpHandler =
-  recordEventMiddleware
+  // FSTODO use giraffe's builtin httpsRedirect
+  normalizeRequest
+  >=> recordEventMiddleware
   >=> record404Middleware
   >=> recordHeapioMiddleware
   >=> recordHoneycombMiddleware
-  >=> useDarkFaviconMiddleware
   >=> runDarkHandler
 
 let configureApp (app : IApplicationBuilder) =
-  let errorHandler (ex : Exception) (logger : ILogger) =
-    // TODO add rollbar
-    // TODO add honeycomb
-    logger.LogError
-      (EventId(),
-       ex,
-       "An unhandled exception has occurred while executing the request.")
-    clearResponse >=> setStatusCode 500 >=> text ex.Message
-
-  app.UseDeveloperExceptionPage().UseGiraffeErrorHandler(errorHandler)
-     .UseGiraffe webApp
+  app.UseDeveloperExceptionPage().UseMiddleware<BwdMiddleware> |> ignore
 
 let configureLogging (builder : ILoggingBuilder) =
   let filter (l : LogLevel) : bool = true
@@ -117,8 +119,7 @@ let configureLogging (builder : ILoggingBuilder) =
   // Add additional loggers if wanted...
   |> ignore
 
-let configureServices (services : IServiceCollection) =
-  services.AddGiraffe() |> ignore
+let configureServices (services : IServiceCollection) = ()
 
 let webserver port =
   let url = $"http://*:{port}"

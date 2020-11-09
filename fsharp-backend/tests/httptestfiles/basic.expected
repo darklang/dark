@@ -1,6 +1,6 @@
 HTTP/1.1 200 OK
 Date: XXX, XX XXX XXXX XX:XX:XX XXX
-Content-Type: text/plain; charset=utf-8
+Content-Type: application/json; charset=utf-8
 Server: darklang
 Content-Length: 12
 
