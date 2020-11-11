@@ -539,7 +539,8 @@ def mark(should, f):
   elif ("/backend/templates/" in f) and (".html" in f):
     should.backend_build = True
 
-  elif ("/fsharp-backend/global.json" in f):
+  elif ("/fsharp-backend/global.json" in f or \
+        "/fsharp-backend/.config/dotnet-tools.json" in f):
     should.fsharp_tool_restore = True
     should.fsharp_paket_restore = True
     should.fsharp_backend_full_build = True
