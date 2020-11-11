@@ -180,6 +180,8 @@ and fromFluidExpr (expr : Libshared.FluidExpression.t) :
         Filled (id, FluidLeftPartial (str, fromFluidExpr ~inPipe oldVal))
     | EList (id, exprs) ->
         Filled (id, ListLiteral (List.map ~f:r exprs))
+    | ETuple (id, exprs) ->
+        Filled (id, TupleLiteral (List.map ~f:r exprs))
     | ERecord (id, pairs) ->
         Filled
           ( id
@@ -272,6 +274,8 @@ let rec toFluidExpr
         EIf (id, f cond, f thenExpr, f elseExpr)
     | ListLiteral exprs ->
         EList (id, List.map ~f exprs)
+    | TupleLiteral exprs ->
+        ETuple (id, List.map ~f exprs)
     | ObjectLiteral pairs ->
         ERecord (id, List.map pairs ~f:(fun (k, v) -> (varToName k, f v)))
     | FieldAccess (expr, field) ->

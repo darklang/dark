@@ -413,6 +413,33 @@ let rec toTokens' ?(parentID = None) (e : E.t) (b : Builder.t) : Builder.t =
                     |> addNested ~f:(toTokens' ~parentID:(Some id) e)
                     |> addIf (i <> lastIndex) (TListComma (id, i))))
       |> add (TListClose (id, pid))
+  | ETuple (id, exprs) ->
+      (*
+         With each iteration of the list, we calculate the new line length, if we were to add this new item. If the new line length exceeds the limit, then we add a new line token and an indent by 1 first, before adding the tokenized item to the builder.
+      *)
+      let lastIndex = List.length exprs - 1 in
+      let xOffset = b.xPos |> Option.withDefault ~default:0 in
+      let pid = if lastIndex = -1 then None else Some id in
+      b
+      |> add (TTupleOpen (id, pid))
+      |> addIter exprs ~f:(fun i e b' ->
+             let currentLineLength =
+               let commaWidth = if i <> lastIndex then 1 else 0 in
+               (toTokens' e b').xPos
+               |> Option.map ~f:(fun x -> x - xOffset + commaWidth)
+               |> Option.withDefault ~default:commaWidth
+             in
+             (* Even if first element overflows, don't put it in a new line *)
+             let isOverLimit = i > 0 && currentLineLength > listLimit in
+             (* Indent after newlines to match the '[ ' *)
+             let indent = if isOverLimit then 1 else 0 in
+             b'
+             |> addIf isOverLimit (TNewline None)
+             |> indentBy ~indent ~f:(fun b' ->
+                    b'
+                    |> addNested ~f:(toTokens' ~parentID:(Some id) e)
+                    |> addIf (i <> lastIndex) (TTupleComma (id, i))))
+      |> add (TTupleClose (id, pid))
   | ERecord (id, fields) ->
       if fields = []
       then b |> addMany [TRecordOpen (id, None); TRecordClose (id, None)]

@@ -54,6 +54,7 @@ type tipe =
   (* name * version *)
   | TUserType of string * int
   | TBytes
+  | TTuple
 [@@deriving eq, ord, show, yojson, bin_io]
 
 module RuntimeT = struct
@@ -90,6 +91,7 @@ module RuntimeT = struct
     | FieldAccess of expr * field
     | ObjectLiteral of (key * expr) list
     | ListLiteral of expr list
+    | TupleLiteral of expr list
     | FeatureFlag of string or_blank * expr * expr * expr
     (* it's like this, instead of a bool on fncall, to avoid a
      * migration because we don't know how this is going to work

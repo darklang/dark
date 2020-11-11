@@ -25,6 +25,8 @@ module PrettyResponseJsonV0 = struct
         Unicode_string.to_yojson s
     | DList l ->
         `List (List.map l (unsafe_dval_to_yojson ~redact))
+    | DTuple t ->
+        wrap_user_type (`List (List.map t (unsafe_dval_to_yojson ~redact)))
     | DObj o ->
         o
         |> DvalMap.to_list

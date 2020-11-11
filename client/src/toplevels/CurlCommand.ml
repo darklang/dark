@@ -49,6 +49,13 @@ let rec to_url_string (dv : dval) : string option =
             ~sep:", "
             (List.filterMap ~f:to_url_string (Array.to_list l))
         ^ " ]" )
+  | DTuple t ->
+      Some
+        ( "( "
+        ^ String.join
+            ~sep:", "
+            (List.filterMap ~f:to_url_string (Array.to_list t))
+        ^ " )" )
   | DOption (OptJust v) ->
       to_url_string v
   | DResult (ResOk v) ->

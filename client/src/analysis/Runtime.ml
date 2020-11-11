@@ -37,6 +37,8 @@ let str2tipe (t : string) : tipe =
         TAny
     | "list" ->
         TList
+    | "tuple" ->
+        TTuple
     | "obj" ->
         TObj
     | "block" ->
@@ -134,6 +136,8 @@ let typeOf (dv : dval) : tipe =
       TStr
   | DList _ ->
       TList
+  | DTuple _ ->
+      TTuple
   | DObj _ ->
       TObj
   | DBlock _ ->
@@ -298,6 +302,20 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ^ "]"
     | l ->
         "[ " ^ String.join ~sep:", " (List.map ~f:(toRepr_ indent) l) ^ " ]" )
+  | DTuple t ->
+    ( match t |> Array.to_list with
+    | [] ->
+        "()"
+    | DObj _ :: _ ->
+        "("
+        ^ inl
+        ^ String.join
+            ~sep:(inl ^ ", ")
+            (List.map ~f:(toRepr_ indent) (t |> Array.to_list))
+        ^ nl
+        ^ ")"
+    | t ->
+        "( " ^ String.join ~sep:", " (List.map ~f:(toRepr_ indent) t) ^ " )" )
   | DObj o ->
       objToString (StrDict.toList o)
   | DBytes s ->

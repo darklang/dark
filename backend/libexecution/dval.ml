@@ -34,6 +34,8 @@ let rec tipe_to_string (t : tipe) : string =
       "Str"
   | TList ->
       "List"
+  | TTuple ->
+      "Tuple"
   | TObj ->
       "Dict"
   | TBlock ->
@@ -91,6 +93,8 @@ let rec tipe_to_developer_repr_v0 (t : tipe) : string =
       "String"
   | TList ->
       "List"
+  | TTuple ->
+      "Tuple"
   | TObj ->
       "Dict"
   | TBlock ->
@@ -154,6 +158,8 @@ let rec tipe_of_string str : tipe =
       TStr
   | "list" ->
       TList
+  | "tuple" ->
+      TTuple
   | "obj" ->
       TObj
   | "block" ->
@@ -255,6 +261,8 @@ let rec tipe_of (dv : dval) : tipe =
       TStr
   | DList _ ->
       TList
+  | DTuple _ ->
+      TTuple
   | DObj _ ->
       TObj
   | DBlock _ ->
@@ -469,6 +477,8 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
       DOption (OptJust (unsafe_dval_of_yojson_v0 dv))
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
       DErrorRail (unsafe_dval_of_yojson_v0 dv)
+  | `Assoc [("type", `String "tuple"); ("value", `List vs)] ->
+      DTuple (List.map ~f:unsafe_dval_of_yojson_v0 vs)
   | `Assoc _ ->
       DObj (unsafe_dvalmap_of_yojson_v0 json)
 
@@ -597,6 +607,8 @@ let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : dval) : Yojson.Safe.t =
       Unicode_string.to_yojson s
   | DList l ->
       `List (List.map l (unsafe_dval_to_yojson_v0 ~redact))
+  | DTuple t ->
+      wrap_user_type (`List (List.map t (unsafe_dval_to_yojson_v0 ~redact)))
   | DObj o ->
       o
       |> DvalMap.to_list
@@ -687,6 +699,15 @@ let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
           ^ String.concat ~sep:", " (List.map ~f:recurse l)
           ^ nl
           ^ "]"
+    | DTuple t ->
+        if List.is_empty t
+        then "()"
+        else
+          "( "
+          ^ inl
+          ^ String.concat ~sep:", " (List.map ~f:recurse t)
+          ^ nl
+          ^ ")"
     | DObj o ->
         if DvalMap.is_empty o
         then "{}"
@@ -849,6 +870,8 @@ let rec to_enduser_readable_text_v0 dval =
         to_nested_string ~reprfn:nestedreprfn dv
     | DList l ->
         to_nested_string ~reprfn:nestedreprfn dv
+    | DTuple t ->
+        to_nested_string ~reprfn:nestedreprfn dv
     | DErrorRail d ->
         (* We don't print error here, because the errorrail value will know
            * whether it's an error or not. *)
@@ -919,6 +942,15 @@ let rec to_developer_repr_v0 (dv : dval) : string =
           ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent) l)
           ^ nl
           ^ "]"
+    | DTuple t ->
+        if List.is_empty t
+        then "[]"
+        else
+          "[ "
+          ^ inl
+          ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent) t)
+          ^ nl
+          ^ "]"
     | DObj o ->
         if DvalMap.is_empty o
         then "{}"
@@ -960,6 +992,8 @@ let to_pretty_machine_yojson_v1 dval =
         Unicode_string.to_yojson s
     | DList l ->
         `List (List.map l recurse)
+    | DTuple t ->
+        `List (List.map t recurse)
     | DObj o ->
         o
         |> DvalMap.to_list
@@ -1078,6 +1112,8 @@ let rec show dv =
   | DObj o ->
       to_nested_string ~reprfn:show dv
   | DList l ->
+      to_nested_string ~reprfn:show dv
+  | DTuple t ->
       to_nested_string ~reprfn:show dv
   | DErrorRail d ->
       (* We don't print error here, because the errorrail value will know
@@ -1219,6 +1255,8 @@ let rec to_url_string_exn (dv : dval) : string =
       to_url_string_exn hdv
   | DList l ->
       "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn l) ^ " ]"
+  | DTuple t ->
+      "[ " ^ String.concat ~sep:", " (List.map ~f:to_url_string_exn t) ^ " ]"
   | DObj o ->
       let strs =
         DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
@@ -1351,6 +1389,15 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
         ^ String.concat ~sep:", " (List.map ~f:(to_hashable_repr ~indent) l)
         ^ nl
         ^ "]"
+  | DTuple t ->
+      if List.is_empty t
+      then "()"
+      else
+        "( "
+        ^ inl
+        ^ String.concat ~sep:", " (List.map ~f:(to_hashable_repr ~indent) t)
+        ^ nl
+        ^ ")"
   | DObj o ->
       if DvalMap.is_empty o
       then "{}"

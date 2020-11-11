@@ -111,6 +111,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DStr" [string s]
   | DList l ->
       ev "DList" [array dval l]
+  | DTuple t ->
+      ev "DTuple" [array dval t]
   | DObj o ->
       o
       |> StrDict.map ~f:dval
@@ -569,6 +571,8 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TObj" []
   | TList ->
       ev "TList" []
+  | TTuple ->
+      ev "TTuple" []
   | TAny ->
       ev "TAny" []
   | TNull ->
@@ -685,6 +689,8 @@ and fluidExpr (expr : FluidExpression.t) : Js.Json.t =
       ev "EVariable" [id id'; string name]
   | EList (id', exprs) ->
       ev "EList" [id id'; list fe exprs]
+  | ETuple (id', exprs) ->
+      ev "ETuple" [id id'; list fe exprs]
   | ERecord (id', pairs) ->
       ev "ERecord" [id id'; list (pair string fe) pairs]
   | EFeatureFlag (id', name, cond, a, b) ->

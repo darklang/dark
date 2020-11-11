@@ -25,6 +25,7 @@ type t =
   | ERightPartial of id * string * t
   | ELeftPartial of Shared.id * string * t
   | EList of id * t list
+  | ETuple of id * t list
   | ERecord of id * (string * t) list
   | EPipe of id * t list
   | EConstructor of id * string * t list
@@ -58,6 +59,7 @@ let toID (expr : t) : id =
   | ERightPartial (id, _, _)
   | ELeftPartial (id, _, _)
   | EList (id, _)
+  | ETuple (id, _)
   | ERecord (id, _)
   | EPipe (id, _)
   | EPipeTarget id
@@ -95,6 +97,7 @@ let rec findExprOrPat (target : id) (within : fluidPatOrExpr) :
           (id, [Expr e1])
       | EFnCall (id, _, exprs, _)
       | EList (id, exprs)
+      | ETuple (id, exprs)
       | EPipe (id, exprs)
       | EConstructor (id, _, exprs) ->
           (id, List.map exprs ~f:(fun e1 -> Expr e1))
@@ -157,6 +160,7 @@ let rec find (target : id) (expr : t) : t option =
                pairs |> List.map ~f:Tuple2.second |> List.findMap ~f:fe)
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
+    | ETuple (_, exprs)
     | EConstructor (_, _, exprs)
     | EPipe (_, exprs) ->
         List.findMap ~f:fe exprs
@@ -198,6 +202,7 @@ let children (expr : t) : t list =
   (* List *)
   | EFnCall (_, _, exprs, _)
   | EList (_, exprs)
+  | ETuple (_, exprs)
   | EConstructor (_, _, exprs)
   | EPipe (_, exprs) ->
       exprs
@@ -232,7 +237,7 @@ let isEmpty (expr : t) : bool =
       l
       |> List.filter ~f:(fun (k, v) -> k = "" && not (isBlank v))
       |> List.isEmpty
-  | EList (_, l) ->
+  | EList (_, l) | ETuple (_, l) ->
       l |> List.filter ~f:(not << isBlank) |> List.isEmpty
   | _ ->
       false
@@ -269,6 +274,8 @@ let rec preTraversal ~(f : t -> t) (expr : t) : t =
       ELambda (id, names, r expr)
   | EList (id, exprs) ->
       EList (id, List.map ~f:r exprs)
+  | ETuple (id, exprs) ->
+      ETuple (id, List.map ~f:r exprs)
   | EMatch (id, mexpr, pairs) ->
       EMatch
         (id, r mexpr, List.map ~f:(fun (name, expr) -> (name, r expr)) pairs)
@@ -315,6 +322,8 @@ let rec postTraversal ~(f : t -> t) (expr : t) : t =
         ELambda (id, names, r expr)
     | EList (id, exprs) ->
         EList (id, List.map ~f:r exprs)
+    | ETuple (id, exprs) ->
+        ETuple (id, List.map ~f:r exprs)
     | EMatch (id, mexpr, pairs) ->
         EMatch
           (id, r mexpr, List.map ~f:(fun (name, expr) -> (name, r expr)) pairs)
@@ -361,6 +370,8 @@ let deprecatedWalk ~(f : t -> t) (expr : t) : t =
       ELambda (id, names, f expr)
   | EList (id, exprs) ->
       EList (id, List.map ~f exprs)
+  | ETuple (id, exprs) ->
+      ETuple (id, List.map ~f exprs)
   | EMatch (id, mexpr, pairs) ->
       EMatch
         (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
@@ -525,6 +536,8 @@ let rec clone (expr : t) : t =
       EVariable (gid (), name)
   | EList (_, exprs) ->
       EList (gid (), cl exprs)
+  | ETuple (_, exprs) ->
+      ETuple (gid (), cl exprs)
   | ERecord (_, pairs) ->
       ERecord (gid (), List.map ~f:(fun (k, v) -> (k, c v)) pairs)
   | EFeatureFlag (_, name, cond, a, b) ->
@@ -586,6 +599,8 @@ let ancestors (id : id) (expr : t) : t list =
       | EFieldAccess (_, obj, _) ->
           rec_ id exp walk obj
       | EList (_, exprs) ->
+          reclist id expr walk exprs
+      | ETuple (_, exprs) ->
           reclist id expr walk exprs
       | ERecord (_, pairs) ->
           pairs |> List.map ~f:Tuple2.second |> reclist id expr walk
@@ -666,6 +681,8 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
       eq3 (con, con') (thn, thn') (els, els')
   | EList (_, l), EList (_, l') ->
       eqList l l'
+  | ETuple (_, l), ETuple (_, l') ->
+      eqList l l'
   | EFnCall (_, name, args, toRail), EFnCall (_, name', args', toRail') ->
       name = name' && eqList args args' && toRail = toRail'
   | EBinOp (_, name, lhs, rhs, toRail), EBinOp (_, name', lhs', rhs', toRail')
@@ -714,6 +731,7 @@ let rec testEqualIgnoringIds (a : t) (b : t) : bool =
   | ELet _, _
   | EIf _, _
   | EList _, _
+  | ETuple _, _
   | EFnCall _, _
   | EBinOp _, _
   | ERecord _, _
@@ -821,6 +839,8 @@ let toHumanReadable (expr : t) : string =
           "(list)"
       | EList (_, exprs) ->
           Printf.sprintf "(list\n%s)" (newlineList exprs)
+      | ETuple (_, exprs) ->
+          Printf.sprintf "(tuple\n%s)" (newlineList exprs)
       | EPipe (_, exprs) ->
           Printf.sprintf "(pipe\n%s)" (newlineList exprs)
       | EConstructor (_, name, exprs) ->
