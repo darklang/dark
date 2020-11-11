@@ -46,9 +46,11 @@ def compile(files):
     test = "--test "
   else:
     test = ""
+  fileStr = " ".join(files)
   try:
-    return run("scripts/support/compile " + test + " ".join(files))
+    return run(f"scripts/support/compile {test} {fileStr}")
   except:
+    print(f"Tried to compile too many files. Length was {len(fileStr)}")
     return initial_compile()
 
 
