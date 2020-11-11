@@ -1,4 +1,4 @@
-version 6.0.0-alpha014
+version 6.0.0-alpha051
 
 source https://api.nuget.org/v3/index.json
 framework: net5.0
@@ -21,3 +21,12 @@ nuget Ply ~> 0.1
 nuget FSharpPlus ~> 1.2.0-ci01240
 nuget FsRegEx ~> 0.7.2
 nuget FSharpx.Extras ~> 2.5.0
+nuget Npgsql.FSharp ~> 3.9.0
+nuget Npgsql ~> 4.1.5
+
+group Analyzers
+  source https://www.nuget.org/api/v2
+
+  nuget NpgsqlFSharpAnalyzer
+  framework: net5.0
+  storage: none
