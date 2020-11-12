@@ -16,10 +16,6 @@ open LibExecution.Framework
 let gid = Shortcuts.gid
 
 
-[<DllImport("../_build/default/backend/libbackend/libbackend.a",
-            CallingConvention = CallingConvention.Cdecl)>]
-extern string camlLibbackend__Serialize__oplist_of_binary_string_4913()
-
 let fetchReleventTLIDsForHTTP (host : string)
                               (canvasID : CanvasID)
                               (path : string)
@@ -70,30 +66,38 @@ let userIDForUsername (user : string) : Task<UserID> =
     |> Sql.query "SELECT id
                   FROM accounts
                   WHERE accounts.username = @username"
-    |> Sql.parameters [ "username", Sql.uuid (System.Guid.NewGuid()) ]
+    |> Sql.parameters [ "username", Sql.string user ]
     |> Sql.executeRowAsync (fun read -> read.uuid "id")
     |> Sql.throwOrReturn
 
 let loadCachedToplevels (host : string)
-                        (canvas : CanvasID)
+                        (canvasID : CanvasID)
                         (tlids : List<tlid>)
                         : Task<List<byte array>> =
   let tlidsType = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint
   let tlidsParam = new NpgsqlParameter("tlids", tlidsType)
-  tlidsParam.Value <- tlids
+  tlidsParam.Value <- tlids |> List.toArray
 
   Sql.existingConnection defaultConnection
   |> Sql.query "SELECT data
-                  FROM toplevel_oplists
-                  WHERE canvas_id = @canvasID
-                  AND tlid = ANY(@tlids)"
-  |> Sql.parameters [ "tlids", Sql.parameter tlidsParam ]
+                FROM toplevel_oplists
+                WHERE canvas_id = @canvasID
+                AND tlid = ANY(@tlids)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "tlids", Sql.parameter tlidsParam ]
   |> Sql.executeAsync (fun read -> read.bytea "data")
   |> Sql.throwOrReturn
 
-let ocamlRenderedToJson (data : byte array) : string = ""
 
-let parseOCamlOplistJSON (json : string) : Option<Toplevel> = None
+[<DllImport("../_build/default/backend/libbackend/libbackend.a",
+            CallingConvention = CallingConvention.Cdecl)>]
+extern string camlLibbackend__Serialize__oplist_of_binary_string_4913(byte[] bytes)
+
+
+let ocamlRenderedToJson (data : byte array) : string =
+  camlLibbackend__Serialize__oplist_of_binary_string_4913 data
+
+let parseOCamlOplistJSON (json : string) : Option<Toplevel> = failwith json
 
 let loadHttpHandlersFromCache (host : string)
                               (canvasID : CanvasID)
