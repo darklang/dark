@@ -131,7 +131,7 @@ let webApp : HttpHandler =
   >=> runDarkHandler
 
 let configureApp (app : IApplicationBuilder) =
-  app.UseDeveloperExceptionPage().UseMiddleware<BwdMiddleware> |> ignore
+  app.UseDeveloperExceptionPage().UseMiddleware<BwdMiddleware>(webApp) |> ignore
 
 let configureLogging (builder : ILoggingBuilder) =
   let filter (l : LogLevel) : bool = true
