@@ -22,28 +22,33 @@
   // Ports are loaded in the build process
   // "forwardPorts": [],
 
-  //  "runArgs": [
-  //    "--dns 8.8.8.8",
-  //    "--dns 8.8.4.4",
-  //    "--env IN_DEV_CONTAINER=true",
-  //    "--security-opt seccomp=scripts/support/chrome-seccomp.json"
-  //  ],
+  "containerEnv": {
+    "IN_DEV_CONTAINER": "true"
+  },
 
-  // Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
+  "runArgs": [
+    //"--dns 8.8.8.8",
+    //"--dns 8.8.4.4"
+    //  "--security-opt seccomp=scripts/support/chrome-seccomp.json"
+  ],
+
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-    "type=volume,src=dark_build,dst=/home/dark/app/_build",
-    "type=volume,src=dark_esy,dst=/home/dark/app/_esy",
-    "type=volume,src=dark_dotesy,dst=/home/dark/.esy",
-    "type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules",
-    "type=volume,src=dark_lib,dst=/home/dark/app/lib",
-    "type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target",
-    "type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/containers/queue-scheduler/target",
-    "type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo",
-    "type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build"
-    //"type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
+    // home dir
+    /* "type=volume,src=dark_dotesy,dst=/home/dark/.esy", */
+    /* "type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo", */
+    /* "type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud" */
+    // workspace dir
+    "type=volume,src=dark_build,dst=/workspaces/dark/_build",
+    "type=volume,src=dark_esy,dst=/workspaces/dark/_esy",
+    "type=volume,src=dark_node_modules,dst=/workspaces/dark/node_modules",
+    "type=volume,src=dark_lib,dst=/workspaces/dark/lib",
+    "type=volume,src=dark_stroller_target,dst=/workspaces/dark/containers/stroller/target",
+    "type=volume,src=dark_queue_scheduler_target,dst=/workspaces/dark//containers/queue-scheduler/target",
+    "type=volume,src=dark_fsharp_build,dst=/workspaces/dark/fsharp-backend/Build"
   ],
 
   // Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
-  "remoteUser": "dark"
+  "remoteUser": "dark",
+  "updateRemoteUserUID": true
 }
