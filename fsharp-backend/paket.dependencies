@@ -4,7 +4,7 @@ source https://api.nuget.org/v3/index.json
 framework: net5.0
 storage: none
 
-nuget FSharp.Core ~> 5.0.0-beta.20417.1
+nuget FSharp.Core ~> 5.0.0
 
 // Web servers
 nuget Saturn ~> 0.15.0-preview01
