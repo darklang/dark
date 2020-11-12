@@ -79,22 +79,46 @@ let normalizeRequest : HttpHandler =
     ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
     next ctx
 
+open LibExecution.Framework.Handler
+open LibExecution.Framework
+
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let executionID = 1 // FSTODO: do at start and run through middleware
-      let canvasId = ""
+      let executionID = LibExecution.Runtime.Shortcuts.gid ()
+      let canvasName = "test-hello"
+      let owner = "test"
+      let path = "/"
+      let method = "GET"
+      let userID = LibBackend.Serialization.userIDForUsername owner
+      let canvasID = LibBackend.Serialization.canvasIDForCanvas canvasName
 
-      // let program = LibBackend.Serialization.loadHttpFromCache canvasID
+      let! exprs =
+        LibBackend.Serialization.loadHttpHandlersFromCache
+          canvasName
+          canvasID
+          userID
+          path
+          method
 
-      let expr = LibExecution.Runtime.Shortcuts.eFn "" "" 0 []
-      let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
-      let! result = LibExecution.Execution.run [] fns expr
-      let result = result.toJSON().ToString()
-      let bytes = System.Text.Encoding.UTF8.GetBytes result
-      do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+      match exprs with
+      | [ TLHandler { spec = HTTPHandler _; ast = expr; tlid = _ } ] ->
+          let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
+          let! result = LibExecution.Execution.run [] fns expr
+          // FSTODO - might not be JSON
+          let result = result.toJSON().ToString()
+          // FSTODO - might not be UTF8
+          let bytes = System.Text.Encoding.UTF8.GetBytes result
 
-      return! next ctx
+          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+
+          return! next ctx
+      | [] ->
+          ctx.Response.StatusCode <- 404
+          return Some ctx
+      | _ ->
+          ctx.Response.StatusCode <- 500
+          return Some ctx
     }
 
 let webApp : HttpHandler =

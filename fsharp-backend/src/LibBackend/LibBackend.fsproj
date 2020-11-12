@@ -1,16 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net5.0</TargetFramework>
-    <LangVersion>preview</LangVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+  </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Serialization.fs" />
     <Compile Include="StdLib.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -26,6 +26,8 @@ type pos = { x : int; y : int }
 
 type tlid = int64
 type id = int64
+type CanvasID = System.Guid
+type UserID = System.Guid
 
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
