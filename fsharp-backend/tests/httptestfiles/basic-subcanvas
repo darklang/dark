@@ -1,6 +1,6 @@
 [request]
 GET / HTTP/1.1
-Host: basic.builtwithdark.localhost:9001
+Host: basic-subcanvas.builtwithdark.localhost:9001
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
 
@@ -11,7 +11,4 @@ Content-Type: application/json; charset=utf-8
 Server: darklang
 Content-Length: 12
 
-"hello world"
-
-[program]
 "hello world"

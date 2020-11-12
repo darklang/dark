@@ -13,7 +13,7 @@ open System.Text.RegularExpressions
 
 
 let t name =
-  testTask "connect to server and make request" {
+  testTask $"Httpfiles: {name}" {
     // TODO: This test relies on the server running already. Run the server
     // instead as part of the test suite.
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
@@ -36,16 +36,24 @@ let t name =
              [ b ])
       |> List.toArray
 
-    let request, expectedResponse =
+    let request, expectedResponse, progString =
       let filename = $"tests/httptestfiles/{name}"
       let contents = filename |> System.IO.File.ReadAllBytes |> toStr
 
       // TODO: use FsRegex instead
       let options = System.Text.RegularExpressions.RegexOptions.Singleline
-      let m = Regex.Match(contents, "^\[request\](.*)\[response\](.*)$", options)
-      if not m.Success then failwith $"incorrect format in {name}"
-      toBytes m.Groups.[1].Value, m.Groups.[2].Value
 
+      let m =
+        Regex.Match
+          (contents,
+           "^\[request\]\n(.*)\[response\]\n(.*)\[program\]\n(.*)$",
+           options)
+
+      if not m.Success then failwith $"incorrect format in {name}"
+      toBytes m.Groups.[1].Value, m.Groups.[2].Value, m.Groups.[3].Value
+
+    let (source : Runtime.Expr) =
+      progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
     // Web server might not be loaded yet
     let client = new TcpClient()
