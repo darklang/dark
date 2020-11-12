@@ -75,10 +75,21 @@ let userIDForUsername (user : string) : Task<UserID> =
     |> Sql.throwOrReturn
 
 let loadCachedToplevels (host : string)
-                        (owner : UserID)
+                        (canvas : CanvasID)
                         (tlids : List<tlid>)
-                        : Result<List<byte array>, List<string>> =
-  Error([])
+                        : Task<List<byte array>> =
+  let tlidsType = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint
+  let tlidsParam = new NpgsqlParameter("tlids", tlidsType)
+  tlidsParam.Value <- tlids
+
+  Sql.existingConnection defaultConnection
+  |> Sql.query "SELECT data
+                  FROM toplevel_oplists
+                  WHERE canvas_id = @canvasID
+                  AND tlid = ANY(@tlids)"
+  |> Sql.parameters [ "tlids", Sql.parameter tlidsParam ]
+  |> Sql.executeAsync (fun read -> read.bytea "data")
+  |> Sql.throwOrReturn
 
 let ocamlRenderedToJson (data : byte array) : string = ""
 
@@ -92,8 +103,7 @@ let loadHttpHandlersFromCache (host : string)
                               : Task<List<Toplevel>> =
   task {
     let! tlids = fetchReleventTLIDsForHTTP host canvasID path method
-
-    let binaryTLs = loadCachedToplevels host canvasID tlids |> Result.defaultValue []
+    let! binaryTLs = loadCachedToplevels host canvasID tlids
 
     let jsonTLs = List.map ocamlRenderedToJson binaryTLs
 
