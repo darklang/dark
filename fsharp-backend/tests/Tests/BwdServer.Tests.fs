@@ -9,13 +9,13 @@ open System.IO
 open System.Threading
 open System.Net
 open System.Net.Sockets
+open System.Text.RegularExpressions
 
 
 let t name =
   testTask "connect to server and make request" {
     // TODO: This test relies on the server running already. Run the server
     // instead as part of the test suite.
-    let read file = System.IO.File.ReadAllBytes $"tests/httptestfiles/{file}"
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
     let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
@@ -36,8 +36,16 @@ let t name =
              [ b ])
       |> List.toArray
 
-    let request = read $"{name}.request" |> setHeadersToCRLF
-    let expectedResponse = read $"{name}.expected" |> setHeadersToCRLF
+    let request, expectedResponse =
+      let filename = $"tests/httptestfiles/{name}"
+      let contents = filename |> System.IO.File.ReadAllBytes |> toStr
+
+      // TODO: use FsRegex instead
+      let options = System.Text.RegularExpressions.RegexOptions.Singleline
+      let m = Regex.Match(contents, "^\[request\](.*)\[response\](.*)$", options)
+      if not m.Success then failwith $"incorrect format in {name}"
+      toBytes m.Groups.[1].Value, m.Groups.[2].Value
+
 
     // Web server might not be loaded yet
     let client = new TcpClient()
@@ -67,15 +75,14 @@ let t name =
         "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
         (toStr response)
 
-    Expect.equal (toStr expectedResponse) response "Result should be ok"
+    Expect.equal expectedResponse response "Result should be ok"
   }
 
 let testsFromFiles =
   // get all files
   let dir = "tests/httptestfiles/"
-  System.IO.Directory.GetFiles(dir, "*.expected")
+  System.IO.Directory.GetFiles(dir, "*")
   |> Array.map (System.IO.Path.GetFileName)
-  |> Array.map (fun filename -> filename.Split(".").[0])
   |> Array.toList
   |> List.map t
 

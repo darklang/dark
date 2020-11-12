@@ -1,3 +1,10 @@
+[request]
+GET / HTTP/1.1
+Host: basic.builtwithdark.localhost:9001
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 0
+
+[response]
 HTTP/1.1 200 OK
 Date: XXX, XX XXX XXXX XX:XX:XX XXX
 Content-Type: application/json; charset=utf-8
