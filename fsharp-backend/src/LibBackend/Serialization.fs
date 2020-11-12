@@ -7,40 +7,18 @@ open FSharpPlus
 open Npgsql.FSharp
 open Ply
 open Npgsql
+open Db
+open Prelude
 
 open LibExecution.Runtime
 open LibExecution.Framework
 
 let gid = Shortcuts.gid
 
+
 [<DllImport("../_build/default/backend/libbackend/libbackend.a",
             CallingConvention = CallingConvention.Cdecl)>]
 extern string camlLibbackend__Serialize__oplist_of_binary_string_4913()
-
-let defaultConnection =
-  let cs =
-    Sql.host "localhost"
-    |> Sql.port 5432
-    |> Sql.username "dark"
-    |> Sql.password "eapnsdc"
-    |> Sql.database "devdb"
-    // |> Sql.sslMode SslMode.Require
-    |> Sql.config "Pooling=true"
-    |> Sql.formatConnectionString
-
-  let conn = new NpgsqlConnection(cs)
-  conn.Open()
-  conn
-
-module Sql =
-  let throwOrReturn (result : Async<Result<'a, exn>>) =
-    task {
-      let! result = result |> Async.StartImmediateAsTask
-
-      match result with
-      | Ok result -> return result
-      | Error exn -> return raise exn
-    }
 
 let fetchReleventTLIDsForHTTP (host : string)
                               (canvasID : CanvasID)
@@ -64,8 +42,37 @@ let fetchReleventTLIDsForHTTP (host : string)
   |> Sql.executeAsync (fun read -> read.int64 "tlid")
   |> Sql.throwOrReturn
 
-let canvasIDForCanvas (canvasName : string) : CanvasID = System.Guid.NewGuid()
-let userIDForUsername (user : string) : UserID = System.Guid.NewGuid()
+let canvasIDForCanvas (owner : UserID) (canvasName : string) : Task<CanvasID> =
+  if canvasName.Length > 64 then
+    failwith $"Canvas name was length {canvasName.Length}, must be <= 64"
+  else
+    // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
+    Sql.existingConnection defaultConnection
+    |> Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
+    |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
+                        "owner", Sql.uuid owner
+                        "canvasName", Sql.string canvasName ]
+    |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
+    |> Sql.throwOrReturn
+
+// split into owner and canvasName
+let ownerNameFromHost (host : string) : string =
+  match host.Split [| '-' |] |> Seq.toList with
+  | owner :: _rest -> owner
+  | _ -> host
+
+let userIDForUsername (user : string) : Task<UserID> =
+  let owner = String.toLower user
+  if List.contains owner Account.bannedUsernames then
+    failwith "Banned username"
+  else
+    Sql.existingConnection defaultConnection
+    |> Sql.query "SELECT id
+                  FROM accounts
+                  WHERE accounts.username = @username"
+    |> Sql.parameters [ "username", Sql.uuid (System.Guid.NewGuid()) ]
+    |> Sql.executeRowAsync (fun read -> read.uuid "id")
+    |> Sql.throwOrReturn
 
 let loadCachedToplevels (host : string)
                         (owner : UserID)

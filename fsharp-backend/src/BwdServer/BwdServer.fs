@@ -90,8 +90,8 @@ let runDarkHandler : HttpHandler =
       let owner = "test"
       let path = "/"
       let method = "GET"
-      let userID = LibBackend.Serialization.userIDForUsername owner
-      let canvasID = LibBackend.Serialization.canvasIDForCanvas canvasName
+      let! userID = LibBackend.Serialization.userIDForUsername owner
+      let! canvasID = LibBackend.Serialization.canvasIDForCanvas userID canvasName
 
       let! exprs =
         LibBackend.Serialization.loadHttpHandlersFromCache

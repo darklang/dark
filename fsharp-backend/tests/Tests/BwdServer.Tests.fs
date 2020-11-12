@@ -94,17 +94,36 @@ let testsFromFiles =
   |> Array.toList
   |> List.map t
 
+let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
+  testList
+    name
+    (List.mapi (fun i (input, expected) ->
+      test $"{name} - {i}" { Expect.equal (fn input) expected "" }) values)
 
-let unitTests =
-  List.mapi (fun i (input, expected) ->
-    test $"sanitizeUrlPath - {i}" {
-      Expect.equal (BwdServer.sanitizeUrlPath input) expected "" })
+let sanitizeUrlPathTests =
+  testMany
+    "sanitizeUrlPath"
+    BwdServer.sanitizeUrlPath
     [ ("//", "/")
       ("/abc//", "/abc")
       ("/", "/")
       ("/abcabc//xyz///", "/abcabc/xyz")
       ("", "/") ]
 
+
+let unitTests =
+  [ testMany
+      "sanitizeUrlPath"
+      BwdServer.sanitizeUrlPath
+      [ ("//", "/")
+        ("/abc//", "/abc")
+        ("/", "/")
+        ("/abcabc//xyz///", "/abcabc/xyz")
+        ("", "/") ]
+    testMany
+      "ownerNameFromHost"
+      LibBackend.Serialization.ownerNameFromHost
+      [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ] ]
 
 let tests =
   testList
