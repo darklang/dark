@@ -97,3 +97,10 @@
   (libraries libbackend)
 )
 
+(executable
+  (name libserialization)
+  (modes (native shared_object))
+  (modules libserialization)
+  (flags (-warn-error +A -w +9))
+  (libraries libserialize libtarget_ocaml)
+)

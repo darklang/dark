@@ -152,10 +152,12 @@ def backend_build():
   # Get all the ml files in backend/bin, and build executables This is less
   # technically correct than "parse the sexp in backend/bin/dune", but it
   # is also much simpler.
-  exes = [
-      "backend/bin/" + x.replace(".ml", ".exe")
-      for x in os.listdir("backend/bin") if x.endswith(".ml")
-  ]
+  def rename(mlfile):
+    if mlfile == "libserialization.ml":
+      return "backend/bin/" + mlfile.replace(".ml", ".so")
+    else:
+      return "backend/bin/" + mlfile.replace(".ml", ".exe")
+  exes = [ rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml") ]
   exes.append("@analysis.js")
   exes = " ".join(exes)
   if os.environ.get("CI"):
