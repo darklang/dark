@@ -1,9 +1,9 @@
-[http-handler GET /]
-"hello world"
+[http-handler GET /hello/:name]
+"hello " ++ name
 
 [request]
-GET / HTTP/1.1
-Host: test-basic.builtwithdark.localhost:9001
+GET /hello/alice-bob HTTP/1.1
+Host: test-vars.builtwithdark.localhost:9001
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
 
@@ -14,4 +14,4 @@ Content-Type: application/json; charset=utf-8
 Server: darklang
 Content-Length: 12
 
-"hello world"
+"hello alice-bob"

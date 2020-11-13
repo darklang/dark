@@ -82,16 +82,45 @@ let normalizeRequest : HttpHandler =
 open LibExecution.Framework.Handler
 open LibExecution.Framework
 
+
+let canvasNameFromHost (host : string) : Task<string> =
+  task {
+    match host.Split [| '.' |] with
+    | [| a; "darksingleinstance"; "com" |]
+    | [| a; "darksingleinstance"; "com" |]
+    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
+    // just another load balancer
+    | [| a; "darkcustomdomain"; "com" |]
+    | [| a; "builtwithdark"; "localhost" |]
+    | [| a; "builtwithdark"; "com" |] -> return a
+    | [| "builtwithdark"; "localhost" |]
+    | [| "builtwithdark"; "com" |] -> return "builtwithdark"
+    | _ -> return! LibBackend.Serialization.canvasNameFromCustomDomain host
+  }
+
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let executionID = LibExecution.Runtime.Shortcuts.gid ()
-      let canvasName = "test-hello"
-      let owner = "test"
-      let path = "/"
-      let method = "GET"
+      let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
+      let! canvasName = canvasNameFromHost ctx.Request.Host.Host
+      let owner = LibBackend.Serialization.ownerNameFromHost canvasName
+      let path = ctx.Request.Path.Value
+      let method = ctx.Request.Method
       let! userID = LibBackend.Serialization.userIDForUsername owner
       let! canvasID = LibBackend.Serialization.canvasIDForCanvas userID canvasName
+
+      Console.WriteLine canvasName
+
+      Console.WriteLine owner
+
+      Console.WriteLine path
+
+      Console.WriteLine method
+
+      Console.WriteLine(userID.ToString())
+
+      Console.WriteLine(canvasID.ToString())
 
       let! exprs =
         LibBackend.Serialization.loadHttpHandlersFromCache

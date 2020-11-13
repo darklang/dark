@@ -5,6 +5,7 @@ open Expecto
 open LibExecution
 open BwdServer
 
+open System.Threading.Tasks
 open System.IO
 open System.Threading
 open System.Net
@@ -100,15 +101,15 @@ let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
     (List.mapi (fun i (input, expected) ->
       test $"{name} - {i}" { Expect.equal (fn input) expected "" }) values)
 
-let sanitizeUrlPathTests =
-  testMany
-    "sanitizeUrlPath"
-    BwdServer.sanitizeUrlPath
-    [ ("//", "/")
-      ("/abc//", "/abc")
-      ("/", "/")
-      ("/abcabc//xyz///", "/abcabc/xyz")
-      ("", "/") ]
+let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) =
+  testList
+    name
+    (List.mapi (fun i (input, expected) ->
+      testTask $"{name} - {i}" {
+        let! result = fn input
+        Expect.equal result expected ""
+      }) values)
+
 
 
 let unitTests =
@@ -123,7 +124,14 @@ let unitTests =
     testMany
       "ownerNameFromHost"
       LibBackend.Serialization.ownerNameFromHost
-      [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ] ]
+      [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
+    testManyTask
+      "canvasNameFromHost"
+      BwdServer.canvasNameFromHost
+      [ ("test-something.builtwithdark.com", "test-something")
+        ("my-canvas.builtwithdark.localhost", "my-canvas")
+        ("builtwithdark.localhost", "builtwithdark")
+        ("my-canvas.darkcustomdomain.com", "my-canvas") ] ]
 
 let tests =
   testList

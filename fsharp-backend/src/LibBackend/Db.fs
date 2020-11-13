@@ -14,7 +14,7 @@ let defaultConnection =
     |> Sql.port 5432
     |> Sql.username "dark"
     |> Sql.password "eapnsdc"
-    |> Sql.database "devdb"
+    |> Sql.database "prodclone"
     // |> Sql.sslMode SslMode.Require
     |> Sql.config "Pooling=true"
     |> Sql.formatConnectionString

@@ -70,6 +70,18 @@ let userIDForUsername (user : string) : Task<UserID> =
     |> Sql.executeRowAsync (fun read -> read.uuid "id")
     |> Sql.throwOrReturn
 
+
+let canvasNameFromCustomDomain host : Task<string> =
+  Sql.existingConnection defaultConnection
+  |> Sql.query "SELECT canvas
+                  FROM customer_domains
+                  WHERE host = @host"
+  |> Sql.parameters [ "host", Sql.string host ]
+  |> Sql.executeRowAsync (fun read -> read.string "canvas")
+  |> Sql.throwOrReturn
+
+
+
 let loadCachedToplevels (host : string)
                         (canvasID : CanvasID)
                         (tlids : List<tlid>)
