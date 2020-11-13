@@ -25,6 +25,7 @@ module TL = Libexecution.Toplevel
 module Prelude = Libexecution.Prelude
 module Dbconnection = Libservice.Dbconnection
 module Span = Telemetry.Span
+module Op = Libserialize.Op
 
 (* ------------------------------- *)
 (* utils *)
@@ -750,7 +751,7 @@ let admin_add_op_handler
     time "1-read-api-ops" (fun _ ->
         let canvas_id, owner = Canvas.id_and_account_id_for_name_exn host in
         let params = Api.to_add_op_rpc_params body in
-        if Op.is_latest_op_request params.clientOpCtrId params.opCtr canvas_id
+        if Serialize.is_latest_op_request params.clientOpCtrId params.opCtr canvas_id
         then (params, canvas_id)
         else
           ( {params with ops = params.ops |> Op.filter_ops_received_out_of_order}

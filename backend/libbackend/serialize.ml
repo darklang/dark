@@ -1,275 +1,50 @@
+(* Serializing to the DB. Serialization formats and binary conversions are stored elsewhere *)
 open Core_kernel
 open Libcommon
 open Libexecution
 module SF = Serialization_format
+module Binary_serialization = Libserialize.Binary_serialization
 module Span = Telemetry.Span
 
-let handler_of_binary_string (str : string) : Types.RuntimeT.HandlerT.handler =
-  Core_extended.Bin_io_utils.of_line
-    str
-    (SF.RuntimeT.HandlerT.bin_handler SF.RuntimeT.bin_expr)
-  |> Serialization_converters.handler_to_fluid
-
-
-let handler_to_binary_string (h : Types.RuntimeT.HandlerT.handler) : string =
-  h
-  |> Serialization_converters.handler_of_fluid
-  |> Core_extended.Bin_io_utils.to_line
-       (SF.RuntimeT.HandlerT.bin_handler SF.RuntimeT.bin_expr)
-  |> Bigstring.to_string
-
-
-let db_of_binary_string (str : string) : Types.RuntimeT.DbT.db =
-  Core_extended.Bin_io_utils.of_line
-    str
-    (SF.RuntimeT.DbT.bin_db SF.RuntimeT.bin_expr)
-  |> Serialization_converters.db_to_fluid
-
-
-let db_to_binary_string (db : Types.RuntimeT.DbT.db) : string =
-  db
-  |> Serialization_converters.db_of_fluid
-  |> Core_extended.Bin_io_utils.to_line
-       (SF.RuntimeT.DbT.bin_db SF.RuntimeT.bin_expr)
-  |> Bigstring.to_string
-
-
-let user_fn_of_binary_string (str : string) : Types.RuntimeT.user_fn =
-  Core_extended.Bin_io_utils.of_line
-    str
-    (SF.RuntimeT.bin_user_fn SF.RuntimeT.bin_expr)
-  |> Serialization_converters.user_fn_to_fluid
-
-
-let user_fn_to_binary_string (ufn : Types.RuntimeT.user_fn) : string =
-  ufn
-  |> Serialization_converters.user_fn_of_fluid
-  |> Core_extended.Bin_io_utils.to_line
-       (SF.RuntimeT.bin_user_fn SF.RuntimeT.bin_expr)
-  |> Bigstring.to_string
-
-
-let user_tipe_of_binary_string (str : string) : Types.RuntimeT.user_tipe =
-  Core_extended.Bin_io_utils.of_line str SF.RuntimeT.bin_user_tipe
-
-
-let user_tipe_to_binary_string (ut : Types.RuntimeT.user_tipe) : string =
-  ut
-  |> Core_extended.Bin_io_utils.to_line SF.RuntimeT.bin_user_tipe
-  |> Bigstring.to_string
-
-
-let oplist_to_binary_string (ops : Types.oplist) : string =
-  ops
-  |> Serialization_converters.oplist_of_fluid
-  |> Core_extended.Bin_io_utils.to_line (SF.bin_oplist SF.RuntimeT.bin_expr)
-  |> Bigstring.to_string
-
-
-let oplist_of_binary_string (str : string) : Types.oplist =
-  Core_extended.Bin_io_utils.of_line str (SF.bin_oplist SF.RuntimeT.bin_expr)
-  |> Serialization_converters.oplist_to_fluid
-
-
-let translate_handler_as_binary_string
-    (str : string)
-    ~(f : Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.HandlerT.handler) :
-    string =
-  str |> handler_of_binary_string |> f |> handler_to_binary_string
-
-
-let translate_db_as_binary_string
-    (str : string) ~(f : Types.RuntimeT.DbT.db -> Types.RuntimeT.DbT.db) :
-    string =
-  str |> db_of_binary_string |> f |> db_to_binary_string
-
-
-let translate_user_function_as_binary_string
-    (str : string) ~(f : Types.RuntimeT.user_fn -> Types.RuntimeT.user_fn) :
-    string =
-  str |> user_fn_of_binary_string |> f |> user_fn_to_binary_string
-
-
-let translate_user_tipe_as_binary_string
-    (str : string) ~(f : Types.RuntimeT.user_tipe -> Types.RuntimeT.user_tipe) :
-    string =
-  str |> user_tipe_of_binary_string |> f |> user_tipe_to_binary_string
-
-
-(* We serialize oplists for each toplevel in the DB. This affects making
- * changes to almost any fundamental type in Dark, so must be
- * understood.
- *
- * The most important thing to understand is that if you make any change
- * you'll need to do a data migration.
- *
- * The oplists for toplevels are stored in per-tlid oplists, serialized
- * to binary. Since they're serialized to binary, they are not easily
- * editable.
- *
- * To do a migration, first make a copy of the type, making sure it has
- * a bin_prot serializer. That will allow you to read both the old and
- * new formats from the DB, which will allow live migrations without
- * breaking customers who are currently using the site.
- *
- * Then you need to migrate the data - we didn't used to do this and it
- * led to a lot of problems. All data should be in the same format (the
- * `digest` field in the DB should tell us what format it is). Data is
- * migrated by calling the /check-all-oplists endpoint. You should
- * check that it works locally first using scripts/download-gcp-db).
- * Write the code to do the migration in Canvas.check_all_hosts.
- *)
-
-let digest =
-  SF.bin_shape_oplist SF.RuntimeT.bin_shape_expr
-  |> Bin_prot.Shape.eval_to_digest_string
-
-
-let write_shape_data () =
-  if Config.should_write_shape_data
-  then
-    let shape_string =
-      SF.bin_shape_oplist SF.RuntimeT.bin_shape_expr
-      |> Bin_prot.Shape.eval
-      |> Bin_prot.Shape.Canonical.to_string_hum
-    in
-    File.writefile ~root:Serialization digest shape_string
-  else ()
-
-
-let is_test (name : string) : bool = String.is_prefix ~prefix:"test-" name
-
-let json_filename name = name ^ "." ^ "json"
-
-let try_multiple ~(fs : (string * ('a -> 'b)) list) (value : 'a) : 'b =
-  let result =
-    List.fold_left ~init:None fs ~f:(fun result (name, f) ->
-        match result with
-        | Some r ->
-            result
-        | None ->
-          ( try Some (f value)
-            with e ->
-              let bt = Exception.get_backtrace () in
-              Log.debuG ~bt name ~data:(Exception.exn_to_string e) ;
-              None ))
+(* -------------------------------------------------------- *)
+(* Moved from op.ml as it touches the DB *)
+(* -------------------------------------------------------- *)
+let is_latest_op_request
+    (client_op_ctr_id : string option) (op_ctr : int) (canvas_id : Uuidm.t) :
+    bool =
+  let client_op_ctr_id =
+    match client_op_ctr_id with
+    | Some s when s = "" ->
+        Uuidm.v `V4 |> Uuidm.to_string
+    | None ->
+        Uuidm.v `V4 |> Uuidm.to_string
+    | Some s ->
+        s
   in
-  match result with Some r -> r | None -> Exception.internal "No fn worked"
+  Db.run
+    ~name:"update-browser_id-op_ctr"
+    (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
+             * that it also handles the initial case where there is no
+             * browser_id record yet *)
+    "INSERT INTO op_ctrs(browser_id,ctr,canvas_id) VALUES($1, $2, $3)
+             ON CONFLICT (browser_id)
+             DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW()
+                       WHERE op_ctrs.ctr < EXCLUDED.ctr"
+    ~params:
+      [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
+      ; Db.Int op_ctr
+      ; Db.Uuid canvas_id ] ;
+  Db.exists
+    ~name:"check-if-op_ctr-is-latest"
+    "SELECT 1 FROM op_ctrs WHERE browser_id = $1 AND ctr = $2"
+    ~params:
+      [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
+      ; Db.Int op_ctr ]
 
 
-(* ------------------------- *)
-(* convert from deprecated *)
-(* ------------------------- *)
-
-(* let read_and_convert_deprecated str : Op.oplist = *)
-(*   str *)
-(*   |> Deprecated_op_flagged.oplist_of_string *)
-(*   |> List.map ~f:Deprecated_op_flagged.convert_flagged *)
-(*   |> Deprecated_op_flagged.oplist_to_yojson *)
-(*   |> Op.oplist_of_yojson *)
-(*   |> Result.ok_or_failwith *)
-
-(* ------------------------- *)
-(* oplists *)
-(* ------------------------- *)
-let strs2tlid_oplists strs : Types.tlid_oplists =
-  strs
-  |> List.map ~f:(fun results ->
-         match results with
-         | [data] ->
-             data
-         | _ ->
-             Exception.internal "Shape of per_tlid oplists")
-  |> List.map ~f:(fun str ->
-         let ops : Types.oplist =
-           try_multiple str ~fs:[("oplist", oplist_of_binary_string)]
-         in
-         (* there must be at least one op *)
-         let tlid = ops |> List.hd_exn |> Op.tlidOf in
-         (tlid, ops))
-
-
-type rendered_oplist_cache_query_result =
-  (Types.RuntimeT.HandlerT.handler * Types.pos) Types.IDMap.t
-  * (Types.RuntimeT.DbT.db * Types.pos) Types.IDMap.t
-  * Types.RuntimeT.user_fn Types.IDMap.t
-  * Types.RuntimeT.user_tipe Types.IDMap.t
-
-let strs2rendered_oplist_cache_query_result strs :
-    rendered_oplist_cache_query_result =
-  let module IDMap = Types.IDMap in
-  let handlers = IDMap.empty in
-  let dbs = IDMap.empty in
-  let user_fns = IDMap.empty in
-  let user_tipes = IDMap.empty in
-  let try_parse ~f data = try Some (f data) with _ -> None in
-  strs
-  |> List.map ~f:(fun results ->
-         match results with
-         | [data; pos] ->
-             let pos =
-               (* Yojson likes to raise if handed the empty string, which
-                * it might be if `pos` was null (ie. for user functions) *)
-               try
-                 pos
-                 |> Yojson.Safe.from_string
-                 |> Types.pos_of_yojson
-                 |> Result.ok
-               with _ -> None
-             in
-             (data, pos)
-         | _ ->
-             Exception.internal "Shape of per_tlid cached reprs")
-  |> List.fold
-       ~init:(handlers, dbs, user_fns, user_tipes)
-       ~f:(fun (handlers, dbs, user_fns, user_tipes) (str, pos) ->
-         (* This is especially nasty because we don't know the
-          * tlid of the blob we're trying to parse, so we have
-          * to try all 4 of our various serializers -- which
-          * helpfully throw exceptions which we have to catch for
-          * control-flow
-          *
-          * Ordered as follows based on expected numbers
-          * Fns > Dbs > Handlers > types
-          *
-          * *)
-         match try_parse ~f:user_fn_of_binary_string str with
-         | Some ufn ->
-             ( handlers
-             , dbs
-             , IDMap.add_exn user_fns ~key:ufn.tlid ~data:ufn
-             , user_tipes )
-         | None ->
-           ( match try_parse ~f:db_of_binary_string str with
-           | Some db ->
-               let dbs =
-                 pos
-                 |> Option.map ~f:(fun pos ->
-                        IDMap.add_exn dbs ~key:db.tlid ~data:(db, pos))
-                 |> Option.value ~default:dbs
-               in
-               (handlers, dbs, user_fns, user_tipes)
-           | None ->
-             ( match try_parse ~f:handler_of_binary_string str with
-             | Some h ->
-                 let handlers =
-                   pos
-                   |> Option.map ~f:(fun pos ->
-                          IDMap.add_exn handlers ~key:h.tlid ~data:(h, pos))
-                   |> Option.value ~default:handlers
-                 in
-                 (handlers, dbs, user_fns, user_tipes)
-             | None ->
-               ( match try_parse ~f:user_tipe_of_binary_string str with
-               | Some t ->
-                   ( handlers
-                   , dbs
-                   , user_fns
-                   , IDMap.add_exn user_tipes ~key:t.tlid ~data:t )
-               | None ->
-                   (handlers, dbs, user_fns, user_tipes) ) ) ))
-
-
+(* -------------------------------------------------------- *)
+(* Load serialized data from the DB *)
+(* -------------------------------------------------------- *)
 let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Types.tlid_oplists =
   Db.fetch
     ~name:"load_all_from_db"
@@ -277,7 +52,7 @@ let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Types.tlid_oplists =
      WHERE canvas_id = $1"
     ~params:[Uuid canvas_id]
     ~result:BinaryResult
-  |> strs2tlid_oplists
+  |> Binary_serialization.strs2tlid_oplists
 
 
 let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
@@ -290,7 +65,7 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
       AND tlid = ANY (string_to_array($2, $3)::bigint[])"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
-  |> strs2tlid_oplists
+  |> Binary_serialization.strs2tlid_oplists
 
 
 let load_only_undeleted_tlids
@@ -305,7 +80,7 @@ let load_only_undeleted_tlids
       AND deleted IS NOT TRUE"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
-  |> strs2tlid_oplists
+  |> Binary_serialization.strs2tlid_oplists
 
 
 (* This is a special `load_*` function that specifically loads toplevels
@@ -318,7 +93,7 @@ let load_only_undeleted_tlids
  * *)
 let load_only_rendered_tlids
     ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
-    rendered_oplist_cache_query_result =
+    Binary_serialization.rendered_oplist_cache_query_result =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   (* We specifically only load where `deleted` IS FALSE (even though the column is nullable). This
    * means we will not load undeleted handlers from the cache if we've never written their `deleted` state. This
@@ -336,7 +111,7 @@ let load_only_rendered_tlids
              OR tipe = 'user_function'::toplevel_type OR tipe = 'user_tipe'::toplevel_type)"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
-  |> strs2rendered_oplist_cache_query_result
+  |> Binary_serialization.strs2rendered_oplist_cache_query_result
 
 
 let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
@@ -350,7 +125,7 @@ let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
              OR tipe = 'db'::toplevel_type)"
     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
-  |> strs2tlid_oplists
+  |> Binary_serialization.strs2tlid_oplists
 
 
 let fetch_relevant_tlids_for_http ~host ~canvas_id ~path ~verb () :
@@ -483,7 +258,7 @@ let transactionally_migrate_oplist
           |> List.hd_exn
           |> function
           | [data; rendered_oplist_cache] ->
-              (oplist_of_binary_string data, rendered_oplist_cache)
+              (Binary_serialization.oplist_of_binary_string data, rendered_oplist_cache)
           | _ ->
               Exception.internal "invalid oplists"
         in
@@ -492,15 +267,15 @@ let transactionally_migrate_oplist
           if rendered = ""
           then Db.Null
           else
-            try_convert (translate_handler_as_binary_string ~f:handler_f) ()
+            try_convert (Binary_serialization.translate_handler_as_binary_string ~f:handler_f) ()
             |> Tc.Option.or_else_lazy
-                 (try_convert (translate_db_as_binary_string ~f:db_f))
-            |> Tc.Option.or_else_lazy
-                 (try_convert
-                    (translate_user_function_as_binary_string ~f:user_fn_f))
+                 (try_convert (Binary_serialization.translate_db_as_binary_string ~f:db_f))
             |> Tc.Option.or_else_lazy
                  (try_convert
-                    (translate_user_tipe_as_binary_string ~f:user_tipe_f))
+                    (Binary_serialization.translate_user_function_as_binary_string ~f:user_fn_f))
+            |> Tc.Option.or_else_lazy
+                 (try_convert
+                    (Binary_serialization.translate_user_tipe_as_binary_string ~f:user_tipe_f))
             |> Tc.Option.map ~f:(fun str -> Db.Binary str)
             |> Tc.Option.or_else_lazy (fun () ->
                    Exception.internal "none of the decoders worked on the cache")
@@ -516,8 +291,8 @@ let transactionally_migrate_oplist
        WHERE canvas_id = $4
          AND tlid = $5"
           ~params:
-            [ Binary (oplist_to_binary_string converted_oplist)
-            ; String digest
+            [ Binary (Binary_serialization.oplist_to_binary_string converted_oplist)
+            ; String Binary_serialization.digest
             ; rendered
             ; Uuid canvas_id
             ; ID tlid ]) ;
@@ -575,12 +350,12 @@ let save_toplevel_oplist
       [ Uuid canvas_id
       ; Uuid account_id
       ; ID tlid
-      ; String digest
+      ; String Binary_serialization.digest
       ; String tipe_str
       ; string_option name
       ; string_option module_
       ; string_option modifier
-      ; Binary (ops |> oplist_to_binary_string)
+      ; Binary (ops |> Binary_serialization.oplist_to_binary_string)
       ; binary_option binary_repr
       ; bool_option deleted
       ; pos_option pos ]
@@ -589,36 +364,6 @@ let save_toplevel_oplist
 (* ------------------------- *)
 (* JSON *)
 (* ------------------------- *)
-let load_json_from_disk
-    ~root ?(preprocess = ident) ~(host : string) ~(canvas_id : Uuidm.t) () :
-    Types.tlid_oplists =
-  Log.infO
-    "serialization"
-    ~params:[("load", "disk"); ("format", "json"); ("host", host)] ;
-  let filename = json_filename host in
-  File.maybereadjsonfile
-    ~root
-    filename
-    ~conv:(SF.oplist_of_yojson SF.RuntimeT.expr_of_yojson)
-    ~stringconv:preprocess
-  |> Option.map ~f:Serialization_converters.oplist_to_fluid
-  |> Option.map ~f:Op.oplist2tlid_oplists
-  |> Option.value ~default:[]
-
-
-let save_json_to_disk ~root (filename : string) (ops : Types.tlid_oplists) :
-    unit =
-  Log.infO
-    "serialization"
-    ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
-  ops
-  |> Op.tlid_oplists2oplist
-  |> Serialization_converters.oplist_of_fluid
-  |> SF.oplist_to_yojson SF.RuntimeT.expr_to_yojson
-  |> Yojson.Safe.pretty_to_string
-  |> (fun s -> s ^ "\n")
-  |> File.writefile ~root filename
-
 
 (* ------------------------- *)
 (* hosts *)

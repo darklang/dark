@@ -1,5 +1,5 @@
 (library
-  (name libbackend)
+  (name libserialize)
   (modes native)
   (flags (-warn-error +A -w +9))
   (preprocess (pps
@@ -15,7 +15,6 @@
   (libraries  libtarget_ocaml
               libexecution
               libservice
-              libserialize
               cohttp-lwt
               core_extended
               cstruct

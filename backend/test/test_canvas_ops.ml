@@ -7,6 +7,8 @@ open Libshared.FluidShortcuts
 open Types
 open Types.RuntimeT
 open Utils
+module Op = Libserialize.Op
+
 module C = Canvas
 module TL = Toplevel
 module AT = Alcotest

@@ -3,6 +3,7 @@ open Libexecution
 open Libcommon
 open Util
 open Types
+open Libserialize
 module RTT = Types.RuntimeT
 module TL = Toplevel
 
@@ -676,7 +677,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             |> Option.bind ~f:(fun tl ->
                    tl |> TL.as_handler |> Option.map ~f:(fun h -> (tl.pos, h)))
             |> Option.map ~f:(fun (pos, h) ->
-                   ( Serialize.handler_to_binary_string h
+                   ( Binary_serialization.handler_to_binary_string h
                    , false
                    , Some pos
                    , TL.TLHandler ))
@@ -686,7 +687,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             |> Option.bind ~f:(fun tl ->
                    tl |> TL.as_handler |> Option.map ~f:(fun h -> (tl.pos, h)))
             |> Option.map ~f:(fun (pos, h) ->
-                   ( Serialize.handler_to_binary_string h
+                   ( Binary_serialization.handler_to_binary_string h
                    , true
                    , Some pos
                    , TL.TLHandler ))
@@ -696,19 +697,19 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             |> Option.bind ~f:(fun tl ->
                    tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
             |> Option.map ~f:(fun (pos, db) ->
-                   (Serialize.db_to_binary_string db, false, Some pos, TL.TLDB))
+                   (Binary_serialization.db_to_binary_string db, false, Some pos, TL.TLDB))
           in
           let deleted_db () =
             IDMap.find c.deleted_dbs tlid
             |> Option.bind ~f:(fun tl ->
                    tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
             |> Option.map ~f:(fun (pos, db) ->
-                   (Serialize.db_to_binary_string db, true, Some pos, TL.TLDB))
+                   (Binary_serialization.db_to_binary_string db, true, Some pos, TL.TLDB))
           in
           let user_function () =
             IDMap.find c.user_functions tlid
             |> Option.map ~f:(fun fn ->
-                   ( Serialize.user_fn_to_binary_string fn
+                   ( Binary_serialization.user_fn_to_binary_string fn
                    , false
                    , None
                    , TL.TLUserFunction ))
@@ -716,7 +717,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
           let deleted_user_function () =
             IDMap.find c.deleted_user_functions tlid
             |> Option.map ~f:(fun fn ->
-                   ( Serialize.user_fn_to_binary_string fn
+                   ( Binary_serialization.user_fn_to_binary_string fn
                    , true
                    , None
                    , TL.TLUserFunction ))
@@ -724,7 +725,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
           let user_tipe () =
             IDMap.find c.user_tipes tlid
             |> Option.map ~f:(fun t ->
-                   ( Serialize.user_tipe_to_binary_string t
+                   ( Binary_serialization.user_tipe_to_binary_string t
                    , false
                    , None
                    , TL.TLUserTipe ))
@@ -732,7 +733,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
           let deleted_user_tipe () =
             IDMap.find c.deleted_user_tipes tlid
             |> Option.map ~f:(fun t ->
-                   ( Serialize.user_tipe_to_binary_string t
+                   ( Binary_serialization.user_tipe_to_binary_string t
                    , true
                    , None
                    , TL.TLUserTipe ))
@@ -781,6 +782,40 @@ let save_all (c : canvas) : unit =
 (* Testing/validation *)
 (* ------------------------- *)
 
+let json_filename name = name ^ "." ^ "json"
+
+let load_json_from_disk
+    ~root ?(preprocess = ident) ~(host : string) ~(canvas_id : Uuidm.t) () :
+    Types.tlid_oplists =
+  Log.infO
+    "serialization"
+    ~params:[("load", "disk"); ("format", "json"); ("host", host)] ;
+  let module SF = Serialization_format in
+  let filename = json_filename host in
+  File.maybereadjsonfile
+    ~root
+    filename
+    ~conv:(SF.oplist_of_yojson SF.RuntimeT.expr_of_yojson)
+    ~stringconv:preprocess
+  |> Option.map ~f:Serialization_converters.oplist_to_fluid
+  |> Option.map ~f:Op.oplist2tlid_oplists
+  |> Option.value ~default:[]
+
+
+let save_json_to_disk ~root (filename : string) (ops : Types.tlid_oplists) :
+    unit =
+  Log.infO
+    "serialization"
+    ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
+  let module SF = Serialization_format in
+  ops
+  |> Op.tlid_oplists2oplist
+  |> Serialization_converters.oplist_of_fluid
+  |> SF.oplist_to_yojson SF.RuntimeT.expr_to_yojson
+  |> Yojson.Safe.pretty_to_string
+  |> (fun s -> s ^ "\n")
+  |> File.writefile ~root filename
+
 let load_and_resave (h : host) : (unit, string list) Result.t =
   ignore (Db.run ~name:"start_transaction" ~params:[] "BEGIN") ;
   let result = load_all h [] |> Result.map ~f:(fun c -> save_all !c) in
@@ -795,7 +830,7 @@ let load_and_resave_from_test_file (host : string) : unit =
       host
       owner
       []
-      ~f:(Serialize.load_json_from_disk ~root:Testdata ~preprocess:ident)
+      ~f:(load_json_from_disk ~root:Testdata ~preprocess:ident)
     |> Result.map_error ~f:(String.concat ~sep:", ")
     |> Prelude.Result.ok_or_internal_exception "Canvas load error"
   in
@@ -815,14 +850,14 @@ let minimize (c : canvas) : canvas =
 let save_test (c : canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
-  let file = Serialize.json_filename host in
+  let file = json_filename host in
   let host =
     if File.file_exists ~root:Testdata file
     then host ^ "_" ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
     else host
   in
-  let file = Serialize.json_filename host in
-  Serialize.save_json_to_disk ~root:Testdata file c.ops ;
+  let file = json_filename host in
+  save_json_to_disk ~root:Testdata file c.ops ;
   file
 
 
@@ -927,6 +962,14 @@ let migrate_host (_host : string) : (string, unit) Tc.Result.t =
 let migrate_all_hosts () =
   List.iter (all_hosts ()) ~f:(fun host ->
       migrate_host host |> Result.ok_or_failwith)
+
+let write_shape_data () =
+  if Config.should_write_shape_data
+  then
+    File.writefile ~root:Serialization Binary_serialization.digest Binary_serialization.shape_string
+  else ()
+
+
 
 
 let time (fn : unit -> 'a) : float * 'a =
