@@ -2085,6 +2085,10 @@ let t_int_stdlibs () =
     "Int::negate works (pos)"
     (Dval.dint (-5))
     (exec_ast (fn "Int::negate" [int 5])) ;
+  check_dval
+    "Int::greaterThan works"
+    (DBool true)
+    (exec_ast (fn "Int::greaterThan" [int 20; int 1])) ;
   ()
 
 
