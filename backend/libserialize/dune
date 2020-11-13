@@ -3,41 +3,16 @@
   (modes native)
   (flags (-warn-error +A -w +9))
   (preprocess (pps
-               lwt_ppx
                ppx_bin_prot
                ppx_deriving.std
                ppx_deriving_yojson
-               ppx_fields_conv
-               ppx_sexp_conv
                ppx_pipebang
-               ppx_let
                ))
-  (libraries  libtarget_ocaml
-              libexecution
+  (libraries  libexecution
               libservice
-              cohttp-lwt
               core_extended
-              cstruct
-              curl
-              curl.lwt
-              ezgzip
-              gcloud
-              lwt
-              magic-mime
-              multipart-form-data
-              nocrypto
-              nocrypto.lwt
-              postgresql
               ppx_deriving_yojson.runtime
-              session
-              session-postgresql-lwt
-              session-postgresql
-              session-cohttp-lwt
-              session-cohttp
-              sodium
-              uutf
               yojson
-              x509
               )
 )
 
