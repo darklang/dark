@@ -87,13 +87,20 @@ let loadCachedToplevels (host : string)
   |> Sql.executeAsync (fun read -> read.bytea "data")
 
 
-[<DllImport("../_build/default/backend/libbackend/libbackend.a",
-            CallingConvention = CallingConvention.Cdecl)>]
-extern string camlLibbackend__Serialize__oplist_of_binary_string_4913(byte[] bytes)
+[<DllImport("./libserialization.so",
+            CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "specialpaultestinit")>]
+extern System.IntPtr specialpaultestinit()
+
+let init () =
+  printfn "serialization_init"
+  let charptr = specialpaultestinit ()
+  let str = System.Runtime.InteropServices.Marshal.PtrToStringAnsi charptr
+  printfn "serialization_inited: %s" str
+  ()
 
 
-let ocamlRenderedToJson (data : byte array) : string =
-  camlLibbackend__Serialize__oplist_of_binary_string_4913 data
+let ocamlRenderedToJson (data : byte array) : string = ""
 
 let parseOCamlOplistJSON (json : string) : Option<Toplevel> = failwith json
 

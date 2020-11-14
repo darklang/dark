@@ -1,8 +1,6 @@
 open Core_kernel
-open Libcommon
 open Libexecution
 module SF = Serialization_format
-module Span = Telemetry.Span
 
 let handler_of_binary_string (str : string) : Types.RuntimeT.HandlerT.handler =
   Core_extended.Bin_io_utils.of_line
@@ -141,8 +139,6 @@ let try_multiple ~(fs : (string * ('a -> 'b)) list) (value : 'a) : 'b =
         | None ->
           ( try Some (f value)
             with e ->
-              let bt = Exception.get_backtrace () in
-              Log.debuG ~bt name ~data:(Exception.exn_to_string e) ;
               None ))
   in
   match result with Some r -> r | None -> Exception.internal "No fn worked"

@@ -83,6 +83,7 @@ echo "Done waiting for compiled servers"
 if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
   # msbuild won't compile onto files being run, so copy them first
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  cp "/home/dark/app/_build/default/backend/bin/libserialization.so" "${BINPATH}"
   cp "${API_SERVER_FILE}" "${API_SERVER_EXE}"
   cp "${BWD_SERVER_FILE}" "${BWD_SERVER_EXE}"
   cp "${BINPATH}/BwdServer.deps.json" "${BINPATH}/BwdServer2.deps.json"

@@ -102,5 +102,5 @@
   (modes (native shared_object))
   (modules libserialization)
   (flags (-warn-error +A -w +9))
-  (libraries libserialize libtarget_ocaml)
+  (libraries libserialize libtarget_null)
 )
