@@ -258,7 +258,8 @@ let transactionally_migrate_oplist
           |> List.hd_exn
           |> function
           | [data; rendered_oplist_cache] ->
-              (Binary_serialization.oplist_of_binary_string data, rendered_oplist_cache)
+              ( Binary_serialization.oplist_of_binary_string data
+              , rendered_oplist_cache )
           | _ ->
               Exception.internal "invalid oplists"
         in
@@ -267,15 +268,22 @@ let transactionally_migrate_oplist
           if rendered = ""
           then Db.Null
           else
-            try_convert (Binary_serialization.translate_handler_as_binary_string ~f:handler_f) ()
-            |> Tc.Option.or_else_lazy
-                 (try_convert (Binary_serialization.translate_db_as_binary_string ~f:db_f))
-            |> Tc.Option.or_else_lazy
-                 (try_convert
-                    (Binary_serialization.translate_user_function_as_binary_string ~f:user_fn_f))
+            try_convert
+              (Binary_serialization.translate_handler_as_binary_string
+                 ~f:handler_f)
+              ()
             |> Tc.Option.or_else_lazy
                  (try_convert
-                    (Binary_serialization.translate_user_tipe_as_binary_string ~f:user_tipe_f))
+                    (Binary_serialization.translate_db_as_binary_string ~f:db_f))
+            |> Tc.Option.or_else_lazy
+                 (try_convert
+                    (Binary_serialization
+                     .translate_user_function_as_binary_string
+                       ~f:user_fn_f))
+            |> Tc.Option.or_else_lazy
+                 (try_convert
+                    (Binary_serialization.translate_user_tipe_as_binary_string
+                       ~f:user_tipe_f))
             |> Tc.Option.map ~f:(fun str -> Db.Binary str)
             |> Tc.Option.or_else_lazy (fun () ->
                    Exception.internal "none of the decoders worked on the cache")
@@ -291,7 +299,8 @@ let transactionally_migrate_oplist
        WHERE canvas_id = $4
          AND tlid = $5"
           ~params:
-            [ Binary (Binary_serialization.oplist_to_binary_string converted_oplist)
+            [ Binary
+                (Binary_serialization.oplist_to_binary_string converted_oplist)
             ; String Binary_serialization.digest
             ; rendered
             ; Uuid canvas_id
@@ -482,3 +491,24 @@ let fetch_active_crons (span : Span.t) : cron_schedule_data list =
              | _ ->
                  Exception.internal
                    "Wrong shape from get_crons_for_scheduler query"))
+
+
+let init_for_fsharp () : unit =
+  let module BS = Binary_serialization in
+  Callback.register
+    "user_fn_of_binary_string_to_json"
+    BS.user_fn_of_binary_string_to_json ;
+  Callback.register
+    "user_tipe_of_binary_string_to_json"
+    BS.user_tipe_of_binary_string_to_json ;
+  Callback.register
+    "handler_of_binary_string_to_json"
+    BS.handler_of_binary_string_to_json ;
+  Callback.register "db_of_binary_string_to_json" BS.db_of_binary_string_to_json ;
+  Callback.register
+    "oplist_of_binary_string_to_json"
+    BS.oplist_of_binary_string_to_json ;
+  Callback.register
+    "pos_of_binary_string_to_json"
+    BS.pos_of_binary_string_to_json ;
+  ()

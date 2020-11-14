@@ -697,14 +697,20 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             |> Option.bind ~f:(fun tl ->
                    tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
             |> Option.map ~f:(fun (pos, db) ->
-                   (Binary_serialization.db_to_binary_string db, false, Some pos, TL.TLDB))
+                   ( Binary_serialization.db_to_binary_string db
+                   , false
+                   , Some pos
+                   , TL.TLDB ))
           in
           let deleted_db () =
             IDMap.find c.deleted_dbs tlid
             |> Option.bind ~f:(fun tl ->
                    tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
             |> Option.map ~f:(fun (pos, db) ->
-                   (Binary_serialization.db_to_binary_string db, true, Some pos, TL.TLDB))
+                   ( Binary_serialization.db_to_binary_string db
+                   , true
+                   , Some pos
+                   , TL.TLDB ))
           in
           let user_function () =
             IDMap.find c.user_functions tlid
@@ -815,6 +821,7 @@ let save_json_to_disk ~root (filename : string) (ops : Types.tlid_oplists) :
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> File.writefile ~root filename
+
 
 let load_and_resave (h : host) : (unit, string list) Result.t =
   ignore (Db.run ~name:"start_transaction" ~params:[] "BEGIN") ;
@@ -963,13 +970,15 @@ let migrate_all_hosts () =
   List.iter (all_hosts ()) ~f:(fun host ->
       migrate_host host |> Result.ok_or_failwith)
 
+
 let write_shape_data () =
   if Config.should_write_shape_data
   then
-    File.writefile ~root:Serialization Binary_serialization.digest Binary_serialization.shape_string
+    File.writefile
+      ~root:Serialization
+      Binary_serialization.digest
+      Binary_serialization.shape_string
   else ()
-
-
 
 
 let time (fn : unit -> 'a) : float * 'a =

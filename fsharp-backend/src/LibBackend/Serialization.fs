@@ -74,33 +74,47 @@ let canvasNameFromCustomDomain host : Task<string> =
 
 
 
+let loadUncachedToplevels (host : string)
+                          (canvasID : CanvasID)
+                          (tlids : List<tlid>)
+                          : Task<List<byte array>> =
+
+  Sql.query "SELECT data
+             FROM toplevel_oplists
+             WHERE canvas_id = @canvasID
+             AND tlid = ANY(@tlids)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidArray tlids ]
+  |> Sql.executeAsync (fun read -> read.bytea "data")
+
 let loadCachedToplevels (host : string)
                         (canvasID : CanvasID)
                         (tlids : List<tlid>)
-                        : Task<List<byte array>> =
-
-  Sql.query "SELECT data
-                FROM toplevel_oplists
-                WHERE canvas_id = @canvasID
-                AND tlid = ANY(@tlids)"
+                        : Task<List<byte array * byte array>> =
+  Sql.query "SELECT rendered_oplist_cache, pos FROM toplevel_oplists
+             WHERE canvas_id = @canvasID
+             AND tlid = ANY (@tlids)
+             AND deleted IS FALSE
+             AND (((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type) AND pos IS NOT NULL)
+                    OR tipe = 'user_function'::toplevel_type OR tipe = 'user_tipe'::toplevel_type)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidArray tlids ]
-  |> Sql.executeAsync (fun read -> read.bytea "data")
+  |> Sql.executeAsync (fun read ->
+       (read.bytea "rendered_oplist_cache", read.bytea "pos"))
 
 
 [<DllImport("./libserialization.so",
             CallingConvention = CallingConvention.Cdecl,
-            EntryPoint = "specialpaultestinit")>]
-extern System.IntPtr specialpaultestinit()
+            EntryPoint = "dark_init_ocaml")>]
+extern System.IntPtr darkInitOcaml()
 
 let init () =
   printfn "serialization_init"
-  let charptr = specialpaultestinit ()
+  let charptr = darkInitOcaml ()
   let str = System.Runtime.InteropServices.Marshal.PtrToStringAnsi charptr
   printfn "serialization_inited: %s" str
   ()
 
 
-let ocamlRenderedToJson (data : byte array) : string = ""
+let ocamlRenderedToJson (data : (byte array * byte array)) : string = ""
 
 let parseOCamlOplistJSON (json : string) : Option<Toplevel> = failwith json
 

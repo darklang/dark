@@ -4,6 +4,8 @@ module LibExecution.Framework
 
 open LibExecution.Runtime
 
+type pos = { x : int; y : int }
+
 module Handler =
   type CronInterval =
     | EveryDay

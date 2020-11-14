@@ -69,6 +69,10 @@ let oplist_of_binary_string (str : string) : Types.oplist =
   |> Serialization_converters.oplist_to_fluid
 
 
+let pos_of_binary_string (str : string) : Types.pos =
+  Core_extended.Bin_io_utils.of_line str SF.bin_pos
+
+
 let translate_handler_as_binary_string
     (str : string)
     ~(f : Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.HandlerT.handler) :
@@ -92,6 +96,46 @@ let translate_user_tipe_as_binary_string
     (str : string) ~(f : Types.RuntimeT.user_tipe -> Types.RuntimeT.user_tipe) :
     string =
   str |> user_tipe_of_binary_string |> f |> user_tipe_to_binary_string
+
+
+(* Convert binary to JSON for F# *)
+let user_fn_of_binary_string_to_json (str : string) : string =
+  str
+  |> user_fn_of_binary_string
+  |> Types.RuntimeT.user_fn_to_yojson
+  |> Yojson.Safe.to_string
+
+
+let user_tipe_of_binary_string_to_json (str : string) : string =
+  str
+  |> user_tipe_of_binary_string
+  |> Types.RuntimeT.user_tipe_to_yojson
+  |> Yojson.Safe.to_string
+
+
+let handler_of_binary_string_to_json (str : string) : string =
+  str
+  |> handler_of_binary_string
+  |> Types.RuntimeT.HandlerT.handler_to_yojson
+  |> Yojson.Safe.to_string
+
+
+let db_of_binary_string_to_json (str : string) : string =
+  str
+  |> db_of_binary_string
+  |> Types.RuntimeT.DbT.db_to_yojson
+  |> Yojson.Safe.to_string
+
+
+let oplist_of_binary_string_to_json (str : string) : string =
+  str
+  |> oplist_of_binary_string
+  |> Types.oplist_to_yojson
+  |> Yojson.Safe.to_string
+
+
+let pos_of_binary_string_to_json (str : string) : string =
+  str |> pos_of_binary_string |> Types.pos_to_yojson |> Yojson.Safe.to_string
 
 
 (* We serialize oplists for each toplevel in the DB. This affects making
@@ -122,6 +166,7 @@ let digest =
   SF.bin_shape_oplist SF.RuntimeT.bin_shape_expr
   |> Bin_prot.Shape.eval_to_digest_string
 
+
 let shape_string =
   SF.bin_shape_oplist SF.RuntimeT.bin_shape_expr
   |> Bin_prot.Shape.eval
@@ -137,9 +182,7 @@ let try_multiple ~(fs : (string * ('a -> 'b)) list) (value : 'a) : 'b =
         | Some r ->
             result
         | None ->
-          ( try Some (f value)
-            with e ->
-              None ))
+          (try Some (f value) with e -> None))
   in
   match result with Some r -> r | None -> Exception.internal "No fn worked"
 
@@ -181,8 +224,9 @@ type rendered_oplist_cache_query_result =
   * (Types.RuntimeT.DbT.db * Types.pos) Types.IDMap.t
   * Types.RuntimeT.user_fn Types.IDMap.t
   * Types.RuntimeT.user_tipe Types.IDMap.t
+[@@derived yojson]
 
-let strs2rendered_oplist_cache_query_result strs :
+let strs2rendered_oplist_cache_query_result (strs : string list list) :
     rendered_oplist_cache_query_result =
   let module IDMap = Types.IDMap in
   let handlers = IDMap.empty in
@@ -255,5 +299,3 @@ let strs2rendered_oplist_cache_query_result strs :
                    , IDMap.add_exn user_tipes ~key:t.tlid ~data:t )
                | None ->
                    (handlers, dbs, user_fns, user_tipes) ) ) ))
-
-
