@@ -538,6 +538,10 @@ def mark(should, f):
           or ("dune" in f):
     should.backend_build = True
 
+  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f)):
+    should.backend_build = True
+    should.fsharp_backend_quick_build = True
+
   elif ("/backend/templates/" in f) and (".html" in f):
     should.backend_build = True
 
