@@ -649,8 +649,20 @@ let run () =
         "Replace text in string if text is inserted with selection"
         aStr
         ~sel:(1, 5)
-        (inputs [InsertText "a"])
+        (ins "a")
         "\"a~ string\"" ;
+      t
+        "insert square bracket in string goes in string"
+        aStr
+        ~pos:3
+        (ins "[")
+        "\"so[~me string\"" ;
+      t
+        "insert square bracket outside string wraps"
+        aStr
+        ~pos:0
+        (ins "[")
+        "[~\"some string\"]" ;
       ()) ;
   describe "Multi-line Strings" (fun () ->
       t

@@ -4423,10 +4423,8 @@ let rec updateKey
           exprToFieldAccess id ~partialID:(gid ()) ~fieldID:(gid ()) astInfo.ast
         in
         astInfo |> ASTInfo.setAST newAST |> moveToCaretTarget target
-    (* Insert a singleton list *)
+    (* Wrap the current expression in a list *)
     | InsertText "[", _, R (TInteger (id, _, _), _)
-    | InsertText "[", _, R (TString (id, _, _), _)
-    | InsertText "[", _, R (TStringMLStart (id, _, _, _), _)
     | InsertText "[", _, R (TTrue (id, _), _)
     | InsertText "[", _, R (TFalse (id, _), _)
     | InsertText "[", _, R (TNullToken (id, _), _)
@@ -4436,6 +4434,18 @@ let rec updateKey
     | InsertText "[", _, R (TListOpen (id, _), _)
     | InsertText "[", _, R (TRecordOpen (id, _), _)
     | InsertText "[", _, R (TConstructorName (id, _), _) ->
+        let newID = gid () in
+        astInfo
+        |> ASTInfo.setAST
+             (FluidAST.update
+                ~f:(fun var -> E.EList (newID, [var]))
+                id
+                astInfo.ast)
+        |> moveToCaretTarget {astRef = ARList (newID, LPOpen); offset = 1}
+    (* Strings can be wrapped in lists, but only if we're outside the quote *)
+    | InsertText "[", _, R (TString (id, _, _), toTheRight)
+    | InsertText "[", _, R (TStringMLStart (id, _, _, _), toTheRight)
+      when onEdge && pos = toTheRight.startPos ->
         let newID = gid () in
         astInfo
         |> ASTInfo.setAST
