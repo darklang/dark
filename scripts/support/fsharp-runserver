@@ -16,7 +16,7 @@ BWD_SERVER_EXE="${BINPATH}/BwdServer2.dll"
 
 # Stop the server processes
 echo "Stopping servers"
-sudo pkill -f nginx || true
+#sudo pkill -f nginx || true # FSTODO
 #FSTODO
 sudo pkill -f "dotnet ${API_SERVER_FILE}" || true
 sudo pkill -f "dotnet ${BWD_SERVER_FILE}" || true
