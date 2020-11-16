@@ -19,14 +19,104 @@ let gid = Shortcuts.gid
 module YojsonParse =
   open FSharp.Data
 
-  let parseExpr (j : JsonValue) =
-    printfn "%s" (j.ToString())
+  type J = JsonValue
+
+  let parseRail (j : JsonValue) : LibExecution.Runtime.SendToRail =
+    match j with
+    | J.Array [| J.String "Rail" |] -> Rail
+    | J.Array [| J.String "NoRail" |] -> NoRail
+    | _ -> failwith $"Unimplemented {j}"
+
+  let rec parsePattern (j : JsonValue) : Pattern =
+    printfn $"parsePattern {j}"
+    let constructor = j.Item(0).AsString()
+    if constructor = "FPString" then
+      // FPString uses a different format than the others
+      let obj = j.Item(1)
+      PString(obj.Item("patternID").AsInteger64(), obj.Item("str").AsString())
+    else
+      // skip the matchID in j.Item(1), we know from context
+      let id = j.Item(2).AsInteger64()
+      match constructor, j.AsArray().[3..] |> Array.toList with
+      | "FPBlank", _ -> PBlank id
+      | "FPInteger", [ J.String i ] -> PInteger(id, i)
+      | "FPBool", [ J.Boolean bool ] -> PBool(id, bool)
+      | "FPFloat", [ J.String whole; J.String fraction ] ->
+          PFloat(id, whole, fraction)
+      | "FPNull", _ -> PNull id
+      | "FPVariable", [ J.String name ] -> PVariable(id, name)
+      | "FPConstructor", [ J.String name; J.Array pats ] ->
+          PConstructor(id, name, Array.map parsePattern pats |> Array.toList)
+
+      | _ -> failwith $"Unimplemented {j}"
+
+  let rec parseExpr (j : JsonValue) =
+    let e = parseExpr
+    let es exprs = exprs |> Array.map e |> Array.toList
+    printfn $"parseExpr {j}"
     let constructor = j.Item(0).AsString()
     let id = j.Item(1).AsInteger64()
-    match constructor, j.AsArray().[2..] with
-    | "EString", [| str |] -> EString(id, str.AsString())
+    match constructor, j.AsArray().[2..] |> Array.toList with
+    | "EString", [ J.String str ] -> EString(id, str)
+    | "EInteger", [ J.String i ] -> EInteger(id, i)
+    | "EBool", [ J.Boolean bool ] -> EBool(id, bool)
+    | "EFloat", [ J.String whole; J.String fraction ] -> EFloat(id, whole, fraction)
+    | "ENull", _ -> ENull id
     | "EBlank", _ -> EBlank(id)
-    | _ -> failwith "Unimplemented"
+    | "EPipeTarget", _ -> EPipeTarget(id)
+    | "EVariable", [ J.String var ] -> EVariable(id, var)
+    | "EList", [ J.Array exprs ] -> EList(id, es exprs)
+    | "ELet", [ J.String name; rhs; body ] -> ELet(id, name, e rhs, e body)
+    | "EIf", [ cond; thenBody; elseBody ] -> EIf(id, e cond, e thenBody, e elseBody)
+
+    | "EPipe", [ J.Array exprs ] ->
+        match es exprs with
+        | [] -> failwith "empty pipe"
+        | e :: [] -> e
+        | e1 :: e2 :: rest -> EPipe(id, e1, e2, rest)
+    | "ERecord", [ J.Array rows ] ->
+        let rows =
+          rows
+          |> Array.toList
+          |> List.map (fun (row : JsonValue) ->
+               match row with
+               | J.Array [| J.String key; value |] -> (key, e value)
+               | _ -> failwith "unexpected record row shape")
+
+        ERecord(id, rows)
+    | "EMatch", [ cond; J.Array rows ] ->
+        let rows =
+          rows
+          |> Array.toList
+          |> List.map (fun (row : JsonValue) ->
+               match row with
+               | J.Array [| pat; value |] -> (parsePattern pat, e value)
+               | _ -> failwith "unexpected record row shape")
+
+        EMatch(id, e cond, rows)
+
+
+    | "EConstructor", [ J.String name; J.Array exprs ] ->
+        EConstructor(id, name, es exprs)
+
+    // FSTODO: sometimes these are binops, probably cause we don't load the
+    // library in OCaml. Nevermind, we can do it over here.
+    | "EFnCall", [ J.String name; J.Array args; rail ] ->
+        let desc =
+          match name with
+          | Regex "(.+)/(.+)/(.+)::(.+)_v(\d+)"
+                  [ owner; package; module'; name; version ] ->
+              FnDesc.fnDesc owner package module' name (int version)
+          | Regex "(.+)::(.+)_v(\d+)" [ module'; name; version ] ->
+              FnDesc.stdFnDesc module' name (int version)
+          | Regex "(.+)::(.+)" [ module'; name ] -> FnDesc.stdFnDesc module' name 0
+          | Regex "(.+)_v(\d+)" [ name; version ] ->
+              FnDesc.stdFnDesc "" name (int version)
+          | Regex "(.+)" [ name ] -> FnDesc.stdFnDesc "" name 0
+          | _ -> failwith $"Bad format in function name: \"{name}\""
+
+        EFnCall(id, desc, Array.map e args |> Array.toList, parseRail rail)
+    | _ -> failwith $"Unimplemented {j}"
 
   let parseHandlerSpec (j : JsonValue) : Handler.Spec =
     let blankOr (j : JsonValue) : (id * string) =
@@ -90,12 +180,10 @@ module ReadFromOCaml =
     ()
 
   let parseCachedOCaml ((data, pos) : (byte array * byte array option)) : Toplevel =
-    try
-      handlerOfBinaryStringToJson (data, data.Length)
-      |> FSharp.Data.JsonValue.Parse
-      |> YojsonParse.parseHandler
-      |> TLHandler
-    with _ -> failwith "Exception found in cachedOcamlToJson"
+    handlerOfBinaryStringToJson (data, data.Length)
+    |> FSharp.Data.JsonValue.Parse
+    |> YojsonParse.parseHandler
+    |> TLHandler
 
 let fetchReleventTLIDsForHTTP (host : string)
                               (canvasID : CanvasID)
