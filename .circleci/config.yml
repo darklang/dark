@@ -15,7 +15,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:43f4624
+      - image: darklang/dark-base:70768fd
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -24,7 +24,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:43f4624
+      - image: darklang/dark-rust:70768fd
 
 commands:
   show-large-files-and-directories:
