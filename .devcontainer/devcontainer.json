@@ -33,22 +33,22 @@
   ],
 
   "mounts": [
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
     // home dir
     /* "type=volume,src=dark_dotesy,dst=/home/dark/.esy", */
     /* "type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo", */
     /* "type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud" */
     // workspace dir
-    "type=volume,src=dark_build,dst=/workspaces/dark/_build",
-    "type=volume,src=dark_esy,dst=/workspaces/dark/_esy",
-    "type=volume,src=dark_node_modules,dst=/workspaces/dark/node_modules",
-    "type=volume,src=dark_lib,dst=/workspaces/dark/lib",
-    "type=volume,src=dark_stroller_target,dst=/workspaces/dark/containers/stroller/target",
-    "type=volume,src=dark_queue_scheduler_target,dst=/workspaces/dark//containers/queue-scheduler/target",
-    "type=volume,src=dark_fsharp_build,dst=/workspaces/dark/fsharp-backend/Build"
-  ],
+    // "type=volume,src=dark_build,dst=/workspaces/dark/_build",
+    // "type=volume,src=dark_esy,dst=/workspaces/dark/_esy",
+    // "type=volume,src=dark_node_modules,dst=/workspaces/dark/node_modules",
+    // "type=volume,src=dark_lib,dst=/workspaces/dark/lib",
+    // "type=volume,src=dark_stroller_target,dst=/workspaces/dark/containers/stroller/target",
+    // "type=volume,src=dark_queue_scheduler_target,dst=/workspaces/dark//containers/queue-scheduler/target",
+    // "type=volume,src=dark_fsharp_build,dst=/workspaces/dark/fsharp-backend/Build"
+  ]
 
   // Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
-  "remoteUser": "dark",
-  "updateRemoteUserUID": true
+  // "remoteUser": "dark",
+  // "updateRemoteUserUID": true
 }
