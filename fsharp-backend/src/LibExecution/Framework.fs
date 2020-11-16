@@ -15,12 +15,16 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
+  // We need to keep the IDs around until we get rid of them on the client
+  type ids = { moduleID : id; nameID : id; modifierID : id }
+
   type Spec =
-    | HTTPHandler of {| path : string; method : string |}
-    | Worker of {| name : string |}
-    | OldWorker of {| modulename : string; name : string |}
-    | Cron of {| name : string; interval : string |}
-    | Repl of {| name : string |}
+    | HTTP of {| path : string; method : string; ids : ids |}
+    | Worker of {| name : string; ids : ids |}
+    // Deprecated but still supported form
+    | OldWorker of {| modulename : string; name : string; ids : ids |}
+    | Cron of {| name : string; interval : string; ids : ids |}
+    | REPL of {| name : string; ids : ids |}
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 

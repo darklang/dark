@@ -29,6 +29,8 @@ type id = int64
 type CanvasID = System.Guid
 type UserID = System.Guid
 
+let id (x : int) : id = int64 x
+
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
 module FnDesc =

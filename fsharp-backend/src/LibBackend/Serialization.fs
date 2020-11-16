@@ -16,6 +16,87 @@ open LibExecution.Framework
 let gid = Shortcuts.gid
 
 
+module YojsonParse =
+  open FSharp.Data
+
+  let parseExpr (j : JsonValue) =
+    printfn "%s" (j.ToString())
+    let constructor = j.Item(0).AsString()
+    let id = j.Item(1).AsInteger64()
+    match constructor, j.AsArray().[2..] with
+    | "EString", [| str |] -> EString(id, str.AsString())
+    | "EBlank", _ -> EBlank(id)
+    | _ -> failwith "Unimplemented"
+
+  let parseHandlerSpec (j : JsonValue) : Handler.Spec =
+    let blankOr (j : JsonValue) : (id * string) =
+      // element 0 is "filled" or "blank"
+      let value =
+        j.AsArray()
+        |> Array.tryItem 2
+        |> Option.map (fun j -> j.AsString())
+        |> Option.defaultValue ""
+
+      (j.Item(1).AsInteger64(), value)
+
+    let moduleID, module_ = j.Item("module") |> blankOr
+    let nameID, name = j.Item("name") |> blankOr
+    let modifierID, modifier = j.Item("modifier") |> blankOr
+
+    let (ids : Handler.ids) =
+      { moduleID = moduleID; nameID = nameID; modifierID = modifierID }
+
+    if module_ = "" then
+      Handler.REPL {| name = name; ids = ids |}
+    else if module_ = "REPL" then
+      Handler.REPL {| name = name; ids = ids |}
+    else if module_ = "HTTP" then
+      Handler.HTTP {| path = name; method = modifier; ids = ids |}
+    else if module_ = "CRON" then
+      Handler.Cron {| name = name; interval = modifier; ids = ids |}
+    else if module_ = "WORKER" then
+      Handler.Worker {| name = name; ids = ids |}
+    else
+      Handler.OldWorker {| modulename = module_; name = name; ids = ids |}
+
+  let parseHandler (j : JsonValue) : Handler.T =
+    { tlid = j.Item("tlid").AsInteger64()
+      ast = j.Item("ast") |> parseExpr
+      spec = j.Item("spec") |> parseHandlerSpec }
+
+module ReadFromOCaml =
+  // FSTODO: if we need speed, switch to transferring using protobufs instead of JSON
+  // where do we get the protobuf files?
+  // - 1) generate using ocaml types (maybe deprecated? ocaml-protoc)
+  // - 2) generate using FSharp types (possible?)
+  // - 3) hand-write them (converters on both ends)
+
+  // initialize OCaml runtime
+  [<DllImport("./libserialization.so",
+              CallingConvention = CallingConvention.Cdecl,
+              EntryPoint = "dark_init_ocaml")>]
+  extern string darkInitOcaml()
+
+  // take a binary rep of a handler from the DB and convert it into JSON
+  [<DllImport("./libserialization.so",
+              CallingConvention = CallingConvention.Cdecl,
+              EntryPoint = "handler_of_binary_string_to_json")>]
+  extern string handlerOfBinaryStringToJson(byte[] bytes, int length)
+
+  let init () =
+    printfn "serialization_init"
+    let str = darkInitOcaml ()
+    printfn "serialization_inited: %s" str
+    ()
+
+  let parseCachedOCaml ((data, pos) : (byte array * byte array option)) : Toplevel =
+    try
+      handlerOfBinaryStringToJson (data, data.Length)
+      |> FSharp.Data.JsonValue.Parse
+      |> YojsonParse.parseHandler
+      |> TLHandler
+    with _ -> failwith "Exception found in cachedOcamlToJson"
+
 let fetchReleventTLIDsForHTTP (host : string)
                               (canvasID : CanvasID)
                               (path : string)
@@ -94,47 +175,11 @@ let loadCachedToplevels (host : string)
              WHERE canvas_id = @canvasID
              AND tlid = ANY (@tlids)
              AND deleted IS FALSE
-             AND (((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type) AND pos IS NOT NULL)
-                    OR tipe = 'user_function'::toplevel_type OR tipe = 'user_tipe'::toplevel_type)"
+             AND (((tipe = 'handler'::toplevel_type) AND pos IS NOT NULL))"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidArray tlids ]
   |> Sql.executeAsync (fun read ->
-       (read.bytea "rendered_oplist_cache", read.bytea "pos"))
+       (read.bytea "rendered_oplist_cache", read.byteaOrNone "pos"))
 
-
-[<DllImport("./libserialization.so",
-            CallingConvention = CallingConvention.Cdecl,
-            EntryPoint = "dark_init_ocaml")>]
-extern System.IntPtr darkInitOcaml()
-
-[<DllImport("./libserialization.so",
-            CallingConvention = CallingConvention.Cdecl,
-            EntryPoint = "handler_of_binary_string_to_json")>]
-extern System.IntPtr handlerOfBinaryStringToJson(byte[] bytes, int length)
-
-let init () =
-  printfn "serialization_init2"
-  let charptr = darkInitOcaml ()
-  let str = System.Runtime.InteropServices.Marshal.PtrToStringAnsi charptr
-  printfn "serialization_inited: %s" str
-  ()
-
-
-let ocamlRenderedToJson ((data, pos) : (byte array * byte array option)) : string =
-  try
-    printfn "in ocamlRednered"
-    let debugStr = System.Text.Encoding.ASCII.GetString data
-    printfn "decoded the binary str"
-    printfn "printing decoded binary str: %s" debugStr
-    let converted = handlerOfBinaryStringToJson (data, data.Length)
-    printfn "converted binary"
-    let asStr = System.Runtime.InteropServices.Marshal.PtrToStringAnsi converted
-    printfn "convertedToUnicode: %s" asStr
-    asStr
-  with _ ->
-    printfn "Exception found"
-    ""
-
-let parseOCamlOplistJSON (json : string) : Option<Toplevel> = failwith json
 
 let loadHttpHandlersFromCache (host : string)
                               (canvasID : CanvasID)
@@ -145,19 +190,7 @@ let loadHttpHandlersFromCache (host : string)
   task {
     let! tlids = fetchReleventTLIDsForHTTP host canvasID path method
     let! binaryTLs = loadCachedToplevels host canvasID tlids
-
-    let jsonTLs = List.map ocamlRenderedToJson binaryTLs
-
-    let tls = List.choose parseOCamlOplistJSON jsonTLs
+    let tls = List.map ReadFromOCaml.parseCachedOCaml binaryTLs
 
     return tls
   }
-
-
-
-
-// FSTODO: if we need speed, switch to transferring using protobufs instead of JSON
-// where do we get the protobuf files?
-// - 1) generate using ocaml types (maybe deprecated? ocaml-protoc)
-// - 2) generate using FSharp types (possible?)
-// - 3) hand-write them (converters on both ends)

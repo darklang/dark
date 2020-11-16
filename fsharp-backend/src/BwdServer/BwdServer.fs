@@ -131,7 +131,7 @@ let runDarkHandler : HttpHandler =
           method
 
       match exprs with
-      | [ TLHandler { spec = HTTPHandler _; ast = expr; tlid = _ } ] ->
+      | [ TLHandler { spec = HTTP _; ast = expr; tlid = _ } ] ->
           let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
           let! result = LibExecution.Execution.run [] fns expr
           // FSTODO - might not be JSON
@@ -186,6 +186,6 @@ let webserver port =
 
 [<EntryPoint>]
 let main _ =
-  LibBackend.Serialization.init ()
+  LibBackend.Serialization.ReadFromOCaml.init ()
   (webserver 9001).Run()
   0

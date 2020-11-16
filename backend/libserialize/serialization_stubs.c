@@ -14,7 +14,7 @@ extern char* dark_init_ocaml() {
   if (Is_exception_result(res)) {
     printf("OCAML exception !\n");
   }
-  return "loaded";
+  return strdup("loaded");
 }
 extern char* user_fn_of_binary_string_to_json (void* bytes) {
   static const value* closure = NULL;
