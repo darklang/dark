@@ -89,7 +89,7 @@ let loadUncachedToplevels (host : string)
 let loadCachedToplevels (host : string)
                         (canvasID : CanvasID)
                         (tlids : List<tlid>)
-                        : Task<List<byte array * byte array>> =
+                        : Task<List<byte array * byte array option>> =
   Sql.query "SELECT rendered_oplist_cache, pos FROM toplevel_oplists
              WHERE canvas_id = @canvasID
              AND tlid = ANY (@tlids)
@@ -106,15 +106,33 @@ let loadCachedToplevels (host : string)
             EntryPoint = "dark_init_ocaml")>]
 extern System.IntPtr darkInitOcaml()
 
+[<DllImport("./libserialization.so",
+            CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "handler_of_binary_string_to_json")>]
+extern System.IntPtr handlerOfBinaryStringToJson(byte[] bytes, int length)
+
 let init () =
-  printfn "serialization_init"
+  printfn "serialization_init2"
   let charptr = darkInitOcaml ()
   let str = System.Runtime.InteropServices.Marshal.PtrToStringAnsi charptr
   printfn "serialization_inited: %s" str
   ()
 
 
-let ocamlRenderedToJson (data : (byte array * byte array)) : string = ""
+let ocamlRenderedToJson ((data, pos) : (byte array * byte array option)) : string =
+  try
+    printfn "in ocamlRednered"
+    let debugStr = System.Text.Encoding.ASCII.GetString data
+    printfn "decoded the binary str"
+    printfn "printing decoded binary str: %s" debugStr
+    let converted = handlerOfBinaryStringToJson (data, data.Length)
+    printfn "converted binary"
+    let asStr = System.Runtime.InteropServices.Marshal.PtrToStringAnsi converted
+    printfn "convertedToUnicode: %s" asStr
+    asStr
+  with _ ->
+    printfn "Exception found"
+    ""
 
 let parseOCamlOplistJSON (json : string) : Option<Toplevel> = failwith json
 
