@@ -491,4 +491,3 @@ let fetch_active_crons (span : Span.t) : cron_schedule_data list =
              | _ ->
                  Exception.internal
                    "Wrong shape from get_crons_for_scheduler query"))
-
