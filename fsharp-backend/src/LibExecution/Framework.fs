@@ -19,12 +19,12 @@ module Handler =
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
   type Spec =
-    | HTTP of {| path : string; method : string; ids : ids |}
-    | Worker of {| name : string; ids : ids |}
+    | HTTP of path : string * method : string * ids : ids
+    | Worker of name : string * ids : ids
     // Deprecated but still supported form
-    | OldWorker of {| modulename : string; name : string; ids : ids |}
-    | Cron of {| name : string; interval : string; ids : ids |}
-    | REPL of {| name : string; ids : ids |}
+    | OldWorker of modulename : string * name : string * ids : ids
+    | Cron of name : string * interval : string * ids : ids
+    | REPL of name : string * ids : ids
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
