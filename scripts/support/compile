@@ -152,10 +152,12 @@ def backend_build():
   # Get all the ml files in backend/bin, and build executables This is less
   # technically correct than "parse the sexp in backend/bin/dune", but it
   # is also much simpler.
-  exes = [
-      "backend/bin/" + x.replace(".ml", ".exe")
-      for x in os.listdir("backend/bin") if x.endswith(".ml")
-  ]
+  def rename(mlfile):
+    if mlfile == "libserialization.ml":
+      return "backend/bin/" + mlfile.replace(".ml", ".so")
+    else:
+      return "backend/bin/" + mlfile.replace(".ml", ".exe")
+  exes = [ rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml") ]
   exes.append("@analysis.js")
   exes = " ".join(exes)
   if os.environ.get("CI"):
@@ -536,10 +538,15 @@ def mark(should, f):
           or ("dune" in f):
     should.backend_build = True
 
+  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f)):
+    should.backend_build = True
+    should.fsharp_backend_quick_build = True
+
   elif ("/backend/templates/" in f) and (".html" in f):
     should.backend_build = True
 
-  elif ("/fsharp-backend/global.json" in f):
+  elif ("/fsharp-backend/global.json" in f or \
+        "/fsharp-backend/.config/dotnet-tools.json" in f):
     should.fsharp_tool_restore = True
     should.fsharp_paket_restore = True
     should.fsharp_backend_full_build = True

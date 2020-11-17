@@ -1,6 +1,7 @@
 open Core_kernel
 open Libexecution
 open Types
+module Op = Libserialize.Op
 
 (* ------------------------- *)
 (* Undo *)

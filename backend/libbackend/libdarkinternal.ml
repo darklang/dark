@@ -5,6 +5,7 @@ open Libexecution.Lib
 open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 open Types
+module Op = Libserialize.Op
 module Unicode = Libexecution.Unicode_string
 
 (* Apply this to function to wrap that function in an InProcess that checks

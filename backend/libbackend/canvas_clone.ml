@@ -3,6 +3,7 @@ open Libexecution
 open Util
 open Canvas
 open Tc
+module Op = Libserialize.Op
 
 let is_op_that_creates_toplevel (op : Types.op) : bool =
   match op with

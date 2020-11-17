@@ -2,6 +2,7 @@ open Core_kernel
 open Libexecution
 open Types
 open Analysis_types
+module Op = Libserialize.Op
 
 type add_op_rpc_params =
   { ops : oplist

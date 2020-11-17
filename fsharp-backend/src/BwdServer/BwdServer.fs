@@ -1,59 +1,191 @@
 module BwdServer
 
-(* open Giraffe.Core *)
-(* open Giraffe.ResponseWriters *)
-
 (* open Microsoft.AspNetCore.Http *)
-open Giraffe
 open FSharp.Control.Tasks
 
 open System
 (* open System.Security.Claims *)
-(* open System.Threading *)
+open System.Threading.Tasks
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 (* open Microsoft.AspNetCore.Http.Features *)
-(* open Microsoft.AspNetCore.Authentication *)
 open Microsoft.Extensions.Hosting
-(* open Microsoft.AspNetCore.Authentication.Cookies *)
 (* open Microsoft.Extensions.Configuration *)
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
+open Prelude
+open FSharpx
 
-let runAsync e =
-  fun (next : HttpFunc) (ctx : HttpContext) ->
+// This boilerplate is copied from Giraffe. I elected not to use Giraffe
+// because we don't need any of its feature, but the types it chose are very
+// nice.
+// https://github.com/giraffe-fsharp/Giraffe/blob/9598682f4f68e23217c4199a48f30ca3457b037e/src/Giraffe/Core.fs
+
+type HttpFuncResult = Task<HttpContext option>
+type HttpFunc = HttpContext -> HttpFuncResult
+type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
+
+let compose (handler1 : HttpHandler) (handler2 : HttpHandler) : HttpHandler =
+  fun (final : HttpFunc) ->
+    let func = final |> handler2 |> handler1
+    fun (ctx : HttpContext) ->
+      match ctx.Response.HasStarted with
+      | true -> final ctx
+      | false -> func ctx
+
+let (>=>) = compose
+
+type BwdMiddleware(next : RequestDelegate, handler : HttpHandler) =
+  let earlyReturn = Some >> Task.FromResult
+  let func : HttpFunc = handler earlyReturn
+
+  member __.Invoke(ctx : HttpContext) =
     task {
-      let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
-      let! result = LibExecution.Execution.run e fns
-      let result = result.toJSON().ToString()
-      return! text result next ctx
+      let! result = func ctx
+      if (result.IsNone) then return! next.Invoke ctx
     }
 
-let errorHandler (ex : Exception) (logger : ILogger) =
-  logger.LogError
-    (EventId(),
-     ex,
-     "An unhandled exception has occurred while executing the request.")
-  clearResponse >=> setStatusCode 500 >=> text ex.Message
+// End stuff copied from Giraffe
 
-let webApp = choose [ GET >=> choose [] ]
+let recordEventMiddleware : HttpHandler =
+  fun next ctx ->
+    // FSTODO
+    next ctx
+
+let record404Middleware : HttpHandler =
+  fun next ctx ->
+    // FSTODO
+    next ctx
+
+let recordHeapioMiddleware : HttpHandler =
+  fun next ctx ->
+    // FSTODO
+    next ctx
+
+let recordHoneycombMiddleware : HttpHandler =
+  fun next ctx ->
+    // FSTODO
+    next ctx
+
+let sanitizeUrlPath (path : string) : string =
+  path
+  |> FsRegEx.replace "//+" "/"
+  |> String.trimEnd [| '/' |]
+  |> fun str -> if str = "" then "/" else str
+
+let normalizeRequest : HttpHandler =
+  fun next ctx ->
+    ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
+    next ctx
+
+open LibExecution.Framework.Handler
+open LibExecution.Framework
+
+
+let canvasNameFromHost (host : string) : Task<string> =
+  task {
+    match host.Split [| '.' |] with
+    | [| a; "darksingleinstance"; "com" |]
+    | [| a; "darksingleinstance"; "com" |]
+    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
+    // just another load balancer
+    | [| a; "darkcustomdomain"; "com" |]
+    | [| a; "builtwithdark"; "localhost" |]
+    | [| a; "builtwithdark"; "com" |] -> return a
+    | [| "builtwithdark"; "localhost" |]
+    | [| "builtwithdark"; "com" |] -> return "builtwithdark"
+    | _ -> return! LibBackend.Serialization.canvasNameFromCustomDomain host
+  }
+
+let runDarkHandler : HttpHandler =
+  fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let executionID = LibExecution.Runtime.Shortcuts.gid ()
+      let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
+      let! canvasName = canvasNameFromHost ctx.Request.Host.Host
+      let owner = LibBackend.Serialization.ownerNameFromHost canvasName
+      let path = ctx.Request.Path.Value
+      let method = ctx.Request.Method
+      let! userID = LibBackend.Serialization.userIDForUsername owner
+      let! canvasID = LibBackend.Serialization.canvasIDForCanvas userID canvasName
+
+      Console.WriteLine canvasName
+
+      Console.WriteLine owner
+
+      Console.WriteLine path
+
+      Console.WriteLine method
+
+      Console.WriteLine(userID.ToString())
+
+      Console.WriteLine(canvasID.ToString())
+
+      let! exprs =
+        LibBackend.Serialization.loadHttpHandlersFromCache
+          canvasName
+          canvasID
+          userID
+          path
+          method
+
+      match exprs with
+      | [ TLHandler { spec = HTTP _; ast = expr; tlid = _ } ] ->
+          let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
+          let! result = LibExecution.Execution.run [] fns expr
+          // FSTODO - might not be JSON
+          let result = result.toJSON().ToString()
+          // FSTODO - might not be UTF8
+          let bytes = System.Text.Encoding.UTF8.GetBytes result
+
+          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+
+          return! next ctx
+      | [] ->
+          ctx.Response.StatusCode <- 404
+          return Some ctx
+      | _ ->
+          ctx.Response.StatusCode <- 500
+          return Some ctx
+    }
+
+let webApp : HttpHandler =
+  // FSTODO use giraffe's builtin httpsRedirect
+  normalizeRequest
+  >=> recordEventMiddleware
+  >=> record404Middleware
+  >=> recordHeapioMiddleware
+  >=> recordHoneycombMiddleware
+  >=> runDarkHandler
 
 let configureApp (app : IApplicationBuilder) =
-  app.UseDeveloperExceptionPage().UseGiraffeErrorHandler(errorHandler)
-     .UseGiraffe webApp
+  app.UseDeveloperExceptionPage().UseMiddleware<BwdMiddleware>(webApp) |> ignore
 
-let configureServices (services : IServiceCollection) =
-  services.AddGiraffe() |> ignore
+let configureLogging (builder : ILoggingBuilder) =
+  let filter (l : LogLevel) : bool = true
 
+  // Configure the logging factory
+  builder.AddFilter(filter) // Optional filter
+         .AddConsole() // Set up the Console logger
+         .AddDebug() // Set up the Debug logger
+  // Add additional loggers if wanted...
+  |> ignore
+
+let configureServices (services : IServiceCollection) = ()
+
+let webserver port =
+  let url = $"http://*:{port}"
+  Host.CreateDefaultBuilder()
+      .ConfigureWebHostDefaults(fun webHostBuilder ->
+      webHostBuilder.Configure(configureApp).ConfigureServices(configureServices)
+                    .UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
+                    .ConfigureLogging(configureLogging).UseUrls(url)
+      |> ignore).Build()
 
 
 [<EntryPoint>]
 let main _ =
-  Host.CreateDefaultBuilder()
-      .ConfigureWebHostDefaults(fun webHostBuilder ->
-      webHostBuilder.Configure(configureApp).ConfigureServices(configureServices)
-                    .UseUrls("http://*:9001")
-      (* .ConfigureLogging(configureLogging) *)
-      |> ignore).Build().Run()
+  LibBackend.Serialization.ReadFromOCaml.init ()
+  (webserver 9001).Run()
   0

@@ -303,39 +303,6 @@ let with_ast (new_ast : Types.fluid_expr) (op : Types.op) =
       op
 
 
-let is_latest_op_request
-    (client_op_ctr_id : string option) (op_ctr : int) (canvas_id : Uuidm.t) :
-    bool =
-  let client_op_ctr_id =
-    match client_op_ctr_id with
-    | Some s when s = "" ->
-        Uuidm.v `V4 |> Uuidm.to_string
-    | None ->
-        Uuidm.v `V4 |> Uuidm.to_string
-    | Some s ->
-        s
-  in
-  Db.run
-    ~name:"update-browser_id-op_ctr"
-    (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
-             * that it also handles the initial case where there is no
-             * browser_id record yet *)
-    "INSERT INTO op_ctrs(browser_id,ctr,canvas_id) VALUES($1, $2, $3)
-             ON CONFLICT (browser_id)
-             DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW()
-                       WHERE op_ctrs.ctr < EXCLUDED.ctr"
-    ~params:
-      [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
-      ; Db.Int op_ctr
-      ; Db.Uuid canvas_id ] ;
-  Db.exists
-    ~name:"check-if-op_ctr-is-latest"
-    "SELECT 1 FROM op_ctrs WHERE browser_id = $1 AND ctr = $2"
-    ~params:
-      [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
-      ; Db.Int op_ctr ]
-
-
 (* filter down to only those ops which can be applied out of order
  * without overwriting previous ops' state - eg, if we have
  * SetHandler1 setting a handler's value to "aaa", and then

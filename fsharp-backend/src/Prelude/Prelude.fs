@@ -24,6 +24,10 @@ module String =
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
+  let toLower (str : string) : string = str.ToLower()
+
+  let toUpper (str : string) : string = str.ToUpper()
+
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
