@@ -68,9 +68,19 @@ let t name =
         spec =
           Framework.Handler.HTTP(path = httpPath, method = httpMethod, ids = ids) }
 
+    let! ownerID = LibBackend.Serialization.userIDForUsername "test"
+    let! canvasID = LibBackend.Serialization.canvasIDForCanvas ownerID $"test-{name}"
+
+    do! LibBackend.Serialization.saveHttpHandlersToCache
+          canvasID
+          ownerID
+          [ Framework.TLHandler handler ]
+
     // Web server might not be loaded yet
     let client = new TcpClient()
+
     let mutable connected = false
+
     for i in 1 .. 10 do
       try
         if not connected then

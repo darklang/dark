@@ -41,7 +41,7 @@ module OCamlInterop =
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "handler_json2bin")>]
+                EntryPoint = "digest")>]
     extern string digest()
 
     let init () =
@@ -364,6 +364,7 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
 
   let cacheBinary, pos = toplevelToCachedBinary tl // FSTODO pos
   let (oplistBinary : byte array) = [||]
+  let digest = OCamlInterop.Binary.digest ()
   Sql.query "INSERT INTO toplevel_oplists
                (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
                 data, rendered_oplist_cache, deleted, pos)
@@ -383,7 +384,7 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "ownerID", Sql.uuid ownerID
                       "tlid", Sql.int64 (tl.toTLID ())
-                      "digest", Sql.string (OCamlInterop.Binary.digest ())
+                      "digest", Sql.string digest
                       "tipe", Sql.string sqlType
                       "path", Sql.stringOrNone path
                       "module", Sql.stringOrNone module_
