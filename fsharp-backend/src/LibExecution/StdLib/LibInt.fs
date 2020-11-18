@@ -105,19 +105,19 @@ let fns : List<BuiltInFn> =
       description = "Adds two integers together"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
-        | state, [ (DFloat _ as a); _ ]
-        | state, [ (DStr _ as a); _ ]
-        | state, [ _; (DFloat _ as a) ]
-        | state, [ _; (DStr _ as a) ] ->
+          | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
+          | _, [ DFloat a; _ ] -> Value(errStr("You called this with a float"))
+          | _, [ _; DFloat _ ] -> Value(errStr("You called this with a float"))
+          | _, [ DStr a; _ ] -> Value(errStr("You called this with a float"))
+          | _, [ _; DStr _ ] -> Value(errStr("You called this with a float"))
+          | args -> incorrectArgs())
             // FSTODO
-            Value(errStr "")
+        //    Value(errStr "")
         //    ("The first param ("
         //    + Dval.to_developer_repr_v0 a
         //    + ") is a Float, but "
         //    + state.executing_fnname
         //    + " only works on Ints. Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
