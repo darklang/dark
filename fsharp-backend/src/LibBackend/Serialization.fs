@@ -9,6 +9,7 @@ open Ply
 open Npgsql
 open Db
 open Prelude
+open FSharp.Data
 
 open LibExecution.Runtime
 open LibExecution.Framework
@@ -16,174 +17,215 @@ open LibExecution.Framework
 let gid = Shortcuts.gid
 
 
-module YojsonParse =
-  open FSharp.Data
+module OCamlInterop =
+  module Binary =
+    // FSTODO if we have segfaults, we might need to use this:
+    // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#keeping-managed-objects-alive
 
-  type J = JsonValue
+    // initialize OCaml runtime
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "dark_init_ocaml")>]
+    extern string darkInitOcaml()
 
-  let parseRail (j : JsonValue) : LibExecution.Runtime.SendToRail =
-    match j with
-    | J.Array [| J.String "Rail" |] -> Rail
-    | J.Array [| J.String "NoRail" |] -> NoRail
-    | _ -> failwith $"Unimplemented {j}"
+    // take a binary rep of a handler from the DB and convert it into JSON
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "handler_bin2json")>]
+    extern string handlerBin2Json(byte[] bytes, int length)
 
-  let rec parsePattern (j : JsonValue) : Pattern =
-    printfn $"parsePattern {j}"
-    let constructor = j.Item(0).AsString()
-    if constructor = "FPString" then
-      // FPString uses a different format than the others
-      let obj = j.Item(1)
-      PString(obj.Item("patternID").AsInteger64(), obj.Item("str").AsString())
-    else
-      // skip the matchID in j.Item(1), we know from context
-      let id = j.Item(2).AsInteger64()
-      match constructor, j.AsArray().[3..] |> Array.toList with
-      | "FPBlank", _ -> PBlank id
-      | "FPInteger", [ J.String i ] -> PInteger(id, i)
-      | "FPBool", [ J.Boolean bool ] -> PBool(id, bool)
-      | "FPFloat", [ J.String whole; J.String fraction ] ->
-          PFloat(id, whole, fraction)
-      | "FPNull", _ -> PNull id
-      | "FPVariable", [ J.String name ] -> PVariable(id, name)
-      | "FPConstructor", [ J.String name; J.Array pats ] ->
-          PConstructor(id, name, Array.map parsePattern pats |> Array.toList)
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "handler_json2bin")>]
+    extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
 
-      | _ -> failwith $"Unimplemented {j}"
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "handler_json2bin")>]
+    extern string digest()
 
-  let rec parseExpr (j : JsonValue) =
-    let e = parseExpr
-    let es exprs = exprs |> Array.map e |> Array.toList
-    printfn $"parseExpr {j}"
-    let constructor = j.Item(0).AsString()
-    let id = j.Item(1).AsInteger64()
-    match constructor, j.AsArray().[2..] |> Array.toList with
-    | "EString", [ J.String str ] -> EString(id, str)
-    | "EInteger", [ J.String i ] -> EInteger(id, i)
-    | "EBool", [ J.Boolean bool ] -> EBool(id, bool)
-    | "EFloat", [ J.String whole; J.String fraction ] -> EFloat(id, whole, fraction)
-    | "ENull", _ -> ENull id
-    | "EBlank", _ -> EBlank(id)
-    | "EPipeTarget", _ -> EPipeTarget(id)
-    | "EVariable", [ J.String var ] -> EVariable(id, var)
-    | "EList", [ J.Array exprs ] -> EList(id, es exprs)
-    | "ELet", [ J.String name; rhs; body ] -> ELet(id, name, e rhs, e body)
-    | "EIf", [ cond; thenBody; elseBody ] -> EIf(id, e cond, e thenBody, e elseBody)
-
-    | "EPipe", [ J.Array exprs ] ->
-        match es exprs with
-        | [] -> failwith "empty pipe"
-        | e :: [] -> e
-        | e1 :: e2 :: rest -> EPipe(id, e1, e2, rest)
-    | "ERecord", [ J.Array rows ] ->
-        let rows =
-          rows
-          |> Array.toList
-          |> List.map (fun (row : JsonValue) ->
-               match row with
-               | J.Array [| J.String key; value |] -> (key, e value)
-               | _ -> failwith "unexpected record row shape")
-
-        ERecord(id, rows)
-    | "EMatch", [ cond; J.Array rows ] ->
-        let rows =
-          rows
-          |> Array.toList
-          |> List.map (fun (row : JsonValue) ->
-               match row with
-               | J.Array [| pat; value |] -> (parsePattern pat, e value)
-               | _ -> failwith "unexpected record row shape")
-
-        EMatch(id, e cond, rows)
+    let init () =
+      printfn "serialization_init"
+      let str = darkInitOcaml ()
+      printfn "serialization_inited: %s" str
+      ()
 
 
-    | "EConstructor", [ J.String name; J.Array exprs ] ->
-        EConstructor(id, name, es exprs)
+  module Yojson =
+    // Yojson is the OCaml automated JSON format. This module generates and
+    // parses JSON in that format, so that it can be sent to OCaml.
 
-    // FSTODO: sometimes these are binops, probably cause we don't load the
-    // library in OCaml. Nevermind, we can do it over here.
-    | "EFnCall", [ J.String name; J.Array args; rail ] ->
-        let desc =
-          match name with
-          | Regex "(.+)/(.+)/(.+)::(.+)_v(\d+)"
-                  [ owner; package; module'; name; version ] ->
-              FnDesc.fnDesc owner package module' name (int version)
-          | Regex "(.+)::(.+)_v(\d+)" [ module'; name; version ] ->
-              FnDesc.stdFnDesc module' name (int version)
-          | Regex "(.+)::(.+)" [ module'; name ] -> FnDesc.stdFnDesc module' name 0
-          | Regex "(.+)_v(\d+)" [ name; version ] ->
-              FnDesc.stdFnDesc "" name (int version)
-          | Regex "(.+)" [ name ] -> FnDesc.stdFnDesc "" name 0
-          | _ -> failwith $"Bad format in function name: \"{name}\""
+    // FSTODO: if we need speed, switch to transferring using protobufs instead of
+    // JSON, where do we get the protobuf files?
+    // - 1) generate using ocaml types (maybe deprecated? ocaml-protoc)
+    // - 2) generate using FSharp types (possible?)
+    // - 3) hand-write them (converters on both ends)
+    type J = JsonValue
 
-        EFnCall(id, desc, Array.map e args |> Array.toList, parseRail rail)
-    | _ -> failwith $"Unimplemented {j}"
+    let rec toExpr (j : JsonValue) =
 
-  let parseHandlerSpec (j : JsonValue) : Handler.Spec =
-    let blankOr (j : JsonValue) : (id * string) =
-      // element 0 is "filled" or "blank"
-      let value =
-        j.AsArray()
-        |> Array.tryItem 2
-        |> Option.map (fun j -> j.AsString())
-        |> Option.defaultValue ""
+      let e = toExpr
+      let es exprs = exprs |> Array.map e |> Array.toList
 
-      (j.Item(1).AsInteger64(), value)
+      let toRail (j : JsonValue) : LibExecution.Runtime.SendToRail =
+        match j with
+        | J.Array [| J.String "Rail" |] -> Rail
+        | J.Array [| J.String "NoRail" |] -> NoRail
+        | _ -> failwith $"Unimplemented {j}"
 
-    let moduleID, module_ = j.Item("module") |> blankOr
-    let nameID, name = j.Item("name") |> blankOr
-    let modifierID, modifier = j.Item("modifier") |> blankOr
+      let rec toPattern (j : JsonValue) : Pattern =
+        printfn $"toPattern {j}"
+        let constructor = j.Item(0).AsString()
+        if constructor = "FPString" then
+          // FPString uses a different format than the others
+          let obj = j.Item(1)
+          PString(obj.Item("patternID").AsInteger64(), obj.Item("str").AsString())
+        else
+          // skip the matchID in j.Item(1), we know from context
+          let id = j.Item(2).AsInteger64()
+          match constructor, j.AsArray().[3..] |> Array.toList with
+          | "FPBlank", _ -> PBlank id
+          | "FPInteger", [ J.String i ] -> PInteger(id, i)
+          | "FPBool", [ J.Boolean bool ] -> PBool(id, bool)
+          | "FPFloat", [ J.String whole; J.String fraction ] ->
+              PFloat(id, whole, fraction)
+          | "FPNull", _ -> PNull id
+          | "FPVariable", [ J.String name ] -> PVariable(id, name)
+          | "FPConstructor", [ J.String name; J.Array pats ] ->
+              PConstructor(id, name, Array.map toPattern pats |> Array.toList)
 
-    let (ids : Handler.ids) =
-      { moduleID = moduleID; nameID = nameID; modifierID = modifierID }
+          | _ -> failwith $"Unimplemented {j}"
 
-    if module_ = "" then
-      Handler.REPL {| name = name; ids = ids |}
-    else if module_ = "REPL" then
-      Handler.REPL {| name = name; ids = ids |}
-    else if module_ = "HTTP" then
-      Handler.HTTP {| path = name; method = modifier; ids = ids |}
-    else if module_ = "CRON" then
-      Handler.Cron {| name = name; interval = modifier; ids = ids |}
-    else if module_ = "WORKER" then
-      Handler.Worker {| name = name; ids = ids |}
-    else
-      Handler.OldWorker {| modulename = module_; name = name; ids = ids |}
 
-  let parseHandler (j : JsonValue) : Handler.T =
-    { tlid = j.Item("tlid").AsInteger64()
-      ast = j.Item("ast") |> parseExpr
-      spec = j.Item("spec") |> parseHandlerSpec }
+      let constructor = j.Item(0).AsString()
+      let id = j.Item(1).AsInteger64()
+      match constructor, j.AsArray().[2..] |> Array.toList with
+      | "EString", [ J.String str ] -> EString(id, str)
+      | "EInteger", [ J.String i ] -> EInteger(id, i)
+      | "EBool", [ J.Boolean bool ] -> EBool(id, bool)
+      | "EFloat", [ J.String whole; J.String fraction ] ->
+          EFloat(id, whole, fraction)
+      | "ENull", _ -> ENull id
+      | "EBlank", _ -> EBlank(id)
+      | "EPipeTarget", _ -> EPipeTarget(id)
+      | "EVariable", [ J.String var ] -> EVariable(id, var)
+      | "EList", [ J.Array exprs ] -> EList(id, es exprs)
+      | "ELet", [ J.String name; rhs; body ] -> ELet(id, name, e rhs, e body)
+      | "EIf", [ cond; thenBody; elseBody ] ->
+          EIf(id, e cond, e thenBody, e elseBody)
 
-module ReadFromOCaml =
-  // FSTODO: if we need speed, switch to transferring using protobufs instead of JSON
-  // where do we get the protobuf files?
-  // - 1) generate using ocaml types (maybe deprecated? ocaml-protoc)
-  // - 2) generate using FSharp types (possible?)
-  // - 3) hand-write them (converters on both ends)
+      | "EPipe", [ J.Array exprs ] ->
+          match es exprs with
+          | [] -> failwith "empty pipe"
+          | e :: [] -> e
+          | e1 :: e2 :: rest -> EPipe(id, e1, e2, rest)
+      | "ERecord", [ J.Array rows ] ->
+          let rows =
+            rows
+            |> Array.toList
+            |> List.map (fun (row : JsonValue) ->
+                 match row with
+                 | J.Array [| J.String key; value |] -> (key, e value)
+                 | _ -> failwith "unexpected record row shape")
 
-  // initialize OCaml runtime
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "dark_init_ocaml")>]
-  extern string darkInitOcaml()
+          ERecord(id, rows)
+      | "EMatch", [ cond; J.Array rows ] ->
+          let rows =
+            rows
+            |> Array.toList
+            |> List.map (fun (row : JsonValue) ->
+                 match row with
+                 | J.Array [| pat; value |] -> (toPattern pat, e value)
+                 | _ -> failwith "unexpected record row shape")
 
-  // take a binary rep of a handler from the DB and convert it into JSON
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "handler_of_binary_string_to_json")>]
-  extern string handlerOfBinaryStringToJson(byte[] bytes, int length)
+          EMatch(id, e cond, rows)
 
-  let init () =
-    printfn "serialization_init"
-    let str = darkInitOcaml ()
-    printfn "serialization_inited: %s" str
-    ()
 
-  let parseCachedOCaml ((data, pos) : (byte array * byte array option)) : Toplevel =
-    handlerOfBinaryStringToJson (data, data.Length)
-    |> FSharp.Data.JsonValue.Parse
-    |> YojsonParse.parseHandler
-    |> TLHandler
+      | "EConstructor", [ J.String name; J.Array exprs ] ->
+          EConstructor(id, name, es exprs)
+
+      // FSTODO: sometimes these are binops, probably cause we don't load the
+      // library in OCaml. Nevermind, we can do it over here.
+      | "EFnCall", [ J.String name; J.Array args; rail ] ->
+          let desc =
+            match name with
+            | Regex "(.+)/(.+)/(.+)::(.+)_v(\d+)"
+                    [ owner; package; module'; name; version ] ->
+                FnDesc.fnDesc owner package module' name (int version)
+            | Regex "(.+)::(.+)_v(\d+)" [ module'; name; version ] ->
+                FnDesc.stdFnDesc module' name (int version)
+            | Regex "(.+)::(.+)" [ module'; name ] -> FnDesc.stdFnDesc module' name 0
+            | Regex "(.+)_v(\d+)" [ name; version ] ->
+                FnDesc.stdFnDesc "" name (int version)
+            | Regex "(.+)" [ name ] -> FnDesc.stdFnDesc "" name 0
+            | _ -> failwith $"Bad format in function name: \"{name}\""
+
+          EFnCall(id, desc, Array.map e args |> Array.toList, toRail rail)
+      | _ -> failwith $"Unimplemented expr {j}"
+
+    let toHandler (j : JsonValue) : Handler.T =
+      let toHandlerSpec (j : JsonValue) : Handler.Spec =
+        let toBlankOr (j : JsonValue) : (id * string) =
+          // element 0 is "filled" or "blank"
+          let value =
+            j.AsArray()
+            |> Array.tryItem 2
+            |> Option.map (fun j -> j.AsString())
+            |> Option.defaultValue ""
+
+          (j.Item(1).AsInteger64(), value)
+
+        let moduleID, module_ = j.Item("module") |> toBlankOr
+        let nameID, name = j.Item("name") |> toBlankOr
+        let modifierID, modifier = j.Item("modifier") |> toBlankOr
+
+        let (ids : Handler.ids) =
+          { moduleID = moduleID; nameID = nameID; modifierID = modifierID }
+
+        if module_ = "" then
+          Handler.REPL(name = name, ids = ids)
+        else if module_ = "REPL" then
+          Handler.REPL(name = name, ids = ids)
+        else if module_ = "HTTP" then
+          Handler.HTTP(path = name, method = modifier, ids = ids)
+        else if module_ = "CRON" then
+          Handler.Cron(name = name, interval = modifier, ids = ids)
+        else if module_ = "WORKER" then
+          Handler.Worker(name = name, ids = ids)
+        else
+          Handler.OldWorker(modulename = module_, name = name, ids = ids)
+
+      { tlid = j.Item("tlid").AsInteger64()
+        ast = j.Item("ast") |> toExpr
+        spec = j.Item("spec") |> toHandlerSpec }
+
+    let ofHandler (h : Handler.T) : JsonValue =
+      match h.spec with
+      | Handler.REPL (name, ids) -> J.Record [| "tlid", J.Number(decimal h.tlid) |]
+      | _ -> failwith $"More to handle in ofHandler {h.spec}"
+
+
+let toplevelOfCachedBinary ((data, pos) : (byte array * string option)) : Toplevel =
+  let pos = "" // FSTODO parse pos json
+  OCamlInterop.Binary.handlerBin2Json (data, data.Length)
+  |> FSharp.Data.JsonValue.Parse
+  |> OCamlInterop.Yojson.toHandler
+  |> TLHandler
+
+let toplevelToCachedBinary (toplevel : Toplevel) : (byte array * string option) =
+  match toplevel with
+  | TLHandler h ->
+      let json = (OCamlInterop.Yojson.ofHandler h).ToString()
+
+      // FSTODO: note that we pass an IntPtr - bytes are a different size to ints. Does this matter?
+      let mutable destPtr = System.IntPtr()
+      let length = OCamlInterop.Binary.handlerJson2Bin (json, &destPtr)
+      let mutable (bytes : byte array) = Array.zeroCreate length
+      Marshal.Copy(destPtr, bytes, 0, length)
+      (bytes, None) // FSTODO pos
+
+  | _ -> failwith $"toplevel not supported yet {toplevel}"
+
 
 let fetchReleventTLIDsForHTTP (host : string)
                               (canvasID : CanvasID)
@@ -255,10 +297,10 @@ let loadUncachedToplevels (host : string)
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidArray tlids ]
   |> Sql.executeAsync (fun read -> read.bytea "data")
 
-let loadCachedToplevels (host : string)
-                        (canvasID : CanvasID)
-                        (tlids : List<tlid>)
-                        : Task<List<byte array * byte array option>> =
+let fetchCachedToplevels (host : string)
+                         (canvasID : CanvasID)
+                         (tlids : List<tlid>)
+                         : Task<List<byte array * string option>> =
   Sql.query "SELECT rendered_oplist_cache, pos FROM toplevel_oplists
              WHERE canvas_id = @canvasID
              AND tlid = ANY (@tlids)
@@ -266,7 +308,7 @@ let loadCachedToplevels (host : string)
              AND (((tipe = 'handler'::toplevel_type) AND pos IS NOT NULL))"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidArray tlids ]
   |> Sql.executeAsync (fun read ->
-       (read.bytea "rendered_oplist_cache", read.byteaOrNone "pos"))
+       (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
 
 
 let loadHttpHandlersFromCache (host : string)
@@ -277,8 +319,82 @@ let loadHttpHandlersFromCache (host : string)
                               : Task<List<Toplevel>> =
   task {
     let! tlids = fetchReleventTLIDsForHTTP host canvasID path method
-    let! binaryTLs = loadCachedToplevels host canvasID tlids
-    let tls = List.map ReadFromOCaml.parseCachedOCaml binaryTLs
+    let! binaryTLs = fetchCachedToplevels host canvasID tlids
+    let tls = List.map toplevelOfCachedBinary binaryTLs
 
     return tls
+  }
+
+// FSTODO This is for testing only as it blows away the old oplist, which is
+// needed for undos.
+let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
+                                     (ownerID : UserID)
+                                     (tl : Toplevel)
+                                     : Task<int> =
+  let module_, path, modifier =
+    match tl with
+    | TLDB _
+    | TLFunction _
+    | TLType _ -> None, None, None
+    | TLHandler h ->
+        // FSTODO munge path for postgres, see munge_name in canvas.ml
+        match h.spec with
+        | Handler.HTTP (path, modifier, _) -> Some "HTTP", Some path, Some modifier
+        | Handler.Worker (name, _) -> Some "Worker", Some name, Some "_"
+        | Handler.OldWorker (modulename, name, _) ->
+            Some modulename, Some name, Some "_"
+        | Handler.Cron (name, interval, _) -> Some "CRON", Some name, Some interval
+        | Handler.REPL (name, _) -> Some "REPL", Some name, Some "_"
+
+  let sqlType : string =
+    match tl with
+    | TLDB _ -> "db"
+    | TLHandler _ -> "handler"
+    | TLFunction _ -> "user_function"
+    | TLType _ -> "user_tipe"
+
+  let cacheBinary, pos = toplevelToCachedBinary tl // FSTODO pos
+  let (oplistBinary : byte array) = [||]
+  Sql.query "INSERT INTO toplevel_oplists
+               (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
+                data, rendered_oplist_cache, deleted, pos)
+             VALUES (@canvasID, @ownerID, @tlid, @digest, @tipe::toplevel_type,
+                     @path, @module, @modifier, @oplistData, @cacheData, @deleted, @pos)
+             ON CONFLICT (canvas_id, tlid) DO UPDATE
+             SET account_id = @ownerID,
+                 digest = @digest,
+                 tipe = @tipe::toplevel_type,
+                 name = @path,
+                 module = @module,
+                 modifier = @modifier,
+                 data = oplistData,
+                 rendered_oplist_cache = @cacheData,
+                 deleted = @deleted,
+                 pos = @pos"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "ownerID", Sql.uuid ownerID
+                      "tlid", Sql.int64 (tl.toTLID ())
+                      "digest", Sql.string (OCamlInterop.Binary.digest ())
+                      "tipe", Sql.string sqlType
+                      "path", Sql.stringOrNone path
+                      "module", Sql.stringOrNone module_
+                      "modifier", Sql.stringOrNone modifier
+                      "data", Sql.bytea oplistBinary
+                      "rendered_oplist_cache", Sql.bytea cacheBinary
+                      "deleted", Sql.bool false // FSTODO
+                      "pos", Sql.stringOrNone pos ] // FSTODO
+  |> Sql.executeNonQueryAsync
+
+let saveHttpHandlersToCache (canvasID : CanvasID)
+                            (ownerID : UserID)
+                            (tls : List<Toplevel>)
+                            : Task<unit> =
+  task {
+    let results =
+      tls
+      |> List.map (fun tl ->
+           (saveCachedToplevelForTestingOnly canvasID ownerID tl) :> Task)
+      |> List.toArray
+
+    return Task.WaitAll(results)
   }

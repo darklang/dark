@@ -26,6 +26,7 @@ module Handler =
     | Cron of name : string * interval : string * ids : ids
     | REPL of name : string * ids : ids
 
+
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 module DB =
@@ -55,3 +56,10 @@ type Toplevel =
   | TLDB of DB.T
   | TLFunction of UserFunction.T
   | TLType of UserType.T
+
+  member this.toTLID() : tlid =
+    match this with
+    | TLHandler h -> h.tlid
+    | TLDB db -> db.tlid
+    | TLFunction f -> f.tlid
+    | TLType t -> t.tlid

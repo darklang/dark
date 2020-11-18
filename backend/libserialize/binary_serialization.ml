@@ -69,6 +69,10 @@ let oplist_of_binary_string (str : string) : Types.oplist =
   |> Serialization_converters.oplist_to_fluid
 
 
+let pos_to_binary_string (pos : Types.pos) : string =
+  pos |> Core_extended.Bin_io_utils.to_line SF.bin_pos |> Bigstring.to_string
+
+
 let pos_of_binary_string (str : string) : Types.pos =
   Core_extended.Bin_io_utils.of_line str SF.bin_pos
 
@@ -98,56 +102,85 @@ let translate_user_tipe_as_binary_string
   str |> user_tipe_of_binary_string |> f |> user_tipe_to_binary_string
 
 
+(* ----------------------- *)
 (* Convert binary to JSON for F# *)
-let user_fn_of_binary_string_to_json (str : string) : string =
+(* ----------------------- *)
+let bin2json
+    (bin_parser : string -> 'a)
+    (to_json_string : 'a -> Yojson.Safe.t)
+    (str : string) : string =
+  try str |> bin_parser |> to_json_string |> Yojson.Safe.to_string
+  with e -> "Error"
+
+
+let user_fn_bin2json (str : string) : string =
+  bin2json user_fn_of_binary_string Types.RuntimeT.user_fn_to_yojson str
+
+
+let user_tipe_bin2json (str : string) : string =
+  bin2json user_tipe_of_binary_string Types.RuntimeT.user_tipe_to_yojson str
+
+
+let handler_bin2json (str : string) : string =
+  bin2json
+    handler_of_binary_string
+    Types.RuntimeT.HandlerT.handler_to_yojson
+    str
+
+
+let db_bin2json (str : string) : string =
+  bin2json db_of_binary_string Types.RuntimeT.DbT.db_to_yojson str
+
+
+let oplist_bin2json (str : string) : string =
+  bin2json oplist_of_binary_string Types.oplist_to_yojson str
+
+
+let pos_bin2json (str : string) : string =
+  bin2json pos_of_binary_string Types.pos_to_yojson str
+
+
+(* ----------------------- *)
+(* Convert JSON to binary for F# *)
+(* ----------------------- *)
+let json2bin
+    (json_parser : Yojson.Safe.t -> ('a, string) Result.t)
+    (bin_to_string : 'a -> string)
+    (str : string) : string =
   try
     str
-    |> user_fn_of_binary_string
-    |> Types.RuntimeT.user_fn_to_yojson
-    |> Yojson.Safe.to_string
+    |> Yojson.Safe.from_string
+    |> json_parser
+    |> Result.ok_or_failwith
+    |> bin_to_string
   with e -> "Error"
 
 
-let user_tipe_of_binary_string_to_json (str : string) : string =
-  try
+let user_fn_json2bin (str : string) : string =
+  json2bin Types.RuntimeT.user_fn_of_yojson user_fn_to_binary_string str
+
+
+let user_tipe_json2bin (str : string) : string =
+  json2bin Types.RuntimeT.user_tipe_of_yojson user_tipe_to_binary_string str
+
+
+let handler_json2bin (str : string) : string =
+  json2bin
+    Types.RuntimeT.HandlerT.handler_of_yojson
+    handler_to_binary_string
     str
-    |> user_tipe_of_binary_string
-    |> Types.RuntimeT.user_tipe_to_yojson
-    |> Yojson.Safe.to_string
-  with e -> "Error"
 
 
-let handler_of_binary_string_to_json (str : string) : string =
-  try
-    str
-    |> handler_of_binary_string
-    |> Types.RuntimeT.HandlerT.handler_to_yojson
-    |> Yojson.Safe.to_string
-  with e -> "Error"
+let db_json2bin (str : string) : string =
+  json2bin Types.RuntimeT.DbT.db_of_yojson db_to_binary_string str
 
 
-let db_of_binary_string_to_json (str : string) : string =
-  try
-    str
-    |> db_of_binary_string
-    |> Types.RuntimeT.DbT.db_to_yojson
-    |> Yojson.Safe.to_string
-  with e -> "Error"
+let oplist_json2bin (str : string) : string =
+  json2bin Types.oplist_of_yojson oplist_to_binary_string str
 
 
-let oplist_of_binary_string_to_json (str : string) : string =
-  try
-    str
-    |> oplist_of_binary_string
-    |> Types.oplist_to_yojson
-    |> Yojson.Safe.to_string
-  with e -> "Error"
-
-
-let pos_of_binary_string_to_json (str : string) : string =
-  try
-    str |> pos_of_binary_string |> Types.pos_to_yojson |> Yojson.Safe.to_string
-  with e -> "Error"
+let pos_json2bin (str : string) : string =
+  json2bin Types.pos_of_yojson pos_to_binary_string str
 
 
 (* We serialize oplists for each toplevel in the DB. This affects making

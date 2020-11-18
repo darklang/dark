@@ -184,6 +184,6 @@ let webserver port =
 
 [<EntryPoint>]
 let main _ =
-  LibBackend.Serialization.ReadFromOCaml.init ()
+  LibBackend.Serialization.OCamlInterop.Binary.init ()
   (webserver 9001).Run()
   0
