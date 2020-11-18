@@ -62,7 +62,9 @@ module OCamlInterop =
     // - 3) hand-write them (converters on both ends)
     type J = JsonValue
 
-    let rec toExpr (j : JsonValue) =
+    let ofExpr (e : Expr) : JsonValue = J.Array [||]
+
+    let rec toExpr (j : JsonValue) : Expr =
 
       let e = toExpr
       let es exprs = exprs |> Array.map e |> Array.toList
@@ -200,9 +202,16 @@ module OCamlInterop =
         spec = j.Item("spec") |> toHandlerSpec }
 
     let ofHandler (h : Handler.T) : JsonValue =
-      match h.spec with
-      | Handler.REPL (name, ids) -> J.Record [| "tlid", J.Number(decimal h.tlid) |]
-      | _ -> failwith $"More to handle in ofHandler {h.spec}"
+      let spec =
+        match h.spec with
+        | Handler.REPL (name, ids) -> J.Record [| "tlid", J.Number(decimal h.tlid) |]
+        | Handler.HTTP (path, modifier, ids) ->
+            J.Record [| "tlid", J.Number(decimal h.tlid) |]
+        | _ -> failwith $"More to handle in ofHandler {h.spec}"
+
+      J.Record [| "tlid", J.Number(decimal h.tlid)
+                  "ast", ofExpr h.ast
+                  "spec", spec |]
 
 
 let toplevelOfCachedBinary ((data, pos) : (byte array * string option)) : Toplevel =
