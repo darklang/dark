@@ -286,39 +286,34 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "greaterThanOrEqualTo" 0
-    //   ; infix_names = [">="]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is greater than or equal to b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DBool (a >= b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    ; { name = fn "Int" "greaterThanOrEqualTo" 0
+      ; parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      ; returnType = TBool
+      ; description = "Returns true if a is greater than or equal to b"
+      ; fn =
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
+          // FSTODO
+          // | state, [ (DFloat _ as a); _ ] ->
+          //     DError
+          //       (SourceNone,
+          //        "The first param ("
+          //        ^ Dval.to_developer_repr_v0 a
+          //        ^ ") is a Float, but "
+          //        ^ state.executing_fnname
+          //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
+          // | state, [ _; (DFloat _ as b) ] ->
+          //     DError
+          //       (SourceNone,
+          //        "The second param ("
+          //        ^ Dval.to_developer_repr_v0 b
+          //        ^ ") is a Float, but "
+          //        ^ state.executing_fnname
+          //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
+          | args -> incorrectArgs ())
+      ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
+      ; deprecated = NotDeprecated }
     // ; { name = fn "Int" "lessThan" 0
     //   ; infix_names = ["<"]
     //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
