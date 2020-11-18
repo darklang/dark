@@ -37,7 +37,7 @@ let t name =
              [ b ])
       |> List.toArray
 
-    let request, expectedResponse, progString =
+    let request, expectedResponse, progString, httpMethod, httpPath =
       let filename = $"tests/httptestfiles/{name}"
       let contents = filename |> System.IO.File.ReadAllBytes |> toStr
 
@@ -47,14 +47,26 @@ let t name =
       let m =
         Regex.Match
           (contents,
-           "^\[request\]\n(.*)\[response\]\n(.*)\[program\]\n(.*)$",
+           "^\[http-handler (\S+) (\S+)\]\n(.*)\n\[request\]\n(.*)\[response\]\n(.*)$",
            options)
 
       if not m.Success then failwith $"incorrect format in {name}"
-      toBytes m.Groups.[1].Value, m.Groups.[2].Value, m.Groups.[3].Value
+      let g = m.Groups
+      toBytes g.[4].Value, g.[5].Value, g.[3].Value, g.[1].Value, g.[2].Value
 
     let (source : Runtime.Expr) =
       progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+
+    let (handler : Framework.Handler.T) =
+      let id = Runtime.id
+
+      let ids : Framework.Handler.ids =
+        { moduleID = id 1; nameID = id 2; modifierID = id 3 }
+
+      { tlid = id 7
+        ast = source
+        spec =
+          Framework.Handler.HTTP(path = httpPath, method = httpMethod, ids = ids) }
 
     // Web server might not be loaded yet
     let client = new TcpClient()
