@@ -293,23 +293,14 @@ let fns : List<BuiltInFn> =
       ; fn =
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
-          // FSTODO
-          // | state, [ (DFloat _ as a); _ ] ->
-          //     DError
-          //       (SourceNone,
-          //        "The first param ("
-          //        ^ Dval.to_developer_repr_v0 a
-          //        ^ ") is a Float, but "
-          //        ^ state.executing_fnname
-          //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
-          // | state, [ _; (DFloat _ as b) ] ->
-          //     DError
-          //       (SourceNone,
-          //        "The second param ("
-          //        ^ Dval.to_developer_repr_v0 b
-          //        ^ ") is a Float, but "
-          //        ^ state.executing_fnname
-          //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
+          | _, [ (DFloat _ as a); _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+          | _, [ _; DFloat _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+          | _, [ DStr a; _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
+          | _, [ _; DStr _ as a ] ->
+          Value(errStr("The second param" + a.ToString() + "is a string, but only works on Ints."))
           | args -> incorrectArgs ())
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -333,39 +324,25 @@ let fns : List<BuiltInFn> =
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
       ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "lessThanOrEqualTo" 0
-    //   ; infix_names = ["<="]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is less than or equal to b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DBool (a <= b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    ; { name = fn "Int" "lessThanOrEqualTo" 0
+      ; parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      ; returnType = TBool
+      ; description = "Returns true if a is less than or equal to b"
+      ; fn =
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
+          | _, [ (DFloat _ as a); _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+          | _, [ _; DFloat _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+          | _, [ DStr a; _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
+          | _, [ _; DStr _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a string, but only works on Ints."))
+          | args -> incorrectArgs ())
+      ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
+      ; deprecated = NotDeprecated }
     // ; { name = fn "Int" "random" 0
     //
     //   ; parameters = [Param.make "start" TInt; Param.make "end" TInt]

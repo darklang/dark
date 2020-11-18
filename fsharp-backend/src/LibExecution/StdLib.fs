@@ -34,6 +34,7 @@ let infixFns =
         | "Int", "add", 0 -> Some "+"
         | "Int", "greaterThan", 0 -> Some ">"
         | "Int", "greaterThanOrEqualTo", 0 -> Some ">="
+        | "Int", "lessThanOrEqualTo", 0 -> Some "<="
         | "Int", "lessThan", 0 -> Some "<"
         | "String", "append", 1 -> Some "++"
         | _ -> None
@@ -41,7 +42,7 @@ let infixFns =
       Option.map (fun opName -> { builtin with name = FnDesc.stdFnDesc "" opName 0 })
         opName) prefixFns
 
-  assert (fns.Length = 5) // make sure we got them all
+  assert (fns.Length = 6) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns
