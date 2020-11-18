@@ -294,9 +294,9 @@ let fns : List<BuiltInFn> =
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
           | _, [ (DFloat _ as a); _ ] ->
-            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
           | _, [ _; DFloat _ as a ] ->
-            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
           | _, [ DStr a; _ ] ->
             Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
           | _, [ _; DStr _ as a ] ->
@@ -332,9 +332,9 @@ let fns : List<BuiltInFn> =
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
           | _, [ (DFloat _ as a); _ ] ->
-            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
           | _, [ _; DFloat _ as a ] ->
-            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
           | _, [ DStr a; _ ] ->
             Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
           | _, [ _; DStr _ as a ] ->
