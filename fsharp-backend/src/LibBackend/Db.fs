@@ -73,6 +73,9 @@ module Sql =
   let executeAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<List<'t>> =
     Sql.executeAsync reader props |> throwOrReturn
 
+  let executeNonQueryAsync (props : Sql.SqlProps) : Task<int> =
+    Sql.executeNonQueryAsync props |> throwOrReturn
+
   let tlidArray (tlids : List<LibExecution.Runtime.tlid>) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint
     let tlidsParam = NpgsqlParameter("tlids", typ)
