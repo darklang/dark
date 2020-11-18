@@ -8,7 +8,7 @@ open Npgsql.FSharp
 open Ply
 open Npgsql
 
-let defaultConnection =
+let makeConnection () =
   let cs =
     Sql.host "localhost"
     |> Sql.port 5432
@@ -36,7 +36,8 @@ let fetch (sql : string)
           (parameters : List<string * SqlValue>)
           (reader : RowReader -> 't)
           : Task<List<'t>> =
-  Sql.existingConnection defaultConnection
+  makeConnection ()
+  |> Sql.existingConnection
   |> Sql.query sql
   |> Sql.parameters parameters
   |> Sql.executeAsync reader
@@ -46,7 +47,8 @@ let fetchOne (sql : string)
              (parameters : List<string * SqlValue>)
              (reader : RowReader -> 't)
              : Task<'t> =
-  Sql.existingConnection defaultConnection
+  makeConnection ()
+  |> Sql.existingConnection
   |> Sql.query sql
   |> Sql.parameters parameters
   |> Sql.executeRowAsync reader
@@ -65,7 +67,7 @@ module Sql =
     }
 
   let query (sql : string) : Sql.SqlProps =
-    Sql.query sql (Sql.existingConnection defaultConnection)
+    makeConnection () |> Sql.existingConnection |> Sql.query sql
 
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     Sql.executeRowAsync reader props |> throwOrReturn
