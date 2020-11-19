@@ -18,3 +18,5 @@ Int.sqrt_v0 4 = 2.0
 Int.sqrt_v0 100 = 10.0
 Int.toFloat_v0 2 = 2.0
 Int.toFloat_v0 955656 = 955656.0
+Int.subtract_v0 10 9 = 1
+Int.subtract_v0 88 9 = 79
