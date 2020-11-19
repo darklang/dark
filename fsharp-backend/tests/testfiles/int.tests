@@ -20,3 +20,6 @@ Int.toFloat_v0 2 = 2.0
 Int.toFloat_v0 955656 = 955656.0
 Int.subtract_v0 10 9 = 1
 Int.subtract_v0 88 9 = 79
+Int.multiply_v0 8 8 = 64
+Int.multiply_v0 5145 5145 = 26471025
+

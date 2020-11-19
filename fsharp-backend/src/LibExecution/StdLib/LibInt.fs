@@ -129,9 +129,9 @@ let fns : List<BuiltInFn> =
          (function
             | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
             | _, [ (DFloat _ as a); _ ] ->
-              Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
+              Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."))
             | _, [ _; DFloat _ as a ] ->
-              Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
+              Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."))
             | _, [ DStr a; _ ] ->
               Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
             | _, [ _; DStr _ as a ] ->
@@ -141,39 +141,25 @@ let fns : List<BuiltInFn> =
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
       ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "multiply" 0
-    //   ; infix_names = ["*"]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Multiplies two integers"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DInt (Dint.( * ) a b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    ; { name = fn "Int" "multiply" 0
+      ; parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      ; returnType = TInt
+      ; description = "Multiplies two integers"
+      ; fn =
+          (function
+            | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
+            | _, [ (DFloat _ as a); _ ] ->
+              Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."))
+            | _, [ _; DFloat _ as a ] ->
+              Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."))
+            | _, [ DStr a; _ ] ->
+              Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
+            | _, [ _; DStr _ as a ] ->
+              Value(errStr("The second param" + a.ToString() + "is a string, but only works on Ints."))
+            | args -> incorrectArgs ())
+      ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
+      ; deprecated = NotDeprecated }
     // ; { name = fn "Int" "power" 0
     //   ; infix_names = ["^"]
     //   ; parameters = [Param.make "base" TInt; Param.make "exponent" TInt]
