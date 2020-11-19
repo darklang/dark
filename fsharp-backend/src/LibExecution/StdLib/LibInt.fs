@@ -343,23 +343,30 @@ let fns : List<BuiltInFn> =
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
       ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "random" 0
-    //
-    //   ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns a random integer between a and b (inclusive)"
-    //   ; fn =
-    //
-    //         (function
-    //         (*( +1 as Random.int is exclusive *)
-    //         | _, [DInt a; DInt b] ->
-    //             let open Dint in
-    //             DInt (a + one + Dint.random (b - a))
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Impure
-    //   ; deprecated = ReplacedBy(fn "" "" 0) }
+    ; { name = fn "Int" "random" 0
+      ; parameters = [Param.make "start" TInt ""; Param.make "end" TInt ""]
+      ; returnType = TInt
+      ; description = "Returns a random integer between a and b (inclusive)"
+      ; fn =
+          (function
+          (*( +1 as Random.int is exclusive *)
+          | _, [DInt a; DInt b] ->
+            Value(
+              DInt(a + one + (Runtime.random.Next((b - a) |> int) |> bigint))
+              )
+          | _, [ (DFloat _ as a); _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints."))
+          | _, [ _; DFloat _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints."))
+          | _, [ DStr a; _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
+          | _, [ _; DStr _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a string, but only works on Ints."))
+          | args ->
+              incorrectArgs ())
+      ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
+      ; deprecated = ReplacedBy(fn "" "" 0) }
     // ; { name = fn "Int" "random" 1
     //
     //   ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
