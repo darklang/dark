@@ -16,4 +16,5 @@ Int.lessThanOrEqualTo_v0 6 8 = true
 Int.lessThanOrEqualTo_v0 10 1 = false
 Int.sqrt_v0 4 = 2.0
 Int.sqrt_v0 100 = 10.0
-
+Int.toFloat_v0 2 = 2.0
+Int.toFloat_v0 955656 = 955656.0

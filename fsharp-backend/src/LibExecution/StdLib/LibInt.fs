@@ -400,18 +400,21 @@ let fns : List<BuiltInFn> =
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
       ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "toFloat" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TFloat
-    //   ; description = "Converts an Int to a Float"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a] -> DFloat (Dint.to_float a) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    ; { name = fn "Int" "toFloat" 0
+      ; parameters = [Param.make "a" TInt ""]
+      ; returnType = TFloat
+      ; description = "Converts an Int to a Float"
+      ; fn =
+          (function
+          | _, [DInt a] -> Value(DFloat(a |> float))
+          | _, [ DStr a; _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
+          | _, [ _; DStr _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a string, but only works on Ints."))
+          | args -> incorrectArgs ())
+      ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
+      ; deprecated = NotDeprecated }
     // ; { name = fn "Int" "sum" 0
     //
     //   ; parameters = [Param.make "a" TList]
