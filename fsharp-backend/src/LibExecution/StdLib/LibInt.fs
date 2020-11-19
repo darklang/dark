@@ -106,10 +106,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
           | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
-          | _, [ DFloat a; _ ] -> Value(errStr("You called this with a float"))
-          | _, [ _; DFloat _ ] -> Value(errStr("You called this with a float"))
-          | _, [ DStr a; _ ] -> Value(errStr("You called this with a float"))
-          | _, [ _; DStr _ ] -> Value(errStr("You called this with a float"))
+          | _, [ (DFloat _ as a); _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a float, but only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."))
+          | _, [ _; DFloat _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a float, but only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."))
+          | _, [ DStr a; _ ] ->
+            Value(errStr("The first param" + a.ToString() + "is a string, but only works on Ints."))
+          | _, [ _; DStr _ as a ] ->
+            Value(errStr("The second param" + a.ToString() + "is a string, but only works on Ints."))
           | args -> incorrectArgs())
             // FSTODO
         //    Value(errStr "")
