@@ -115,13 +115,6 @@ let fns : List<BuiltInFn> =
           | _, [ _; DStr _ as a ] ->
             Value(errStr("The second param" + a.ToString() + "is a string, but only works on Ints."))
           | args -> incorrectArgs())
-            // FSTODO
-        //    Value(errStr "")
-        //    ("The first param ("
-        //    + Dval.to_developer_repr_v0 a
-        //    + ") is a Float, but "
-        //    + state.executing_fnname
-        //    + " only works on Ints. Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints."))
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
