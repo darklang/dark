@@ -387,30 +387,19 @@ let fns : List<BuiltInFn> =
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
       ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "sqrt" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TFloat
-    //   ; description = "Get the square root of an Int"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a] ->
-    //             DFloat (Dint.to_float a |> sqrt)
-    //         | state, [(DFloat _ as a)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    ; { name = fn "Int" "sqrt" 0
+      ; parameters = [Param.make "a" TInt ""]
+      ; returnType = TFloat
+      ; description = "Get the square root of an Int"
+      ; fn =
+          (function
+          | _, [DInt a] -> Value(DFloat(sqrt(float a)))
+          | _, [ (DFloat _ as a) ] ->
+            Value(errStr("The param" + a.ToString() + "is a float, but only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."))
+          | args -> incorrectArgs ())
+      ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Pure
+      ; deprecated = NotDeprecated }
     // ; { name = fn "Int" "toFloat" 0
     //
     //   ; parameters = [Param.make "a" TInt]
