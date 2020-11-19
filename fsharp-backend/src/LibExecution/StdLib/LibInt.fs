@@ -367,25 +367,26 @@ let fns : List<BuiltInFn> =
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
       ; deprecated = ReplacedBy(fn "" "" 0) }
-    // ; { name = fn "Int" "random" 1
-    //
-    //   ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
-    //   ; returnType = TInt
-    //   ; description =
-    //       "Returns a random integer between `start` and `end` (inclusive)."
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             let open Dint in
-    //             (* upper+1 because as Random.int is exclusive *)
-    //             let lower, upper = if a > b then (b, a + one) else (a, b + one) in
-    //             DInt (lower + Dint.random (upper - lower))
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Impure
-    //   ; deprecated = NotDeprecated }
+    ; { name = fn "Int" "random" 1
+      ; parameters = [Param.make "start" TInt ""; Param.make "end" TInt ""]
+      ; returnType = TInt
+      ; description =
+          "Returns a random integer between `start` and `end` (inclusive)."
+      ; fn =
+          (function
+          | _, [DInt a; DInt b] ->
+              (* upper+1 because as Random.int is exclusive *)
+              let lower, upper = if a > b then (b, a + one) else (a, b + one) in
+                Value(
+                DInt (lower +
+                  (Runtime.random.Next((upper - lower) |> int) |> bigint)
+                )
+                )
+          | args ->
+              incorrectArgs ())
+      ; sqlSpec = NotYetImplementedTODO
+      ; previewable = Impure
+      ; deprecated = NotDeprecated }
     // ; { name = fn "Int" "sqrt" 0
     //
     //   ; parameters = [Param.make "a" TInt]
