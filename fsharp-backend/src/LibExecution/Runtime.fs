@@ -499,7 +499,9 @@ module Shortcuts =
     let bytes = Array.init 8 (fun _ -> (byte) 0)
     random.NextBytes(bytes)
     let rand64 : int64 = System.BitConverter.ToInt64(bytes, 0)
-    let mask : int64 = 9223372036854775807L
+    // Keep 62 bits
+    // 0b0011_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111L
+    let mask : int64 = 4611686018427387903L
     rand64 &&& mask
 
   let eFn' (module_ : string)
