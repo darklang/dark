@@ -52,7 +52,7 @@ let t name =
 
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
-      toBytes g.[4].Value, g.[5].Value, g.[3].Value, g.[1].Value, g.[2].Value
+      g.[4].Value, g.[5].Value, g.[3].Value, g.[1].Value, g.[2].Value
 
     let (source : Runtime.Expr) =
       progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
