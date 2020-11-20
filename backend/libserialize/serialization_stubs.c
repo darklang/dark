@@ -87,6 +87,7 @@ int call_json2bin(const value* closure, char* json, void** out_bytes) {
   value v = caml_copy_string(json);
   value result = caml_callback(*closure, v);
   int length = caml_string_length(result);
+  *out_bytes = malloc(length);
   memcpy(*out_bytes, String_val(result), length);
   return length;
 }

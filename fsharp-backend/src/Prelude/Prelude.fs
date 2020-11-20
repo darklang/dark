@@ -1,5 +1,7 @@
 module Prelude
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
 
@@ -8,6 +10,19 @@ let (|Regex|_|) pattern input =
   let m = Regex.Match(input, pattern)
   if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
 
+let debug (msg : string) (a : 'a) : 'a =
+  printfn $"DEBUG: {msg} ({a})"
+  a
+
+// Print the value of `a`. Note that since this is wrapped in a task, it must
+// resolve the task before it can print, which could lead to different ordering
+// of operations.
+let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
+  task {
+    let! a = a
+    printfn $"DEBUG: {msg} ({a})"
+    return a
+  }
 
 module String =
   // Returns a seq of EGC (extended grapheme cluster - essentially a visible

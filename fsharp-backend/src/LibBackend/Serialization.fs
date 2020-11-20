@@ -62,7 +62,90 @@ module OCamlInterop =
     // - 3) hand-write them (converters on both ends)
     type J = JsonValue
 
-    let ofExpr (e : Expr) : JsonValue = J.Array [||]
+    let ofTLID (tlid : tlid) : JsonValue = J.String(tlid.ToString())
+    let ofID (id : id) : JsonValue = J.String(id.ToString())
+
+    let rec ofExpr (e : Expr) : JsonValue =
+      let v (name : string) (args : JsonValue list) =
+        (J.String name :: args) |> List.toArray |> J.Array
+
+      match e with
+      | EBlank id -> v "EBlank" [ ofID id ]
+      | EPartial (id, name, expr) ->
+          v "EPartial" [ ofID id; J.String name; ofExpr expr ]
+      | ERightPartial (id, name, expr) ->
+          v "ELeftPartial" [ ofID id; J.String name; ofExpr expr ]
+      | ELeftPartial (id, name, expr) ->
+          v "ERightPartial" [ ofID id; J.String name; ofExpr expr ]
+      | EString (id, s) -> v "EString" [ ofID id; J.String s ]
+      | _ -> failwith $"Not supported yet in ofExpr: {e}"
+    // | EPipeTarget id ->
+    // | ELet (_id, lhs, rhs, body) ->
+    // | EBool (_id, b) ->
+    // | EInteger (_id, i) ->
+    // | EFloat (_id, whole, fractional) ->
+    // | ENull _id ->
+    // | ECharacter (_id, s) ->
+    // | EList (_id, exprs) ->
+    // | EVariable (_id, name) ->
+    // | ERecord (id, pairs) ->
+    // | EFnCall (id, desc, exprs, ster) ->
+    // | EBinOp (id, desc, arg1, arg2, ster) ->
+    // | EFieldAccess (id, _, _) ->
+    // | EFeatureFlag (id, _, cond, oldcode, newcode) ->
+    // | ELambda (_id, parameters, body) ->
+    // | EPipe (id, e1, e2, rest) ->
+    // | EMatch (id, matchExpr, cases) ->
+    //       match pattern with
+    //       | PInteger (pid, i) ->
+    //       | PBool (pid, bool) ->
+    //       | PCharacter (pid, c) ->
+    //       | PString (pid, str) ->
+    //       | PFloat (pid, whole, fraction) ->
+    //       | PNull (pid) ->
+    //       | PVariable (pid, v) ->
+    //       | PBlank (_pid) ->
+    //       | PConstructor (pid, name, args) ->
+    // | EIf (_id, cond, thenbody, elsebody) ->
+    // | EConstructor (id, name, args) ->
+    //
+
+    let ofHandler (h : Handler.T) : JsonValue =
+      // { module_ : string or_blank [@key "module"]
+      // ; name : string or_blank
+      // ; modifier : string or_blank
+      // ; types : spec_types }
+
+      let spec =
+        let blankOr (id : id) (v : string) : JsonValue =
+          if v = "" then
+            J.Array [| J.String "Blank"; ofID id |]
+          else
+            J.Array [| J.String "Filled"; ofID id; J.String v |]
+
+        // deprecated but still needed :( to be the right shape
+        let specTypes =
+          J.Record [| "input", blankOr (gid ()) ""; "output", blankOr (gid ()) "" |]
+
+        match h.spec with
+        | Handler.REPL (name, ids) ->
+            J.Record [| "module", blankOr ids.moduleID "REPL"
+                        "name", blankOr ids.nameID name
+                        "modifier", blankOr ids.modifierID "_"
+                        "types", specTypes |]
+        | Handler.HTTP (path, modifier, ids) ->
+            J.Record [| "module", blankOr ids.moduleID "HTTP"
+                        "name", blankOr ids.nameID path
+                        "modifier", blankOr ids.modifierID modifier
+                        "types", specTypes |]
+        | _ -> failwith $"More to handle in ofHandler {h.spec}"
+
+      let result =
+        J.Record [| "tlid", ofTLID h.tlid; "ast", ofExpr h.ast; "spec", spec |]
+
+      printfn $"json of handler: {result}"
+      result
+
 
     let rec toExpr (j : JsonValue) : Expr =
 
@@ -97,6 +180,8 @@ module OCamlInterop =
               PConstructor(id, name, Array.map toPattern pats |> Array.toList)
 
           | _ -> failwith $"Unimplemented {j}"
+
+
 
 
       let constructor = j.Item(0).AsString()
@@ -201,37 +286,29 @@ module OCamlInterop =
         ast = j.Item("ast") |> toExpr
         spec = j.Item("spec") |> toHandlerSpec }
 
-    let ofHandler (h : Handler.T) : JsonValue =
-      let spec =
-        match h.spec with
-        | Handler.REPL (name, ids) -> J.Record [| "tlid", J.Number(decimal h.tlid) |]
-        | Handler.HTTP (path, modifier, ids) ->
-            J.Record [| "tlid", J.Number(decimal h.tlid) |]
-        | _ -> failwith $"More to handle in ofHandler {h.spec}"
-
-      J.Record [| "tlid", J.Number(decimal h.tlid)
-                  "ast", ofExpr h.ast
-                  "spec", spec |]
-
-
 let toplevelOfCachedBinary ((data, pos) : (byte array * string option)) : Toplevel =
-  let pos = "" // FSTODO parse pos json
   OCamlInterop.Binary.handlerBin2Json (data, data.Length)
   |> FSharp.Data.JsonValue.Parse
   |> OCamlInterop.Yojson.toHandler
   |> TLHandler
 
-let toplevelToCachedBinary (toplevel : Toplevel) : (byte array * string option) =
+let toplevelToCachedBinary (toplevel : Toplevel) : byte array =
   match toplevel with
   | TLHandler h ->
       let json = (OCamlInterop.Yojson.ofHandler h).ToString()
+      // printfn $"json: {json}"
 
       // FSTODO: note that we pass an IntPtr - bytes are a different size to ints. Does this matter?
       let mutable destPtr = System.IntPtr()
       let length = OCamlInterop.Binary.handlerJson2Bin (json, &destPtr)
+      // printfn $"length: {length}"
+
+
       let mutable (bytes : byte array) = Array.zeroCreate length
       Marshal.Copy(destPtr, bytes, 0, length)
-      (bytes, None) // FSTODO pos
+      // let newJson = OCamlInterop.Binary.handlerBin2Json (bytes, length)
+      // printfn $"newJson: {newJson}"
+      bytes
 
   | _ -> failwith $"toplevel not supported yet {toplevel}"
 
@@ -257,6 +334,7 @@ let fetchReleventTLIDsForHTTP (host : string)
   |> Sql.executeAsync (fun read -> read.int64 "tlid")
 
 let canvasIDForCanvas (owner : UserID) (canvasName : string) : Task<CanvasID> =
+  printfn $"calling canvasIDForCanvas {owner} {canvasName}"
   if canvasName.Length > 64 then
     failwith $"Canvas name was length {canvasName.Length}, must be <= 64"
   else
@@ -266,6 +344,7 @@ let canvasIDForCanvas (owner : UserID) (canvasName : string) : Task<CanvasID> =
                         "owner", Sql.uuid owner
                         "canvasName", Sql.string canvasName ]
     |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
+    |> debugTask "canvasID"
 
 // split into owner and canvasName
 let ownerNameFromHost (host : string) : string =
@@ -362,9 +441,11 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
     | TLFunction _ -> "user_function"
     | TLType _ -> "user_tipe"
 
-  let cacheBinary, pos = toplevelToCachedBinary tl // FSTODO pos
-  let (oplistBinary : byte array) = [||]
-  let digest = OCamlInterop.Binary.digest ()
+  let cacheBinary = toplevelToCachedBinary tl // FSTODO pos
+  let (oplistBinary : byte array) = [||] // FSTODO get an actual oplist
+  let digest = OCamlInterop.Binary.digest () // FSTODO digest is wrong
+  let pos = None
+  printfn $"digest {digest}"
   Sql.query "INSERT INTO toplevel_oplists
                (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
                 data, rendered_oplist_cache, deleted, pos)
@@ -377,7 +458,7 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
                  name = @path,
                  module = @module,
                  modifier = @modifier,
-                 data = oplistData,
+                 data = @oplistData,
                  rendered_oplist_cache = @cacheData,
                  deleted = @deleted,
                  pos = @pos"
@@ -389,8 +470,8 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
                       "path", Sql.stringOrNone path
                       "module", Sql.stringOrNone module_
                       "modifier", Sql.stringOrNone modifier
-                      "data", Sql.bytea oplistBinary
-                      "rendered_oplist_cache", Sql.bytea cacheBinary
+                      "oplistData", Sql.bytea oplistBinary
+                      "@cacheData", Sql.bytea cacheBinary
                       "deleted", Sql.bool false // FSTODO
                       "pos", Sql.stringOrNone pos ] // FSTODO
   |> Sql.executeNonQueryAsync
