@@ -176,7 +176,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | state, [ DStr url; DBytes body; _headers; DLambda handler ] ->
+            taskv {
+              let request = DObj Map.empty
+              return! Interpreter.eval_lambda state handler [ request ]
+            }
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

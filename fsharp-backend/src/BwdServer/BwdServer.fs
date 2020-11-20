@@ -108,17 +108,11 @@ let runDarkHandler : HttpHandler =
       let! userID = LibBackend.Serialization.userIDForUsername owner
       let! canvasID = LibBackend.Serialization.canvasIDForCanvas userID canvasName
 
-      Console.WriteLine canvasName
+      let ms = new System.IO.MemoryStream()
 
-      Console.WriteLine owner
+      do! ctx.Request.Body.CopyToAsync(ms)
 
-      Console.WriteLine path
-
-      Console.WriteLine method
-
-      Console.WriteLine(userID.ToString())
-
-      Console.WriteLine(canvasID.ToString())
+      let body = ms.ToArray()
 
       let! exprs =
         LibBackend.Serialization.loadHttpHandlersFromCache
@@ -128,10 +122,12 @@ let runDarkHandler : HttpHandler =
           path
           method
 
+      printfn $"exprs: {exprs}"
+
       match exprs with
-      | [ TLHandler { spec = HTTP _; ast = expr; tlid = _ } ] ->
+      | [ TLHandler { spec = HTTP _; ast = expr; tlid = tlid } ] ->
           let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
-          let! result = LibExecution.Execution.run [] fns expr
+          let! result = LibExecution.Execution.runHttp tlid "url" body fns expr
           // FSTODO - might not be JSON
           let result = result.toJSON().ToString()
           // FSTODO - might not be UTF8

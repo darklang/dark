@@ -27,8 +27,9 @@ let t (comment : string) (code : string) : Test =
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
-        let! actual = LibExecution.Execution.run [] fns actualProg
-        let! expected = LibExecution.Execution.run [] fns expectedResult
+        let tlid = LibExecution.Runtime.id 7
+        let! actual = LibExecution.Execution.run tlid [] fns actualProg
+        let! expected = LibExecution.Execution.run tlid [] fns expectedResult
         let actual = normalizeDvalResult actual
 
         return (Expect.equal

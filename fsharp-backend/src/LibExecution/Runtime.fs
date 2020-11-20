@@ -144,12 +144,10 @@ and Dval =
   (* | DDate of time *)
   // FSTODO
   (* | DPassword of PasswordBytes.t *)
-  // FSTODO
-  (* | DUuid of uuid *)
+  | DUuid of System.Guid
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
-  // FSTODO
-  (* | DBytes of RawBytes.t *)
+  | DBytes of byte array
 
   member this.isFake : bool =
     match this with
@@ -189,6 +187,9 @@ and Dval =
       | DNull -> Encode.unit ()
       | DList l -> l |> List.map encodeDval |> Encode.list
       | DBool b -> Encode.bool b
+      | DBytes bytes ->
+          bytes |> System.Text.Encoding.ASCII.GetString |> Encode.string
+      | DUuid uuid -> uuid.ToString() |> Encode.string
       | DLambda _ -> Encode.nil
       | DFakeVal (DError (e)) ->
           Encode.object [ "error", Encode.string (e.ToString()) ]
