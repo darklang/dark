@@ -110,7 +110,7 @@ let bin2json
     (to_json_string : 'a -> Yojson.Safe.t)
     (str : string) : string =
   try str |> bin_parser |> to_json_string |> Yojson.Safe.to_string
-  with e -> "Error"
+  with e -> "Error calling bin2json: " ^ Exception.to_string e ^ "\n" ^ str
 
 
 let user_fn_bin2json (str : string) : string =
@@ -153,7 +153,7 @@ let json2bin
     |> json_parser
     |> Result.ok_or_failwith
     |> bin_to_string
-  with e -> "Error"
+  with e -> "Error calling json2bin: " ^ Exception.to_string e ^ "\n" ^ str
 
 
 let user_fn_json2bin (str : string) : string =
