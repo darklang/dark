@@ -52,7 +52,11 @@ let t name =
 
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
-      g.[4].Value, g.[5].Value, g.[3].Value, g.[1].Value, g.[2].Value
+      g.[4].Value |> toBytes |> setHeadersToCRLF,
+      g.[5].Value,
+      g.[3].Value,
+      g.[1].Value,
+      g.[2].Value
 
     let (source : Runtime.Expr) =
       progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
@@ -89,15 +93,18 @@ let t name =
       with _ -> do! System.Threading.Tasks.Task.Delay 1000
 
     let stream = client.GetStream()
+
     stream.ReadTimeout <- 1000 // responses should be instant, right?
     stream.Write(request, 0, request.Length)
 
     let length = 10000
+
     let response = Array.zeroCreate length
     let byteCount = stream.Read(response, 0, length)
     let response = Array.take byteCount response
 
     stream.Close()
+
     client.Close()
 
     let response =
@@ -131,8 +138,6 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
         let! result = fn input
         Expect.equal result expected ""
       }) values)
-
-
 
 let unitTests =
   [ testMany

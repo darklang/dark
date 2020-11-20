@@ -444,7 +444,7 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
   let cacheBinary = toplevelToCachedBinary tl // FSTODO pos
   let (oplistBinary : byte array) = [||] // FSTODO get an actual oplist
   let digest = OCamlInterop.Binary.digest () // FSTODO digest is wrong
-  let pos = None
+  let pos = Some "{ \"x\": 0, \"y\": 0 }"
   printfn $"digest {digest}"
   Sql.query "INSERT INTO toplevel_oplists
                (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
@@ -473,7 +473,7 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
                       "oplistData", Sql.bytea oplistBinary
                       "@cacheData", Sql.bytea cacheBinary
                       "deleted", Sql.bool false // FSTODO
-                      "pos", Sql.stringOrNone pos ] // FSTODO
+                      "pos", Sql.jsonbOrNone pos ] // FSTODO
   |> Sql.executeNonQueryAsync
 
 let saveHttpHandlersToCache (canvasID : CanvasID)

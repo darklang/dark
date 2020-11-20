@@ -16,7 +16,7 @@ let makeConnection () =
     |> Sql.password "eapnsdc"
     |> Sql.database "prodclone"
     // |> Sql.sslMode SslMode.Require
-    |> Sql.config "Pooling=true"
+    |> Sql.config "Pooling=true;Include Error Detail=true"
     |> Sql.formatConnectionString
 
   let conn = new NpgsqlConnection(cs)
