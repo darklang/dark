@@ -33,19 +33,17 @@ let runHttp (tlid : tlid)
     let functions = fns |> List.map (fun fn -> (fn.name, fn)) |> Map
     let state = { functions = functions; tlid = tlid }
 
-    let symtable =
-      Map.ofList [ "url", DStr url
-                   "body", DBytes body
-                   "headers", DStr "FSTODO headers" ]
-
-    let program =
-      (eFn
-        "Http"
-         "middleware"
-         0
-         [ eVar "url"; eVar "body"; eVar "headers"; eLambda [ "request" ] e ])
-
-    let result = Interpreter.eval state symtable program
+    let result =
+      Interpreter.callFn
+        state
+        (gid ())
+        (Runtime.FnDesc.stdFnDesc "Http" "middleware" 0)
+        [ DStr url
+          DBytes body
+          DObj Map.empty
+          DLambda
+            { parameters = [ gid (), "request" ]; symtable = Map.empty; body = e } ]
+        NoRail
 
     match result with
     | Prelude.Task t -> return! t
