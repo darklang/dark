@@ -312,7 +312,7 @@ let fns : List<BuiltInFn> =
               incorrectArgs ())
       ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
-      ; deprecated = ReplacedBy(fn "" "" 0) }
+      ; deprecated = ReplacedBy(fn "Int" "random" 1) }
     ; { name = fn "Int" "random" 1
       ; parameters = [Param.make "start" TInt ""; Param.make "end" TInt ""]
       ; returnType = TInt
