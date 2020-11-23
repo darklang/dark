@@ -137,8 +137,7 @@ and Dval =
   | DLambda of LambdaBlock
   | DFakeVal of FakeDval
   (* user types: awaiting a better type system *)
-  // FSTODO
-  (* | DResp of (dhttp * dval) *)
+  | DHttpResponse of statusCode : int * headers : (string * string) list * body : Dval
   | DDB of string
   // FSTODO
   (* | DDate of time *)
@@ -200,6 +199,7 @@ and Dval =
           Encode.object
             (obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v))
       | DDB name -> encodeWithType "db" name
+      | DHttpResponse _ -> Encode.string "FSTODO: DResp"
       | DOption (Some dv) -> encodeDval dv
       | DOption (None) -> Encode.unit ()
       | DResult (Ok dv) -> encodeDval dv
