@@ -6,6 +6,8 @@ open LibExecution.Runtime
 open FSharpPlus
 open Prelude
 
+open LibExecution.Runtime.Shortcuts
+
 let fn = FnDesc.stdFnDesc
 
 let varA = TVariable "a"
@@ -68,7 +70,7 @@ let varB = TVariable "b"
 let middlewareNextParameter =
   Param.make "next" (TFn([ TVariable "ctx2" ], THTTPResponse)) ""
 
-let middlewareReturnType = TFn([ TVariable "ctx" ], THTTPResponse)
+let middlewareReturnType = TFn([ TVariable "req" ], THTTPResponse)
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "emptyRequest" 0
@@ -164,6 +166,30 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "addServerHeaderMiddleware" 0
+      parameters = []
+      returnType = middlewareReturnType
+      description = "Add the darklang server header."
+      fn =
+        (function
+        | state, [] ->
+            DLambda
+              { symtable = Map.empty
+                parameters = [ gid (), "req"; gid (), "next" ]
+                body =
+                  eLet
+                    "result"
+                    (ePipe (eVar "req") (eVar "next") [])
+                    (eFn
+                      "Dict"
+                       "set"
+                       0
+                       [ eVar "result"; eStr "server"; eStr "darklang" ]) }
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "middleware" 0
       parameters =
         [ Param.make "url" TBytes ""
@@ -175,12 +201,25 @@ let fns : List<BuiltInFn> =
         "Call the middleware stack, returning a response which can be sent to the browser"
       fn =
         (function
-        // FSTODO
-        | state, [ DStr url; DBytes body; _headers; DLambda handler ] ->
-            taskv {
-              let request = DObj Map.empty
-              return! Interpreter.eval_lambda state handler [ request ]
-            }
+        | state, [ DStr _ as url; DBytes _ as body; headers; DLambda _ as handler ] ->
+            Interpreter.eval_lambda
+              state
+              ({ parameters =
+                   [ gid (), "url"
+                     gid (), "body"
+                     gid (), "headers"
+                     gid (), "handler"
+                     gid (), "request" ]
+                 symtable = Map.empty
+                 body =
+                   eLet
+                     "app"
+                     (ePipe
+                       (eVar "handler")
+                        (eFn "Http" "addServerHeaderMiddleware" 0 [])
+                        [])
+                     (ePipe (eVar "request") (eVar "app") []) })
+              [ url; body; headers; handler; DObj Map.empty ]
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -192,7 +231,7 @@ let fns : List<BuiltInFn> =
 //                       (handler)
 //                       : response =
 //   handler
-//   |> addQueryParams url
+//   |> \nextMW -> addQueryParams url nextMW
 //   |> parseRawBody
 //   |> addHeaders headers
 //   |> addJsonBody body
