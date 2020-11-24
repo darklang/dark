@@ -2,6 +2,8 @@
 
 Our former constraint of <= 15 certs is no longer applicable! Yay.
 
+https://www.notion.so/darklang/Custom-domains-take-2-c9f04210ec94422695f91bc870bf117e
+
 ## Customer requirements
 
 - You need to set up a CNAME from your desired domain to
