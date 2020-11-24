@@ -21,14 +21,14 @@ Our former constraint of <= 15 certs is no longer applicable! Yay.
 ## Dark ops instructions
 
 - Make sure you have run `scripts/gcp-authorize-kubectl` (if you have not, you might get `The connection to the server localhost:8080 was refused - did you specify the right host or port?` in the next step)
-- Run `scripts/add-custom-domain` and provide the domain (eg `api.example.com`); we'll get the canvas
+- Run `scripts/custom-domain-add` and provide the domain (eg `api.example.com`); we'll get the canvas
   name from the CNAME, which also verifies that the CNAME DNS record is in
   place.
   Make sure to supply the DOMAIN without the `https://` prefix.
 - The CNAME must exist before the below is done because Let's Encrypt uses an
   HTTP request to verify that "we" (the user) control the domain before issuing
   a cert.
-- There are no longer any manual steps to run, nor deploys needed, to provision
+- There are no manual steps to run, nor deploys needed, to provision
   a custom domain.
 
 ## Deleting custom domains
@@ -58,7 +58,7 @@ apply it, but that is also dangerous as cert-manager uses
 
 ## Implementation details
 
-See `scripts/add-custom-domain` for a high level overview.
+See `scripts/custom-domain-add` for a high level overview.
 
 If you're wondering about the `cert-manager-*` yamls in
 `services/cert-manager/`, see the [cert-manager
