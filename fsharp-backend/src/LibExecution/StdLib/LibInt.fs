@@ -106,87 +106,64 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
-        | state, [ (DFloat _ as a); _ ]
-        | state, [ (DStr _ as a); _ ]
-        | state, [ _; (DFloat _ as a) ]
-        | state, [ _; (DStr _ as a) ] ->
-            // FSTODO
-            Value(errStr "")
-        //    ("The first param ("
-        //    + Dval.to_developer_repr_v0 a
-        //    + ") is a Float, but "
-        //    + state.executing_fnname
-        //    + " only works on Ints. Use Float::add to add Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ DStr a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a string, but Int:add only works on Ints."))
+        | _, [ _; DStr b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a string, but Int:add only works on Ints."))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "subtract" 0
-    //   ; infix_names = ["-"]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Subtracts two integers"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DInt (Dint.( - ) a b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::subtract to subtract Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "multiply" 0
-    //   ; infix_names = ["*"]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Multiplies two integers"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DInt (Dint.( * ) a b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "subtract" 0
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Subtracts two integers"
+      fn =
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "multiply" 0
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Multiplies two integers"
+      fn =
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Int" "power" 0
     //   ; infix_names = ["^"]
     //   ; parameters = [Param.make "base" TInt; Param.make "exponent" TInt]
@@ -286,177 +263,133 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "greaterThanOrEqualTo" 0
-    //   ; infix_names = [">="]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is greater than or equal to b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DBool (a >= b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "lessThan" 0
-    //   ; infix_names = ["<"]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is less than b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DBool (a < b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "lessThanOrEqualTo" 0
-    //   ; infix_names = ["<="]
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is less than or equal to b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DBool (a <= b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "random" 0
-    //
-    //   ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns a random integer between a and b (inclusive)"
-    //   ; fn =
-    //
-    //         (function
-    //         (*( +1 as Random.int is exclusive *)
-    //         | _, [DInt a; DInt b] ->
-    //             let open Dint in
-    //             DInt (a + one + Dint.random (b - a))
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Impure
-    //   ; deprecated = ReplacedBy(fn "" "" 0) }
-    // ; { name = fn "Int" "random" 1
-    //
-    //   ; parameters = [Param.make "start" TInt; Param.make "end" TInt]
-    //   ; returnType = TInt
-    //   ; description =
-    //       "Returns a random integer between `start` and `end` (inclusive)."
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             let open Dint in
-    //             (* upper+1 because as Random.int is exclusive *)
-    //             let lower, upper = if a > b then (b, a + one) else (a, b + one) in
-    //             DInt (lower + Dint.random (upper - lower))
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Impure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "sqrt" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TFloat
-    //   ; description = "Get the square root of an Int"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a] ->
-    //             DFloat (Dint.to_float a |> sqrt)
-    //         | state, [(DFloat _ as a)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "toFloat" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TFloat
-    //   ; description = "Converts an Int to a Float"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a] -> DFloat (Dint.to_float a) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "greaterThanOrEqualTo" 0
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TBool
+      description = "Returns true if a is greater than or equal to b"
+      fn =
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "lessThan" 0
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TBool
+      description = "Returns true if a is less than b"
+      fn =
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "lessThanOrEqualTo" 0
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TBool
+      description = "Returns true if a is less than or equal to b"
+      fn =
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:lessThanOrEqualTo only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:lessThanOrEqualTo but only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "random" 0
+      parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
+      returnType = TInt
+      description = "Returns a random integer between a and b (inclusive)"
+      fn =
+        (function
+        (*( +1 as Random.int is exclusive *)
+        | _, [ DInt a; DInt b ] ->
+            Value(DInt(a + one + (Runtime.random.Next((b - a) |> int) |> bigint)))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first  argument ({a}) is a float, but Int:random only works on Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:random only works on Ints."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = ReplacedBy(fn "Int" "random" 1) }
+    { name = fn "Int" "random" 1
+      parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
+      returnType = TInt
+      description = "Returns a random integer between `start` and `end` (inclusive)."
+      fn =
+        (function
+        | _, [ DInt a; DInt b ] ->
+            (* upper+1 because as Random.int is exclusive *)
+            let lower, upper = if a > b then (b, a + one) else (a, b + one)
+            Value
+              (DInt(lower + (Runtime.random.Next((upper - lower) |> int) |> bigint)))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "sqrt" 0
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TFloat
+      description = "Get the square root of an Int"
+      fn =
+        (function
+        | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
+        | _, [ DFloat a ] ->
+            Value
+              (errStr
+                ($"The argument ({a}) is a float, but Int:sqrt only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "toFloat" 0
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TFloat
+      description = "Converts an Int to a Float"
+      fn =
+        (function
+        | _, [ DInt a ] -> Value(DFloat(a |> float))
+        | _, [ DStr a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a string, but Int:toFloat only works on Ints."))
+        | _, [ _; DStr b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a string, but Int:toFloat only works on Ints."))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Int" "sum" 0
     //
     //   ; parameters = [Param.make "a" TList]

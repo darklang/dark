@@ -33,13 +33,16 @@ let infixFns =
         match d.module_, d.function_, d.version with
         | "Int", "add", 0 -> Some "+"
         | "Int", "greaterThan", 0 -> Some ">"
+        | "Int", "greaterThanOrEqualTo", 0 -> Some ">="
+        | "Int", "lessThanOrEqualTo", 0 -> Some "<="
+        | "Int", "lessThan", 0 -> Some "<"
         | "String", "append", 1 -> Some "++"
         | _ -> None
 
       Option.map (fun opName -> { builtin with name = FnDesc.stdFnDesc "" opName 0 })
         opName) prefixFns
 
-  assert (fns.Length = 3) // make sure we got them all
+  assert (fns.Length = 6) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns
