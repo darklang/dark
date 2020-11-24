@@ -1,9 +1,9 @@
-Custom Domains (with certs via Let's Encrypt)
-========================
+# Custom Domains (with certs via Let's Encrypt)
 
 Our former constraint of <= 15 certs is no longer applicable! Yay.
 
 ## Customer requirements
+
 - You need to set up a CNAME from your desired domain to
   `<canvas>.builtwithdark.com`.
   - Note: this cannot be an apex (`foo.com`); using `www.foo.com` is the usual
@@ -19,19 +19,46 @@ Our former constraint of <= 15 certs is no longer applicable! Yay.
   again, for redirects, not SSL certs.
 
 ## Dark ops instructions
+
 - Make sure you have run `scripts/gcp-authorize-kubectl` (if you have not, you might get `The connection to the server localhost:8080 was refused - did you specify the right host or port?` in the next step)
 - Run `scripts/add-custom-domain` and provide the domain (eg `api.example.com`); we'll get the canvas
   name from the CNAME, which also verifies that the CNAME DNS record is in
-place.
+  place.
   Make sure to supply the DOMAIN without the `https://` prefix.
 - The CNAME must exist before the below is done because Let's Encrypt uses an
   HTTP request to verify that "we" (the user) control the domain before issuing
-a cert.
+  a cert.
 - There are no longer any manual steps to run, nor deploys needed, to provision
   a custom domain.
 
+## Deleting custom domains
+
+Deleting custom domains is not currently scripted, and it is inherently lossy cause k8s sucks.
+
+Domains are stored in three places: in our custom_domains table in the main DB,
+and also in the `darkcustomdomain-l4-ingress` in `.spec.tls[]` and also in
+`.spec.rules[]`. The latter is to enable SSL, the former is to connect the
+request to the appropriate canvas.
+
+Removing from the DB is straightforward with SQL. Removing from
+`darkcustomdomain-l4-ingress` is not. They are lists, and there is no safe way
+to remove a single entry from a list in k8s (it does not have a "remove the array element with this value" command). The best option is to run:
+
+```
+kubectl get ingress darkcustomdomain-l4-ingress -o yaml > file.yaml
+[edit the file]
+kubectl apply -f file.yaml
+```
+
+(this could also be scriptable with jq/yq, but there is still the race condition)
+
+It seems that you could instead regenerate the file from the DB and simply
+apply it, but that is also dangerous as cert-manager uses
+`darkcustomdomain-l4-ingress` to manage communication with letsencrypt as well.
+
 ## Implementation details
-See `scripts/add-custom-domain.md` for a high level overview.
+
+See `scripts/add-custom-domain` for a high level overview.
 
 If you're wondering about the `cert-manager-*` yamls in
 `services/cert-manager/`, see the [cert-manager

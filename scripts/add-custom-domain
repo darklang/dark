@@ -104,7 +104,7 @@ PATCH
 # above, will also help). However, if you find yourself in this situation,
 # here's how you can fix it manually.
 #
-# Note: I am _not_ suggesting using `kubectl patch` for this, it is hard to
+# Note: Do not use ing `kubectl patch` for this, it is hard to
 # control ("delete the nth entry in the spec.tls array" risks race conditions).
 #
 # So we may as well do it the easy way:
