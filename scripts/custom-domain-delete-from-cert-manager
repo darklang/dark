@@ -51,7 +51,7 @@ read -r -p "Are you sure you want to apply the new config? [y/N] " response
 case "${response}" in
     [yY][eE][sS]|[yY])
         echo "OK. Applying the new config"
-        kubectl apply --dry-run=server -f "${newtmpfile}"
+        kubectl apply -f "${newtmpfile}"
         ;;
     *)
         echo "OK. Doing nothing."
