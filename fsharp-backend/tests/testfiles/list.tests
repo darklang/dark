@@ -60,6 +60,5 @@
 List.range_v0 -1 0 = [-1; 0]
 List.range_v0 -5 5 = [-5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5;]
 List.map_v0 [1, 2] (fun x -> x + 1) = [2, 3]
-//List.map_v0 (List.range_v0 1 100) (fun x -> x + 1) = 1
-//(Int.greaterThanOrEqualTo_v0 8 5) && (Int.lessThanOrEqualTo_v0 6 8) = true
-//List.filter_v2 [1, 2, 3] (fun x -> )  = 4
+List.map_v0 (List.range_v0 1 5) (fun x -> x + 1) = [2; 3; 4; 5; 6]
+List.map_v0 [1, 2, 3] (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 4))  = [true; true; true]
