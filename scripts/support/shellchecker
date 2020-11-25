@@ -5,7 +5,7 @@ set -euo pipefail
 
 if [[ "$#" -eq 1 ]]; then
   echo "shellcheck $1"
-  shellcheck -x -e SC2044 -e SC2086 "$1"
+  shellcheck -x -e SC2002 -e SC2044 -e SC2086 "$1"
 else
   echo "shellcheck bash files ..."
   # In the scripts/ directory,
