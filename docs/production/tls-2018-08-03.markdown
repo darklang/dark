@@ -240,6 +240,7 @@ Our certs are badly organized and are spread out, but here is the current status
 - builtwithdark.com: cert exists, not installed for some reason. TODO: move to cert-manager
 - \*.darklang.com: positivessl.com. Cert installed in a k8s ingress/secret. Note DNS is at cloudflare. TODO: move to cert manager. Move DNS to google.
 - darksa.com: new one being bought at positivessl.
+- darkstaticassets.com: new one being bought at positivessl.
 - old certs have also been bought via cloudflare, store.sectigo.com and secure.sectigo.com (which are different!)
 - customer certs use cert-manager (using k8s, see darkcustomdomain, other docs mentioning custom-domain)
 - some customer certs use google managed certs, we've stopped adding new ones but the old ones are still there
