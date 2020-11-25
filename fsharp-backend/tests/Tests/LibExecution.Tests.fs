@@ -47,7 +47,7 @@ let fileTests () : Test =
   System.IO.Directory.GetFiles(dir, "*")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.map (fun filename ->
-       if filename.Contains "language" || filename.Contains "int.tests" then // tweak to run subset of tests
+       if filename.Contains "language" || filename.Contains "int.tests"  || filename.Contains "list.tests" || filename.Contains "bool.tests" then // tweak to run subset of tests
          let currentTestName = ref ""
          let currentTests = ref [] // keep track of tests within a [tests]
          let singleTestMode = ref false
