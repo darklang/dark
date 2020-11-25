@@ -627,7 +627,6 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
-//               let result = List.filter ~f l in
     { name = fn "List" "filter" 2
 
       parameters =
