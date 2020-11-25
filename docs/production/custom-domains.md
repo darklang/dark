@@ -35,7 +35,7 @@ https://www.notion.so/darklang/Custom-domains-take-2-c9f04210ec94422695f91bc870b
 
 ## Deleting custom domains
 
-Deleting custom domains is not currently scripted, and it is inherently lossy cause k8s sucks.
+Deleting custom domains is inherently lossy cause k8s sucks.
 
 Domains are stored in three places: in our custom_domains table in the main DB,
 and also in the `darkcustomdomain-l4-ingress` in `.spec.tls[]` and also in
@@ -44,19 +44,15 @@ request to the appropriate canvas.
 
 Removing from the DB is straightforward with SQL. Removing from
 `darkcustomdomain-l4-ingress` is not. They are lists, and there is no safe way
-to remove a single entry from a list in k8s (it does not have a "remove the array element with this value" command). The best option is to run:
+to remove a single entry from a list in k8s (it does not have a "remove the
+array element with this value" command).
 
-```
-kubectl get ingress darkcustomdomain-l4-ingress -o yaml > file.yaml
-[edit the file]
-kubectl apply -f file.yaml
-```
+These actions are scripted, split into two parts:
 
-(this could also be scriptable with jq/yq, but there is still the race condition)
+- scripts/custom-domain-delete-from-cert-manager
+- scripts/custom-domain-delete-from-db
 
-It seems that you could instead regenerate the file from the DB and simply
-apply it, but that is also dangerous as cert-manager uses
-`darkcustomdomain-l4-ingress` to manage communication with letsencrypt as well.
+You need to do both and they're interactive (reflecting the risky nature).
 
 ## Implementation details
 
