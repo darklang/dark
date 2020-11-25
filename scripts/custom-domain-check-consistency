@@ -30,7 +30,7 @@ tmpfile=$(mktemp /tmp/custom_domain.XXXXXX)
 select_query="SELECT host FROM custom_domains"
 echo "\\copy (${select_query}) TO ${tmpfile}" \
     | ./scripts/gcp-psql --production
-DBHOSTS=$(cat ${tmpfile} | sort)
+DBHOSTS=$(sort ${tmpfile})
 
 CERTMANAGER_JSON=$(kubectl get ingress darkcustomdomain-l4-ingress -o json)
 TLSES=$(printf "%s" "${CERTMANAGER_JSON}" \
