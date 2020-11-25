@@ -328,7 +328,7 @@ let fns : List<BuiltInFn> =
         (function
         (*( +1 as Random.int is exclusive *)
         | _, [ DInt a; DInt b ] ->
-            Value(DInt(a + one + (Runtime.random.Next((b - a) |> int) |> bigint)))
+            Value(DInt(a + (Runtime.random.Next((b - a) |> int) |> bigint)))
         | _, [ DFloat a; _ ] ->
             Value
               (errStr
