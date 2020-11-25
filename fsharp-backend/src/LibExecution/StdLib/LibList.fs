@@ -627,32 +627,50 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
-    { name = fn "List" "filter" 2
-
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.make
-            "fn"
-            (TFn([ varA ], varB))
-            "Function to be called on each member" ]
-      returnType = TList varB
-      description = "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
-          Preserves the order of values that were not dropped.
-          Consider `List::filterMap` if you also want to transform the values."
-      fn =
-         (function
-        | state, [ DList l; DLambda b ] ->
-            taskv {
-              let! result =
-                map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
-
-              return Dval.list result
-            }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-    //   ; { name = fn "List" "filterMap" 0
+//   ; { name = fn "List" "filter" 2
+//
+//     ; parameters = [Param.make "list" TList; func ["val"]]
+//     ; returnType = TList
+//     ; description =
+//         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
+//         Preserves the order of values that were not dropped.
+//         Consider `List::filterMap` if you also want to transform the values."
+//     ; fn =
+//
+//           (function
+//           | state, [DList l; DLambda b] ->
+//               let abortReason = ref None in
+//               let f (dv : dval) : bool =
+//                 !abortReason = None
+//                 &&
+//                 match Ast.execute_dblock ~state b [dv] with
+//                 | DBool b ->
+//                     b
+//                 | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
+//                     abortReason := Some dv ;
+//                     false
+//                 | v ->
+//                     abortReason :=
+//                       Some
+//                         (DError
+//                            ( SourceNone
+//                            , "Expected the argument `f` passed to `"
+//                              ^ state.executing_fnname
+//                              ^ "` to return `true` or `false` for every value in `list`. However, it returned `"
+//                              ^ Dval.to_developer_repr_v0 v
+//                              ^ "` for the input `"
+//                              ^ Dval.to_developer_repr_v0 dv
+//                              ^ "`." )) ;
+//                     false
+//               in
+//               let result = List.filter ~f l in
+//               (match !abortReason with None -> DList result | Some v -> v)
+//           | args ->
+//               incorrectArgs ())
+//     ; sqlSpec = NotYetImplementedTODO
+//       ; previewable = Pure
+//     ; deprecated = NotDeprecated }
+//   ; { name = fn "List" "filterMap" 0
 //
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList

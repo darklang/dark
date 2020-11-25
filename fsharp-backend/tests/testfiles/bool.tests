@@ -2,6 +2,7 @@ Bool.and_v0 false false = false
 Bool.and_v0 false true = false
 Bool.and_v0 true false = false
 Bool.and_v0 true true = true
+Bool.and_v0 (Int.greaterThanOrEqualTo_v0 8 5) (Int.lessThanOrEqualTo_v0 6 8) = true
 Bool.isNull_v0 (null) = true
 Bool.isNull_v0 true = false
 Bool.not_v0 false = true
