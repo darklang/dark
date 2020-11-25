@@ -38,5 +38,5 @@ echo "Adding the domain to the DB"
 ./scripts/custom-domain-add-to-db "${DOMAIN}" "${CANVAS}"
 echo "Adding the domain to cert manager"
 ./scripts/custom-domain-add-to-cert-manager "${DOMAIN}"
-#./scripts/custom-domain-compare-db-and-cert-manager "${DOMAIN}"
+./scripts/custom-domain-check-consistency
 ./scripts/custom-domain-check-cert-added "${DOMAIN}"
