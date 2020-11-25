@@ -5,7 +5,7 @@ set -euo pipefail
 
 if [[ "$#" -eq 1 ]]; then
   echo "shellcheck $1"
-  shellcheck -x -e SC2044 -e SC2086 "$1"
+  shellcheck -x -e SC2002 -e SC2044 -e SC2086 "$1"
 else
   echo "shellcheck bash files ..."
   # In the scripts/ directory,
@@ -34,7 +34,7 @@ else
     -o -path "./containers/queue-scheduler/target" -prune \
     -o -type f \
     -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
-    | xargs shellcheck -e SC2044 -e SC2086
+    | xargs shellcheck -e SC2002 -e SC2044 -e SC2086
 fi
 
 
