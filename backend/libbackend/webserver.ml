@@ -182,17 +182,10 @@ let should_use_https uri =
   | [_; "builtwithdark"; "com"]
   (* Customers - do not remove the marker below *)
   (* ACD-should_use_https-MARKER *)
-  | ["api"; "venu"; "fm"]
   | ["chat"; "lee"; "af"]
-  | ["api"; "fiasco"; "club"]
-  | ["api"; "polotek"; "app"]
   | ["scraper-proxy"; "galactic"; "zone"]
-  | ["accounts"; "darklang"; "com"]
-  | ["dark"; "mackenzieclark"; "codes"]
   | ["hellobirb"; "com"]
   | ["www"; "hellobirb"; "com"]
-  | ["talkpay"; "club"]
-  | ["www"; "talkpay"; "club"]
   | ["kiksht"; "com"]
   | ["www"; "kiksht"; "com"]
   | ["food"; "placeofthin"; "gs"] ->
