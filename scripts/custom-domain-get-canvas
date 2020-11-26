@@ -24,7 +24,7 @@ DOMAIN=$1
 
 dig_cname="$(dig "$DOMAIN" +short CNAME | head -n 1 | sed 's/.$//')"
 
-if [[ "${dig_cname}" =~ \.darkcustomdomain\.com$ ]]; then
+if [[ "${dig_cname}" =~ \.darkcustomdomain\.com$ || "${dig_cname}" =~ \.builtwithdark\.com$ ]]; then
   true
 elif [[ "${dig_cname}" == "" ]]; then
   echo >&2 "No CNAME found for ${DOMAIN}"
@@ -35,4 +35,5 @@ else
 fi
 
 CANVAS=${dig_cname//\.darkcustomdomain.com/}
+CANVAS=${CANVAS//\.builtwithdark.com/}
 echo "${CANVAS}"
