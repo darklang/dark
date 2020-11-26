@@ -2026,45 +2026,25 @@ let route_host req =
    * just another load balancer *)
   | [a; "darkcustomdomain"; "com"]
   | [a; "builtwithdark"; "localhost"]
-  | [a; "builtwithdark"; "lvh"; "me"]
-  | [a; "darksingleinstance"; "com"] ->
+  | [a; "builtwithdark"; "lvh"; "me"] ->
       Some (Canvas a)
   (* Specific Dark canvas: builtwithdark *)
   | ["builtwithdark"; "localhost"]
   | ["builtwithdark"; "lvh"; "me"]
   | ["builtwithdark"; "com"] ->
       Some (Canvas "builtwithdark")
-  (* Specific Dark canvas: darksingleinstance *)
-  | ["darksingleinstance"; "com"] ->
-      Some (Canvas "darksingleinstance")
   (* Customers - do not remove the marker below *)
   (* ACD-route_host-MARKER *)
-  | ["api"; "venu"; "fm"] ->
-      Some (Canvas "kian-venufm")
   | ["chat"; "lee"; "af"] ->
       Some (Canvas "lee-roulette")
-  | ["api"; "fiasco"; "club"] ->
-      Some (Canvas "polotek-fiasco")
-  | ["api"; "polotek"; "app"] ->
-      Some (Canvas "polotek")
   | ["scraper-proxy"; "galactic"; "zone"] ->
       Some (Canvas "danielsokil-scraper-proxy")
-  | ["accounts"; "darklang"; "com"] ->
-      Some (Canvas "ops-adduser")
-  | ["dark"; "mackenzieclark"; "codes"] ->
-      Some (Canvas "xmclark")
   | [a; "dabblefox"; "com"] ->
       Some (Canvas ("dabblefox-" ^ a))
   | ["www"; "hellobirb"; "com"] | ["hellobirb"; "com"] ->
       Some (Canvas "pixelkeet")
-  | ["www"; "talkpay"; "club"] | ["talkpay"; "club"] ->
-      Some (Canvas "andymoe-talkpay")
   | ["www"; "kiksht"; "com"] | ["kiksht"; "com"] ->
       Some (Canvas "alex")
-  | ["login"; "darklang"; "com"] ->
-      Some (Canvas "ops-login")
-  | ["rest"; "sankhe"; "com"] ->
-      Some (Canvas "vinayski")
   | ["food"; "placeofthin"; "gs"] ->
       Some (Canvas "scottriley-trellomap")
   (* admin interface + outer site, conditionally *)

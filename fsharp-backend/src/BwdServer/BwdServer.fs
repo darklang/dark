@@ -86,8 +86,6 @@ open LibExecution.Framework
 let canvasNameFromHost (host : string) : Task<string> =
   task {
     match host.Split [| '.' |] with
-    | [| a; "darksingleinstance"; "com" |]
-    | [| a; "darksingleinstance"; "com" |]
     // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
     // just another load balancer
     | [| a; "darkcustomdomain"; "com" |]
