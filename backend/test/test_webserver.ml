@@ -48,8 +48,7 @@ let t_route_host () =
      * *.builtwithdark.com;  custom_domain checks routing via the db's
      * custom_domains table *)
     ["foo"; "test-route_host"]
-    ( [ "http://foo.builtwithdark.com"
-      ; "http://" ^ custom_domain ]
+    ( ["http://foo.builtwithdark.com"; "http://" ^ custom_domain]
     |> List.map ~f:Uri.of_string
     |> List.map ~f:CRequest.make
     |> List.map ~f:route_host
