@@ -66,8 +66,22 @@ module Sql =
       | Error exn -> return raise exn
     }
 
+  let convertToOption (result : Task<List<'a>>) : Task<Option<'a>> =
+    task {
+      match! result with
+      | [ a ] -> return Some a
+      | [] -> return None
+      | list ->
+          return failwith "Too many results, expected 0 or 1, got {list.Length}"
+    }
+
   let query (sql : string) : Sql.SqlProps =
     makeConnection () |> Sql.existingConnection |> Sql.query sql
+
+  let executeRowOptionAsync (reader : RowReader -> 't)
+                            (props : Sql.SqlProps)
+                            : Task<Option<'t>> =
+    Sql.executeAsync reader props |> throwOrReturn |> convertToOption
 
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     Sql.executeRowAsync reader props |> throwOrReturn

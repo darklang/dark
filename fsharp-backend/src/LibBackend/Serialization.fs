@@ -358,18 +358,19 @@ let userIDForUsername (user : string) : Task<UserID> =
     failwith "Banned username"
   else
     Sql.query "SELECT id
-                  FROM accounts
-                  WHERE accounts.username = @username"
+               FROM accounts
+               WHERE accounts.username = @username"
     |> Sql.parameters [ "username", Sql.string user ]
     |> Sql.executeRowAsync (fun read -> read.uuid "id")
 
 
-let canvasNameFromCustomDomain host : Task<string> =
+let canvasNameFromCustomDomain host : Task<Option<string>> =
   Sql.query "SELECT canvas
-                  FROM customer_domains
-                  WHERE host = @host"
+             FROM custom_domains
+             WHERE host = @host"
   |> Sql.parameters [ "host", Sql.string host ]
-  |> Sql.executeRowAsync (fun read -> read.string "canvas")
+  |> Sql.executeRowOptionAsync (fun read -> read.string "canvas")
+
 
 
 

@@ -66,11 +66,10 @@ let varB = TVariable "b"
 // As such, the types of the entire middleware have to add up to the type of
 // the handler.
 
+// This is returned by a middlware and passed into the next middleware
+let middlewareReturnType = TFn([ TVariable "req" ], TVariable "resp")
+let middlewareNextParameter = Param.make "next" middlewareReturnType ""
 
-let middlewareNextParameter =
-  Param.make "next" (TFn([ TVariable "ctx2" ], THTTPResponse)) ""
-
-let middlewareReturnType = TFn([ TVariable "req" ], THTTPResponse)
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "emptyRequest" 0
@@ -167,7 +166,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "addServerHeaderMiddleware" 0
-      parameters = []
+      parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Add the darklang server header."
       fn =
@@ -175,7 +174,7 @@ let fns : List<BuiltInFn> =
         | state, [] ->
             DLambda
               { symtable = Map.empty
-                parameters = [ gid (), "req"; gid (), "next" ]
+                parameters = [ gid (), "req" ]
                 body =
                   eLet
                     "result"

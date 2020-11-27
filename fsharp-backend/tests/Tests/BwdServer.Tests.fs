@@ -95,11 +95,13 @@ let t name =
     let stream = client.GetStream()
 
     stream.ReadTimeout <- 1000 // responses should be instant, right?
+
     stream.Write(request, 0, request.Length)
 
     let length = 10000
 
     let response = Array.zeroCreate length
+
     let byteCount = stream.Read(response, 0, length)
     let response = Array.take byteCount response
 
@@ -155,10 +157,11 @@ let unitTests =
     testManyTask
       "canvasNameFromHost"
       BwdServer.canvasNameFromHost
-      [ ("test-something.builtwithdark.com", "test-something")
-        ("my-canvas.builtwithdark.localhost", "my-canvas")
-        ("builtwithdark.localhost", "builtwithdark")
-        ("my-canvas.darkcustomdomain.com", "my-canvas") ] ]
+      [ ("test-something.builtwithdark.com", Some "test-something")
+        ("my-canvas.builtwithdark.localhost", Some "my-canvas")
+        ("builtwithdark.localhost", Some "builtwithdark")
+        ("my-canvas.darkcustomdomain.com", Some "my-canvas")
+        ("www.microsoft.com", None) ] ]
 
 let tests =
   testList

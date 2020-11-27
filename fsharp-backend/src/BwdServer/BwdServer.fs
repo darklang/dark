@@ -83,49 +83,54 @@ open LibExecution.Framework.Handler
 open LibExecution.Framework
 
 
-let canvasNameFromHost (host : string) : Task<string> =
+let canvasNameFromHost (host : string) : Task<Option<string>> =
   task {
     match host.Split [| '.' |] with
     // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
     // just another load balancer
     | [| a; "darkcustomdomain"; "com" |]
     | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return a
+    | [| a; "builtwithdark"; "com" |] -> return Some a
     | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return "builtwithdark"
+    | [| "builtwithdark"; "com" |] -> return Some "builtwithdark"
     | _ -> return! LibBackend.Serialization.canvasNameFromCustomDomain host
   }
 
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let executionID = LibExecution.Runtime.Shortcuts.gid ()
-      let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
-      let! canvasName = canvasNameFromHost ctx.Request.Host.Host
-      let owner = LibBackend.Serialization.ownerNameFromHost canvasName
-      let path = ctx.Request.Path.Value
-      let method = ctx.Request.Method
-      let! userID = LibBackend.Serialization.userIDForUsername owner
-      let! canvasID = LibBackend.Serialization.canvasIDForCanvas userID canvasName
+      let exprs =
+        task {
+          let executionID = LibExecution.Runtime.Shortcuts.gid ()
+          let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
+          match! canvasNameFromHost ctx.Request.Host.Host with
+          | Some canvasName ->
+              let ownerName = LibBackend.Serialization.ownerNameFromHost canvasName
+              printfn $"owner is {ownerName}"
+              let! userID = LibBackend.Serialization.userIDForUsername ownerName
 
-      let ms = new System.IO.MemoryStream()
+              let! canvasID =
+                LibBackend.Serialization.canvasIDForCanvas userID canvasName
 
-      do! ctx.Request.Body.CopyToAsync(ms)
+              let path = ctx.Request.Path.Value
 
-      let body = ms.ToArray()
+              let method = ctx.Request.Method
 
-      let! exprs =
-        LibBackend.Serialization.loadHttpHandlersFromCache
-          canvasName
-          canvasID
-          userID
-          path
-          method
+              return! LibBackend.Serialization.loadHttpHandlersFromCache
+                        canvasName
+                        canvasID
+                        userID
+                        path
+                        method
+          | None -> return []
+        }
 
-      printfn $"exprs: {exprs}"
-
-      match exprs with
+      match! exprs with
       | [ TLHandler { spec = HTTP _; ast = expr; tlid = tlid } ] ->
+          let ms = new System.IO.MemoryStream()
+          do! ctx.Request.Body.CopyToAsync(ms)
+          let body = ms.ToArray()
+
           let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
           let! result = LibExecution.Execution.runHttp tlid "url" body fns expr
           // FSTODO - might not be JSON
