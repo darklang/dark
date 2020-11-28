@@ -38,3 +38,7 @@ Int.multiply_v0 8 8 = 64
 Int.multiply_v0 5145 5145 = 26471025
 List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v0 1 2)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 1)) = [true; true; true; true; true]
 List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v0 10 20)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 10) (Int.lessThanOrEqualTo_v0 x 19)) = [true; true; true; true; true]
+List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 1 2)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 1)) = [true; true; true; true; true]
+List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 10 20)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 10) (Int.lessThanOrEqualTo_v0 x 19)) = [true; true; true; true; true]
+List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 2 1)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 1)) = [true; true; true; true; true]
+List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 20 10)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 10) (Int.lessThanOrEqualTo_v0 x 19)) = [true; true; true; true; true]

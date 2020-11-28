@@ -326,9 +326,10 @@ let fns : List<BuiltInFn> =
       description = "Returns a random integer between a and b (inclusive)"
       fn =
         (function
-        (*( +1 as Random.int is exclusive *)
         | _, [ DInt a; DInt b ] ->
-            Value(DInt(a + (Runtime.random.Next((b - a) |> int) |> bigint)))
+            a + (Runtime.random.Next((b - a) |> int) |> bigint)
+            |> DInt
+            |> Value
         | _, [ DFloat a; _ ] ->
             Value
               (errStr
@@ -348,10 +349,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            (* upper+1 because as Random.int is exclusive *)
-            let lower, upper = if a > b then (b, a + one) else (a, b + one)
-            Value
-              (DInt(lower + (Runtime.random.Next((upper - lower) |> int) |> bigint)))
+            let lower, upper = if a > b then (b, a) else (a, b)
+            lower + (Runtime.random.Next((upper - lower) |> int) |> bigint)
+            |> DInt
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
