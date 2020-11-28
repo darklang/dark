@@ -320,7 +320,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt start; DInt stop ] ->
-            Value(DList([ start .. stop ] |> List.map (fun i -> DInt i)))
+            [ start .. stop ]
+            |> List.map DInt
+            |> DList
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
