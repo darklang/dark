@@ -58,6 +58,7 @@
 //List.zip_v0 [10;20;30] [1;2;3] = Just [ \n    [ \n      10, 1\n    ], [ \n      20, 2\n    ], [ \n      30, 3\n    ]\n  ]
 //List.zip_v0 [10;20] [1;2;3] = Nothing
 List.range_v0 -1 0 = [-1; 0]
+List.range_v0 5 0 = []
 List.range_v0 -5 5 = [-5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5;]
 List.map_v0 [1, 2] (fun x -> x + 1) = [2, 3]
 List.map_v0 (List.range_v0 1 5) (fun x -> x + 1) = [2; 3; 4; 5; 6]
