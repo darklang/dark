@@ -95,4 +95,4 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) } ]
+      deprecated = DeprecatedBecause "an old workaround to poor static typing that's no longer needed" } ]
