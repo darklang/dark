@@ -44,13 +44,11 @@ let t_route_host () =
   AT.check
     (AT.list AT.string)
     "route_host works"
-    (* kian-venufm is the legacy hardcoded-in-webserver.ml case; foo checks
+    (* foo checks
      * *.builtwithdark.com;  custom_domain checks routing via the db's
      * custom_domains table *)
-    ["kian-venufm"; "foo"; "test-route_host"]
-    ( [ "http://api.venu.fm"
-      ; "http://foo.builtwithdark.com"
-      ; "http://" ^ custom_domain ]
+    ["foo"; "test-route_host"]
+    ( ["http://foo.builtwithdark.com"; "http://" ^ custom_domain]
     |> List.map ~f:Uri.of_string
     |> List.map ~f:CRequest.make
     |> List.map ~f:route_host

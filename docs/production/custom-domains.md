@@ -1,9 +1,11 @@
-Custom Domains (with certs via Let's Encrypt)
-========================
+# Custom Domains (with certs via Let's Encrypt)
 
 Our former constraint of <= 15 certs is no longer applicable! Yay.
 
+https://www.notion.so/darklang/Custom-domains-take-2-c9f04210ec94422695f91bc870bf117e
+
 ## Customer requirements
+
 - You need to set up a CNAME from your desired domain to
   `<canvas>.builtwithdark.com`.
   - Note: this cannot be an apex (`foo.com`); using `www.foo.com` is the usual
@@ -19,19 +21,42 @@ Our former constraint of <= 15 certs is no longer applicable! Yay.
   again, for redirects, not SSL certs.
 
 ## Dark ops instructions
+
 - Make sure you have run `scripts/gcp-authorize-kubectl` (if you have not, you might get `The connection to the server localhost:8080 was refused - did you specify the right host or port?` in the next step)
-- Run `scripts/add-custom-domain` and provide the domain (eg `api.example.com`); we'll get the canvas
+- Run `scripts/custom-domain-add` and provide the domain (eg `api.example.com`); we'll get the canvas
   name from the CNAME, which also verifies that the CNAME DNS record is in
-place.
+  place.
   Make sure to supply the DOMAIN without the `https://` prefix.
 - The CNAME must exist before the below is done because Let's Encrypt uses an
   HTTP request to verify that "we" (the user) control the domain before issuing
-a cert.
-- There are no longer any manual steps to run, nor deploys needed, to provision
+  a cert.
+- There are no manual steps to run, nor deploys needed, to provision
   a custom domain.
 
+## Deleting custom domains
+
+Deleting custom domains is inherently lossy cause k8s sucks.
+
+Domains are stored in three places: in our custom_domains table in the main DB,
+and also in the `darkcustomdomain-l4-ingress` in `.spec.tls[]` and also in
+`.spec.rules[]`. The latter is to enable SSL, the former is to connect the
+request to the appropriate canvas.
+
+Removing from the DB is straightforward with SQL. Removing from
+`darkcustomdomain-l4-ingress` is not. They are lists, and there is no safe way
+to remove a single entry from a list in k8s (it does not have a "remove the
+array element with this value" command).
+
+These actions are scripted, split into two parts:
+
+- scripts/custom-domain-delete-from-cert-manager
+- scripts/custom-domain-delete-from-db
+
+You need to do both and they're interactive (reflecting the risky nature).
+
 ## Implementation details
-See `scripts/add-custom-domain.md` for a high level overview.
+
+See `scripts/custom-domain-add` for a high level overview.
 
 If you're wondering about the `cert-manager-*` yamls in
 `services/cert-manager/`, see the [cert-manager

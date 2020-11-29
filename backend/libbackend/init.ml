@@ -33,7 +33,7 @@ let init ~run_side_effects =
       then (
         Migrations.init () ;
         Account.init () ;
-        Serialize.write_shape_data () ) ;
+        Canvas.write_shape_data () ) ;
       if Config.check_tier_one_hosts then Canvas.check_tier_one_hosts () ;
       Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete" ;
       has_inited := true )

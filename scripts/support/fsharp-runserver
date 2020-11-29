@@ -16,7 +16,7 @@ BWD_SERVER_EXE="${BINPATH}/BwdServer2.dll"
 
 # Stop the server processes
 echo "Stopping servers"
-sudo pkill -f nginx || true
+#sudo pkill -f nginx || true # FSTODO
 #FSTODO
 sudo pkill -f "dotnet ${API_SERVER_FILE}" || true
 sudo pkill -f "dotnet ${BWD_SERVER_FILE}" || true
@@ -83,8 +83,13 @@ echo "Done waiting for compiled servers"
 if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
   # msbuild won't compile onto files being run, so copy them first
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  cp "/home/dark/app/_build/default/backend/bin/libserialization.so" "${BINPATH}"
   cp "${API_SERVER_FILE}" "${API_SERVER_EXE}"
   cp "${BWD_SERVER_FILE}" "${BWD_SERVER_EXE}"
+  cp "${BINPATH}/BwdServer.deps.json" "${BINPATH}/BwdServer2.deps.json"
+  cp "${BINPATH}/BwdServer.runtimeconfig.dev.json" "${BINPATH}/BwdServer2.runtimeconfig.dev.json"
+  cp "${BINPATH}/BwdServer.runtimeconfig.json" "${BINPATH}/BwdServer2.runtimeconfig.json"
+  cp "${BINPATH}/BwdServer.xml" "${BINPATH}/BwdServer2.xml"
   echo "Running server"
   dotnet "${API_SERVER_EXE}" > "$LOGS/fsharp-apiserver.log" 2>&1 &
   dotnet "${BWD_SERVER_EXE}" > "$LOGS/fsharp-bwdserver.log" 2>&1 &

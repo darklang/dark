@@ -2,10 +2,10 @@
 
 To make HTTPs work I (Lizzie, <_@lizzie.io>) needed to do four things:
 
-* Generate a certificate and store it as a "TLS secret" in Kubernetes.
-* Create a static IP in Google cloud.
-* Created a new Ingress in Kubernetes using the TLS secret and IP.
-* Switch over DNS.
+- Generate a certificate and store it as a "TLS secret" in Kubernetes.
+- Create a static IP in Google cloud.
+- Created a new Ingress in Kubernetes using the TLS secret and IP.
+- Switch over DNS.
 
 I created the certificate in with Comodo CA
 (<https://www.comodoca.com/>). It's a two-year wildcard
@@ -13,7 +13,7 @@ certificate. It cost $229/year. Paul and I have the credentials for
 our account on Comodo CA's website.
 
 After putting in payment details it prompted us for a Certificate
-Signing Request.  I created the Certificate Signing Request by
+Signing Request. I created the Certificate Signing Request by
 creating the following configuration file:
 
 ```
@@ -41,10 +41,7 @@ DNS.1 = builtwithdark.com
 (The `subjectAltName` bit is important, since we want a wildcard cert
 for `*.builtwithdark.com` that also works with `builtwithdark.com`.)
 
-Then I actually created the Certificate Signing Request with ```
-openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout
-builtwithdark.com.key -out builtwithdark.com.csr -config
-builtwithdark.com.cnf ```
+Then I actually created the Certificate Signing Request with `openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout builtwithdark.com.key -out builtwithdark.com.csr -config builtwithdark.com.cnf`
 
 This creates two files: `builtwithdark.com.key`, a new 2048-bit RSA
 key (please don't lose this, it's important), and
@@ -105,7 +102,6 @@ You can see that IP (and the others) at
 https://console.cloud.google.com/networking/addresses/list?project=balmy-ground-195100. It's
 `35.227.208.117`.
 
-
 Then you need to actually create a Kubernetes Ingress pointing to the
 static IP we generated and the TLS secret we just created. For me,
 that looked like
@@ -161,9 +157,8 @@ Update, 2019-02-08
 `darkstaticassets.com` and `darksa.com` wildcard certs. Also in Comodo. CSR
 process is as lizzie doc'd above, just replace the domain names appropriately.
 
-Note: due to weird "comodo is becoming sectigo" issues, I had trouble finding
-where to buy a new cert.  Support gave me this link:
-https://www.comodoca.com/en-us/solutions/tls-ssl-certificates/domain-validated-(dv)-ssl/
+The domains are in the positivessl.com dashboard. Note there are other sectigo
+properties which makes this confusing.
 
 (Unlike the above, I did use the DNS verification - it's easy with Name.com.)
 
@@ -171,6 +166,7 @@ Need to cat the files together, slightly diff than the filenames used
 previously (source:
 https://gist.github.com/gangsta/9d011dc0da614db27d5b22ed2044799f, section '2019
 Comodo Certificates):
+
 ```
 cat STAR_darksa_com.crt \
 SectigoRSADomainValidationSecureServerCA.crt \
@@ -180,17 +176,18 @@ AddTrustExternalCARoot.crt \
 ```
 
 Add to google:
+
 ```
 gcloud compute ssl-certificates create darksa-com-wildcard \
     --certificate=./darksa.com.crt --private-key=darksa.com.key \
     --description="darksa.com and *.darksa.com, issued by Comodo CA"
 ```
+
 (Not sure if there's a better way to renew than just creating a new
 ssl-certificate record and updating the load balancer to use it ...)
 
-Resulting files (.crt, .key) are stored in Vault, shared by IanS, Paul, and
+Resulting files (.crt, .key) are stored in 1password, shared by IanS, Paul, and
 Ellen.
-
 
 Update, 2020-06-03
 ##################
@@ -205,32 +202,45 @@ to document here the process for replacing a tls secret in kubernetes.
 
 Assuming `<name>` is the name of the secret holding the cert:
 
-1. Get the existing cert and keep it as a backup: 
-`kubectl get secret <name> -o yaml > old-<name>.yaml`
+1. Get the existing cert and keep it as a backup:
+   `kubectl get secret <name> -o yaml > old-<name>.yaml`
 
 2. Base64 encode the new cert:
-`cat <new cert> | base64 | xsel -ib` (`xsel` is Linux-specific, you can just
-copy to your clipboard by hand on OS X)
+   `cat <new cert> | base64 | xsel -ib` (`xsel` is Linux-specific, you can just
+   copy to your clipboard by hand on OS X)
 
 3. Copy `old-<name>.yaml` to `new-<name>.yaml` and manually replace the value
    `.data."tls.crt"` with the new data from step 2.
 
 4. Confirm that your editing resulted in `.data."tls.crt"` being valid - this is
    a defense against copy-paste and whitespace errors:
-`yq -r '.data."tls.crt"' new-<name>.yaml | base64 -d` (we expect the output to
-be one or more certificates; you can pipe that to md5sum and compare it with the
-cert file it came from)
+   `yq -r '.data."tls.crt"' new-<name>.yaml | base64 -d` (we expect the output to
+   be one or more certificates; you can pipe that to md5sum and compare it with the
+   cert file it came from)
 
 5. Deploy time! `kubectl apply -f new-<name>.yaml`. This will give you a
-   warning: `Warning: kubectl apply should be used on resource created by either
-kubectl create --save-config or kubectl apply`, but this is ignorable. There's
-a PR to maybe improve the messaging
-(https://github.com/kubernetes/kubernetes/issues/91425), so that messaging may vary some.
+   warning: `Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply`, but this is ignorable. There's
+   a PR to maybe improve the messaging
+   (https://github.com/kubernetes/kubernetes/issues/91425), so that messaging may vary some.
 
 6. The new cert isn't effective until the next deploy goes out, because the
    ingress pod needs to be restarted or replaced.
 
 7. Once it's out, check that the new cert is being served -
    https://ssllabs.com/ssltest/ is probably the easiest way to do this, or
-`openssl s_client -connect <host>:443 | openssl x509 -noout -dates` will show
-you the notBefore and notAfter (expiration) dates.
+   `openssl s_client -connect <host>:443 | openssl x509 -noout -dates` will show
+   you the notBefore and notAfter (expiration) dates.
+
+Update, 2020-11-24
+##################
+
+Our certs are badly organized and are spread out, but here is the current status:
+
+- \*.builtwithdark.com: positivessl.com. Cert installed in a k8s ingress/secret. TODO: move to cert-manager
+- builtwithdark.com: cert exists, not installed for some reason. TODO: move to cert-manager
+- \*.darklang.com: positivessl.com. Cert installed in a k8s ingress/secret. Note DNS is at cloudflare. TODO: move to cert manager. Move DNS to google.
+- darksa.com: new one being bought at positivessl.
+- darkstaticassets.com: new one being bought at positivessl.
+- old certs have also been bought via cloudflare, store.sectigo.com and secure.sectigo.com (which are different!)
+- customer certs use cert-manager (using k8s, see darkcustomdomain, other docs mentioning custom-domain)
+- some customer certs use google managed certs, we've stopped adding new ones but the old ones are still there

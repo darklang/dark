@@ -1,0 +1,2 @@
+Http.parseQueryString_v0 "https://darklang.com?x=6&x=7&myString=todo" = { x = "7"; myString = "todo" }
+// Http.parseHeaders_v0 "x: y" = { x = "y" }

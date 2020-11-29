@@ -13,7 +13,7 @@ module Program =
   let run (arg : int) : Task<string> =
     task {
       let prog = LibExecution.Runtime.Shortcuts.eInt arg
-      let! result = LibExecution.Execution.run prog LibExecution.StdLib.fns
+      let! result = LibExecution.Execution.run [] LibExecution.StdLib.fns prog
       return result.ToString()
     }
 
