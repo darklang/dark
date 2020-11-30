@@ -1,12 +1,10 @@
-module LibExecution.StdLib
+module LibExecution.StdLib.StdLib
 
-open FSharp.Control.Tasks
 open Prelude
-open Runtime
-open Interpreter
+open LibExecution.RuntimeTypes
 
 let any =
-  [ { name = FnDesc.stdFnDesc "" "==" 0
+  [ { name = FQFnName.stdlibName "" "==" 0
       description = "Equality" // FSTODO
       parameters =
         [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "b") "" ]
@@ -39,15 +37,15 @@ let infixFns =
         | "String", "append", 1 -> Some "++"
         | _ -> None
 
-      Option.map (fun opName -> { builtin with name = FnDesc.stdFnDesc "" opName 0 })
-        opName) prefixFns
+      Option.map (fun opName ->
+        { builtin with name = FQFnName.stdlibName "" opName 0 }) opName) prefixFns
 
   assert (fns.Length = 6) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns
 
-// [ { name = FnDesc.stdFnDesc "Int" "range" 0
+// [ { name = FQFnName.stdlibName "Int" "range" 0
 //     parameters =
 //       [ param "list" (TList(TVariable("a"))) "The list to be operated on"
 //         param "fn" (TFn([ TVariable("a") ], TVariable("b"))) "Function to be called on each member" ]
@@ -60,7 +58,7 @@ let fns = infixFns @ prefixFns
 //           |> Value
 //
 //       | _ -> Error()) }
-//   { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)
+//   { name = (FQFnName.stdlibName "HttpClient" "get" 0)
 //     parameters = [ param "url" TString "URL to fetch" ]
 //     returnType = (retVal TString "Body of response")
 //     fn =

@@ -1,12 +1,12 @@
-module LibExecution.LibInt
+module LibExecution.StdLib.LibInt
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.Runtime
+open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
-let fn = FnDesc.stdFnDesc
+let fn = FQFnName.stdlibName
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -327,9 +327,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            a + (Runtime.random.Next((b - a) |> int) |> bigint)
-            |> DInt
-            |> Value
+            a + (Prelude.random.Next((b - a) |> int) |> bigint) |> DInt |> Value
         | _, [ DFloat a; _ ] ->
             Value
               (errStr
@@ -350,7 +348,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] ->
             let lower, upper = if a > b then (b, a) else (a, b)
-            lower + (Runtime.random.Next((upper - lower) |> int) |> bigint)
+            lower
+            + (Prelude.random.Next((upper - lower) |> int) |> bigint)
             |> DInt
             |> Value
         | args -> incorrectArgs ())

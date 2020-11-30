@@ -5,16 +5,226 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
 open Npgsql.FSharp
-open Ply
 open Npgsql
 open Db
-open Prelude
 open FSharp.Data
+open System.Text.RegularExpressions
 
-open LibExecution.Runtime
+open Prelude
 open LibExecution.Framework
 
-let gid = Shortcuts.gid
+module R = LibExecution.Runtime
+
+type id = LibExecution.Runtime.id
+
+// This Expr is the AST, expressing what the user sees in their editor.
+type Expr =
+  | EInteger of id * string
+  | EBool of id * bool
+  | EString of id * string
+  | ECharacter of id * string
+  | EFloat of id * string * string // first string might have a sign in it
+  | ENull of id
+  | EBlank of id
+  | ELet of id * string * Expr * Expr
+  | EIf of id * Expr * Expr * Expr
+  | EBinOp of id * R.FQFnName.T * Expr * Expr * R.SendToRail
+  | ELambda of id * List<id * string> * Expr
+  | EFieldAccess of id * Expr * string
+  | EVariable of id * string
+  | EFnCall of id * R.FQFnName.T * List<Expr> * R.SendToRail
+  | EPartial of id * string * Expr
+  | ERightPartial of id * string * Expr
+  | ELeftPartial of id * string * Expr
+  | EList of id * List<Expr>
+  | ERecord of id * List<string * Expr>
+  | EPipe of id * Expr * Expr * List<Expr>
+  | EConstructor of id * string * List<Expr>
+  | EMatch of id * Expr * List<Pattern * Expr>
+  | EPipeTarget of id
+  | EFeatureFlag of id * string * Expr * Expr * Expr
+
+and Pattern =
+  | PVariable of id * string
+  | PConstructor of id * string * List<Pattern>
+  | PInteger of id * string
+  | PBool of id * bool
+  | PCharacter of id * string
+  | PString of id * string
+  | PFloat of id * string * string
+  | PNull of id
+  | PBlank of id
+
+module Shortcuts =
+
+  let eFn' (module_ : string)
+           (function_ : string)
+           (version : int)
+           (args : List<Expr>)
+           (ster : R.SendToRail)
+           : Expr =
+    EFnCall
+      (gid (),
+       LibExecution.Runtime.FQFnName.name "dark" "stdlib" module_ function_ version,
+       args,
+       ster)
+
+  let eFn (module_ : string)
+          (function_ : string)
+          (version : int)
+          (args : List<Expr>)
+          : Expr =
+    eFn' module_ function_ version args R.NoRail
+
+  let eRailFn (module_ : string)
+              (function_ : string)
+              (version : int)
+              (args : List<Expr>)
+              : Expr =
+    eFn' module_ function_ version args R.Rail
+
+  let eBinOp' (module_ : string)
+              (function_ : string)
+              (version : int)
+              (arg1 : Expr)
+              (arg2 : Expr)
+              (ster : R.SendToRail)
+              : Expr =
+    EBinOp
+      (gid (),
+       R.FQFnName.name "dark" "stdlib" module_ function_ version,
+       arg1,
+       arg2,
+       ster)
+
+  let eBinOp (module_ : string)
+             (function_ : string)
+             (version : int)
+             (arg1 : Expr)
+             (arg2 : Expr)
+             : Expr =
+    eBinOp' module_ function_ version arg1 arg2 R.NoRail
+
+  // An ebinOp that's on the rail
+  let eRailBinOp (module_ : string)
+                 (function_ : string)
+                 (version : int)
+                 (arg1 : Expr)
+                 (arg2 : Expr)
+                 : Expr =
+    eBinOp' module_ function_ version arg1 arg2 R.Rail
+
+  let eStr (str : string) : Expr = EString(gid (), str)
+  let eInt (i : int) : Expr = EInteger(gid (), i.ToString())
+
+  let eIntStr (i : string) : Expr =
+    assert ((new Regex(@"-?\d+")).IsMatch(i))
+    EInteger(gid (), i)
+
+  let eChar (c : char) : Expr = ECharacter(gid (), string c)
+  let eCharStr (c : string) : Expr = ECharacter(gid (), c)
+  let eBlank () : Expr = EBlank(gid ())
+  let eBool (b : bool) : Expr = EBool(gid (), b)
+
+  let eFloat (whole : int) (fraction : int) : Expr =
+    EFloat(gid (), whole.ToString(), fraction.ToString())
+
+  let eFloatStr (whole : string) (fraction : string) : Expr =
+    // FSTODO: don't actually assert, report to rollbar
+    assert ((new Regex(@"-?\d+")).IsMatch(whole))
+    assert ((new Regex(@"\d+")).IsMatch(fraction))
+    EFloat(gid (), whole, fraction)
+
+  let eNull () : Expr = ENull(gid ())
+
+  let eRecord (rows : (string * Expr) list) : Expr = ERecord(gid (), rows)
+
+  let eList (elems : Expr list) : Expr = EList(gid (), elems)
+  let ePipeTarget () = EPipeTarget(gid ())
+
+
+  let ePartial (str : string) (e : Expr) : Expr = EPartial(gid (), str, e)
+
+  let eRightPartial (str : string) (e : Expr) : Expr = ERightPartial(gid (), str, e)
+
+
+  let eLeftPartial (str : string) (e : Expr) : Expr = ELeftPartial(gid (), str, e)
+
+
+  let eVar (name : string) : Expr = EVariable(gid (), name)
+
+  (* let fieldAccess (expr : Expr) (fieldName : string) : Expr = *)
+  (*   EFieldAccess (gid () ,expr, fieldName) *)
+
+  let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
+    EIf(gid (), cond, then', else')
+
+
+  let eLet (varName : string) (rhs : Expr) (body : Expr) : Expr =
+    ELet(gid (), varName, rhs, body)
+
+
+  let eLambda (varNames : string list) (body : Expr) : Expr =
+    ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
+
+
+  let ePipe (first : Expr) (second : Expr) (rest : Expr list) : Expr =
+    EPipe(gid (), first, second, rest)
+
+  let eConstructor (name : string) (args : Expr list) : Expr =
+    EConstructor(gid (), name, args)
+
+
+  let eJust (arg : Expr) : Expr = EConstructor(gid (), "Just", [ arg ])
+
+  let eNothing () : Expr = EConstructor(gid (), "Nothing", [])
+
+  let eError (arg : Expr) : Expr = EConstructor(gid (), "Error", [ arg ])
+
+  let eOk (arg : Expr) : Expr = EConstructor(gid (), "Ok", [ arg ])
+
+  let eMatch (cond : Expr) (matches : List<Pattern * Expr>) : Expr =
+    EMatch(gid (), cond, matches)
+
+
+  let pInt (int : int) : Pattern = PInteger(gid (), int.ToString())
+
+
+  let pIntStr (int : string) : Pattern = PInteger(gid (), int)
+
+  let pVar (name : string) : Pattern = PVariable(gid (), name)
+
+  let pConstructor (name : string) (patterns : Pattern list) : Pattern =
+    PConstructor(gid (), name, patterns)
+
+  let pJust (arg : Pattern) : Pattern = PConstructor(gid (), "Just", [ arg ])
+
+  let pNothing () : Pattern = PConstructor(gid (), "Nothing", [])
+
+  let pError (arg : Pattern) : Pattern = PConstructor(gid (), "Error", [ arg ])
+
+  let pOk (arg : Pattern) : Pattern = PConstructor(gid (), "Ok", [ arg ])
+
+  let pBool (b : bool) : Pattern = PBool(gid (), b)
+
+  let pChar (c : char) : Pattern = PCharacter(gid (), string c)
+  let pCharStr (c : string) : Pattern = PCharacter(gid (), c)
+
+  let pString (str : string) : Pattern = PString(gid (), str)
+
+  let pFloatStr (whole : string) (fraction : string) : Pattern =
+    PFloat(gid (), whole, fraction)
+
+  let pFloat (whole : int) (fraction : int) : Pattern =
+    PFloat(gid (), whole.ToString(), fraction.ToString())
+
+  let pNull () : Pattern = PNull(gid ())
+
+  let pBlank () : Pattern = PBlank(gid ())
+
+  let eflag name cond oldCode newCode =
+    EFeatureFlag(gid (), name, cond, oldCode, newCode)
+
 
 
 module OCamlInterop =
@@ -62,7 +272,7 @@ module OCamlInterop =
     // - 3) hand-write them (converters on both ends)
     type J = JsonValue
 
-    let ofTLID (tlid : tlid) : JsonValue = J.String(tlid.ToString())
+    let ofTLID (tlid : R.tlid) : JsonValue = J.String(tlid.ToString())
     let ofID (id : id) : JsonValue = J.String(id.ToString())
 
     let rec ofExpr (e : Expr) : JsonValue =
@@ -141,7 +351,9 @@ module OCamlInterop =
         | _ -> failwith $"More to handle in ofHandler {h.spec}"
 
       let result =
-        J.Record [| "tlid", ofTLID h.tlid; "ast", ofExpr h.ast; "spec", spec |]
+        J.Record [| "tlid", ofTLID h.tlid
+                    "ast", ofExpr (fromRuntimeExpr h.ast)
+                    "spec", spec |]
 
       printfn $"json of handler: {result}"
       result
@@ -154,8 +366,8 @@ module OCamlInterop =
 
       let toRail (j : JsonValue) : LibExecution.Runtime.SendToRail =
         match j with
-        | J.Array [| J.String "Rail" |] -> Rail
-        | J.Array [| J.String "NoRail" |] -> NoRail
+        | J.Array [| J.String "Rail" |] -> R.Rail
+        | J.Array [| J.String "NoRail" |] -> R.NoRail
         | _ -> failwith $"Unimplemented {j}"
 
       let rec toPattern (j : JsonValue) : Pattern =
@@ -238,13 +450,14 @@ module OCamlInterop =
             match name with
             | Regex "(.+)/(.+)/(.+)::(.+)_v(\d+)"
                     [ owner; package; module'; name; version ] ->
-                FnDesc.fnDesc owner package module' name (int version)
+                R.FQFnName.name owner package module' name (int version)
             | Regex "(.+)::(.+)_v(\d+)" [ module'; name; version ] ->
-                FnDesc.stdFnDesc module' name (int version)
-            | Regex "(.+)::(.+)" [ module'; name ] -> FnDesc.stdFnDesc module' name 0
+                R.FQFnName.stdlibName module' name (int version)
+            | Regex "(.+)::(.+)" [ module'; name ] ->
+                R.FQFnName.stdlibName module' name 0
             | Regex "(.+)_v(\d+)" [ name; version ] ->
-                FnDesc.stdFnDesc "" name (int version)
-            | Regex "(.+)" [ name ] -> FnDesc.stdFnDesc "" name 0
+                R.FQFnName.stdlibName "" name (int version)
+            | Regex "(.+)" [ name ] -> R.FQFnName.stdlibName "" name 0
             | _ -> failwith $"Bad format in function name: \"{name}\""
 
           EFnCall(id, desc, Array.map e args |> Array.toList, toRail rail)

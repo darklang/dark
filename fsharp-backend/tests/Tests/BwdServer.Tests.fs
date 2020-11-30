@@ -3,6 +3,8 @@ module Tests.BwdServer
 open Expecto
 
 open LibExecution
+open LibBackend
+open LibBackend.ProgramSerialization
 open BwdServer
 
 open System.Threading.Tasks
@@ -58,27 +60,27 @@ let t name =
       g.[1].Value,
       g.[2].Value
 
-    let (source : Runtime.Expr) =
+    let (source : ProgramTypes.Expr) =
       progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
-    let (handler : Framework.Handler.T) =
-      let id = Runtime.id
+    let (handler : ProgramTypes.Handler.T) =
+      let id = SharedTypes.id
 
-      let ids : Framework.Handler.ids =
+      let ids : ProgramTypes.Handler.ids =
         { moduleID = id 1; nameID = id 2; modifierID = id 3 }
 
       { tlid = id 7
         ast = source
         spec =
-          Framework.Handler.HTTP(path = httpPath, method = httpMethod, ids = ids) }
+          ProgramTypes.Handler.HTTP(path = httpPath, method = httpMethod, ids = ids) }
 
-    let! ownerID = LibBackend.Serialization.userIDForUsername "test"
-    let! canvasID = LibBackend.Serialization.canvasIDForCanvas ownerID $"test-{name}"
+    let! ownerID = LibBackend.Account.userIDForUsername "test"
+    let! canvasID = LibBackend.Canvas.canvasIDForCanvas ownerID $"test-{name}"
 
-    do! LibBackend.Serialization.saveHttpHandlersToCache
+    do! LibBackend.ProgramSerialization.SQL.saveHttpHandlersToCache
           canvasID
           ownerID
-          [ Framework.TLHandler handler ]
+          [ ProgramTypes.TLHandler handler ]
 
     // Web server might not be loaded yet
     let client = new TcpClient()
@@ -103,6 +105,7 @@ let t name =
     let response = Array.zeroCreate length
 
     let byteCount = stream.Read(response, 0, length)
+
     let response = Array.take byteCount response
 
     stream.Close()
@@ -152,7 +155,7 @@ let unitTests =
         ("", "/") ]
     testMany
       "ownerNameFromHost"
-      LibBackend.Serialization.ownerNameFromHost
+      LibBackend.Canvas.ownerNameFromHost
       [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
     testManyTask
       "canvasNameFromHost"

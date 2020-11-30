@@ -1,11 +1,9 @@
 module LibBackend.Db
 
-open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
 open Npgsql.FSharp
-open Ply
 open Npgsql
 
 let makeConnection () =
@@ -92,7 +90,7 @@ module Sql =
   let executeNonQueryAsync (props : Sql.SqlProps) : Task<int> =
     Sql.executeNonQueryAsync props |> throwOrReturn
 
-  let tlidArray (tlids : List<LibExecution.Runtime.tlid>) : SqlValue =
+  let tlidArray (tlids : List<int64>) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint
     let tlidsParam = NpgsqlParameter("tlids", typ)
     tlidsParam.Value <- List.toArray tlids

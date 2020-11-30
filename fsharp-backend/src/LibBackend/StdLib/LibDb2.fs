@@ -773,7 +773,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DDB dbname; DLambda b] ->
+          | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
                 User_db.query ~state db b
@@ -795,7 +795,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DDB dbname; DLambda b] ->
+          | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
                 User_db.query ~state db b |> DvalMap.from_list |> DObj
@@ -815,7 +815,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DDB dbname; DLambda b] ->
+          | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
                 let results = User_db.query ~state db b in
@@ -840,7 +840,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DDB dbname; DLambda b] ->
+          | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
                 let results = User_db.query ~state db b in
@@ -865,7 +865,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DDB dbname; DLambda b] ->
+          | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
                 let results = User_db.query ~state db b in
@@ -890,7 +890,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | state, [DDB dbname; DLambda b] ->
+          | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
                 User_db.query_count ~state db b |> Dval.dint

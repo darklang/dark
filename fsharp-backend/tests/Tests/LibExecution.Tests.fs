@@ -23,11 +23,14 @@ let t (comment : string) (code : string) : Test =
   else
     testTask name {
       try
-        let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns @ Tests.LibTest.fns
+        let fns =
+          LibExecution.StdLib.StdLib.fns
+          @ LibBackend.StdLib.StdLib.fns
+          @ Tests.LibTest.fns
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
-        let tlid = LibExecution.Runtime.id 7
+        let tlid = LibExecution.SharedTypes.id 7
         let! actual = LibExecution.Execution.run tlid [] fns actualProg
         let! expected = LibExecution.Execution.run tlid [] fns expectedResult
         let actual = normalizeDvalResult actual

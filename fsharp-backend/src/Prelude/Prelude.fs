@@ -14,6 +14,23 @@ let debug (msg : string) (a : 'a) : 'a =
   printfn $"DEBUG: {msg} ({a})"
   a
 
+// .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
+// OS-generated truly-random number.
+// https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
+// also use a single global value for the VM, so that users cannot be
+// guaranteed to get multiple consequetive values (as other requests may intervene)
+let random : System.Random = System.Random()
+
+let gid () : int64 =
+  // get enough bytes for an int64, trim it to an int63 for now to match ocaml.
+  let bytes = Array.init 8 (fun _ -> (byte) 0)
+  random.NextBytes(bytes)
+  let rand64 : int64 = System.BitConverter.ToInt64(bytes, 0)
+  // Keep 62 bits
+  // 0b0011_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111L
+  let mask : int64 = 4611686018427387903L
+  rand64 &&& mask
+
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
 // of operations.

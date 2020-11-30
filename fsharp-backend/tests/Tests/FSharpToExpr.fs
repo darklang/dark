@@ -8,8 +8,10 @@ open FSharp.Compiler.SourceCodeServices
 
 open Prelude
 
-module R = LibExecution.Runtime
-open R.Shortcuts
+module DarkTypes = LibBackend.ProgramSerialization.ProgramTypes
+module D = DarkTypes
+open LibExecution.SharedTypes
+open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"
@@ -47,7 +49,7 @@ let parse (input) : SynExpr =
   | _ -> failwith $" - wrong shape tree: {results}"
 
 
-let rec convertToExpr (ast : SynExpr) : R.Expr =
+let rec convertToExpr (ast : SynExpr) : D.Expr =
   let c = convertToExpr
 
   let parseFloat d : string * string =
@@ -55,7 +57,7 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
     | Regex "(.*)\.(.*)" [ whole; fraction ] -> (whole, fraction |> int |> string)
     | str -> failwith $"Could not parse {str}"
 
-  let rec convertPattern (pat : SynPat) : R.Pattern =
+  let rec convertPattern (pat : SynPat) : D.Pattern =
     match pat with
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) when name.idText = "blank" ->
         pBlank ()
@@ -85,14 +87,14 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
     | _ -> failwith $"unsupported lambdaVar {var}"
 
   // Add a pipetarget after creating it
-  let cPlusPipeTarget (e : SynExpr) : R.Expr =
+  let cPlusPipeTarget (e : SynExpr) : D.Expr =
     match c e with
-    | R.EFnCall (id, name, args, ster) ->
-        R.EFnCall(id, name, ePipeTarget () :: args, ster)
-    | R.EBinOp (id, name, R.EBlank _, arg2, ster) ->
-        R.EBinOp(id, name, ePipeTarget (), arg2, ster)
-    | R.EBinOp (id, name, arg1, R.EBlank _, ster) ->
-        R.EBinOp(id, name, ePipeTarget (), arg1, ster)
+    | D.EFnCall (id, name, args, ster) ->
+        D.EFnCall(id, name, ePipeTarget () :: args, ster)
+    | D.EBinOp (id, name, D.EBlank _, arg2, ster) ->
+        D.EBinOp(id, name, ePipeTarget (), arg2, ster)
+    | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
+        D.EBinOp(id, name, ePipeTarget (), arg1, ster)
     | other -> other
 
   match ast with
@@ -146,12 +148,12 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
                        _) ->
       let name, version, ster =
         match fnName.idText with
-        | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, R.Rail)
-        | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, R.NoRail)
+        | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, D.Rail)
+        | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, D.NoRail)
         | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
 
-      let desc = R.FnDesc.stdFnDesc modName.idText name version
-      R.EFnCall(gid (), desc, [], ster)
+      let desc = D.FQFnName.stdlibName modName.idText name version
+      D.EFnCall(gid (), desc, [], ster)
   | SynExpr.Lambda (_, _, SynSimplePats.SimplePats (vars, _), body, _) ->
       let vars = List.map convertLambdaVar vars
       eLambda vars (c body)
@@ -182,7 +184,7 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
                       _) -> eLet "_" (c rhs) (c body)
   | SynExpr.Match (_, cond, clauses, _) ->
       let convertClause (Clause (pat, _, expr, _, _) : SynMatchClause)
-                        : R.Pattern * R.Expr =
+                        : D.Pattern * D.Expr =
         (convertPattern pat, c expr)
 
       eMatch (c cond) (List.map convertClause clauses)
@@ -200,11 +202,11 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
   | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText =
                                                                                               "op_PipeRight" ->
       match c nestedPipes with
-      | R.EPipe (id, arg1, R.EBlank _, rest) as pipe ->
+      | D.EPipe (id, arg1, D.EBlank _, rest) as pipe ->
           // when we just built the lowest, the second one goes here
-          R.EPipe(id, arg1, cPlusPipeTarget arg, rest)
-      | R.EPipe (id, arg1, arg2, rest) as pipe ->
-          R.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+          D.EPipe(id, arg1, cPlusPipeTarget arg, rest)
+      | D.EPipe (id, arg1, arg2, rest) as pipe ->
+          D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       | other ->
           // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
@@ -223,19 +225,23 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
-      | R.EFnCall (id, name, args, ster) ->
-          R.EFnCall(id, name, args @ [ c arg ], ster)
-      | R.EBinOp (id, name, R.EBlank _, arg2, ster) ->
-          R.EBinOp(id, name, c arg, arg2, ster)
-      | R.EBinOp (id, name, arg1, R.EBlank _, ster) ->
-          R.EBinOp(id, name, arg1, c arg, ster)
-      | R.EPipe (id, arg1, arg2, rest) as pipe ->
-          R.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+      | D.EFnCall (id, name, args, ster) ->
+          D.EFnCall(id, name, args @ [ c arg ], ster)
+      | D.EBinOp (id, name, D.EBlank _, arg2, ster) ->
+          D.EBinOp(id, name, c arg, arg2, ster)
+      | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
+          D.EBinOp(id, name, arg1, c arg, ster)
+      | D.EPipe (id, arg1, arg2, rest) as pipe ->
+          D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
   | expr -> failwith $"Unsupported expression: {ast}"
 
-let convertToTest (ast : SynExpr) : R.Expr * R.Expr =
+let convertToTest (ast : SynExpr)
+                  : LibExecution.RuntimeTypes.Expr * LibExecution.RuntimeTypes.Expr =
   // Split equality into actual vs expected in tests.
+  let convert (x : SynExpr) : LibExecution.RuntimeTypes.Expr =
+    (convertToExpr x).toRuntimeType()
+
   match ast with
   | SynExpr.App (_,
                  _,
@@ -243,5 +249,5 @@ let convertToTest (ast : SynExpr) : R.Expr * R.Expr =
                  expected,
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
-      (convertToExpr actual, convertToExpr expected)
-  | _ -> convertToExpr ast, eBool true
+      (convert actual, convert expected)
+  | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true

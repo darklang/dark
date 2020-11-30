@@ -1,12 +1,10 @@
-module LibExecution.LibList
+module LibExecution.StdLib.LibList
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-open LibExecution.Runtime
+open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
-let fn = FnDesc.stdFnDesc
+let fn = FQFnName.stdlibName
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -172,7 +170,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let f (dv : dval) : bool =
 //                 DBool true = Ast.execute_dblock ~state b [dv]
 //               in
@@ -191,7 +189,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let f (dv : dval) : bool =
 //                 DBool true = Ast.execute_dblock ~state b [dv]
 //               in
@@ -214,7 +212,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let f (dv : Types.RuntimeT.dval) : bool =
 //                 DBool true = Ast.execute_dblock ~state b [dv]
 //               in
@@ -312,7 +310,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; init; DLambda b] ->
+//           | state, [DList l; init; DFnVal b] ->
 //               (* Fake cf should be propagated by the blocks so we dont need to check *)
 //               let f (dv1 : dval) (dv2 : dval) : dval =
 //                 Ast.execute_dblock ~state b [dv1; dv2]
@@ -401,7 +399,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let fn dv = Ast.execute_dblock ~state b [dv] in
 //               DList
 //                 (List.dedup_and_sort l (fun a b ->
@@ -451,7 +449,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList list; DLambda b] ->
+//           | state, [DList list; DFnVal b] ->
 //               let fn dv = Ast.execute_dblock ~state b [dv] in
 //               list
 //               |> List.sort (fun a b -> compare_dval (fn a) (fn b))
@@ -472,7 +470,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList list; DLambda b] ->
+//           | state, [DList list; DFnVal b] ->
 //               let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
 //               ( try
 //                   list
@@ -630,7 +628,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let fakecf = ref None in
 //               let f (dv : dval) : bool =
 //                 let run = !fakecf = None in
@@ -663,7 +661,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
 //               let f (dv : dval) : bool =
 //                 !abortReason = None
@@ -708,7 +706,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
 //               let f (dv : dval) : dval option =
 //                 if !abortReason = None
@@ -767,7 +765,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
 //               let rec f = function
 //                 | [] ->
@@ -829,7 +827,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
 //               let rec f = function
 //                 | [] ->
@@ -876,10 +874,11 @@ let fns : List<BuiltInFn> =
         "Call `f` on every `val` in the list, returning a list of the results of those calls"
       fn =
         (function
-        | state, [ DList l; DLambda b ] ->
+        | state, [ DList l; DFnVal b ] ->
             taskv {
               let! result =
-                map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
+                map_s (fun dv ->
+                  LibExecution.Interpreter.callFnVal state b [ dv ] NoRail) l
 
               return Dval.list result
             }
@@ -887,7 +886,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "map" 0) }
-    { name = FnDesc.stdFnDesc "List" "map" 0
+    { name = FQFnName.stdlibName "List" "map" 0
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
           Param.make
@@ -899,10 +898,11 @@ let fns : List<BuiltInFn> =
       returnType = TList varB
       fn =
         (function
-        | state, [ DList l; DLambda b ] ->
+        | state, [ DList l; DFnVal b ] ->
             taskv {
               let! result =
-                map_s (fun dv -> Interpreter.eval_lambda state b [ dv ]) l
+                map_s (fun dv ->
+                  LibExecution.Interpreter.callFnVal state b [ dv ] NoRail) l
 
               return Dval.list result
             }
@@ -920,7 +920,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l; DLambda b] ->
+//           | state, [DList l; DFnVal b] ->
 //               let f (idx : int) (dv : dval) : dval =
 //                 Ast.execute_dblock ~state b [Dval.dint idx; dv]
 //               in
@@ -942,7 +942,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l1; DList l2; DLambda b] ->
+//           | state, [DList l1; DList l2; DFnVal b] ->
 //               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
 //               let len = min (List.length l1) (List.length l2) in
 //               let l1 = List.take l1 len in
@@ -968,7 +968,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //
 //           (function
-//           | state, [DList l1; DList l2; DLambda b] ->
+//           | state, [DList l1; DList l2; DFnVal b] ->
 //               let f (l1Item : dval) (l2Item : dval) : dval =
 //                 Ast.execute_dblock ~state b [l1Item; l2Item]
 //               in
@@ -1150,7 +1150,7 @@ let fns : List<BuiltInFn> =
 
         (function
         | _, [ DList [] ] -> Value(DOption None)
-        | _, [ DList l ] -> Value(l.[Runtime.random.Next l.Length])
+        | _, [ DList l ] -> Value(l.[Prelude.random.Next l.Length])
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

@@ -11,5 +11,5 @@ let tests =
 
 [<EntryPoint>]
 let main _ =
-  LibBackend.Serialization.OCamlInterop.Binary.init ()
+  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
   runTests defaultConfig tests

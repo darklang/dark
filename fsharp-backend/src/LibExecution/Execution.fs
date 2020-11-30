@@ -2,7 +2,10 @@ module LibExecution.Execution
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open Runtime
+
+open Prelude
+open RuntimeTypes
+open SharedTypes
 
 let run (tlid : tlid)
         (vars : List<string * Dval>)
@@ -34,18 +37,25 @@ let runHttp (tlid : tlid)
     let state = { functions = functions; tlid = tlid }
 
     let result =
-      Interpreter.callFn
+      Interpreter.callFnVal
         state
-        (gid ())
-        (Runtime.FnDesc.stdFnDesc "Http" "middleware" 0)
+        (FQFnName(FQFnName.stdlibName "Http" "middleware" 0))
         [ DStr url
           DBytes body
           DObj Map.empty
-          DLambda
-            { parameters = [ gid (), "request" ]; symtable = Map.empty; body = e } ]
+          DFnVal
+            (Lambda
+              { parameters = [ gid (), "request" ]; symtable = Map.empty; body = e }) ]
         NoRail
 
+
     match result with
-    | Prelude.Task t -> return! t
-    | Prelude.Value v -> return v
+    | Prelude.Task t ->
+        let! t = t
+        printfn $"result in runHttp is a task {t}"
+        return t
+
+    | Prelude.Value v ->
+        printfn $"result is runHttp is a value {v}"
+        return v
   }

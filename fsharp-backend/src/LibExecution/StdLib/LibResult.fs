@@ -13,7 +13,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DResult r; DLambda b] ->
+          | state, [DResult r; DFnVal b] ->
             ( match r with
             | ResOk dv ->
                 let result = Ast.execute_dblock ~state b [dv] in
@@ -34,7 +34,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DResult r; DLambda d] ->
+          | state, [DResult r; DFnVal d] ->
             ( match r with
             | ResOk dv ->
                 let result = Ast.execute_dblock ~state d [dv] in
@@ -55,7 +55,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DResult r; DLambda b] ->
+          | state, [DResult r; DFnVal b] ->
             ( match r with
             | ResOk _ ->
                 DResult r
@@ -76,7 +76,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DResult r; DLambda b] ->
+          | state, [DResult r; DFnVal b] ->
             ( match r with
             | ResOk _ ->
                 DResult r
@@ -197,7 +197,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DResult r1; DResult r2; DLambda b] ->
+          | state, [DResult r1; DResult r2; DFnVal b] ->
             ( match (r1, r2) with
             | ResError e1, _ ->
                 DResult (ResError e1)
@@ -220,7 +220,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DResult o; DLambda b] ->
+          | state, [DResult o; DFnVal b] ->
             ( match o with
             | ResOk dv ->
                 let result = Ast.execute_dblock ~state b [dv] in
@@ -248,7 +248,7 @@ let fns =
     ; fn =
 
           (function
-          | state, [DResult o; DLambda b] ->
+          | state, [DResult o; DFnVal b] ->
             ( match o with
             | ResOk dv ->
                 let result = Ast.execute_dblock ~state b [dv] in

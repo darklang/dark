@@ -1,14 +1,17 @@
-module LibExecution.LibMiddleware
+module LibExecution.StdLib.LibMiddleware
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.Runtime
 open FSharpPlus
+
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.RuntimeTypes.Shortcuts
 
-open LibExecution.Runtime.Shortcuts
+module Interpreter = LibExecution.Interpreter
 
-let fn = FnDesc.stdFnDesc
+
+let fn = FQFnName.stdlibName
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -172,18 +175,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [] ->
-            DLambda
-              { symtable = Map.empty
-                parameters = [ gid (), "req" ]
-                body =
-                  eLet
-                    "result"
-                    (ePipe (eVar "req") (eVar "next") [])
-                    (eFn
-                      "Dict"
-                       "set"
-                       0
-                       [ eVar "result"; eStr "server"; eStr "darklang" ]) }
+            DFnVal
+              (Lambda
+                { symtable = Map.empty
+                  parameters = [ gid (), "req" ]
+                  body = eBlank ()
+                // eLet
+                //   "result"
+                //   (ePipe (eVar "req") (eVar "next") [])
+                //   (eFn
+                //     "Dict"
+                //      "set"
+                //      0
+                //      [ eVar "result"; eStr "server"; eStr "darklang" ])
+                })
             |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -200,25 +205,34 @@ let fns : List<BuiltInFn> =
         "Call the middleware stack, returning a response which can be sent to the browser"
       fn =
         (function
-        | state, [ DStr _ as url; DBytes _ as body; headers; DLambda _ as handler ] ->
-            Interpreter.eval_lambda
+        | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
+            Interpreter.callFnVal
               state
-              ({ parameters =
-                   [ gid (), "url"
-                     gid (), "body"
-                     gid (), "headers"
-                     gid (), "handler"
-                     gid (), "request" ]
-                 symtable = Map.empty
-                 body =
-                   eLet
-                     "app"
-                     (ePipe
-                       (eVar "handler")
-                        (eFn "Http" "addServerHeaderMiddleware" 0 [])
-                        [])
-                     (ePipe (eVar "request") (eVar "app") []) })
+              (Lambda
+                { parameters =
+                    [ gid (), "url"
+                      gid (), "body"
+                      gid (), "headers"
+                      gid (), "handler"
+                      gid (), "request" ]
+                  symtable = Map.empty
+                  body =
+                    // so what's happening is that we don't actually have a way
+                    // to get a lambda and pipe to it. If we look in
+                    // injectParamAndExecute, it takes lambda exprs, fncalls and
+                    // binops, but not actually lambda values.  Our fake-ass type
+                    // system is failing us yet again.
+                    eBlank ()
+                // eLet
+                //   "addServerHeaderFn"
+                //   (eFn "Http" "addServerHeaderMiddleware" 0 [])
+                //   (eLet
+                //     "app"
+                //      (ePipe (eVar "handler") (eVar "addServerHeaderFn") [])
+                //      (ePipe (eVar "request") (eVar "app") []))
+                })
               [ url; body; headers; handler; DObj Map.empty ]
+              NoRail
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

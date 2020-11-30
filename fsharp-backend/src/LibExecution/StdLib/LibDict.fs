@@ -1,12 +1,12 @@
-module LibExecution.LibDict
+module LibExecution.StdLib.LibDict
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.Runtime
+open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
-let fn = FnDesc.stdFnDesc
+let fn = FQFnName.stdlibName
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -310,7 +310,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | state, [DObj o; DLambda b] ->
+    //         | state, [DObj o; DFnVal b] ->
     //             let f dv = Ast.execute_dblock ~state b [dv] in
     //             DObj (Map.map ~f o)
     //         | args ->
@@ -328,7 +328,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | state, [DObj o; DLambda b] ->
+    //         | state, [DObj o; DFnVal b] ->
     //             let f ~key ~(data : dval) =
     //               Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
     //             in
@@ -348,7 +348,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | state, [DObj o; DLambda b] ->
+    //         | state, [DObj o; DFnVal b] ->
     //             let incomplete = ref false in
     //             let f ~(key : string) ~(data : dval) : bool =
     //               let result =
@@ -383,7 +383,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | state, [DObj o; DLambda b] ->
+    //         | state, [DObj o; DFnVal b] ->
     //             let filter_propagating_errors ~key ~data acc =
     //               match acc with
     //               | Error dv ->
@@ -432,7 +432,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | state, [DObj o; DLambda b] ->
+    //         | state, [DObj o; DFnVal b] ->
     //             let abortReason = ref None in
     //             let f ~key ~(data : dval) : dval option =
     //               if !abortReason = None

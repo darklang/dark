@@ -1,6 +1,9 @@
-module LibExecution.Runtime
+module LibExecution.RuntimeTypes
 
-// The core types and functions used by the Dark language.
+// The core types and functions used by the Dark language's runtime. These are
+// not idential to the serialized types or the types used in the Editor, as
+// those have unique constraints (typically, backward compatibility or
+// continuous delivery).
 //
 // The design of these types is intended to accomodate the unique design of
 // Dark, that it's being run sometimes in an editor and sometimes in
@@ -12,28 +15,32 @@ module LibExecution.Runtime
 // put something in some kind of storage, sending it to some API, etc. Those
 // types will always be converted to these types for execution.
 
+// The reason these are distinct formats from the serialized types is that
+// those types are very difficult to change, while we want this to be
+// straightforward to change.  So we transform any serialized formats into this
+// one for running. We remove any "syntactic sugar" (editor/display only
+// features).
+
+// These formats should never be serialized/deserialized, that defeats the
+// purpose. If you need to save data of this format, create a set of new types
+// and convert this type into them. (even if they are identical).
+
+// This format is lossy, relative to the serialized types. Use IDs to refer
+// back.
 
 open Thoth.Json.Net
 open System.Text.RegularExpressions
 
 open Prelude
+open SharedTypes
 
 // fsharplint:disable FL0039
 
 exception InternalException of string
 
-type pos = { x : int; y : int }
-
-type tlid = int64
-type id = int64
-type CanvasID = System.Guid
-type UserID = System.Guid
-
-let id (x : int) : id = int64 x
-
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
-module FnDesc =
+module FQFnName =
   type T =
     { owner : string
       package : string
@@ -50,12 +57,12 @@ module FnDesc =
       else
         $"{this.owner}/{this.package}::{fn}"
 
-  let fnDesc (owner : string)
-             (package : string)
-             (module_ : string)
-             (function_ : string)
-             (version : int)
-             : T =
+  let name (owner : string)
+           (package : string)
+           (module_ : string)
+           (function_ : string)
+           (version : int)
+           : T =
     { owner = owner
       package = package
       module_ = module_
@@ -63,12 +70,10 @@ module FnDesc =
       version = version }
 
 
-  let stdFnDesc (module_ : string) (function_ : string) (version : int) : T =
-    fnDesc "dark" "stdlib" module_ function_ version
+  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
+    name "dark" "stdlib" module_ function_ version
 
-
-
-// Expressions - the main part of the language
+// This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
   | EInteger of id * string
   | EBool of id * bool
@@ -79,21 +84,19 @@ type Expr =
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  | EBinOp of id * FnDesc.T * Expr * Expr * SendToRail
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FnDesc.T * List<Expr> * SendToRail
-  | EPartial of id * string * Expr
-  | ERightPartial of id * string * Expr
-  | ELeftPartial of id * string * Expr
+  // In Elm/OCaml/F#, this is called "Apply" or similar
+  | EFnCall of id * Expr * List<Expr> * SendToRail
+  | EPartial of id * Expr
+  // Since functions aren't real values in the symbol table, we look them up directly
+  | EFQFnValue of id * FQFnName.T
   | EList of id * List<Expr>
   | ERecord of id * List<string * Expr>
-  | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of id * string * List<Expr>
   | EMatch of id * Expr * List<Pattern * Expr>
-  | EPipeTarget of id
-  | EFeatureFlag of id * string * Expr * Expr * Expr
+  | EFeatureFlag of id * Expr * Expr * Expr
 
   member this.isBlank : bool =
     match this with
@@ -103,11 +106,6 @@ type Expr =
 and SendToRail =
   | Rail
   | NoRail
-
-and LambdaBlock =
-  { parameters : List<id * string>
-    symtable : Symtable
-    body : Expr }
 
 and Pattern =
   | PVariable of id * string
@@ -120,9 +118,15 @@ and Pattern =
   | PNull of id
   | PBlank of id
 
-and DvalMap = Map<string, Dval>
-
 // Runtime values
+type DvalMap = Map<string, Dval>
+
+and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : Expr }
+
+and FnValImpl =
+  | Lambda of LambdaImpl
+  | FQFnName of FQFnName.T
+
 and Dval =
   | DInt of bigint
   | DFloat of double
@@ -134,7 +138,7 @@ and Dval =
   | DList of List<Dval>
   | DObj of DvalMap
   (* special types - see notes above *)
-  | DLambda of LambdaBlock
+  | DFnVal of FnValImpl
   | DFakeVal of FakeDval
   (* user types: awaiting a better type system *)
   | DHttpResponse of statusCode : int * headers : (string * string) list * body : Dval
@@ -189,7 +193,7 @@ and Dval =
       | DBytes bytes ->
           bytes |> System.Text.Encoding.ASCII.GetString |> Encode.string
       | DUuid uuid -> uuid.ToString() |> Encode.string
-      | DLambda _ -> Encode.nil
+      | DFnVal _ -> Encode.nil
       | DFakeVal (DError (e)) ->
           Encode.object [ "error", Encode.string (e.ToString()) ]
       | DFakeVal (DIncomplete (_)) -> Encode.object [ "incomplete", Encode.unit () ]
@@ -261,11 +265,11 @@ and Param =
 // these into functions to create the string if we want. The type safety here
 // isn't worth the storage/serialization challenges of changing these later.
 and RuntimeError =
-  | NotAFunction of FnDesc.T
-  | FunctionRemoved of FnDesc.T
+  | NotAFunction of FQFnName.T
+  | FunctionRemoved of FQFnName.T
   | CondWithNonBool of Dval
-  | FnCalledWithWrongTypes of FnDesc.T * List<Dval> * List<Param>
-  | FnCalledWhenNotSync of FnDesc.T * List<Dval> * List<Param>
+  | FnCalledWithWrongTypes of FQFnName.T * List<Dval> * List<Param>
+  | FnCalledWhenNotSync of FQFnName.T * List<Dval> * List<Param>
   | LambdaCalledWithWrongCount of List<Dval> * List<string>
   | LambdaCalledWithWrongType of List<Dval> * List<string>
   | LambdaResultHasWrongType of Dval * DType
@@ -383,12 +387,7 @@ exception RuntimeException of RuntimeError // when we know the runtime error to 
 exception FnCallException of FnCallError // when we need callFn to fill in
 exception FakeDvalException of Dval // when we encounter a fakeDval, jump right own
 
-// .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
-// OS-generated truly-random number.
-// https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
-// also use a single global value for the VM, so that users cannot be
-// guaranteed to get multiple consequetive values (as other requests may intervene)
-let random : System.Random = System.Random()
+
 
 let err (e : RuntimeError) : Dval = (DFakeVal(DError(e)))
 let errStr (s : string) : Dval = (DFakeVal(DError(JustAString(SourceNone, s))))
@@ -422,7 +421,7 @@ type Previewable =
 type Deprecation =
   | NotDeprecated
   // This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of FnDesc.T
+  | ReplacedBy of FQFnName.T
   // This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of string
 
@@ -438,7 +437,7 @@ type SqlSpec =
 
 
 type BuiltInFn =
-  { name : FnDesc.T
+  { name : FQFnName.T
     parameters : List<Param>
     returnType : DType
     description : string
@@ -453,7 +452,7 @@ type BuiltInFn =
 
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
 
-and ExecutionState = { functions : Map<FnDesc.T, BuiltInFn>; tlid : tlid }
+and ExecutionState = { functions : Map<FQFnName.T, BuiltInFn>; tlid : tlid }
 //    tlid : tlid
 // ; canvas_id : Uuidm.t
 // ; account_id : Uuidm.t
@@ -495,15 +494,6 @@ let removedFunction : BuiltInFnSig =
   fun _ -> raise (FnCallException FnFunctionRemoved)
 
 module Shortcuts =
-  let gid () : int64 =
-    // get enough bytes for an int64, trim it to an int63 for now to match ocaml.
-    let bytes = Array.init 8 (fun _ -> (byte) 0)
-    random.NextBytes(bytes)
-    let rand64 : int64 = System.BitConverter.ToInt64(bytes, 0)
-    // Keep 62 bits
-    // 0b0011_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111L
-    let mask : int64 = 4611686018427387903L
-    rand64 &&& mask
 
   let eFn' (module_ : string)
            (function_ : string)
@@ -512,7 +502,10 @@ module Shortcuts =
            (ster : SendToRail)
            : Expr =
     EFnCall
-      (gid (), FnDesc.fnDesc "dark" "stdlib" module_ function_ version, args, ster)
+      (gid (),
+       EFQFnValue(gid (), FQFnName.name "dark" "stdlib" module_ function_ version),
+       args,
+       ster)
 
   let eFn (module_ : string)
           (function_ : string)
@@ -527,37 +520,6 @@ module Shortcuts =
               (args : List<Expr>)
               : Expr =
     eFn' module_ function_ version args Rail
-
-  let eBinOp' (module_ : string)
-              (function_ : string)
-              (version : int)
-              (arg1 : Expr)
-              (arg2 : Expr)
-              (ster : SendToRail)
-              : Expr =
-    EBinOp
-      (gid (),
-       FnDesc.fnDesc "dark" "stdlib" module_ function_ version,
-       arg1,
-       arg2,
-       ster)
-
-  let eBinOp (module_ : string)
-             (function_ : string)
-             (version : int)
-             (arg1 : Expr)
-             (arg2 : Expr)
-             : Expr =
-    eBinOp' module_ function_ version arg1 arg2 NoRail
-
-  // An ebinOp that's on the rail
-  let eRailBinOp (module_ : string)
-                 (function_ : string)
-                 (version : int)
-                 (arg1 : Expr)
-                 (arg2 : Expr)
-                 : Expr =
-    eBinOp' module_ function_ version arg1 arg2 Rail
 
   let eStr (str : string) : Expr = EString(gid (), str)
   let eInt (i : int) : Expr = EInteger(gid (), i.ToString())
@@ -585,25 +547,17 @@ module Shortcuts =
   let eRecord (rows : (string * Expr) list) : Expr = ERecord(gid (), rows)
 
   let eList (elems : Expr list) : Expr = EList(gid (), elems)
-  let ePipeTarget () = EPipeTarget(gid ())
 
 
-  let ePartial (str : string) (e : Expr) : Expr = EPartial(gid (), str, e)
-
-  let eRightPartial (str : string) (e : Expr) : Expr = ERightPartial(gid (), str, e)
-
-
-  let eLeftPartial (str : string) (e : Expr) : Expr = ELeftPartial(gid (), str, e)
-
+  let ePartial (e : Expr) : Expr = EPartial(gid (), e)
 
   let eVar (name : string) : Expr = EVariable(gid (), name)
 
-  (* let fieldAccess (expr : Expr) (fieldName : string) : Expr = *)
-  (*   EFieldAccess (gid () ,expr, fieldName) *)
+  let fieldAccess (expr : Expr) (fieldName : string) : Expr =
+    EFieldAccess(gid (), expr, fieldName)
 
   let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
     EIf(gid (), cond, then', else')
-
 
   let eLet (varName : string) (rhs : Expr) (body : Expr) : Expr =
     ELet(gid (), varName, rhs, body)
@@ -612,13 +566,8 @@ module Shortcuts =
   let eLambda (varNames : string list) (body : Expr) : Expr =
     ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
 
-
-  let ePipe (first : Expr) (second : Expr) (rest : Expr list) : Expr =
-    EPipe(gid (), first, second, rest)
-
   let eConstructor (name : string) (args : Expr list) : Expr =
     EConstructor(gid (), name, args)
-
 
   let eJust (arg : Expr) : Expr = EConstructor(gid (), "Just", [ arg ])
 
@@ -667,5 +616,62 @@ module Shortcuts =
 
   let pBlank () : Pattern = PBlank(gid ())
 
-  let eflag name cond oldCode newCode =
-    EFeatureFlag(gid (), name, cond, oldCode, newCode)
+  let eflag cond oldCode newCode = EFeatureFlag(gid (), cond, oldCode, newCode)
+
+module Handler =
+  type CronInterval =
+    | EveryDay
+    | EveryWeek
+    | EveryFortnight
+    | EveryHour
+    | Every12Hours
+    | EveryMinute
+
+  // We need to keep the IDs around until we get rid of them on the client
+  type ids = { moduleID : id; nameID : id; modifierID : id }
+
+  type Spec =
+    | HTTP of path : string * method : string * ids : ids
+    | Worker of name : string * ids : ids
+    // Deprecated but still supported form
+    | OldWorker of modulename : string * name : string * ids : ids
+    | Cron of name : string * interval : string * ids : ids
+    | REPL of name : string * ids : ids
+
+
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
+
+module DB =
+  type Col = string * DType
+  type T = { tlid : tlid; name : string; cols : List<Col> }
+
+module UserType =
+  type RecordField = { name : string; typ : DType }
+  type Definition = UTRecord of List<RecordField>
+
+  type T = { tlid : tlid; name : string; version : int; definition : Definition }
+
+module UserFunction =
+  type Parameter = { name : string; typ : DType; description : string }
+
+  type T =
+    { tlid : tlid
+      name : string
+      parameters : List<Parameter>
+      returnType : DType
+      description : string
+      infix : bool
+      ast : Expr }
+
+type Toplevel =
+  | TLHandler of Handler.T
+  | TLDB of DB.T
+  | TLFunction of UserFunction.T
+  | TLType of UserType.T
+
+  member this.toTLID() : tlid =
+    match this with
+    | TLHandler h -> h.tlid
+    | TLDB db -> db.tlid
+    | TLFunction f -> f.tlid
+    | TLType t -> t.tlid
