@@ -529,21 +529,20 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "set" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj; Param.make "key" TStr; Param.make "val" TAny]
-    //   ; returnType = TObj
-    //   ; description = "Returns a copy of `dict` with the `key` set to `val`."
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DObj o; DStr k; v] ->
-    //             DObj (Map.set o (Unicode_string.to_string k) v)
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "set" 0
+      parameters =
+        [ Param.make "dict" (TDict(TVariable "a")) ""
+          Param.make "key" TStr ""
+          Param.make "val" TAny "" ]
+      returnType = (TDict(TVariable "a"))
+      description = "Returns a copy of `dict` with the `key` set to `val`."
+      fn =
+        (function
+        | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Dict" "remove" 0
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TDict varA

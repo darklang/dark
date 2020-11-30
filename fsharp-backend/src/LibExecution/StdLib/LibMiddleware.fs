@@ -168,26 +168,84 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "setHeader" 0
+      parameters =
+        [ Param.make "response" THTTPResponse ""
+          Param.make "name" TStr ""
+          Param.make "value" TStr "" ]
+      returnType = THTTPResponse
+      description = "Set a header in the HTTP response"
+      fn =
+        (function
+        | state,
+          [ DHttpResponse (code, headers, responseVal); DStr name; DStr value ] ->
+            Value(DHttpResponse(code, headers ++ [ name, value ], responseVal))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "addServerHeaderMiddleware" 0
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Add the darklang server header."
       fn =
         (function
-        | state, [] ->
+        | state, [ DFnVal _ as next ] ->
             DFnVal
               (Lambda
-                { symtable = Map.empty
+                { symtable = Map.ofList [ "next", next ]
                   parameters = [ gid (), "req" ]
                   body =
                     eLet
                       "result"
                       (eFnCall (eVar "next") [ eVar "req" ])
                       (eFn
-                        "Dict"
-                         "set"
+                        "Http"
+                         "setHeader"
                          0
                          [ eVar "result"; eStr "server"; eStr "darklang" ]) })
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "convertToResponseValue" 0
+      parameters =
+        [ Param.make
+            "response"
+            TAny
+            "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
+      returnType = THTTPResponse
+      description = "Return a HTTPResponse based on the input."
+      fn =
+        // TODO: should we try to handle Option, Result, DError, and ErrorRail here?
+        (function
+        | state, [ response ] ->
+            match response with
+            | DHttpResponse _ -> Value response
+            | other -> Value(DHttpResponse(200, [], other))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "wrapInResponseValue" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description =
+        "Take the HTTP result, and if it is not a HTTPResponse value, convert it to one."
+      fn =
+        (function
+        | state, [ DFnVal _ as next ] ->
+            DFnVal
+              (Lambda
+                { symtable = Map.ofList [ "next", next ]
+                  parameters = [ gid (), "req" ]
+                  body =
+                    eFn
+                      "Http"
+                      "convertToResponseValue"
+                      0
+                      [ (eFnCall (eVar "next") [ eVar "req" ]) ] })
             |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -216,13 +274,14 @@ let fns : List<BuiltInFn> =
                       gid (), "request" ]
                   symtable = Map.empty
                   body =
-                    eLet
-                      "addServerHeaderFn"
-                      (eFn "Http" "addServerHeaderMiddleware" 0 [])
-                      (eLet
-                        "app"
-                         (eFnCall (eVar "addServerHeaderFn") [ eVar "handler" ])
-                         (eFnCall (eVar "app") [ eVar "request" ])) })
+                    (eLet
+                      "app"
+                       (eFn
+                         "Http"
+                          "addServerHeaderMiddleware"
+                          0
+                          [ eFn "Http" "wrapInResponseValue" 0 [ eVar "handler" ] ])
+                       (eFnCall (eVar "app") [ eVar "request" ])) })
               [ url; body; headers; handler; DObj Map.empty ]
               NoRail
         | args -> incorrectArgs ())
