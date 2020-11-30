@@ -521,6 +521,12 @@ module Shortcuts =
               : Expr =
     eFn' module_ function_ version args Rail
 
+  let eFnCall (fnVal : Expr) (args : List<Expr>) : Expr =
+    EFnCall(gid (), fnVal, args, NoRail)
+
+  let eRailFnCall (fnVal : Expr) (args : List<Expr>) : Expr =
+    EFnCall(gid (), fnVal, args, Rail)
+
   let eStr (str : string) : Expr = EString(gid (), str)
   let eInt (i : int) : Expr = EInteger(gid (), i.ToString())
 

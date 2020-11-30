@@ -179,16 +179,15 @@ let fns : List<BuiltInFn> =
               (Lambda
                 { symtable = Map.empty
                   parameters = [ gid (), "req" ]
-                  body = eBlank ()
-                // eLet
-                //   "result"
-                //   (ePipe (eVar "req") (eVar "next") [])
-                //   (eFn
-                //     "Dict"
-                //      "set"
-                //      0
-                //      [ eVar "result"; eStr "server"; eStr "darklang" ])
-                })
+                  body =
+                    eLet
+                      "result"
+                      (eFnCall (eVar "next") [ eVar "req" ])
+                      (eFn
+                        "Dict"
+                         "set"
+                         0
+                         [ eVar "result"; eStr "server"; eStr "darklang" ]) })
             |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -217,20 +216,13 @@ let fns : List<BuiltInFn> =
                       gid (), "request" ]
                   symtable = Map.empty
                   body =
-                    // so what's happening is that we don't actually have a way
-                    // to get a lambda and pipe to it. If we look in
-                    // injectParamAndExecute, it takes lambda exprs, fncalls and
-                    // binops, but not actually lambda values.  Our fake-ass type
-                    // system is failing us yet again.
-                    eBlank ()
-                // eLet
-                //   "addServerHeaderFn"
-                //   (eFn "Http" "addServerHeaderMiddleware" 0 [])
-                //   (eLet
-                //     "app"
-                //      (ePipe (eVar "handler") (eVar "addServerHeaderFn") [])
-                //      (ePipe (eVar "request") (eVar "app") []))
-                })
+                    eLet
+                      "addServerHeaderFn"
+                      (eFn "Http" "addServerHeaderMiddleware" 0 [])
+                      (eLet
+                        "app"
+                         (eFnCall (eVar "addServerHeaderFn") [ eVar "handler" ])
+                         (eFnCall (eVar "app") [ eVar "request" ])) })
               [ url; body; headers; handler; DObj Map.empty ]
               NoRail
         | args -> incorrectArgs ())
