@@ -15,7 +15,7 @@ open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"
-  let input = $"do {input}"
+  let input = $"do ({input})"
   let checker = SourceCodeServices.FSharpChecker.Create()
 
   // Throws an exception here if we don't do this:
@@ -46,7 +46,7 @@ let parse (input) : SynExpr =
                                                      _))) ->
       // Extract declarations and walk over them
       expr
-  | _ -> failwith $" - wrong shape tree: {results}"
+  | _ -> failwith $" - wrong shape tree: {results.ParseTree}"
 
 
 let rec convertToExpr (ast : SynExpr) : D.Expr =

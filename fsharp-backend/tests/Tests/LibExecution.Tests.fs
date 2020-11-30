@@ -121,4 +121,25 @@ let fileTests () : Test =
   |> Array.toList
   |> testList "All files"
 
-let tests = testList "StdLib" [ fileTests () ]
+open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
+
+let parserTests =
+  let t name testStr expectedExpr =
+    testTask name {
+      let source = FSharpToExpr.parse testStr
+      let actualProg = FSharpToExpr.convertToExpr source
+
+      return (Expect.isTrue
+                (actualProg.testEqualIgnoringIDs (expectedExpr))
+                $"{actualProg}\n\n=\n\n{expectedExpr}")
+    }
+
+  testList
+    "Parser tests"
+    [ t "pipe without expr" "let x = 5\nx |> List.map_v0 5"
+        (eLet
+          "x"
+           (eInt 5)
+           (ePipe (eVar "x") (eFn "List" "map" 0 [ (ePipeTarget ()); eInt 5 ]) [])) ]
+
+let tests = testList "StdLib" [ parserTests ]
