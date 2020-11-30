@@ -127,21 +127,35 @@ let runDarkHandler : HttpHandler =
           do! ctx.Request.Body.CopyToAsync(ms)
           let body = ms.ToArray()
 
+          printfn $"serialized program is {expr}"
           let expr = expr.toRuntimeType ()
 
+          printfn $"runtime program is {expr}"
           let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
           let! result = LibExecution.Execution.runHttp tlid "url" body fns expr
+
           printfn $"result of runHttp is {result}"
-          // FSTODO - might not be JSON
-          // let result = result.toJSON().ToString()
-          // FSTODO - might not be UTF8
-          let result = $"{result}"
 
-          let bytes = System.Text.Encoding.UTF8.GetBytes result
+          match result with
+          | LibExecution.RuntimeTypes.DHttpResponse (status,
+                                                     headers,
+                                                     LibExecution.RuntimeTypes.DStr body) ->
+              ctx.Response.StatusCode <- status
+              List.iter (fun (k, v) ->
+                ctx.Response.Headers.Add
+                  (k, Microsoft.Extensions.Primitives.StringValues([| v |]))) headers
+              let bytes = System.Text.Encoding.UTF8.GetBytes body
+              do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+              return! next ctx
+          | other ->
+              let bytes =
+                System.Text.Encoding.UTF8.GetBytes
+                  "Error: body is not a HttpResponse"
 
-          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+              do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+              ctx.Response.StatusCode <- 500
+              return Some ctx
 
-          return! next ctx
       | [] ->
           ctx.Response.StatusCode <- 404
           return Some ctx
