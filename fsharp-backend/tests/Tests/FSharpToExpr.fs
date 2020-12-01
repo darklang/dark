@@ -15,7 +15,7 @@ open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"
-  let input = $"do ({input})"
+  let input = $"{input}"
   let checker = SourceCodeServices.FSharpChecker.Create()
 
   // Throws an exception here if we don't do this:
@@ -36,8 +36,7 @@ let parse (input) : SynExpr =
                                                                              _,
                                                                              _,
                                                                              [ SynModuleDecl.DoExpr (_,
-                                                                                                     SynExpr.Do (expr,
-                                                                                                                 _),
+                                                                                                     expr,
                                                                                                      _) ],
                                                                              _,
                                                                              _,
