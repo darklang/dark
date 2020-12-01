@@ -201,9 +201,9 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText =
                                                                                               "op_PipeRight" ->
       match c nestedPipes with
-      | D.EPipe (id, arg1, D.EBlank _, rest) as pipe ->
+      | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
           // when we just built the lowest, the second one goes here
-          D.EPipe(id, arg1, cPlusPipeTarget arg, rest)
+          D.EPipe(id, arg1, cPlusPipeTarget arg, [])
       | D.EPipe (id, arg1, arg2, rest) as pipe ->
           D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
@@ -213,7 +213,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
           ePipe (other) (cPlusPipeTarget arg) []
   | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
-      ePipe (c expr) (eBlank ()) []
+      ePipe (c expr) (eStr "SENTINEL EXPR FOR PIPES") []
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when List.contains
                                                           name.idText
                                                           [ "Ok"
@@ -231,7 +231,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
       | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
           D.EBinOp(id, name, arg1, c arg, ster)
       // A pipe with one entry
-      | D.EPipe (id, arg1, D.EBlank _, []) as pipe ->
+      | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
           D.EPipe(id, arg1, cPlusPipeTarget arg, [])
       // A pipe with more than one entry
       | D.EPipe (id, arg1, arg2, rest) as pipe ->

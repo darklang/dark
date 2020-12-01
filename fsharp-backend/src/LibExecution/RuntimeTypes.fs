@@ -87,8 +87,8 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  // In Elm/OCaml/F#, this is called "Apply" or similar
-  | EFnCall of id * Expr * List<Expr> * SendToRail
+  // This is a function call, the first expression is the value of the function.
+  | EApply of id * Expr * List<Expr> * IsInPipe * SendToRail
   | EPartial of id * Expr
   // Since functions aren't real values in the symbol table, we look them up directly
   | EFQFnValue of id * FQFnName.T
@@ -106,6 +106,14 @@ type Expr =
 and SendToRail =
   | Rail
   | NoRail
+
+// EApply has slightly different semantics when it is in a pipe. When piping
+// into Incomplete values, we ignore the Incomplete and return the piped-in
+// argument (which is the first parameter). This is to allow editing live code
+// by creating a new pipe entry and then filling it in.
+and IsInPipe =
+  | InPipe
+  | NotInPipe
 
 and Pattern =
   | PVariable of id * string
@@ -501,10 +509,11 @@ module Shortcuts =
            (args : List<Expr>)
            (ster : SendToRail)
            : Expr =
-    EFnCall
+    EApply
       (gid (),
        EFQFnValue(gid (), FQFnName.name "dark" "stdlib" module_ function_ version),
        args,
+       NotInPipe,
        ster)
 
   let eFn (module_ : string)
@@ -514,18 +523,24 @@ module Shortcuts =
           : Expr =
     eFn' module_ function_ version args NoRail
 
-  let eRailFn (module_ : string)
+  let eFnRail (module_ : string)
               (function_ : string)
               (version : int)
               (args : List<Expr>)
               : Expr =
     eFn' module_ function_ version args Rail
 
-  let eFnCall (fnVal : Expr) (args : List<Expr>) : Expr =
-    EFnCall(gid (), fnVal, args, NoRail)
+  let eApply (fnVal : Expr) (args : List<Expr>) : Expr =
+    EApply(gid (), fnVal, args, NotInPipe, NoRail)
 
-  let eRailFnCall (fnVal : Expr) (args : List<Expr>) : Expr =
-    EFnCall(gid (), fnVal, args, Rail)
+  let ePipeApply (fnVal : Expr) (args : List<Expr>) : Expr =
+    EApply(gid (), fnVal, args, InPipe, NoRail)
+
+  let eRailApply (fnVal : Expr) (args : List<Expr>) : Expr =
+    EApply(gid (), fnVal, args, NotInPipe, Rail)
+
+  let ePipeAndRailApply (fnVal : Expr) (args : List<Expr>) : Expr =
+    EApply(gid (), fnVal, args, InPipe, Rail)
 
   let eStr (str : string) : Expr = EString(gid (), str)
   let eInt (i : int) : Expr = EInteger(gid (), i.ToString())

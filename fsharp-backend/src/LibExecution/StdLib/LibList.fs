@@ -878,7 +878,8 @@ let fns : List<BuiltInFn> =
             taskv {
               let! result =
                 map_s (fun dv ->
-                  LibExecution.Interpreter.callFnVal state b [ dv ] NoRail) l
+                  LibExecution.Interpreter.applyFnVal state b [ dv ] NotInPipe NoRail)
+                  l
 
               return Dval.list result
             }
@@ -902,7 +903,8 @@ let fns : List<BuiltInFn> =
             taskv {
               let! result =
                 map_s (fun dv ->
-                  LibExecution.Interpreter.callFnVal state b [ dv ] NoRail) l
+                  LibExecution.Interpreter.applyFnVal state b [ dv ] NotInPipe NoRail)
+                  l
 
               return Dval.list result
             }

@@ -187,10 +187,11 @@ type Expr =
     | EVariable (id, var) -> R.EVariable(id, var)
     | EFieldAccess (id, obj, fieldname) -> R.EFieldAccess(id, r obj, fieldname)
     | EFnCall (id, name, args, ster) ->
-        R.EFnCall
+        R.EApply
           (id,
            R.EFQFnValue(gid (), name.toRuntimeType ()),
            List.map r args,
+           R.NotInPipe,
            ster.toRuntimeType ())
     | EBinOp (id, name, arg1, arg2, ster) ->
         r (EFnCall(id, name, [ arg1; arg2 ], ster))
@@ -205,17 +206,32 @@ type Expr =
     | EPipe (id, expr1, expr2, rest) ->
         // Convert v |> fn1 a |> fn2 |> fn3 b c
         // into fn3 (fn2 (fn1 v a)) b c
+        // This conversion should correspond to ast.ml:inject_param_and_execute
+        // from the OCaml interpreter
         let inner = r expr1
         List.fold (fun prev next ->
           match next with
-          | EFnCall (id, fnVal, EPipeTarget ptID :: exprs, rail) ->
-              R.EFnCall
+          // TODO: support currying
+          | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
+              R.EApply
                 (id,
-                 R.EFQFnValue(ptID, fnVal.toRuntimeType ()),
+                 R.EFQFnValue(ptID, name.toRuntimeType ()),
                  prev :: List.map r exprs,
+                 R.InPipe,
                  rail.toRuntimeType ())
-          // Here, the expression evaluates to an FnValue with no args. This is for eg variables containing values
-          | other -> R.EFnCall(id, r other, [ prev ], NoRail.toRuntimeType ()))
+          // TODO: support currying
+          | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
+              R.EApply
+                (id,
+                 R.EFQFnValue(ptID, name.toRuntimeType ()),
+                 [ prev; r expr2 ],
+                 R.InPipe,
+                 rail.toRuntimeType ())
+          // If there's a hole, run the computation right through it as if it wasn't there
+          | EBlank _ -> prev
+          // Here, the expression evaluates to an FnValue. This is for eg variables containing values
+          | other ->
+              R.EApply(id, r other, [ prev ], R.InPipe, NoRail.toRuntimeType ()))
 
           inner (expr2 :: rest)
 

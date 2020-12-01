@@ -58,7 +58,12 @@ let fns : List<BuiltInFn> =
             (String.toEgcSeq s
              |> Seq.toList
              |> Prelude.map_s (fun te ->
-                  (LibExecution.Interpreter.callFnVal state b [ DChar te ] NoRail))
+                  (LibExecution.Interpreter.applyFnVal
+                    state
+                     b
+                     [ DChar te ]
+                     NotInPipe
+                     NoRail))
              |> (fun dvals ->
              (taskv {
                let! dvals = dvals

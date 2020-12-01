@@ -198,7 +198,7 @@ let fns : List<BuiltInFn> =
                   body =
                     eLet
                       "result"
-                      (eFnCall (eVar "next") [ eVar "req" ])
+                      (eApply (eVar "next") [ eVar "req" ])
                       (eFn
                         "Http"
                          "setHeader"
@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
                       "Http"
                       "convertToResponseValue"
                       0
-                      [ (eFnCall (eVar "next") [ eVar "req" ]) ] })
+                      [ (eApply (eVar "next") [ eVar "req" ]) ] })
             |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -263,7 +263,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
-            Interpreter.callFnVal
+            Interpreter.applyFnVal
               state
               (Lambda
                 { parameters =
@@ -281,8 +281,9 @@ let fns : List<BuiltInFn> =
                           "addServerHeaderMiddleware"
                           0
                           [ eFn "Http" "wrapInResponseValue" 0 [ eVar "handler" ] ])
-                       (eFnCall (eVar "app") [ eVar "request" ])) })
+                       (eApply (eVar "app") [ eVar "request" ])) })
               [ url; body; headers; handler; DObj Map.empty ]
+              NotInPipe
               NoRail
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

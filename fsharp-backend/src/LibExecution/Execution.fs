@@ -37,7 +37,7 @@ let runHttp (tlid : tlid)
     let state = { functions = functions; tlid = tlid }
 
     let result =
-      Interpreter.callFnVal
+      Interpreter.applyFnVal
         state
         (FQFnName(FQFnName.stdlibName "Http" "middleware" 0))
         [ DStr url
@@ -46,6 +46,7 @@ let runHttp (tlid : tlid)
           DFnVal
             (Lambda
               { parameters = [ gid (), "request" ]; symtable = Map.empty; body = e }) ]
+        NotInPipe
         NoRail
 
 

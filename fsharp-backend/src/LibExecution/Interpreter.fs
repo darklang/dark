@@ -64,10 +64,10 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                 // allow users to edit code safely
                 |> List.filter (fun (k, v : Dval) -> not v.isIncomplete)
                 |> Dval.obj)
-    | EFnCall (id, fnVal, exprs, ster) ->
+    | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
         let! args = Prelude.map_s (eval state st) exprs
-        return! (callFn state fnVal (Seq.toList args) ster)
+        return! (applyFn state fnVal (Seq.toList args) inPipe ster)
     | EFQFnValue (id, desc) -> return DFnVal(FQFnName(desc))
     | EFieldAccess (id, _, _) ->
         failwith "todo"
@@ -272,31 +272,43 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   }
 
 // Unwrap the dval, which we expect to be a function, and error if it's not
-and callFn (state : ExecutionState)
-           (fn : Dval)
-           (args : List<Dval>)
-           (ster : SendToRail)
-           : DvalTask =
+and applyFn (state : ExecutionState)
+            (fn : Dval)
+            (args : List<Dval>)
+            (isInPipe : IsInPipe)
+            (ster : SendToRail)
+            : DvalTask =
   taskv {
     match fn with
-    | DFnVal fnVal -> return! callFnVal state fnVal args ster
-    | DFakeVal _ -> return fn
-    | other -> return errStr "Expected a function value, got something else"
+    | DFnVal fnVal -> return! applyFnVal state fnVal args isInPipe ster
+    // Incompletes are allowed in pipes
+    | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
+        return Option.defaultValue fn (List.tryHead args)
+    | other ->
+        return errStr $"Expected a function value, got something else: {other}"
   }
 
-and callFnVal (state : ExecutionState)
-              (fnVal : FnValImpl)
-              (args : List<Dval>)
-              (ster : SendToRail)
-              : DvalTask =
-  match fnVal with
-  | Lambda l ->
-      taskv {
-        // If one of the args is fake value used as a marker, return it instead of
-        // executing. This is the same behaviour as in fn calls. *)
-        match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
-        | Some dv -> return dv
-        | None ->
+and applyFnVal (state : ExecutionState)
+               (fnVal : FnValImpl)
+               (args : List<Dval>)
+               (isInPipe : IsInPipe)
+               (ster : SendToRail)
+               : DvalTask =
+  taskv {
+    match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
+    // If one of the args is a fake value used as a marker, return it instead
+    // of executing.
+    | Some dv ->
+        match dv with
+        // That is, unless it's an incomplete in a pipe. In a pipe, we treat
+        // the entire expression as a blank, and skip it, returning the input
+        // (first) value to be piped into the next statement instead. *)
+        | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
+            return Option.defaultValue dv (List.tryHead args)
+        | _ -> return dv
+    | None ->
+        match fnVal with
+        | Lambda l ->
             let parameters = List.map snd l.parameters
             // One of the reasons to take a separate list of params and args is to
             // provide this error message here. We don't have this information in
@@ -313,16 +325,11 @@ and callFnVal (state : ExecutionState)
               // paramSyms is higher priority
               let newSymtable = Map.union paramSyms l.symtable
               return! eval state newSymtable l.body
-      }
-  | (FQFnName desc) ->
-      taskv {
-        let! result =
-          match state.functions.TryFind desc with
-          | None -> Value(err (NotAFunction desc))
-          | Some fn ->
-              match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
-              | Some special -> Value special
-              | None ->
+        | (FQFnName desc) ->
+            let! result =
+              match state.functions.TryFind desc with
+              | None -> Value(err (NotAFunction desc))
+              | Some fn ->
                   try
                     fn.fn (state, args)
                   with
@@ -334,14 +341,14 @@ and callFnVal (state : ExecutionState)
                         (err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
                   | FakeDvalException dval -> Value(dval)
 
-        if ster = Rail then
-          match result.unwrapFromErrorRail with
-          | DOption (Some v) -> return v
-          | DResult (Ok v) -> return v
-          | DFakeVal _ as f -> return f
-          // There should only be DOptions and DResults here, but hypothetically we got
-          // something else, they would go on the error rail too.
-          | other -> return DFakeVal(DErrorRail other)
-        else
-          return result
-      }
+            if ster = Rail then
+              match result.unwrapFromErrorRail with
+              | DOption (Some v) -> return v
+              | DResult (Ok v) -> return v
+              | DFakeVal _ as f -> return f
+              // There should only be DOptions and DResults here, but hypothetically we got
+              // something else, they would go on the error rail too.
+              | other -> return DFakeVal(DErrorRail other)
+            else
+              return result
+  }
