@@ -10,6 +10,6 @@ let tests =
     [ Tests.LibExecution.tests; Tests.BwdServer.tests; Tests.ApiServer.tests ]
 
 [<EntryPoint>]
-let main _ =
+let main args =
   LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
-  runTests defaultConfig tests
+  runTestsWithCLIArgs [] args tests
