@@ -22,13 +22,13 @@ let debug (msg : string) (a : 'a) : 'a =
 let random : System.Random = System.Random()
 
 let gid () : int64 =
-  // get enough bytes for an int64, trim it to an int63 for now to match ocaml.
+  // get enough bytes for an int64, trim it to an int31 for now to match the frontend
   let bytes = Array.init 8 (fun _ -> (byte) 0)
   random.NextBytes(bytes)
   let rand64 : int64 = System.BitConverter.ToInt64(bytes, 0)
-  // Keep 62 bits
-  // 0b0011_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111L
-  let mask : int64 = 4611686018427387903L
+  // Keep 30 bits
+  // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
+  let mask : int64 = 1073741823L
   rand64 &&& mask
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
