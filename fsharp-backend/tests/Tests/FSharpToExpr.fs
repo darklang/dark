@@ -230,6 +230,10 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
           D.EBinOp(id, name, c arg, arg2, ster)
       | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
           D.EBinOp(id, name, arg1, c arg, ster)
+      // A pipe with one entry
+      | D.EPipe (id, arg1, D.EBlank _, []) as pipe ->
+          D.EPipe(id, arg1, cPlusPipeTarget arg, [])
+      // A pipe with more than one entry
       | D.EPipe (id, arg1, arg2, rest) as pipe ->
           D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
