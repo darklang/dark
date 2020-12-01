@@ -136,10 +136,14 @@ let parserTests =
 
   testList
     "Parser tests"
-    [ t "pipe without expr" "let x = 5\nx |> List.map_v0 5"
+    [ t "pipe without expr" "(let x = 5\nx |> List.map_v0 5)"
         (eLet
           "x"
            (eInt 5)
-           (ePipe (eVar "x") (eFn "List" "map" 0 [ (ePipeTarget ()); eInt 5 ]) [])) ]
+           (ePipe (eVar "x") (eFn "List" "map" 0 [ (ePipeTarget ()); eInt 5 ]) []))
+      t
+        "simple expr"
+        "(5 + 3) == 8"
+        (eBinOp "" "==" 0 (eBinOp "" "+" 0 (eInt 5) (eInt 3)) (eInt 8)) ]
 
-let tests = testList "StdLib" [ parserTests ]
+let tests = testList "StdLib" [ parserTests; fileTests () ]
