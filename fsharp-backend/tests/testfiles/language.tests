@@ -1,6 +1,13 @@
 (5 + 3) = 8 // binop
 
+[test.pipesimple]
+([] |> List.push_v0 2) = [2]
+
 [test.lambda]
+(let y = (fun x -> x + 1) in
+ List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
+
+[test.lambda1]
 (let x = 5 in
  let y = (fun c -> x + c) in
  let x = 6 in
