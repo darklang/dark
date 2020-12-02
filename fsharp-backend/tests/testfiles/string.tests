@@ -77,3 +77,7 @@
 // String.trim_v0 "  foo bar " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces
 // String.trim_v0 "foo  " = "foo" // String trims trailing spaces
 // String.trim_v0 "foo" = "foo" // String trim noops
+
+[test.string_foreach] // Check that foreach executes the right number of times
+(let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 false) in
+ Test.sideEffectCount_v0) = 8
