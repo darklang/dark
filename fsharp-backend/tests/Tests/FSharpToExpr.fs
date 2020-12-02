@@ -173,6 +173,11 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
                                  _) ],
                       body,
                       _) -> eLet name.idText (c rhs) (c body)
+  | SynExpr.LetOrUse (_,
+                      _,
+                      [ Binding (_, _, _, _, _, _, _, SynPat.Wild (_), _, rhs, _, _) ],
+                      body,
+                      _) -> eLet "_" (c rhs) (c body)
   | SynExpr.Match (_, cond, clauses, _) ->
       let convertClause (Clause (pat, _, expr, _, _) : SynMatchClause)
                         : R.Pattern * R.Expr =

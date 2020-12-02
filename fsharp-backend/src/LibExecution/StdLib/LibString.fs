@@ -257,7 +257,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            s |> System.Text.ASCIIEncoding.Unicode.GetByteCount |> Dval.int |> Value
+            s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -306,7 +306,8 @@ let fns : List<BuiltInFn> =
         "Concatenates the two strings by appending `s2` to `s1` and returns the joined string."
       fn =
         (function
-        | _, [ DStr s1; DStr s2 ] -> Value(DStr(s1 + s2))
+        // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
+        | _, [ DStr s1; DStr s2 ] -> Value(DStr((s1 + s2).Normalize()))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -453,7 +454,7 @@ let fns : List<BuiltInFn> =
                       (RuntimeException(JustAString(SourceNone, "Expected String"))))
                 l
 
-            Value(DStr(String.concat sep strs))
+            Value(DStr((String.concat sep strs).Normalize()))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -494,7 +495,7 @@ let fns : List<BuiltInFn> =
       fn = (fun _ -> failwith "This function no longer exists.")
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "String" "fromChar" 0) }
+      deprecated = ReplacedBy(fn "String" "fromChar" 1) }
     { name = fn "String" "fromChar" 1
       parameters = [ Param.make "c" TChar "" ]
       returnType = TStr

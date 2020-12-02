@@ -63,3 +63,5 @@ List.range_v0 -5 5 = [-5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5;]
 List.map_v0 [1, 2] (fun x -> x + 1) = [2, 3]
 List.map_v0 (List.range_v0 1 5) (fun x -> x + 1) = [2; 3; 4; 5; 6]
 List.map_v0 [1, 2, 3] (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 4))  = [true; true; true]
+List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1, 3]
+List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "LambdaResultHasWrongType (DInt 1, TBool)"

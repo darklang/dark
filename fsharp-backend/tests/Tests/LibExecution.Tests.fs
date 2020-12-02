@@ -5,6 +5,17 @@ module Tests.LibExecution
 open Expecto
 open Prelude
 
+module R = LibExecution.Runtime
+
+// Remove random things like IDs to make the tests stable
+let normalizeDvalResult (dv : R.Dval) : R.Dval =
+  match dv with
+  | R.DFakeVal (R.DError (R.JustAString (source, str))) ->
+      R.DFakeVal(R.DError(R.JustAString(R.SourceNone, str)))
+  | R.DFakeVal (R.DError (errorVal)) ->
+      R.DFakeVal(R.DError(R.JustAString(R.SourceNone, errorVal.ToString())))
+  | dv -> dv
+
 let t (comment : string) (code : string) : Test =
   let name = $"{comment} ({code})"
   if code.StartsWith "//" then
@@ -18,6 +29,7 @@ let t (comment : string) (code : string) : Test =
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let! actual = LibExecution.Execution.run [] fns actualProg
         let! expected = LibExecution.Execution.run [] fns expectedResult
+        let actual = normalizeDvalResult actual
 
         return (Expect.equal
                   actual
@@ -47,64 +59,61 @@ let fileTests () : Test =
   System.IO.Directory.GetFiles(dir, "*")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.map (fun filename ->
-       if filename.Contains "language" || filename.Contains "int.tests"  || filename.Contains "list.tests" || filename.Contains "bool.tests" then // tweak to run subset of tests
-         let currentTestName = ref ""
-         let currentTests = ref [] // keep track of tests within a [tests]
-         let singleTestMode = ref false
-         let currentTestString = ref "" // keep track of the current [test]
-         let allTests = ref [] // finished test and suites
+       let currentTestName = ref ""
+       let currentTests = ref [] // keep track of tests within a [tests]
+       let singleTestMode = ref false
+       let currentTestString = ref "" // keep track of the current [test]
+       let allTests = ref [] // finished test and suites
 
-         let finish () =
-           // Add the current work to allTests, and clear
-           let newTestCase =
-             if !singleTestMode then
-               // Add a single test case
-               t !currentTestName !currentTestString
-             else
-               // Put currentTests in a group and add them
-               testList !currentTestName !currentTests
+       let finish () =
+         // Add the current work to allTests, and clear
+         let newTestCase =
+           if !singleTestMode then
+             // Add a single test case
+             t !currentTestName !currentTestString
+           else
+             // Put currentTests in a group and add them
+             testList !currentTestName !currentTests
 
-           allTests := !allTests @ [ newTestCase ]
+         allTests := !allTests @ [ newTestCase ]
 
-           // Clear settings
-           currentTestName := ""
-           singleTestMode := false
-           currentTestString := ""
-           currentTests := []
+         // Clear settings
+         currentTestName := ""
+         singleTestMode := false
+         currentTestString := ""
+         currentTests := []
 
-         (dir + filename)
-         |> System.IO.File.ReadLines
-         |> Seq.iteri (fun i line ->
-              let i = i + 1
-              match line with
-              // [tests] indicator
-              | Regex "^\[tests\.(.*)\]$" [ name ] ->
-                  finish ()
-                  currentTestName := name
-              // [test] indicator
-              | Regex "^\[test\.(.*)\]$" [ name ] ->
-                  finish ()
-                  singleTestMode := true
-                  currentTestName := name
-              // Skip comment-only lines
-              | Regex "^\s*//.*" [] -> ()
-              // Append to the current test string
-              | _ when !singleTestMode ->
-                  currentTestString := !currentTestString + line
-              // Skip whitespace lines
-              | Regex "^\s*$" [] -> ()
-              // 1-line test
-              | Regex "^(.*)\s*$" [ code ] ->
-                  currentTests := !currentTests @ [ t $"line {i}" code ]
-              // 1-line test w/ comment
-              | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                  currentTests := !currentTests @ [ t $"{comment} (line {i})" code ]
-              | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
+       (dir + filename)
+       |> System.IO.File.ReadLines
+       |> Seq.iteri (fun i line ->
+            let i = i + 1
+            match line with
+            // [tests] indicator
+            | Regex "^\[tests\.(.*)\]$" [ name ] ->
+                finish ()
+                currentTestName := name
+            // [test] indicator
+            | Regex "^\[test\.(.*)\]$" [ name ] ->
+                finish ()
+                singleTestMode := true
+                currentTestName := name
+            // Skip comment-only lines
+            | Regex "^\s*//.*" [] -> ()
+            // Append to the current test string
+            | _ when !singleTestMode ->
+                currentTestString := !currentTestString + line
+            // Skip whitespace lines
+            | Regex "^\s*$" [] -> ()
+            // 1-line test
+            | Regex "^(.*)\s*$" [ code ] ->
+                currentTests := !currentTests @ [ t $"line {i}" code ]
+            // 1-line test w/ comment
+            | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
+                currentTests := !currentTests @ [ t $"{comment} (line {i})" code ]
+            | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
-         finish ()
-         testList $"Tests from {filename}" !allTests
-       else
-         testList $"Tests from {filename}" [])
+       finish ()
+       testList $"Tests from {filename}" !allTests)
   |> Array.toList
   |> testList "All files"
 

@@ -568,36 +568,45 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "filter" 0
-//
-//     ; parameters = [Param.make "list" TList; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
-//     ; fn =
-//
-//           (function
-//           | state, [DList l; DLambda b] ->
-//               let incomplete = ref false in
-//               let f (dv : dval) : bool =
-//                 match Ast.execute_dblock ~state b [dv] with
-//                 | DBool b ->
-//                     b
-//                 | DIncomplete _ ->
-//                     incomplete := true ;
-//                     false
-//                 | v ->
-//                     RT.error "Expecting fn to return bool" v dv
-//               in
-//               if !incomplete
-//               then DIncomplete SourceNone
-//               else DList (List.filter ~f l)
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "filter" 1
+    { name = fn "List" "filter" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make
+            "fn"
+            (TFn([ varA ], TBool))
+            "Function to be applied on all list elements; if the result it true then the element is kept" ]
+      returnType = TList varA
+      description =
+        "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
+      fn =
+        (function
+        | state, [ DList l; DLambda b ] ->
+            taskv {
+              let incomplete = ref false
+
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  match! Interpreter.eval_lambda state b [ dv ] with
+                  | DBool b -> return b
+                  | DFakeVal (DIncomplete _) ->
+                      incomplete := true
+                      return false
+                  | v ->
+                      raise (RuntimeException(LambdaResultHasWrongType(dv, TBool)))
+                      return false
+                }
+
+              if !incomplete then
+                return DFakeVal(DIncomplete SourceNone)
+              else
+                let! result = filter_s f l
+                return DList(result)
+            }
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //   ; { name = fn "List" "filter" 1
 //
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList
