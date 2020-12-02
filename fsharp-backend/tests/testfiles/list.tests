@@ -8,6 +8,7 @@
 // List.filterMap_v0 [1;2;3] (\item -> if item == 2\n                                     then\n                                       Nothing\n                                     else\n                                       (Just (item * 2))) = [ \n  2, 6\n]
 // List.filterMap_v0 [] (\item -> 0) = []
 List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1, 3]
+List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "LambdaResultHasWrongType (DInt 1, TBool)"
 // List.filter_v2 [1;2;3] (\item -> match item\n                                    1 -> true\n                                    2 -> false\n                                    3 -> true\n                        ) = [ \n  1, 3\n]
 // List.filter_v2 [] (\item -> true) = []
 // List.flatten_v0 [[1];[2];[3]] = [ \n  1, 2, 3\n]

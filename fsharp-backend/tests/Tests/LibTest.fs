@@ -29,6 +29,18 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Test" "typeError" 0
+      parameters = [ Param.make "errorString" TStr "" ]
+      returnType = TInt
+      description = "Return a value representing a type error"
+      fn =
+        (function
+        | state, [ DStr errorString ] ->
+            Value(DFakeVal(DError(JustAString(SourceNone, errorString))))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
         [ Param.make "passThru" (TVariable "a") "Value which will be returned" ]

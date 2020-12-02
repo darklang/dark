@@ -594,8 +594,7 @@ let fns : List<BuiltInFn> =
                       incomplete := true
                       return false
                   | v ->
-                      // FSTODO
-                      // raise (RuntimeException(LambdaResultHasWrongType(dv, TBool)))
+                      raise (RuntimeException(LambdaResultHasWrongType(dv, TBool)))
                       return false
                 }
 

@@ -5,6 +5,17 @@ module Tests.LibExecution
 open Expecto
 open Prelude
 
+module R = LibExecution.Runtime
+
+// Remove random things like IDs to make the tests stable
+let normalizeDvalResult (dv : R.Dval) : R.Dval =
+  match dv with
+  | R.DFakeVal (R.DError (R.JustAString (source, str))) ->
+      R.DFakeVal(R.DError(R.JustAString(R.SourceNone, str)))
+  | R.DFakeVal (R.DError (errorVal)) ->
+      R.DFakeVal(R.DError(R.JustAString(R.SourceNone, errorVal.ToString())))
+  | dv -> dv
+
 let t (comment : string) (code : string) : Test =
   let name = $"{comment} ({code})"
   if code.StartsWith "//" then
@@ -18,6 +29,7 @@ let t (comment : string) (code : string) : Test =
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let! actual = LibExecution.Execution.run [] fns actualProg
         let! expected = LibExecution.Execution.run [] fns expectedResult
+        let actual = normalizeDvalResult actual
 
         return (Expect.equal
                   actual
