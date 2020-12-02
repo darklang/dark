@@ -77,6 +77,7 @@ type TaskOrValueBuilder() =
   member x.Return(v) = TaskOrValue.unit (v)
   // This lets us use return!
   member x.ReturnFrom(tv) = tv
+  member x.Zero() = TaskOrValue.unit (())
 // To make this usable, this will need a few more
 // especially for reasonable exception handling..
 
@@ -197,6 +198,43 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
                 }) firstComp tail
 
             return List.rev (lastcomp :: accum)
+          }
+
+    return (result |> Seq.toList)
+  }
+
+let filter_s (f : 'a -> TaskOrValue<bool>) (list : List<'a>) : TaskOrValue<List<'a>> =
+  taskv {
+    let! result =
+      match list with
+      | [] -> taskv { return [] }
+      | head :: tail ->
+          taskv {
+            let firstComp =
+              taskv {
+                let! keep = f head
+                return ([], (keep, head))
+              }
+
+            let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
+              List.fold (fun (prevcomp : TaskOrValue<List<'a> * (bool * 'a)>) (arg : 'a) ->
+                taskv {
+                  // Ensure the previous computation is done first
+                  let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
+                    prevcomp
+
+                  let accum = if prevkeep then prev :: accum else accum
+
+                  let! keep = (f arg)
+
+                  return (accum, (keep, arg))
+                }) firstComp tail
+
+            let (lastkeep, lastval) = lastcomp
+
+            let accum = if lastkeep then lastval :: accum else accum
+
+            return List.rev accum
           }
 
     return (result |> Seq.toList)
