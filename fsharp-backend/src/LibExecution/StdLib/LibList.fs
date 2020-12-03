@@ -606,6 +606,44 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "all" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make
+            "fn"
+            (TFn([ varA ], TBool))
+            "Function to be applied on all list elements;" ]
+      returnType = TBool
+      description =
+        "Return true if all elements in the list meet the function's criteria, else false."
+      fn =
+        (function
+        | state, [ DList l; DLambda b ] ->
+            taskv {
+              let incomplete = ref false
+
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  match! Interpreter.eval_lambda state b [ dv ] with
+                  | DBool b -> return b
+                  | DFakeVal (DIncomplete _) ->
+                      incomplete := true
+                      return false
+                  | v ->
+                      raise (RuntimeException(LambdaResultHasWrongType(dv, TBool)))
+                      return false
+                }
+
+              if !incomplete then
+                return DFakeVal(DIncomplete SourceNone)
+              else
+                let! result = filter_s f l
+                return DBool ((result.Length) = (l.Length))
+            }
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
     //   ; { name = fn "List" "filter" 1
 //
 //     ; parameters = [Param.make "list" TList; func ["val"]]

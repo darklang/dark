@@ -70,3 +70,6 @@ List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if ite
 List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > -2 then true else false)) = [1; -1; 2; 3; 4]
 List.filter_v0 [-20; 5; 9;] (fun x -> x > 1) = [5, 9]
 List.filter_v0 [-20; 5; 9;] (fun x -> x < 1) = [-20]
+List.all_v0 [0; 1; 2; 3;] (fun elem -> elem > 0) = false
+List.all_v0 [1; 2; 3;] (fun elem -> elem > 0) = true
+List.all_v0 [0; -1; -2] (fun elem -> elem < 0) = false
