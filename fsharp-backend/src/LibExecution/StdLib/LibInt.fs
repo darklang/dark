@@ -397,18 +397,17 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "max" 0
-    //
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns the higher of a and b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "max" 0
+      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      returnType = TInt
+      description = "Returns the higher of a and b"
+      fn =
+        (function
+        | _, [DInt a; DInt b] -> Value(DInt(max a b))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Int" "min" 0
     //
     //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
