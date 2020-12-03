@@ -310,27 +310,25 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "range" 0
-//
-//     ; parameters =
-//         [ Param.make "lowest" TInt "First, smallest number in the list"
-//         ; Param.make "highest" TInt "Last, largest number in the list" ]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
-//     ; fn =
-//
-//           (function
-//           | _, [DInt start; DInt stop] ->
-//               DList
-//                 ( List.range (Dint.to_int_exn start) (Dint.to_int_exn stop + 1)
-//                 |> List.map (fun i -> Dval.dint i) )
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "fold" 0
+    { name = fn "List" "range" 0
+      parameters =
+        [ Param.make "lowest" TInt "First, smallest number in the list"
+          Param.make "highest" TInt "Last, largest number in the list" ]
+      returnType = TList TInt
+      description =
+        "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
+      fn =
+        (function
+        | _, [ DInt start; DInt stop ] ->
+            [ start .. stop ]
+            |> List.map DInt
+            |> DList
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   ; { name = fn "List" "fold" 0
 //
 //     ; parameters = [Param.make "list" TList; Param.make "init" TAny; func ["accum"; "curr"]]
 //     ; returnType = TAny
@@ -608,6 +606,44 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "all" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make
+            "fn"
+            (TFn([ varA ], TBool))
+            "Function to be applied on all list elements;" ]
+      returnType = TBool
+      description =
+        "Return true if all elements in the list meet the function's criteria, else false."
+      fn =
+        (function
+        | state, [ DList l; DLambda b ] ->
+            taskv {
+              let incomplete = ref false
+
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  match! Interpreter.eval_lambda state b [ dv ] with
+                  | DBool b -> return b
+                  | DFakeVal (DIncomplete _) ->
+                      incomplete := true
+                      return false
+                  | v ->
+                      raise (RuntimeException(LambdaResultHasWrongType(dv, TBool)))
+                      return false
+                }
+
+              if !incomplete then
+                return DFakeVal(DIncomplete SourceNone)
+              else
+                let! result = filter_s f l
+                return DBool ((result.Length) = (l.Length))
+            }
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     //   ; { name = fn "List" "filter" 1
 //
 //     ; parameters = [Param.make "list" TList; func ["val"]]

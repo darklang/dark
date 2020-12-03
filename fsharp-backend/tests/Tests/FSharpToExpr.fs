@@ -112,6 +112,8 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
       eBinOp "" "==" 0 (eBlank ()) (eBlank ())
   | SynExpr.Ident ident when ident.idText = "op_GreaterThan" ->
       eBinOp "" ">" 0 (eBlank ()) (eBlank ())
+  | SynExpr.Ident ident when ident.idText = "op_LessThan" ->
+      eBinOp "" "<" 0 (eBlank ()) (eBlank ())
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
