@@ -178,39 +178,26 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "divide" 0
-    //
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Divides two integers"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DInt (Dint.( / ) a b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::divide to divide Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::divide to divide Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "divide" 0
+      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      returnType = TInt
+      description = "Divides two integers"
+      fn =
+        (function
+        | _, [DInt a; DInt b] -> Value(DInt(a / b))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "absoluteValue" 0
       parameters = [Param.make "a" TInt ""]
       returnType = TInt
