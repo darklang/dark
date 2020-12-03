@@ -424,18 +424,17 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "isEmpty" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TBool
-//     ; description = "Returns true if `list` has no values."
-//     ; fn =
-//
-//           (function
-//           | _, [DList l] -> DBool (List.is_empty l) | args -> incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "isEmpty" 0
+      parameters = [Param.make "list" (TList varA) ""]
+      returnType = TBool
+      description = "Returns true if `list` has no values."
+      fn =
+        (function
+        | _, [DList l] -> Value(DBool(List.isEmpty l))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "sort" 0
 //
 //     ; parameters = [Param.make "list" TList]
@@ -540,22 +539,18 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "append" 0
-//
-//     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a new list with all values in `as` followed by all values in `bs`, preserving the order."
-//     ; fn =
-//
-//           (function
-//           | _, [DList l1; DList l2] ->
-//               DList (List.append l1 l2) (* no checking for fake cf required *)
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "append" 0
+      parameters = [Param.make "as" (TList varA) ""; Param.make "bs"  (TList varA) ""]
+      returnType = TList varA
+      description =
+        "Returns a new list with all values in `as` followed by all values in `bs`, preserving the order."
+      fn =
+        (function
+        | _, [DList l1; DList l2] -> Value(DList(List.append l1 l2)) (* no checking for fake cf required *)
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "filter" 0
       parameters =
         [ Param.make "list" (TList varA) ""
