@@ -1,5 +1,5 @@
-//Int.absoluteValue_v0 -5 = 5
-//Int.absoluteValue_v0 5 = 5
+Int.absoluteValue_v0 -5 = 5
+Int.absoluteValue_v0 5 = 5
 //Int.clamp_v0 -2 -5 5 = -2
 //Int.clamp_v0 -3 -2 1 = -2
 //Int.clamp_v0 -5 1 1 = 1

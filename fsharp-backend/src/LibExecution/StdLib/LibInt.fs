@@ -211,18 +211,18 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "absoluteValue" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TInt
-    //   ; description =
-    //       "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
-    //   ; fn =
-    //
-    //         (function _, [DInt a] -> DInt (Dint.abs a) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "absoluteValue" 0
+      parameters = [Param.make "a" TInt ""]
+      returnType = TInt
+      description =
+          "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+      fn =
+        (function
+        | _, [DInt a] -> Value(DInt(abs a))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "negate" 0
       parameters = [Param.make "a" TInt ""]
       returnType = TInt
