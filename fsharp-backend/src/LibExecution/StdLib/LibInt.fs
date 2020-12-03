@@ -223,17 +223,17 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "negate" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns the negation of `a`, `-a`."
-    //   ; fn =
-    //
-    //         (function _, [DInt a] -> DInt (Dint.negate a) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "negate" 0
+      parameters = [Param.make "a" TInt ""]
+      returnType = TInt
+      description = "Returns the negation of `a`, `-a`."
+      fn =
+        (function
+        | _, [DInt a] -> Value(DInt(-a))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "greaterThan" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
