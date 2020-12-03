@@ -241,23 +241,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
-        // FSTODO
-        // | state, [ (DFloat _ as a); _ ] ->
-        //     DError
-        //       (SourceNone,
-        //        "The first param ("
-        //        ^ Dval.to_developer_repr_v0 a
-        //        ^ ") is a Float, but "
-        //        ^ state.executing_fnname
-        //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
-        // | state, [ _; (DFloat _ as b) ] ->
-        //     DError
-        //       (SourceNone,
-        //        "The second param ("
-        //        ^ Dval.to_developer_repr_v0 b
-        //        ^ ") is a Float, but "
-        //        ^ state.executing_fnname
-        //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
