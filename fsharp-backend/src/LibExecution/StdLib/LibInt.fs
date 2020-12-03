@@ -408,18 +408,17 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "min" 0
-    //
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns the lower of `a` and `b`"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "min" 0
+      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      returnType = TInt
+      description = "Returns the lower of `a` and `b`"
+      fn =
+        (function
+        | _, [DInt a; DInt b] -> Value(DInt(min a b))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "clamp" 0
       parameters =
         [ Param.make "value" TInt ""
