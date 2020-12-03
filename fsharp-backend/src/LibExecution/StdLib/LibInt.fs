@@ -164,21 +164,20 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "power" 0
-    //   ; infix_names = ["^"]
-    //   ; parameters = [Param.make "base" TInt; Param.make "exponent" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Raise `base` to the power of `exponent`"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt base; DInt exp] ->
-    //             DInt (Dint.pow base exp)
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "power" 0
+      parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
+      returnType = TInt
+      description = "Raise `base` to the power of `exponent`"
+      fn =
+        (function
+        | _, [ DInt number; DInt exp ] ->
+            (number ** (exp |> int))
+            |> DInt
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Int" "divide" 0
     //
     //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
