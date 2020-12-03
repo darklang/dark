@@ -72,33 +72,34 @@ let fns : List<BuiltInFn> =
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } *)
-    // ; { name = fn "Int" "remainder" 0
-    //
-    //   ; parameters = [Param.make "value" TInt; Param.make "divisor" TInt]
-    //   ; returnType = TResult
-    //   ; description =
-    //       "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
-    //       For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
-    //       The sign of `divisor` doesn't influence the outcome.
-    //       Returns an `Error` if `divisor` is 0."
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt v; DInt d] ->
-    //           ( try DResult (ResOk (DInt (Dint.rem_exn v d)))
-    //             with e ->
-    //               if d = Dint.of_int 0
-    //               then
-    //                 DResult
-    //                   (ResError
-    //                      (Dval.dstr_of_string_exn "`divisor` must be non-zero"))
-    //               else (* In case there's another failure mode, rollbar *)
-    //                 raise e )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "remainder" 0
+      parameters = [Param.make "value" TInt ""; Param.make "divisor" TInt ""]
+      returnType = TInt
+      description =
+          "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
+          For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
+          The sign of `divisor` doesn't influence the outcome.
+          Returns an `Error` if `divisor` is 0."
+      fn =
+        (function
+        | _, [DInt v; DInt d] ->
+            (try
+              let mutable remainder = 0
+              System.Math.DivRem(v |> int, d |> int, &remainder)
+              |> bigint
+              |> DInt
+              |> Value
+             with e ->
+               if d = bigint 0
+               then
+                 Value(errStr ($"({v}) `divisor` must be non-zero"))
+               else (* In case there's another failure mode, rollbar *)
+                 raise e)
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "add" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
