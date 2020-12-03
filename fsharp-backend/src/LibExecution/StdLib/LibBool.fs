@@ -88,10 +88,8 @@ let fns : List<BuiltInFn> =
         | _, [ value ] ->
             Value
               (match value with
-               // FSTODO:
-               //| DError _ -> DBool true
                | _ -> DBool true
-               | _ -> DBool false)
+               | DFakeVal (DError _) -> DBool true)
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
