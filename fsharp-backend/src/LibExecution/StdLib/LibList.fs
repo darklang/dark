@@ -643,7 +643,7 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = NotDeprecated }
     //   ; { name = fn "List" "filter" 1
 //
 //     ; parameters = [Param.make "list" TList; func ["val"]]
