@@ -303,28 +303,41 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "fold" 0
-//
-//     ; parameters = [Param.make "list" TList; Param.make "init" TAny; func ["accum"; "curr"]]
-//     ; returnType = TAny
-//     ; description =
-//         "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
-//     ; fn =
-//
-//           (function
-//           | state, [DList l; init; DFnVal b] ->
-//               (* Fake cf should be propagated by the blocks so we dont need to check *)
-//               let f (dv1 : dval) (dv2 : dval) : dval =
-//                 Ast.execute_dblock ~state b [dv1; dv2]
-//               in
-//               List.fold ~f ~init l
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "flatten" 0
-//
+    { name = fn "List" "fold" 0
+      parameters =
+        [ Param.make "list" (TList varA) "The list of items to process one at a time"
+          Param.make "init" varB "The initial starting value"
+          Param.make
+            "f"
+            (TFn([ varB; varA ], varB))
+            "the function taking the accumulated value and the next list item, returning the next accumulated item." ]
+      returnType = varB
+      description =
+        "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
+      fn =
+        (function
+        | state, [ DList l; init; DFnVal b ] ->
+            (* Fake cf should be propagated by the blocks so we dont need to check *)
+            taskv {
+              let f (accum : DvalTask) (item : Dval) : DvalTask =
+                taskv {
+                  let! accum = accum
+
+                  return! Interpreter.applyFnVal
+                            state
+                            b
+                            [ accum; item ]
+                            NotInPipe
+                            NoRail
+                }
+
+              return! List.fold f (Value init) l
+            }
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   ; { name = fn "List" "flatten" 0
 //     ; parameters = [Param.make "list" TList]
 //     ; returnType = TList
 //     ; description =

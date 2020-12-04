@@ -503,6 +503,17 @@ let removedFunction : BuiltInFnSig =
 
 module Shortcuts =
 
+  let eFnVal (owner : string)
+             (package : string)
+             (module_ : string)
+             (function_ : string)
+             (version : int)
+             : Expr =
+    EFQFnValue(gid (), FQFnName.name owner package module_ function_ version)
+
+  let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
+    eFnVal "dark" "stdlib" module_ function_ version
+
   let eFn' (module_ : string)
            (function_ : string)
            (version : int)
@@ -511,7 +522,7 @@ module Shortcuts =
            : Expr =
     EApply
       (gid (),
-       EFQFnValue(gid (), FQFnName.name "dark" "stdlib" module_ function_ version),
+       (eFnVal "dark" "stdlib" module_ function_ version),
        args,
        NotInPipe,
        ster)
@@ -543,6 +554,7 @@ module Shortcuts =
     EApply(gid (), fnVal, args, InPipe, Rail)
 
   let eStr (str : string) : Expr = EString(gid (), str)
+
   let eInt (i : int) : Expr = EInteger(gid (), i.ToString())
 
   let eIntStr (i : string) : Expr =
@@ -552,6 +564,7 @@ module Shortcuts =
   let eChar (c : char) : Expr = ECharacter(gid (), string c)
   let eCharStr (c : string) : Expr = ECharacter(gid (), c)
   let eBlank () : Expr = EBlank(gid ())
+
   let eBool (b : bool) : Expr = EBool(gid (), b)
 
   let eFloat (whole : int) (fraction : int) : Expr =
@@ -601,9 +614,7 @@ module Shortcuts =
   let eMatch (cond : Expr) (matches : List<Pattern * Expr>) : Expr =
     EMatch(gid (), cond, matches)
 
-
   let pInt (int : int) : Pattern = PInteger(gid (), int.ToString())
-
 
   let pIntStr (int : string) : Pattern = PInteger(gid (), int)
 

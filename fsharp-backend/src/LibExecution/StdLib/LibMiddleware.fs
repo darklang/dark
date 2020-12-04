@@ -274,14 +274,28 @@ let fns : List<BuiltInFn> =
                       gid (), "request" ]
                   symtable = Map.empty
                   body =
+                    // eFnVal "Http" "addContentLengthResponseHeader" 0
+                    // Make a list of middleware
                     (eLet
-                      "app"
-                       (eFn
-                         "Http"
-                          "addServerHeaderMiddleware"
-                          0
-                          [ eFn "Http" "wrapInResponseValue" 0 [ eVar "handler" ] ])
-                       (eApply (eVar "app") [ eVar "request" ])) })
+                      "fns"
+                       (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
+                                eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])
+                       (eLet
+                         "app"
+                          // build the application by calling the each
+                          // middleware function, passing the previous
+                          // middleware (starting with the handler)
+                          (eFn
+                            "List"
+                             "fold"
+                             0
+                             [ eVar "fns"
+                               eVar "handler"
+                               eLambda
+                                 [ "accum"; "curr" ]
+                                 (eApply (eVar "curr") [ eVar "accum" ]) ])
+                          // Call the middleware on the request
+                          (eApply (eVar "app") [ eVar "request" ]))) })
               [ url; body; headers; handler; DObj Map.empty ]
               NotInPipe
               NoRail
@@ -289,6 +303,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]
+
 
 // let httpMiddleware_v0 (body : string)
 //                       (headers : string)
