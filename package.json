@@ -18,7 +18,7 @@
     "testcafe": "1.9.1"
   },
   "dependencies": {
-    "@fullstory/browser": "^1.4.5",
+    "@fullstory/browser": "^1.4.6",
     "@glennsl/bs-json": "5.0.2",
     "acorn": ">=8.0.4",
     "bs-deriving": "44.1.3",
