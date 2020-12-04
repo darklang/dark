@@ -5,7 +5,7 @@ module Tests.LibExecution
 open Expecto
 open Prelude
 
-module R = LibExecution.Runtime
+module R = LibExecution.RuntimeTypes
 
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : R.Dval) : R.Dval =
