@@ -66,29 +66,24 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "tail" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TOption
-//     ; description =
-//         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
-//     ; fn =
-//         (* This matches Elm's implementation, with the added benefit that the error rail
-//          * means you don't need to handle unwrapping the option
-//          * unless the passed list is truly empty (which shouldn't happen in most practical uses). *)
-//
-//           (function
-//           | _, [DList l] ->
-//             ( match List.tl l with
-//             | Some dv ->
-//                 DList dv |> Dval.to_opt_just
-//             | None ->
-//                 DOption OptNothing )
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "tail" 0
+      parameters = [Param.make "list" (TList varA) ""]
+      returnType = TList varA
+      description =
+        "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
+      fn =
+        (* This matches Elm's implementation, with the added benefit that the error rail
+         * means you don't need to handle unwrapping the option
+         * unless the passed list is truly empty (which shouldn't happen in most practical uses). *)
+        (function
+        | _, [ DList l ] ->
+            (match List.tryLast l with
+             | Some dv -> Value(DList l.Tail)
+             | None -> Value(DNull))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "empty" 0
       parameters = []
       returnType = TList varA
