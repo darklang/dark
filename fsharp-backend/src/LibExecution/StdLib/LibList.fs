@@ -112,24 +112,18 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "last" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TAny
-//     ; description =
-//         "Returns the last value in `list`. Returns null if the list is empty."
-//     ; fn =
-//
-//           (function
-//           | _, [DList []] ->
-//               DNull
-//           | _, [DList l] ->
-//               List.last_exn l
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "last" 0
+      parameters = [Param.make "list" (TList varA) ""]
+      returnType = TAny
+      description =
+        "Returns the last value in `list`. Returns null if the list is empty."
+      fn =
+        (function
+        | _, [ DList l ] -> List.tryLast l |> Option.defaultValue DNull |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "last" 1
 //
 //     ; parameters = [Param.make "list" TList]
