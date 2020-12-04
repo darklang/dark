@@ -45,29 +45,24 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
-    //   ; { name = fn "List" "head" 2
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
-//     ; fn =
-//
-//           (function
-//           | _, [DList l] ->
-//             ( match List.hd l with
-//             | Some dv ->
-//                 Dval.to_opt_just dv
-//             | None ->
-//                 DOption OptNothing )
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "List" "head" 2) }
+    { name = fn "List" "head" 2
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = varA
+      description =
+        "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
+      fn =
+        (function
+        | _, [ DList l ] ->
+            (match List.tryHead l with
+             | Some dv -> Value(l.Head)
+             | None -> Value(DNull))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "tail" 0
-      parameters = [Param.make "list" (TList varA) ""]
+      parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description =
         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
@@ -317,10 +312,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt start; DInt stop ] ->
-            [ start .. stop ]
-            |> List.map DInt
-            |> DList
-            |> Value
+            [ start .. stop ] |> List.map DInt |> DList |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -635,7 +627,7 @@ let fns : List<BuiltInFn> =
                 return DFakeVal(DIncomplete SourceNone)
               else
                 let! result = filter_s f l
-                return DBool ((result.Length) = (l.Length))
+                return DBool((result.Length) = (l.Length))
             }
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
