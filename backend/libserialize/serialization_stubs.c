@@ -10,7 +10,9 @@
  * Initialize
  * -------------------- */
 
-// C code has to get a lock to the runtime before calling it.
+// OCaml is not reentrant; we need to acquire a lock before we call OCaml
+// functions from C. Each thread also needs to be registered.
+
 // https://caml.inria.fr/pub/docs/manual-ocaml/intfc.html#s%3AC-multithreading
 
 void lock() {
@@ -64,6 +66,8 @@ extern char* dark_init_ocaml() {
   caml_c_thread_register();
   printf("Registered main thread!\n");
   printf("releasing lock from main thread\n");
+  // The main thread holds the lock - we need to release it or other threads
+  // calling lock() will hang.
   caml_release_runtime_system();
   printf("released lock from main thread\n");
   return strdup("loaded");
