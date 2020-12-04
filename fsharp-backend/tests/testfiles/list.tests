@@ -73,3 +73,4 @@ List.filter_v0 [-20; 5; 9;] (fun x -> x < 1) = [-20]
 List.all_v0 [0; 1; 2; 3;] (fun elem -> elem > 0) = false
 List.all_v0 [1; 2; 3;] (fun elem -> elem > 0) = true
 List.all_v0 [0; -1; -2] (fun elem -> elem < 0) = false
+List.empty_v0 = []

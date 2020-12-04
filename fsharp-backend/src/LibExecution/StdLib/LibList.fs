@@ -89,15 +89,17 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "empty" 0
-//
-//     ; parameters = []
-//     ; returnType = TList
-//     ; description = "Returns an empty list."
-//     ; fn =  (function _, [] -> DList [] | args -> incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "empty" 0
+      parameters = []
+      returnType = TList varA
+      description = "Returns an empty list."
+      fn =
+        (function
+        | _, [] -> Value(DList [])
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "push" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
