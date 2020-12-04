@@ -67,12 +67,30 @@ module Yojson =
   // - 3) hand-write them (converters on both ends)
   type J = JsonValue
 
+  let variant (name : string) (args : JsonValue list) =
+    (J.String name :: args) |> List.toArray |> J.Array
+
   let ofTLID (tlid : tlid) : JsonValue = J.String(tlid.ToString())
   let ofID (id : id) : JsonValue = J.String(id.ToString())
 
+  let ofSendToRail (str : SendToRail) : JsonValue =
+    match str with
+    | Rail -> variant "Rail" []
+    | NoRail -> variant "NoRail" []
+
+  let ofFQFnName (desc : FQFnName.T) : JsonValue =
+    let owner = if desc.owner = "dark" then "" else $"{desc.owner}/"
+    let package = if desc.package = "stdlib" then "" else $"{desc.package}/"
+    let module_ = if desc.module_ = "" then "" else $"{desc.module_}::"
+    let function_ = desc.function_
+    let version = if desc.version = 0 then "" else $"_v{desc.version}"
+    J.String $"{owner}{package}{module_}{function_}{version}"
+
+
+
+
   let rec ofExpr (e : Expr) : JsonValue =
-    let v (name : string) (args : JsonValue list) =
-      (J.String name :: args) |> List.toArray |> J.Array
+    let v = variant
 
     match e with
     | EBlank id -> v "EBlank" [ ofID id ]
@@ -83,6 +101,11 @@ module Yojson =
     | ELeftPartial (id, name, expr) ->
         v "ERightPartial" [ ofID id; J.String name; ofExpr expr ]
     | EString (id, s) -> v "EString" [ ofID id; J.String s ]
+    | EVariable (id, s) -> v "EVariable" [ ofID id; J.String s ]
+    | EBinOp (id, name, arg0, arg1, str) ->
+        v
+          "EBinOp"
+          [ ofID id; ofFQFnName name; ofExpr arg0; ofExpr arg1; ofSendToRail str ]
     | _ -> failwith $"Not supported yet in ofExpr: {e}"
   // | EPipeTarget id ->
   // | ELet (_id, lhs, rhs, body) ->
