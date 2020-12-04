@@ -16,20 +16,14 @@
 // https://caml.inria.fr/pub/docs/manual-ocaml/intfc.html#s%3AC-multithreading
 
 void lock() {
-  printf("registering thread\n");
-  fflush(stdout);
+  // FSTODO: We don't need to register the thread on each lock, just once per
+  // thread. Find a way to do this.
   caml_c_thread_register();
-  printf("acquiring lock\n");
-  fflush(stdout);
   caml_acquire_runtime_system();
-  printf("lock acquired\n");
-  fflush(stdout);
 }
 
 void unlock() {
-  printf("releasing lock\n");
   caml_release_runtime_system();
-  printf("lock released\n");
 }
 
 void check_string(value v) {
@@ -37,12 +31,14 @@ void check_string(value v) {
     printf("Value is exception!\n");
     fflush(stdout);
     unlock();
+    // FSTODO remove
     exit(1);
   }
   if (Tag_val(v) != String_tag) {
     printf("Value is expected to be a string but isn't!\n");
     unlock();
     fflush(stdout);
+    // FSTODO remove
     exit(1);
   }
 }
@@ -64,12 +60,9 @@ extern char* dark_init_ocaml() {
   }
   printf("Registering main thread!\n");
   caml_c_thread_register();
-  printf("Registered main thread!\n");
-  printf("releasing lock from main thread\n");
   // The main thread holds the lock - we need to release it or other threads
   // calling lock() will hang.
   caml_release_runtime_system();
-  printf("released lock from main thread\n");
   return strdup("loaded");
 }
 
