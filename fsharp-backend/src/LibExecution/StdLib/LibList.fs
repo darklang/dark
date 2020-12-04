@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
             (match List.tryHead l with
              | Some dv -> Value(l.Head)
-             | None -> Value(DNull))
+             | None -> Value(DOption None))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
             (match List.tryLast l with
              | Some dv -> Value(DList l.Tail)
-             | None -> Value(DNull))
+             | None -> Value(DOption None))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

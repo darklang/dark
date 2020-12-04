@@ -75,4 +75,7 @@ List.all_v0 [1; 2; 3;] (fun elem -> elem > 0) = true
 List.all_v0 [0; -1; -2] (fun elem -> elem < 0) = false
 List.empty_v0 = []
 List.tail_v0 [10, 20, 30, 40] = [20, 30, 40]
+List.tail_v0 [] = Nothing
 List.head_v2 [1, 2, 3] = 1
+List.head_v2 [] = Nothing
+
