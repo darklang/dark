@@ -4,6 +4,8 @@ open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
+module Interpreter = LibExecution.Interpreter
+
 let fn = FQFnName.stdlibName
 
 let varA = TVariable "a"
@@ -553,13 +555,13 @@ let fns : List<BuiltInFn> =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
       fn =
         (function
-        | state, [ DList l; DLambda b ] ->
+        | state, [ DList l; DFnVal fn ] ->
             taskv {
               let incomplete = ref false
 
               let f (dv : Dval) : TaskOrValue<bool> =
                 taskv {
-                  match! Interpreter.eval_lambda state b [ dv ] with
+                  match! Interpreter.applyFnVal state fn [ dv ] NotInPipe NoRail with
                   | DBool b -> return b
                   | DFakeVal (DIncomplete _) ->
                       incomplete := true
