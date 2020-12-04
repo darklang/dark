@@ -23,6 +23,27 @@ static const value* oplist_json2bin_closure = NULL;
 static const value* pos_json2bin_closure = NULL;
 static const value* digest_value = NULL;
 
+
+int check_string(value v) {
+  if (Is_exception_result(v)) {
+    printf("Value is exception!\n");
+    return 0;
+  }
+  if (Tag_val(v) != String_tag) {
+    printf("Value is expected to be a string but isn't!\n");
+    return 0;
+  }
+  return 1;
+}
+
+char* copy_string_outside_runtime(value v) {
+  if (check_string(v)) {
+    return strndup(String_val(v), caml_string_length(v));
+  }
+  printf("Attempting to copy a non-string");
+  exit(1);
+}
+
 extern char* dark_init_ocaml() {
   char* argv[2];
   argv[0] = "";
@@ -45,18 +66,25 @@ extern char* dark_init_ocaml() {
   oplist_json2bin_closure = caml_named_value("oplist_json2bin");
   pos_json2bin_closure = caml_named_value("pos_json2bin");
   digest_value = caml_named_value("digest");
+  check_string(*digest_value);
   return strdup("loaded");
 }
-
 
 /* --------------------
  * Convert from json to binary strings
  * //FSTODO check for memory leaks in these functions
  * -------------------- */
 char* call_bin2json(const value* closure, void* bytes, int length) {
+  if (Is_exception_result(*closure)) {
+    printf("Closure is exception!\n");
+  }
   value v = caml_alloc_initialized_string(length, bytes);
+  check_string(v);
   value result = caml_callback(*closure, v);
-  return strdup(String_val(result));
+  if (Is_exception_result(result)) {
+    printf("result is exception!\n");
+  }
+  return copy_string_outside_runtime(result);
 }
 extern char* user_fn_bin2json(void* bytes, int length) {
   return call_bin2json(user_fn_bin2json_closure, bytes, length);
@@ -84,11 +112,15 @@ extern char* pos_bin2json(void* bytes, int length) {
 
 // out_bytes is an out parameter, it passes a pointer to a memory location. We allocate memory then write the location into which we insert
 int call_json2bin(const value* closure, char* json, void** out_bytes) {
+  if (Is_exception_result(*closure)) {
+    printf("call_json2bin: Closure is exception!\n");
+  }
   value v = caml_copy_string(json);
+  check_string(v);
+
   value result = caml_callback(*closure, v);
   int length = caml_string_length(result);
-  *out_bytes = malloc(length);
-  memcpy(*out_bytes, String_val(result), length);
+  *out_bytes = copy_string_outside_runtime(result);
   return length;
 }
 extern int user_fn_json2bin(char* json, void** out_bytes) {
@@ -115,5 +147,5 @@ extern int pos_json2bin(char* json, void** out_bytes) {
  * OCaml values
  * -------------------- */
 extern char* digest () {
-  return strdup(String_val(digest_value));
+  return copy_string_outside_runtime(*digest_value);
 }
