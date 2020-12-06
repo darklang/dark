@@ -82,3 +82,4 @@ List.last_v0 [1000, 2000, 3000] =  3000
 List.last_v0 [] = null
 List.last_v1 [1, 2, 3] = Just 3
 List.last_v1 [] = Nothing
+List.fold_v0 [1;2;3;4;5] [] (fun accum curr -> List.pushBack_v0 accum (curr + 1)) = [2;3;4;5;6]

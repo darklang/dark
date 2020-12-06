@@ -309,7 +309,6 @@ let fns : List<BuiltInFn> =
                       gid (), "request" ]
                   symtable = Map.empty
                   body =
-                    // eFnVal "Http" "addContentLengthResponseHeader" 0
                     // Make a list of middleware
                     (eLet
                       "fns"

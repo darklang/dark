@@ -100,16 +100,17 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "List" "pushBack" 0
-//     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
-//     ; returnType = TList
-//     ; description = "Add element `val` to back of list `list`"
-//     ; fn =
-//
-//           (function _, [DList l; i] -> DList (l @ [i]) | args -> incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "pushBack" 0
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
+      returnType = TList varA
+      description = "Add element `val` to back of list `list`"
+      fn =
+        (function
+        | _, [ DList l; i ] -> Value(DList(l @ [ i ]))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "last" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TAny
@@ -135,7 +136,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
     //   ; { name = fn "List" "last" 2
-//
 //     ; parameters = [Param.make "list" TList]
 //     ; returnType = TOption
 //     ; description =
