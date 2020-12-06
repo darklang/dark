@@ -189,22 +189,25 @@ let fns : List<BuiltInFn> =
       returnType = middlewareReturnType
       description = "Add the darklang server header."
       fn =
+        let code =
+          // (fun req ->
+          //   let response = req |> next in
+          //   Http.setHeader_v0 response "server" "darklang")
+          eLambda
+            [ "req" ]
+            (eLet
+              "response"
+               (ePipeApply (eVar "next") [ eVar "req" ])
+               (eFn
+                 "Http"
+                  "setHeader"
+                  0
+                  [ eVar "response"; eStr "server"; eStr "darklang" ]))
+
         (function
         | state, [ DFnVal _ as next ] ->
-            DFnVal
-              (Lambda
-                { symtable = Map.ofList [ "next", next ]
-                  parameters = [ gid (), "req" ]
-                  body =
-                    eLet
-                      "result"
-                      (eApply (eVar "next") [ eVar "req" ])
-                      (eFn
-                        "Http"
-                         "setHeader"
-                         0
-                         [ eVar "result"; eStr "server"; eStr "darklang" ]) })
-            |> Value
+            let st = Symtable.empty |> Symtable.add "next" next
+            Interpreter.eval state st code
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -296,43 +299,42 @@ let fns : List<BuiltInFn> =
       description =
         "Call the middleware stack, returning a response which can be sent to the browser"
       fn =
+        // eStdFnVal "Http" "wrapInResponseValue" 0
+        // eStdFnVal "Http" "addServerHeaderMiddleware" 0
+        // eStdFnVal "Http" "addContentLengthResponseHeader" 0
+        let code =
+          // let fns = [Http.wrapInResponseValue_v0 ; Http.addserverHeaderMiddleware_v0]
+          // let app = List.fold_v0 fns handler (fun accum curr -> accum |> curr)
+          // handler |> app
+          eLet
+            "fns"
+            (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
+                     eStdFnVal "Http" "addContentLengthResponseHeader" 0
+                     eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])
+            (eLet
+              "app"
+               (eFn
+                 "List"
+                  "fold"
+                  0
+                  [ eVar "fns"
+                    eVar "handler"
+                    eLambda
+                      [ "accum"; "curr" ]
+                      (ePipeApply (eVar "curr") [ eVar "accum" ]) ])
+               (ePipeApply (eVar "app") [ eVar "handler" ]))
+
+
         (function
         | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
-            Interpreter.applyFnVal
-              state
-              (Lambda
-                { parameters =
-                    [ gid (), "url"
-                      gid (), "body"
-                      gid (), "headers"
-                      gid (), "handler"
-                      gid (), "request" ]
-                  symtable = Map.empty
-                  body =
-                    // Make a list of middleware
-                    (eLet
-                      "fns"
-                       (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
-                                eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])
-                       (eLet
-                         "app"
-                          // build the application by calling the each
-                          // middleware function, passing the previous
-                          // middleware (starting with the handler)
-                          (eFn
-                            "List"
-                             "fold"
-                             0
-                             [ eVar "fns"
-                               eVar "handler"
-                               eLambda
-                                 [ "accum"; "curr" ]
-                                 (eApply (eVar "curr") [ eVar "accum" ]) ])
-                          // Call the middleware on the request
-                          (eApply (eVar "app") [ eVar "request" ]))) })
-              [ url; body; headers; handler; DObj Map.empty ]
-              NotInPipe
-              NoRail
+            let st =
+              Symtable.empty
+              |> Symtable.add "url" url
+              |> Symtable.add "body" body
+              |> Symtable.add "headers" headers
+              |> Symtable.add "handler" handler
+
+            Interpreter.eval state st code
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
