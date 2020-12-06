@@ -312,6 +312,88 @@ and Pattern =
 
 
 module Shortcuts =
+
+  let rec toStringRepr (e : Expr) : string =
+    let r (v : Expr) = $"{toStringRepr v}"
+    let pr (v : Expr) = $"({toStringRepr v})" // parenthesized repr
+    let q (v : string) = $"\"{v}\""
+    match e with
+    | EBlank id -> "eBlank ()"
+    | ECharacter (_, char) -> $"eChar '{char}'"
+    | EInteger (_, num) -> $"eInt {num}"
+    | EString (_, str) -> $"eStr {q str}"
+    | EFloat (_, whole, fraction) -> $"eFloat {whole} {fraction}"
+    | EBool (_, b) -> $"eBool {b}"
+    | ENull _ -> $"eNull ()"
+    | EVariable (_, var) -> $"eVar {q var}"
+    | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
+    // | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) ->
+    //     let fn, package =
+    //       if name.owner = "dark" && name.package = "stdlib" then
+    //         "eStdFn", ""
+    //       else
+    //         "eFn", " {q name.owner} {q name.package} "
+    //
+    //     let args = List.map r args |> String.concat "; "
+    //     $"{fn} {package} {q name.module_} {q name.function_} {name.version} [{args}]"
+    // | EApply (_, expr, [ arg ], InPipe, ster) -> $"ePipe {pr arg} {pr expr} []"
+    // | EApply (_, _, args, pipe, ster) -> $"TODO other EAPPlY {e}"
+    // | ELambda (_, vars, body) ->
+    //     let vars = List.map (fun (_, y) -> q y) vars |> String.concat "; "
+    //     $"eLambda {vars} {pr body}"
+    // | ELet (_, lhs, rhs, body) -> $"eLet {q lhs} {pr rhs} {pr body}"
+    | _ -> $"Bored now: {e}"
+  // | EIf (_, cond, thenExpr, elseExpr) -> R.EIf(id, r cond, r thenExpr, r elseExpr)
+  // | EPartial (_, _, oldExpr)
+  // | ERightPartial (_, _, oldExpr)
+  // | ELeftPartial (_, _, oldExpr) -> R.EPartial(id, r oldExpr)
+  // | EList (_, exprs) -> R.EList(id, List.map r exprs)
+  // | ERecord (_, pairs) -> R.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+  // | EPipe (_, expr1, expr2, rest) ->
+  //     // Convert v |> fn1 a |> fn2 |> fn3 b c
+  //     // into fn3 (fn2 (fn1 v a)) b c
+  //     // This conversion should correspond to ast.ml:inject_param_and_execute
+  //     // from the OCaml interpreter
+  //     let inner = r expr1
+  //     List.fold (fun prev next ->
+  //       match next with
+  //       // TODO: support currying
+  //       | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
+  //           R.EApply
+  //             (id,
+  //              R.EFQFnValue(ptID, name.toRuntimeType ()),
+  //              prev :: List.map r exprs,
+  //              R.InPipe,
+  //              rail.toRuntimeType ())
+  //       // TODO: support currying
+  //       | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
+  //           R.EApply
+  //             (id,
+  //              R.EFQFnValue(ptID, name.toRuntimeType ()),
+  //              [ prev; r expr2 ],
+  //              R.InPipe,
+  //              rail.toRuntimeType ())
+  //       // If there's a hole, run the computation right through it as if it wasn't there
+  //       | EBlank _ -> prev
+  //       // Here, the expression evaluates to an FnValue. This is for eg variables containing values
+  //       | other ->
+  //           R.EApply(id, r other, [ prev ], R.InPipe, NoRail.toRuntimeType ()))
+  //
+  //       inner (expr2 :: rest)
+  //
+  // | EConstructor (_, name, exprs) -> R.EConstructor(id, name, List.map r exprs)
+  // | EMatch (_, mexpr, pairs) ->
+  //     R.EMatch
+  //       (id,
+  //        r mexpr,
+  //        List.map
+  //          ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
+  //           << (Tuple2.mapItem2 r))
+  //          pairs)
+  // | EPipeTarget _ -> failwith "No EPipeTargets should remain"
+  // | EFeatureFlag (_, name, cond, caseA, caseB) ->
+  //     R.EFeatureFlag(id, r cond, r caseA, r caseB)
+  //
   let eFn' (module_ : string)
            (function_ : string)
            (version : int)
