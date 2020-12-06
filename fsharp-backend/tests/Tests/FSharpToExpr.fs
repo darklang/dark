@@ -250,6 +250,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
       | D.EPipe (id, arg1, arg2, rest) as pipe ->
           D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
+  | SynExpr.FromParseError _ as expr ->
+      failwith $"There was a parser error parsing: {expr}"
   | expr -> failwith $"Unsupported expression: {ast}"
 
 let convertToTest (ast : SynExpr)
