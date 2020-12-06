@@ -554,12 +554,14 @@ module Shortcuts =
         let vars = List.map (fun (_, y) -> q y) vars |> String.concat "; "
         $"eLambda [{vars}] {pr body}"
     | ELet (_, lhs, rhs, body) -> $"eLet {q lhs} {pr rhs} {pr body}"
+    | EList (_, exprs) ->
+        let exprs = List.map r exprs |> String.concat "; "
+        $"eList [{exprs}]"
     | _ -> $"Bored now: {e}"
   // | EIf (_, cond, thenExpr, elseExpr) -> R.EIf(id, r cond, r thenExpr, r elseExpr)
   // | EPartial (_, _, oldExpr)
   // | ERightPartial (_, _, oldExpr)
   // | ELeftPartial (_, _, oldExpr) -> R.EPartial(id, r oldExpr)
-  // | EList (_, exprs) -> R.EList(id, List.map r exprs)
   // | ERecord (_, pairs) -> R.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
   // | EPipe (_, expr1, expr2, rest) ->
   //     // Convert v |> fn1 a |> fn2 |> fn3 b c
