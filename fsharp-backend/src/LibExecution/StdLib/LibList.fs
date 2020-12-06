@@ -118,29 +118,26 @@ let fns : List<BuiltInFn> =
         "Returns the last value in `list`. Returns null if the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> List.tryLast l |> Option.defaultValue DNull |> Value
+        | _, [ DList l ] ->
+            if l.Length > 0 then List.last l else DNull
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "last" 1
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
-//     ; fn =
-//
-//           (function
-//           | _, [DList []] ->
-//               DOption OptNothing
-//           | _, [DList l] ->
-//               DOption (OptJust (List.last_exn l))
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "last" 1
+      parameters = [Param.make "list" (TList varA) ""]
+      returnType = varA
+      description = "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
+      fn =
+        (function
+        | _, [DList l] ->
+            if l.Length > 0 then List.last l else DOption None
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "last" 2
 //
 //     ; parameters = [Param.make "list" TList]

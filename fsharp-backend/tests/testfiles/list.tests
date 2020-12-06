@@ -79,4 +79,6 @@ List.tail_v0 [] = Nothing
 List.head_v2 [1, 2, 3] = 1
 List.head_v2 [] = Nothing
 List.last_v0 [1000, 2000, 3000] =  3000
-List.last_v0 [] =  null
+List.last_v0 [] = null
+List.last_v1 [1, 2, 3] =  3
+List.last_v1 [] = Nothing
