@@ -45,59 +45,49 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
-    //   ; { name = fn "List" "head" 2
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
-//     ; fn =
-//
-//           (function
-//           | _, [DList l] ->
-//             ( match List.hd l with
-//             | Some dv ->
-//                 Dval.to_opt_just dv
-//             | None ->
-//                 DOption OptNothing )
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "tail" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TOption
-//     ; description =
-//         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
-//     ; fn =
-//         (* This matches Elm's implementation, with the added benefit that the error rail
-//          * means you don't need to handle unwrapping the option
-//          * unless the passed list is truly empty (which shouldn't happen in most practical uses). *)
-//
-//           (function
-//           | _, [DList l] ->
-//             ( match List.tl l with
-//             | Some dv ->
-//                 DList dv |> Dval.to_opt_just
-//             | None ->
-//                 DOption OptNothing )
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "empty" 0
-//
-//     ; parameters = []
-//     ; returnType = TList
-//     ; description = "Returns an empty list."
-//     ; fn =  (function _, [] -> DList [] | args -> incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "List" "head" 2) }
+    { name = fn "List" "head" 2
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = varA
+      description =
+        "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
+      fn =
+        (function
+        | _, [ DList l ] ->
+            (match List.tryHead l with
+             | Some dv -> Value(l.Head)
+             | None -> Value(DOption None))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "List" "tail" 0
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TList varA
+      description =
+        "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
+      fn =
+        // This matches Elm's implementation, with the added benefit that the error rail
+        // means you don't need to handle unwrapping the option
+        // unless the passed list is truly empty (which shouldn't happen in most practical uses).
+        (function
+        | _, [ DList l ] ->
+            (if List.length l > 0 then DList l.Tail else DOption None) |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "List" "empty" 0
+      parameters = []
+      returnType = TList varA
+      description = "Returns an empty list."
+      fn =
+        (function
+        | _, [] -> Value(DList [])
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "push" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
@@ -120,43 +110,31 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "last" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TAny
-//     ; description =
-//         "Returns the last value in `list`. Returns null if the list is empty."
-//     ; fn =
-//
-//           (function
-//           | _, [DList []] ->
-//               DNull
-//           | _, [DList l] ->
-//               List.last_exn l
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "last" 1
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
-//     ; fn =
-//
-//           (function
-//           | _, [DList []] ->
-//               DOption OptNothing
-//           | _, [DList l] ->
-//               DOption (OptJust (List.last_exn l))
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "last" 2
+    { name = fn "List" "last" 0
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TAny
+      description =
+        "Returns the last value in `list`. Returns null if the list is empty."
+      fn =
+        (function
+        | _, [ DList l ] -> (if l.Length > 0 then List.last l else DNull) |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "last" 1
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TOption varA
+      description =
+        "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
+      fn =
+        (function
+        | _, [ DList l ] -> Value(DOption(List.tryLast l))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //   ; { name = fn "List" "last" 2
 //
 //     ; parameters = [Param.make "list" TList]
 //     ; returnType = TOption
@@ -320,10 +298,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt start; DInt stop ] ->
-            [ start .. stop ]
-            |> List.map DInt
-            |> DList
-            |> Value
+            [ start .. stop ] |> List.map DInt |> DList |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -638,7 +613,7 @@ let fns : List<BuiltInFn> =
                 return DFakeVal(DIncomplete SourceNone)
               else
                 let! result = filter_s f l
-                return DBool ((result.Length) = (l.Length))
+                return DBool((result.Length) = (l.Length))
             }
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
