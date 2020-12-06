@@ -19,7 +19,6 @@ Int.power_v0 0 1 = 0
 Int.power_v0 1 0 = 1
 Int.power_v0 1000 0 = 1
 Int.power_v0 -8 5 = -32768
-Int.power_v0 -8 -5 = -32768
 Int.greaterThanOrEqualTo_v0 0 1 = false
 Int.greaterThanOrEqualTo_v0 1 0 = true
 Int.greaterThanOrEqualTo_v0 6 1 = true
