@@ -410,6 +410,7 @@ module Symtable =
   let get (st : T) (name : string) : Dval =
     st.TryFind(name) |> Option.defaultValue (err (UndefinedVariable name))
 
+  let add (st : T) (name : string) (dv : Dval) = st.Add(name, dv)
 
 
 // The runtime needs to know whether to save a function's results when it
@@ -551,7 +552,7 @@ module Shortcuts =
         $"{fn} {package} {q name.module_} {q name.function_} {name.version}"
     | ELambda (_, vars, body) ->
         let vars = List.map (fun (_, y) -> q y) vars |> String.concat "; "
-        $"eLambda {vars} {pr body}"
+        $"eLambda [{vars}] {pr body}"
     | ELet (_, lhs, rhs, body) -> $"eLet {q lhs} {pr rhs} {pr body}"
     | _ -> $"Bored now: {e}"
   // | EIf (_, cond, thenExpr, elseExpr) -> R.EIf(id, r cond, r thenExpr, r elseExpr)

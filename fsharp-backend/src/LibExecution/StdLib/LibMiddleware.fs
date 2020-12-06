@@ -251,6 +251,41 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "addContentLengthResponseHeader" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description = "Take the HTTP result, and add a Content-length header to it."
+      fn =
+        let code =
+          // (fun req ->
+          //   let response = req |> next in
+          //   let body = Http.responseBody_v0 response in
+          //   Http.setHeader_v0 response "content-length" (String.length_v0 body))
+          eLambda
+            [ "req" ]
+            (eLet
+              "response"
+               (ePipeApply (eVar "next") [ eVar "req" ])
+               (eLet
+                 "body"
+                  (eFn "Http" "responseBody" 0 [ eVar "response" ])
+                  (eFn
+                    "Http"
+                     "setHeader"
+                     0
+                     [ eVar "response"
+                       eStr "content-length"
+                       eFn "String" "length" 0 [ eVar "body" ] ])))
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Symtable.add (Symtable.empty) "next" next
+            Interpreter.eval state st code
+        | _, args -> incorrectArgs ())
+
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "middleware" 0
       parameters =
         [ Param.make "url" TBytes ""
