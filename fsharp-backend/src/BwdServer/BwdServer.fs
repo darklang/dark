@@ -148,6 +148,8 @@ let runDarkHandler : HttpHandler =
               do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
               return! next ctx
           | other ->
+              printfn $"Not a HTTP response: {other}"
+
               let bytes =
                 System.Text.Encoding.UTF8.GetBytes
                   "Error: body is not a HttpResponse"
