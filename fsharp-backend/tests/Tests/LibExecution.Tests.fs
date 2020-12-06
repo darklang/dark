@@ -144,6 +144,12 @@ let parserTests =
       t
         "simple expr"
         "(5 + 3) == 8"
-        (eBinOp "" "==" 0 (eBinOp "" "+" 0 (eInt 5) (eInt 3)) (eInt 8)) ]
+        (eBinOp "" "==" 0 (eBinOp "" "+" 0 (eInt 5) (eInt 3)) (eInt 8))
+      t "lambdas with 2 args" "fun x y -> 8" (eLambda [ "x"; "y" ] (eInt 8))
+      t "lambdas with 3 args" "fun x y z -> 8" (eLambda [ "x"; "y"; "z" ] (eInt 8))
+      t
+        "lambdas with 4 args"
+        "fun a b c d -> 8"
+        (eLambda [ "a"; "b"; "c"; "d" ] (eInt 8)) ]
 
 let tests = testList "StdLib" [ parserTests; fileTests () ]

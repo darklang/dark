@@ -153,8 +153,21 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
 
       let desc = D.FQFnName.stdlibName modName.idText name version
       D.EFnCall(gid (), desc, [], ster)
-  | SynExpr.Lambda (_, _, SynSimplePats.SimplePats (vars, _), body, _) ->
-      let vars = List.map convertLambdaVar vars
+  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _) ->
+      let rec extractVarsAndBody expr =
+        match expr with
+        // The 2nd param indicates this was part of a lambda
+        | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), body, _) ->
+            let nestedVars, body = extractVarsAndBody body
+            vars @ nestedVars, body
+        // The 2nd param indicates this was not nested
+        | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), body, _) ->
+            vars, body
+        | SynExpr.Lambda _ -> failwith $"TODO: other types of lambda: {expr}"
+        | _ -> [], expr
+
+      let nestedVars, body = extractVarsAndBody body
+      let vars = List.map convertLambdaVar (outerVars @ nestedVars)
       eLambda vars (c body)
   | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
       eIf (c cond) (c thenExpr) (c elseExpr)
@@ -254,3 +267,5 @@ let convertToTest (ast : SynExpr)
       // failwith $"whole thing: {actual}"
       (convert actual, convert expected)
   | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true
+
+let parseDarkExpr (code : string) : D.Expr = code |> parse |> convertToExpr
