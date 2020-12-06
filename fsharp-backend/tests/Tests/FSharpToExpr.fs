@@ -208,6 +208,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
            | f -> failwith $"Not an expected field {f}")
       |> eRecord
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
+  | SynExpr.Do (expr, _) -> c expr // just unwrap
   // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
   // op_PipeRight, and the inner app has two arguments. Those arguments might
   // also be pipes
