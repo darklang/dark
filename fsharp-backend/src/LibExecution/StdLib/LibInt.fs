@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
         | _, [DInt v; DInt d] ->
             (try
               let mutable remainder = 0
-              System.Math.DivRem(v |> int, d |> int, &remainder)
+              System.Math.DivRem(int v, int d, &remainder)
               |> bigint
               |> DInt
               |> Value
@@ -172,7 +172,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt number; DInt exp ] ->
-            (number ** (exp |> int))
+            (number ** (int exp))
             |> DInt
             |> Value
         | args -> incorrectArgs ())
@@ -305,7 +305,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            a + (Prelude.random.Next((b - a) |> int) |> bigint) |> DInt |> Value
+            a + bigint (Runtime.random.Next((b - a) |> int))
+            |> DInt
+            |> Value
         | _, [ DFloat a; _ ] ->
             Value
               (errStr
@@ -355,7 +357,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int to a Float"
       fn =
         (function
-        | _, [ DInt a ] -> Value(DFloat(a |> float))
+        | _, [ DInt a ] -> Value(DFloat(float a))
         | _, [ DStr a; _ ] ->
             Value
               (errStr
