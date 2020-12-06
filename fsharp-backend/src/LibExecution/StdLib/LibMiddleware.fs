@@ -279,7 +279,7 @@ let fns : List<BuiltInFn> =
 
         (function
         | state, [ DFnVal _ as next ] ->
-            let st = Symtable.add (Symtable.empty) "next" next
+            let st = Symtable.empty |> Symtable.add "next" next
             Interpreter.eval state st code
         | _, args -> incorrectArgs ())
 

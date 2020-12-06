@@ -45,7 +45,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
 
     | EVariable (_id, name) ->
         // FSTODO: match ast.ml
-        return Symtable.get st name
+        return Symtable.get name st
     | ERecord (id, pairs) ->
         let skipEmptyKeys =
           pairs

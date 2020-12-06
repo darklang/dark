@@ -407,10 +407,10 @@ module Symtable =
   type T = Symtable
   let empty : T = Map []
 
-  let get (st : T) (name : string) : Dval =
+  let get (name : string) (st : T) : Dval =
     st.TryFind(name) |> Option.defaultValue (err (UndefinedVariable name))
 
-  let add (st : T) (name : string) (dv : Dval) = st.Add(name, dv)
+  let add (name : string) (dv : Dval) (st : T) = st.Add(name, dv)
 
 
 // The runtime needs to know whether to save a function's results when it
