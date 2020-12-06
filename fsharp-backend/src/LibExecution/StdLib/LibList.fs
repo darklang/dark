@@ -72,7 +72,7 @@ let fns : List<BuiltInFn> =
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
         | _, [ DList l ] ->
-            if List.length l > 0 then DList l.Tail else DOption None |> Value
+            (if List.length l > 0 then DList l.Tail else DOption None) |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -117,20 +117,19 @@ let fns : List<BuiltInFn> =
         "Returns the last value in `list`. Returns null if the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> if l.Length > 0 then List.last l else DNull |> Value
+        | _, [ DList l ] -> (if l.Length > 0 then List.last l else DNull) |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
     { name = fn "List" "last" 1
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = varA
+      returnType = TOption varA
       description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
       fn =
         (function
-        | _, [ DList l ] ->
-            if l.Length > 0 then List.last l else DOption None |> Value
+        | _, [ DList l ] -> Value(DOption(List.tryLast l))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
