@@ -72,9 +72,8 @@ let fns : List<BuiltInFn> =
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
         | _, [ DList l ] ->
-            (match List.tryLast l with
-             | Some dv -> Value(DList l.Tail)
-             | None -> Value(DOption None))
+            if List.length l > 0 then DList l.Tail else DOption None
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
