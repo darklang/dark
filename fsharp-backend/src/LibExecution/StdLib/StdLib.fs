@@ -51,10 +51,12 @@ let infixFns =
       let opName =
         match d.module_, d.function_, d.version with
         | "Int", "add", 0 -> Some "+"
+        | "Int", "subtract", 0 -> Some "-"
         | "Int", "greaterThan", 0 -> Some ">"
         | "Int", "greaterThanOrEqualTo", 0 -> Some ">="
         | "Int", "lessThanOrEqualTo", 0 -> Some "<="
         | "Int", "lessThan", 0 -> Some "<"
+        | "Int", "power", 0 -> Some "^"
         | "String", "append", 1 -> Some "++"
         | "", "equals", 0 -> Some "=="
         | _ -> None
@@ -62,7 +64,7 @@ let infixFns =
       Option.map (fun opName ->
         { builtin with name = FQFnName.stdlibName "" opName 0 }) opName) prefixFns
 
-  assert (fns.Length = 7) // make sure we got them all
+  assert (fns.Length = 8) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns

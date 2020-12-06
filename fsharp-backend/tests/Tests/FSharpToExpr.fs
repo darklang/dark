@@ -107,6 +107,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
   | SynExpr.Ident ident when ident.idText = "op_Addition" ->
       eBinOp "" "+" 0 (eBlank ()) (eBlank ())
+  | SynExpr.Ident ident when ident.idText = "op_Subtraction" ->
+      eBinOp "" "-" 0 (eBlank ()) (eBlank ())
   | SynExpr.Ident ident when ident.idText = "op_PlusPlus" ->
       eBinOp "" "++" 0 (eBlank ()) (eBlank ())
   | SynExpr.Ident ident when ident.idText = "op_EqualsEquals" ->
@@ -115,6 +117,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
       eBinOp "" ">" 0 (eBlank ()) (eBlank ())
   | SynExpr.Ident ident when ident.idText = "op_LessThan" ->
       eBinOp "" "<" 0 (eBlank ()) (eBlank ())
+  | SynExpr.Ident ident when ident.idText = "op_Concatenate" ->
+      eBinOp "" "^" 0 (eBlank ()) (eBlank ())
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText

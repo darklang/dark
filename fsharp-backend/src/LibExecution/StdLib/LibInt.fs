@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
              //         ("Expected the argument `b` argument passed to `{state.executingFnName}` to be positive, but it was `{m}`."))
              _ ->
                // FSTODO
-               (* In case there's another failure mode, rollbar *)
+               // In case there's another failure mode, rollbar
                failwith "mpod error ")
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
