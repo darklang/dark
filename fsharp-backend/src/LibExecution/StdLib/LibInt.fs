@@ -1,6 +1,7 @@
 module LibExecution.StdLib.LibInt
 
 open System.Threading.Tasks
+open System.Numerics
 open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open FSharpPlus
@@ -84,9 +85,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [DInt v; DInt d] ->
             (try
-              let mutable remainder = 0
-              System.Math.DivRem(int v, int d, &remainder)
-              |> bigint
+              BigInteger.Remainder(v, d)
               |> DInt
               |> Value
              with e ->
