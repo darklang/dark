@@ -13,6 +13,7 @@
     <Compile Include="StdLib/LibList.fs" />
     <Compile Include="StdLib/LibDict.fs" />
     <Compile Include="StdLib/LibString.fs" />
+    <Compile Include="StdLib/LibBytes.fs" />
     <Compile Include="StdLib/LibInt.fs" />
     <Compile Include="StdLib/LibBool.fs" />
     <Compile Include="StdLib/LibMiddleware.fs" />

@@ -139,20 +139,20 @@ let runDarkHandler : HttpHandler =
           match result with
           | LibExecution.RuntimeTypes.DHttpResponse (status,
                                                      headers,
-                                                     LibExecution.RuntimeTypes.DStr body) ->
+                                                     LibExecution.RuntimeTypes.DBytes body) ->
               ctx.Response.StatusCode <- status
               List.iter (fun (k, v) ->
                 ctx.Response.Headers.Add
                   (k, Microsoft.Extensions.Primitives.StringValues([| v |]))) headers
-              let bytes = System.Text.Encoding.UTF8.GetBytes body
-              do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+              do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
               return! next ctx
           | other ->
               printfn $"Not a HTTP response: {other}"
 
+              // FSTODO: remove for security
               let bytes =
                 System.Text.Encoding.UTF8.GetBytes
-                  "Error: body is not a HttpResponse"
+                  $"Error: body is not a HttpResponse: {other}"
 
               do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
               ctx.Response.StatusCode <- 500

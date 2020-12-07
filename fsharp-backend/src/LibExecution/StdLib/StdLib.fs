@@ -33,7 +33,14 @@ let any =
 
 
 let prefixFns : List<BuiltInFn> =
-  (LibString.fns @ LibList.fns @ LibInt.fns @LibBool.fns @ LibDict.fns @ LibMiddleware.fns @ any)
+  (LibString.fns
+   @ LibList.fns
+   @ LibInt.fns
+   @ LibBool.fns
+   @ LibDict.fns
+   @ LibBytes.fns
+   @ LibMiddleware.fns
+   @ any)
 
 // Add infix functions that are identical except for the name
 let infixFns =

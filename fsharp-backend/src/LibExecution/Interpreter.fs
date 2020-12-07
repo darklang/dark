@@ -1,6 +1,5 @@
 ﻿module LibExecution.Interpreter
 
-open Thoth.Json.Net
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus

@@ -170,10 +170,10 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "Http" "setHeader" 0
       parameters =
-        [ Param.make "response" (THTTPResponse varA) ""
+        [ Param.make "response" (THttpResponse varA) ""
           Param.make "name" TStr ""
           Param.make "value" TStr "" ]
-      returnType = THTTPResponse varA
+      returnType = THttpResponse varA
       description = "Set a header in the HTTP response"
       fn =
         (function
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "responseBody" 0
-      parameters = [ Param.make "response" (THTTPResponse varA) "" ]
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = varA
       description = "Return the body of a HTTP response"
       fn =
@@ -229,15 +229,27 @@ let fns : List<BuiltInFn> =
             "response"
             varA
             "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
-      returnType = THTTPResponse varA
+      returnType = THttpResponse varA
       description = "Return a HTTPResponse based on the input."
       fn =
-        // TODO: should we try to handle Option, Result, DError, and ErrorRail here?
         (function
         | state, [ response ] ->
             match response with
             | DHttpResponse _ -> Value response
-            | other -> Value(DHttpResponse(200, [], other))
+            | _ ->
+                let contentType =
+                  match response with
+                  | DObj _
+                  | DList _ -> "application/json; charset-utf-8"
+                  | _ -> "text/plain; charset=utf-8"
+
+                let bytified =
+                  response
+                  |> LibExecution.DvalRepr.toPrettyMachineJsonV1
+                  |> System.Text.Encoding.UTF8.GetBytes
+                  |> DBytes
+
+                Value(DHttpResponse(200, [ "content-type", contentType ], bytified))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -245,22 +257,27 @@ let fns : List<BuiltInFn> =
     { name = fn "Http" "wrapInResponseValue" 0
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
-      description =
-        "Take the HTTP result, and if it is not a HTTPResponse value, convert it to one."
+      description = "Takes a value that is expected to be returned to an end-user via HTTP.
+        If it is not a HttpResponse, it converts it into one. The output is
+        converted to bytes. If it needs to be stringified first, it is
+        stringified to a representation suitable for consuming machine-readable
+        JSON. A header is added based on type: Dicts, Records and Lists have
+        JSON content-type, all others have text/plain."
       fn =
+        let code =
+          // (fun req -> Http.convertToResponseValue (req |> next))
+          eLambda
+            [ "req" ]
+            (eFn
+              "Http"
+               "convertToResponseValue"
+               0
+               [ (ePipeApply (eVar "next") [ eVar "req" ]) ])
+
         (function
         | state, [ DFnVal _ as next ] ->
-            DFnVal
-              (Lambda
-                { symtable = Map.ofList [ "next", next ]
-                  parameters = [ gid (), "req" ]
-                  body =
-                    eFn
-                      "Http"
-                      "convertToResponseValue"
-                      0
-                      [ (eApply (eVar "next") [ eVar "req" ]) ] })
-            |> Value
+            let st = Symtable.empty |> Symtable.add "next" next
+            Interpreter.eval state st code
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -274,7 +291,8 @@ let fns : List<BuiltInFn> =
           // (fun req ->
           //   let response = req |> next in
           //   let body = Http.responseBody_v0 response in
-          //   Http.setHeader_v0 response "content-length" (toString (String.length_v0 body)))
+          // FSTODO: should be bytes, not a string
+          //   Http.setHeader_v0 response "content-length" (toString (Bytes.length_v0 body)))
           eLambda
             [ "req" ]
             (eLet
@@ -289,11 +307,7 @@ let fns : List<BuiltInFn> =
                      0
                      [ eVar "response"
                        eStr "content-length"
-                       eFn
-                         ""
-                         "toString"
-                         0
-                         [ eFn "String" "length" 0 [ eVar "body" ] ] ])))
+                       eFn "" "toString" 0 [ eFn "Bytes" "length" 0 [ eVar "body" ] ] ])))
 
         (function
         | state, [ DFnVal _ as next ] ->
@@ -304,13 +318,22 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    // let req ->
+    //   if not wrapped in a response, use machinejson, and infer header based on type (list/obj uses JSON, else use textplain)
+    //   if in a response:
+    //      use existing header or infer from type.
+    //      if output is bytes, print direct
+    //      if text/html or text/plain or applcation/xml, use enduser_readable_text
+    //      if application/json, convert to pretty_machine_json_v1
+    //   note: string with no response: machine printout and text/plain (dev mode)
+    //         string in http response: enduser_readable_text and text/plain
     { name = fn "Http" "middleware" 0
       parameters =
         [ Param.make "url" TBytes ""
           Param.make "body" TBytes ""
           Param.make "headers" TBytes ""
           middlewareNextParameter ]
-      returnType = THTTPResponse TBytes
+      returnType = THttpResponse TBytes
       description =
         "Call the middleware stack, returning a response which can be sent to the browser"
       fn =

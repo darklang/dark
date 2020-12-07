@@ -368,7 +368,7 @@ and DType =
   | TIncomplete
   | TError
   | TLambda
-  | THTTPResponse of DType
+  | THttpResponse of DType
   | TDB
   | TDate
   | TChar

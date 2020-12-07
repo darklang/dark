@@ -12,6 +12,8 @@ module LibExecution.DvalRepr
 
 open RuntimeTypes
 
+module E = Thoth.Json.Net.Encode
+
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
     let nl = "\n" + String.replicate indent " "
@@ -95,3 +97,46 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBytes bytes -> System.BitConverter.ToString bytes
 
   reprfn dval
+
+
+let toPrettyMachineJsonValueV1 dval : Thoth.Json.Net.JsonValue =
+  let rec r dv =
+    match dv with
+    (* basic types *)
+    | DInt i -> E.bigint i // FSTODO: is this the same?
+    | DFloat f -> E.float f
+    | DBool b -> E.bool b
+    | DNull -> E.nil
+    | DStr s -> E.string s
+    | DList l -> E.list (List.map r l)
+    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, r v)) |> E.object
+    | DFnVal _ ->
+        (* See docs/dblock-serialization.ml *)
+        E.nil
+    | DFakeVal (DIncomplete _) -> E.nil
+    | DChar c -> E.string c
+    | DFakeVal (DError _) ->
+        // FSTODO
+        E.object [ "Error", E.string "TODO: error" ]
+    | DHttpResponse (code, headers, response) -> r response
+    | DDB dbname -> E.string dbname
+    // | DDate date ->
+    //     `String (Util.isostring_of_date date)
+    // | DPassword hashed ->
+    //     `Assoc [("Error", `String "Password is redacted")]
+    | DUuid uuid -> E.string (uuid.ToString())
+    | DOption opt -> Option.map r opt |> Option.defaultValue E.nil
+    | DFakeVal (DErrorRail dv) -> r dv
+    | DResult res ->
+        (match res with
+         | Ok dv -> r dv
+         | Error dv -> E.object [ "Error", r dv ])
+    | DBytes bytes ->
+        // FSTODO is this the right b64 encoding
+        bytes |> System.Convert.ToBase64String |> E.string
+
+  r dval
+
+
+let toPrettyMachineJsonV1 dval : string =
+  dval |> toPrettyMachineJsonValueV1 |> E.toString 2
