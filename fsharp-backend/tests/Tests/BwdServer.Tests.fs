@@ -14,7 +14,6 @@ open System.Net
 open System.Net.Sockets
 open System.Text.RegularExpressions
 
-
 let t name =
   testTask $"Httpfiles: {name}" {
     // TODO: This test relies on the server running already. Run the server
@@ -24,18 +23,19 @@ let t name =
 
     let setHeadersToCRLF (text : byte array) : byte array =
       // We keep our test files with an LF line ending, but the HTTP spec
-      // requires headers (but not the body) to have CRLF line endings
+      // requires headers (but not the body, nor the first line) to have CRLF
+      // line endings
       let mutable justSawNewline = false
-      let mutable inHeaderSection = true
+      let mutable inBody = false
       text
       |> Array.toList
       |> List.collect (fun b ->
-           justSawNewline <- false
-           if inHeaderSection && b = byte '\n' then
-             if justSawNewline then inHeaderSection <- false
+           if inBody = false && b = byte '\n' then
+             if justSawNewline then inBody <- true
              justSawNewline <- true
              [ byte '\r'; b ]
            else
+             justSawNewline <- false
              [ b ])
       |> List.toArray
 
@@ -55,7 +55,7 @@ let t name =
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
       g.[4].Value |> toBytes |> setHeadersToCRLF,
-      g.[5].Value,
+      g.[5].Value |> toBytes |> setHeadersToCRLF,
       g.[3].Value,
       g.[1].Value,
       g.[2].Value
@@ -118,7 +118,7 @@ let t name =
         "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
         (toStr response)
 
-    Expect.equal expectedResponse response "Result should be ok"
+    Expect.equal (toStr expectedResponse) response "Result should be ok"
   }
 
 let testsFromFiles =
