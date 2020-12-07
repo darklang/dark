@@ -170,16 +170,27 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "Http" "setHeader" 0
       parameters =
-        [ Param.make "response" THTTPResponse ""
+        [ Param.make "response" (THTTPResponse varA) ""
           Param.make "name" TStr ""
           Param.make "value" TStr "" ]
-      returnType = THTTPResponse
+      returnType = THTTPResponse varA
       description = "Set a header in the HTTP response"
       fn =
         (function
         | state,
           [ DHttpResponse (code, headers, responseVal); DStr name; DStr value ] ->
             Value(DHttpResponse(code, headers ++ [ name, value ], responseVal))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "responseBody" 0
+      parameters = [ Param.make "response" (THTTPResponse varA) "" ]
+      returnType = varA
+      description = "Return the body of a HTTP response"
+      fn =
+        (function
+        | state, [ DHttpResponse (_, _, responseVal) ] -> Value responseVal
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -216,9 +227,9 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make
             "response"
-            TAny
+            varA
             "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
-      returnType = THTTPResponse
+      returnType = THTTPResponse varA
       description = "Return a HTTPResponse based on the input."
       fn =
         // TODO: should we try to handle Option, Result, DError, and ErrorRail here?
@@ -263,7 +274,7 @@ let fns : List<BuiltInFn> =
           // (fun req ->
           //   let response = req |> next in
           //   let body = Http.responseBody_v0 response in
-          //   Http.setHeader_v0 response "content-length" (String.length_v0 body))
+          //   Http.setHeader_v0 response "content-length" (toString (String.length_v0 body)))
           eLambda
             [ "req" ]
             (eLet
@@ -278,7 +289,11 @@ let fns : List<BuiltInFn> =
                      0
                      [ eVar "response"
                        eStr "content-length"
-                       eFn "String" "length" 0 [ eVar "body" ] ])))
+                       eFn
+                         ""
+                         "toString"
+                         0
+                         [ eFn "String" "length" 0 [ eVar "body" ] ] ])))
 
         (function
         | state, [ DFnVal _ as next ] ->
@@ -295,7 +310,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TBytes ""
           Param.make "headers" TBytes ""
           middlewareNextParameter ]
-      returnType = THTTPResponse
+      returnType = THTTPResponse TBytes
       description =
         "Call the middleware stack, returning a response which can be sent to the browser"
       fn =

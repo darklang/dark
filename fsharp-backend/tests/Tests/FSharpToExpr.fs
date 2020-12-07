@@ -235,6 +235,11 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
                                                             "Just"
                                                             "Error" ] ->
       eConstructor name.idText [ c arg ]
+  // Most functions are LongIdents, toString isn't
+  | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString" ->
+      let desc = D.FQFnName.stdlibName "" "toString" 0
+      D.EFnCall(gid (), desc, [ c arg ], D.NoRail)
+
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
