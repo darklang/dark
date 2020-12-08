@@ -1,16 +1,15 @@
-module LibExecution.LibBool
+module LibExecution.StdLib.LibBool
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.Runtime
-open FSharpPlus
 open Prelude
+open LibExecution.RuntimeTypes
+open FSharpPlus
 
-let fn = FnDesc.stdFnDesc
+let fn = FQFnName.stdlibName
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bool" "not" 0
-
       parameters = [ Param.make "b" TBool "" ]
       returnType = TBool
       description =
@@ -27,7 +26,6 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if both a and b are true"
       fn =
-
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a && b))
         | args -> incorrectArgs ())
@@ -39,7 +37,6 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if either a is true or b is true"
       fn =
-
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a || b))
         | args -> incorrectArgs ())
@@ -47,13 +44,11 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "xor" 0
-
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
       description =
         "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
       fn =
-
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a <> b))
         | args -> incorrectArgs ())
@@ -61,12 +56,10 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "isNull" 0
-
       parameters = [ Param.make "check" TAny "" ]
       returnType = TBool
       description = "Returns true if the `check` parameter is null"
       fn =
-
         (function
         | _, [ value ] ->
             Value
@@ -78,19 +71,19 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "isError" 0
-
       parameters = [ Param.make "check" TAny "" ]
       returnType = TBool
       description = "Returns `true` if the `check` parameter is an error"
       fn =
-
         (function
         | _, [ value ] ->
             Value
               (match value with
-               | _ -> DBool true
-               | DFakeVal (DError _) -> DBool true)
+               | DFakeVal (DError _) -> DBool true
+               | _ -> DBool false)
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause "an old workaround to poor static typing that's no longer needed" } ]
+      deprecated =
+        DeprecatedBecause
+          "an old workaround to poor static typing that's no longer needed" } ]

@@ -294,10 +294,15 @@ and applyFnVal (state : ExecutionState)
                (ster : SendToRail)
                : DvalTask =
   taskv {
+    let isErrorAllowed =
+      match fnVal with
+      | FQFnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
+      | _ -> false
+
     match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
     // If one of the args is a fake value used as a marker, return it instead
     // of executing.
-    | Some dv ->
+    | Some dv when not isErrorAllowed ->
         match dv with
         // That is, unless it's an incomplete in a pipe. In a pipe, we treat
         // the entire expression as a blank, and skip it, returning the input
@@ -305,7 +310,9 @@ and applyFnVal (state : ExecutionState)
         | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
             return Option.defaultValue dv (List.tryHead args)
         | _ -> return dv
-    | None ->
+    | None
+    | Some _ ->
+        // FSTODO: packages and user functions
         match fnVal with
         | Lambda l ->
             let parameters = List.map snd l.parameters
@@ -317,7 +324,6 @@ and applyFnVal (state : ExecutionState)
               return err (LambdaCalledWithWrongCount(args, parameters))
             else
               // FSTODO
-              // let bindings = List.zip_exn params args in
               // List.iter bindings (fun ((id, paramName), dv) ->
               //     state.trace state.on_execution_path id dv) ;
               let paramSyms = List.zip parameters args |> Map
@@ -326,10 +332,13 @@ and applyFnVal (state : ExecutionState)
               return! eval state newSymtable l.body
         | (FQFnName desc) ->
             let! result =
+              // FSTODO: user functions
               match state.functions.TryFind desc with
               | None -> Value(err (NotAFunction desc))
               | Some fn ->
+                  // FSTODO: if an argument is an error rail, return it
                   try
+                    // FSTODO: all the behaviour in AST.exec_fn
                     fn.fn (state, args)
                   with
                   | RuntimeException rte -> Value(err rte)

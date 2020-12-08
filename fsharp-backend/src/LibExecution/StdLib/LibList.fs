@@ -606,13 +606,18 @@ let fns : List<BuiltInFn> =
         "Return true if all elements in the list meet the function's criteria, else false."
       fn =
         (function
-        | state, [ DList l; DLambda b ] ->
+        | state, [ DList l; DFnVal b ] ->
             taskv {
               let incomplete = ref false
 
               let f (dv : Dval) : TaskOrValue<bool> =
                 taskv {
-                  match! Interpreter.eval_lambda state b [ dv ] with
+                  match! LibExecution.Interpreter.applyFnVal
+                           state
+                           b
+                           [ dv ]
+                           NotInPipe
+                           NoRail with
                   | DBool b -> return b
                   | DFakeVal (DIncomplete _) ->
                       incomplete := true
