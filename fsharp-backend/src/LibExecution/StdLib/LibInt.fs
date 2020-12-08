@@ -24,17 +24,14 @@ let fns : List<BuiltInFn> =
         | state, [ DInt v; DInt m ] ->
             (try
               Value(DInt(v % m))
-             with
-             // FSTODO
-             // | DivideByZeroException _ ->
-             //     let pretty = Dval.to_developer_repr_v0 (DInt m)
-             //     Value
-             //       (err
-             //         ("Expected the argument `b` argument passed to `{state.executingFnName}` to be positive, but it was `{m}`."))
-             _ ->
-               // FSTODO
-               // In case there's another failure mode, rollbar
-               failwith "mpod error ")
+             with e ->
+               if m = bigint 0
+               then
+                 Value(errStr ($"Expected the argument `b` to be positive, but it was ({m})"))
+               else
+                 // FSTODO
+                 // In case there's another failure mode, rollbar
+                 failwith "mpod error ")
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -91,7 +88,7 @@ let fns : List<BuiltInFn> =
              with e ->
                if d = bigint 0
                then
-                 Value(errStr ($"({v}) `divisor` must be non-zero"))
+                 Value(errStr ($"`divisor` must be non-zero"))
                else (* In case there's another failure mode, rollbar *)
                  raise e)
         | args ->
@@ -170,11 +167,18 @@ let fns : List<BuiltInFn> =
       description = "Raise `base` to the power of `exponent`"
       fn =
         (function
-        | _, [ DInt number; DInt exp ] ->
-            (number ** (int exp))
-            |> DInt
-            |> Value
-        | args -> incorrectArgs ())
+        | state, [ DInt number; DInt exp ] ->
+            (try
+              Value(DInt (number ** (int exp)) )
+             with e ->
+               if exp < bigint 0
+               then
+                 Value(errStr ($"Expected the argument `exponent` to be positive, but it was ({exp})"))
+               else
+                 // FSTODO
+                 // In case there's another failure mode, rollbar
+                 failwith "mpod error ")
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
