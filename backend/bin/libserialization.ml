@@ -14,5 +14,5 @@ let () =
   Callback.register "db_json2bin" BS.db_json2bin ;
   Callback.register "oplist_json2bin" BS.oplist_json2bin ;
   Callback.register "pos_json2bin" BS.pos_json2bin ;
-  Callback.register "digest" BS.digest;
+  Callback.register "digest" BS.digest ;
   ()
