@@ -294,10 +294,15 @@ and applyFnVal (state : ExecutionState)
                (ster : SendToRail)
                : DvalTask =
   taskv {
+    let isErrorAllowed =
+      match fnVal with
+      | FQFnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
+      | _ -> false
+
     match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
     // If one of the args is a fake value used as a marker, return it instead
     // of executing.
-    | Some dv ->
+    | Some dv when not isErrorAllowed ->
         match dv with
         // That is, unless it's an incomplete in a pipe. In a pipe, we treat
         // the entire expression as a blank, and skip it, returning the input
@@ -305,7 +310,8 @@ and applyFnVal (state : ExecutionState)
         | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
             return Option.defaultValue dv (List.tryHead args)
         | _ -> return dv
-    | None ->
+    | None
+    | Some _ ->
         match fnVal with
         | Lambda l ->
             let parameters = List.map snd l.parameters
