@@ -64,7 +64,7 @@ let infixFns =
       Option.map (fun opName ->
         { builtin with name = FQFnName.stdlibName "" opName 0 }) opName) prefixFns
 
-  assert (fns.Length = 8) // make sure we got them all
+  assert (fns.Length = 9) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns

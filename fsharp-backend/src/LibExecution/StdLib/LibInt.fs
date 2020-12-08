@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            a + bigint (Runtime.random.Next((b - a) |> int))
+            a + bigint (Prelude.random.Next((b - a) |> int))
             |> DInt
             |> Value
         | _, [ DFloat a; _ ] ->
