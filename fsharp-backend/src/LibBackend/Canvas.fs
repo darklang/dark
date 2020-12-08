@@ -6,7 +6,7 @@ open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
-open Npgsql.FSharp
+open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
 open FSharp.Data

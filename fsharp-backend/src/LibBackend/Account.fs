@@ -4,7 +4,7 @@ module LibBackend.Account
 
 open System.Threading.Tasks
 open FSharpPlus
-open Npgsql.FSharp
+open Npgsql.FSharp.Tasks
 open Npgsql
 
 open Prelude

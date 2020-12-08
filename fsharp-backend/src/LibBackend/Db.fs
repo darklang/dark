@@ -3,8 +3,9 @@ module LibBackend.Db
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
-open Npgsql.FSharp
+
 open Npgsql
+open Npgsql.FSharp.Tasks
 
 // make sure the connection is returned to the pool
 let connect () : Sql.SqlProps =
@@ -18,48 +19,7 @@ let connect () : Sql.SqlProps =
   |> Sql.formatConnectionString
   |> Sql.connect
 
-
-let throwOrReturn (result : Async<Result<'a, exn>>) =
-  task {
-    let! result = result |> Async.StartImmediateAsTask
-
-    match result with
-    | Ok result -> return result
-    | Error exn -> return raise exn
-  }
-
-let fetch (sql : string)
-          (parameters : List<string * SqlValue>)
-          (reader : RowReader -> 't)
-          : Task<List<'t>> =
-  connect ()
-  |> Sql.query sql
-  |> Sql.parameters parameters
-  |> Sql.executeAsync reader
-  |> throwOrReturn
-
-let fetchOne (sql : string)
-             (parameters : List<string * SqlValue>)
-             (reader : RowReader -> 't)
-             : Task<'t> =
-  connect ()
-  |> Sql.query sql
-  |> Sql.parameters parameters
-  |> Sql.executeRowAsync reader
-  |> throwOrReturn
-
-
-
 module Sql =
-  let throwOrReturn (result : Async<Result<'a, exn>>) =
-    task {
-      let! result = result |> Async.StartImmediateAsTask
-
-      match result with
-      | Ok result -> return result
-      | Error exn -> return raise exn
-    }
-
   let convertToOption (result : Task<List<'a>>) : Task<Option<'a>> =
     task {
       match! result with
@@ -74,16 +34,16 @@ module Sql =
   let executeRowOptionAsync (reader : RowReader -> 't)
                             (props : Sql.SqlProps)
                             : Task<Option<'t>> =
-    Sql.executeAsync reader props |> throwOrReturn |> convertToOption
+    Sql.executeAsync reader props |> convertToOption
 
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
-    Sql.executeRowAsync reader props |> throwOrReturn
+    Sql.executeRowAsync reader props
 
   let executeAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<List<'t>> =
-    Sql.executeAsync reader props |> throwOrReturn
+    Sql.executeAsync reader props
 
   let executeNonQueryAsync (props : Sql.SqlProps) : Task<int> =
-    Sql.executeNonQueryAsync props |> throwOrReturn
+    Sql.executeNonQueryAsync props
 
   let tlidArray (tlids : List<int64>) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint
