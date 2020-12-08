@@ -1,5 +1,7 @@
 module Prelude
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
 
@@ -8,6 +10,36 @@ let (|Regex|_|) pattern input =
   let m = Regex.Match(input, pattern)
   if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
 
+let debug (msg : string) (a : 'a) : 'a =
+  printfn $"DEBUG: {msg} ({a})"
+  a
+
+// .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
+// OS-generated truly-random number.
+// https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
+// also use a single global value for the VM, so that users cannot be
+// guaranteed to get multiple consequetive values (as other requests may intervene)
+let random : System.Random = System.Random()
+
+let gid () : int64 =
+  // get enough bytes for an int64, trim it to an int31 for now to match the frontend
+  let bytes = Array.init 8 (fun _ -> (byte) 0)
+  random.NextBytes(bytes)
+  let rand64 : int64 = System.BitConverter.ToInt64(bytes, 0)
+  // Keep 30 bits
+  // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
+  let mask : int64 = 1073741823L
+  rand64 &&& mask
+
+// Print the value of `a`. Note that since this is wrapped in a task, it must
+// resolve the task before it can print, which could lead to different ordering
+// of operations.
+let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
+  task {
+    let! a = a
+    printfn $"DEBUG: {msg} ({a})"
+    return a
+  }
 
 module String =
   // Returns a seq of EGC (extended grapheme cluster - essentially a visible
@@ -98,72 +130,6 @@ let collect list =
 
   loop [] list
 
-// We want Dark to by asynchronous (eg, while some code is doing IO, we want
-// other code to run instead). F#/.NET uses Tasks for that. However, it's
-// expensive to use create tasks for simple Dvals like DInts. Instead, we wrap
-// the return value in DvalTask, and simple DInts don't have to create an
-// entire Task. (I previously tried making DTask part of the Dval, but the
-// types were hard to get right and ensure execution happened as expected)
-// and FastTask<'a> =
-//   | Value of 'a
-//   | Task of Task<'a>
-//
-//   member ft.toTask() : Task<'a> =
-//     match ft with
-//     | Task t -> t
-//     | Value p -> task { return p }
-//
-//   member ft.bind(f : 'a -> FastTask<'b>) : FastTask<'b> =
-//     match ft with
-//     | Task t ->
-//         Task
-//           (task {
-//             let! resolved = t
-//
-//             match f resolved with
-//             | Value p -> return p
-//             | Task t -> return! t
-//            })
-//     | Value dv -> (f dv)
-//
-//   member dt.map(f : 'a -> 'b) : FastTask<'b> =
-//     match dt with
-//     | Task t ->
-//         Task
-//           (task {
-//             let! resolved = t
-//             return (f resolved)
-//            })
-//     | Value dv -> Value(f dv)
-//
-//   member ft1.bind2 (ft2 : FastTask<'b>) (f : 'a -> 'b -> FastTask<'c>)
-//                    : FastTask<'c> =
-//     match ft1, ft2 with
-//     | Task t1, Task t2 ->
-//         Task
-//           (task {
-//             let! v1 = t1
-//             let! v2 = t2
-//             // If `f` returns a task, don't wrap it
-//             return! (f v1 v2).toTask()
-//            })
-//     | Value v1, Task t2 ->
-//         Task
-//           (task {
-//             let! v2 = t2
-//             // If `f` returns a task, don't wrap it
-//             return! (f v1 v2).toTask()
-//            })
-//     | Task t1, Value v2 ->
-//         Task
-//           (task {
-//             let! v1 = t1
-//             // If `f` returns a task, don't wrap it
-//             return! (f v1 v2).toTask()
-//            })
-//     | Value v1, Value v2 -> f v1 v2
-//
-//
 // Processes each item of the list in order, waiting for the previous one to
 // finish. This ensures each request in the list is processed to completion
 // before the next one is done, making sure that, for example, a HttpClient

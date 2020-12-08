@@ -12,8 +12,15 @@ module Program =
   [<Microsoft.JSInterop.JSInvokable>]
   let run (arg : int) : Task<string> =
     task {
-      let prog = LibExecution.Runtime.Shortcuts.eInt arg
-      let! result = LibExecution.Execution.run [] LibExecution.StdLib.fns prog
+      let prog = LibExecution.RuntimeTypes.Shortcuts.eInt arg
+
+      let! result =
+        LibExecution.Execution.run
+          (LibExecution.SharedTypes.id 7)
+          []
+          LibExecution.StdLib.StdLib.fns
+          prog
+
       return result.ToString()
     }
 

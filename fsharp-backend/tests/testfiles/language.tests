@@ -1,6 +1,10 @@
 (5 + 3) = 8 // binop
 
 [test.lambda]
+(let y = (fun x -> x + 1) in
+ List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
+
+[test.lambda1]
 (let x = 5 in
  let y = (fun c -> x + c) in
  let x = 6 in
@@ -128,6 +132,9 @@
 (match null with | null -> "pass" | var -> "fail") = "pass"
 (match 2.0 with | blank -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
 
+[test.pipesimple]
+([] |> List.push_v0 2) = [2]
+
 [test.pipes]
 ([5]
  |> List.head_v0
@@ -135,6 +142,14 @@
  |> (+) 3
  |> blank
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
+
+[test.pipevariable]
+(let x = fun a -> a + 1 in
+ (5
+ |> x
+ |> x
+ |> (+) 3
+ |> blank)) = 10
 
 [tests.constructors]
 Nothing = Nothing
@@ -145,8 +160,9 @@ Nothing = Nothing
 [ 5; 6; blank] = [ 5, 6 ]
 { i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }
 5 |> blank |> (+) 3 = 8
-5 |> (+) blank |> (+) 3 = 8
+5 |> (+) blank |> (+) 3564 = 3569
 5 |> (+) blank = 5
+(let x = blank in (5 |> x)) = 5
 
 [tests.errorrail]
 Dict.get_v1 {} "i" = Nothing
@@ -158,7 +174,7 @@ Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
 List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 //List.filter_v1 [1;2;3;4] (fun x -> List.head_v1_ster []) = ErrorRail Nothing
 List.map_v0 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
-//List.fold_v0 [1;2;3;4] 1 (\x, y -> List.head_v1 []) = Test.errorRailNothing_v0_ster
+//List.fold_v0 [1;2;3;4] 1 (fun x y -> List.head_v1 []) = Test.errorRailNothing_v0_ster
 ({ x = (List.head_v1_ster []) }) = Test.errorRailNothing_v0_ster
 Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 

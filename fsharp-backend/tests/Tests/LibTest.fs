@@ -5,11 +5,11 @@ module Tests.LibTest
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.Runtime
+open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
-let fn = FnDesc.stdFnDesc
+let fn = FQFnName.stdlibName
 
 let varA = TVariable "a"
 let varB = TVariable "b"

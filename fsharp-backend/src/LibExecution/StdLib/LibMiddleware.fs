@@ -1,12 +1,17 @@
-module LibExecution.LibMiddleware
+module LibExecution.StdLib.LibMiddleware
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.Runtime
 open FSharpPlus
-open Prelude
 
-let fn = FnDesc.stdFnDesc
+open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.RuntimeTypes.Shortcuts
+
+module Interpreter = LibExecution.Interpreter
+
+
+let fn = FQFnName.stdlibName
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -64,11 +69,10 @@ let varB = TVariable "b"
 // As such, the types of the entire middleware have to add up to the type of
 // the handler.
 
+// This is returned by a middlware and passed into the next middleware
+let middlewareReturnType = TFn([ TVariable "req" ], TVariable "resp")
+let middlewareNextParameter = Param.make "next" middlewareReturnType ""
 
-let middlewareNextParameter =
-  Param.make "next" (TFn([ TVariable "ctx2" ], THTTPResponse)) ""
-
-let middlewareReturnType = TFn([ TVariable "ctx" ], THTTPResponse)
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "emptyRequest" 0
@@ -164,23 +168,216 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "setHeader" 0
+      parameters =
+        [ Param.make "response" (THttpResponse varA) ""
+          Param.make "name" TStr ""
+          Param.make "value" TStr "" ]
+      returnType = THttpResponse varA
+      description = "Set a header in the HTTP response"
+      fn =
+        (function
+        | state,
+          [ DHttpResponse (code, headers, responseVal); DStr name; DStr value ] ->
+            Value(DHttpResponse(code, headers ++ [ name, value ], responseVal))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "responseBody" 0
+      parameters = [ Param.make "response" (THttpResponse varA) "" ]
+      returnType = varA
+      description = "Return the body of a HTTP response"
+      fn =
+        (function
+        | state, [ DHttpResponse (_, _, responseVal) ] -> Value responseVal
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "addServerHeaderMiddleware" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description = "Add the darklang server header."
+      fn =
+        let code =
+          // (fun req ->
+          //   let response = req |> next in
+          //   Http.setHeader_v0 response "server" "darklang")
+          eLambda
+            [ "req" ]
+            (eLet
+              "response"
+               (ePipeApply (eVar "next") [ eVar "req" ])
+               (eFn
+                 "Http"
+                  "setHeader"
+                  0
+                  [ eVar "response"; eStr "server"; eStr "darklang" ]))
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Symtable.empty |> Symtable.add "next" next
+            Interpreter.eval state st code
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "convertToResponseValue" 0
+      parameters =
+        [ Param.make
+            "response"
+            varA
+            "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
+      returnType = THttpResponse varA
+      description = "Return a HTTPResponse based on the input."
+      fn =
+        (function
+        | state, [ response ] ->
+            match response with
+            | DHttpResponse _ -> Value response
+            | _ ->
+                let contentType =
+                  match response with
+                  | DObj _
+                  | DList _ -> "application/json; charset-utf-8"
+                  | _ -> "text/plain; charset=utf-8"
+
+                let bytified =
+                  response
+                  |> LibExecution.DvalRepr.toPrettyMachineJsonV1
+                  |> System.Text.Encoding.UTF8.GetBytes
+                  |> DBytes
+
+                Value(DHttpResponse(200, [ "content-type", contentType ], bytified))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "wrapInResponseValue" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description = "Takes a value that is expected to be returned to an end-user via HTTP.
+        If it is not a HttpResponse, it converts it into one. The output is
+        converted to bytes. If it needs to be stringified first, it is
+        stringified to a representation suitable for consuming machine-readable
+        JSON. A header is added based on type: Dicts, Records and Lists have
+        JSON content-type, all others have text/plain."
+      fn =
+        let code =
+          // (fun req -> Http.convertToResponseValue (req |> next))
+          eLambda
+            [ "req" ]
+            (eFn
+              "Http"
+               "convertToResponseValue"
+               0
+               [ (ePipeApply (eVar "next") [ eVar "req" ]) ])
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Symtable.empty |> Symtable.add "next" next
+            Interpreter.eval state st code
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "addContentLengthResponseHeader" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description = "Take the HTTP result, and add a Content-length header to it."
+      fn =
+        let code =
+          // (fun req ->
+          //   let response = req |> next in
+          //   let body = Http.responseBody_v0 response in
+          // FSTODO: should be bytes, not a string
+          //   Http.setHeader_v0 response "content-length" (toString (Bytes.length_v0 body)))
+          eLambda
+            [ "req" ]
+            (eLet
+              "response"
+               (ePipeApply (eVar "next") [ eVar "req" ])
+               (eLet
+                 "body"
+                  (eFn "Http" "responseBody" 0 [ eVar "response" ])
+                  (eFn
+                    "Http"
+                     "setHeader"
+                     0
+                     [ eVar "response"
+                       eStr "content-length"
+                       eFn "" "toString" 0 [ eFn "Bytes" "length" 0 [ eVar "body" ] ] ])))
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Symtable.empty |> Symtable.add "next" next
+            Interpreter.eval state st code
+        | _, args -> incorrectArgs ())
+
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    // let req ->
+    //   if not wrapped in a response, use machinejson, and infer header based on type (list/obj uses JSON, else use textplain)
+    //   if in a response:
+    //      use existing header or infer from type.
+    //      if output is bytes, print direct
+    //      if text/html or text/plain or applcation/xml, use enduser_readable_text
+    //      if application/json, convert to pretty_machine_json_v1
+    //   note: string with no response: machine printout and text/plain (dev mode)
+    //         string in http response: enduser_readable_text and text/plain
     { name = fn "Http" "middleware" 0
       parameters =
         [ Param.make "url" TBytes ""
           Param.make "body" TBytes ""
           Param.make "headers" TBytes ""
           middlewareNextParameter ]
-      returnType = THTTPResponse
+      returnType = THttpResponse TBytes
       description =
         "Call the middleware stack, returning a response which can be sent to the browser"
       fn =
+        // eStdFnVal "Http" "wrapInResponseValue" 0
+        // eStdFnVal "Http" "addServerHeaderMiddleware" 0
+        // eStdFnVal "Http" "addContentLengthResponseHeader" 0
+        let code =
+          // let fns = [Http.wrapInResponseValue_v0 ; Http.addserverHeaderMiddleware_v0]
+          // let app = List.fold_v0 fns handler (fun accum curr -> accum |> curr)
+          // handler |> app
+          eLet
+            "fns"
+            (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
+                     eStdFnVal "Http" "addContentLengthResponseHeader" 0
+                     eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])
+            (eLet
+              "app"
+               (eFn
+                 "List"
+                  "fold"
+                  0
+                  [ eVar "fns"
+                    eVar "handler"
+                    eLambda
+                      [ "accum"; "curr" ]
+                      (ePipeApply (eVar "curr") [ eVar "accum" ]) ])
+               (ePipeApply (eVar "app") [ eVar "handler" ]))
+
+
         (function
-        // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
+            let st =
+              Symtable.empty
+              |> Symtable.add "url" url
+              |> Symtable.add "body" body
+              |> Symtable.add "headers" headers
+              |> Symtable.add "handler" handler
+
+            Interpreter.eval state st code
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]
+
 
 // let httpMiddleware_v0 (body : string)
 //                       (headers : string)
@@ -188,7 +385,7 @@ let fns : List<BuiltInFn> =
 //                       (handler)
 //                       : response =
 //   handler
-//   |> addQueryParams url
+//   |> \nextMW -> addQueryParams url nextMW
 //   |> parseRawBody
 //   |> addHeaders headers
 //   |> addJsonBody body

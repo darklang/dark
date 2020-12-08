@@ -8,12 +8,14 @@ open FSharp.Compiler.SourceCodeServices
 
 open Prelude
 
-module R = LibExecution.Runtime
-open R.Shortcuts
+module DarkTypes = LibBackend.ProgramSerialization.ProgramTypes
+module D = DarkTypes
+open LibExecution.SharedTypes
+open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"
-  let input = $"do {input}"
+  let input = $"{input}"
   let checker = SourceCodeServices.FSharpChecker.Create()
 
   // Throws an exception here if we don't do this:
@@ -34,8 +36,7 @@ let parse (input) : SynExpr =
                                                                              _,
                                                                              _,
                                                                              [ SynModuleDecl.DoExpr (_,
-                                                                                                     SynExpr.Do (expr,
-                                                                                                                 _),
+                                                                                                     expr,
                                                                                                      _) ],
                                                                              _,
                                                                              _,
@@ -44,10 +45,10 @@ let parse (input) : SynExpr =
                                                      _))) ->
       // Extract declarations and walk over them
       expr
-  | _ -> failwith $" - wrong shape tree: {results}"
+  | _ -> failwith $" - wrong shape tree: {results.ParseTree}"
 
 
-let rec convertToExpr (ast : SynExpr) : R.Expr =
+let rec convertToExpr (ast : SynExpr) : D.Expr =
   let c = convertToExpr
 
   let parseFloat d : string * string =
@@ -55,7 +56,7 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
     | Regex "(.*)\.(.*)" [ whole; fraction ] -> (whole, fraction |> int |> string)
     | str -> failwith $"Could not parse {str}"
 
-  let rec convertPattern (pat : SynPat) : R.Pattern =
+  let rec convertPattern (pat : SynPat) : D.Pattern =
     match pat with
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) when name.idText = "blank" ->
         pBlank ()
@@ -85,14 +86,14 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
     | _ -> failwith $"unsupported lambdaVar {var}"
 
   // Add a pipetarget after creating it
-  let cPlusPipeTarget (e : SynExpr) : R.Expr =
+  let cPlusPipeTarget (e : SynExpr) : D.Expr =
     match c e with
-    | R.EFnCall (id, name, args, ster) ->
-        R.EFnCall(id, name, ePipeTarget () :: args, ster)
-    | R.EBinOp (id, name, R.EBlank _, arg2, ster) ->
-        R.EBinOp(id, name, ePipeTarget (), arg2, ster)
-    | R.EBinOp (id, name, arg1, R.EBlank _, ster) ->
-        R.EBinOp(id, name, ePipeTarget (), arg1, ster)
+    | D.EFnCall (id, name, args, ster) ->
+        D.EFnCall(id, name, ePipeTarget () :: args, ster)
+    | D.EBinOp (id, name, D.EBlank _, arg2, ster) ->
+        D.EBinOp(id, name, ePipeTarget (), arg2, ster)
+    | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
+        D.EBinOp(id, name, ePipeTarget (), arg1, ster)
     | other -> other
 
   match ast with
@@ -146,14 +147,27 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
                        _) ->
       let name, version, ster =
         match fnName.idText with
-        | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, R.Rail)
-        | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, R.NoRail)
+        | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, D.Rail)
+        | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, D.NoRail)
         | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
 
-      let desc = R.FnDesc.stdFnDesc modName.idText name version
-      R.EFnCall(gid (), desc, [], ster)
-  | SynExpr.Lambda (_, _, SynSimplePats.SimplePats (vars, _), body, _) ->
-      let vars = List.map convertLambdaVar vars
+      let desc = D.FQFnName.stdlibName modName.idText name version
+      D.EFnCall(gid (), desc, [], ster)
+  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _) ->
+      let rec extractVarsAndBody expr =
+        match expr with
+        // The 2nd param indicates this was part of a lambda
+        | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), body, _) ->
+            let nestedVars, body = extractVarsAndBody body
+            vars @ nestedVars, body
+        // The 2nd param indicates this was not nested
+        | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), body, _) ->
+            vars, body
+        | SynExpr.Lambda _ -> failwith $"TODO: other types of lambda: {expr}"
+        | _ -> [], expr
+
+      let nestedVars, body = extractVarsAndBody body
+      let vars = List.map convertLambdaVar (outerVars @ nestedVars)
       eLambda vars (c body)
   | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
       eIf (c cond) (c thenExpr) (c elseExpr)
@@ -182,7 +196,7 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
                       _) -> eLet "_" (c rhs) (c body)
   | SynExpr.Match (_, cond, clauses, _) ->
       let convertClause (Clause (pat, _, expr, _, _) : SynMatchClause)
-                        : R.Pattern * R.Expr =
+                        : D.Pattern * D.Expr =
         (convertPattern pat, c expr)
 
       eMatch (c cond) (List.map convertClause clauses)
@@ -194,17 +208,18 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
            | f -> failwith $"Not an expected field {f}")
       |> eRecord
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
+  | SynExpr.Do (expr, _) -> c expr // just unwrap
   // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
   // op_PipeRight, and the inner app has two arguments. Those arguments might
   // also be pipes
   | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText =
                                                                                               "op_PipeRight" ->
       match c nestedPipes with
-      | R.EPipe (id, arg1, R.EBlank _, rest) as pipe ->
+      | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
           // when we just built the lowest, the second one goes here
-          R.EPipe(id, arg1, cPlusPipeTarget arg, rest)
-      | R.EPipe (id, arg1, arg2, rest) as pipe ->
-          R.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+          D.EPipe(id, arg1, cPlusPipeTarget arg, [])
+      | D.EPipe (id, arg1, arg2, rest) as pipe ->
+          D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       | other ->
           // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
@@ -212,7 +227,7 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
           ePipe (other) (cPlusPipeTarget arg) []
   | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
-      ePipe (c expr) (eBlank ()) []
+      ePipe (c expr) (eStr "SENTINEL EXPR FOR PIPES") []
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when List.contains
                                                           name.idText
                                                           [ "Ok"
@@ -220,22 +235,37 @@ let rec convertToExpr (ast : SynExpr) : R.Expr =
                                                             "Just"
                                                             "Error" ] ->
       eConstructor name.idText [ c arg ]
+  // Most functions are LongIdents, toString isn't
+  | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString" ->
+      let desc = D.FQFnName.stdlibName "" "toString" 0
+      D.EFnCall(gid (), desc, [ c arg ], D.NoRail)
+
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
-      | R.EFnCall (id, name, args, ster) ->
-          R.EFnCall(id, name, args @ [ c arg ], ster)
-      | R.EBinOp (id, name, R.EBlank _, arg2, ster) ->
-          R.EBinOp(id, name, c arg, arg2, ster)
-      | R.EBinOp (id, name, arg1, R.EBlank _, ster) ->
-          R.EBinOp(id, name, arg1, c arg, ster)
-      | R.EPipe (id, arg1, arg2, rest) as pipe ->
-          R.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+      | D.EFnCall (id, name, args, ster) ->
+          D.EFnCall(id, name, args @ [ c arg ], ster)
+      | D.EBinOp (id, name, D.EBlank _, arg2, ster) ->
+          D.EBinOp(id, name, c arg, arg2, ster)
+      | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
+          D.EBinOp(id, name, arg1, c arg, ster)
+      // A pipe with one entry
+      | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
+          D.EPipe(id, arg1, cPlusPipeTarget arg, [])
+      // A pipe with more than one entry
+      | D.EPipe (id, arg1, arg2, rest) as pipe ->
+          D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
+  | SynExpr.FromParseError _ as expr ->
+      failwith $"There was a parser error parsing: {expr}"
   | expr -> failwith $"Unsupported expression: {ast}"
 
-let convertToTest (ast : SynExpr) : R.Expr * R.Expr =
+let convertToTest (ast : SynExpr)
+                  : LibExecution.RuntimeTypes.Expr * LibExecution.RuntimeTypes.Expr =
   // Split equality into actual vs expected in tests.
+  let convert (x : SynExpr) : LibExecution.RuntimeTypes.Expr =
+    (convertToExpr x).toRuntimeType()
+
   match ast with
   | SynExpr.App (_,
                  _,
@@ -243,5 +273,7 @@ let convertToTest (ast : SynExpr) : R.Expr * R.Expr =
                  expected,
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
-      (convertToExpr actual, convertToExpr expected)
-  | _ -> convertToExpr ast, eBool true
+      (convert actual, convert expected)
+  | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true
+
+let parseDarkExpr (code : string) : D.Expr = code |> parse |> convertToExpr

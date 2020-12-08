@@ -195,7 +195,7 @@ def fsharp_backend_test():
   #    configuration = "Release"
   #  else:
   #    configuration = "Debug"
-  build = f"cd fsharp-backend && unbuffer Build/out/Tests"
+  build = f"cd fsharp-backend && Build/out/Tests"
   run_test(start, build)
   # Don't break the build for F#, since the tests are not expected to succeed
   return True
@@ -561,7 +561,7 @@ def mark(should, f):
     (".fsproj" in f or ".sln" in f or "Directory.Build.props" in f):
       should.fsharp_backend_full_build = True
 
-  elif ("/fsharp-backend/" in f) and (".fs" in f):
+  elif ("/fsharp-backend/" in f) and (f.endswith(".fs")):
       should.fsharp_backend_quick_build = True
 
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):

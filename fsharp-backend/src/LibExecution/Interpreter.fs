@@ -1,79 +1,23 @@
 ﻿module LibExecution.Interpreter
 
-open Thoth.Json.Net
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
 
-open Runtime
 open Prelude
+open RuntimeTypes
+open SharedTypes
 
 
 // fsharplint:disable FL0039
 let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
-
   let incomplete id = Value(DFakeVal(DIncomplete(SourceID(state.tlid, id))))
 
-  (* This is a super hacky way to inject params as the result of
-   * pipelining using the `Pipe` construct
-   *
-   * It's definitely not a good thing to be doing, as we're mutating
-   * the ASTs exprs to inject dvals into them
-   *
-   * `Pipe` as a separate construct in the AST as opposed to just
-   * being a function application is probably the root cause of this.
-   * Right now, we don't have function application in the language as
-   * FnCall is the AST element that actually handles interacting with
-   * the OCaml runtime to do useful work. We're going to need to make
-   * this a functional language with functions-as-values and application
-   * as a first-class concept sooner rather than later.
-   *)
-
-  let injectParamAndExecute (state : ExecutionState)
-                            (st : Symtable)
-                            (arg : Dval)
-                            (expr : Expr)
-                            : DvalTask =
-    taskv {
-      match expr with
-      | ELambda (id, _, _) ->
-          let! result = eval state st expr
-
-          match result with
-          | DLambda b -> return! eval_lambda state b [ arg ]
-          | _ ->
-              // This should never happen, but the user should be allowed to
-              // recover so this shouldn't be an exception *)
-              return (errSStr
-                        (sourceID id)
-                        "Internal type error: lambda did not produce a block")
-      | EBinOp (id, name, EPipeTarget _, right, ster) ->
-          let! result = eval state st right
-          return! callFn state id name [ arg; result ] ster
-      | EFnCall (id, name, EPipeTarget _ :: exprs, ster) ->
-          let! args = Prelude.map_s (eval state st) exprs
-          return! (callFn state id name (arg :: args) ster)
-      // If there's a hole, just run the computation straight through, as
-      // if it wasn't there
-      | EBlank _ -> return arg
-      | _ ->
-          (* calculate the results inside this regardless *)
-          return (DFakeVal(DIncomplete SourceNone))
-
-    // partial w/ exception, full with dincomplete, or option dval?
-    // trace on_execution_path (Libshared.FluidExpression.toID exp) result ;
-
-    }
-
   taskv {
-
     match e with
     | EBlank id -> return! (incomplete id)
-    | EPartial (_, _, expr)
-    | ERightPartial (_, _, expr)
-    | ELeftPartial (_, _, expr) -> return! eval state st expr
-    | EPipeTarget id -> return! incomplete id
+    | EPartial (_, expr) -> return! eval state st expr
     | ELet (_id, lhs, rhs, body) ->
         // FSTODO: match with ast.ml
         let! rhs = eval state st rhs
@@ -100,7 +44,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
 
     | EVariable (_id, name) ->
         // FSTODO: match ast.ml
-        return Symtable.get st name
+        return Symtable.get name st
     | ERecord (id, pairs) ->
         let skipEmptyKeys =
           pairs
@@ -119,18 +63,15 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                 // allow users to edit code safely
                 |> List.filter (fun (k, v : Dval) -> not v.isIncomplete)
                 |> Dval.obj)
-    | EFnCall (id, desc, exprs, ster) ->
+    | EApply (id, fnVal, exprs, inPipe, ster) ->
+        let! fnVal = eval state st fnVal
         let! args = Prelude.map_s (eval state st) exprs
-        return! (callFn state id desc (Seq.toList args) ster)
-
-    | EBinOp (id, desc, arg1, arg2, ster) ->
-        let! t1 = eval state st arg1
-        let! t2 = eval state st arg2
-        return! (callFn state id desc [ t1; t2 ] ster)
+        return! (applyFn state fnVal (Seq.toList args) inPipe ster)
+    | EFQFnValue (id, desc) -> return DFnVal(FQFnName(desc))
     | EFieldAccess (id, _, _) ->
         failwith "todo"
         return! incomplete id
-    | EFeatureFlag (id, _, cond, oldcode, newcode) ->
+    | EFeatureFlag (id, cond, oldcode, newcode) ->
         (* True gives newexpr, unlike in If statements
          *
          * In If statements, we use a false/null as false, and anything else is
@@ -171,23 +112,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
 
     // FSTODO
     | ELambda (_id, parameters, body) ->
-        return DLambda({ symtable = st; parameters = parameters; body = body })
-    | EPipe (id, e1, e2, rest) ->
-        let rest = e2 :: rest
-        (* For each expr, execute it, and then thread the previous result thru *)
-        let fst = eval state st e1
-        return! List.fold (fun (previous : DvalTask) (next : Expr) ->
-                  taskv {
-                    let! previous = previous
-                    let! result = injectParamAndExecute state st previous next
-
-                    match result with
-                    | DFakeVal (DIncomplete _) -> return previous
-                    (* let execution through *)
-                    (* DErrorRail is handled by inject_param_and_execute *)
-                    | _ -> return result
-                  }) fst rest
-
+        return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
     | EMatch (id, matchExpr, cases) ->
         let hasMatched = ref false
         let matchResult = ref (incomplete id)
@@ -345,69 +270,84 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         | _ -> return DFakeVal(DError(UndefinedConstructor name))
   }
 
-
-
-and callFn (state : ExecutionState)
-           (id : id)
-           (desc : FnDesc.T)
-           (args : List<Dval>)
-           (ster : SendToRail)
-           : DvalTask =
+// Unwrap the dval, which we expect to be a function, and error if it's not
+and applyFn (state : ExecutionState)
+            (fn : Dval)
+            (args : List<Dval>)
+            (isInPipe : IsInPipe)
+            (ster : SendToRail)
+            : DvalTask =
   taskv {
-    let! result =
-      match state.functions.TryFind desc with
-      | None -> Value(err (NotAFunction desc))
-      | Some fn ->
-          match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
-          | Some special -> Value special
-          | None ->
-              try
-                fn.fn (state, args)
-              with
-              | RuntimeException rte -> Value(err rte)
-              | FnCallException FnFunctionRemoved ->
-                  Value(err (FunctionRemoved fn.name))
-              | FnCallException FnWrongTypes ->
-                  Value(err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
-              | FakeDvalException dval -> Value(dval)
-
-    if ster = Rail then
-      match result.unwrapFromErrorRail with
-      | DOption (Some v) -> return v
-      | DResult (Ok v) -> return v
-      | DFakeVal _ as f -> return f
-      // There should only be DOptions and DResults here, but hypothetically we got
-      // something else, they would go on the error rail too.
-      | other -> return DFakeVal(DErrorRail other)
-    else
-      return result
+    match fn with
+    | DFnVal fnVal -> return! applyFnVal state fnVal args isInPipe ster
+    // Incompletes are allowed in pipes
+    | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
+        return Option.defaultValue fn (List.tryHead args)
+    | other ->
+        return errStr $"Expected a function value, got something else: {other}"
   }
 
-and eval_lambda (state : ExecutionState)
-                (l : Runtime.LambdaBlock)
-                (args : List<Dval>)
-                : DvalTask =
+and applyFnVal (state : ExecutionState)
+               (fnVal : FnValImpl)
+               (args : List<Dval>)
+               (isInPipe : IsInPipe)
+               (ster : SendToRail)
+               : DvalTask =
   taskv {
-    (* If one of the args is fake value used as a marker, return it instead of
-   * executing. This is the same behaviour as in fn calls. *)
     match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
-    | Some dv -> return dv
+    // If one of the args is a fake value used as a marker, return it instead
+    // of executing.
+    | Some dv ->
+        match dv with
+        // That is, unless it's an incomplete in a pipe. In a pipe, we treat
+        // the entire expression as a blank, and skip it, returning the input
+        // (first) value to be piped into the next statement instead. *)
+        | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
+            return Option.defaultValue dv (List.tryHead args)
+        | _ -> return dv
     | None ->
-        let parameters = List.map snd l.parameters
-        (* One of the reasons to take a separate list of params and args is to
-       * provide this error message here. We don't have this information in
-       * other places, and the alternative is just to provide incompletes
-       * with no context *)
-        if List.length l.parameters <> List.length args then
-          return err (LambdaCalledWithWrongCount(args, parameters))
-        else
-          // FSTODO
-          // let bindings = List.zip_exn params args in
-          // List.iter bindings (fun ((id, paramName), dv) ->
-          //     state.trace state.on_execution_path id dv) ;
-          let paramSyms = List.zip parameters args |> Map
-          // paramSyms is higher priority
-          let newSymtable = Map.union paramSyms l.symtable
+        match fnVal with
+        | Lambda l ->
+            let parameters = List.map snd l.parameters
+            // One of the reasons to take a separate list of params and args is to
+            // provide this error message here. We don't have this information in
+            // other places, and the alternative is just to provide incompletes
+            // with no context
+            if List.length l.parameters <> List.length args then
+              return err (LambdaCalledWithWrongCount(args, parameters))
+            else
+              // FSTODO
+              // let bindings = List.zip_exn params args in
+              // List.iter bindings (fun ((id, paramName), dv) ->
+              //     state.trace state.on_execution_path id dv) ;
+              let paramSyms = List.zip parameters args |> Map
+              // paramSyms is higher priority
+              let newSymtable = Map.union paramSyms l.symtable
+              return! eval state newSymtable l.body
+        | (FQFnName desc) ->
+            let! result =
+              match state.functions.TryFind desc with
+              | None -> Value(err (NotAFunction desc))
+              | Some fn ->
+                  try
+                    fn.fn (state, args)
+                  with
+                  | RuntimeException rte -> Value(err rte)
+                  | FnCallException FnFunctionRemoved ->
+                      Value(err (FunctionRemoved fn.name))
+                  | FnCallException FnWrongTypes ->
+                      Value
+                        (err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+                  | FakeDvalException dval -> Value(dval)
 
-          return! eval state newSymtable l.body
+            if ster = Rail then
+              match result.unwrapFromErrorRail with
+              | DOption (Some v) -> return v
+              | DResult (Ok v) -> return v
+              | DFakeVal _ as f -> return f
+              // There should only be DOptions and DResults here, but hypothetically we got
+              // something else, they would go on the error rail too.
+              | other -> return DFakeVal(DErrorRail other)
+            else
+              return result
   }

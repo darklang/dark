@@ -5,7 +5,7 @@ module Tests.LibExecution
 open Expecto
 open Prelude
 
-module R = LibExecution.Runtime
+module R = LibExecution.RuntimeTypes
 
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : R.Dval) : R.Dval =
@@ -23,12 +23,16 @@ let t (comment : string) (code : string) : Test =
   else
     testTask name {
       try
-        let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns @ Tests.LibTest.fns
+        let fns =
+          LibExecution.StdLib.StdLib.fns
+          @ LibBackend.StdLib.StdLib.fns
+          @ Tests.LibTest.fns
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
-        let! actual = LibExecution.Execution.run [] fns actualProg
-        let! expected = LibExecution.Execution.run [] fns expectedResult
+        let tlid = LibExecution.SharedTypes.id 7
+        let! actual = LibExecution.Execution.run tlid [] fns actualProg
+        let! expected = LibExecution.Execution.run tlid [] fns expectedResult
         let actual = normalizeDvalResult actual
 
         return (Expect.equal
@@ -117,4 +121,35 @@ let fileTests () : Test =
   |> Array.toList
   |> testList "All files"
 
-let tests = testList "StdLib" [ fileTests () ]
+open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
+
+let parserTests =
+  let t name testStr expectedExpr =
+    testTask name {
+      let source = FSharpToExpr.parse testStr
+      let actualProg = FSharpToExpr.convertToExpr source
+
+      return (Expect.isTrue
+                (actualProg.testEqualIgnoringIDs (expectedExpr))
+                $"{actualProg}\n\n=\n\n{expectedExpr}")
+    }
+
+  testList
+    "Parser tests"
+    [ t "pipe without expr" "(let x = 5\nx |> List.map_v0 5)"
+        (eLet
+          "x"
+           (eInt 5)
+           (ePipe (eVar "x") (eFn "List" "map" 0 [ (ePipeTarget ()); eInt 5 ]) []))
+      t
+        "simple expr"
+        "(5 + 3) == 8"
+        (eBinOp "" "==" 0 (eBinOp "" "+" 0 (eInt 5) (eInt 3)) (eInt 8))
+      t "lambdas with 2 args" "fun x y -> 8" (eLambda [ "x"; "y" ] (eInt 8))
+      t "lambdas with 3 args" "fun x y z -> 8" (eLambda [ "x"; "y"; "z" ] (eInt 8))
+      t
+        "lambdas with 4 args"
+        "fun a b c d -> 8"
+        (eLambda [ "a"; "b"; "c"; "d" ] (eInt 8)) ]
+
+let tests = testList "StdLib" [ parserTests; fileTests () ]

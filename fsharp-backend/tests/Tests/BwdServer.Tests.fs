@@ -3,6 +3,8 @@ module Tests.BwdServer
 open Expecto
 
 open LibExecution
+open LibBackend
+open LibBackend.ProgramSerialization
 open BwdServer
 
 open System.Threading.Tasks
@@ -11,7 +13,6 @@ open System.Threading
 open System.Net
 open System.Net.Sockets
 open System.Text.RegularExpressions
-
 
 let t name =
   testTask $"Httpfiles: {name}" {
@@ -22,22 +23,23 @@ let t name =
 
     let setHeadersToCRLF (text : byte array) : byte array =
       // We keep our test files with an LF line ending, but the HTTP spec
-      // requires headers (but not the body) to have CRLF line endings
+      // requires headers (but not the body, nor the first line) to have CRLF
+      // line endings
       let mutable justSawNewline = false
-      let mutable inHeaderSection = true
+      let mutable inBody = false
       text
       |> Array.toList
       |> List.collect (fun b ->
-           justSawNewline <- false
-           if inHeaderSection && b = byte '\n' then
-             if justSawNewline then inHeaderSection <- false
+           if inBody = false && b = byte '\n' then
+             if justSawNewline then inBody <- true
              justSawNewline <- true
              [ byte '\r'; b ]
            else
+             justSawNewline <- false
              [ b ])
       |> List.toArray
 
-    let request, expectedResponse, progString =
+    let request, expectedResponse, progString, httpMethod, httpPath =
       let filename = $"tests/httptestfiles/{name}"
       let contents = filename |> System.IO.File.ReadAllBytes |> toStr
 
@@ -47,18 +49,44 @@ let t name =
       let m =
         Regex.Match
           (contents,
-           "^\[request\]\n(.*)\[response\]\n(.*)\[program\]\n(.*)$",
+           "^\[http-handler (\S+) (\S+)\]\n(.*)\n\[request\]\n(.*)\[response\]\n(.*)$",
            options)
 
       if not m.Success then failwith $"incorrect format in {name}"
-      toBytes m.Groups.[1].Value, m.Groups.[2].Value, m.Groups.[3].Value
+      let g = m.Groups
+      g.[4].Value |> toBytes |> setHeadersToCRLF,
+      g.[5].Value |> toBytes |> setHeadersToCRLF,
+      g.[3].Value,
+      g.[1].Value,
+      g.[2].Value
 
-    let (source : Runtime.Expr) =
+    let (source : ProgramTypes.Expr) =
       progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+
+    let (handler : ProgramTypes.Handler.T) =
+      let id = SharedTypes.id
+
+      let ids : ProgramTypes.Handler.ids =
+        { moduleID = id 1; nameID = id 2; modifierID = id 3 }
+
+      { tlid = id 7
+        ast = source
+        spec =
+          ProgramTypes.Handler.HTTP(path = httpPath, method = httpMethod, ids = ids) }
+
+    let! ownerID = LibBackend.Account.userIDForUsername "test"
+    let! canvasID = LibBackend.Canvas.canvasIDForCanvas ownerID $"test-{name}"
+
+    do! LibBackend.ProgramSerialization.SQL.saveHttpHandlersToCache
+          canvasID
+          ownerID
+          [ ProgramTypes.TLHandler handler ]
 
     // Web server might not be loaded yet
     let client = new TcpClient()
+
     let mutable connected = false
+
     for i in 1 .. 10 do
       try
         if not connected then
@@ -67,15 +95,21 @@ let t name =
       with _ -> do! System.Threading.Tasks.Task.Delay 1000
 
     let stream = client.GetStream()
+
     stream.ReadTimeout <- 1000 // responses should be instant, right?
+
     stream.Write(request, 0, request.Length)
 
     let length = 10000
+
     let response = Array.zeroCreate length
+
     let byteCount = stream.Read(response, 0, length)
+
     let response = Array.take byteCount response
 
     stream.Close()
+
     client.Close()
 
     let response =
@@ -84,7 +118,7 @@ let t name =
         "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
         (toStr response)
 
-    Expect.equal expectedResponse response "Result should be ok"
+    Expect.equal (toStr expectedResponse) response "Result should be ok"
   }
 
 let testsFromFiles =
@@ -110,8 +144,6 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
         Expect.equal result expected ""
       }) values)
 
-
-
 let unitTests =
   [ testMany
       "sanitizeUrlPath"
@@ -123,15 +155,16 @@ let unitTests =
         ("", "/") ]
     testMany
       "ownerNameFromHost"
-      LibBackend.Serialization.ownerNameFromHost
+      LibBackend.Canvas.ownerNameFromHost
       [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
     testManyTask
       "canvasNameFromHost"
       BwdServer.canvasNameFromHost
-      [ ("test-something.builtwithdark.com", "test-something")
-        ("my-canvas.builtwithdark.localhost", "my-canvas")
-        ("builtwithdark.localhost", "builtwithdark")
-        ("my-canvas.darkcustomdomain.com", "my-canvas") ] ]
+      [ ("test-something.builtwithdark.com", Some "test-something")
+        ("my-canvas.builtwithdark.localhost", Some "my-canvas")
+        ("builtwithdark.localhost", Some "builtwithdark")
+        ("my-canvas.darkcustomdomain.com", Some "my-canvas")
+        ("www.microsoft.com", None) ] ]
 
 let tests =
   testList

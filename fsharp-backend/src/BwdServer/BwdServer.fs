@@ -79,67 +79,85 @@ let normalizeRequest : HttpHandler =
     ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
     next ctx
 
-open LibExecution.Framework.Handler
-open LibExecution.Framework
-
-
-let canvasNameFromHost (host : string) : Task<string> =
+let canvasNameFromHost (host : string) : Task<Option<string>> =
   task {
     match host.Split [| '.' |] with
     // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
     // just another load balancer
     | [| a; "darkcustomdomain"; "com" |]
     | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return a
+    | [| a; "builtwithdark"; "com" |] -> return Some a
     | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return "builtwithdark"
-    | _ -> return! LibBackend.Serialization.canvasNameFromCustomDomain host
+    | [| "builtwithdark"; "com" |] -> return Some "builtwithdark"
+    | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
   }
 
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let executionID = LibExecution.Runtime.Shortcuts.gid ()
-      let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
-      let! canvasName = canvasNameFromHost ctx.Request.Host.Host
-      let owner = LibBackend.Serialization.ownerNameFromHost canvasName
-      let path = ctx.Request.Path.Value
-      let method = ctx.Request.Method
-      let! userID = LibBackend.Serialization.userIDForUsername owner
-      let! canvasID = LibBackend.Serialization.canvasIDForCanvas userID canvasName
+      let exprs : Task<List<LibBackend.ProgramSerialization.ProgramTypes.Toplevel>> =
+        task {
+          let executionID = gid ()
+          let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
+          match! canvasNameFromHost ctx.Request.Host.Host with
+          | Some canvasName ->
+              let ownerName = LibBackend.Canvas.ownerNameFromHost canvasName
+              let! userID = LibBackend.Account.userIDForUsername ownerName
 
-      Console.WriteLine canvasName
+              let! canvasID = LibBackend.Canvas.canvasIDForCanvas userID canvasName
 
-      Console.WriteLine owner
+              let path = ctx.Request.Path.Value
 
-      Console.WriteLine path
+              let method = ctx.Request.Method
 
-      Console.WriteLine method
+              return! LibBackend.ProgramSerialization.SQL.loadHttpHandlersFromCache
+                        canvasName
+                        canvasID
+                        userID
+                        path
+                        method
+          | None -> return []
+        }
 
-      Console.WriteLine(userID.ToString())
+      match! exprs with
+      | [ LibBackend.ProgramSerialization.ProgramTypes.TLHandler { spec = LibBackend.ProgramSerialization.ProgramTypes.Handler.HTTP _;
+                                                                   ast = expr;
+                                                                   tlid = tlid } ] ->
+          let ms = new System.IO.MemoryStream()
+          do! ctx.Request.Body.CopyToAsync(ms)
+          let body = ms.ToArray()
 
-      Console.WriteLine(canvasID.ToString())
+          printfn $"serialized program is {expr}"
+          let expr = expr.toRuntimeType ()
 
-      let! exprs =
-        LibBackend.Serialization.loadHttpHandlersFromCache
-          canvasName
-          canvasID
-          userID
-          path
-          method
+          printfn $"runtime program is {expr}"
+          let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+          let! result = LibExecution.Execution.runHttp tlid "url" body fns expr
 
-      match exprs with
-      | [ TLHandler { spec = HTTP _; ast = expr; tlid = _ } ] ->
-          let fns = LibExecution.StdLib.fns @ LibBackend.StdLib.fns
-          let! result = LibExecution.Execution.run [] fns expr
-          // FSTODO - might not be JSON
-          let result = result.toJSON().ToString()
-          // FSTODO - might not be UTF8
-          let bytes = System.Text.Encoding.UTF8.GetBytes result
+          printfn $"result of runHttp is {result}"
 
-          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+          match result with
+          | LibExecution.RuntimeTypes.DHttpResponse (status,
+                                                     headers,
+                                                     LibExecution.RuntimeTypes.DBytes body) ->
+              ctx.Response.StatusCode <- status
+              List.iter (fun (k, v) ->
+                ctx.Response.Headers.Add
+                  (k, Microsoft.Extensions.Primitives.StringValues([| v |]))) headers
+              do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+              return! next ctx
+          | other ->
+              printfn $"Not a HTTP response: {other}"
 
-          return! next ctx
+              // FSTODO: remove for security
+              let bytes =
+                System.Text.Encoding.UTF8.GetBytes
+                  $"Error: body is not a HttpResponse: {other}"
+
+              do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+              ctx.Response.StatusCode <- 500
+              return Some ctx
+
       | [] ->
           ctx.Response.StatusCode <- 404
           return Some ctx
@@ -184,6 +202,6 @@ let webserver port =
 
 [<EntryPoint>]
 let main _ =
-  LibBackend.Serialization.ReadFromOCaml.init ()
+  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
   (webserver 9001).Run()
   0

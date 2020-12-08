@@ -1,14 +1,12 @@
 module LibBackend.Db
 
-open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
 open Npgsql.FSharp
-open Ply
 open Npgsql
 
-let defaultConnection =
+let makeConnection () =
   let cs =
     Sql.host "localhost"
     |> Sql.port 5432
@@ -16,7 +14,7 @@ let defaultConnection =
     |> Sql.password "eapnsdc"
     |> Sql.database "prodclone"
     // |> Sql.sslMode SslMode.Require
-    |> Sql.config "Pooling=true"
+    |> Sql.config "Pooling=true;Include Error Detail=true"
     |> Sql.formatConnectionString
 
   let conn = new NpgsqlConnection(cs)
@@ -36,7 +34,8 @@ let fetch (sql : string)
           (parameters : List<string * SqlValue>)
           (reader : RowReader -> 't)
           : Task<List<'t>> =
-  Sql.existingConnection defaultConnection
+  makeConnection ()
+  |> Sql.existingConnection
   |> Sql.query sql
   |> Sql.parameters parameters
   |> Sql.executeAsync reader
@@ -46,7 +45,8 @@ let fetchOne (sql : string)
              (parameters : List<string * SqlValue>)
              (reader : RowReader -> 't)
              : Task<'t> =
-  Sql.existingConnection defaultConnection
+  makeConnection ()
+  |> Sql.existingConnection
   |> Sql.query sql
   |> Sql.parameters parameters
   |> Sql.executeRowAsync reader
@@ -64,8 +64,22 @@ module Sql =
       | Error exn -> return raise exn
     }
 
+  let convertToOption (result : Task<List<'a>>) : Task<Option<'a>> =
+    task {
+      match! result with
+      | [ a ] -> return Some a
+      | [] -> return None
+      | list ->
+          return failwith "Too many results, expected 0 or 1, got {list.Length}"
+    }
+
   let query (sql : string) : Sql.SqlProps =
-    Sql.query sql (Sql.existingConnection defaultConnection)
+    makeConnection () |> Sql.existingConnection |> Sql.query sql
+
+  let executeRowOptionAsync (reader : RowReader -> 't)
+                            (props : Sql.SqlProps)
+                            : Task<Option<'t>> =
+    Sql.executeAsync reader props |> throwOrReturn |> convertToOption
 
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     Sql.executeRowAsync reader props |> throwOrReturn
@@ -73,7 +87,10 @@ module Sql =
   let executeAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<List<'t>> =
     Sql.executeAsync reader props |> throwOrReturn
 
-  let tlidArray (tlids : List<LibExecution.Runtime.tlid>) : SqlValue =
+  let executeNonQueryAsync (props : Sql.SqlProps) : Task<int> =
+    Sql.executeNonQueryAsync props |> throwOrReturn
+
+  let tlidArray (tlids : List<int64>) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint
     let tlidsParam = NpgsqlParameter("tlids", typ)
     tlidsParam.Value <- List.toArray tlids

@@ -1,19 +1,31 @@
-module LibExecution.StdLib
+module LibExecution.StdLib.StdLib
 
-open FSharp.Control.Tasks
 open Prelude
-open Runtime
-open Interpreter
+open LibExecution.RuntimeTypes
+
+module DvalRepr = LibExecution.DvalRepr
 
 let any =
-  [ { name = FnDesc.stdFnDesc "" "==" 0
-      description = "Equality" // FSTODO
+  [ { name = FQFnName.stdlibName "" "equals" 0
+      description = "Returns true if the two value are equal"
       parameters =
-        [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "b") "" ]
+        [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "a") "" ]
       returnType = TBool
       fn =
         (function
-        | _, [ a; b ] -> (Value(DBool(a = b)))
+        | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = FQFnName.stdlibName "" "toString" 0
+      description =
+        "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
+      parameters = [ Param.make "a" (TVariable "a") "" ]
+      returnType = TStr
+      fn =
+        (function
+        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -21,7 +33,14 @@ let any =
 
 
 let prefixFns : List<BuiltInFn> =
-  (LibString.fns @ LibList.fns @ LibInt.fns @LibBool.fns @ LibDict.fns @ LibMiddleware.fns @ any)
+  (LibString.fns
+   @ LibList.fns
+   @ LibInt.fns
+   @ LibBool.fns
+   @ LibDict.fns
+   @ LibBytes.fns
+   @ LibMiddleware.fns
+   @ any)
 
 // Add infix functions that are identical except for the name
 let infixFns =
@@ -37,17 +56,18 @@ let infixFns =
         | "Int", "lessThanOrEqualTo", 0 -> Some "<="
         | "Int", "lessThan", 0 -> Some "<"
         | "String", "append", 1 -> Some "++"
+        | "", "equals", 0 -> Some "=="
         | _ -> None
 
-      Option.map (fun opName -> { builtin with name = FnDesc.stdFnDesc "" opName 0 })
-        opName) prefixFns
+      Option.map (fun opName ->
+        { builtin with name = FQFnName.stdlibName "" opName 0 }) opName) prefixFns
 
-  assert (fns.Length = 6) // make sure we got them all
+  assert (fns.Length = 7) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns
 
-// [ { name = FnDesc.stdFnDesc "Int" "range" 0
+// [ { name = FQFnName.stdlibName "Int" "range" 0
 //     parameters =
 //       [ param "list" (TList(TVariable("a"))) "The list to be operated on"
 //         param "fn" (TFn([ TVariable("a") ], TVariable("b"))) "Function to be called on each member" ]
@@ -60,7 +80,7 @@ let fns = infixFns @ prefixFns
 //           |> Value
 //
 //       | _ -> Error()) }
-//   { name = (FnDesc.stdFnDesc "HttpClient" "get" 0)
+//   { name = (FQFnName.stdlibName "HttpClient" "get" 0)
 //     parameters = [ param "url" TString "URL to fetch" ]
 //     returnType = (retVal TString "Body of response")
 //     fn =

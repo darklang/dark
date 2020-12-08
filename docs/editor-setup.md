@@ -2,6 +2,15 @@
 
 **Note that this doc is incomplete and sometimes may require tinkering after doing the actions here. We welcome additions, clarifications, and instructions on how to set up other editors.**
 
+### VS Code
+
+VS Code works pretty well when set up to run within the container. Choose "open folder within container" and it should work.
+
+Use Ionide for F#. If you have problems with intellisense, you may need to
+start a terminal and run `dotnet tool restore` and the `dotnet build` and
+restart the container once or twice using the "developer: reload window"
+command.
+
 ### Merlin
 
 Merlin is an OCaml language server that provides things like autocompletion,
@@ -42,8 +51,10 @@ You will also want to support formatting in your client. Dark uses Prettier for 
 
 For emacs, see [the
 readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
+
 - install [ALE](https://github.com/w0rp/ale)
 - Add to your `.vimrc` (with an appropriate path-to-dark replacement):
+
 ```
 set rtp+=~/[path to dark]/dark/scripts/ocamlformat
 let g:ale_javascript_prettier_executable= '~/path to dark]/dark/scripts/prettier'
@@ -62,5 +73,3 @@ let g:ale_fixers =
 You probably also want to install a pre-commit hook that the formatters for
 you.
 `cp scripts/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
-
-

@@ -6,16 +6,18 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Runtime.fs" />
-    <Compile Include="Framework.fs" />
+    <Compile Include="SharedTypes.fs" />
+    <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="DvalRepr.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="StdLib/LibList.fs" />
     <Compile Include="StdLib/LibDict.fs" />
     <Compile Include="StdLib/LibString.fs" />
+    <Compile Include="StdLib/LibBytes.fs" />
     <Compile Include="StdLib/LibInt.fs" />
     <Compile Include="StdLib/LibBool.fs" />
     <Compile Include="StdLib/LibMiddleware.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="StdLib/StdLib.fs" />
     <Compile Include="Execution.fs" />
   </ItemGroup>
   <ItemGroup>

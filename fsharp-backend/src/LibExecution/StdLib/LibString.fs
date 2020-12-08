@@ -1,4 +1,4 @@
-module LibExecution.LibString
+module LibExecution.StdLib.LibString
 
 (* type coerces one list to another using a function *)
 
@@ -14,11 +14,11 @@ module LibExecution.LibString
 //   DResult(ResError(Dval.dstr_of_string_exn msg))
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.Runtime
+open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
-let fn = FnDesc.stdFnDesc
+let fn = FQFnName.stdlibName
 
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
@@ -54,11 +54,16 @@ let fns : List<BuiltInFn> =
         "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
       fn =
         (function
-        | state, [ DStr s; DLambda b ] ->
+        | state, [ DStr s; DFnVal b ] ->
             (String.toEgcSeq s
              |> Seq.toList
              |> Prelude.map_s (fun te ->
-                  (Interpreter.eval_lambda state b [ DChar te ]))
+                  (LibExecution.Interpreter.applyFnVal
+                    state
+                     b
+                     [ DChar te ]
+                     NotInPipe
+                     NoRail))
              |> (fun dvals ->
              (taskv {
                let! dvals = dvals

@@ -10,10 +10,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Account.fs" />
     <Compile Include="Db.fs" />
-    <Compile Include="Serialization.fs" />
-    <Compile Include="StdLib.fs" />
+    <Compile Include="Account.fs" />
+    <Compile Include="Canvas.fs" />
+    <Compile Include="ProgramSerialization/ProgramTypes.fs" />
+    <Compile Include="ProgramSerialization/OCamlInterop.fs" />
+    <Compile Include="ProgramSerialization/SQL.fs" />
+    <Compile Include="StdLib/StdLib.fs" />
   </ItemGroup>
   <Import Project="../../.paket/Paket.Restore.targets" />
 </Project>

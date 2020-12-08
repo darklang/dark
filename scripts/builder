@@ -195,3 +195,7 @@ $FSWATCH | docker run \
              $MOUNTS \
              dark \
              scripts/support/build-server "${@}"
+
+# To attach a gdb/strace to .net code, you'll need these
+# --cap-add=ALL \
+# --security-opt seccomp=unconfined \

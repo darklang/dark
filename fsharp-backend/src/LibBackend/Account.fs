@@ -1,5 +1,17 @@
 module LibBackend.Account
 
+// Functions related to Accounts/Users
+
+open System.Threading.Tasks
+open FSharpPlus
+open Npgsql.FSharp
+open Npgsql
+
+open Prelude
+open LibExecution.SharedTypes
+open Db
+
+
 let bannedUsernames : List<string> =
   // originally from https://ldpreload.com/blog/names-to-reserve
   // we allow www, because we have a canvas there
@@ -49,3 +61,14 @@ let bannedUsernames : List<string> =
     // alpha, but not beta, because user beta already exists (with ownership
     // transferred to us)
     "alpha" ]
+
+let userIDForUsername (user : string) : Task<UserID> =
+  let owner = String.toLower user
+  if List.contains owner bannedUsernames then
+    failwith "Banned username"
+  else
+    Sql.query "SELECT id
+               FROM accounts
+               WHERE accounts.username = @username"
+    |> Sql.parameters [ "username", Sql.string user ]
+    |> Sql.executeRowAsync (fun read -> read.uuid "id")
