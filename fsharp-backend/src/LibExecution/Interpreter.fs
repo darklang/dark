@@ -312,6 +312,7 @@ and applyFnVal (state : ExecutionState)
         | _ -> return dv
     | None
     | Some _ ->
+        // FSTODO: packages and user functions
         match fnVal with
         | Lambda l ->
             let parameters = List.map snd l.parameters
@@ -323,7 +324,6 @@ and applyFnVal (state : ExecutionState)
               return err (LambdaCalledWithWrongCount(args, parameters))
             else
               // FSTODO
-              // let bindings = List.zip_exn params args in
               // List.iter bindings (fun ((id, paramName), dv) ->
               //     state.trace state.on_execution_path id dv) ;
               let paramSyms = List.zip parameters args |> Map
@@ -332,10 +332,13 @@ and applyFnVal (state : ExecutionState)
               return! eval state newSymtable l.body
         | (FQFnName desc) ->
             let! result =
+              // FSTODO: user functions
               match state.functions.TryFind desc with
               | None -> Value(err (NotAFunction desc))
               | Some fn ->
+                  // FSTODO: if an argument is an error rail, return it
                   try
+                    // FSTODO: all the behaviour in AST.exec_fn
                     fn.fn (state, args)
                   with
                   | RuntimeException rte -> Value(err rte)
