@@ -6,20 +6,18 @@ open FSharpPlus
 open Npgsql.FSharp
 open Npgsql
 
-let makeConnection () =
-  let cs =
-    Sql.host "localhost"
-    |> Sql.port 5432
-    |> Sql.username "dark"
-    |> Sql.password "eapnsdc"
-    |> Sql.database "prodclone"
-    // |> Sql.sslMode SslMode.Require
-    |> Sql.config "Pooling=true;Include Error Detail=true"
-    |> Sql.formatConnectionString
+// make sure the connection is returned to the pool
+let connect () : Sql.SqlProps =
+  Sql.host "localhost"
+  |> Sql.port 5432
+  |> Sql.username "dark"
+  |> Sql.password "eapnsdc"
+  |> Sql.database "prodclone"
+  // |> Sql.sslMode SslMode.Require
+  |> Sql.config "Pooling=true;Maximum Pool Size=50;Include Error Detail=true"
+  |> Sql.formatConnectionString
+  |> Sql.connect
 
-  let conn = new NpgsqlConnection(cs)
-  conn.Open()
-  conn
 
 let throwOrReturn (result : Async<Result<'a, exn>>) =
   task {
@@ -34,8 +32,7 @@ let fetch (sql : string)
           (parameters : List<string * SqlValue>)
           (reader : RowReader -> 't)
           : Task<List<'t>> =
-  makeConnection ()
-  |> Sql.existingConnection
+  connect ()
   |> Sql.query sql
   |> Sql.parameters parameters
   |> Sql.executeAsync reader
@@ -45,8 +42,7 @@ let fetchOne (sql : string)
              (parameters : List<string * SqlValue>)
              (reader : RowReader -> 't)
              : Task<'t> =
-  makeConnection ()
-  |> Sql.existingConnection
+  connect ()
   |> Sql.query sql
   |> Sql.parameters parameters
   |> Sql.executeRowAsync reader
@@ -73,8 +69,7 @@ module Sql =
           return failwith "Too many results, expected 0 or 1, got {list.Length}"
     }
 
-  let query (sql : string) : Sql.SqlProps =
-    makeConnection () |> Sql.existingConnection |> Sql.query sql
+  let query (sql : string) : Sql.SqlProps = connect () |> Sql.query sql
 
   let executeRowOptionAsync (reader : RowReader -> 't)
                             (props : Sql.SqlProps)
