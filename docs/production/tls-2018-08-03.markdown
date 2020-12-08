@@ -186,8 +186,7 @@ gcloud compute ssl-certificates create darksa-com-wildcard \
 (Not sure if there's a better way to renew than just creating a new
 ssl-certificate record and updating the load balancer to use it ...)
 
-Resulting files (.crt, .key) are stored in 1password, shared by IanS, Paul, and
-Ellen.
+Resulting files (.crt, .key) are stored in 1password.
 
 Update, 2020-06-03
 ##################
@@ -244,3 +243,19 @@ Our certs are badly organized and are spread out, but here is the current status
 - old certs have also been bought via cloudflare, store.sectigo.com and secure.sectigo.com (which are different!)
 - customer certs use cert-manager (using k8s, see darkcustomdomain, other docs mentioning custom-domain)
 - some customer certs use google managed certs, we've stopped adding new ones but the old ones are still there
+
+How to buy a cert:
+
+- Go to the darklang PositiveSSL.com
+- Buy 1 "PositiveSSL Wildcard DV certificate" (Note: do not buy multiple
+  positiveSSL certs in the same order. They get very confused when this
+  happens).
+- Create the CSR as detailed above. Upload it via the website
+- Choose CNAMECSRHASH
+- It tells you an MD5 and a SHA1, but doesn't tell you how to enter them in the
+  DNS. Write them down as you'll need them if the next step fails.
+- Go to support.sectigo.com and click "Order Status checker".
+- Enter details. Here it tells you what to actually put in the cname.
+- If this fails, presumably because you bought more than 1 cert and it won't
+  show you the certs, add a CNAME like so:
+  \_{MD5}.darkstaticassets.com CNAME {SHA1_20_digits}.{SHA2_next_20_digits}.comodoca.com
