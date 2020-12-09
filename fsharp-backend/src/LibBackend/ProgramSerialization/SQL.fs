@@ -16,6 +16,7 @@ open Prelude
 open LibExecution.SharedTypes
 open ProgramTypes
 
+module Http = LibBackend.Http
 module Canvas = LibBackend.Canvas
 
 
@@ -73,7 +74,8 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
     | TLHandler h ->
         // FSTODO munge path for postgres, see munge_name in canvas.ml
         match h.spec with
-        | Handler.HTTP (path, modifier, _) -> Some "HTTP", Some path, Some modifier
+        | Handler.HTTP (path, modifier, _) ->
+            Some "HTTP", Some(Http.routeToPostgresPattern path), Some modifier
         | Handler.Worker (name, _) -> Some "Worker", Some name, Some "_"
         | Handler.OldWorker (modulename, name, _) ->
             Some modulename, Some name, Some "_"
