@@ -1,6 +1,7 @@
 module LibExecution.StdLib.LibInt
 
 open System.Threading.Tasks
+open System.Numerics
 open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open FSharpPlus
@@ -23,17 +24,14 @@ let fns : List<BuiltInFn> =
         | state, [ DInt v; DInt m ] ->
             (try
               Value(DInt(v % m))
-             with
-             // FSTODO
-             // | DivideByZeroException _ ->
-             //     let pretty = Dval.to_developer_repr_v0 (DInt m)
-             //     Value
-             //       (err
-             //         ("Expected the argument `b` argument passed to `{state.executingFnName}` to be positive, but it was `{m}`."))
-             _ ->
-               // FSTODO
-               (* In case there's another failure mode, rollbar *)
-               failwith "mpod error ")
+             with e ->
+               if m = bigint 0
+               then
+                 Value(errStr ($"Expected the argument `b` to be positive, but it was ({m})"))
+               else
+                 // FSTODO
+                 // In case there's another failure mode, rollbar
+                 failwith "mpod error ")
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -72,33 +70,32 @@ let fns : List<BuiltInFn> =
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated } *)
-    // ; { name = fn "Int" "remainder" 0
-    //
-    //   ; parameters = [Param.make "value" TInt; Param.make "divisor" TInt]
-    //   ; returnType = TResult
-    //   ; description =
-    //       "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
-    //       For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
-    //       The sign of `divisor` doesn't influence the outcome.
-    //       Returns an `Error` if `divisor` is 0."
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt v; DInt d] ->
-    //           ( try DResult (ResOk (DInt (Dint.rem_exn v d)))
-    //             with e ->
-    //               if d = Dint.of_int 0
-    //               then
-    //                 DResult
-    //                   (ResError
-    //                      (Dval.dstr_of_string_exn "`divisor` must be non-zero"))
-    //               else (* In case there's another failure mode, rollbar *)
-    //                 raise e )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "remainder" 0
+      parameters = [Param.make "value" TInt ""; Param.make "divisor" TInt ""]
+      returnType = TInt
+      description =
+          "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
+          For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
+          The sign of `divisor` doesn't influence the outcome.
+          Returns an `Error` if `divisor` is 0."
+      fn =
+        (function
+        | _, [DInt v; DInt d] ->
+            (try
+              BigInteger.Remainder(v, d)
+              |> DInt
+              |> Value
+             with e ->
+               if d = bigint 0
+               then
+                 Value(errStr ($"`divisor` must be non-zero"))
+               else (* In case there's another failure mode, rollbar *)
+                 raise e)
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "add" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -164,77 +161,70 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "power" 0
-    //   ; infix_names = ["^"]
-    //   ; parameters = [Param.make "base" TInt; Param.make "exponent" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Raise `base` to the power of `exponent`"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt base; DInt exp] ->
-    //             DInt (Dint.pow base exp)
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "divide" 0
-    //
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Divides two integers"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] ->
-    //             DInt (Dint.( / ) a b)
-    //         | state, [(DFloat _ as a); _] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The first param ("
-    //                 ^ Dval.to_developer_repr_v0 a
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::divide to divide Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | state, [_; (DFloat _ as b)] ->
-    //             DError
-    //               ( SourceNone
-    //               , "The second param ("
-    //                 ^ Dval.to_developer_repr_v0 b
-    //                 ^ ") is a Float, but "
-    //                 ^ state.executing_fnname
-    //                 ^ " only works on Ints. Use Float::divide to divide Floats or use Float::truncate to truncate Floats to Ints."
-    //               )
-    //         | args ->
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "absoluteValue" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TInt
-    //   ; description =
-    //       "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
-    //   ; fn =
-    //
-    //         (function _, [DInt a] -> DInt (Dint.abs a) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "negate" 0
-    //
-    //   ; parameters = [Param.make "a" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns the negation of `a`, `-a`."
-    //   ; fn =
-    //
-    //         (function _, [DInt a] -> DInt (Dint.negate a) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "power" 0
+      parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
+      returnType = TInt
+      description = "Raise `base` to the power of `exponent`"
+      fn =
+        (function
+        | state, [ DInt number; DInt exp ] ->
+            (try
+              Value(DInt (number ** (int exp)) )
+             with e ->
+               if exp < bigint 0
+               then
+                 Value(errStr ($"Expected the argument `exponent` to be positive, but it was ({exp})"))
+               else
+                 // FSTODO
+                 // In case there's another failure mode, rollbar
+                 failwith "mpod error ")
+          | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "divide" 0
+      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      returnType = TInt
+      description = "Divides two integers"
+      fn =
+        (function
+        | _, [DInt a; DInt b] -> Value(DInt(a / b))
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "absoluteValue" 0
+      parameters = [Param.make "a" TInt ""]
+      returnType = TInt
+      description =
+          "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+      fn =
+        (function
+        | _, [DInt a] -> Value(DInt(abs a))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "negate" 0
+      parameters = [Param.make "a" TInt ""]
+      returnType = TInt
+      description = "Returns the negation of `a`, `-a`."
+      fn =
+        (function
+        | _, [DInt a] -> Value(DInt(-a))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "greaterThan" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -242,23 +232,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
-        // FSTODO
-        // | state, [ (DFloat _ as a); _ ] ->
-        //     DError
-        //       (SourceNone,
-        //        "The first param ("
-        //        ^ Dval.to_developer_repr_v0 a
-        //        ^ ") is a Float, but "
-        //        ^ state.executing_fnname
-        //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
-        // | state, [ _; (DFloat _ as b) ] ->
-        //     DError
-        //       (SourceNone,
-        //        "The second param ("
-        //        ^ Dval.to_developer_repr_v0 b
-        //        ^ ") is a Float, but "
-        //        ^ state.executing_fnname
-        //        ^ " only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints.")
+        | _, [ DFloat a; _ ] ->
+            Value
+              (errStr
+                ($"The first argument ({a}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
+        | _, [ _; DFloat b ] ->
+            Value
+              (errStr
+                ($"The second argument ({b}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -327,7 +308,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] ->
-            a + (Prelude.random.Next((b - a) |> int) |> bigint) |> DInt |> Value
+            a + bigint (Prelude.random.Next((b - a) |> int))
+            |> DInt
+            |> Value
         | _, [ DFloat a; _ ] ->
             Value
               (errStr
@@ -377,7 +360,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int to a Float"
       fn =
         (function
-        | _, [ DInt a ] -> Value(DFloat(a |> float))
+        | _, [ DInt a ] -> Value(DFloat(float a))
         | _, [ DStr a; _ ] ->
             Value
               (errStr
@@ -420,30 +403,28 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "max" 0
-    //
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns the higher of a and b"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] -> DInt (Dint.max a b) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Int" "min" 0
-    //
-    //   ; parameters = [Param.make "a" TInt; Param.make "b" TInt]
-    //   ; returnType = TInt
-    //   ; description = "Returns the lower of `a` and `b`"
-    //   ; fn =
-    //
-    //         (function
-    //         | _, [DInt a; DInt b] -> DInt (Dint.min a b) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "max" 0
+      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      returnType = TInt
+      description = "Returns the higher of a and b"
+      fn =
+        (function
+        | _, [DInt a; DInt b] -> Value(DInt(max a b))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Int" "min" 0
+      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      returnType = TInt
+      description = "Returns the lower of `a` and `b`"
+      fn =
+        (function
+        | _, [DInt a; DInt b] -> Value(DInt(min a b))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "clamp" 0
       parameters =
         [ Param.make "value" TInt ""
