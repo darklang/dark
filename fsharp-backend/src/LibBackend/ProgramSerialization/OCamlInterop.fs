@@ -299,7 +299,7 @@ module Yojson =
       else if module_ = "REPL" then
         Handler.REPL(name = name, ids = ids)
       else if module_ = "HTTP" then
-        Handler.HTTP(path = name, method = modifier, ids = ids)
+        Handler.HTTP(route = name, method = modifier, ids = ids)
       else if module_ = "CRON" then
         Handler.Cron(name = name, interval = modifier, ids = ids)
       else if module_ = "WORKER" then

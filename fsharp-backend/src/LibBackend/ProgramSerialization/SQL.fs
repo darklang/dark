@@ -16,7 +16,7 @@ open Prelude
 open LibExecution.SharedTypes
 open ProgramTypes
 
-module Http = LibBackend.Http
+module Http = LibExecution.Http
 module Canvas = LibBackend.Canvas
 
 
