@@ -6,7 +6,7 @@ open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
-open Npgsql.FSharp
+open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
 open FSharp.Data
@@ -89,9 +89,8 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
 
   let cacheBinary = OCamlInterop.toplevelToCachedBinary tl // FSTODO pos
   let (oplistBinary : byte array) = [||] // FSTODO get an actual oplist
-  let digest = OCamlInterop.Binary.digest () // FSTODO digest is wrong
+  let digest = OCamlInterop.Binary.digest ()
   let pos = Some "{ \"x\": 0, \"y\": 0 }"
-  printfn $"digest {digest}"
   Sql.query "INSERT INTO toplevel_oplists
                (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
                 data, rendered_oplist_cache, deleted, pos)
