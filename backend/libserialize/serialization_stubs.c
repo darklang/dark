@@ -43,10 +43,26 @@ void check_string(value v) {
   }
 }
 
+// Allocates memory of exactly the size of the bytes in the value, and copies the
+// data into it. Returns the new memory.
+char* copy_bytes_outside_runtime(value v) {
+  check_string(v);
+  int length = caml_string_length(v);
+  void* dest = malloc(length);
+  memcpy(dest, String_val(v), length);
+  return dest;
+}
+
+// Allocates memory sized 1 byte larger than the string in the value, copies
+// the data, and adds a NULL byte at the end. Returns the new memory.
 char* copy_string_outside_runtime(value v) {
   check_string(v);
-  // OCaml strings can have NULL bytes in them
-  return strndup(String_val(v), caml_string_length(v));
+  // OCaml strings can have NULL bytes in them, so don't use strndup
+  int length = caml_string_length(v);
+  char* dest = malloc(length+1);
+  memcpy(dest, String_val(v), length);
+  dest[length] = '\0';
+  return dest;
 }
 
 extern char* dark_init_ocaml() {
@@ -122,7 +138,7 @@ int call_json2bin(const char* callback_name, char* json, void** out_bytes) {
 
   value result = caml_callback_exn(*closure, v);
   int length = caml_string_length(result);
-  *out_bytes = copy_string_outside_runtime(result);
+  *out_bytes = copy_bytes_outside_runtime(result);
   unlock();
   return length;
 }
