@@ -195,8 +195,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toFloat" 1) }
     { name = fn "String" "toFloat" 1
-      parameters = [Param.make "s" TStr]
-      returnType = TResult
+      parameters = [Param.make "s" TStr ""]
+      returnType = TFloat
       description = "Returns the float value of the string"
       fn =
         (function
@@ -223,16 +223,17 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
-    //      { name = fn "String" "toUppercase" 1
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, uppercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "toUppercase" 1
+      parameters = [Param.make "s" TStr ""]
+      returnType = TStr
+      description = "Returns the string, uppercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Value(DStr(String.toUpper s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //      { name = fn "String" "toLowercase" 0
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TStr
