@@ -121,7 +121,7 @@ let t name =
         "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
         (toStr response)
 
-    Expect.equal (toStr expectedResponse) response "Result should be ok"
+    Expect.equal response (toStr expectedResponse) ""
   }
 
 let testsFromFiles =
