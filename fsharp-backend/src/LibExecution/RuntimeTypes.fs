@@ -36,7 +36,6 @@ open SharedTypes
 
 // fsharplint:disable FL0039
 
-exception InternalException of string
 
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
@@ -265,48 +264,6 @@ and Param =
   static member make (name : string) (typ : DType) (doc : string) =
     { name = name; typ = typ; doc = doc }
 
-
-// Runtime errors can be things that happen relatively commonly (such as calling
-// a function with an incorrect type), or things that aren't supposed to happen
-// but technically can (such as accessing a variable which doesn't exist) *)
-// FSTODO: this will be better for everyone if it's just a string. We can turn
-// these into functions to create the string if we want. The type safety here
-// isn't worth the storage/serialization challenges of changing these later.
-and RuntimeError =
-  | NotAFunction of FQFnName.T
-  | FunctionRemoved of FQFnName.T
-  | CondWithNonBool of Dval
-  | FnCalledWithWrongTypes of FQFnName.T * List<Dval> * List<Param>
-  | FnCalledWhenNotSync of FQFnName.T * List<Dval> * List<Param>
-  | LambdaCalledWithWrongCount of List<Dval> * List<string>
-  | LambdaCalledWithWrongType of List<Dval> * List<string>
-  | LambdaResultHasWrongType of Dval * DType
-  | InvalidFloatExpression of string * string
-  | UndefinedVariable of string
-  | UndefinedConstructor of string
-  // We want to remove this and make it just a string. So let's start here. And
-  // include a DvalSource while we're at it
-  | JustAString of DvalSource * string
-
-// Within a function call, we don't have the data available to make good
-// RuntimeErrors, so instead return a signal and let the calling code fill in the
-// blanks.
-//
-// Note: Functions shouldn't have runtime errors - those kinds of functions
-// should use Results instead. But, we can't really change what a function
-// does, so sometimes we discover we made a mistake and need to paper around
-// it. In those cases, we return DErrors.
-and FnCallError =
-  | FnFunctionRemoved
-  | FnWrongTypes
-
-// Record the source of an incomplete or error. Would be useful to add more
-// information later, such as the iteration count that let to this, or
-// something like a stack trace
-and DvalSource =
-  | SourceNone
-  | SourceID of tlid * id
-
 // A Fake Dval is some control-flow that's modelled in the interpreter as a
 // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
 // it instead of operating on it, including when they're put in a list, in a
@@ -388,12 +345,68 @@ and DType =
   | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
   | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
 
-// StdLib functions can go wrong for various reasons. We previous tied
-// ourselves in knots, trying to do elabortate folds to get them working. Much
-// easier to throw an exception (perhaps a lesson for Dark?)
-exception RuntimeException of RuntimeError // when we know the runtime error to raise
-exception FnCallException of FnCallError // when we need callFn to fill in
-exception FakeDvalException of Dval // when we encounter a fakeDval, jump right own
+// Runtime errors can be things that happen relatively commonly (such as calling
+// a function with an incorrect type), or things that aren't supposed to happen
+// but technically can (such as accessing a variable which doesn't exist) *)
+and RuntimeError =
+  | NotAFunction of FQFnName.T
+  | FunctionRemoved of FQFnName.T
+  | CondWithNonBool of Dval
+  | FnCalledWithWrongTypes of FQFnName.T * List<Dval> * List<Param>
+  | FnCalledWhenNotSync of FQFnName.T * List<Dval> * List<Param>
+  | LambdaCalledWithWrongCount of List<Dval> * List<string>
+  | LambdaCalledWithWrongType of List<Dval> * List<string>
+  | LambdaResultHasWrongType of Dval * DType
+  | InvalidFloatExpression of string * string
+  | UndefinedVariable of string
+  | UndefinedConstructor of string
+  // We want to remove this and make it just a string. So let's start here. And
+  // include a DvalSource while we're at it
+  | JustAString of DvalSource * string
+
+// Within a function call, we don't have the data available to make good
+// RuntimeErrors, so instead return a signal and let the calling code fill in the
+// blanks.
+//
+// Note: Functions shouldn't have runtime errors - those kinds of functions
+// should use Results instead. But, we can't really change what a function
+// does, so sometimes we discover we made a mistake and need to paper around
+// it. In those cases, we return DErrors.
+and FnCallError =
+  | FnFunctionRemoved
+  | FnWrongTypes
+
+and HttpCallError = RequestRouteMismatch of route : string * requestPath : string
+
+// Record the source of an incomplete or error. Would be useful to add more
+// information later, such as the iteration count that let to this, or
+// something like a stack trace
+and DvalSource =
+  | SourceNone
+  | SourceID of tlid * id
+
+
+// ------------
+// Exceptions
+// ------------
+
+// Exceptions that should not be exposed to users, and that indicate unexpected
+// behaviour
+exception InternalException of string
+
+// This creates an error which can be wrapped in a DError. All errors that
+// occur at runtime should be represented here
+exception RuntimeException of RuntimeError
+
+// Error made when calling a function. This allows us to call them when we don't have the information to
+// make a RuntimeException, and they are converted to runtimeExceptions at the call site.
+exception FnCallException of FnCallError
+
+// When we encounter a fakeDval, this exception allows us to jump out of the
+// computation immediately, and the caller can return the dval. This is useful
+// for jumping out of folds and other complicated constructs.
+exception FakeDvalException of Dval
+
 
 
 

@@ -9,6 +9,7 @@ open System.Threading.Tasks
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
+open Microsoft.AspNetCore.Http.Extensions
 (* open Microsoft.AspNetCore.Http.Features *)
 open Microsoft.Extensions.Hosting
 (* open Microsoft.Extensions.Configuration *)
@@ -16,6 +17,9 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Prelude
 open FSharpx
+
+module PT = LibBackend.ProgramSerialization.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 // This boilerplate is copied from Giraffe. I elected not to use Giraffe
 // because we don't need any of its feature, but the types it chose are very
@@ -95,7 +99,17 @@ let canvasNameFromHost (host : string) : Task<Option<string>> =
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let exprs : Task<List<LibBackend.ProgramSerialization.ProgramTypes.Toplevel>> =
+      let e500 (msg : string) =
+        task {
+          let bytes = System.Text.Encoding.UTF8.GetBytes msg
+          ctx.Response.StatusCode <- 500
+          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+          return Some ctx
+        }
+
+      let requestPath = ctx.Request.Path.Value
+
+      let exprs : Task<List<PT.Toplevel>> =
         task {
           let executionID = gid ()
           let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
@@ -103,61 +117,54 @@ let runDarkHandler : HttpHandler =
           | Some canvasName ->
               let ownerName = LibBackend.Canvas.ownerNameFromHost canvasName
               let! userID = LibBackend.Account.userIDForUsername ownerName
-
               let! canvasID = LibBackend.Canvas.canvasIDForCanvas userID canvasName
-
-              let path = ctx.Request.Path.Value
-
               let method = ctx.Request.Method
 
               return! LibBackend.ProgramSerialization.SQL.loadHttpHandlersFromCache
                         canvasName
                         canvasID
                         userID
-                        path
+                        requestPath
                         method
           | None -> return []
         }
 
       match! exprs with
-      | [ LibBackend.ProgramSerialization.ProgramTypes.TLHandler { spec = LibBackend.ProgramSerialization.ProgramTypes.Handler.HTTP _;
-                                                                   ast = expr;
-                                                                   tlid = tlid } ] ->
-          let ms = new System.IO.MemoryStream()
+      | [ PT.TLHandler { spec = PT.Handler.HTTP(route = route); ast = expr;
+                         tlid = tlid } ] ->
+          let ms = new IO.MemoryStream()
           do! ctx.Request.Body.CopyToAsync(ms)
+          let url = ctx.Request.GetEncodedUrl()
           let body = ms.ToArray()
-
-          printfn $"serialized program is {expr}"
           let expr = expr.toRuntimeType ()
-
-          printfn $"runtime program is {expr}"
           let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-          let! result = LibExecution.Execution.runHttp tlid "url" body fns expr
+          let vars = LibExecution.Http.routeInputVars route requestPath
+          match vars with
+          | None ->
+              return! e500
+                        $"The request ({requestPath}) does not match the route ({
+                                                                                   route
+                        })"
+          | Some vars ->
+              let symtable = Map.ofList vars
 
-          printfn $"result of runHttp is {result}"
+              let! result =
+                LibExecution.Execution.runHttp tlid url symtable body fns expr
 
-          match result with
-          | LibExecution.RuntimeTypes.DHttpResponse (status,
-                                                     headers,
-                                                     LibExecution.RuntimeTypes.DBytes body) ->
-              ctx.Response.StatusCode <- status
-              List.iter (fun (k, v) ->
-                ctx.Response.Headers.Add
-                  (k, Microsoft.Extensions.Primitives.StringValues([| v |]))) headers
-              do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-              return! next ctx
-          | other ->
-              printfn $"Not a HTTP response: {other}"
+              printfn $"result of runHttp is {result}"
 
-              // FSTODO: remove for security
-              let bytes =
-                System.Text.Encoding.UTF8.GetBytes
-                  $"Error: body is not a HttpResponse: {other}"
-
-              do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
-              ctx.Response.StatusCode <- 500
-              return Some ctx
-
+              match result with
+              | RT.DHttpResponse (status, headers, RT.DBytes body) ->
+                  ctx.Response.StatusCode <- status
+                  List.iter (fun (k, v) ->
+                    ctx.Response.Headers.Add
+                      (k, Microsoft.Extensions.Primitives.StringValues([| v |])))
+                    headers
+                  do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+                  return! next ctx
+              | other ->
+                  printfn $"Not a HTTP response: {other}"
+                  return! e500 "body is not a HttpResponse"
       | [] ->
           ctx.Response.StatusCode <- 404
           return Some ctx

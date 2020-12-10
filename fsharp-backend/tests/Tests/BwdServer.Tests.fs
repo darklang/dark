@@ -7,6 +7,8 @@ open LibBackend
 open LibBackend.ProgramSerialization
 open BwdServer
 
+module RT = LibExecution.RuntimeTypes
+
 open System.Threading.Tasks
 open System.IO
 open System.Threading
@@ -39,7 +41,7 @@ let t name =
              [ b ])
       |> List.toArray
 
-    let request, expectedResponse, progString, httpMethod, httpPath =
+    let request, expectedResponse, progString, httpMethod, httpRoute =
       let filename = $"tests/httptestfiles/{name}"
       let contents = filename |> System.IO.File.ReadAllBytes |> toStr
 
@@ -72,7 +74,8 @@ let t name =
       { tlid = id 7
         ast = source
         spec =
-          ProgramTypes.Handler.HTTP(path = httpPath, method = httpMethod, ids = ids) }
+          ProgramTypes.Handler.HTTP
+            (route = httpRoute, method = httpMethod, ids = ids) }
 
     let! ownerID = LibBackend.Account.userIDForUsername "test"
     let! canvasID = LibBackend.Canvas.canvasIDForCanvas ownerID $"test-{name}"
@@ -118,7 +121,7 @@ let t name =
         "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
         (toStr response)
 
-    Expect.equal (toStr expectedResponse) response "Result should be ok"
+    Expect.equal response (toStr expectedResponse) ""
   }
 
 let testsFromFiles =
@@ -133,7 +136,17 @@ let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
   testList
     name
     (List.mapi (fun i (input, expected) ->
-      test $"{name} - {i}" { Expect.equal (fn input) expected "" }) values)
+      test $"{name}[{i}]: ({input}) -> {expected}" {
+        Expect.equal (fn input) expected "" }) values)
+
+let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>) =
+  testList
+    name
+    (List.mapi (fun i (input1, input2, expected) ->
+      test $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
+        Expect.equal (fn input1 input2) expected "" }) values)
+
+
 
 let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) =
   testList
@@ -149,7 +162,10 @@ let unitTests =
       "sanitizeUrlPath"
       BwdServer.sanitizeUrlPath
       [ ("//", "/")
+        ("/foo//bar", "/foo/bar")
         ("/abc//", "/abc")
+        ("/abc/", "/abc")
+        ("/abc", "/abc")
         ("/", "/")
         ("/abcabc//xyz///", "/abcabc/xyz")
         ("", "/") ]
@@ -157,6 +173,26 @@ let unitTests =
       "ownerNameFromHost"
       LibBackend.Canvas.ownerNameFromHost
       [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
+    testMany
+      "routeVariables"
+      Http.routeVariables
+      [ ("/user/:userid/card/:cardid", [ "userid"; "cardid" ]) ]
+    testMany2
+      "routeInputServer"
+      Http.routeInputVars
+      [ ("/hello/:name", "/hello/alice-bob", Some [ "name", RT.DStr "alice-bob" ])
+        ("/hello/alice-bob", "/hello/", None)
+        ("/user/:userid/card/:cardid",
+         "/user/myid/card/0",
+         Some [ "cardid", RT.DStr "0"; "userid", RT.DStr "myid" ])
+        ("/a/:b/c/d", "/a/b/c/d", Some [ "b", RT.DStr "b" ])
+        ("/a/:b/c/d", "/a/b/c", None)
+        ("/a/:b", "/a/b/c/d", Some [ "b", RT.DStr "b/c/d" ])
+        ("/:a/:b/:c",
+         "/a/b/c/d/e",
+         Some [ "c", RT.DStr "c/d/e"; "b", RT.DStr "b"; "a", RT.DStr "a" ])
+        ("/a/:b/c/d", "/a/b/c/e", None)
+        ("/letters:var", "lettersextra", None) ]
     testManyTask
       "canvasNameFromHost"
       BwdServer.canvasNameFromHost
