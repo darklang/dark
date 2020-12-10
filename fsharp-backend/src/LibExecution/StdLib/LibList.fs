@@ -122,7 +122,7 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "List" "last" 1) }
     { name = fn "List" "last" 1
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
