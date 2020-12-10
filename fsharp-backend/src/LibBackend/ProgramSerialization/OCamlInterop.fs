@@ -70,8 +70,8 @@ module Yojson =
   let variant (name : string) (args : JsonValue list) =
     (J.String name :: args) |> List.toArray |> J.Array
 
-  let ofTLID (tlid : tlid) : JsonValue = J.String(tlid.ToString())
-  let ofID (id : id) : JsonValue = J.String(id.ToString())
+  let ofTLID (tlid : tlid) : JsonValue = J.Number(decimal tlid)
+  let ofID (id : id) : JsonValue = J.Number(decimal id)
 
   let ofSendToRail (str : SendToRail) : JsonValue =
     match str with
@@ -171,7 +171,6 @@ module Yojson =
     let result =
       J.Record [| "tlid", ofTLID h.tlid; "ast", ofExpr h.ast; "spec", spec |]
 
-    printfn $"json of handler: {result}"
     result
 
 
@@ -187,7 +186,6 @@ module Yojson =
       | _ -> failwith $"Unimplemented {j}"
 
     let rec toPattern (j : JsonValue) : Pattern =
-      printfn $"toPattern {j}"
       let constructor = j.Item(0).AsString()
       if constructor = "FPString" then
         // FPString uses a different format than the others
@@ -301,7 +299,7 @@ module Yojson =
       else if module_ = "REPL" then
         Handler.REPL(name = name, ids = ids)
       else if module_ = "HTTP" then
-        Handler.HTTP(path = name, method = modifier, ids = ids)
+        Handler.HTTP(route = name, method = modifier, ids = ids)
       else if module_ = "CRON" then
         Handler.Cron(name = name, interval = modifier, ids = ids)
       else if module_ = "WORKER" then
@@ -323,18 +321,10 @@ let toplevelToCachedBinary (toplevel : Toplevel) : byte array =
   match toplevel with
   | TLHandler h ->
       let json = (Yojson.ofHandler h).ToString()
-      // printfn $"json: {json}"
-
-      // FSTODO: note that we pass an IntPtr - bytes are a different size to ints. Does this matter?
       let mutable destPtr = System.IntPtr()
       let length = Binary.handlerJson2Bin (json, &destPtr)
-      // printfn $"length: {length}"
-
-
       let mutable (bytes : byte array) = Array.zeroCreate length
       Marshal.Copy(destPtr, bytes, 0, length)
-      // let newJson = OCamlInterop.Binary.handlerBin2Json (bytes, length)
-      // printfn $"newJson: {newJson}"
       bytes
 
   | _ -> failwith $"toplevel not supported yet {toplevel}"

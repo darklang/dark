@@ -6,7 +6,7 @@ open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
-open Npgsql.FSharp
+open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
 open FSharp.Data
@@ -16,6 +16,7 @@ open Prelude
 open LibExecution.SharedTypes
 open ProgramTypes
 
+module Http = LibExecution.Http
 module Canvas = LibBackend.Canvas
 
 
@@ -73,7 +74,8 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
     | TLHandler h ->
         // FSTODO munge path for postgres, see munge_name in canvas.ml
         match h.spec with
-        | Handler.HTTP (path, modifier, _) -> Some "HTTP", Some path, Some modifier
+        | Handler.HTTP (path, modifier, _) ->
+            Some "HTTP", Some(Http.routeToPostgresPattern path), Some modifier
         | Handler.Worker (name, _) -> Some "Worker", Some name, Some "_"
         | Handler.OldWorker (modulename, name, _) ->
             Some modulename, Some name, Some "_"
@@ -89,9 +91,8 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
 
   let cacheBinary = OCamlInterop.toplevelToCachedBinary tl // FSTODO pos
   let (oplistBinary : byte array) = [||] // FSTODO get an actual oplist
-  let digest = OCamlInterop.Binary.digest () // FSTODO digest is wrong
+  let digest = OCamlInterop.Binary.digest ()
   let pos = Some "{ \"x\": 0, \"y\": 0 }"
-  printfn $"digest {digest}"
   Sql.query "INSERT INTO toplevel_oplists
                (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
                 data, rendered_oplist_cache, deleted, pos)

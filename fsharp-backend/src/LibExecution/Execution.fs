@@ -28,6 +28,7 @@ open Shortcuts
 
 let runHttp (tlid : tlid)
             (url : string)
+            (vars : DvalMap)
             (body : byte array)
             (fns : List<BuiltInFn>)
             (e : Expr)
@@ -44,8 +45,7 @@ let runHttp (tlid : tlid)
           DBytes body
           DObj Map.empty
           DFnVal
-            (Lambda
-              { parameters = [ gid (), "request" ]; symtable = Map.empty; body = e }) ]
+            (Lambda { parameters = [ gid (), "request" ]; symtable = vars; body = e }) ]
         NotInPipe
         NoRail
 
