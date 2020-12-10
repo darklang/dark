@@ -36,8 +36,12 @@ module Sql =
                             : Task<Option<'t>> =
     Sql.executeAsync reader props |> convertToOption
 
-  let executeNonQueryAsync (props : Sql.SqlProps) : Task<int> =
-    Sql.executeNonQueryAsync props
+  let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =
+    task {
+      let! (_count : int) = Sql.executeNonQueryAsync props
+      return ()
+    }
+
 
   let tlidArray (tlids : List<int64>) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint

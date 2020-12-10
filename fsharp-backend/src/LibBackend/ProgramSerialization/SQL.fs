@@ -65,7 +65,7 @@ let loadHttpHandlersFromCache (host : string)
 let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
                                      (ownerID : UserID)
                                      (tl : Toplevel)
-                                     : Task<int> =
+                                     : Task<unit> =
   let module_, path, modifier =
     match tl with
     | TLDB _
@@ -121,7 +121,7 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
                       "@cacheData", Sql.bytea cacheBinary
                       "deleted", Sql.bool false // FSTODO
                       "pos", Sql.jsonbOrNone pos ] // FSTODO
-  |> Sql.executeNonQueryAsync
+  |> Sql.executeStatementAsync
 
 let saveHttpHandlersToCache (canvasID : CanvasID)
                             (ownerID : UserID)
