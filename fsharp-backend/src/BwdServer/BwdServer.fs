@@ -99,10 +99,15 @@ let canvasNameFromHost (host : string) : Task<Option<string>> =
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+        ctx.Response.Headers.Add
+          (name, Microsoft.Extensions.Primitives.StringValues([| value |]))
+
       let e500 (msg : string) =
         task {
           let bytes = System.Text.Encoding.UTF8.GetBytes msg
           ctx.Response.StatusCode <- 500
+          addHeader ctx "server" "darklang"
           do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
           return Some ctx
         }
@@ -111,6 +116,7 @@ let runDarkHandler : HttpHandler =
 
       let exprs : Task<List<PT.Toplevel>> =
         task {
+
           let executionID = gid ()
           let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
           match! canvasNameFromHost ctx.Request.Host.Host with
@@ -156,10 +162,7 @@ let runDarkHandler : HttpHandler =
               match result with
               | RT.DHttpResponse (status, headers, RT.DBytes body) ->
                   ctx.Response.StatusCode <- status
-                  List.iter (fun (k, v) ->
-                    ctx.Response.Headers.Add
-                      (k, Microsoft.Extensions.Primitives.StringValues([| v |])))
-                    headers
+                  List.iter (fun (k, v) -> addHeader ctx k v) headers
                   do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
                   return! next ctx
               | other ->
@@ -167,10 +170,9 @@ let runDarkHandler : HttpHandler =
                   return! e500 "body is not a HttpResponse"
       | [] ->
           ctx.Response.StatusCode <- 404
+          addHeader ctx "server" "darklang"
           return Some ctx
-      | _ ->
-          ctx.Response.StatusCode <- 500
-          return Some ctx
+      | _ -> return! e500 "More than 1 handler found for this URL"
     }
 
 let webApp : HttpHandler =
