@@ -30,41 +30,43 @@ let clearTestData (canvasName : string) : Task<unit> =
         "SELECT id FROM canvases WHERE account_id = @owner::uuid AND name = @name"
       |> Sql.parameters [ "owner", Sql.uuid owner
                           "name", Sql.string $"test-{canvasName}" ]
-      |> Sql.executeRowAsync (fun read -> read.uuid "id")
+      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
 
-    do! Sql.query "DELETE FROM events where canvas_id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
+    match canvasID with
+    | None -> return ()
+    | Some canvasID ->
+        do! Sql.query "DELETE FROM events where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
 
-    do! Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
 
-    do! Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
 
-    do! Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
 
-    do! Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
 
-    do! Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
 
-    do! Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
 
-    do! Sql.query "DELETE FROM canvases where id = @id::uuid"
-        |> Sql.parameters [ "id", Sql.uuid canvasID ]
-        |> Sql.executeStatementAsync
-
-    return ()
+        do! Sql.query "DELETE FROM canvases where id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+        return ()
   }
 
 
