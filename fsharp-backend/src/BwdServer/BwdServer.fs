@@ -102,8 +102,8 @@ let runDarkHandler : HttpHandler =
       let e500 (msg : string) =
         task {
           let bytes = System.Text.Encoding.UTF8.GetBytes msg
-          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
           ctx.Response.StatusCode <- 500
+          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
           return Some ctx
         }
 
@@ -138,7 +138,7 @@ let runDarkHandler : HttpHandler =
           let body = ms.ToArray()
           let expr = expr.toRuntimeType ()
           let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-          let vars = LibExecution.Http.routeInputVars requestPath route
+          let vars = LibExecution.Http.routeInputVars route requestPath
           match vars with
           | None ->
               return! e500
