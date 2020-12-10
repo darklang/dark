@@ -234,30 +234,28 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//      { name = fn "String" "toLowercase" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, lowercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (String.lowercase (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toLowercase" 1
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, lowercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "toLowercase" 0
+      parameters = [Param.make "s" TStr ""]
+      returnType = TStr
+      description = "Returns the string, lowercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Value(DStr(String.toLower s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "String" "toLowercase" 1
+      parameters = [Param.make "s" TStr ""]
+      returnType = TStr
+      description = "Returns the string, lowercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Value(DStr(String.toLower s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "length" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
