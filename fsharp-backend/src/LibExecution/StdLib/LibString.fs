@@ -138,25 +138,23 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "toInt" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TInt
-//      ; description = "Returns the int value of the string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let utf8 = Unicode_string.to_string s in
-//             ( try DInt (Dint.of_string_exn utf8)
-//               with e ->
-//                 Exception.code
-//                   utf8
-//                   "\\d+"
-//                   "Expected a string with only numbers" )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "String" "toInt" 0
+      parameters = [Param.make "s" TStr ""]
+      returnType = TInt
+      description = "Returns the int value of the string"
+      fn =
+        (function
+        | _, [DStr s] ->
+            ( try
+                bigint (s |> int)
+                |> DInt
+                |> Value
+              with e ->
+                Value(errStr("Expected a string with only numbers")))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
 //      { name = fn "String" "toInt" 1
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TResult
