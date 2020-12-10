@@ -193,24 +193,25 @@ let fns : List<BuiltInFn> =
             incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toFloat" 1
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TResult
-//      ; description = "Returns the float value of the string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let utf8 = Unicode_string.to_string s in
-//             ( try DResult (ResOk (DFloat (float_of_string utf8)))
-//               with e ->
-//                 error_result
-//                   "Expected a string representation of an IEEE float" )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "String" "toFloat" 1) }
+    { name = fn "String" "toFloat" 1
+      parameters = [Param.make "s" TStr]
+      returnType = TResult
+      description = "Returns the float value of the string"
+      fn =
+        (function
+        | _, [DStr s] ->
+            ( try
+                float (s)
+                |> DFloat
+                |> Value
+              with e ->
+                Value(errStr("Expected a string representation of an IEEE float")))
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "toUppercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
