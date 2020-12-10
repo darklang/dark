@@ -36,12 +36,6 @@ module Sql =
                             : Task<Option<'t>> =
     Sql.executeAsync reader props |> convertToOption
 
-  let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
-    Sql.executeRowAsync reader props
-
-  let executeAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<List<'t>> =
-    Sql.executeAsync reader props
-
   let executeNonQueryAsync (props : Sql.SqlProps) : Task<int> =
     Sql.executeNonQueryAsync props
 
