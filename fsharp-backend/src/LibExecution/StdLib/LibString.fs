@@ -176,24 +176,24 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//      { name = fn "String" "toFloat" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TFloat
-//      ; description = "Returns the float value of the string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let utf8 = Unicode_string.to_string s in
-//             ( try DFloat (float_of_string utf8)
-//               with e ->
-//                 Exception.code
-//                   utf8
-//                   "Expected a string representation of an IEEE float" )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "String" "toFloat" 0
+      parameters = [Param.make "s" TStr ""]
+      returnType = TFloat
+      description = "Returns the float value of the string"
+      fn =
+        (function
+        | _, [DStr s] ->
+            ( try
+                float (s)
+                |> DFloat
+                |> Value
+              with e ->
+                Value(errStr("Expected a string representation of an IEEE float")))
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
 //      { name = fn "String" "toFloat" 1
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TResult
