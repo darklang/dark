@@ -157,7 +157,7 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "String" "toInt" 1) }
     { name = fn "String" "toInt" 1
       parameters = [Param.make "s" TStr ""]
       returnType = TInt
