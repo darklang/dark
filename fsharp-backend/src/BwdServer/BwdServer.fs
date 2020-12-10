@@ -108,6 +108,8 @@ let runDarkHandler : HttpHandler =
           let bytes = System.Text.Encoding.UTF8.GetBytes msg
           ctx.Response.StatusCode <- 500
           addHeader ctx "server" "darklang"
+          if bytes.Length > 0 then addHeader ctx "Content-Type" "text/plain"
+          addHeader ctx "Content-Length" (bytes.Length.ToString())
           do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
           return Some ctx
         }
@@ -165,6 +167,19 @@ let runDarkHandler : HttpHandler =
                   List.iter (fun (k, v) -> addHeader ctx k v) headers
                   do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
                   return! next ctx
+              | RT.DFakeVal (RT.DErrorRail (RT.DOption None)) ->
+                  ctx.Response.StatusCode <- 404
+                  addHeader ctx "server" "darklang"
+                  return Some ctx
+              // FSTODO: what if there's bytes in the error?
+              | RT.DFakeVal (RT.DErrorRail (RT.DResult (Error msg))) ->
+                  let msg = LibExecution.DvalRepr.toPrettyMachineJsonV1 msg
+                  return! e500 msg
+              | RT.DFakeVal (RT.DIncomplete _) ->
+                  return! e500
+                            "Error calling server code: Handler returned an \
+                                incomplete result. Please inform the owner of this \
+                                site that their code is broken."
               | other ->
                   printfn $"Not a HTTP response: {other}"
                   return! e500 "body is not a HttpResponse"
