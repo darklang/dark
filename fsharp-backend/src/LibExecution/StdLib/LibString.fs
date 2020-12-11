@@ -17,7 +17,7 @@ open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
-open System.Text.RegularExpressions;
+open System.Text.RegularExpressions
 
 let fn = FQFnName.stdlibName
 
@@ -332,10 +332,7 @@ let fns : List<BuiltInFn> =
             let trim = @"^\s+|\s+$"
             let spaces = @"[-\s]+"
 
-            let objRegex (pattern : string)
-                         (input : string)
-                         (replacement : string)
-                         =
+            let objRegex (pattern : string) (input : string) (replacement : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
@@ -343,7 +340,8 @@ let fns : List<BuiltInFn> =
             |> fun s -> objRegex (trim) (s) ("")
             |> fun s -> objRegex (spaces) (s) ("-")
 
-            |> DStr |> Value
+            |> DStr
+            |> Value
 
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -407,15 +405,14 @@ let fns : List<BuiltInFn> =
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
     { name = fn "String" "reverse" 0
-      parameters = [Param.make "string" TStr ""]
+      parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
       description = "Reverses `string`"
       fn =
         (function
-        | _, [DStr s] ->
-
-            let append (reversedString: char list) (ch: char): char list =
-                ch :: reversedString
+        | _, [ DStr s ] ->
+            let append (reversedString : char list) (ch : char) : char list =
+              ch :: reversedString
 
             string s
             |> Seq.fold append []
@@ -423,24 +420,24 @@ let fns : List<BuiltInFn> =
             |> System.String
             |> DStr
             |> Value
-         | args -> incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "split" 0
-      parameters = [Param.make "s" TStr ""; Param.make "separator" TStr ""]
+      parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
       returnType = TList varA
-      description = "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
+      description =
+        "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
       fn =
         (function
-        | _, [DStr s; DStr sep] ->
+        | _, [ DStr s; DStr sep ] ->
             s.Split sep
             |> Array.toList
             |> List.map (fun str -> DStr str)
             |> DList
             |> Value
-        | args ->
-            incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
