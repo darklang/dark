@@ -113,7 +113,10 @@ String.trim_v0 " 😄foobar😄 " = "😄foobar😄" // String trims both leadin
 String.trim_v0 "  foo bar " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces
 String.trim_v0 "foo  " = "foo" // String trims trailing spaces
 String.trim_v0 "foo" = "foo" // String trim noops
-
+String.reverse_v0 "abcde" = "edcba"
+String.reverse_v0 "0abcde" = "edcba0"
+String.reverse_v0 "a" = "a"
+String.reverse_v0 "" = ""
 [test.stringForeach]
 // Check that foreach executes the right number of times
 (let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 false) in

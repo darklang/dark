@@ -406,16 +406,27 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "reverse" 0
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description = "Reverses `string`"
-//      ; fn =
-//         (function
-//         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "reverse" 0
+      parameters = [Param.make "string" TStr ""]
+      returnType = TStr
+      description = "Reverses `string`"
+      fn =
+        (function
+        | _, [DStr s] ->
+
+            let append (reversedString: char list) (ch: char): char list =
+                ch :: reversedString
+
+            string s
+            |> Seq.fold append []
+            |> Array.ofList
+            |> System.String
+            |> DStr
+            |> Value
+         | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //      { name = fn "String" "split" 0
 //      ; parameters = [Param.make "s" TStr; Param.make "separator" TStr]
 //      ; returnType = TList
