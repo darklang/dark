@@ -427,23 +427,23 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//      { name = fn "String" "split" 0
-//      ; parameters = [Param.make "s" TStr; Param.make "separator" TStr]
-//      ; returnType = TList
-//      ; description =
-//       "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DStr sep] ->
-//             s
-//             |> Unicode_string.split ~sep
-//             |> List.map (fun str -> DStr str)
-//             |> DList
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "split" 0
+      parameters = [Param.make "s" TStr ""; Param.make "separator" TStr ""]
+      returnType = TList varA
+      description = "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
+      fn =
+        (function
+        | _, [DStr s; DStr sep] ->
+            s.Split sep
+            |> Array.toList
+            |> List.map (fun str -> DStr str)
+            |> DList
+            |> Value
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "join" 0
       parameters = [ Param.make "l" (TList TStr) ""; Param.make "separator" TStr "" ]
       returnType = TStr
