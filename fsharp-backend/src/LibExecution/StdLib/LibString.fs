@@ -318,20 +318,17 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "prepend" 0
-//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
-//      ; fn =
-//         (function
-//         | _, [DStr s1; DStr s2] ->
-//             DStr (Unicode_string.append s2 s1)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "prepend" 0
+      parameters = [Param.make "s1" TStr ""; Param.make "s2" TStr ""]
+      returnType = TStr
+      description = "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
+      fn =
+        (function
+        | _, [DStr s1; DStr s2] -> Value(DStr (s2 + s1))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //      { name = fn "String" "slugify" 0
 //      ; parameters = [Param.make "string" TStr]
 //      ; returnType = TStr
