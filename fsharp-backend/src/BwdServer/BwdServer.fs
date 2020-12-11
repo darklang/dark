@@ -185,7 +185,7 @@ let runDarkHandler : HttpHandler =
           ctx.Response.StatusCode <- 404
           addHeader ctx "server" "darklang"
           return Some ctx
-      | _ -> return! e500 "More than 1 handler found for this URL"
+      | _ -> return! e500 "More than one handler found for this URL"
     }
 
 let webApp : HttpHandler =
