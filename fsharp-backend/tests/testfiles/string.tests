@@ -52,6 +52,7 @@ String.replaceAll_v0 "abcABCcbaCBA" "b" "x" = "axcABCcxaCBA"
 // String.slice_v0 "abcd" 2 6 = "cd"
 // String.slice_v0 "abcd" 3 2 = ""
 // String.slice_v0 "abcd" 5 6 = ""
+String.slugify_v0 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭! " = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee" // Slugify works
 // String.slugify_v1 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee" // Slugify works
 // String.slugify_v2 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee" // Slugify works
 // String.split_v0 "hello😄world" "😄" = [ "hello", "world" ] // String split works on strings with emoji + ascii

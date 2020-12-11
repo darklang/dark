@@ -17,6 +17,7 @@ open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
+open System.Text.RegularExpressions;
 
 let fn = FQFnName.stdlibName
 
@@ -142,73 +143,62 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "toInt" 0
-      parameters = [Param.make "s" TStr ""]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
       description = "Returns the int value of the string"
       fn =
         (function
-        | _, [DStr s] ->
-            ( try
-                bigint (s |> int)
-                |> DInt
-                |> Value
-              with e ->
-                Value(errStr("Expected a string with only numbers")))
+        | _, [ DStr s ] ->
+            (try
+              bigint (s |> int) |> DInt |> Value
+             with e -> Value(errStr ("Expected a string with only numbers")))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toInt" 1) }
     { name = fn "String" "toInt" 1
-      parameters = [Param.make "s" TStr ""]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
-      description = "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
+      description =
+        "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
       fn =
         (function
-        | _, [DStr s] ->
-            ( try
-                bigint (s |> int)
-                |> DInt
-                |> Value
-              with e ->
-                Value(errStr($"Expected a string with only numbers, got ({s})")))
-        | args ->
-            incorrectArgs ())
+        | _, [ DStr s ] ->
+            (try
+              bigint (s |> int) |> DInt |> Value
+             with e ->
+               Value(errStr ($"Expected a string with only numbers, got ({s})")))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "toFloat" 0
-      parameters = [Param.make "s" TStr ""]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TFloat
       description = "Returns the float value of the string"
       fn =
         (function
-        | _, [DStr s] ->
-            ( try
-                float (s)
-                |> DFloat
-                |> Value
-              with e ->
-                Value(errStr("Expected a string representation of an IEEE float")))
-        | args ->
-            incorrectArgs ())
+        | _, [ DStr s ] ->
+            (try
+              float (s) |> DFloat |> Value
+             with e ->
+               Value(errStr ("Expected a string representation of an IEEE float")))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toFloat" 1) }
     { name = fn "String" "toFloat" 1
-      parameters = [Param.make "s" TStr ""]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TFloat
       description = "Returns the float value of the string"
       fn =
         (function
-        | _, [DStr s] ->
-            ( try
-                float (s)
-                |> DFloat
-                |> Value
-              with e ->
-                Value(errStr("Expected a string representation of an IEEE float")))
-        | args ->
-            incorrectArgs ())
+        | _, [ DStr s ] ->
+            (try
+              float (s) |> DFloat |> Value
+             with e ->
+               Value(errStr ("Expected a string representation of an IEEE float")))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -224,7 +214,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
     { name = fn "String" "toUppercase" 1
-      parameters = [Param.make "s" TStr ""]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Returns the string, uppercased"
       fn =
@@ -235,7 +225,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "toLowercase" 0
-      parameters = [Param.make "s" TStr ""]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Returns the string, lowercased"
       fn =
@@ -246,7 +236,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
     { name = fn "String" "toLowercase" 1
-      parameters = [Param.make "s" TStr ""]
+      parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Returns the string, lowercased"
       fn =
@@ -319,45 +309,47 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "prepend" 0
-      parameters = [Param.make "s1" TStr ""; Param.make "s2" TStr ""]
+      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
       returnType = TStr
-      description = "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
+      description =
+        "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
       fn =
         (function
-        | _, [DStr s1; DStr s2] -> Value(DStr (s2 + s1))
+        | _, [ DStr s1; DStr s2 ] -> Value(DStr(s2 + s1))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//      { name = fn "String" "slugify" 0
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description = "Turns a string into a slug"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let replace = Unicode_string.regexp_replace in
-//             let to_remove = "[^\\w\\s$*_+~.()'\"!\\-:@]" in
-//             let trim = "^\\s+|\\s+$" in
-//             let spaces = "[-\\s]+" in
-//             s
-//             |> replace
-//                  to_remove
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  trim
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  spaces
-//                  (Unicode_string.of_string_exn "-")
-//             |> Unicode_string.lowercase
-//             |> fun s -> DStr s
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "slugify" 1
+    { name = fn "String" "slugify" 0
+      parameters = [ Param.make "string" TStr "" ]
+      returnType = TStr
+      description = "Turns a string into a slug"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+
+            let to_remove = @"[^a-z0-9\s-]"
+            let trim = @"^\s+|\s+$"
+            let spaces = @"[-\s]+"
+
+            let objRegex (pattern : string)
+                         (input : string)
+                         (replacement : string)
+                         =
+              Regex.Replace(input, pattern, replacement)
+
+            s
+            |> fun s -> objRegex (to_remove) (s) ("")
+            |> fun s -> objRegex (trim) (s) ("")
+            |> fun s -> objRegex (spaces) (s) ("-")
+
+            |> DStr |> Value
+
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //      { name = fn "String" "slugify" 1
 //      ; parameters = [Param.make "string" TStr]
 //      ; returnType = TStr
 //      ; description = "Turns a string into a slug"
