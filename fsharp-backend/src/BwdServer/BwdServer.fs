@@ -118,7 +118,6 @@ let runDarkHandler : HttpHandler =
 
       let exprs : Task<List<PT.Toplevel>> =
         task {
-
           let executionID = gid ()
           let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
           match! canvasNameFromHost ctx.Request.Host.Host with
@@ -167,14 +166,13 @@ let runDarkHandler : HttpHandler =
                   List.iter (fun (k, v) -> addHeader ctx k v) headers
                   do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
                   return! next ctx
+              // TODO: maybe not the right thing, but this is what the OCaml does
+              // FSTODO: move this to LibExecution so it can be available in the client
+              | RT.DFakeVal (RT.DErrorRail (RT.DResult (Error _)))
               | RT.DFakeVal (RT.DErrorRail (RT.DOption None)) ->
                   ctx.Response.StatusCode <- 404
                   addHeader ctx "server" "darklang"
                   return Some ctx
-              // FSTODO: what if there's bytes in the error?
-              | RT.DFakeVal (RT.DErrorRail (RT.DResult (Error msg))) ->
-                  let msg = LibExecution.DvalRepr.toPrettyMachineJsonV1 msg
-                  return! e500 msg
               | RT.DFakeVal (RT.DIncomplete _) ->
                   return! e500
                             "Error calling server code: Handler returned an \

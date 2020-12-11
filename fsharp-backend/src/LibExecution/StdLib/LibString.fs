@@ -157,25 +157,27 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toInt" 1
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TResult
-//      ; description =
-//       "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let utf8 = Unicode_string.to_string s in
-//             ( try DResult (ResOk (DInt (Dint.of_string_exn utf8)))
-//               with e ->
-//                 error_result
-//                   ("Expected a string with only numbers, got " ^ utf8) )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toFloat" 0
+    { name = fn "String" "toInt" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TInt, TStr)
+      description =
+        "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            try
+              s |> System.Numerics.BigInteger.Parse |> DInt |> Ok |> DResult |> Value
+            with e ->
+              $"Expected to parse string with only numbers, instead got \"{s}\""
+              |> DStr
+              |> Error
+              |> DResult
+              |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "toFloat" 0
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TFloat
 //      ; description = "Returns the float value of the string"
