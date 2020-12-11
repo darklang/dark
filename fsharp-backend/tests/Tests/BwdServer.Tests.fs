@@ -8,18 +8,73 @@ open LibBackend.ProgramSerialization
 open BwdServer
 
 module RT = LibExecution.RuntimeTypes
+open Npgsql.FSharp.Tasks
+open Npgsql
+open LibBackend.Db
 
 open System.Threading.Tasks
+open FSharp.Control.Tasks
 open System.IO
 open System.Threading
 open System.Net
 open System.Net.Sockets
 open System.Text.RegularExpressions
 
+// delete test data for one canvas
+let clearTestData (canvasName : string) : Task<unit> =
+  task {
+    let! owner = Account.userIDForUsername "test"
+
+    let! canvasID =
+      Sql.query
+        "SELECT id FROM canvases WHERE account_id = @owner::uuid AND name = @name"
+      |> Sql.parameters [ "owner", Sql.uuid owner
+                          "name", Sql.string $"test-{canvasName}" ]
+      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+
+    match canvasID with
+    | None -> return ()
+    | Some canvasID ->
+        do! Sql.query "DELETE FROM events where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+
+        do! Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+
+        do! Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+
+        do! Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+
+        do! Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+
+        do! Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+
+        do! Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+
+        do! Sql.query "DELETE FROM canvases where id = @id::uuid"
+            |> Sql.parameters [ "id", Sql.uuid canvasID ]
+            |> Sql.executeStatementAsync
+        return ()
+  }
+
+
 let t name =
   testTask $"Httpfiles: {name}" {
     // TODO: This test relies on the server running already. Run the server
     // instead as part of the test suite.
+    do! clearTestData (name)
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
     let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
@@ -41,7 +96,7 @@ let t name =
              [ b ])
       |> List.toArray
 
-    let request, expectedResponse, progString, httpMethod, httpRoute =
+    let request, expectedResponse, httpDefs =
       let filename = $"tests/httptestfiles/{name}"
       let contents = filename |> System.IO.File.ReadAllBytes |> toStr
 
@@ -51,39 +106,46 @@ let t name =
       let m =
         Regex.Match
           (contents,
-           "^\[http-handler (\S+) (\S+)\]\n(.*)\n\[request\]\n(.*)\[response\]\n(.*)$",
+           "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
            options)
 
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
+      g.[3].Value |> toBytes |> setHeadersToCRLF,
       g.[4].Value |> toBytes |> setHeadersToCRLF,
-      g.[5].Value |> toBytes |> setHeadersToCRLF,
-      g.[3].Value,
-      g.[1].Value,
       g.[2].Value
 
-    let (source : ProgramTypes.Expr) =
-      progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+    let handlers =
+      Regex.Matches(httpDefs, "\[http-handler (\S+) (\S+)\]\n(.*)\n")
+      |> Seq.toList
+      |> List.map (fun m ->
+           let progString = m.Groups.[3].Value
+           let httpRoute = m.Groups.[2].Value
+           let httpMethod = m.Groups.[1].Value
 
-    let (handler : ProgramTypes.Handler.T) =
-      let id = SharedTypes.id
+           let (source : ProgramTypes.Expr) =
+             progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
-      let ids : ProgramTypes.Handler.ids =
-        { moduleID = id 1; nameID = id 2; modifierID = id 3 }
+           let gid = Prelude.gid
 
-      { tlid = id 7
-        ast = source
-        spec =
-          ProgramTypes.Handler.HTTP
-            (route = httpRoute, method = httpMethod, ids = ids) }
+           let ids : ProgramTypes.Handler.ids =
+             { moduleID = gid (); nameID = gid (); modifierID = gid () }
+
+           ProgramTypes.TLHandler
+             { tlid = gid ()
+               ast = source
+               spec =
+                 ProgramTypes.Handler.HTTP
+                   (route = httpRoute, method = httpMethod, ids = ids) })
 
     let! ownerID = LibBackend.Account.userIDForUsername "test"
+
     let! canvasID = LibBackend.Canvas.canvasIDForCanvas ownerID $"test-{name}"
 
     do! LibBackend.ProgramSerialization.SQL.saveHttpHandlersToCache
           canvasID
           ownerID
-          [ ProgramTypes.TLHandler handler ]
+          handlers
 
     // Web server might not be loaded yet
     let client = new TcpClient()

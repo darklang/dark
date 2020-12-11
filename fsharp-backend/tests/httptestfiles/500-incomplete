@@ -1,0 +1,17 @@
+[http-handler GET /]
+blank
+
+[request]
+GET / HTTP/1.1
+Host: test-500-incomplete.builtwithdark.localhost:9001
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 0
+
+[response]
+HTTP/1.1 500 Internal Server Error
+Date: XXX, XX XXX XXXX XX:XX:XX XXX
+Content-Type: text/plain
+Server: darklang
+Content-Length: 129
+
+Error calling server code: Handler returned an incomplete result. Please inform the owner of this site that their code is broken.

@@ -99,10 +99,17 @@ let canvasNameFromHost (host : string) : Task<Option<string>> =
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+        ctx.Response.Headers.Add
+          (name, Microsoft.Extensions.Primitives.StringValues([| value |]))
+
       let e500 (msg : string) =
         task {
           let bytes = System.Text.Encoding.UTF8.GetBytes msg
           ctx.Response.StatusCode <- 500
+          addHeader ctx "server" "darklang"
+          if bytes.Length > 0 then addHeader ctx "Content-Type" "text/plain"
+          addHeader ctx "Content-Length" (bytes.Length.ToString())
           do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
           return Some ctx
         }
@@ -156,21 +163,29 @@ let runDarkHandler : HttpHandler =
               match result with
               | RT.DHttpResponse (status, headers, RT.DBytes body) ->
                   ctx.Response.StatusCode <- status
-                  List.iter (fun (k, v) ->
-                    ctx.Response.Headers.Add
-                      (k, Microsoft.Extensions.Primitives.StringValues([| v |])))
-                    headers
+                  List.iter (fun (k, v) -> addHeader ctx k v) headers
                   do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
                   return! next ctx
+              // TODO: maybe not the right thing, but this is what the OCaml does
+              // FSTODO: move this to LibExecution so it can be available in the client
+              | RT.DFakeVal (RT.DErrorRail (RT.DResult (Error _)))
+              | RT.DFakeVal (RT.DErrorRail (RT.DOption None)) ->
+                  ctx.Response.StatusCode <- 404
+                  addHeader ctx "server" "darklang"
+                  return Some ctx
+              | RT.DFakeVal (RT.DIncomplete _) ->
+                  return! e500
+                            "Error calling server code: Handler returned an \
+                                incomplete result. Please inform the owner of this \
+                                site that their code is broken."
               | other ->
                   printfn $"Not a HTTP response: {other}"
                   return! e500 "body is not a HttpResponse"
       | [] ->
           ctx.Response.StatusCode <- 404
+          addHeader ctx "server" "darklang"
           return Some ctx
-      | _ ->
-          ctx.Response.StatusCode <- 500
-          return Some ctx
+      | _ -> return! e500 "More than one handler found for this URL"
     }
 
 let webApp : HttpHandler =

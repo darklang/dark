@@ -102,10 +102,19 @@ module Yojson =
         v "ERightPartial" [ ofID id; J.String name; ofExpr expr ]
     | EString (id, s) -> v "EString" [ ofID id; J.String s ]
     | EVariable (id, s) -> v "EVariable" [ ofID id; J.String s ]
-    | EBinOp (id, name, arg0, arg1, str) ->
+    | EBinOp (id, name, arg0, arg1, ster) ->
         v
           "EBinOp"
-          [ ofID id; ofFQFnName name; ofExpr arg0; ofExpr arg1; ofSendToRail str ]
+          [ ofID id; ofFQFnName name; ofExpr arg0; ofExpr arg1; ofSendToRail ster ]
+    | EFnCall (id, name, exprs, ster) ->
+        v
+          "EFnCall"
+          [ ofID id
+            ofFQFnName name
+            exprs |> List.toArray |> Array.map ofExpr |> J.Array
+            ofSendToRail ster ]
+    | EList (id, exprs) ->
+        v "EList" [ ofID id; exprs |> List.toArray |> Array.map ofExpr |> J.Array ]
     | _ -> failwith $"Not supported yet in ofExpr: {e}"
   // | EPipeTarget id ->
   // | ELet (_id, lhs, rhs, body) ->
@@ -114,11 +123,8 @@ module Yojson =
   // | EFloat (_id, whole, fractional) ->
   // | ENull _id ->
   // | ECharacter (_id, s) ->
-  // | EList (_id, exprs) ->
   // | EVariable (_id, name) ->
   // | ERecord (id, pairs) ->
-  // | EFnCall (id, desc, exprs, ster) ->
-  // | EBinOp (id, desc, arg1, arg2, ster) ->
   // | EFieldAccess (id, _, _) ->
   // | EFeatureFlag (id, _, cond, oldcode, newcode) ->
   // | ELambda (_id, parameters, body) ->

@@ -339,11 +339,7 @@ and DType =
   // A named variable, eg `a` in `List<a>`
   | TVariable of string
   | TFn of List<DType> * DType
-  | TRecord of List<string * DType> // has exactly these fields
-  // This allows you to build up a record to eventually be the right shape.
-  | TRecordWithFields of List<string * DType>
-  | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-  | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+  | TRecord of List<string * DType>
 
 // Runtime errors can be things that happen relatively commonly (such as calling
 // a function with an incorrect type), or things that aren't supposed to happen
@@ -781,16 +777,13 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
-  // We need to keep the IDs around until we get rid of them on the client
-  type ids = { moduleID : id; nameID : id; modifierID : id }
-
   type Spec =
-    | HTTP of path : string * method : string * ids : ids
-    | Worker of name : string * ids : ids
+    | HTTP of path : string * method : string
+    | Worker of name : string
     // Deprecated but still supported form
-    | OldWorker of modulename : string * name : string * ids : ids
-    | Cron of name : string * interval : string * ids : ids
-    | REPL of name : string * ids : ids
+    | OldWorker of modulename : string * name : string
+    | Cron of name : string * interval : string
+    | REPL of name : string
 
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
