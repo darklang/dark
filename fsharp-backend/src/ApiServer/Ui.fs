@@ -16,20 +16,22 @@ let ui (canvasName : string) : string =
   //   |> Core_kernel.Time.Span.to_ms
   //   |> Float.iround_exn
 
-  // let staticHost =
-  //   match local with
-  //   (* TODO: can add other people to this for easier debugging *)
-  //   | Some username -> $"darklang-{username}.ngrok.io"
-  //   | _ -> Config.staticHost
+  let local = None // FSTODO - pass from the URL
+
+  let staticHost =
+    match local with
+    (* TODO: can add other people to this for easier debugging *)
+    | Some username -> $"darklang-{username}.ngrok.io"
+    | _ -> Config.staticHost
 
   // let hashStaticFilenames =
   //   if local = None then Config.hashStaticFilenames else false
 
-  // let liveReloadJs =
-  //   (if Config.browser_reload_enabled then
-  //     "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-  //    else
-  //      "")
+  let liveReloadJs =
+    if Config.browserReloadEnabled then
+      "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
+    else
+      ""
 
   let hashedStaticFilenames source =
     // FSTODO
@@ -66,7 +68,8 @@ let ui (canvasName : string) : string =
   let t = System.Text.StringBuilder(adminUiTemplate)
   t.Replace("{{ENVIRONMENT_NAME}}", Config.envDisplayName)
    // .Replace("{{ALLFUNCTIONS}}", Api.functions user.username)
-   // .Replace("{{LIVERELOADJS}}", liveReloadJs).Replace("{{STATIC}}", static_host)
+   .Replace("{{LIVERELOADJS}}", liveReloadJs)
+   .Replace("{{STATIC}}", Config.staticHost)
    .Replace("{{HEAPIO_ID}}", Config.heapioId)
    .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
    .Replace("{{PUSHERCONFIG}}", Config.pusherJs)
@@ -79,7 +82,10 @@ let ui (canvasName : string) : string =
    // .Replace("{{CANVAS_ID}}", (Uuidm.to_string canvas_id))
    .Replace("{{CANVAS_NAME}}", canvasName)
    // .Replace("{{APPSUPPORT}}", (File.readfile Webroot "appsupport.js"))
-   .Replace("{{STATIC}}", Config.staticHost)
    // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)
    // .Replace("{{CSRF_TOKEN}}", csrf_token)
-   .Replace("{{BUILD_HASH}}", Config.buildHash).ToString()
+   .Replace("{{BUILD_HASH}}", Config.buildHash)
+   // FSTODO: Config is set up for OCaml right now
+   .Replace("darklang.localhost:8000", "darklang.localhost:9000")
+   .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
+   .ToString()

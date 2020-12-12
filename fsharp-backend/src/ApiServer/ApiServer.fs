@@ -12,12 +12,9 @@ open Giraffe.EndpointRouting
 let apiHandler : HttpHandler =
   fun (_ : HttpFunc) (ctx : HttpContext) -> "api test" |> ctx.WriteTextAsync
 
-let uiHandler (canvasName : string) : HttpHandler =
-  fun (_ : HttpFunc) (ctx : HttpContext) -> Ui.ui canvasName |> ctx.WriteTextAsync
-
 let apiEndpoints = [ GET [ routef "/%s" (fun guid -> apiHandler) ] ]
 
-let uiEndpoints = GET [ routef "/a/%s" (fun canvas -> uiHandler canvas) ]
+let uiEndpoints = GET [ routef "/a/%s" (fun canvas -> htmlString (Ui.ui canvas)) ]
 
 let endpoints = [ uiEndpoints; subRoute "/api" apiEndpoints ]
 
