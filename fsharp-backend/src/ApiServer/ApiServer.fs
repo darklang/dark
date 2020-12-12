@@ -9,27 +9,18 @@ open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Giraffe.EndpointRouting
 
-let handler1 : HttpHandler =
-  fun (_ : HttpFunc) (ctx : HttpContext) -> ctx.WriteTextAsync "Hello World"
+let apiHandler : HttpHandler =
+  fun (_ : HttpFunc) (ctx : HttpContext) -> "api test" |> ctx.WriteTextAsync
 
-let handler2 (firstName : string, age : int) : HttpHandler =
-  fun (_ : HttpFunc) (ctx : HttpContext) ->
-    sprintf "Hello %s, you are %i years old." firstName age |> ctx.WriteTextAsync
+let uiHandler (canvasName : string) : HttpHandler =
+  fun (_ : HttpFunc) (ctx : HttpContext) -> Ui.ui canvasName |> ctx.WriteTextAsync
 
-let handler3 (a : string, b : string, c : string, d : int) : HttpHandler =
-  fun (_ : HttpFunc) (ctx : HttpContext) ->
-    sprintf "Hello %s %s %s %i" a b c d |> ctx.WriteTextAsync
+let apiEndpoints = [ GET [ routef "/%s" (fun guid -> apiHandler) ] ]
 
-let endpoints =
-  [ subRoute "/foo" [ GET [ route "/bar" (text "Aloha!") ] ]
-    GET [ route "/" (text "Hello World")
-          routef "/%s/%i" handler2
-          routef "/%s/%s/%s/%i" handler3 ]
-    GET_HEAD [ route "/foo" (text "Bar")
-               route "/x" (text "y")
-               route "/abc" (text "def") ]
-    // Not specifying a http verb means it will listen to all verbs
-    subRoute "/sub" [ route "/test" handler1 ] ]
+let uiEndpoints = GET [ routef "/a/%s" (fun canvas -> uiHandler canvas) ]
+
+let endpoints = [ uiEndpoints; subRoute "/api" apiEndpoints ]
+
 
 let notFoundHandler = "Not Found" |> text |> RequestErrors.notFound
 
