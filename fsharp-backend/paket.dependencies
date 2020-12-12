@@ -7,7 +7,7 @@ storage: none
 nuget FSharp.Core ~> 5.0.0
 
 // Web servers
-nuget Saturn ~> 0.15.0-preview01
+nuget Giraffe ~> 5.0.0-rc-6
 
 // Tests
 nuget Expecto ~> 9.0.2
