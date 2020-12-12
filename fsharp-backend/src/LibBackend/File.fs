@@ -8,31 +8,39 @@ type Mode =
   | Dir
   | Read
   | Write
-//
-// let checkFilename (root : Config.root) mode f =
-//   let dir = Config.dir root
-//   let f = $"{dir}{f}"
-//   let debug name value =
-//     if false then Log.debuG name (string_of_bool value)
-//     value
-//   if root != No_check
-//      && ( String.is_substring ".." f |> debug "dots"
-//         || String.contains f "" |> debug "tilde"
-//         || String.is_suffix "." f |> debug "tilde"
-//         || (mode <> Dir && String.is_suffix "/" f)
-//            |> debug "ends slash"
-//         || (not (String.is_suffix suffix:"/" dir)) |> debug "dir no slash"
-//         || String.is_substring "etc/passwd" f |> debug "etc"
-//         (* being used wrong *)
-//         || String.is_substring "//" f |> debug "double slash"
-//         (* check for irregular file *)
-//         || (mode = Read && not (Sys.is_file f = Yes)) )
-//         |> debug "irreg"
-//   then (
-//     Log.erroR "SECURITY_VIOLATION" f
-//     Exception.internal_ "FILE SECURITY VIOLATION" )
-//   else f
-//
+
+let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
+  let dir = Config.dir root
+  let f : string = $"{dir}{f}"
+
+  let debug name value =
+    // FSTODO
+    // if false then Log.debuG name (string_of_bool value)
+    value
+
+  if (root <> Config.NoCheck)
+     && (f.Contains ".."
+         |> debug "dots"
+         || f.Contains "~" |> debug "tilde"
+         || f.EndsWith "." |> debug "tilde"
+         || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
+         || (not (dir.EndsWith "/")) |> debug "dir no slash"
+         || f.EndsWith "etc/passwd" |> debug "etc"
+         (* being used wrong *)
+         || f.EndsWith "//" |> debug "double slash"
+         (* check for irregular file *)
+         || (mode = Read
+             && not
+                  (System.IO.File.GetAttributes(f) = System.IO.FileAttributes.Normal)))
+     |> debug "irreg" then
+    printfn $"SECURITY_VIOLATION: {f}"
+    failwith "FILE SECURITY VIOLATION"
+  // FSTODO
+  // (Log.erroR "SECURITY_VIOLATION" f
+  //  Exception.internal_ "FILE SECURITY VIOLATION")
+  else
+    f
+
 //
 // let file_exists root f : bool =
 //   let f = check_filename root Check f in
@@ -52,22 +60,11 @@ type Mode =
 // let rm root file : unit =
 //   let file = check_filename root Write file in
 //   Core_extended.Shell.rm () file
-//
-//
-// let readfile root f : string =
-//   let f = check_filename root Read f in
-//   let ic = Caml.open_in f in
-//   try
-//     let n = Caml.in_channel_length ic in
-//     let s = Bytes.create n in
-//     Caml.really_input ic s 0 n ;
-//     Caml.close_in ic ;
-//     Caml.Bytes.to_string s
-//   with e ->
-//     Caml.close_in_noerr ic ;
-//     raise e
-//
-//
+
+
+let readfile (root : Config.Root) (f : string) : string =
+  f |> checkFilename root Read |> System.IO.File.ReadAllText
+
 // let readfile_lwt root f : string Lwt.t =
 //   let f = check_filename root Read f in
 //   Lwt_io.with_file mode:Lwt_io.input f Lwt_io.read

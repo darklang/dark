@@ -63,7 +63,7 @@ let curlTunnelUrl = string "DARK_CONFIG_CURL_TUNNEL_URL"
 // For use in Util
 // --------------------
 
-type root =
+type Root =
   | Log
   | Serialization
   | Templates
@@ -75,7 +75,7 @@ type root =
   | Migrations
   | NoCheck
 
-let dir root =
+let dir (root : Root) : string =
   match root with
   | Log -> logDir
   | Serialization -> serializationDir

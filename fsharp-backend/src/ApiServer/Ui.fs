@@ -2,11 +2,10 @@ module ApiServer.Ui
 
 module Config = LibBackend.Config
 
-let adminUiTemplate = "tdo"
-// File.readfile Templates "ui.html"
+let adminUiTemplate = LibBackend.File.readfile Config.Templates "ui.html"
 
 // FSTODO: clickjacking/ CSP/ frame-ancestors
-let ui (canvasName) : string =
+let ui (canvasName : string) : string =
   // let username = Auth.SessionLwt.username_for session
   // let user = Account.get_user username
   // let accountCreated = Account.getUserCreatedAt username
@@ -68,20 +67,19 @@ let ui (canvasName) : string =
   t.Replace("{{ENVIRONMENT_NAME}}", Config.envDisplayName)
    // .Replace("{{ALLFUNCTIONS}}", Api.functions user.username)
    // .Replace("{{LIVERELOADJS}}", liveReloadJs).Replace("{{STATIC}}", static_host)
-   // .Replace("{{HEAPIO_ID}}", Config.heapio_id)
-   // .Replace("{{ROLLBARCONFIG}}", Config.rollbar_js)
-   // .Replace("{{PUSHERCONFIG}}", Config.pusher_js)
-   // .Replace("{{USER_CONTENT_HOST}}", Config.user_content_host)
+   .Replace("{{HEAPIO_ID}}", Config.heapioId)
+   .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
+   .Replace("{{PUSHERCONFIG}}", Config.pusherJs)
+   .Replace("{{USER_CONTENT_HOST}}", Config.userContentHost)
    // .Replace("{{USER_USERNAME}}", user.username).Replace("{{USER_EMAIL}}", user.email)
    // .Replace("{{USER_FULLNAME}}", user.name)
    // .Replace("{{USER_CREATED_AT_UNIX_MSTS}}", (string_of_int account_created_msts))
    // .Replace("{{USER_IS_ADMIN}}", (string_of_bool user.admin))
    // .Replace("{{USER_ID}}", (Uuidm.to_string user.id))
    // .Replace("{{CANVAS_ID}}", (Uuidm.to_string canvas_id))
-   // .Replace("{{CANVAS_NAME}}", canvas)
+   .Replace("{{CANVAS_NAME}}", canvasName)
    // .Replace("{{APPSUPPORT}}", (File.readfile Webroot "appsupport.js"))
-   // .Replace("{{STATIC}}", static_host)
+   .Replace("{{STATIC}}", Config.staticHost)
    // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)
    // .Replace("{{CSRF_TOKEN}}", csrf_token)
-   // .Replace("{{BUILD_HASH}}", Config.build_hash)
-   .ToString()
+   .Replace("{{BUILD_HASH}}", Config.buildHash).ToString()
