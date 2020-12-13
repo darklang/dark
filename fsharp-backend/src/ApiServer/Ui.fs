@@ -5,7 +5,7 @@ module Config = LibBackend.Config
 let adminUiTemplate = LibBackend.File.readfile Config.Templates "ui.html"
 
 // FSTODO: clickjacking/ CSP/ frame-ancestors
-let ui (canvasName : string) : string =
+let ui (canvasName : string) (localhostAssets : string option) : string =
   // let username = Auth.SessionLwt.username_for session
   // let user = Account.get_user username
   // let accountCreated = Account.getUserCreatedAt username
@@ -16,10 +16,8 @@ let ui (canvasName : string) : string =
   //   |> Core_kernel.Time.Span.to_ms
   //   |> Float.iround_exn
 
-  let local = None // FSTODO - pass from the URL
-
   let staticHost =
-    match local with
+    match localhostAssets with
     (* TODO: can add other people to this for easier debugging *)
     | Some username -> $"darklang-{username}.ngrok.io"
     | _ -> Config.staticHost
@@ -68,8 +66,7 @@ let ui (canvasName : string) : string =
   let t = System.Text.StringBuilder(adminUiTemplate)
   t.Replace("{{ENVIRONMENT_NAME}}", Config.envDisplayName)
    // .Replace("{{ALLFUNCTIONS}}", Api.functions user.username)
-   .Replace("{{LIVERELOADJS}}", liveReloadJs)
-   .Replace("{{STATIC}}", Config.staticHost)
+   .Replace("{{LIVERELOADJS}}", liveReloadJs).Replace("{{STATIC}}", staticHost)
    .Replace("{{HEAPIO_ID}}", Config.heapioId)
    .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
    .Replace("{{PUSHERCONFIG}}", Config.pusherJs)
@@ -85,7 +82,9 @@ let ui (canvasName : string) : string =
    // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)
    // .Replace("{{CSRF_TOKEN}}", csrf_token)
    .Replace("{{BUILD_HASH}}", Config.buildHash)
+   // There isn't separate routing for static
+   .Replace("http://static.darklang.localhost:8000", "darklang.localhost:9000")
    // FSTODO: Config is set up for OCaml right now
-   .Replace("darklang.localhost:8000", "darklang.localhost:9000")
-   .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
+   .Replace("http://darklang.localhost:8000", "darklang.localhost:9000")
+   .Replace("http://builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
    .ToString()
