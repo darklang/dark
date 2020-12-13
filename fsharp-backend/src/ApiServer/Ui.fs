@@ -78,11 +78,12 @@ let ui (canvasName : string) (localhostAssets : string option) : string =
    // .Replace("{{USER_ID}}", (Uuidm.to_string user.id))
    // .Replace("{{CANVAS_ID}}", (Uuidm.to_string canvas_id))
    .Replace("{{CANVAS_NAME}}", canvasName)
-   // .Replace("{{APPSUPPORT}}", (File.readfile Webroot "appsupport.js"))
+   .Replace("{{APPSUPPORT}}",
+            (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"))
    // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)
    // .Replace("{{CSRF_TOKEN}}", csrf_token)
    .Replace("{{BUILD_HASH}}", Config.buildHash)
-   // There isn't separate routing for static
+   // There isn't separate routing for static in ASP.NET
    .Replace("http://static.darklang.localhost:8000", "darklang.localhost:9000")
    // FSTODO: Config is set up for OCaml right now
    .Replace("http://darklang.localhost:8000", "darklang.localhost:9000")

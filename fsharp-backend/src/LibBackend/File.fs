@@ -13,9 +13,8 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
   let dir = Config.dir root
   let f : string = $"{dir}{f}"
 
-  let debug name value =
-    // FSTODO
-    // if false then Log.debuG name (string_of_bool value)
+  let debug (name : string) (value : bool) =
+    if not value then printfn $"checkFilename failed: {name}: {value}"
     value
 
   if (root <> Config.NoCheck)
