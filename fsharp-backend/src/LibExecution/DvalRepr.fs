@@ -10,9 +10,10 @@ module LibExecution.DvalRepr
 // allows us reason more easily about what changes are going to be safe. In
 // general, we should avoid general purpose or reusable functions in this file.
 
+open Prelude
 open RuntimeTypes
 
-module E = Thoth.Json.Net.Encode
+module J = Prelude.Json
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
@@ -98,45 +99,44 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   reprfn dval
 
-
-let toPrettyMachineJsonValueV1 dval : Thoth.Json.Net.JsonValue =
+let toPrettyMachineJsonValueV1 dval : FSharp.Data.JsonValue =
   let rec r dv =
     match dv with
     (* basic types *)
-    | DInt i -> E.bigint i // FSTODO: is this the same?
-    | DFloat f -> E.float f
-    | DBool b -> E.bool b
-    | DNull -> E.nil
-    | DStr s -> E.string s
-    | DList l -> E.list (List.map r l)
-    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, r v)) |> E.object
+    | DInt i -> J.bigint i
+    | DFloat f -> J.float f
+    | DBool b -> J.bool b
+    | DNull -> J.nil
+    | DStr s -> J.string s
+    | DList l -> J.list (List.map r l)
+    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, r v)) |> J.object
     | DFnVal _ ->
         (* See docs/dblock-serialization.ml *)
-        E.nil
-    | DFakeVal (DIncomplete _) -> E.nil
-    | DChar c -> E.string c
+        J.nil
+    | DFakeVal (DIncomplete _) -> J.nil
+    | DChar c -> J.string c
     | DFakeVal (DError _) ->
         // FSTODO
-        E.object [ "Error", E.string "TODO: error" ]
+        J.object [ "Error", J.string "TODO: error" ]
     | DHttpResponse (code, headers, response) -> r response
-    | DDB dbname -> E.string dbname
+    | DDB dbname -> J.string dbname
     // | DDate date ->
     //     `String (Util.isostring_of_date date)
     // | DPassword hashed ->
     //     `Assoc [("Error", `String "Password is redacted")]
-    | DUuid uuid -> E.string (uuid.ToString())
-    | DOption opt -> Option.map r opt |> Option.defaultValue E.nil
+    | DUuid uuid -> J.string (uuid.ToString())
+    | DOption opt -> Option.map r opt |> Option.defaultValue J.nil
     | DFakeVal (DErrorRail dv) -> r dv
     | DResult res ->
         (match res with
          | Ok dv -> r dv
-         | Error dv -> E.object [ "Error", r dv ])
+         | Error dv -> J.object [ "Error", r dv ])
     | DBytes bytes ->
         // FSTODO is this the right b64 encoding
-        bytes |> System.Convert.ToBase64String |> E.string
+        bytes |> System.Convert.ToBase64String |> J.string
 
   r dval
 
 
 let toPrettyMachineJsonV1 dval : string =
-  dval |> toPrettyMachineJsonValueV1 |> E.toString 2
+  dval |> toPrettyMachineJsonValueV1 |> Json.toPrettyString

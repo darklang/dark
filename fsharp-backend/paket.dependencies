@@ -14,7 +14,6 @@ nuget Expecto ~> 9.0.2
 nuget FSharp.Compiler.Service
 
 // LibExecution
-nuget Thoth.Json.Net ~> 4.1.0
 nuget TaskBuilder.fs ~> 2.1
 nuget FSharp.Data
 nuget Ply ~> 0.1

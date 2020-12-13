@@ -1,12 +1,10 @@
 STORAGE: NONE
-RESTRICTION: == net5.0
+RESTRICTION: == net50
 NUGET
   remote: https://api.nuget.org/v3/index.json
     Expecto (9.0.2)
       FSharp.Core (>= 4.6)
       Mono.Cecil (>= 0.11.2)
-    Fable.Core (3.1.6)
-      FSharp.Core (>= 4.7.1)
     FSharp.Compiler.Service (37.0)
       FSharp.Core (>= 4.6.2)
       Microsoft.Build.Framework (>= 16.6)
@@ -172,10 +170,6 @@ NUGET
       FSharp.Core (>= 4.1.17)
       NETStandard.Library (>= 1.6.1)
       System.ValueTuple (>= 4.4)
-    Thoth.Json.Net (4.1)
-      Fable.Core (>= 3.0 < 4.0)
-      FSharp.Core (>= 4.6.2)
-      Newtonsoft.Json (>= 11.0.2)
     Utf8Json (1.3.7)
       System.Reflection.Emit (>= 4.3)
       System.Reflection.Emit.Lightweight (>= 4.3)

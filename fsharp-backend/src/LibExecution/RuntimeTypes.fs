@@ -28,11 +28,13 @@ module LibExecution.RuntimeTypes
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
 
-open Thoth.Json.Net
+
 open System.Text.RegularExpressions
 
 open Prelude
 open SharedTypes
+
+module J = Prelude.Json
 
 // fsharplint:disable FL0039
 
@@ -184,39 +186,33 @@ and Dval =
     | DFakeVal (DErrorRail dv) -> dv
     | other -> other
 
-  // FSTODO: what kind of JSON is this?
+  // FSTODO: what kind of JSON is this? Move to DvalRepr
   // Split into multiple files, each for the different kinds of serializers
-  member this.toJSON() : JsonValue =
-    let rec encodeDval (dv : Dval) : JsonValue =
-      let encodeWithType name value = Encode.object [ name, Encode.string value ]
+  member this.toJSON() : J.JsonValue =
+    let rec encodeDval (dv : Dval) : J.JsonValue =
+      let encodeWithType name value = J.object [ name, J.string value ]
       match dv with
-      | DInt i -> Encode.bigint i
-      | DChar c -> Encode.string c
-      | DFloat d -> Encode.float d
-      | DStr str -> Encode.string str
-      | DNull -> Encode.unit ()
-      | DList l -> l |> List.map encodeDval |> Encode.list
-      | DBool b -> Encode.bool b
-      | DBytes bytes ->
-          bytes |> System.Text.Encoding.ASCII.GetString |> Encode.string
-      | DUuid uuid -> uuid.ToString() |> Encode.string
-      | DFnVal _ -> Encode.nil
-      | DFakeVal (DError (e)) ->
-          Encode.object [ "error", Encode.string (e.ToString()) ]
-      | DFakeVal (DIncomplete (_)) -> Encode.object [ "incomplete", Encode.unit () ]
-      | DFakeVal (DErrorRail (value)) ->
-          Encode.object [ "errorrail", encodeDval value ]
+      | DInt i -> J.bigint i
+      | DChar c -> J.string c
+      | DFloat d -> J.float d
+      | DStr str -> J.string str
+      | DNull -> J.nil
+      | DList l -> l |> List.map encodeDval |> J.list
+      | DBool b -> J.bool b
+      | DBytes bytes -> bytes |> System.Text.Encoding.ASCII.GetString |> J.string
+      | DUuid uuid -> uuid.ToString() |> J.string
+      | DFnVal _ -> J.nil
+      | DFakeVal (DError (e)) -> J.object [ "error", J.string (e.ToString()) ]
+      | DFakeVal (DIncomplete (_)) -> J.object [ "incomplete", J.nil ]
+      | DFakeVal (DErrorRail (value)) -> J.object [ "errorrail", encodeDval value ]
       | DObj obj ->
-          Encode.object
-            (obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v))
+          obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v) |> J.object
       | DDB name -> encodeWithType "db" name
-      | DHttpResponse _ -> Encode.string "FSTODO: DResp"
+      | DHttpResponse _ -> J.string "FSTODO: DResp"
       | DOption (Some dv) -> encodeDval dv
-      | DOption (None) -> Encode.unit ()
+      | DOption (None) -> J.nil
       | DResult (Ok dv) -> encodeDval dv
-      | DResult (Error dv) -> Encode.object [ "error", encodeDval dv ]
-    // FSTODO
-    (* | _ -> Encode.unit () *)
+      | DResult (Error dv) -> J.object [ "error", encodeDval dv ]
 
     encodeDval this
 

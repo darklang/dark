@@ -65,18 +65,18 @@ module Yojson =
   // - 1) generate using ocaml types (maybe deprecated? ocaml-protoc)
   // - 2) generate using FSharp types (possible?)
   // - 3) hand-write them (converters on both ends)
-  type J = JsonValue
+  module E = Prelude.Json // encode
+  type D = Prelude.Json.JsonValue
 
-  let variant (name : string) (args : JsonValue list) =
-    (J.String name :: args) |> List.toArray |> J.Array
+  type J = Prelude.Json.JsonValue
 
-  let ofTLID (tlid : tlid) : JsonValue = J.Number(decimal tlid)
-  let ofID (id : id) : JsonValue = J.Number(decimal id)
+  let ofTLID (tlid : tlid) : JsonValue = E.int64 tlid
+  let ofID (id : id) : JsonValue = E.int64 id
 
   let ofSendToRail (str : SendToRail) : JsonValue =
     match str with
-    | Rail -> variant "Rail" []
-    | NoRail -> variant "NoRail" []
+    | Rail -> E.variant "Rail" []
+    | NoRail -> E.variant "NoRail" []
 
   let ofFQFnName (desc : FQFnName.T) : JsonValue =
     let owner = if desc.owner = "dark" then "" else $"{desc.owner}/"
@@ -84,20 +84,20 @@ module Yojson =
     let module_ = if desc.module_ = "" then "" else $"{desc.module_}::"
     let function_ = desc.function_
     let version = if desc.version = 0 then "" else $"_v{desc.version}"
-    J.String $"{owner}{package}{module_}{function_}{version}"
+    E.string $"{owner}{package}{module_}{function_}{version}"
 
 
 
 
   let rec ofExpr (e : Expr) : JsonValue =
-    let v = variant
+    let v = E.variant
 
     match e with
     | EBlank id -> v "EBlank" [ ofID id ]
     | EPartial (id, name, expr) ->
-        v "EPartial" [ ofID id; J.String name; ofExpr expr ]
+        v "EPartial" [ ofID id; E.string name; ofExpr expr ]
     | ERightPartial (id, name, expr) ->
-        v "ELeftPartial" [ ofID id; J.String name; ofExpr expr ]
+        v "ELeftPartial" [ ofID id; E.string name; ofExpr expr ]
     | ELeftPartial (id, name, expr) ->
         v "ERightPartial" [ ofID id; J.String name; ofExpr expr ]
     | EString (id, s) -> v "EString" [ ofID id; J.String s ]
@@ -187,8 +187,8 @@ module Yojson =
 
     let toRail (j : JsonValue) : SendToRail =
       match j with
-      | J.Array [| J.String "Rail" |] -> Rail
-      | J.Array [| J.String "NoRail" |] -> NoRail
+      | D.Array [| D.String "Rail" |] -> Rail
+      | D.Array [| D.String "NoRail" |] -> NoRail
       | _ -> failwith $"Unimplemented {j}"
 
     let rec toPattern (j : JsonValue) : Pattern =
@@ -202,13 +202,13 @@ module Yojson =
         let id = j.Item(2).AsInteger64()
         match constructor, j.AsArray().[3..] |> Array.toList with
         | "FPBlank", _ -> PBlank id
-        | "FPInteger", [ J.String i ] -> PInteger(id, i)
-        | "FPBool", [ J.Boolean bool ] -> PBool(id, bool)
-        | "FPFloat", [ J.String whole; J.String fraction ] ->
+        | "FPInteger", [ D.String i ] -> PInteger(id, i)
+        | "FPBool", [ D.Boolean bool ] -> PBool(id, bool)
+        | "FPFloat", [ D.String whole; J.String fraction ] ->
             PFloat(id, whole, fraction)
         | "FPNull", _ -> PNull id
-        | "FPVariable", [ J.String name ] -> PVariable(id, name)
-        | "FPConstructor", [ J.String name; J.Array pats ] ->
+        | "FPVariable", [ D.String name ] -> PVariable(id, name)
+        | "FPConstructor", [ D.String name; J.Array pats ] ->
             PConstructor(id, name, Array.map toPattern pats |> Array.toList)
 
         | _ -> failwith $"Unimplemented {j}"
@@ -219,16 +219,16 @@ module Yojson =
     let constructor = j.Item(0).AsString()
     let id = j.Item(1).AsInteger64()
     match constructor, j.AsArray().[2..] |> Array.toList with
-    | "EString", [ J.String str ] -> EString(id, str)
-    | "EInteger", [ J.String i ] -> EInteger(id, i)
-    | "EBool", [ J.Boolean bool ] -> EBool(id, bool)
-    | "EFloat", [ J.String whole; J.String fraction ] -> EFloat(id, whole, fraction)
+    | "EString", [ D.String str ] -> EString(id, str)
+    | "EInteger", [ D.String i ] -> EInteger(id, i)
+    | "EBool", [ D.Boolean bool ] -> EBool(id, bool)
+    | "EFloat", [ D.String whole; D.String fraction ] -> EFloat(id, whole, fraction)
     | "ENull", _ -> ENull id
     | "EBlank", _ -> EBlank(id)
     | "EPipeTarget", _ -> EPipeTarget(id)
-    | "EVariable", [ J.String var ] -> EVariable(id, var)
-    | "EList", [ J.Array exprs ] -> EList(id, es exprs)
-    | "ELet", [ J.String name; rhs; body ] -> ELet(id, name, e rhs, e body)
+    | "EVariable", [ D.String var ] -> EVariable(id, var)
+    | "EList", [ D.Array exprs ] -> EList(id, es exprs)
+    | "ELet", [ D.String name; rhs; body ] -> ELet(id, name, e rhs, e body)
     | "EIf", [ cond; thenBody; elseBody ] -> EIf(id, e cond, e thenBody, e elseBody)
 
     | "EPipe", [ J.Array exprs ] ->
@@ -242,7 +242,7 @@ module Yojson =
           |> Array.toList
           |> List.map (fun (row : JsonValue) ->
                match row with
-               | J.Array [| J.String key; value |] -> (key, e value)
+               | D.Array [| J.String key; value |] -> (key, e value)
                | _ -> failwith "unexpected record row shape")
 
         ERecord(id, rows)
@@ -252,7 +252,7 @@ module Yojson =
           |> Array.toList
           |> List.map (fun (row : JsonValue) ->
                match row with
-               | J.Array [| pat; value |] -> (toPattern pat, e value)
+               | D.Array [| pat; value |] -> (toPattern pat, e value)
                | _ -> failwith "unexpected record row shape")
 
         EMatch(id, e cond, rows)

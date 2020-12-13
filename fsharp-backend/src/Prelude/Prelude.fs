@@ -205,3 +205,24 @@ let filter_s (f : 'a -> TaskOrValue<bool>) (list : List<'a>) : TaskOrValue<List<
 
     return (result |> Seq.toList)
   }
+
+module Json =
+  open FSharp.Data
+
+  type JsonValue = FSharp.Data.JsonValue
+
+  let bigint (i : bigint) : JsonValue = JsonValue.Number(decimal i)
+  let string (s : string) : JsonValue = JsonValue.String s
+  let int64 (i : int64) : JsonValue = JsonValue.Number(decimal i)
+  let float (f : float) : JsonValue = JsonValue.Float f
+  let bool (b : bool) : JsonValue = JsonValue.Boolean b
+  let nil = JsonValue.Null
+  let list (l : JsonValue list) : JsonValue = l |> List.toArray |> JsonValue.Array
+  let array (a : JsonValue array) : JsonValue = a |> JsonValue.Array
+  let variant (name : string) (args : JsonValue list) = (string name :: args) |> list
+
+  let object (r : (string * JsonValue) list) : JsonValue =
+    r |> List.toArray |> JsonValue.Record
+
+  let toString (j : JsonValue) = j.ToString(JsonSaveOptions.DisableFormatting)
+  let toPrettyString (j : JsonValue) = j.ToString(JsonSaveOptions.None)
