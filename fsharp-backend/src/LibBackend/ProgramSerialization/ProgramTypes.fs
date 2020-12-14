@@ -36,7 +36,7 @@ module FQFnName =
       function_ : string
       version : int }
 
-    member this.ToString : string =
+    override this.ToString() : string =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
       let fn = $"{this.module_}{this.function_}_v{this.version}"
 
