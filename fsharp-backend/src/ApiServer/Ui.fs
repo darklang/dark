@@ -65,7 +65,7 @@ let ui (canvasName : string) (localhostAssets : string option) : string =
   (* TODO: allow APPSUPPORT in here *)
   let t = System.Text.StringBuilder(adminUiTemplate)
   t.Replace("{{ENVIRONMENT_NAME}}", Config.envDisplayName)
-   // .Replace("{{ALLFUNCTIONS}}", Api.functions user.username)
+   .Replace("{{ALLFUNCTIONS}}", Api.functions "") //FSTODO user.username)
    .Replace("{{LIVERELOADJS}}", liveReloadJs).Replace("{{STATIC}}", staticHost)
    .Replace("{{HEAPIO_ID}}", Config.heapioId)
    .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
