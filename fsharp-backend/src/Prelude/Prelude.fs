@@ -233,7 +233,8 @@ module Json =
 
     let _options =
       (let options = JsonSerializerOptions()
-       options.Converters.Add(JsonFSharpConverter())
+       options.Converters.Add
+         (JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag))
        options)
 
     let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
