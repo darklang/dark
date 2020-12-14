@@ -223,11 +223,7 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
          infix = LibExecution.StdLib.StdLib.isInfixName fn.name
          deprecated = fn.deprecated <> RT.NotDeprecated
          is_supported_in_query = fn.sqlSpec <> RT.NotQueryable })
-  |> fun x -> x.ToString()
-// |> List.map function_metadata_to_yojson
-// |> (fun l -> Json.list l)
-// |> fun j -> j.toPrettyString ()
-
+  |> Prelude.Json.AutoSerialize.serialize
 
 let adminFunctions : string = allFunctions |> functionsToString
 

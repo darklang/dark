@@ -226,3 +226,14 @@ module Json =
 
   let toString (j : JsonValue) = j.ToString(JsonSaveOptions.DisableFormatting)
   let toPrettyString (j : JsonValue) = j.ToString(JsonSaveOptions.None)
+
+  module AutoSerialize =
+    open System.Text.Json
+    open System.Text.Json.Serialization
+
+    let _options =
+      (let options = JsonSerializerOptions()
+       options.Converters.Add(JsonFSharpConverter())
+       options)
+
+    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
