@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FSharpLintSettings>
+    <Analysers>
+        <Formatting>
+            <Rules>
+                <RecordFieldNames>
+                    <Config>
+                      <Naming>CamelCase</Naming>
+                      <Underscores>AllowAny</Underscores>
+                    </Config>
+                </RecordFieldNames>
+            </Rules>
+        </Formatting>
+    </Analysers>
+</FSharpLintSettings>
