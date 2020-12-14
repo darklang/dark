@@ -167,7 +167,7 @@ let rollbarJs =
   | Some token ->
       Printf.sprintf
         "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
-        (rollbarEnabled.ToString())  // FSTODO: is this true/false?
+        (if rollbarEnabled then "true" else "false")
         token
         rollbarEnvironment
   | _ -> "{enabled:false}"
