@@ -74,13 +74,16 @@ let ui (canvasName : string) (localhostAssets : string option) : string =
    // .Replace("{{USER_USERNAME}}", user.username).Replace("{{USER_EMAIL}}", user.email)
    // .Replace("{{USER_FULLNAME}}", user.name)
    // .Replace("{{USER_CREATED_AT_UNIX_MSTS}}", (string_of_int account_created_msts))
+   .Replace("{{USER_CREATED_AT_UNIX_MSTS}}", "0")
    // .Replace("{{USER_IS_ADMIN}}", (string_of_bool user.admin))
+   .Replace("{{USER_IS_ADMIN}}", "false")
    // .Replace("{{USER_ID}}", (Uuidm.to_string user.id))
    // .Replace("{{CANVAS_ID}}", (Uuidm.to_string canvas_id))
    .Replace("{{CANVAS_NAME}}", canvasName)
    .Replace("{{APPSUPPORT}}",
             (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"))
    // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)
+   .Replace("{{HASH_REPLACEMENTS}}", "[]")
    // .Replace("{{CSRF_TOKEN}}", csrf_token)
    .Replace("{{BUILD_HASH}}", Config.buildHash)
    // There isn't separate routing for static in ASP.NET
