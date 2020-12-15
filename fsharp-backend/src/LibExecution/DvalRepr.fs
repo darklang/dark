@@ -191,4 +191,4 @@ let toPrettyMachineJsonValueV1 dval : FSharp.Data.JsonValue =
 
 
 let toPrettyMachineJsonV1 dval : string =
-  dval |> toPrettyMachineJsonValueV1 |> Json.toPrettyString
+  dval |> toPrettyMachineJsonValueV1 |> J.toPrettyString

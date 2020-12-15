@@ -36,8 +36,6 @@ open SharedTypes
 
 module J = Prelude.Json
 
-// fsharplint:disable FL0039
-
 
 // A function description: a fully-qualified function name, including package,
 // module, and version information.

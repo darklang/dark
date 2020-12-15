@@ -38,12 +38,12 @@ module FQFnName =
 
     override this.ToString() : string =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
-      let fn = $"{this.module_}{this.function_}_v{this.version}"
+      let fn = $"{this.module_}::{this.function_}_v{this.version}"
 
       if this.owner = "dark" && module_ = "stdlib" then
         fn
       else
-        $"{this.owner}/{this.package}::{fn}"
+        $"{this.owner}/{this.package}/{fn}"
 
     member this.toRuntimeType() : RT.FQFnName.T =
       { owner = this.owner
@@ -52,6 +52,26 @@ module FQFnName =
         function_ = this.function_
         version = this.version }
 
+    static member parse(fnName : string) : T =
+      let owner, package, module_, function_, version =
+        match fnName with
+        | Regex "(.+)/(.*)/(.*)::(.+)_v(\d+)"
+                [ owner; package; module_; name; version ] ->
+            (owner, package, module_, name, int version)
+        | Regex "(.*)::(.+)_v(\d+)" [ module_; name; version ] ->
+            ("dark", "stdlib", module_, name, int version)
+        | Regex "(.*)::(.+)" [ module_; name ] ->
+            ("dark", "stdlib", module_, name, 0)
+        | Regex "(.+)_v(\d+)" [ name; version ] ->
+            ("dark", "stdlib", "", name, int version)
+        | Regex "(.+)" [ name ] -> ("dark", "stdlib", "", name, 0)
+        | _ -> failwith $"Bad format in function name: \"{fnName}\""
+
+      { owner = owner
+        package = package
+        module_ = module_
+        function_ = function_
+        version = version }
 
   let name (owner : string)
            (package : string)
@@ -126,7 +146,10 @@ type Expr =
         name = name' && eq lhs lhs' && eq rhs rhs' && toRail = toRail'
     | ERecord (_, pairs), ERecord (_, pairs') ->
         let sort = List.sortBy (fun (k, _) -> k)
-        List.forall2 (fun (k, v) (k', v') -> k = k' && eq v v') (sort pairs)
+
+        List.forall2
+          (fun (k, v) (k', v') -> k = k' && eq v v')
+          (sort pairs)
           (sort pairs')
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') -> eq e e' && f = f'
     | EPipe (_, e1, e2, l), EPipe (_, e1', e2', l') ->
@@ -141,8 +164,11 @@ type Expr =
         eq e e' && List.forall2 (fun (_, v) (_, v') -> v = v') vars vars'
     | EMatch (_, e, branches), EMatch (_, e', branches') ->
         eq e e'
-        && List.forall2 (fun ((p, v) : Pattern * Expr) (p', v') ->
-             p.testEqualIgnoringIDs (p') && eq v v') branches branches'
+        && List.forall2
+             (fun ((p, v) : Pattern * Expr) (p', v') ->
+               p.testEqualIgnoringIDs (p') && eq v v')
+             branches
+             branches'
     | ENull _, _
     | EBlank _, _
     | EPipeTarget _, _
@@ -174,6 +200,7 @@ type Expr =
 
   member this.toRuntimeType() : RT.Expr =
     let r (v : Expr) = v.toRuntimeType ()
+
     match this with
     | EBlank id -> RT.EBlank id
     | ECharacter (id, char) -> RT.ECharacter(id, char)
@@ -185,12 +212,13 @@ type Expr =
     | EVariable (id, var) -> RT.EVariable(id, var)
     | EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | EFnCall (id, name, args, ster) ->
-        RT.EApply
-          (id,
-           RT.EFQFnValue(gid (), name.toRuntimeType ()),
-           List.map r args,
-           RT.NotInPipe,
-           ster.toRuntimeType ())
+        RT.EApply(
+          id,
+          RT.EFQFnValue(gid (), name.toRuntimeType ()),
+          List.map r args,
+          RT.NotInPipe,
+          ster.toRuntimeType ()
+        )
     | EBinOp (id, name, arg1, arg2, ster) ->
         r (EFnCall(id, name, [ arg1; arg2 ], ster))
     | ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
@@ -208,41 +236,47 @@ type Expr =
         // This conversion should correspond to ast.ml:inject_param_and_execute
         // from the OCaml interpreter
         let inner = r expr1
-        List.fold (fun prev next ->
-          match next with
-          // TODO: support currying
-          | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
-              RT.EApply
-                (id,
-                 RT.EFQFnValue(ptID, name.toRuntimeType ()),
-                 prev :: List.map r exprs,
-                 RT.InPipe,
-                 rail.toRuntimeType ())
-          // TODO: support currying
-          | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
-              RT.EApply
-                (id,
-                 RT.EFQFnValue(ptID, name.toRuntimeType ()),
-                 [ prev; r expr2 ],
-                 RT.InPipe,
-                 rail.toRuntimeType ())
-          // If there's a hole, run the computation right through it as if it wasn't there
-          | EBlank _ -> prev
-          // Here, the expression evaluates to an FnValue. This is for eg variables containing values
-          | other ->
-              RT.EApply(id, r other, [ prev ], RT.InPipe, NoRail.toRuntimeType ()))
 
-          inner (expr2 :: rest)
+        List.fold
+          (fun prev next ->
+            match next with
+            // TODO: support currying
+            | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
+                RT.EApply(
+                  id,
+                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  prev :: List.map r exprs,
+                  RT.InPipe,
+                  rail.toRuntimeType ()
+                )
+            // TODO: support currying
+            | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
+                RT.EApply(
+                  id,
+                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  [ prev; r expr2 ],
+                  RT.InPipe,
+                  rail.toRuntimeType ()
+                )
+            // If there's a hole, run the computation right through it as if it wasn't there
+            | EBlank _ -> prev
+            // Here, the expression evaluates to an FnValue. This is for eg variables containing values
+            | other ->
+                RT.EApply(id, r other, [ prev ], RT.InPipe, NoRail.toRuntimeType ()))
+
+          inner
+          (expr2 :: rest)
 
     | EConstructor (id, name, exprs) -> RT.EConstructor(id, name, List.map r exprs)
     | EMatch (id, mexpr, pairs) ->
-        RT.EMatch
-          (id,
-           r mexpr,
-           List.map
-             ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
-              << (Tuple2.mapItem2 r))
-             pairs)
+        RT.EMatch(
+          id,
+          r mexpr,
+          List.map
+            ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
+             << (Tuple2.mapItem2 r))
+            pairs
+        )
     | EPipeTarget id -> failwith "No EPipeTargets should remain"
     | EFeatureFlag (id, name, cond, caseA, caseB) ->
         RT.EFeatureFlag(id, r cond, r caseA, r caseB)
@@ -270,6 +304,7 @@ and Pattern =
 
   member this.toRuntimeType() : RT.Pattern =
     let r (v : Pattern) = v.toRuntimeType ()
+
     match this with
     | PVariable (id, str) -> RT.PVariable(id, str)
     | PConstructor (id, name, pats) -> RT.PConstructor(id, name, List.map r pats)
@@ -316,6 +351,7 @@ module Shortcuts =
     let r (v : Expr) = $"{toStringRepr v}"
     let pr (v : Expr) = $"({toStringRepr v})" // parenthesized repr
     let q (v : string) = $"\"{v}\""
+
     match e with
     | EBlank id -> "eBlank ()"
     | ECharacter (_, char) -> $"eChar '{char}'"
@@ -399,15 +435,16 @@ module Shortcuts =
            (args : List<Expr>)
            (ster : SendToRail)
            : Expr =
-    EFnCall
-      (gid (),
-       { owner = "dark"
-         package = "stdlib"
-         module_ = module_
-         function_ = function_
-         version = version },
-       args,
-       ster)
+    EFnCall(
+      gid (),
+      { owner = "dark"
+        package = "stdlib"
+        module_ = module_
+        function_ = function_
+        version = version },
+      args,
+      ster
+    )
 
 
   let eFn (module_ : string)
@@ -431,16 +468,17 @@ module Shortcuts =
               (arg2 : Expr)
               (ster : SendToRail)
               : Expr =
-    EBinOp
-      (gid (),
-       { owner = "dark"
-         package = "stdlib"
-         module_ = module_
-         function_ = function_
-         version = version },
-       arg1,
-       arg2,
-       ster)
+    EBinOp(
+      gid (),
+      { owner = "dark"
+        package = "stdlib"
+        module_ = module_
+        function_ = function_
+        version = version },
+      arg1,
+      arg2,
+      ster
+    )
 
   let eBinOp (module_ : string)
              (function_ : string)
@@ -597,7 +635,7 @@ type DType =
   // A named variable, eg `a` in `List<a>`
   | TVariable of string
   | TFn of List<DType> * DType
-  | TRecord of List<string * DType> // has exactly these fields
+  | TRecord of List<string * DType>
   // This allows you to build up a record to eventually be the right shape.
   // | TRecordWithFields of List<string * DType>
   // | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
@@ -630,9 +668,10 @@ type DType =
         RT.TResult(okType.toRuntimeType (), errType.toRuntimeType ())
     | TVariable (name) -> RT.TVariable(name)
     | TFn (paramTypes, returnType) ->
-        RT.TFn
-          (List.map (fun (pt : DType) -> pt.toRuntimeType ()) paramTypes,
-           returnType.toRuntimeType ())
+        RT.TFn(
+          List.map (fun (pt : DType) -> pt.toRuntimeType ()) paramTypes,
+          returnType.toRuntimeType ()
+        )
     | TRecord (rows) ->
         RT.TRecord(List.map (fun (f, v : DType) -> f, v.toRuntimeType ()) rows)
 
@@ -718,8 +757,9 @@ module UserType =
     member this.toRuntimeType() : RT.UserType.Definition =
       match this with
       | UTRecord fields ->
-          RT.UserType.UTRecord
-            (List.map (fun (rf : RecordField) -> rf.toRuntimeType ()) fields)
+          RT.UserType.UTRecord(
+            List.map (fun (rf : RecordField) -> rf.toRuntimeType ()) fields
+          )
 
 
   type T =

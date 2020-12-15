@@ -9,6 +9,12 @@
                       <Underscores>AllowAny</Underscores>
                     </Config>
                 </RecordFieldNames>
+                <MemberNames>
+                    <Config>
+                      <Naming>CamelCase</Naming>
+                      <Underscores>AllowAny</Underscores>
+                    </Config>
+                </MemberNames>
             </Rules>
         </Formatting>
     </Analysers>
