@@ -150,7 +150,10 @@ and Dval =
   | DFnVal of FnValImpl
   | DFakeVal of FakeDval
   (* user types: awaiting a better type system *)
-  | DHttpResponse of statusCode : int * headers : (string * string) list * body : Dval
+  | DHttpResponse of
+    statusCode : int *
+    headers : (string * string) list *
+    body : Dval
   | DDB of string
   // FSTODO
   (* | DDate of time *)
@@ -496,10 +499,8 @@ module Shortcuts =
     | ENull _ -> $"eNull ()"
     | EVariable (_, var) -> $"eVar {q var}"
     | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
-    | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when name.owner =
-                                                                     "dark"
-                                                                   && name.package =
-                                                                        "stdlib" ->
+    | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when name.owner = "dark"
+                                                                   && name.package = "stdlib" ->
         let fn, suffix =
           match ster with
           | NoRail -> "eFn", ""

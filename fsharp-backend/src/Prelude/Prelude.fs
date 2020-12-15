@@ -89,14 +89,15 @@ module TaskOrValue =
         // It was a task, so we need to unwrap that and create
         // a new task - inside Task. If 'f v' returns a task, we
         // still need to return this as task though.
-        Task
-          (task {
+        Task(
+          task {
             let! v = t
 
             match f v with
             | Value v -> return v
             | Task t -> return! t
-           })
+          }
+        )
 
 type TaskOrValueBuilder() =
   // This lets us use let!, do! - These can be overloaded
@@ -152,16 +153,19 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
               }
 
             let! ((accum, lastcomp) : (List<'b> * 'b)) =
-              List.fold (fun (prevcomp : TaskOrValue<List<'b> * 'b>) (arg : 'a) ->
-                taskv {
-                  // Ensure the previous computation is done first
-                  let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                  let accum = prev :: accum
+              List.fold
+                (fun (prevcomp : TaskOrValue<List<'b> * 'b>) (arg : 'a) ->
+                  taskv {
+                    // Ensure the previous computation is done first
+                    let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
+                    let accum = prev :: accum
 
-                  let! result = (f arg)
+                    let! result = (f arg)
 
-                  return (accum, result)
-                }) firstComp tail
+                    return (accum, result)
+                  })
+                firstComp
+                tail
 
             return List.rev (lastcomp :: accum)
           }
@@ -169,7 +173,9 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
     return (result |> Seq.toList)
   }
 
-let filter_s (f : 'a -> TaskOrValue<bool>) (list : List<'a>) : TaskOrValue<List<'a>> =
+let filter_s (f : 'a -> TaskOrValue<bool>)
+             (list : List<'a>)
+             : TaskOrValue<List<'a>> =
   taskv {
     let! result =
       match list with
@@ -183,18 +189,21 @@ let filter_s (f : 'a -> TaskOrValue<bool>) (list : List<'a>) : TaskOrValue<List<
               }
 
             let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
-              List.fold (fun (prevcomp : TaskOrValue<List<'a> * (bool * 'a)>) (arg : 'a) ->
-                taskv {
-                  // Ensure the previous computation is done first
-                  let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
-                    prevcomp
+              List.fold
+                (fun (prevcomp : TaskOrValue<List<'a> * (bool * 'a)>) (arg : 'a) ->
+                  taskv {
+                    // Ensure the previous computation is done first
+                    let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
+                      prevcomp
 
-                  let accum = if prevkeep then prev :: accum else accum
+                    let accum = if prevkeep then prev :: accum else accum
 
-                  let! keep = (f arg)
+                    let! keep = (f arg)
 
-                  return (accum, (keep, arg))
-                }) firstComp tail
+                    return (accum, (keep, arg))
+                  })
+                firstComp
+                tail
 
             let (lastkeep, lastval) = lastcomp
 
