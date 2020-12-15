@@ -238,3 +238,4 @@ module Json =
        options)
 
     let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+    let deserialize<'a> (json : string) : 'a = JsonSerializer.Deserialize<'a>(json)
