@@ -11,7 +11,7 @@ nuget Giraffe ~> 5.0.0-rc-6
 
 // Tests
 nuget Expecto ~> 9.0.2
-nuget FSharp.Compiler.Service ~> 38.0.0
+nuget FSharp.Compiler.Service ~> 37.0.0
 
 // LibExecution
 nuget TaskBuilder.fs ~> 2.1
