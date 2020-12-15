@@ -1,17 +1,21 @@
 module BwdServer
 
+// This is the webserver for builtwithdark.com. It uses ASP.NET directly,
+// instead of a web framework, so we can tuen the exact behaviour of headers
+// and such.
+
 (* open Microsoft.AspNetCore.Http *)
 open FSharp.Control.Tasks
 
 open System
 (* open System.Security.Claims *)
 open System.Threading.Tasks
+open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Extensions
 (* open Microsoft.AspNetCore.Http.Features *)
-open Microsoft.Extensions.Hosting
 (* open Microsoft.Extensions.Configuration *)
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
@@ -22,7 +26,7 @@ module PT = LibBackend.ProgramSerialization.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 // This boilerplate is copied from Giraffe. I elected not to use Giraffe
-// because we don't need any of its feature, but the types it chose are very
+// because we don't need any of its feature, but the types it uses are very
 // nice.
 // https://github.com/giraffe-fsharp/Giraffe/blob/9598682f4f68e23217c4199a48f30ca3457b037e/src/Giraffe/Core.fs
 
@@ -213,13 +217,13 @@ let configureLogging (builder : ILoggingBuilder) =
 let configureServices (services : IServiceCollection) = ()
 
 let webserver port =
-  let url = $"http://*:{port}"
-  Host.CreateDefaultBuilder()
-      .ConfigureWebHostDefaults(fun webHostBuilder ->
-      webHostBuilder.Configure(configureApp).ConfigureServices(configureServices)
-                    .UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
-                    .ConfigureLogging(configureLogging).UseUrls(url)
-      |> ignore).Build()
+  WebHost.CreateDefaultBuilder()
+  |> fun wh -> wh.UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
+  |> fun wh -> wh.ConfigureServices(configureServices)
+  |> fun wh -> wh.Configure(configureApp)
+  |> fun wh -> wh.ConfigureLogging(configureLogging)
+  |> fun wh -> wh.UseUrls($"http://*:{port}")
+  |> fun wh -> wh.Build()
 
 
 [<EntryPoint>]

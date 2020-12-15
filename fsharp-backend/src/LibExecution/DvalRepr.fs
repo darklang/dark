@@ -10,9 +10,31 @@ module LibExecution.DvalRepr
 // allows us reason more easily about what changes are going to be safe. In
 // general, we should avoid general purpose or reusable functions in this file.
 
+open Prelude
 open RuntimeTypes
 
-module E = Thoth.Json.Net.Encode
+module J =
+  open FSharp.Data
+
+  type JsonValue = FSharp.Data.JsonValue
+
+  let bigint (i : bigint) : JsonValue = JsonValue.Number(decimal i)
+  let string (s : string) : JsonValue = JsonValue.String s
+  let int64 (i : int64) : JsonValue = JsonValue.Number(decimal i)
+  let float (f : float) : JsonValue = JsonValue.Float f
+  let bool (b : bool) : JsonValue = JsonValue.Boolean b
+  let nil = JsonValue.Null
+  let list (l : JsonValue list) : JsonValue = l |> List.toArray |> JsonValue.Array
+  let array (a : JsonValue array) : JsonValue = a |> JsonValue.Array
+  let variant (name : string) (args : JsonValue list) = (string name :: args) |> list
+
+  let object (r : (string * JsonValue) list) : JsonValue =
+    r |> List.toArray |> JsonValue.Record
+
+  let toString (j : JsonValue) = j.ToString(JsonSaveOptions.DisableFormatting)
+  let toPrettyString (j : JsonValue) = j.ToString(JsonSaveOptions.None)
+
+
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
@@ -20,6 +42,7 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
     let inl = "\n" + String.replicate (indent + 2) " "
     let indent = indent + 2
     let recurse = inner indent
+
     match dv with
     | DList l ->
         if l = [] then
@@ -98,45 +121,74 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   reprfn dval
 
-
-let toPrettyMachineJsonValueV1 dval : Thoth.Json.Net.JsonValue =
+let toPrettyMachineJsonValueV1 dval : FSharp.Data.JsonValue =
   let rec r dv =
     match dv with
     (* basic types *)
-    | DInt i -> E.bigint i // FSTODO: is this the same?
-    | DFloat f -> E.float f
-    | DBool b -> E.bool b
-    | DNull -> E.nil
-    | DStr s -> E.string s
-    | DList l -> E.list (List.map r l)
-    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, r v)) |> E.object
+    | DInt i -> J.bigint i
+    | DFloat f -> J.float f
+    | DBool b -> J.bool b
+    | DNull -> J.nil
+    | DStr s -> J.string s
+    | DList l -> J.list (List.map r l)
+    | DObj o -> o |> Map.toList |> List.map (fun (k, v) -> (k, r v)) |> J.object
     | DFnVal _ ->
         (* See docs/dblock-serialization.ml *)
-        E.nil
-    | DFakeVal (DIncomplete _) -> E.nil
-    | DChar c -> E.string c
+        J.nil
+    | DFakeVal (DIncomplete _) -> J.nil
+    | DChar c -> J.string c
     | DFakeVal (DError _) ->
         // FSTODO
-        E.object [ "Error", E.string "TODO: error" ]
+        J.object [ "Error", J.string "TODO: error" ]
     | DHttpResponse (code, headers, response) -> r response
-    | DDB dbname -> E.string dbname
+    | DDB dbname -> J.string dbname
     // | DDate date ->
     //     `String (Util.isostring_of_date date)
     // | DPassword hashed ->
     //     `Assoc [("Error", `String "Password is redacted")]
-    | DUuid uuid -> E.string (uuid.ToString())
-    | DOption opt -> Option.map r opt |> Option.defaultValue E.nil
+    | DUuid uuid -> J.string (uuid.ToString())
+    | DOption opt -> Option.map r opt |> Option.defaultValue J.nil
     | DFakeVal (DErrorRail dv) -> r dv
     | DResult res ->
         (match res with
          | Ok dv -> r dv
-         | Error dv -> E.object [ "Error", r dv ])
+         | Error dv -> J.object [ "Error", r dv ])
     | DBytes bytes ->
         // FSTODO is this the right b64 encoding
-        bytes |> System.Convert.ToBase64String |> E.string
+        bytes |> System.Convert.ToBase64String |> J.string
 
   r dval
 
+// member this.toJSON() : J.JsonValue =
+//   let rec encodeDval (dv : Dval) : J.JsonValue =
+//     let encodeWithType name value = J.object [ name, J.string value ]
+//     match dv with
+//     | DInt i -> J.bigint i
+//     | DChar c -> J.string c
+//     | DFloat d -> J.float d
+//     | DStr str -> J.string str
+//     | DNull -> J.nil
+//     | DList l -> l |> List.map encodeDval |> J.list
+//     | DBool b -> J.bool b
+//     | DBytes bytes -> bytes |> System.Text.Encoding.ASCII.GetString |> J.string
+//     | DUuid uuid -> uuid.ToString() |> J.string
+//     | DFnVal _ -> J.nil
+//     | DFakeVal (DError (e)) -> J.object [ "error", J.string (e.ToString()) ]
+//     | DFakeVal (DIncomplete (_)) -> J.object [ "incomplete", J.nil ]
+//     | DFakeVal (DErrorRail (value)) -> J.object [ "errorrail", encodeDval value ]
+//     | DObj obj ->
+//         obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v) |> J.object
+//     | DDB name -> encodeWithType "db" name
+//     | DHttpResponse _ -> J.string "FSTODO: DResp"
+//     | DOption (Some dv) -> encodeDval dv
+//     | DOption (None) -> J.nil
+//     | DResult (Ok dv) -> encodeDval dv
+//     | DResult (Error dv) -> J.object [ "error", encodeDval dv ]
+//
+//   encodeDval this
+//
+//
+
 
 let toPrettyMachineJsonV1 dval : string =
-  dval |> toPrettyMachineJsonValueV1 |> E.toString 2
+  dval |> toPrettyMachineJsonValueV1 |> J.toPrettyString

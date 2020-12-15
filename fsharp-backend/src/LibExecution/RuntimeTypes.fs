@@ -28,13 +28,13 @@ module LibExecution.RuntimeTypes
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
 
-open Thoth.Json.Net
+
 open System.Text.RegularExpressions
 
 open Prelude
 open SharedTypes
 
-// fsharplint:disable FL0039
+module J = Prelude.Json
 
 
 // A function description: a fully-qualified function name, including package,
@@ -47,7 +47,7 @@ module FQFnName =
       function_ : string
       version : int }
 
-    member this.ToString : string =
+    override this.ToString() : string =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
       let fn = $"{this.module_}{this.function_}_v{this.version}"
 
@@ -148,7 +148,10 @@ and Dval =
   | DFnVal of FnValImpl
   | DFakeVal of FakeDval
   (* user types: awaiting a better type system *)
-  | DHttpResponse of statusCode : int * headers : (string * string) list * body : Dval
+  | DHttpResponse of
+    statusCode : int *
+    headers : (string * string) list *
+    body : Dval
   | DDB of string
   // FSTODO
   (* | DDate of time *)
@@ -183,42 +186,6 @@ and Dval =
     match this with
     | DFakeVal (DErrorRail dv) -> dv
     | other -> other
-
-  // FSTODO: what kind of JSON is this?
-  // Split into multiple files, each for the different kinds of serializers
-  member this.toJSON() : JsonValue =
-    let rec encodeDval (dv : Dval) : JsonValue =
-      let encodeWithType name value = Encode.object [ name, Encode.string value ]
-      match dv with
-      | DInt i -> Encode.bigint i
-      | DChar c -> Encode.string c
-      | DFloat d -> Encode.float d
-      | DStr str -> Encode.string str
-      | DNull -> Encode.unit ()
-      | DList l -> l |> List.map encodeDval |> Encode.list
-      | DBool b -> Encode.bool b
-      | DBytes bytes ->
-          bytes |> System.Text.Encoding.ASCII.GetString |> Encode.string
-      | DUuid uuid -> uuid.ToString() |> Encode.string
-      | DFnVal _ -> Encode.nil
-      | DFakeVal (DError (e)) ->
-          Encode.object [ "error", Encode.string (e.ToString()) ]
-      | DFakeVal (DIncomplete (_)) -> Encode.object [ "incomplete", Encode.unit () ]
-      | DFakeVal (DErrorRail (value)) ->
-          Encode.object [ "errorrail", encodeDval value ]
-      | DObj obj ->
-          Encode.object
-            (obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v))
-      | DDB name -> encodeWithType "db" name
-      | DHttpResponse _ -> Encode.string "FSTODO: DResp"
-      | DOption (Some dv) -> encodeDval dv
-      | DOption (None) -> Encode.unit ()
-      | DResult (Ok dv) -> encodeDval dv
-      | DResult (Error dv) -> Encode.object [ "error", encodeDval dv ]
-    // FSTODO
-    (* | _ -> Encode.unit () *)
-
-    encodeDval this
 
   static member int(i : int) = DInt(bigint i)
   static member int(i : string) = DInt(System.Numerics.BigInteger.Parse i)
@@ -519,6 +486,7 @@ module Shortcuts =
     let r (v : Expr) = $"{toStringRepr v}"
     let pr (v : Expr) = $"({toStringRepr v})" // parenthesized repr
     let q (v : string) = $"\"{v}\""
+
     match e with
     | EBlank id -> "eBlank ()"
     | ECharacter (_, char) -> $"eChar '{char}'"
@@ -529,10 +497,8 @@ module Shortcuts =
     | ENull _ -> $"eNull ()"
     | EVariable (_, var) -> $"eVar {q var}"
     | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
-    | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when name.owner =
-                                                                     "dark"
-                                                                   && name.package =
-                                                                        "stdlib" ->
+    | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when name.owner = "dark"
+                                                                   && name.package = "stdlib" ->
         let fn, suffix =
           match ster with
           | NoRail -> "eFn", ""

@@ -9,7 +9,6 @@ open FSharpPlus
 open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
-open FSharp.Data
 open System.Text.RegularExpressions
 
 open Prelude
@@ -24,7 +23,8 @@ let fetchReleventTLIDsForHTTP (host : string)
 
   // The pattern `$2 like name` is deliberate, to leverage the DB's
   // pattern matching to solve our routing.
-  Sql.query "SELECT tlid
+  Sql.query
+    "SELECT tlid
              FROM toplevel_oplists
              WHERE canvas_id = @canvasID
                AND ((module = 'HTTP'
@@ -38,6 +38,7 @@ let fetchReleventTLIDsForHTTP (host : string)
 
 let canvasIDForCanvas (owner : UserID) (canvasName : string) : Task<CanvasID> =
   printfn $"calling canvasIDForCanvas {owner} {canvasName}"
+
   if canvasName.Length > 64 then
     failwith $"Canvas name was length {canvasName.Length}, must be <= 64"
   else
@@ -57,7 +58,8 @@ let ownerNameFromHost (host : string) : string =
   | _ -> host
 
 let canvasNameFromCustomDomain host : Task<Option<string>> =
-  Sql.query "SELECT canvas
+  Sql.query
+    "SELECT canvas
              FROM custom_domains
              WHERE host = @host"
   |> Sql.parameters [ "host", Sql.string host ]
