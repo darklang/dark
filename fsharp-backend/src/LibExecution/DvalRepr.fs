@@ -13,7 +13,28 @@ module LibExecution.DvalRepr
 open Prelude
 open RuntimeTypes
 
-module J = Prelude.Json
+module J =
+  open FSharp.Data
+
+  type JsonValue = FSharp.Data.JsonValue
+
+  let bigint (i : bigint) : JsonValue = JsonValue.Number(decimal i)
+  let string (s : string) : JsonValue = JsonValue.String s
+  let int64 (i : int64) : JsonValue = JsonValue.Number(decimal i)
+  let float (f : float) : JsonValue = JsonValue.Float f
+  let bool (b : bool) : JsonValue = JsonValue.Boolean b
+  let nil = JsonValue.Null
+  let list (l : JsonValue list) : JsonValue = l |> List.toArray |> JsonValue.Array
+  let array (a : JsonValue array) : JsonValue = a |> JsonValue.Array
+  let variant (name : string) (args : JsonValue list) = (string name :: args) |> list
+
+  let object (r : (string * JsonValue) list) : JsonValue =
+    r |> List.toArray |> JsonValue.Record
+
+  let toString (j : JsonValue) = j.ToString(JsonSaveOptions.DisableFormatting)
+  let toPrettyString (j : JsonValue) = j.ToString(JsonSaveOptions.None)
+
+
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
@@ -21,6 +42,7 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
     let inl = "\n" + String.replicate (indent + 2) " "
     let indent = indent + 2
     let recurse = inner indent
+
     match dv with
     | DList l ->
         if l = [] then
@@ -136,6 +158,36 @@ let toPrettyMachineJsonValueV1 dval : FSharp.Data.JsonValue =
         bytes |> System.Convert.ToBase64String |> J.string
 
   r dval
+
+// member this.toJSON() : J.JsonValue =
+//   let rec encodeDval (dv : Dval) : J.JsonValue =
+//     let encodeWithType name value = J.object [ name, J.string value ]
+//     match dv with
+//     | DInt i -> J.bigint i
+//     | DChar c -> J.string c
+//     | DFloat d -> J.float d
+//     | DStr str -> J.string str
+//     | DNull -> J.nil
+//     | DList l -> l |> List.map encodeDval |> J.list
+//     | DBool b -> J.bool b
+//     | DBytes bytes -> bytes |> System.Text.Encoding.ASCII.GetString |> J.string
+//     | DUuid uuid -> uuid.ToString() |> J.string
+//     | DFnVal _ -> J.nil
+//     | DFakeVal (DError (e)) -> J.object [ "error", J.string (e.ToString()) ]
+//     | DFakeVal (DIncomplete (_)) -> J.object [ "incomplete", J.nil ]
+//     | DFakeVal (DErrorRail (value)) -> J.object [ "errorrail", encodeDval value ]
+//     | DObj obj ->
+//         obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v) |> J.object
+//     | DDB name -> encodeWithType "db" name
+//     | DHttpResponse _ -> J.string "FSTODO: DResp"
+//     | DOption (Some dv) -> encodeDval dv
+//     | DOption (None) -> J.nil
+//     | DResult (Ok dv) -> encodeDval dv
+//     | DResult (Error dv) -> J.object [ "error", encodeDval dv ]
+//
+//   encodeDval this
+//
+//
 
 
 let toPrettyMachineJsonV1 dval : string =

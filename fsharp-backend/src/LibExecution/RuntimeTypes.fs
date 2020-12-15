@@ -186,36 +186,6 @@ and Dval =
     | DFakeVal (DErrorRail dv) -> dv
     | other -> other
 
-  // FSTODO: what kind of JSON is this? Move to DvalRepr
-  // Split into multiple files, each for the different kinds of serializers
-  member this.toJSON() : J.JsonValue =
-    let rec encodeDval (dv : Dval) : J.JsonValue =
-      let encodeWithType name value = J.object [ name, J.string value ]
-      match dv with
-      | DInt i -> J.bigint i
-      | DChar c -> J.string c
-      | DFloat d -> J.float d
-      | DStr str -> J.string str
-      | DNull -> J.nil
-      | DList l -> l |> List.map encodeDval |> J.list
-      | DBool b -> J.bool b
-      | DBytes bytes -> bytes |> System.Text.Encoding.ASCII.GetString |> J.string
-      | DUuid uuid -> uuid.ToString() |> J.string
-      | DFnVal _ -> J.nil
-      | DFakeVal (DError (e)) -> J.object [ "error", J.string (e.ToString()) ]
-      | DFakeVal (DIncomplete (_)) -> J.object [ "incomplete", J.nil ]
-      | DFakeVal (DErrorRail (value)) -> J.object [ "errorrail", encodeDval value ]
-      | DObj obj ->
-          obj |> Map.toList |> List.map (fun (k, v) -> k, encodeDval v) |> J.object
-      | DDB name -> encodeWithType "db" name
-      | DHttpResponse _ -> J.string "FSTODO: DResp"
-      | DOption (Some dv) -> encodeDval dv
-      | DOption (None) -> J.nil
-      | DResult (Ok dv) -> encodeDval dv
-      | DResult (Error dv) -> J.object [ "error", encodeDval dv ]
-
-    encodeDval this
-
   static member int(i : int) = DInt(bigint i)
   static member int(i : string) = DInt(System.Numerics.BigInteger.Parse i)
 
@@ -515,6 +485,7 @@ module Shortcuts =
     let r (v : Expr) = $"{toStringRepr v}"
     let pr (v : Expr) = $"({toStringRepr v})" // parenthesized repr
     let q (v : string) = $"\"{v}\""
+
     match e with
     | EBlank id -> "eBlank ()"
     | ECharacter (_, char) -> $"eChar '{char}'"
