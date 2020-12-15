@@ -17,7 +17,6 @@ open FSharp.Control.Tasks
 open FSharpPlus
 open Npgsql.FSharp
 open Npgsql
-open FSharp.Data
 open System.Text.RegularExpressions
 
 open Prelude

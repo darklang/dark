@@ -12,7 +12,6 @@ open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
-open FSharp.Data
 open System.Text.RegularExpressions
 
 open Prelude
