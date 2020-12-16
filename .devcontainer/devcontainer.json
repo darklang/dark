@@ -5,10 +5,15 @@
   "context": "..",
 
   // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-  "image": "darklang/dockerfile",
+
+  // "image": "darklang/Dockerfile",
+  "image": "dark-builder",
+  //"dockerFile": "../Dockerfile",
 
   // Set *default* container specific settings.json values on container create.
-  "settings": {},
+  "settings": {
+    "terminal.integrated.shell.linux": null
+  },
 
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
@@ -32,8 +37,11 @@
     //  "--security-opt seccomp=scripts/support/chrome-seccomp.json"
   ],
 
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/dark/app,type=bind,consistency=delegated",
+  "workspaceFolder": "/home/dark/app",
+
   "mounts": [
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
     // home dir
     /* "type=volume,src=dark_dotesy,dst=/home/dark/.esy", */
     /* "type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo", */
@@ -45,10 +53,10 @@
     // "type=volume,src=dark_lib,dst=/workspaces/dark/lib",
     // "type=volume,src=dark_stroller_target,dst=/workspaces/dark/containers/stroller/target",
     // "type=volume,src=dark_queue_scheduler_target,dst=/workspaces/dark//containers/queue-scheduler/target",
-    // "type=volume,src=dark_fsharp_build,dst=/workspaces/dark/fsharp-backend/Build"
-  ]
+    "type=volume,src=dark_fsharp_build,dst=/workspaces/dark/fsharp-backend/Build"
+  ],
 
   // Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
-  // "remoteUser": "dark",
-  // "updateRemoteUserUID": true
+  "remoteUser": "dark",
+  "updateRemoteUserUID": true
 }
