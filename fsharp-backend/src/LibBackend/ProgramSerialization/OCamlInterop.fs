@@ -313,9 +313,9 @@ module Yojson =
     | RT.EVariable (id, var) -> PT.EVariable(id, var)
     | RT.EFieldAccess (id, obj, fieldname) -> PT.EFieldAccess(id, r obj, fieldname)
     | RT.EFnCall (id, name, args, ster) ->
-        PT.EFnCall(id, PT.FQFnName.T.parse name, List.map r args, ocamlSter2PT ster)
+        PT.EFnCall(id, PT.FQFnName.parse name, List.map r args, ocamlSter2PT ster)
     | RT.EBinOp (id, name, arg1, arg2, ster) ->
-        PT.EBinOp(id, PT.FQFnName.T.parse name, r arg1, r arg2, ocamlSter2PT ster)
+        PT.EBinOp(id, PT.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
     | RT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
     | RT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->

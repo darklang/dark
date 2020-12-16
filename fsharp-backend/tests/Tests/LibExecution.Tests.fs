@@ -121,4 +121,4 @@ let fileTests () : Test =
   |> Array.toList
   |> testList "All files"
 
-let tests = testList "StdLib" [ fileTests () ]
+let tests = testList "LibExecution" [ fileTests () ]

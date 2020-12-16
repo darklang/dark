@@ -36,4 +36,25 @@ let parserTests =
         "fun a b c d -> 8"
         (eLambda [ "a"; "b"; "c"; "d" ] (eInt 8)) ]
 
-let tests = testList "LibBackend" [ parserTests ]
+
+let fqFnNameTests =
+  let t fnName =
+    testTask $"parsing: {fnName}" {
+      return (Expect.equal
+                (fnName
+                 |> PT.FQFnName.parse
+                 |> fun s -> s.ToString())
+                fnName
+
+                fnName)
+    }
+
+  testList
+    "FQFnName parse tests (found by fuzzing)"
+    [ t "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3"
+      t "uawmdntve/dolxb/X4Im::nsgKJGO_v1"
+      t "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ]
+
+
+
+let tests = testList "LibBackend" [ parserTests; fqFnNameTests ]

@@ -4,6 +4,8 @@ source https://api.nuget.org/v3/index.json
 framework: net5.0
 storage: none
 
+nuget Expecto.FsCheck
+nuget FsCheck
 nuget FSharp.Core ~> 5.0.0
 
 // Web servers
