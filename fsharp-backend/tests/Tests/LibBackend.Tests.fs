@@ -53,14 +53,31 @@ let fuzzedTests =
   testList
     "Tests found by fuzzing"
     [ testListUsingProperty
-        "FQFnName parse tests (found by fuzzing)"
+        "FQFnName parse tests"
         PropertyTests.All.fqFnNameRoundtrip
 
         (List.map
           PT.FQFnName.parse
           [ "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3"
             "uawmdntve/dolxb/X4Im::nsgKJGO_v1"
-            "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ]) ]
+            "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ])
+      testListUsingProperty
+        "OCamlInterop parse tests (found by fuzzing)"
+        PropertyTests.All.ocamlInteropJsonRoundtrip
+        [ PT.EFnCall(0L, PT.FQFnName.parse "b/k/C::r_v1", [], PT.NoRail) // norail was copied wrong
+          PT.EBinOp(
+            0L,
+            PT.FQFnName.parse "b/k/C::r_v1",
+            PT.ERecord(0L, []),
+            PT.EVariable(0L, ""),
+            PT.NoRail // norail was copied wrong
+          )
+          PT.EMatch(
+            0L,
+            PT.EBlank 0L,
+            // constructors were compared wrong
+            [ (PT.PConstructor(0L, "", [ PT.PBool(0L, true) ]), PT.ENull 0L) ]
+          ) ] ]
 
 
 
