@@ -350,7 +350,7 @@ module Yojson =
 
     match bo2String o.``module``, bo2String o.name, bo2String o.modifier with
     | "HTTP", route, method -> PT.Handler.HTTP(route, method, ids)
-    | "Worker", name, _ -> PT.Handler.Worker(name, ids)
+    | "WORKER", name, _ -> PT.Handler.Worker(name, ids)
     | "CRON", name, interval -> PT.Handler.Cron(name, interval, ids)
     | "REPL", name, _ -> PT.Handler.REPL(name, ids)
     | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
@@ -443,7 +443,7 @@ module Yojson =
           modifier = pt2bo ids.modifierID "_"
           types = types }
     | PT.Handler.Cron (name, interval, ids) ->
-        { ``module`` = pt2bo ids.moduleID "HTTP"
+        { ``module`` = pt2bo ids.moduleID "CRON"
           name = pt2bo ids.nameID name
           modifier = pt2bo ids.modifierID interval
           types = types }

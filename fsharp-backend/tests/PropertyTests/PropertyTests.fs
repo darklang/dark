@@ -96,7 +96,7 @@ let testProperty (name : string) (x : 'a) : Test =
 let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
   a.ToString() |> PT.FQFnName.parse .=. a
 
-let ocamlInteropExprJsonRoundtrip (a : PT.Expr) : bool =
+let ocamlInteropYojsonExprRoundtrip (a : PT.Expr) : bool =
   a
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
   |> Json.AutoSerialize.serialize
@@ -112,7 +112,7 @@ let ocamlInteropExprJsonRoundtrip (a : PT.Expr) : bool =
   |> Json.AutoSerialize.deserialize
   .=. a
 
-let ocamlYojsonHandlerJsonRoundtrip (a : PT.Handler.T) : bool =
+let ocamlInteropYojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   a
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
@@ -127,15 +127,27 @@ let ocamlYojsonHandlerJsonRoundtrip (a : PT.Handler.T) : bool =
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a
+
+let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
+  let h = PT.TLHandler a
+
+  h
+  |> LibBackend.ProgramSerialization.OCamlInterop.toplevelToCachedBinary
+  |> fun bin -> bin, None
+  |> LibBackend.ProgramSerialization.OCamlInterop.toplevelOfCachedBinary
+  .=. h
+
 
 let roundtrips =
   testList
     "roundtripping"
     [ testProperty "roundtripping FQFnName" fqFnNameRoundtrip
-      testProperty "roundtripping OCamlInteropExprJson" ocamlInteropExprJsonRoundtrip
       testProperty
-        "roundtripping OCamlInteropToplevelJson"
-        ocamlInteropExprJsonRoundtrip ]
+        "roundtripping OCamlInteropYojsonExpr"
+        ocamlInteropYojsonExprRoundtrip
+      testProperty
+        "roundtripping OCamlInteropYojsonHandler"
+        ocamlInteropYojsonHandlerRoundtrip ]
 
 let tests = testList "propertyTests" [ roundtrips ]
 

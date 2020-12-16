@@ -48,38 +48,50 @@ let testListUsingProperty (name : string) (prop : 'a -> bool) (list : 'a list) =
         testTask $"{name} {testCase}" { return (Expect.isTrue (prop testCase) "") })
       list)
 
+module PropertyTests =
+  open PT
 
-let fuzzedTests =
-  testList
-    "Tests found by fuzzing"
-    [ testListUsingProperty
-        "FQFnName parse tests"
-        PropertyTests.All.fqFnNameRoundtrip
+  let fuzzedTests =
+    testList
+      "Tests found by fuzzing"
+      [ testListUsingProperty
+          "FQFnName parse tests"
+          PropertyTests.All.fqFnNameRoundtrip
 
-        (List.map
-          PT.FQFnName.parse
-          [ "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3"
-            "uawmdntve/dolxb/X4Im::nsgKJGO_v1"
-            "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ])
-      testListUsingProperty
-        "OCamlInterop parse tests"
-        PropertyTests.All.ocamlInteropExprJsonRoundtrip
-        [ PT.EFnCall(0L, PT.FQFnName.parse "b/k/C::r_v1", [], PT.NoRail) // norail was copied wrong
-          PT.EBinOp(
-            0L,
-            PT.FQFnName.parse "b/k/C::r_v1",
-            PT.ERecord(0L, []),
-            PT.EVariable(0L, ""),
-            PT.NoRail // norail was copied wrong
-          )
-          PT.EMatch(
-            0L,
-            PT.EBlank 0L,
-            // constructors were compared wrong
-            [ (PT.PConstructor(0L, "", [ PT.PBool(0L, true) ]), PT.ENull 0L) ]
-          ) ] ]
+          (List.map
+            FQFnName.parse
+            [ "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3"
+              "uawmdntve/dolxb/X4Im::nsgKJGO_v1"
+              "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ])
+        testListUsingProperty
+          "OCamlInterop expr tests"
+          PropertyTests.All.ocamlInteropYojsonExprRoundtrip
+          [ EFnCall(0L, FQFnName.parse "b/k/C::r_v1", [], NoRail) // norail was copied wrong
+            EBinOp(
+              0L,
+              FQFnName.parse "b/k/C::r_v1",
+              ERecord(0L, []),
+              EVariable(0L, ""),
+              NoRail
+            )
+            EMatch(
+              0L,
+              EBlank 0L,
+              // constructors were compared wrong
+              [ (PConstructor(0L, "", [ PBool(0L, true) ]), ENull 0L) ]
+            ) ]
+        testListUsingProperty
+          "OCamlInterop handler tests"
+          PropertyTests.All.ocamlInteropYojsonHandlerRoundtrip
+          [ { tlid = 0L
+              ast = EFnCall(0L, FQFnName.parse "o/t/F::e_v1", [], NoRail)
+              spec =
+                Handler.Worker("", { moduleID = 0L; nameID = 0L; modifierID = 0L }) }
+
+            { tlid = 0L
+              ast = EBool(0L, false)
+              spec =
+                Handler.Cron("", "", { moduleID = 0L; nameID = 0L; modifierID = 0L }) } ] ]
 
 
-
-
-let tests = testList "LibBackend" [ parserTests; fuzzedTests ]
+let tests = testList "LibBackend" [ parserTests; PropertyTests.fuzzedTests ]
