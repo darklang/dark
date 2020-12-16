@@ -81,7 +81,7 @@ module PropertyTests =
               [ (PConstructor(0L, "", [ PBool(0L, true) ]), ENull 0L) ]
             ) ]
         testListUsingProperty
-          "OCamlInterop handler tests"
+          "OCamlInterop Yojson handler tests"
           PropertyTests.All.ocamlInteropYojsonHandlerRoundtrip
           [ { tlid = 0L
               ast = EFnCall(0L, FQFnName.parse "o/t/F::e_v1", [], NoRail)
@@ -91,7 +91,18 @@ module PropertyTests =
             { tlid = 0L
               ast = EBool(0L, false)
               spec =
-                Handler.Cron("", "", { moduleID = 0L; nameID = 0L; modifierID = 0L }) } ] ]
+                Handler.Cron("", "", { moduleID = 0L; nameID = 0L; modifierID = 0L }) } ]
+        testListUsingProperty
+          "OCamlInterop Binary handler tests"
+          PropertyTests.All.ocamlInteropBinaryHandlerRoundtrip
+          [ { tlid = 0L
+              ast = PT.EPipeTarget 0L
+              spec =
+                PT.Handler.OldWorker(
+                  "",
+                  "",
+                  { moduleID = 0L; nameID = 0L; modifierID = 0L }
+                ) } ] ]
 
 
 let tests = testList "LibBackend" [ parserTests; PropertyTests.fuzzedTests ]

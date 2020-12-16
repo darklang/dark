@@ -36,11 +36,23 @@ module DarkFsCheck =
   type MyGenerators =
     static member Expr() =
       Arb.Default.Derive()
-      |> Arb.filter
+      |> Arb.mapFilter
+           (function
+           // make sure we get numbers in our floats
+           | PT.EFloat (id, _, _) ->
+               let float = Arb.generate<double>
+               let asString = float.ToString()
+               let split = asString.Split "."
+
+               match split with
+               | [| whole; fraction |] -> PT.EFloat(id, whole, fraction)
+               | _ -> PT.EBlank id
+
+           | other -> other)
            (function
            // characters are not yet supported in OCaml
            | PT.ECharacter _ -> false
-           | _ -> true)
+           | other -> true)
 
     static member Pattern() =
       Arb.Default.Derive()
@@ -63,7 +75,6 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
-
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -141,17 +152,20 @@ let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
 let roundtrips =
   testList
     "roundtripping"
-    [ testProperty "roundtripping FQFnName" fqFnNameRoundtrip
+    [ testProperty
+        "roundtripping OCamlInteropBinaryHandler"
+        ocamlInteropBinaryHandlerRoundtrip
+      testProperty
+        "roundtripping OCamlInteropYojsonHandler"
+        ocamlInteropYojsonHandlerRoundtrip
       testProperty
         "roundtripping OCamlInteropYojsonExpr"
         ocamlInteropYojsonExprRoundtrip
-      testProperty
-        "roundtripping OCamlInteropYojsonHandler"
-        ocamlInteropYojsonHandlerRoundtrip ]
+      testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
 
 let tests = testList "propertyTests" [ roundtrips ]
 
 [<EntryPoint>]
 let main args =
-  // LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
   runTestsWithCLIArgs [] args tests
