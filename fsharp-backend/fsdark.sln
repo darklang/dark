@@ -32,7 +32,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Wasm", "src\Wasm\Wasm.fspro
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibService\LibService.fsproj", "{824DD2A5-7F01-4A8A-9ABD-9F91F52582AD}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "PropertyTests", "tests\PropertyTests\PropertyTests.fsproj", "{20E75086-498B-445C-BA8C-B3C938C60400}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FuzzTests", "tests\FuzzTests\FuzzTests.fsproj", "{20E75086-498B-445C-BA8C-B3C938C60400}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

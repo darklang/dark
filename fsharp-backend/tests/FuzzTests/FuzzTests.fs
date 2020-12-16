@@ -1,4 +1,4 @@
-module PropertyTests.All
+module FuzzTests.All
 
 // This aims to find test cases that violate certain properties that we expect.
 // Desired properties include that OCaml Dark programs and functions work the
@@ -75,6 +75,7 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -163,7 +164,7 @@ let roundtrips =
         ocamlInteropYojsonExprRoundtrip
       testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
 
-let tests = testList "propertyTests" [ roundtrips ]
+let tests = testList "FuzzTests" [ roundtrips ]
 
 [<EntryPoint>]
 let main args =

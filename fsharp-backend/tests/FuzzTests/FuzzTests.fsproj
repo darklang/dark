@@ -11,7 +11,7 @@
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="PropertyTests.fs" />
+    <Compile Include="FuzzTests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

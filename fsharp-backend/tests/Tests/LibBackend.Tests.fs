@@ -48,7 +48,7 @@ let testListUsingProperty (name : string) (prop : 'a -> bool) (list : 'a list) =
         testTask $"{name} {testCase}" { return (Expect.isTrue (prop testCase) "") })
       list)
 
-module PropertyTests =
+module FuzzTests =
   open PT
 
   let fuzzedTests =
@@ -56,7 +56,7 @@ module PropertyTests =
       "Tests found by fuzzing"
       [ testListUsingProperty
           "FQFnName parse tests"
-          PropertyTests.All.fqFnNameRoundtrip
+          FuzzTests.All.fqFnNameRoundtrip
 
           (List.map
             FQFnName.parse
@@ -65,7 +65,7 @@ module PropertyTests =
               "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ])
         testListUsingProperty
           "OCamlInterop expr tests"
-          PropertyTests.All.ocamlInteropYojsonExprRoundtrip
+          FuzzTests.All.ocamlInteropYojsonExprRoundtrip
           [ EFnCall(0L, FQFnName.parse "b/k/C::r_v1", [], NoRail) // norail was copied wrong
             EBinOp(
               0L,
@@ -82,7 +82,7 @@ module PropertyTests =
             ) ]
         testListUsingProperty
           "OCamlInterop Yojson handler tests"
-          PropertyTests.All.ocamlInteropYojsonHandlerRoundtrip
+          FuzzTests.All.ocamlInteropYojsonHandlerRoundtrip
           [ { tlid = 0L
               ast = EFnCall(0L, FQFnName.parse "o/t/F::e_v1", [], NoRail)
               spec =
@@ -94,7 +94,7 @@ module PropertyTests =
                 Handler.Cron("", "", { moduleID = 0L; nameID = 0L; modifierID = 0L }) } ]
         testListUsingProperty
           "OCamlInterop Binary handler tests"
-          PropertyTests.All.ocamlInteropBinaryHandlerRoundtrip
+          FuzzTests.All.ocamlInteropBinaryHandlerRoundtrip
           [ { tlid = 0L
               ast = PT.EPipeTarget 0L
               spec =
@@ -105,4 +105,4 @@ module PropertyTests =
                 ) } ] ]
 
 
-let tests = testList "LibBackend" [ parserTests; PropertyTests.fuzzedTests ]
+let tests = testList "LibBackend" [ parserTests; FuzzTests.fuzzedTests ]
