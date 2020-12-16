@@ -11,11 +11,11 @@ open Prelude
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 
-let (.=.) left right : bool =
-  (if left = right then
+let (.=.) actual expected : bool =
+  (if actual = expected then
     true
    else
-     printfn $"{left}\n = \n{right}"
+     printfn $"Expected:\n{expected}\n butGgot:\n{actual}"
      false)
 
 
