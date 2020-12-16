@@ -65,6 +65,7 @@ module FQFnName =
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
     assertRe "function name must match" fnnamePat function_
     assert_ "version can't be negative" (version >= 0)
+
     { owner = owner
       package = package
       module_ = module_
@@ -320,7 +321,7 @@ and Pattern =
     | PBlank id -> RT.PBlank id
 
   member this.testEqualIgnoringIDs(other : Pattern) : bool =
-    let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (other)
+    let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (b)
 
     let eqList l1 l2 = List.length l1 = List.length l2 && List.forall2 eq l1 l2
 

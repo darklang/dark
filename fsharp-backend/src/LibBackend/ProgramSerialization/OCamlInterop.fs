@@ -298,7 +298,7 @@ module Yojson =
   let rec ocamlSter2PT (o : RT.sendToRail) : PT.SendToRail =
     match o with
     | RT.Rail -> PT.Rail
-    | RT.NoRail -> PT.Rail
+    | RT.NoRail -> PT.NoRail
 
   let rec ocamlExpr2PT (o : RT.fluidExpr) : PT.Expr =
     let r = ocamlExpr2PT
@@ -382,7 +382,7 @@ module Yojson =
   let rec pt2ocamlSter (p : PT.SendToRail) : RT.sendToRail =
     match p with
     | PT.Rail -> RT.Rail
-    | PT.NoRail -> RT.Rail
+    | PT.NoRail -> RT.NoRail
 
   let rec pt2ocamlExpr (p : PT.Expr) : RT.fluidExpr =
     let r = pt2ocamlExpr

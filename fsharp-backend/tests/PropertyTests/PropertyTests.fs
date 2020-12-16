@@ -11,10 +11,6 @@ open Prelude
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 
-// This allows us to control the values of the types that are generated. We can
-// write our own generators, or filter existing ones. To add new type
-// generators, add new static members
-
 let (.=.) left right : bool =
   (if left = right then
     true
@@ -22,6 +18,10 @@ let (.=.) left right : bool =
      printfn $"{left}\n = \n{right}"
      false)
 
+
+// This allows us to control the values of the types that are generated. We can
+// write our own generators, or filter existing ones. To add new type
+// generators, add new static members
 module DarkFsCheck =
   open FsCheck
 
@@ -69,7 +69,16 @@ module DarkFsCheck =
       Arb.Default.Derive()
       |> Arb.filter
            (function
+           // characters are not yet supported in OCaml
            | PT.ECharacter _ -> false
+           | _ -> true)
+
+    static member Pattern() =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           // characters are not yet supported in OCaml
+           | PT.PCharacter _ -> false
            | _ -> true)
 
     static member SafeString() : Arbitrary<string> =
@@ -95,6 +104,7 @@ module DarkFsCheck =
 
 let config : FsCheckConfig =
   { FsCheckConfig.defaultConfig with
+      maxTest = 10000
       arbitrary = [ typeof<DarkFsCheck.MyGenerators> ] }
 
 let testProperty (name : string) (x : 'a) : Test =
@@ -109,6 +119,8 @@ let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
 
 let ocamlInteropJsonRoundtrip (a : PT.Expr) : bool =
   a
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
   |> fun e ->
