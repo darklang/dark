@@ -6,18 +6,12 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
-    <ProjectReference Include="../../tests/PropertyTests/PropertyTests.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FSharpToExpr.fs" />
-    <Compile Include="LibTest.fs" />
-    <Compile Include="LibExecution.Tests.fs" />
-    <Compile Include="LibBackend.Tests.fs" />
-    <Compile Include="ApiServer.Tests.fs" />
-    <Compile Include="BwdServer.Tests.fs" />
-    <Compile Include="Tests.fs" />
+    <Compile Include="PropertyTests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

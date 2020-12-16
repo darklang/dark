@@ -39,7 +39,7 @@ module FQFnName =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
       let fn = $"{this.module_}::{this.function_}_v{this.version}"
 
-      if this.owner = "dark" && module_ = "stdlib" then
+      if this.owner = "dark" && this.package = "stdlib" then
         fn
       else
         $"{this.owner}/{this.package}/{fn}"
@@ -51,39 +51,44 @@ module FQFnName =
         function_ = this.function_
         version = this.version }
 
-    static member parse(fnName : string) : T =
-      let owner, package, module_, function_, version =
-        match fnName with
-        | Regex "(.+)/(.*)/(.*)::(.+)_v(\d+)"
-                [ owner; package; module_; name; version ] ->
-            (owner, package, module_, name, int version)
-        | Regex "(.*)::(.+)_v(\d+)" [ module_; name; version ] ->
-            ("dark", "stdlib", module_, name, int version)
-        | Regex "(.*)::(.+)" [ module_; name ] ->
-            ("dark", "stdlib", module_, name, 0)
-        | Regex "(.+)_v(\d+)" [ name; version ] ->
-            ("dark", "stdlib", "", name, int version)
-        | Regex "(.+)" [ name ] -> ("dark", "stdlib", "", name, 0)
-        | _ -> failwith $"Bad format in function name: \"{fnName}\""
-
-      { owner = owner
-        package = package
-        module_ = module_
-        function_ = function_
-        version = version }
-
   let name (owner : string)
            (package : string)
            (module_ : string)
            (function_ : string)
            (version : int)
            : T =
+    let namePat = @"^[a-z][a-z0-9_]*$"
+    let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+    let fnnamePat = @"^[a-z][a-z0-9A-Z_]*$"
+    assertRe "owner must match" namePat owner
+    assertRe "package must match" namePat package
+    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    assertRe "function name must match" fnnamePat function_
+    assert_ "version can't be negative" (version >= 0)
+
     { owner = owner
       package = package
       module_ = module_
       function_ = function_
       version = version }
 
+  let parse (fnName : string) : T =
+    let owner, package, module_, function_, version =
+      match fnName with
+      | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
+              [ owner; package; module_; name; version ] ->
+          (owner, package, module_, name, int version)
+      | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
+              [ module_; name; version ] ->
+          ("dark", "stdlib", module_, name, int version)
+      | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
+          ("dark", "stdlib", module_, name, 0)
+      | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
+          ("dark", "stdlib", "", name, int version)
+      | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
+      | _ -> failwith $"Bad format in function name: \"{fnName}\""
+
+    name owner package module_ function_ version
 
   let stdlibName (module_ : string) (function_ : string) (version : int) : T =
     name "dark" "stdlib" module_ function_ version
@@ -316,7 +321,7 @@ and Pattern =
     | PBlank id -> RT.PBlank id
 
   member this.testEqualIgnoringIDs(other : Pattern) : bool =
-    let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (other)
+    let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (b)
 
     let eqList l1 l2 = List.length l1 = List.length l2 && List.forall2 eq l1 l2
 

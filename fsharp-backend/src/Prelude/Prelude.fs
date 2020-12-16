@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 open System.Text.RegularExpressions
 
 // Active pattern for regexes
-let (|Regex|_|) pattern input =
+let (|Regex|_|) (pattern : string) (input : string) =
   let m = Regex.Match(input, pattern)
   if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
 
@@ -40,6 +40,15 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     printfn $"DEBUG: {msg} ({a})"
     return a
   }
+
+// Asserts are problematic because they don't run in prod, and if they did they
+// wouldn't be caught by the webserver
+let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
+
+let assertRe (msg : string) (pattern : string) (input : string) : unit =
+  let m = Regex.Match(input, pattern)
+  if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false
+
 
 module String =
   // Returns a seq of EGC (extended grapheme cluster - essentially a visible
