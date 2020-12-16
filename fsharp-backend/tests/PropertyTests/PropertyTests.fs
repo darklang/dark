@@ -96,24 +96,46 @@ let testProperty (name : string) (x : 'a) : Test =
 let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
   a.ToString() |> PT.FQFnName.parse .=. a
 
-let ocamlInteropJsonRoundtrip (a : PT.Expr) : bool =
+let ocamlInteropExprJsonRoundtrip (a : PT.Expr) : bool =
   a
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
-  |> fun e ->
-       (if e.testEqualIgnoringIDs a then
-         true
-        else
-          printfn $"Expected\n{a}, got\n{e}"
-          false)
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
+  .=. a
+
+let ocamlYojsonHandlerJsonRoundtrip (a : PT.Handler.T) : bool =
+  a
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlHandler
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlHandler
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT
+  |> Json.AutoSerialize.serialize
+  |> Json.AutoSerialize.deserialize
+  .=. a
 
 let roundtrips =
   testList
     "roundtripping"
     [ testProperty "roundtripping FQFnName" fqFnNameRoundtrip
-      testProperty "roundtripping OCamlInteropJson" ocamlInteropJsonRoundtrip ]
+      testProperty "roundtripping OCamlInteropExprJson" ocamlInteropExprJsonRoundtrip
+      testProperty
+        "roundtripping OCamlInteropToplevelJson"
+        ocamlInteropExprJsonRoundtrip ]
 
 let tests = testList "propertyTests" [ roundtrips ]
 
