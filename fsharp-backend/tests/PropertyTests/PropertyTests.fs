@@ -25,43 +25,12 @@ let (.=.) left right : bool =
 module DarkFsCheck =
   open FsCheck
 
-  let ownerName : Gen<string> =
+  let nameGenerator (first : char list) (other : char list) : Gen<string> =
     gen {
-      let otherOptions =
-        Gen.elements (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
-
       let! length = Gen.choose (0, 20)
-      let! head = Gen.elements [ 'a' .. 'z' ]
-      let! tail = Gen.listOfLength length otherOptions
-      return System.String(List.toArray (head :: tail))
-    }
-
-  let packageName = ownerName
-
-  let modName : Gen<string> =
-    gen {
-      let otherOptions =
-        Gen.elements (
-          List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
-        )
-
-      let! length = Gen.choose (0, 20)
-      let! head = Gen.elements [ 'A' .. 'Z' ]
-      let! tail = Gen.listOfLength length otherOptions
-      return System.String(List.toArray (head :: tail))
-    }
-
-  let fnName : Gen<string> =
-    gen {
-      let otherOptions =
-        Gen.elements (
-          List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
-        )
-
-      let! length = Gen.choose (0, 20)
-      let! head = Gen.elements [ 'a' .. 'z' ]
-      let! tail = Gen.listOfLength length otherOptions
-      return System.String(List.toArray (head :: tail))
+      let! head = Gen.elements first
+      let! tail = Gen.arrayOfLength length (Gen.elements other)
+      return System.String(Array.append [| head |] tail)
     }
 
   type MyGenerators =
@@ -85,6 +54,16 @@ module DarkFsCheck =
       Arb.Default.String() |> Arb.filter (fun (s : string) -> s <> null)
 
     static member FQFnType() =
+      let alphaNumeric =
+        (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
+
+      let ownerName : Gen<string> =
+        nameGenerator [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
+
+      let packageName = ownerName
+      let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
+      let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {

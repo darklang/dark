@@ -62,7 +62,7 @@ let fuzzedTests =
             "uawmdntve/dolxb/X4Im::nsgKJGO_v1"
             "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ])
       testListUsingProperty
-        "OCamlInterop parse tests (found by fuzzing)"
+        "OCamlInterop parse tests"
         PropertyTests.All.ocamlInteropJsonRoundtrip
         [ PT.EFnCall(0L, PT.FQFnName.parse "b/k/C::r_v1", [], PT.NoRail) // norail was copied wrong
           PT.EBinOp(
