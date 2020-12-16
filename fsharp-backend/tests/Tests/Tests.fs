@@ -7,7 +7,10 @@ open Expecto
 let tests =
   testList
     "tests"
-    [ Tests.LibExecution.tests; Tests.BwdServer.tests; Tests.ApiServer.tests ]
+    [ Tests.LibExecution.tests
+      Tests.LibBackend.tests
+      Tests.BwdServer.tests
+      Tests.ApiServer.tests ]
 
 [<EntryPoint>]
 let main args =
