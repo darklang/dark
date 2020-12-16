@@ -31,11 +31,8 @@ module DarkFsCheck =
         Gen.elements (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
       let! length = Gen.choose (0, 20)
-
       let! head = Gen.elements [ 'a' .. 'z' ]
-
       let! tail = Gen.listOfLength length otherOptions
-
       return System.String(List.toArray (head :: tail))
     }
 
@@ -44,46 +41,39 @@ module DarkFsCheck =
   let modName : Gen<string> =
     gen {
       let otherOptions =
-        Gen.elements
-          (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
+        Gen.elements (
+          List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
+        )
 
       let! length = Gen.choose (0, 20)
-
       let! head = Gen.elements [ 'A' .. 'Z' ]
-
       let! tail = Gen.listOfLength length otherOptions
-
       return System.String(List.toArray (head :: tail))
     }
 
   let fnName : Gen<string> =
     gen {
       let otherOptions =
-        Gen.elements
-          (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
+        Gen.elements (
+          List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ]
+        )
 
       let! length = Gen.choose (0, 20)
-
       let! head = Gen.elements [ 'a' .. 'z' ]
-
       let! tail = Gen.listOfLength length otherOptions
-
       return System.String(List.toArray (head :: tail))
     }
-
-
-
 
   type MyGenerators =
     static member Expr() =
       Arb.Default.Derive()
-      |> Arb.filter (function
+      |> Arb.filter
+           (function
            | PT.ECharacter _ -> false
            | _ -> true)
 
-    static member string() : Arbitrary<string> =
-      Arb.Default.Derive() |> Arb.filter (fun (s : string) -> s <> null)
-
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter (fun (s : string) -> s <> null)
 
     static member FQFnType() =
       { new Arbitrary<PT.FQFnName.T>() with
@@ -95,14 +85,13 @@ module DarkFsCheck =
               let! function_ = fnName
               let! NonNegativeInt version = Arb.generate<NonNegativeInt>
 
-              return { owner = owner
-                       package = package
-                       module_ = module_
-                       function_ = function_
-                       version = version }
+              return
+                { owner = owner
+                  package = package
+                  module_ = module_
+                  function_ = function_
+                  version = version }
             } }
-
-
 
 let config : FsCheckConfig =
   { FsCheckConfig.defaultConfig with
@@ -112,29 +101,30 @@ let testProperty (name : string) (x : 'a) : Test =
   testPropertyWithConfig config name x
 
 
+// Tests
+// These tests are like this so they can be reused from LibBackend.Tests
+
+let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
+  a.ToString() |> PT.FQFnName.parse .=. a
+
+let ocamlInteropJsonRoundtrip (a : PT.Expr) : bool =
+  a
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
+  |> fun e ->
+       (if e.testEqualIgnoringIDs a then
+         true
+        else
+          printfn $"Expected\n{a}, got\n{e}"
+          false)
 
 let roundtrips =
   testList
     "roundtripping"
-    [ testProperty "roundtripping FQFnName" (fun (a : PT.FQFnName.T) ->
-        a.ToString() |> PT.FQFnName.parse .=. a)
-      testProperty "roundtripping OCamlInteropJson" (fun (a : PT.Expr) ->
-        a
-        |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
-        |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
-        |> fun e ->
-             (if e.testEqualIgnoringIDs a then
-               true
-              else
-                printfn $"Expected {a}, got {e}"
-                false))
-
-      testList "roundtripping binary" [] ]
-
+    [ testProperty "roundtripping FQFnName" fqFnNameRoundtrip
+      testProperty "roundtripping OCamlInteropJson" ocamlInteropJsonRoundtrip ]
 
 let tests = testList "propertyTests" [ roundtrips ]
-
-
 
 [<EntryPoint>]
 let main args =

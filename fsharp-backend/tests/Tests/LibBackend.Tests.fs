@@ -13,18 +13,21 @@ let parserTests =
       let source = FSharpToExpr.parse testStr
       let actualProg = FSharpToExpr.convertToExpr source
 
-      return (Expect.isTrue
-                (actualProg.testEqualIgnoringIDs (expectedExpr))
-                $"{actualProg}\n\n=\n\n{expectedExpr}")
+      return
+        (Expect.isTrue
+          (actualProg.testEqualIgnoringIDs (expectedExpr))
+          $"{actualProg}\n\n=\n\n{expectedExpr}")
     }
 
   testList
     "Parser tests"
-    [ t "pipe without expr" "(let x = 5\nx |> List.map_v0 5)"
+    [ t
+        "pipe without expr"
+        "(let x = 5\nx |> List.map_v0 5)"
         (eLet
           "x"
-           (eInt 5)
-           (ePipe (eVar "x") (eFn "List" "map" 0 [ (ePipeTarget ()); eInt 5 ]) []))
+          (eInt 5)
+          (ePipe (eVar "x") (eFn "List" "map" 0 [ (ePipeTarget ()); eInt 5 ]) []))
       t
         "simple expr"
         "(5 + 3) == 8"
@@ -36,25 +39,30 @@ let parserTests =
         "fun a b c d -> 8"
         (eLambda [ "a"; "b"; "c"; "d" ] (eInt 8)) ]
 
-
-let fqFnNameTests =
-  let t fnName =
-    testTask $"parsing: {fnName}" {
-      return (Expect.equal
-                (fnName
-                 |> PT.FQFnName.parse
-                 |> fun s -> s.ToString())
-                fnName
-
-                fnName)
-    }
-
+// Allow reusing property-test definitions with test cases found by fuzzing
+let testListUsingProperty (name : string) (prop : 'a -> bool) (list : 'a list) =
   testList
-    "FQFnName parse tests (found by fuzzing)"
-    [ t "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3"
-      t "uawmdntve/dolxb/X4Im::nsgKJGO_v1"
-      t "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ]
+    name
+    (List.map
+      (fun testCase ->
+        testTask $"{name} {testCase}" { return (Expect.isTrue (prop testCase) "") })
+      list)
+
+
+let fuzzedTests =
+  testList
+    "Tests found by fuzzing"
+    [ testListUsingProperty
+        "FQFnName parse tests (found by fuzzing)"
+        PropertyTests.All.fqFnNameRoundtrip
+
+        (List.map
+          PT.FQFnName.parse
+          [ "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3"
+            "uawmdntve/dolxb/X4Im::nsgKJGO_v1"
+            "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ]) ]
 
 
 
-let tests = testList "LibBackend" [ parserTests; fqFnNameTests ]
+
+let tests = testList "LibBackend" [ parserTests; fuzzedTests ]

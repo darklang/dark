@@ -8,6 +8,7 @@
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
+    <ProjectReference Include="../../tests/PropertyTests/PropertyTests.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FSharpToExpr.fs" />
