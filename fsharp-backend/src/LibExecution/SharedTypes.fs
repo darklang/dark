@@ -12,9 +12,9 @@ open Prelude
 
 type pos = { x : int; y : int }
 
-type tlid = int64
-type id = int64
+type tlid = uint64
+type id = uint64
 type CanvasID = System.Guid
 type UserID = System.Guid
 
-let id (x : int) : id = int64 x
+let id (x : int) : id = uint64 x

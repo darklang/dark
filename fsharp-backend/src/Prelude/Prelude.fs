@@ -21,14 +21,18 @@ let debug (msg : string) (a : 'a) : 'a =
 // guaranteed to get multiple consequetive values (as other requests may intervene)
 let random : System.Random = System.Random()
 
-let gid () : int64 =
+let parseInt64 (str : string) : int64 = System.Convert.ToInt64 str
+let parseUInt64 (str : string) : uint64 = System.Convert.ToUInt64 str
+let parseBigint (str : string) : bigint = System.Numerics.BigInteger.Parse str
+
+let gid () : uint64 =
   // get enough bytes for an int64, trim it to an int31 for now to match the frontend
   let bytes = Array.init 8 (fun _ -> (byte) 0)
   random.NextBytes(bytes)
-  let rand64 : int64 = System.BitConverter.ToInt64(bytes, 0)
+  let rand64 : uint64 = System.BitConverter.ToUInt64(bytes, 0)
   // Keep 30 bits
   // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
-  let mask : int64 = 1073741823L
+  let mask : uint64 = 1073741823uL
   rand64 &&& mask
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must

@@ -66,42 +66,49 @@ module FuzzTests =
         testListUsingProperty
           "OCamlInterop expr tests"
           FuzzTests.All.ocamlInteropYojsonExprRoundtrip
-          [ EFnCall(0L, FQFnName.parse "b/k/C::r_v1", [], NoRail) // norail was copied wrong
+          [ EFnCall(0UL, FQFnName.parse "b/k/C::r_v1", [], NoRail) // norail was copied wrong
             EBinOp(
-              0L,
+              0UL,
               FQFnName.parse "b/k/C::r_v1",
-              ERecord(0L, []),
-              EVariable(0L, ""),
+              ERecord(0UL, []),
+              EVariable(0UL, ""),
               NoRail
             )
             EMatch(
-              0L,
-              EBlank 0L,
+              0UL,
+              EBlank 0UL,
               // constructors were compared wrong
-              [ (PConstructor(0L, "", [ PBool(0L, true) ]), ENull 0L) ]
+              [ (PConstructor(0UL, "", [ PBool(0UL, true) ]), ENull 0UL) ]
             ) ]
         testListUsingProperty
           "OCamlInterop Yojson handler tests"
           FuzzTests.All.ocamlInteropYojsonHandlerRoundtrip
-          [ { tlid = 0L
-              ast = EFnCall(0L, FQFnName.parse "o/t/F::e_v1", [], NoRail)
+          [ { tlid = 0UL
+              ast = EFnCall(0UL, FQFnName.parse "o/t/F::e_v1", [], NoRail)
               spec =
-                Handler.Worker("", { moduleID = 0L; nameID = 0L; modifierID = 0L }) }
+                Handler.Worker(
+                  "",
+                  { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
+                ) }
 
-            { tlid = 0L
-              ast = EBool(0L, false)
+            { tlid = 0UL
+              ast = EBool(0UL, false)
               spec =
-                Handler.Cron("", "", { moduleID = 0L; nameID = 0L; modifierID = 0L }) } ]
+                Handler.Cron(
+                  "",
+                  "",
+                  { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
+                ) } ]
         testListUsingProperty
           "OCamlInterop Binary handler tests"
           FuzzTests.All.ocamlInteropBinaryHandlerRoundtrip
-          [ { tlid = 0L
-              ast = PT.EPipeTarget 0L
+          [ { tlid = 0UL
+              ast = PT.EPipeTarget 0UL
               spec =
                 PT.Handler.OldWorker(
                   "",
                   "",
-                  { moduleID = 0L; nameID = 0L; modifierID = 0L }
+                  { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
                 ) } ] ]
 
 

@@ -42,9 +42,17 @@ module Sql =
       return ()
     }
 
+  let id (id : uint64) : SqlValue =
+    // In the DB, it's actually an int64
+    let typ = NpgsqlTypes.NpgsqlDbType.Bigint
+    let idParam = NpgsqlParameter("id", typ)
+    idParam.Value <- int64 id
+    Sql.parameter idParam
 
-  let tlidArray (tlids : List<int64>) : SqlValue =
+
+  let idArray (ids : List<uint64>) : SqlValue =
+    // In the DB, it's actually an int64
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint
-    let tlidsParam = NpgsqlParameter("tlids", typ)
-    tlidsParam.Value <- List.toArray tlids
-    Sql.parameter tlidsParam
+    let idsParam = NpgsqlParameter("ids", typ)
+    idsParam.Value <- ids |> List.map int64 |> List.toArray
+    Sql.parameter idsParam
