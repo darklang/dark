@@ -10,6 +10,7 @@ open Prelude
 
 module DarkTypes = LibBackend.ProgramSerialization.ProgramTypes
 module D = DarkTypes
+
 open LibExecution.SharedTypes
 open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
@@ -51,8 +52,8 @@ let parse (input) : SynExpr =
 let rec convertToExpr (ast : SynExpr) : D.Expr =
   let c = convertToExpr
 
-  let parseFloat d : string * string =
-    match sprintf "%f" d with
+  let parseFloat (d : float) : string * string =
+    match d.ToString() with
     | Regex "(.*)\.(.*)" [ whole; fraction ] -> (whole, fraction |> int |> string)
     | str -> failwith $"Could not parse {str}"
 

@@ -5,6 +5,10 @@ open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
 
+// Exceptions that should not be exposed to users, and that indicate unexpected
+// behaviour
+exception InternalException of string
+
 // Active pattern for regexes
 let (|Regex|_|) (pattern : string) (input : string) =
   let m = Regex.Match(input, pattern)
@@ -14,6 +18,15 @@ let debug (msg : string) (a : 'a) : 'a =
   printfn $"DEBUG: {msg} ({a})"
   a
 
+// Asserts are problematic because they don't run in prod, and if they did they
+// wouldn't be caught by the webserver
+let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
+
+let assertRe (msg : string) (pattern : string) (input : string) : unit =
+  let m = Regex.Match(input, pattern)
+  if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false
+
+
 // .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
 // OS-generated truly-random number.
 // https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
@@ -21,19 +34,48 @@ let debug (msg : string) (a : 'a) : 'a =
 // guaranteed to get multiple consequetive values (as other requests may intervene)
 let random : System.Random = System.Random()
 
-let parseInt64 (str : string) : int64 = System.Convert.ToInt64 str
-let parseUInt64 (str : string) : uint64 = System.Convert.ToUInt64 str
-let parseBigint (str : string) : bigint = System.Numerics.BigInteger.Parse str
+let parseInt64 (str : string) : int64 =
+  try
+    assertRe "int64" @"-?\d+" str
+    System.Convert.ToInt64 str
+  with e -> raise (InternalException $"parseInt64 failed: {str} - {e}")
+
+let parseUInt64 (str : string) : uint64 =
+  try
+    assertRe "uint64" @"-?\d+" str
+    System.Convert.ToUInt64 str
+  with e -> raise (InternalException $"parseUInt64 failed: {str} - {e}")
+
+let parseBigint (str : string) : bigint =
+  try
+    assertRe "bigint" @"-?\d+" str
+    System.Numerics.BigInteger.Parse str
+  with e -> raise (InternalException $"parseUInt64 failed: {str} - {e}")
+
+let parseFloat (whole : string) (fraction : string) : float =
+  try
+    // FSTODO: don't actually assert, report to rollbar
+    assertRe "whole" @"-?\d+" whole
+    assertRe "fraction" @"\d+" fraction
+    System.Double.Parse($"{whole}.{fraction}")
+  with e -> raise (InternalException $"parseFloat failed: {whole}.{fraction} - {e}")
+
+let makeFloat (whole : int64) (fraction : uint64) : float =
+  try
+    System.Double.Parse($"{whole}.{fraction}")
+  with e -> raise (InternalException $"makeFloat failed: {whole}.{fraction} - {e}")
 
 let gid () : uint64 =
-  // get enough bytes for an int64, trim it to an int31 for now to match the frontend
-  let bytes = Array.init 8 (fun _ -> (byte) 0)
-  random.NextBytes(bytes)
-  let rand64 : uint64 = System.BitConverter.ToUInt64(bytes, 0)
-  // Keep 30 bits
-  // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
-  let mask : uint64 = 1073741823uL
-  rand64 &&& mask
+  try
+    // get enough bytes for an int64, trim it to an int31 for now to match the frontend
+    let bytes = Array.init 8 (fun _ -> (byte) 0)
+    random.NextBytes(bytes)
+    let rand64 : uint64 = System.BitConverter.ToUInt64(bytes, 0)
+    // Keep 30 bits
+    // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
+    let mask : uint64 = 1073741823UL
+    rand64 &&& mask
+  with e -> raise (InternalException $"gid failed: {e}")
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
@@ -44,15 +86,6 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     printfn $"DEBUG: {msg} ({a})"
     return a
   }
-
-// Asserts are problematic because they don't run in prod, and if they did they
-// wouldn't be caught by the webserver
-let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
-
-let assertRe (msg : string) (pattern : string) (input : string) : unit =
-  let m = Regex.Match(input, pattern)
-  if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false
-
 
 module String =
   // Returns a seq of EGC (extended grapheme cluster - essentially a visible

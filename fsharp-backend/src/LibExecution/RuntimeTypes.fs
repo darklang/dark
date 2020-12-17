@@ -193,20 +193,18 @@ and Dval =
 
   static member float(value : double) : Dval = DFloat value
 
-  static member float(whole : int64, fractional : uint64) : Dval =
+  static member float(whole : int64, fraction : uint64) : Dval =
     // FSTODO - add sourceID to errors
     try
-      DFloat(float $"{whole}.{fractional}")
+      DFloat(makeFloat whole fraction)
     with _ ->
-      DFakeVal(
-        DError(InvalidFloatExpression(whole.ToString(), fractional.ToString()))
-      )
+      DFakeVal(DError(InvalidFloatExpression(whole.ToString(), fraction.ToString())))
 
-  static member float(whole : string, fractional : string) : Dval =
+  static member float(whole : string, fraction : string) : Dval =
     // FSTODO - add sourceID to errors
     try
-      DFloat(float $"{whole}.{fractional}")
-    with _ -> DFakeVal(DError((InvalidFloatExpression(whole, fractional))))
+      DFloat(parseFloat whole fraction)
+    with _ -> DFakeVal(DError((InvalidFloatExpression(whole, fraction))))
 
 
 
@@ -367,10 +365,6 @@ and DvalSource =
 // ------------
 // Exceptions
 // ------------
-
-// Exceptions that should not be exposed to users, and that indicate unexpected
-// behaviour
-exception InternalException of string
 
 // This creates an error which can be wrapped in a DError. All errors that
 // occur at runtime should be represented here
@@ -656,9 +650,7 @@ module Shortcuts =
 
   let eInt (i : int) : Expr = EInteger(gid (), bigint i)
 
-  let eIntStr (i : string) : Expr =
-    assert ((new Regex(@"-?\d+")).IsMatch(i))
-    EInteger(gid (), parseBigint i)
+  let eIntStr (i : string) : Expr = EInteger(gid (), parseBigint i)
 
   let eChar (c : char) : Expr = ECharacter(gid (), string c)
   let eCharStr (c : string) : Expr = ECharacter(gid (), c)
@@ -666,14 +658,11 @@ module Shortcuts =
 
   let eBool (b : bool) : Expr = EBool(gid (), b)
 
-  let eFloat (whole : int) (fraction : int) : Expr =
-    EFloat(gid (), float $"{whole}.{fraction}")
+  let eFloat (whole : int64) (fraction : uint64) : Expr =
+    EFloat(gid (), makeFloat whole fraction)
 
   let eFloatStr (whole : string) (fraction : string) : Expr =
-    // FSTODO: don't actually assert, report to rollbar
-    assert ((new Regex(@"-?\d+")).IsMatch(whole))
-    assert ((new Regex(@"\d+")).IsMatch(fraction))
-    EFloat(gid (), float $"{whole}.{fraction}")
+    EFloat(gid (), parseFloat whole fraction)
 
   let eNull () : Expr = ENull(gid ())
 

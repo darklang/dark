@@ -208,7 +208,7 @@ type Expr =
     | ECharacter (id, char) -> RT.ECharacter(id, char)
     | EInteger (id, num) -> RT.EInteger(id, num)
     | EString (id, str) -> RT.EString(id, str)
-    | EFloat (id, whole, fraction) -> RT.EFloat(id, float $"{whole}.{fraction}")
+    | EFloat (id, whole, fraction) -> RT.EFloat(id, makeFloat whole fraction)
     | EBool (id, b) -> RT.EBool(id, b)
     | ENull id -> RT.ENull id
     | EVariable (id, var) -> RT.EVariable(id, var)
@@ -314,7 +314,7 @@ and Pattern =
     | PBool (id, b) -> RT.PBool(id, b)
     | PCharacter (id, c) -> RT.PCharacter(id, c)
     | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, w, f) -> RT.PFloat(id, float "${w}.{f}")
+    | PFloat (id, w, f) -> RT.PFloat(id, makeFloat w f)
     | PNull id -> RT.PNull id
     | PBlank id -> RT.PBlank id
 
@@ -502,9 +502,7 @@ module Shortcuts =
   let eStr (str : string) : Expr = EString(gid (), str)
   let eInt (i : int) : Expr = EInteger(gid (), bigint i)
 
-  let eIntStr (i : string) : Expr =
-    assert ((new Regex(@"-?\d+")).IsMatch(i))
-    EInteger(gid (), parseBigint i)
+  let eIntStr (i : string) : Expr = EInteger(gid (), parseBigint i)
 
   let eChar (c : char) : Expr = ECharacter(gid (), string c)
   let eCharStr (c : string) : Expr = ECharacter(gid (), c)
@@ -515,10 +513,7 @@ module Shortcuts =
     EFloat(gid (), whole, fraction)
 
   let eFloatStr (whole : string) (fraction : string) : Expr =
-    // FSTODO: don't actually assert, report to rollbar
-    assert ((new Regex(@"-?\d+")).IsMatch(whole))
-    assert ((new Regex(@"\d+")).IsMatch(fraction))
-    EFloat(gid (), parseInt64 whole, System.Convert.ToUInt64 fraction)
+    EFloat(gid (), parseInt64 whole, parseUInt64 fraction)
 
   let eNull () : Expr = ENull(gid ())
 
@@ -600,8 +595,8 @@ module Shortcuts =
   let pFloatStr (whole : string) (fraction : string) : Pattern =
     PFloat(gid (), parseInt64 whole, parseUInt64 fraction)
 
-  let pFloat (whole : int) (fraction : int) : Pattern =
-    PFloat(gid (), int64 whole, uint64 fraction)
+  let pFloat (whole : int64) (fraction : uint64) : Pattern =
+    PFloat(gid (), whole, fraction)
 
   let pNull () : Pattern = PNull(gid ())
 
