@@ -52,10 +52,12 @@ let parse (input) : SynExpr =
 let rec convertToExpr (ast : SynExpr) : D.Expr =
   let c = convertToExpr
 
-  let parseFloat (d : float) : string * string =
+  let splitFloat (d : float) : int64 * uint64 =
     match d.ToString() with
-    | Regex "(.*)\.(.*)" [ whole; fraction ] -> (whole, fraction |> int |> string)
-    | str -> failwith $"Could not parse {str}"
+    | Regex "([-0-9]+)\.(\d+)" [ whole; fraction ] ->
+        (parseInt64 whole, parseUInt64 fraction)
+    | Regex "([-0-9]+)" [ whole ] -> (whole |> parseInt64, 0UL)
+    | str -> failwith $"Could not splitFloat {d}"
 
   let rec convertPattern (pat : SynPat) : D.Pattern =
     match pat with
@@ -69,8 +71,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
     | SynPat.Const (SynConst.Bool b, _) -> pBool b
     | SynPat.Null _ -> pNull ()
     | SynPat.Const (SynConst.Double d, _) ->
-        let whole, fraction = parseFloat d
-        pFloatStr whole fraction
+        let whole, fraction = splitFloat d
+        pFloat whole fraction
     | SynPat.Const (SynConst.String (s, _), _) -> pString s
     | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
                         _,
@@ -106,8 +108,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   | SynExpr.Const (SynConst.Char c, _) -> eChar c
   | SynExpr.Const (SynConst.Bool b, _) -> eBool b
   | SynExpr.Const (SynConst.Double d, _) ->
-      let whole, fraction = parseFloat d
-      eFloatStr whole fraction
+      let whole, fraction = splitFloat d
+      eFloat whole fraction
   | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
   | SynExpr.Ident ident when ident.idText = "op_Addition" ->
       eBinOp "" "+" 0 (eBlank ()) (eBlank ())
