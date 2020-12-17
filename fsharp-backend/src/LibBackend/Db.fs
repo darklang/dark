@@ -26,7 +26,7 @@ module Sql =
       | [ a ] -> return Some a
       | [] -> return None
       | list ->
-          return failwith "Too many results, expected 0 or 1, got {list.Length}"
+          return failwith $"Too many results, expected 0 or 1, got {list.Length}"
     }
 
   let query (sql : string) : Sql.SqlProps = connect () |> Sql.query sql
