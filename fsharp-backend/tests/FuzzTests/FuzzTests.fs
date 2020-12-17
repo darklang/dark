@@ -15,7 +15,7 @@ let (.=.) actual expected : bool =
   (if actual = expected then
     true
    else
-     printfn $"Expected:\n{expected}\n butGgot:\n{actual}"
+     printfn $"Expected:\n{expected}\n but got:\n{actual}"
      false)
 
 
@@ -39,15 +39,6 @@ module DarkFsCheck =
       |> Arb.mapFilter
            (function
            // make sure we get numbers in our floats
-           | PT.EFloat (id, _, _) ->
-               let float = Arb.generate<double>
-               let asString = float.ToString()
-               let split = asString.Split "."
-
-               match split with
-               | [| whole; fraction |] -> PT.EFloat(id, whole, fraction)
-               | _ -> PT.EBlank id
-
            | other -> other)
            (function
            // characters are not yet supported in OCaml

@@ -61,7 +61,7 @@ module OCamlTypes =
 
   type pos = { x : int; y : int }
 
-  type id = int64
+  type id = uint64
 
   type tlid = id
 
@@ -288,10 +288,10 @@ module Yojson =
     | RT.FPVariable (_, id, str) -> PT.PVariable(id, str)
     | RT.FPConstructor (_, id, name, pats) ->
         PT.PConstructor(id, name, List.map r pats)
-    | RT.FPInteger (_, id, i) -> PT.PInteger(id, i)
+    | RT.FPInteger (_, id, i) -> PT.PInteger(id, parseBigint i)
     | RT.FPBool (_, id, b) -> PT.PBool(id, b)
     | RT.FPString (_, id, s) -> PT.PString(id, s)
-    | RT.FPFloat (_, id, w, f) -> PT.PFloat(id, w, f)
+    | RT.FPFloat (_, id, w, f) -> PT.PFloat(id, parseInt64 w, parseUInt64 f)
     | RT.FPNull (_, id) -> PT.PNull id
     | RT.FPBlank (_, id) -> PT.PBlank id
 
@@ -305,9 +305,10 @@ module Yojson =
 
     match o with
     | RT.EBlank id -> PT.EBlank id
-    | RT.EInteger (id, num) -> PT.EInteger(id, num)
+    | RT.EInteger (id, num) -> PT.EInteger(id, parseBigint num)
     | RT.EString (id, str) -> PT.EString(id, str)
-    | RT.EFloat (id, whole, fraction) -> PT.EFloat(id, whole, fraction)
+    | RT.EFloat (id, whole, fraction) ->
+        PT.EFloat(id, parseInt64 whole, parseUInt64 fraction)
     | RT.EBool (id, b) -> PT.EBool(id, b)
     | RT.ENull id -> PT.ENull id
     | RT.EVariable (id, var) -> PT.EVariable(id, var)
@@ -371,11 +372,11 @@ module Yojson =
     | PT.PVariable (id, str) -> RT.FPVariable(mid, id, str)
     | PT.PConstructor (id, name, pats) ->
         RT.FPConstructor(mid, id, name, List.map r pats)
-    | PT.PInteger (id, i) -> RT.FPInteger(mid, id, i)
+    | PT.PInteger (id, i) -> RT.FPInteger(mid, id, i.ToString())
     | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | PT.PBool (id, b) -> RT.FPBool(mid, id, b)
     | PT.PString (id, s) -> RT.FPString(mid, id, s)
-    | PT.PFloat (id, w, f) -> RT.FPFloat(mid, id, w, f)
+    | PT.PFloat (id, w, f) -> RT.FPFloat(mid, id, w.ToString(), f.ToString())
     | PT.PNull (id) -> RT.FPNull(mid, id)
     | PT.PBlank (id) -> RT.FPBlank(mid, id)
 
@@ -389,10 +390,11 @@ module Yojson =
 
     match p with
     | PT.EBlank id -> RT.EBlank id
-    | PT.EInteger (id, num) -> RT.EInteger(id, num)
+    | PT.EInteger (id, num) -> RT.EInteger(id, num.ToString())
     | PT.ECharacter (id, num) -> failwith "Characters not supported"
     | PT.EString (id, str) -> RT.EString(id, str)
-    | PT.EFloat (id, whole, fraction) -> RT.EFloat(id, whole, fraction)
+    | PT.EFloat (id, whole, fraction) ->
+        RT.EFloat(id, whole.ToString(), fraction.ToString())
     | PT.EBool (id, b) -> RT.EBool(id, b)
     | PT.ENull id -> RT.ENull id
     | PT.EVariable (id, var) -> RT.EVariable(id, var)

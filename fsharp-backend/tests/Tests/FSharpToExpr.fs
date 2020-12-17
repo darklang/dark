@@ -62,7 +62,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
         pBlank ()
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
     | SynPat.Const (SynConst.Int32 n, _) -> pInt n
-    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> D.PInteger(gid (), n)
+    | SynPat.Const (SynConst.UserNum (n, "I"), _) ->
+        D.PInteger(gid (), parseBigint n)
     | SynPat.Const (SynConst.Char c, _) -> pChar c
     | SynPat.Const (SynConst.Bool b, _) -> pBool b
     | SynPat.Null _ -> pNull ()
@@ -99,7 +100,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
 
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
-  | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> D.EInteger(gid (), n)
+  | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> D.EInteger(gid (), parseBigint n)
   | SynExpr.Null _ -> eNull ()
   | SynExpr.Const (SynConst.Char c, _) -> eChar c
   | SynExpr.Const (SynConst.Bool b, _) -> eBool b
@@ -208,7 +209,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
       eMatch (c cond) (List.map convertClause clauses)
   | SynExpr.Record (_, _, fields, _) ->
       fields
-      |> List.map (function
+      |> List.map
+           (function
            | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
                (name.idText, c expr)
            | f -> failwith $"Not an expected field {f}")
@@ -218,8 +220,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
   // op_PipeRight, and the inner app has two arguments. Those arguments might
   // also be pipes
-  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText =
-                                                                                              "op_PipeRight" ->
+  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
       | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
           // when we just built the lowest, the second one goes here
