@@ -1,8 +1,8 @@
-[http-handler GET /]
-blank
+[http-handler POST /]
+"hello post"
 
 [request]
-GET / HTTP/1.1
+POST / HTTP/1.1
 Host: test-post.builtwithdark.localhost:9001
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
@@ -12,6 +12,6 @@ HTTP/1.1 200 OK
 Date: XXX, XX XXX XXXX XX:XX:XX XXX
 Content-Type: text/plain; charset=utf-8
 Server: darklang
-Content-Length: 13
+Content-Length: 12
 
-"hello world"
+"hello post"
