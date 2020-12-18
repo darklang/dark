@@ -176,6 +176,36 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "String" "toFloat" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TFloat
+      description = "Returns the float value of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            (try
+              float (s) |> DFloat |> Value
+             with e ->
+               Value(errStr ("Expected a string representation of an IEEE float")))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toFloat" 1) }
+    { name = fn "String" "toFloat" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TFloat
+      description = "Returns the float value of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            (try
+              float (s) |> DFloat |> Value
+             with e ->
+               Value(errStr ("Expected a string representation of an IEEE float")))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "toUppercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
