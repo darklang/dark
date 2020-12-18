@@ -193,15 +193,19 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "String" "toFloat" 1) }
     { name = fn "String" "toFloat" 1
       parameters = [ Param.make "s" TStr "" ]
-      returnType = TFloat
+      returnType = TResult(TFloat, TStr)
       description = "Returns the float value of the string"
       fn =
         (function
         | _, [ DStr s ] ->
             (try
-              float (s) |> DFloat |> Value
+              float (s) |> DFloat |> Ok |> DResult |> Value
              with e ->
-               Value(errStr ("Expected a string representation of an IEEE float")))
+               "Expected a string representation of an IEEE float"
+               |> DStr
+               |> Error
+               |> DResult
+               |> Value)
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
