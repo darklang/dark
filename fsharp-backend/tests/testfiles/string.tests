@@ -92,6 +92,7 @@ String.toList_v1 "abc" = [ 'a', 'b', 'c'] // String.toList_v1 works
 String.toLowercase_v0 "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
 String.toLowercase_v0 "AB323CDEF" = "ab323cdef"
 String.toLowercase_v0 "sánchez" = "sánchez"
+String.toLowercase_v0 "żółw" = "żółw"
 String.toLowercase_v0 "😄ORANGE" = "😄orange"
 String.toLowercase_v1 "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
 String.toLowercase_v1 "AB323CDEF" = "ab323cdef"
