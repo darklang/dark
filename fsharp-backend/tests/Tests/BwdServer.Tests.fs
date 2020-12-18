@@ -78,13 +78,14 @@ let clearTestData (canvasName : string) : Task<unit> =
           |> Sql.executeStatementAsync
           :> Task
 
-        Task.WaitAll [| cronRecords
-                        toplevelOplists
-                        userData
-                        functionArguments
-                        functionResults
-                        storedEvents
-                        events |]
+        do!
+          Task.WhenAll [| cronRecords
+                          toplevelOplists
+                          userData
+                          functionArguments
+                          functionResults
+                          storedEvents
+                          events |]
 
         do!
           Sql.query "DELETE FROM canvases where id = @id::uuid"
