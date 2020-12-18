@@ -1,4 +1,5 @@
 module LibExecution.StdLib.LibString
+open System.Globalization
 
 (* type coerces one list to another using a function *)
 
@@ -419,15 +420,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let append (reversedString : char list) (ch : char) : char list =
-              ch :: reversedString
+            let reverseString str =
+                StringInfo.ParseCombiningCharacters(str)
+                |> Array.rev
+                |> Seq.map (fun i -> StringInfo.GetNextTextElement(str, i))
+                |> String.concat ""
 
-            string s
-            |> Seq.fold append []
-            |> Array.ofList
-            |> System.String
-            |> DStr
-            |> Value
+            Value(DStr(reverseString s))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

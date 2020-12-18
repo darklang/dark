@@ -131,6 +131,9 @@ String.reverse_v0 "abcde" = "edcba"
 String.reverse_v0 "0abcde" = "edcba0"
 String.reverse_v0 "a" = "a"
 String.reverse_v0 "" = ""
+String.reverse_v0 "ábc" = "cbá"
+String.reverse_v0 "🎁🧸Ǆʠ123" = "321ʠǄ🧸🎁"
+String.reverse_v0 "😄foobar👽" = "👽raboof😄"
 [test.stringForeach]
 // Check that foreach executes the right number of times
 (let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 false) in
