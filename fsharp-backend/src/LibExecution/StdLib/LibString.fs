@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             (try
-              bigint (s |> int) |> DInt |> Value
+              s |> System.Numerics.BigInteger.Parse |> DInt |> Value
              with e -> Value(errStr ("Expected a string with only numbers")))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
