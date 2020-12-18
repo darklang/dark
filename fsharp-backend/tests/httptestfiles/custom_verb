@@ -1,8 +1,8 @@
-[http-handler GET /]
-blank
+[http-handler CUSTOM_VERB /]
+"custom verb"
 
 [request]
-GET / HTTP/1.1
+CUSTOM_VERB / HTTP/1.1
 Host: test-custom_verb.builtwithdark.localhost:9001
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
@@ -14,4 +14,4 @@ Content-Type: text/plain; charset=utf-8
 Server: darklang
 Content-Length: 13
 
-"hello world"
+"custom verb"
