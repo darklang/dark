@@ -1,0 +1,20 @@
+[http-handler GET /]
+"hello world"
+
+[http-handler GET /]
+"hello world2"
+
+[request]
+GET / HTTP/1.1
+Host: test-500-clash.builtwithdark.localhost:9001
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 0
+
+[response]
+HTTP/1.1 500 Internal Server Error
+Date: XXX, XX XXX XXXX XX:XX:XX XXX
+Content-Type: text/plain
+Server: darklang
+Content-Length: 40
+
+More than one handler found for this URL

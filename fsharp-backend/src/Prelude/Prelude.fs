@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 open System.Text.RegularExpressions
 
 // Active pattern for regexes
-let (|Regex|_|) pattern input =
+let (|Regex|_|) (pattern : string) (input : string) =
   let m = Regex.Match(input, pattern)
   if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
 
@@ -40,6 +40,15 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     printfn $"DEBUG: {msg} ({a})"
     return a
   }
+
+// Asserts are problematic because they don't run in prod, and if they did they
+// wouldn't be caught by the webserver
+let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
+
+let assertRe (msg : string) (pattern : string) (input : string) : unit =
+  let m = Regex.Match(input, pattern)
+  if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false
+
 
 module String =
   // Returns a seq of EGC (extended grapheme cluster - essentially a visible
@@ -89,14 +98,15 @@ module TaskOrValue =
         // It was a task, so we need to unwrap that and create
         // a new task - inside Task. If 'f v' returns a task, we
         // still need to return this as task though.
-        Task
-          (task {
+        Task(
+          task {
             let! v = t
 
             match f v with
             | Value v -> return v
             | Task t -> return! t
-           })
+          }
+        )
 
 type TaskOrValueBuilder() =
   // This lets us use let!, do! - These can be overloaded
@@ -152,16 +162,19 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
               }
 
             let! ((accum, lastcomp) : (List<'b> * 'b)) =
-              List.fold (fun (prevcomp : TaskOrValue<List<'b> * 'b>) (arg : 'a) ->
-                taskv {
-                  // Ensure the previous computation is done first
-                  let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                  let accum = prev :: accum
+              List.fold
+                (fun (prevcomp : TaskOrValue<List<'b> * 'b>) (arg : 'a) ->
+                  taskv {
+                    // Ensure the previous computation is done first
+                    let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
+                    let accum = prev :: accum
 
-                  let! result = (f arg)
+                    let! result = (f arg)
 
-                  return (accum, result)
-                }) firstComp tail
+                    return (accum, result)
+                  })
+                firstComp
+                tail
 
             return List.rev (lastcomp :: accum)
           }
@@ -169,7 +182,9 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
     return (result |> Seq.toList)
   }
 
-let filter_s (f : 'a -> TaskOrValue<bool>) (list : List<'a>) : TaskOrValue<List<'a>> =
+let filter_s (f : 'a -> TaskOrValue<bool>)
+             (list : List<'a>)
+             : TaskOrValue<List<'a>> =
   taskv {
     let! result =
       match list with
@@ -183,18 +198,21 @@ let filter_s (f : 'a -> TaskOrValue<bool>) (list : List<'a>) : TaskOrValue<List<
               }
 
             let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
-              List.fold (fun (prevcomp : TaskOrValue<List<'a> * (bool * 'a)>) (arg : 'a) ->
-                taskv {
-                  // Ensure the previous computation is done first
-                  let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
-                    prevcomp
+              List.fold
+                (fun (prevcomp : TaskOrValue<List<'a> * (bool * 'a)>) (arg : 'a) ->
+                  taskv {
+                    // Ensure the previous computation is done first
+                    let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
+                      prevcomp
 
-                  let accum = if prevkeep then prev :: accum else accum
+                    let accum = if prevkeep then prev :: accum else accum
 
-                  let! keep = (f arg)
+                    let! keep = (f arg)
 
-                  return (accum, (keep, arg))
-                }) firstComp tail
+                    return (accum, (keep, arg))
+                  })
+                firstComp
+                tail
 
             let (lastkeep, lastval) = lastcomp
 
@@ -205,3 +223,22 @@ let filter_s (f : 'a -> TaskOrValue<bool>) (list : List<'a>) : TaskOrValue<List<
 
     return (result |> Seq.toList)
   }
+
+module Json =
+  module AutoSerialize =
+    open System.Text.Json
+    open System.Text.Json.Serialization
+
+    let _options =
+      (let options = JsonSerializerOptions()
+
+       options.Converters.Add(
+         JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag)
+       )
+
+       options)
+
+    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+
+    let deserialize<'a> (json : string) : 'a =
+      JsonSerializer.Deserialize<'a>(json, _options)

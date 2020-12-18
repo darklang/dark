@@ -1,17 +1,21 @@
 module BwdServer
 
+// This is the webserver for builtwithdark.com. It uses ASP.NET directly,
+// instead of a web framework, so we can tuen the exact behaviour of headers
+// and such.
+
 (* open Microsoft.AspNetCore.Http *)
 open FSharp.Control.Tasks
 
 open System
 (* open System.Security.Claims *)
 open System.Threading.Tasks
+open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Extensions
 (* open Microsoft.AspNetCore.Http.Features *)
-open Microsoft.Extensions.Hosting
 (* open Microsoft.Extensions.Configuration *)
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
@@ -22,7 +26,7 @@ module PT = LibBackend.ProgramSerialization.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 // This boilerplate is copied from Giraffe. I elected not to use Giraffe
-// because we don't need any of its feature, but the types it chose are very
+// because we don't need any of its feature, but the types it uses are very
 // nice.
 // https://github.com/giraffe-fsharp/Giraffe/blob/9598682f4f68e23217c4199a48f30ca3457b037e/src/Giraffe/Core.fs
 
@@ -99,10 +103,17 @@ let canvasNameFromHost (host : string) : Task<Option<string>> =
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+        ctx.Response.Headers.Add
+          (name, Microsoft.Extensions.Primitives.StringValues([| value |]))
+
       let e500 (msg : string) =
         task {
           let bytes = System.Text.Encoding.UTF8.GetBytes msg
           ctx.Response.StatusCode <- 500
+          addHeader ctx "server" "darklang"
+          if bytes.Length > 0 then addHeader ctx "Content-Type" "text/plain"
+          addHeader ctx "Content-Length" (bytes.Length.ToString())
           do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
           return Some ctx
         }
@@ -156,21 +167,29 @@ let runDarkHandler : HttpHandler =
               match result with
               | RT.DHttpResponse (status, headers, RT.DBytes body) ->
                   ctx.Response.StatusCode <- status
-                  List.iter (fun (k, v) ->
-                    ctx.Response.Headers.Add
-                      (k, Microsoft.Extensions.Primitives.StringValues([| v |])))
-                    headers
+                  List.iter (fun (k, v) -> addHeader ctx k v) headers
                   do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
                   return! next ctx
+              // TODO: maybe not the right thing, but this is what the OCaml does
+              // FSTODO: move this to LibExecution so it can be available in the client
+              | RT.DFakeVal (RT.DErrorRail (RT.DResult (Error _)))
+              | RT.DFakeVal (RT.DErrorRail (RT.DOption None)) ->
+                  ctx.Response.StatusCode <- 404
+                  addHeader ctx "server" "darklang"
+                  return Some ctx
+              | RT.DFakeVal (RT.DIncomplete _) ->
+                  return! e500
+                            "Error calling server code: Handler returned an \
+                                incomplete result. Please inform the owner of this \
+                                site that their code is broken."
               | other ->
                   printfn $"Not a HTTP response: {other}"
                   return! e500 "body is not a HttpResponse"
       | [] ->
           ctx.Response.StatusCode <- 404
+          addHeader ctx "server" "darklang"
           return Some ctx
-      | _ ->
-          ctx.Response.StatusCode <- 500
-          return Some ctx
+      | _ -> return! e500 "More than one handler found for this URL"
     }
 
 let webApp : HttpHandler =
@@ -198,13 +217,13 @@ let configureLogging (builder : ILoggingBuilder) =
 let configureServices (services : IServiceCollection) = ()
 
 let webserver port =
-  let url = $"http://*:{port}"
-  Host.CreateDefaultBuilder()
-      .ConfigureWebHostDefaults(fun webHostBuilder ->
-      webHostBuilder.Configure(configureApp).ConfigureServices(configureServices)
-                    .UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
-                    .ConfigureLogging(configureLogging).UseUrls(url)
-      |> ignore).Build()
+  WebHost.CreateDefaultBuilder()
+  |> fun wh -> wh.UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
+  |> fun wh -> wh.ConfigureServices(configureServices)
+  |> fun wh -> wh.Configure(configureApp)
+  |> fun wh -> wh.ConfigureLogging(configureLogging)
+  |> fun wh -> wh.UseUrls($"http://*:{port}")
+  |> fun wh -> wh.Build()
 
 
 [<EntryPoint>]

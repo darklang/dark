@@ -4,19 +4,21 @@ source https://api.nuget.org/v3/index.json
 framework: net5.0
 storage: none
 
+nuget Expecto.FsCheck
+nuget FsCheck
 nuget FSharp.Core ~> 5.0.0
 
 // Web servers
-nuget Saturn ~> 0.15.0-preview01
+nuget Giraffe ~> 5.0.0-rc-6
 
 // Tests
 nuget Expecto ~> 9.0.2
-nuget FSharp.Compiler.Service
+nuget FSharp.Compiler.Service ~> 37.0.0
 
 // LibExecution
-nuget Thoth.Json.Net ~> 4.1.0
 nuget TaskBuilder.fs ~> 2.1
-nuget FSharp.Data
+nuget FSharp.Data ~> 3.3.3
+nuget FSharp.SystemTextJson ~> 0.15.14
 nuget Ply ~> 0.1
 nuget FSharpPlus ~> 1.2.0-ci01240
 nuget FsRegEx ~> 0.7.2

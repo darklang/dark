@@ -17,14 +17,13 @@ open FSharp.Control.Tasks
 open FSharpPlus
 open Npgsql.FSharp
 open Npgsql
-open FSharp.Data
 open System.Text.RegularExpressions
 
 open Prelude
 open LibExecution.SharedTypes
 
 // Used for conversion functions
-module R = LibExecution.RuntimeTypes
+module RT = LibExecution.RuntimeTypes
 
 // Expressions - the main part of the language.
 
@@ -36,22 +35,21 @@ module FQFnName =
       function_ : string
       version : int }
 
-    member this.ToString : string =
+    override this.ToString() : string =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
-      let fn = $"{this.module_}{this.function_}_v{this.version}"
+      let fn = $"{this.module_}::{this.function_}_v{this.version}"
 
-      if this.owner = "dark" && module_ = "stdlib" then
+      if this.owner = "dark" && this.package = "stdlib" then
         fn
       else
-        $"{this.owner}/{this.package}::{fn}"
+        $"{this.owner}/{this.package}/{fn}"
 
-    member this.toRuntimeType() : R.FQFnName.T =
+    member this.toRuntimeType() : RT.FQFnName.T =
       { owner = this.owner
         package = this.package
         module_ = this.module_
         function_ = this.function_
         version = this.version }
-
 
   let name (owner : string)
            (package : string)
@@ -59,18 +57,42 @@ module FQFnName =
            (function_ : string)
            (version : int)
            : T =
+    let namePat = @"^[a-z][a-z0-9_]*$"
+    let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+    let fnnamePat = @"^[a-z][a-z0-9A-Z_]*$"
+    assertRe "owner must match" namePat owner
+    assertRe "package must match" namePat package
+    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    assertRe "function name must match" fnnamePat function_
+    assert_ "version can't be negative" (version >= 0)
+
     { owner = owner
       package = package
       module_ = module_
       function_ = function_
       version = version }
 
+  let parse (fnName : string) : T =
+    let owner, package, module_, function_, version =
+      match fnName with
+      | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
+              [ owner; package; module_; name; version ] ->
+          (owner, package, module_, name, int version)
+      | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
+              [ module_; name; version ] ->
+          ("dark", "stdlib", module_, name, int version)
+      | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
+          ("dark", "stdlib", module_, name, 0)
+      | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
+          ("dark", "stdlib", "", name, int version)
+      | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
+      | _ -> failwith $"Bad format in function name: \"{fnName}\""
+
+    name owner package module_ function_ version
 
   let stdlibName (module_ : string) (function_ : string) (version : int) : T =
     name "dark" "stdlib" module_ function_ version
 
-
-type R = LibExecution.RuntimeTypes.Expr
 
 type Expr =
   | EInteger of id * string
@@ -128,7 +150,10 @@ type Expr =
         name = name' && eq lhs lhs' && eq rhs rhs' && toRail = toRail'
     | ERecord (_, pairs), ERecord (_, pairs') ->
         let sort = List.sortBy (fun (k, _) -> k)
-        List.forall2 (fun (k, v) (k', v') -> k = k' && eq v v') (sort pairs)
+
+        List.forall2
+          (fun (k, v) (k', v') -> k = k' && eq v v')
+          (sort pairs)
           (sort pairs')
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') -> eq e e' && f = f'
     | EPipe (_, e1, e2, l), EPipe (_, e1', e2', l') ->
@@ -143,8 +168,11 @@ type Expr =
         eq e e' && List.forall2 (fun (_, v) (_, v') -> v = v') vars vars'
     | EMatch (_, e, branches), EMatch (_, e', branches') ->
         eq e e'
-        && List.forall2 (fun ((p, v) : Pattern * Expr) (p', v') ->
-             p.testEqualIgnoringIDs (p') && eq v v') branches branches'
+        && List.forall2
+             (fun ((p, v) : Pattern * Expr) (p', v') ->
+               p.testEqualIgnoringIDs (p') && eq v v')
+             branches
+             branches'
     | ENull _, _
     | EBlank _, _
     | EPipeTarget _, _
@@ -174,89 +202,98 @@ type Expr =
 
 
 
-  member this.toRuntimeType() : LibExecution.RuntimeTypes.Expr =
+  member this.toRuntimeType() : RT.Expr =
     let r (v : Expr) = v.toRuntimeType ()
+
     match this with
-    | EBlank id -> R.EBlank id
-    | ECharacter (id, char) -> R.ECharacter(id, char)
-    | EInteger (id, num) -> R.EInteger(id, num)
-    | EString (id, str) -> R.EString(id, str)
-    | EFloat (id, whole, fraction) -> R.EFloat(id, whole, fraction)
-    | EBool (id, b) -> R.EBool(id, b)
-    | ENull id -> R.ENull id
-    | EVariable (id, var) -> R.EVariable(id, var)
-    | EFieldAccess (id, obj, fieldname) -> R.EFieldAccess(id, r obj, fieldname)
+    | EBlank id -> RT.EBlank id
+    | ECharacter (id, char) -> RT.ECharacter(id, char)
+    | EInteger (id, num) -> RT.EInteger(id, num)
+    | EString (id, str) -> RT.EString(id, str)
+    | EFloat (id, whole, fraction) -> RT.EFloat(id, whole, fraction)
+    | EBool (id, b) -> RT.EBool(id, b)
+    | ENull id -> RT.ENull id
+    | EVariable (id, var) -> RT.EVariable(id, var)
+    | EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | EFnCall (id, name, args, ster) ->
-        R.EApply
-          (id,
-           R.EFQFnValue(gid (), name.toRuntimeType ()),
-           List.map r args,
-           R.NotInPipe,
-           ster.toRuntimeType ())
+        RT.EApply(
+          id,
+          RT.EFQFnValue(gid (), name.toRuntimeType ()),
+          List.map r args,
+          RT.NotInPipe,
+          ster.toRuntimeType ()
+        )
     | EBinOp (id, name, arg1, arg2, ster) ->
         r (EFnCall(id, name, [ arg1; arg2 ], ster))
-    | ELambda (id, vars, body) -> R.ELambda(id, vars, r body)
-    | ELet (id, lhs, rhs, body) -> R.ELet(id, lhs, r rhs, r body)
-    | EIf (id, cond, thenExpr, elseExpr) -> R.EIf(id, r cond, r thenExpr, r elseExpr)
+    | ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
+    | ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
+    | EIf (id, cond, thenExpr, elseExpr) ->
+        RT.EIf(id, r cond, r thenExpr, r elseExpr)
     | EPartial (id, _, oldExpr)
     | ERightPartial (id, _, oldExpr)
-    | ELeftPartial (id, _, oldExpr) -> R.EPartial(id, r oldExpr)
-    | EList (id, exprs) -> R.EList(id, List.map r exprs)
-    | ERecord (id, pairs) -> R.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | ELeftPartial (id, _, oldExpr) -> RT.EPartial(id, r oldExpr)
+    | EList (id, exprs) -> RT.EList(id, List.map r exprs)
+    | ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
     | EPipe (id, expr1, expr2, rest) ->
         // Convert v |> fn1 a |> fn2 |> fn3 b c
         // into fn3 (fn2 (fn1 v a)) b c
         // This conversion should correspond to ast.ml:inject_param_and_execute
         // from the OCaml interpreter
         let inner = r expr1
-        List.fold (fun prev next ->
-          match next with
-          // TODO: support currying
-          | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
-              R.EApply
-                (id,
-                 R.EFQFnValue(ptID, name.toRuntimeType ()),
-                 prev :: List.map r exprs,
-                 R.InPipe,
-                 rail.toRuntimeType ())
-          // TODO: support currying
-          | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
-              R.EApply
-                (id,
-                 R.EFQFnValue(ptID, name.toRuntimeType ()),
-                 [ prev; r expr2 ],
-                 R.InPipe,
-                 rail.toRuntimeType ())
-          // If there's a hole, run the computation right through it as if it wasn't there
-          | EBlank _ -> prev
-          // Here, the expression evaluates to an FnValue. This is for eg variables containing values
-          | other ->
-              R.EApply(id, r other, [ prev ], R.InPipe, NoRail.toRuntimeType ()))
 
-          inner (expr2 :: rest)
+        List.fold
+          (fun prev next ->
+            match next with
+            // TODO: support currying
+            | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
+                RT.EApply(
+                  id,
+                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  prev :: List.map r exprs,
+                  RT.InPipe,
+                  rail.toRuntimeType ()
+                )
+            // TODO: support currying
+            | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
+                RT.EApply(
+                  id,
+                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  [ prev; r expr2 ],
+                  RT.InPipe,
+                  rail.toRuntimeType ()
+                )
+            // If there's a hole, run the computation right through it as if it wasn't there
+            | EBlank _ -> prev
+            // Here, the expression evaluates to an FnValue. This is for eg variables containing values
+            | other ->
+                RT.EApply(id, r other, [ prev ], RT.InPipe, NoRail.toRuntimeType ()))
 
-    | EConstructor (id, name, exprs) -> R.EConstructor(id, name, List.map r exprs)
+          inner
+          (expr2 :: rest)
+
+    | EConstructor (id, name, exprs) -> RT.EConstructor(id, name, List.map r exprs)
     | EMatch (id, mexpr, pairs) ->
-        R.EMatch
-          (id,
-           r mexpr,
-           List.map
-             ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
-              << (Tuple2.mapItem2 r))
-             pairs)
+        RT.EMatch(
+          id,
+          r mexpr,
+          List.map
+            ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
+             << (Tuple2.mapItem2 r))
+            pairs
+        )
     | EPipeTarget id -> failwith "No EPipeTargets should remain"
     | EFeatureFlag (id, name, cond, caseA, caseB) ->
-        R.EFeatureFlag(id, r cond, r caseA, r caseB)
+        RT.EFeatureFlag(id, r cond, r caseA, r caseB)
 
 
 and SendToRail =
   | Rail
   | NoRail
 
-  member this.toRuntimeType() : LibExecution.RuntimeTypes.SendToRail =
+  member this.toRuntimeType() : RT.SendToRail =
     match this with
-    | Rail -> R.Rail
-    | NoRail -> R.NoRail
+    | Rail -> RT.Rail
+    | NoRail -> RT.NoRail
 
 and Pattern =
   | PVariable of id * string
@@ -269,21 +306,22 @@ and Pattern =
   | PNull of id
   | PBlank of id
 
-  member this.toRuntimeType() : LibExecution.RuntimeTypes.Pattern =
+  member this.toRuntimeType() : RT.Pattern =
     let r (v : Pattern) = v.toRuntimeType ()
+
     match this with
-    | PVariable (id, str) -> R.PVariable(id, str)
-    | PConstructor (id, name, pats) -> R.PConstructor(id, name, List.map r pats)
-    | PInteger (id, i) -> R.PInteger(id, i)
-    | PBool (id, b) -> R.PBool(id, b)
-    | PCharacter (id, c) -> R.PCharacter(id, c)
-    | PString (id, s) -> R.PString(id, s)
-    | PFloat (id, w, f) -> R.PFloat(id, w, f)
-    | PNull id -> R.PNull id
-    | PBlank id -> R.PBlank id
+    | PVariable (id, str) -> RT.PVariable(id, str)
+    | PConstructor (id, name, pats) -> RT.PConstructor(id, name, List.map r pats)
+    | PInteger (id, i) -> RT.PInteger(id, i)
+    | PBool (id, b) -> RT.PBool(id, b)
+    | PCharacter (id, c) -> RT.PCharacter(id, c)
+    | PString (id, s) -> RT.PString(id, s)
+    | PFloat (id, w, f) -> RT.PFloat(id, w, f)
+    | PNull id -> RT.PNull id
+    | PBlank id -> RT.PBlank id
 
   member this.testEqualIgnoringIDs(other : Pattern) : bool =
-    let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (other)
+    let eq (a : Pattern) (b : Pattern) = a.testEqualIgnoringIDs (b)
 
     let eqList l1 l2 = List.length l1 = List.length l2 && List.forall2 eq l1 l2
 
@@ -317,6 +355,7 @@ module Shortcuts =
     let r (v : Expr) = $"{toStringRepr v}"
     let pr (v : Expr) = $"({toStringRepr v})" // parenthesized repr
     let q (v : string) = $"\"{v}\""
+
     match e with
     | EBlank id -> "eBlank ()"
     | ECharacter (_, char) -> $"eChar '{char}'"
@@ -400,15 +439,16 @@ module Shortcuts =
            (args : List<Expr>)
            (ster : SendToRail)
            : Expr =
-    EFnCall
-      (gid (),
-       { owner = "dark"
-         package = "stdlib"
-         module_ = module_
-         function_ = function_
-         version = version },
-       args,
-       ster)
+    EFnCall(
+      gid (),
+      { owner = "dark"
+        package = "stdlib"
+        module_ = module_
+        function_ = function_
+        version = version },
+      args,
+      ster
+    )
 
 
   let eFn (module_ : string)
@@ -432,16 +472,17 @@ module Shortcuts =
               (arg2 : Expr)
               (ster : SendToRail)
               : Expr =
-    EBinOp
-      (gid (),
-       { owner = "dark"
-         package = "stdlib"
-         module_ = module_
-         function_ = function_
-         version = version },
-       arg1,
-       arg2,
-       ster)
+    EBinOp(
+      gid (),
+      { owner = "dark"
+        package = "stdlib"
+        module_ = module_
+        function_ = function_
+        version = version },
+      arg1,
+      arg2,
+      ster
+    )
 
   let eBinOp (module_ : string)
              (function_ : string)
@@ -584,7 +625,7 @@ type DType =
   | TIncomplete
   | TError
   | TLambda
-  | THTTPResponse
+  | THttpResponse of DType
   | TDB
   | TDate
   | TChar
@@ -598,11 +639,47 @@ type DType =
   // A named variable, eg `a` in `List<a>`
   | TVariable of string
   | TFn of List<DType> * DType
-  | TRecord of List<string * DType> // has exactly these fields
+  | TRecord of List<string * DType>
   // This allows you to build up a record to eventually be the right shape.
-  | TRecordWithFields of List<string * DType>
-  | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-  | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+  // | TRecordWithFields of List<string * DType>
+  // | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+  // | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+
+  member this.toRuntimeType() : RT.DType =
+    match this with
+    | TAny -> RT.TAny
+    | TInt -> RT.TInt
+    | TFloat -> RT.TFloat
+    | TBool -> RT.TBool
+    | TNull -> RT.TNull
+    | TStr -> RT.TStr
+    | TList typ -> RT.TList(typ.toRuntimeType ())
+    | TDict typ -> RT.TDict(typ.toRuntimeType ())
+    | TIncomplete -> RT.TIncomplete
+    | TError -> RT.TError
+    | TLambda -> RT.TLambda
+    | THttpResponse typ -> RT.THttpResponse(typ.toRuntimeType ())
+    | TDB -> RT.TDB
+    | TDate -> RT.TDate
+    | TChar -> RT.TChar
+    | TPassword -> RT.TPassword
+    | TUuid -> RT.TUuid
+    | TOption typ -> RT.TOption(typ.toRuntimeType ())
+    | TErrorRail -> RT.TErrorRail
+    | TUserType (name, version) -> RT.TUserType(name, version)
+    | TBytes -> RT.TBytes
+    | TResult (okType, errType) ->
+        RT.TResult(okType.toRuntimeType (), errType.toRuntimeType ())
+    | TVariable (name) -> RT.TVariable(name)
+    | TFn (paramTypes, returnType) ->
+        RT.TFn(
+          List.map (fun (pt : DType) -> pt.toRuntimeType ()) paramTypes,
+          returnType.toRuntimeType ()
+        )
+    | TRecord (rows) ->
+        RT.TRecord(List.map (fun (f, v : DType) -> f, v.toRuntimeType ()) rows)
+
+
 
 
 
@@ -615,6 +692,16 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
+    member this.toRuntimeType() : RT.Handler.CronInterval =
+      match this with
+      | EveryDay -> RT.Handler.EveryDay
+      | EveryWeek -> RT.Handler.EveryWeek
+      | EveryFortnight -> RT.Handler.EveryFortnight
+      | EveryHour -> RT.Handler.EveryHour
+      | Every12Hours -> RT.Handler.Every12Hours
+      | EveryMinute -> RT.Handler.EveryMinute
+
+
   // We need to keep the IDs around until we get rid of them on the client
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
@@ -626,21 +713,81 @@ module Handler =
     | Cron of name : string * interval : string * ids : ids
     | REPL of name : string * ids : ids
 
+    member this.toRuntimeType() : RT.Handler.Spec =
+      match this with
+      | HTTP (route, method, _ids) -> RT.Handler.HTTP(route, method)
+      | Worker (name, _ids) -> RT.Handler.Worker(name)
+      | OldWorker (modulename, name, _ids) -> RT.Handler.OldWorker(modulename, name)
+      | Cron (name, interval, _ids) -> RT.Handler.Cron(name, interval)
+      | REPL (name, _ids) -> RT.Handler.REPL(name)
 
-  type T = { tlid : tlid; ast : Expr; spec : Spec }
+
+  type T =
+    { tlid : tlid
+      ast : Expr
+      spec : Spec }
+
+    member this.toRuntimeType() : RT.Handler.T =
+      { tlid = this.tlid
+        ast = this.ast.toRuntimeType ()
+        spec = this.spec.toRuntimeType () }
 
 module DB =
   type Col = string * DType
-  type T = { tlid : tlid; name : string; cols : List<Col> }
+
+  type T =
+    { tlid : tlid
+      name : string
+      cols : List<Col> }
+
+    member this.toRuntimeType() : RT.DB.T =
+      { tlid = this.tlid
+        name = this.name
+        cols = List.map (fun (k, t : DType) -> k, t.toRuntimeType ()) this.cols }
+
+
 
 module UserType =
-  type RecordField = { name : string; typ : DType }
-  type Definition = UTRecord of List<RecordField>
+  type RecordField =
+    { name : string
+      typ : DType }
 
-  type T = { tlid : tlid; name : string; version : int; definition : Definition }
+    member this.toRuntimeType() : RT.UserType.RecordField =
+      { name = this.name; typ = this.typ.toRuntimeType () }
+
+  type Definition =
+    | UTRecord of List<RecordField>
+
+    member this.toRuntimeType() : RT.UserType.Definition =
+      match this with
+      | UTRecord fields ->
+          RT.UserType.UTRecord(
+            List.map (fun (rf : RecordField) -> rf.toRuntimeType ()) fields
+          )
+
+
+  type T =
+    { tlid : tlid
+      name : string
+      version : int
+      definition : Definition }
+
+    member this.toRuntimeType() : RT.UserType.T =
+      { tlid = this.tlid
+        name = this.name
+        version = this.version
+        definition = this.definition.toRuntimeType () }
 
 module UserFunction =
-  type Parameter = { name : string; typ : DType; description : string }
+  type Parameter =
+    { name : string
+      typ : DType
+      description : string }
+
+    member this.toRuntimeType() : RT.UserFunction.Parameter =
+      { name = this.name
+        typ = this.typ.toRuntimeType ()
+        description = this.description }
 
   type T =
     { tlid : tlid
@@ -650,6 +797,16 @@ module UserFunction =
       description : string
       infix : bool
       ast : Expr }
+
+    member this.toRuntimeType() : RT.UserFunction.T =
+      { tlid = this.tlid
+        name = this.name
+        parameters =
+          List.map (fun (p : Parameter) -> p.toRuntimeType ()) this.parameters
+        returnType = this.returnType.toRuntimeType ()
+        description = this.description
+        infix = this.infix
+        ast = this.ast.toRuntimeType () }
 
 type Toplevel =
   | TLHandler of Handler.T
@@ -663,3 +820,10 @@ type Toplevel =
     | TLDB db -> db.tlid
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
+
+  member this.toRuntimeType() : RT.Toplevel =
+    match this with
+    | TLHandler h -> RT.TLHandler(h.toRuntimeType ())
+    | TLDB db -> RT.TLDB(db.toRuntimeType ())
+    | TLFunction f -> RT.TLFunction(f.toRuntimeType ())
+    | TLType t -> RT.TLType(t.toRuntimeType ())

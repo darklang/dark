@@ -42,29 +42,35 @@ let prefixFns : List<BuiltInFn> =
    @ LibMiddleware.fns
    @ any)
 
-// Add infix functions that are identical except for the name
+// Map of prefix names to their infix versions
+let infixFnMapping =
+  [ ("Int", "add", 0), "+"
+    ("Int", "subtract", 0), "-"
+    ("Int", "greaterThan", 0), ">"
+    ("Int", "greaterThanOrEqualTo", 0), ">="
+    ("Int", "lessThanOrEqualTo", 0), "<="
+    ("Int", "lessThan", 0), "<"
+    ("Int", "power", 0), "^"
+    ("String", "append", 1), "++"
+    ("", "equals", 0), "==" ]
+  |> List.map (fun ((module_, name, version), opName) ->
+       FQFnName.stdlibName module_ name version, FQFnName.stdlibName "" opName 0)
+  |> Map
+
+// set of infix names
+let infixFnNames =
+  infixFnMapping |> Map.toSeq |> Seq.map FSharpPlus.Operators.item1 |> Set
+
+// Is this the name of an infix function?
+let isInfixName (name : FQFnName.T) = infixFnNames.Contains name
+
 let infixFns =
   let fns =
     List.choose (fun builtin ->
-      let d = builtin.name
+      let opName = infixFnMapping.TryFind builtin.name
+      Option.map (fun newName -> { builtin with name = newName }) opName) prefixFns
 
-      let opName =
-        match d.module_, d.function_, d.version with
-        | "Int", "add", 0 -> Some "+"
-        | "Int", "subtract", 0 -> Some "-"
-        | "Int", "greaterThan", 0 -> Some ">"
-        | "Int", "greaterThanOrEqualTo", 0 -> Some ">="
-        | "Int", "lessThanOrEqualTo", 0 -> Some "<="
-        | "Int", "lessThan", 0 -> Some "<"
-        | "Int", "power", 0 -> Some "^"
-        | "String", "append", 1 -> Some "++"
-        | "", "equals", 0 -> Some "=="
-        | _ -> None
-
-      Option.map (fun opName ->
-        { builtin with name = FQFnName.stdlibName "" opName 0 }) opName) prefixFns
-
-  assert (fns.Length = 9) // make sure we got them all
+  assert (fns.Length = infixFnMapping.Count) // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns

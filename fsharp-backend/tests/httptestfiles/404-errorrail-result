@@ -1,0 +1,15 @@
+[http-handler GET /]
+String.toInt_v1_ster "not an int"
+
+[request]
+GET / HTTP/1.1
+Host: test-500-errorrail-result.builtwithdark.localhost:9001
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 0
+
+[response]
+HTTP/1.1 404 Not Found
+Date: XXX, XX XXX XXXX XX:XX:XX XXX
+Server: darklang
+Content-Length: 0
+
