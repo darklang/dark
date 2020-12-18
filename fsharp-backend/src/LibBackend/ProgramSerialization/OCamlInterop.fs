@@ -21,41 +21,76 @@ module PT = ProgramTypes
 open LibExecution.SharedTypes
 
 module Binary =
-  // These allow us to call C functions from serialization_stubs.c, which in
-  // turn call into the OCaml runtime.
+  module Internal =
+    // These allow us to call C functions from serialization_stubs.c, which in
+    // turn call into the OCaml runtime.
 
-  // FSTODO if we have segfaults, we might need to use this:
-  // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#keeping-managed-objects-alive
+    // FSTODO if we have segfaults, we might need to use this:
+    // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#keeping-managed-objects-alive
 
-  // initialize OCaml runtime
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "dark_init_ocaml")>]
-  extern string darkInitOcaml()
+    // initialize OCaml runtime
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "dark_init_ocaml")>]
+    extern string darkInitOcaml()
 
-  // take a binary rep of a handler from the DB and convert it into JSON
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "handler_bin2json")>]
-  extern string handlerBin2Json(byte[] bytes, int length)
+    // take a binary rep of a handler from the DB and convert it into JSON
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "handler_bin2json")>]
+    extern string handlerBin2Json(byte[] bytes, int length)
 
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "handler_json2bin")>]
-  extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "handler_json2bin")>]
+    extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
 
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "digest")>]
-  extern string digest()
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "digest")>]
+    extern string digest()
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "register_thread")>]
+    extern void registerThread()
+
+  type OncePerThread private () =
+    static let initializedTLS = new System.Threading.ThreadLocal<_>(fun () -> false)
+    static member initialized : bool = initializedTLS.Value
+    static member markInitialized() : unit = initializedTLS.Value <- true
+
+  let registerThread () : unit =
+    if not OncePerThread.initialized then
+      OncePerThread.markInitialized ()
+      Internal.registerThread ()
+    else
+      ()
+
+  let handlerJson2Bin (json : string) : byte [] =
+    registerThread ()
+    let mutable destPtr = System.IntPtr()
+    let length = Internal.handlerJson2Bin (json, &destPtr)
+    let mutable (bytes : byte array) = Array.zeroCreate length
+    Marshal.Copy(destPtr, bytes, 0, length)
+    bytes
+
+  let handlerBin2Json (bytes : byte []) (length : int) : string =
+    registerThread ()
+    Internal.handlerBin2Json (bytes, length)
+
+  let digest () = Internal.digest ()
 
   let init () =
     printfn "serialization_init"
-    let str = darkInitOcaml ()
+    let str = Internal.darkInitOcaml ()
     printfn "serialization_inited: %s" str
     ()
 
 module OCamlTypes =
+  // These types come directly from OCaml, and are used for automatic json
+  // serializers, which match the Yojson derived serializers on the OCaml side.
 
   // fsharplint:disable FL0038
 
@@ -469,7 +504,7 @@ module Yojson =
 // ----------------
 let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
                            : PT.Toplevel =
-  Binary.handlerBin2Json (data, data.Length)
+  Binary.handlerBin2Json data data.Length
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
   |> Yojson.ocamlHandler2PT
   |> PT.TLHandler
@@ -477,11 +512,9 @@ let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
 let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
   match toplevel with
   | PT.TLHandler h ->
-      let json = h |> Yojson.pt2ocamlHandler |> Json.AutoSerialize.serialize
-      let mutable destPtr = System.IntPtr()
-      let length = Binary.handlerJson2Bin (json, &destPtr)
-      let mutable (bytes : byte array) = Array.zeroCreate length
-      Marshal.Copy(destPtr, bytes, 0, length)
-      bytes
+      h
+      |> Yojson.pt2ocamlHandler
+      |> Json.AutoSerialize.serialize
+      |> Binary.handlerJson2Bin
 
   | _ -> failwith $"toplevel not supported yet {toplevel}"

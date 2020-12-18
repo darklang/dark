@@ -16,9 +16,6 @@
 // https://caml.inria.fr/pub/docs/manual-ocaml/intfc.html#s%3AC-multithreading
 
 void lock() {
-  // FSTODO: We don't need to register the thread on each lock, just once per
-  // thread. Find a way to do this.
-  caml_c_thread_register();
   caml_acquire_runtime_system();
 }
 
@@ -80,6 +77,10 @@ extern char* dark_init_ocaml() {
   // calling lock() will hang.
   caml_release_runtime_system();
   return strdup("loaded");
+}
+
+void register_thread() {
+  caml_c_thread_register();
 }
 
 /* --------------------
