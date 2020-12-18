@@ -344,9 +344,9 @@ let fns : List<BuiltInFn> =
               Regex.Replace(input, pattern, replacement)
 
             s
-            |> fun s -> objRegex (to_remove) (s) ("")
-            |> fun s -> objRegex (trim) (s) ("")
-            |> fun s -> objRegex (spaces) (s) ("-")
+            |> fun s -> objRegex to_remove s ""
+            |> fun s -> objRegex trim s ""
+            |> fun s -> objRegex spaces s "-"
 
             |> DStr
             |> Value
