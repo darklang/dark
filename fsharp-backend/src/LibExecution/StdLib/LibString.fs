@@ -337,7 +337,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
 
-            let to_remove = @"[^a-z0-9\s-]"
+            let to_remove = @"[^\-\w\s$*_+~.()'\""!:@]"
             let trim = @"^\s+|\s+$"
             let spaces = @"[-\s]+"
 
