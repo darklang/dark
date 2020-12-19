@@ -1,5 +1,7 @@
 module LibExecution.StdLib.LibString
 
+open System.Globalization
+
 (* type coerces one list to another using a function *)
 
 // let list_coerce (f: Dval -> Option<'a>) (l: List<Dval>): Result<List<'a>, List<Dval> * Dval> =
@@ -17,8 +19,12 @@ open FSharp.Control.Tasks
 open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
+open System.Text.RegularExpressions
 
 let fn = FQFnName.stdlibName
+
+let varA = TVariable "a"
+let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
@@ -138,28 +144,23 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "toInt" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TInt
-//      ; description = "Returns the int value of the string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let utf8 = Unicode_string.to_string s in
-//             ( try DInt (Dint.of_string_exn utf8)
-//               with e ->
-//                 Exception.code
-//                   utf8
-//                   "\\d+"
-//                   "Expected a string with only numbers" )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "String" "toInt" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TInt
+      description = "Returns the int value of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            (try
+              s |> System.Numerics.BigInteger.Parse |> DInt |> Value
+             with e -> Value(errStr ("Expected a string with only numbers")))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toInt" 1) }
     { name = fn "String" "toInt" 1
       parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TInt, TStr)
+      returnType = TInt
       description =
         "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
       fn =
@@ -177,41 +178,40 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "toFloat" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TFloat
-//      ; description = "Returns the float value of the string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let utf8 = Unicode_string.to_string s in
-//             ( try DFloat (float_of_string utf8)
-//               with e ->
-//                 Exception.code
-//                   utf8
-//                   "Expected a string representation of an IEEE float" )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toFloat" 1
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TResult
-//      ; description = "Returns the float value of the string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let utf8 = Unicode_string.to_string s in
-//             ( try DResult (ResOk (DFloat (float_of_string utf8)))
-//               with e ->
-//                 error_result
-//                   "Expected a string representation of an IEEE float" )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "toFloat" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TFloat
+      description = "Returns the float value of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            (try
+              float (s) |> DFloat |> Value
+             with e ->
+               Value(errStr ("Expected a string representation of an IEEE float")))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toFloat" 1) }
+    { name = fn "String" "toFloat" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TFloat, TStr)
+      description = "Returns the float value of the string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            (try
+              float (s) |> DFloat |> Ok |> DResult |> Value
+             with e ->
+               "Expected a string representation of an IEEE float"
+               |> DStr
+               |> Error
+               |> DResult
+               |> Value)
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "toUppercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
@@ -223,40 +223,39 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
-    //      { name = fn "String" "toUppercase" 1
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, uppercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toLowercase" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, lowercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (String.lowercase (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toLowercase" 1
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description = "Returns the string, lowercased"
-//      ; fn =
-//         (function
-//         | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "toUppercase" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description = "Returns the string, uppercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Value(DStr(String.toUpper s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "toLowercase" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description = "Returns the string, lowercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Value(DStr(String.toLower s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "String" "toLowercase" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description = "Returns the string, lowercased"
+      fn =
+        (function
+        | _, [ DStr s ] -> Value(DStr(String.toLower s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "length" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
@@ -319,132 +318,138 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "prepend" 0
-//      ; parameters = [Param.make "s1" TStr; Param.make "s2" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
-//      ; fn =
-//         (function
-//         | _, [DStr s1; DStr s2] ->
-//             DStr (Unicode_string.append s2 s1)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "slugify" 0
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description = "Turns a string into a slug"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let replace = Unicode_string.regexp_replace in
-//             let to_remove = "[^\\w\\s$*_+~.()'\"!\\-:@]" in
-//             let trim = "^\\s+|\\s+$" in
-//             let spaces = "[-\\s]+" in
-//             s
-//             |> replace
-//                  to_remove
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  trim
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  spaces
-//                  (Unicode_string.of_string_exn "-")
-//             |> Unicode_string.lowercase
-//             |> fun s -> DStr s
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "slugify" 1
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description = "Turns a string into a slug"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let replace = Unicode_string.regexp_replace in
-//             let to_remove = "[^\\w\\s_-]" in
-//             let trim = "^\\s+|\\s+$" in
-//             let newspaces = "[-_\\s]+" in
-//             s
-//             |> replace
-//                  to_remove
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  trim
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  newspaces
-//                  (Unicode_string.of_string_exn "-")
-//             |> Unicode_string.lowercase
-//             |> fun s -> DStr s
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "slugify" 2
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             (* Should work the same as https://blog.tersmitten.nl/slugify/ *)
-//             let replace = Unicode_string.regexp_replace in
-//             (* explicitly limit to (roman) alphanumeric for pretty urls *)
-//             let to_remove = "[^a-z0-9\\s_-]+" in
-//             let to_be_hyphenated = "[-_\\s]+" in
-//             s
-//             |> Unicode_string.lowercase
-//             |> replace
-//                  to_remove
-//                  (Unicode_string.of_string_exn "")
-//             |> Unicode_string.trim
-//             |> replace
-//                  to_be_hyphenated
-//                  (Unicode_string.of_string_exn "-")
-//             |> Unicode_string.lowercase
-//             |> fun s -> DStr s
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "reverse" 0
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description = "Reverses `string`"
-//      ; fn =
-//         (function
-//         | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "split" 0
-//      ; parameters = [Param.make "s" TStr; Param.make "separator" TStr]
-//      ; returnType = TList
-//      ; description =
-//       "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DStr sep] ->
-//             s
-//             |> Unicode_string.split ~sep
-//             |> List.map (fun str -> DStr str)
-//             |> DList
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "prepend" 0
+      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
+      returnType = TStr
+      description =
+        "Concatenates the two strings by prepending `s2` to `s1` and returns the joined string."
+      fn =
+        (function
+        | _, [ DStr s1; DStr s2 ] -> Value(DStr(s2 + s1))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "slugify" 0
+      parameters = [ Param.make "string" TStr "" ]
+      returnType = TStr
+      description = "Turns a string into a slug"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+
+            let to_remove = @"[^\-\w\s$*_+~.()'\""!:@]"
+            let trim = @"^\s+|\s+$"
+            let spaces = @"[-\s]+"
+
+            let objRegex (pattern : string) (input : string) (replacement : string) =
+              Regex.Replace(input, pattern, replacement)
+
+            s
+            |> fun s -> objRegex to_remove s ""
+            |> fun s -> objRegex trim s ""
+            |> fun s -> objRegex spaces s "-"
+
+            |> String.toLower
+            |> DStr
+            |> Value
+
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "slugify" 1) }
+    { name = fn "String" "slugify" 1
+      parameters = [ Param.make "string" TStr "" ]
+      returnType = TStr
+      description = "Turns a string into a slug"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+
+            let to_remove = @"[^\w\s_-]"
+            let trim = @"^\s+|\s+$"
+            let newspaces = @"[-_\s]+"
+
+            let objRegex (pattern : string) (input : string) (replacement : string) =
+              Regex.Replace(input, pattern, replacement)
+
+            s
+            |> fun s -> objRegex to_remove s ""
+            |> fun s -> objRegex trim s ""
+            |> fun s -> objRegex newspaces s "-"
+
+            |> String.toLower
+            |> DStr
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "slugify" 2) }
+    { name = fn "String" "slugify" 2
+      parameters = [ Param.make "string" TStr "" ]
+      returnType = TStr
+      description =
+        "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            // Should work the same as https://blog.tersmitten.nl/slugify/
+
+            // explicitly limit to (roman) alphanumeric for pretty urls
+            let to_remove = @"[^a-z0-9\s_-]+"
+            let to_be_hyphenated = @"[-_\s]+"
+
+            let objRegex (pattern : string) (input : string) (replacement : string) =
+              Regex.Replace(input, pattern, replacement)
+
+            s
+            |> String.toLower
+            |> fun s -> objRegex to_remove s ""
+            |> fun s -> s.Trim()
+            |> fun s -> objRegex to_be_hyphenated s "-"
+
+            |> String.toLower
+            |> DStr
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "reverse" 0
+      parameters = [ Param.make "string" TStr "" ]
+      returnType = TStr
+      description = "Reverses `string`"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            let reverseString str =
+              StringInfo.ParseCombiningCharacters(str)
+              |> Array.rev
+              |> Seq.map (fun i -> StringInfo.GetNextTextElement(str, i))
+              |> String.concat ""
+
+            Value(DStr(reverseString s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "split" 0
+      parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
+      returnType = TList varA
+      description =
+        "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
+      fn =
+        (function
+        | _, [ DStr s; DStr sep ] ->
+            s.Split sep
+            |> Array.toList
+            |> List.map (fun str -> DStr str)
+            |> DList
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "join" 0
       parameters = [ Param.make "l" (TList TStr) ""; Param.make "separator" TStr "" ]
       returnType = TStr
@@ -466,35 +471,37 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "fromList" 0
-//      ; parameters = [Param.make "l" TList]
-//      ; returnType = TStr
-//      ; description = "Returns the list of characters as a string"
-//      ; fn =
-//        (fun _ -> Exception.code "This function no longer exists.")
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "fromList" 1
-//      ; parameters = [Param.make "l" TList]
-//      ; returnType = TStr
-//      ; description = "Returns the list of characters as a string"
-//      ; fn =
-//         (function
-//         | _, [DList l] ->
-//             DStr
-//               ( l
-//               |> List.map (function
-//                      | DCharacter c ->
-//                          c
-//                      | dv ->
-//                          RT.error dv "expected a char")
-//               |> Unicode_string.of_characters )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "fromList" 0
+      parameters = [ Param.make "l" (TList TChar) "" ]
+      returnType = TStr
+      description = "Returns the list of characters as a string"
+      fn =
+        (fun _ ->
+          raise
+            (RuntimeException
+              (JustAString(SourceNone, "This function no longer exists."))))
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "fromList" 1) }
+    { name = fn "String" "fromList" 1
+      parameters = [ Param.make "l" (TList TChar) "" ]
+      returnType = TStr
+      description = "Returns the list of characters as a string"
+      fn =
+        (function
+        | _, [ DList l ] ->
+            DStr
+              (l
+               |> List.map (function
+                    | DChar c -> c
+                    | dv ->
+                        raise (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
+               |> String.concat "" )
+             |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "fromChar" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
