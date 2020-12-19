@@ -383,36 +383,36 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "slugify" 2
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             (* Should work the same as https://blog.tersmitten.nl/slugify/ *)
-//             let replace = Unicode_string.regexp_replace in
-//             (* explicitly limit to (roman) alphanumeric for pretty urls *)
-//             let to_remove = "[^a-z0-9\\s_-]+" in
-//             let to_be_hyphenated = "[-_\\s]+" in
-//             s
-//             |> Unicode_string.lowercase
-//             |> replace
-//                  to_remove
-//                  (Unicode_string.of_string_exn "")
-//             |> Unicode_string.trim
-//             |> replace
-//                  to_be_hyphenated
-//                  (Unicode_string.of_string_exn "-")
-//             |> Unicode_string.lowercase
-//             |> fun s -> DStr s
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "String" "slugify" 2) }
+    { name = fn "String" "slugify" 2
+      parameters = [Param.make "string" TStr ""]
+      returnType = TStr
+      description = "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
+      fn =
+        (function
+        | _, [DStr s] ->
+            // Should work the same as https://blog.tersmitten.nl/slugify/
+
+            // explicitly limit to (roman) alphanumeric for pretty urls
+            let to_remove = @"[^a-z0-9\s_-]+"
+            let to_be_hyphenated = @"[-_\s]+"
+
+            let objRegex (pattern : string) (input : string) (replacement : string) =
+              Regex.Replace(input, pattern, replacement)
+
+            s
+            |> String.toLower
+            |> fun s -> objRegex to_remove s ""
+            |> fun s -> s.Trim()
+            |> fun s -> objRegex to_be_hyphenated s "-"
+
+            |> String.toLower
+            |> DStr
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "reverse" 0
       parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
