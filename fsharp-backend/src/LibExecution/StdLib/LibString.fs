@@ -482,27 +482,26 @@ let fns : List<BuiltInFn> =
               (JustAString(SourceNone, "This function no longer exists."))))
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
-    //      { name = fn "String" "fromList" 1
-//      ; parameters = [Param.make "l" TList]
-//      ; returnType = TStr
-//      ; description = "Returns the list of characters as a string"
-//      ; fn =
-//         (function
-//         | _, [DList l] ->
-//             DStr
-//               ( l
-//               |> List.map (function
-//                      | DCharacter c ->
-//                          c
-//                      | dv ->
-//                          RT.error dv "expected a char")
-//               |> Unicode_string.of_characters )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "String" "fromList" 1) }
+    { name = fn "String" "fromList" 1
+      parameters = [ Param.make "l" (TList TChar) "" ]
+      returnType = TStr
+      description = "Returns the list of characters as a string"
+      fn =
+        (function
+        | _, [ DList l ] ->
+            DStr
+              (l
+               |> List.map (function
+                    | DChar c -> c
+                    | dv ->
+                        raise (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
+               |> String.concat "" )
+             |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "fromChar" 0
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
