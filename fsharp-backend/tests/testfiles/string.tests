@@ -61,6 +61,7 @@ String.slugify_v2 "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
 String.slugify_v2 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee" // Slugify works
 String.slugify_v2 "🎁🎄Ǣʚ231" = "231"
 String.slugify_v2 "" = ""
+String.fromList_v0 ['a', 'b'] = (Test.typeError_v0 "This function no longer exists.")
 String.split_v0 "hello😄world" "😄" = [ "hello", "world" ] // String split works on strings with emoji + ascii
 String.split_v0 "hello&&&&world" "&&&&" = [ "hello", "world" ]
 String.split_v0 "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]

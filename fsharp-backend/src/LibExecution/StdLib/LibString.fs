@@ -1,4 +1,5 @@
 module LibExecution.StdLib.LibString
+
 open System.Globalization
 
 (* type coerces one list to another using a function *)
@@ -358,12 +359,12 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "slugify" 1) }
     { name = fn "String" "slugify" 1
-      parameters = [Param.make "string" TStr ""]
+      parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
       description = "Turns a string into a slug"
       fn =
         (function
-        | _, [DStr s] ->
+        | _, [ DStr s ] ->
 
             let to_remove = @"[^\w\s_-]"
             let trim = @"^\s+|\s+$"
@@ -385,12 +386,13 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "slugify" 2) }
     { name = fn "String" "slugify" 2
-      parameters = [Param.make "string" TStr ""]
+      parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
-      description = "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
+      description =
+        "Turns a string into a prettified slug, including only lowercased alphanumeric characters, joined by hyphens"
       fn =
         (function
-        | _, [DStr s] ->
+        | _, [ DStr s ] ->
             // Should work the same as https://blog.tersmitten.nl/slugify/
 
             // explicitly limit to (roman) alphanumeric for pretty urls
@@ -421,10 +423,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             let reverseString str =
-                StringInfo.ParseCombiningCharacters(str)
-                |> Array.rev
-                |> Seq.map (fun i -> StringInfo.GetNextTextElement(str, i))
-                |> String.concat ""
+              StringInfo.ParseCombiningCharacters(str)
+              |> Array.rev
+              |> Seq.map (fun i -> StringInfo.GetNextTextElement(str, i))
+              |> String.concat ""
 
             Value(DStr(reverseString s))
         | args -> incorrectArgs ())
@@ -469,16 +471,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "fromList" 0
-//      ; parameters = [Param.make "l" TList]
-//      ; returnType = TStr
-//      ; description = "Returns the list of characters as a string"
-//      ; fn =
-//        (fun _ -> Exception.code "This function no longer exists.")
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "fromList" 1
+    { name = fn "String" "fromList" 0
+      parameters = [ Param.make "l" (TList TChar) "" ]
+      returnType = TStr
+      description = "Returns the list of characters as a string"
+      fn =
+        (fun _ ->
+          raise
+            (RuntimeException
+              (JustAString(SourceNone, "This function no longer exists."))))
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //      { name = fn "String" "fromList" 1
 //      ; parameters = [Param.make "l" TList]
 //      ; returnType = TStr
 //      ; description = "Returns the list of characters as a string"
