@@ -349,41 +349,41 @@ let fns : List<BuiltInFn> =
             |> fun s -> objRegex trim s ""
             |> fun s -> objRegex spaces s "-"
 
+            |> String.toLower
             |> DStr
             |> Value
 
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = ReplacedBy(fn "String" "slugify" 1) }
+    { name = fn "String" "slugify" 1
+      parameters = [Param.make "string" TStr ""]
+      returnType = TStr
+      description = "Turns a string into a slug"
+      fn =
+        (function
+        | _, [DStr s] ->
+
+            let to_remove = @"[^\w\s_-]"
+            let trim = @"^\s+|\s+$"
+            let newspaces = @"[-_\s]+"
+
+            let objRegex (pattern : string) (input : string) (replacement : string) =
+              Regex.Replace(input, pattern, replacement)
+
+            s
+            |> fun s -> objRegex to_remove s ""
+            |> fun s -> objRegex trim s ""
+            |> fun s -> objRegex newspaces s "-"
+
+            |> String.toLower
+            |> DStr
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
-    //      { name = fn "String" "slugify" 1
-//      ; parameters = [Param.make "string" TStr]
-//      ; returnType = TStr
-//      ; description = "Turns a string into a slug"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             let replace = Unicode_string.regexp_replace in
-//             let to_remove = "[^\\w\\s_-]" in
-//             let trim = "^\\s+|\\s+$" in
-//             let newspaces = "[-_\\s]+" in
-//             s
-//             |> replace
-//                  to_remove
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  trim
-//                  (Unicode_string.of_string_exn "")
-//             |> replace
-//                  newspaces
-//                  (Unicode_string.of_string_exn "-")
-//             |> Unicode_string.lowercase
-//             |> fun s -> DStr s
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
 //      { name = fn "String" "slugify" 2
 //      ; parameters = [Param.make "string" TStr]
 //      ; returnType = TStr
