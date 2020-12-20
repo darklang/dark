@@ -216,7 +216,7 @@ let configureLogging (builder : ILoggingBuilder) =
 
 let configureServices (services : IServiceCollection) = ()
 
-let webserver port =
+let webserver (port : int) =
   WebHost.CreateDefaultBuilder()
   |> fun wh -> wh.UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
   |> fun wh -> wh.ConfigureServices(configureServices)

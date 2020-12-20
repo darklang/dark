@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+./scripts/support/wait-for-background-services postgresql
+dropdb --if-exists testdb
+createdb testdb
+
+BINPATH="fsharp-backend/Build/out/"
+cp "/home/dark/app/_build/default/backend/bin/libserialization.so" "${BINPATH}"
+
+cd fsharp-backend
+DARK_CONFIG_DB_HOST=localhost \
+DARK_CONFIG_DB_DBNAME=testdb \
+DARK_CONFIG_DB_USER=dark \
+DARK_CONFIG_DB_PASSWORD=eapnsdc \
+Build/out/Tests "${@}"

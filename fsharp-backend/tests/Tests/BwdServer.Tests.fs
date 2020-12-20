@@ -191,7 +191,7 @@ let t name =
     for i in 1 .. 10 do
       try
         if not connected then
-          do! client.ConnectAsync("127.0.0.1", 9001)
+          do! client.ConnectAsync("127.0.0.1", 10001)
           connected <- true
       with _ -> do! System.Threading.Tasks.Task.Delay 1000
 
@@ -303,3 +303,7 @@ let tests =
   testList
     "BwdServer"
     [ testList "From files" testsFromFiles; testList "unit tests" unitTests ]
+
+open Microsoft.AspNetCore.Hosting
+// run our own webserver instead of relying on the dev webserver
+let init () = (BwdServer.webserver 10001).RunAsync()

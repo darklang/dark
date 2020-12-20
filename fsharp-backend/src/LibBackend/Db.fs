@@ -9,11 +9,12 @@ open Npgsql.FSharp.Tasks
 
 // make sure the connection is returned to the pool
 let connect () : Sql.SqlProps =
-  Sql.host "localhost"
+  Sql.host LibService.Config.pghost
   |> Sql.port 5432
-  |> Sql.username "dark"
-  |> Sql.password "eapnsdc"
-  |> Sql.database "prodclone"
+  |> Sql.username LibService.Config.pguser
+  |> Sql.password LibService.Config.pgpassword
+  |> Sql.database LibService.Config.pgdbname
+
   // |> Sql.sslMode SslMode.Require
   |> Sql.config "Pooling=true;Maximum Pool Size=50;Include Error Detail=true"
   |> Sql.formatConnectionString
