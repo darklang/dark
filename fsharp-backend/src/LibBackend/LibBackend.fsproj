@@ -14,6 +14,7 @@
     <Compile Include="Config.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Db.fs" />
+    <Compile Include="Password.fs" />
     <Compile Include="Account.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="ProgramSerialization/ProgramTypes.fs" />

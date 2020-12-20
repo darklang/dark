@@ -4,8 +4,8 @@ source https://api.nuget.org/v3/index.json
 framework: net5.0
 storage: none
 
-nuget Expecto.FsCheck
-nuget FsCheck
+nuget Expecto.FsCheck ~> 9.0.2
+nuget FsCheck ~> 3.0.0-alpha4
 nuget FSharp.Core ~> 5.0.0
 
 // Web servers
@@ -24,3 +24,4 @@ nuget FsRegEx ~> 0.7.2
 nuget FSharpx.Extras ~> 2.5.0
 nuget Npgsql.FSharp ~> 3.12.2
 nuget Npgsql ~> 5.0.0
+nuget Sodium.Core ~> 1.2.3

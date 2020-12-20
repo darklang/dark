@@ -289,3 +289,17 @@ module Json =
 
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
+
+
+module Tablecloth =
+  module Result =
+
+    let and_ (a : Result<'ok, 'err>) (b : Result<'ok, 'err>) : Result<'ok, 'err> =
+      match a with
+      | Ok _ -> b
+      | _ -> a
+
+    let okOrThrow (r : Result<'ok, 'err>) : 'ok =
+      match r with
+      | Ok o -> o
+      | Error _ -> failwith $"Result expected to be Ok, was {r}"
