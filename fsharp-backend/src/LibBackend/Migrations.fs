@@ -56,6 +56,8 @@ let runSystemMigration (name : string) (sql : string) : unit =
       Sql.query sql |> Sql.executeStatement
       Sql.query doneStmt |> Sql.parameters doneParams |> Sql.executeStatement
   | _ ->
+      let sql = $"DO $do$\nBEGIN\n{sql};\nEND\n$do$"
+
       let _ =
         Db.connect () |> Sql.executeTransaction [ sql, []; doneStmt, [ doneParams ] ]
 
