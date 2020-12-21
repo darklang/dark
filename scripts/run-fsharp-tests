@@ -3,6 +3,13 @@
 
 set -euo pipefail
 
+trap ctrl_c INT
+
+function ctrl_c() {
+  killall -9 Build/out/Tests
+  exit -1
+}
+
 ./scripts/support/wait-for-background-services postgresql
 dropdb --if-exists testdb
 createdb testdb
