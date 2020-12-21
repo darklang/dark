@@ -172,21 +172,6 @@ type TaskOrValueBuilder() =
 
 let taskv = TaskOrValueBuilder()
 
-// Take a list of TaskOrValue and produce a single
-// TaskOrValue that sequentially evaluates them and
-// returns a list with results.
-let collect list =
-  let rec loop acc (xs : TaskOrValue<_> list) =
-    taskv {
-      match xs with
-      | [] -> return List.rev acc
-      | x :: xs ->
-          let! v = x
-          return! loop (v :: acc) xs
-    }
-
-  loop [] list
-
 // Processes each item of the list in order, waiting for the previous one to
 // finish. This ensures each request in the list is processed to completion
 // before the next one is done, making sure that, for example, a HttpClient
@@ -228,6 +213,7 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
 
     return (result |> Seq.toList)
   }
+
 
 let filter_s (f : 'a -> TaskOrValue<bool>)
              (list : List<'a>)
@@ -290,8 +276,121 @@ module Json =
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
 
+module Task =
+  // Processes each item of the list in order, waiting for the previous one to
+  // finish. This ensures each request in the list is processed to completion
+  // before the next one is done, making sure that, for example, a HttpClient
+  // call will finish before the next one starts. Will allow other requests to
+  // run which waiting.
+  //
+  // Why can't this be done in a simple map? We need to resolve element i in
+  // element (i+1)'s task expression.
+  let mapSequentially (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
+    task {
+      let! result =
+        match list with
+        | [] -> task { return [] }
+        | head :: tail ->
+            task {
+              let firstComp =
+                task {
+                  let! result = f head
+                  return ([], result)
+                }
+
+              let! ((accum, lastcomp) : (List<'b> * 'b)) =
+                List.fold
+                  (fun (prevcomp : Task<List<'b> * 'b>) (arg : 'a) ->
+                    task {
+                      // Ensure the previous computation is done first
+                      let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
+                      let accum = prev :: accum
+
+                      let! result = (f arg)
+
+                      return (accum, result)
+                    })
+                  firstComp
+                  tail
+
+              return List.rev (lastcomp :: accum)
+            }
+
+      return (result |> Seq.toList)
+    }
+
+
+  let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
+    task {
+      let! result =
+        match list with
+        | [] -> task { return [] }
+        | head :: tail ->
+            task {
+              let firstComp =
+                task {
+                  let! keep = f head
+                  return ([], (keep, head))
+                }
+
+              let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
+                List.fold
+                  (fun (prevcomp : Task<List<'a> * (bool * 'a)>) (arg : 'a) ->
+                    task {
+                      // Ensure the previous computation is done first
+                      let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
+                        prevcomp
+
+                      let accum = if prevkeep then prev :: accum else accum
+
+                      let! keep = (f arg)
+
+                      return (accum, (keep, arg))
+                    })
+                  firstComp
+                  tail
+
+              let (lastkeep, lastval) = lastcomp
+              let accum = if lastkeep then lastval :: accum else accum
+              return List.rev accum
+            }
+
+      return (result |> Seq.toList)
+    }
+
+  let iterSequentially (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
+    task {
+      match list with
+      | [] -> return ()
+      | head :: tail ->
+          let firstComp =
+            task {
+              let! result = f head
+              return ([], result)
+            }
+
+          let! ((accum, lastcomp) : (List<unit> * unit)) =
+            List.fold
+              (fun (prevcomp : Task<List<unit> * unit>) (arg : 'a) ->
+                task {
+                  // Ensure the previous computation is done first
+                  let! ((accum, prev) : (List<unit> * unit)) = prevcomp
+                  let accum = prev :: accum
+
+                  let! result = f arg
+
+                  return (accum, result)
+                })
+              firstComp
+              tail
+
+          return List.head (lastcomp :: accum)
+    }
 
 module Tablecloth =
+  // An implementation of https://github.com/darklang/tablecloth, in F#. Intended
+  // to be upstreamed.
+
   module Result =
 
     let and_ (a : Result<'ok, 'err>) (b : Result<'ok, 'err>) : Result<'ok, 'err> =
@@ -299,7 +398,11 @@ module Tablecloth =
       | Ok _ -> b
       | _ -> a
 
-    let okOrThrow (r : Result<'ok, 'err>) : 'ok =
-      match r with
-      | Ok o -> o
-      | Error _ -> failwith $"Result expected to be Ok, was {r}"
+  module String =
+    let startsWith (prefix : string) (str : string) : bool = str.StartsWith prefix
+    let endsWith (suffix : string) (str : string) : bool = str.EndsWith suffix
+
+    let splitOnNewline (str : string) : List<string> =
+      str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
+
+    let dropLeft (count : int) (str : string) : string = str.Remove(0, count)

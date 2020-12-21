@@ -90,7 +90,7 @@ NUGET
     NETStandard.Library (2.0.3)
       Microsoft.NETCore.Platforms (>= 1.1)
     Newtonsoft.Json (12.0.3)
-    Npgsql (5.0)
+    Npgsql (5.0.1.1)
       System.Runtime.CompilerServices.Unsafe (>= 4.6)
     Npgsql.FSharp (3.12.2)
       FSharp.Core (>= 4.7.2)

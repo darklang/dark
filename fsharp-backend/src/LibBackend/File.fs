@@ -3,6 +3,11 @@ module LibBackend.File
 // This makes extra careful that we're only accessing files where we expect to
 // find files, and that we're not checking outside these directories
 
+// Note: none of these are async because System.IO is not async
+
+open Prelude
+open Prelude.Tablecloth
+
 type Mode =
   | Check
   | Dir
@@ -14,12 +19,11 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
   let f : string = $"{dir}{f}"
 
   let debug (name : string) (value : bool) =
-    if not value then printfn $"checkFilename failed: {name}: {value}"
+    if value then printfn $"checkFilename failed: {name}: {value}"
     value
 
   if (root <> Config.NoCheck)
-     && (f.Contains ".."
-         |> debug "dots"
+     && (f.Contains ".." |> debug "dots"
          || f.Contains "~" |> debug "tilde"
          || f.EndsWith "." |> debug "tilde"
          || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
@@ -29,9 +33,8 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
          || f.EndsWith "//" |> debug "double slash"
          (* check for irregular file *)
          || (mode = Read
-             && not
-                  (System.IO.File.GetAttributes(f) = System.IO.FileAttributes.Normal)))
-     |> debug "irreg" then
+             && (System.IO.File.GetAttributes(f) <> System.IO.FileAttributes.Normal)))
+        |> debug "irreg" then
     printfn $"SECURITY_VIOLATION: {f}"
     failwith "FILE SECURITY VIOLATION"
   // FSTODO
@@ -51,11 +54,18 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
 //   Unix.mkdir_p dir
 //
 //
-// let lsdir root dir : string list =
-//   let dir = check_filename root Dir dir in
-//   Sys.ls_dir dir
-//
-//
+let lsdir (root : Config.Root) (dir : string) : string list =
+  let absoluteDir = checkFilename root Dir dir
+
+  absoluteDir
+  |> debug "checked"
+  |> System.IO.Directory.EnumerateFileSystemEntries
+  |> Seq.toList
+  |> debug "listed"
+  |> List.map (String.dropLeft absoluteDir.Length)
+  |> debug "dropped"
+
+
 // let rm root file : unit =
 //   let file = check_filename root Write file in
 //   Core_extended.Shell.rm () file

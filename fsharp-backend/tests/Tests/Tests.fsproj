@@ -5,6 +5,7 @@
     <LangVersion>5.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
