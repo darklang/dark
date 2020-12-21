@@ -16,11 +16,20 @@ let tests =
 
 [<EntryPoint>]
 let main args =
+
   LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+
   // Run but don't wait for it
-  Tests.BwdServer.init () |> ignore
+  let (_task : Task) = Tests.BwdServer.init ()
 
-  LibBackend.Migrations.init ()
-  (LibBackend.Account.initTestAccounts ()).Wait()
+  let t =
+    task {
 
-  runTestsWithCLIArgs [] args tests
+      LibBackend.Migrations.init ()
+      do! LibBackend.Account.initTestAccounts ()
+
+      return runTestsWithCLIArgs [] args tests
+    }
+
+  t.Wait()
+  t.Result

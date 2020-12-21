@@ -145,27 +145,32 @@ let upsertNonAdmin = upsertAccount false
 
 let initTestAccounts () : Task<unit> =
   task {
-    // FSTODO error if this happens
-    let! _ =
+    let! test_unhashed =
       upsertNonAdmin
         { username = "test_unhashed"
           password = Password.fromHash "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+unhashed@darklang.com"
           name = "Dark OCaml Tests with Unhashed Password" }
 
-    let! _ =
+    Result.okOrRaise test_unhashed
+
+    let! test =
       upsertNonAdmin
         { username = "test"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test@darklang.com"
           name = "Dark OCaml Tests" }
 
-    let! _ =
+    Result.okOrRaise test
+
+    let! test_admin =
       upsertAdmin
         { username = "test_admin"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+admin@darklang.com"
           name = "Dark OCaml Test Admin" }
+
+    Result.okOrRaise test_admin
 
     return ()
   }

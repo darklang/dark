@@ -306,4 +306,4 @@ let tests =
 
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
-let init () = (BwdServer.webserver 10001).RunAsync()
+let init () : Task = (BwdServer.webserver 10001).RunAsync()

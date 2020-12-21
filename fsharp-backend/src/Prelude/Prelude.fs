@@ -398,6 +398,11 @@ module Tablecloth =
       | Ok _ -> b
       | _ -> a
 
+    let okOrRaise (r : Result<'ok, 'err>) : 'ok =
+      match r with
+      | Error e -> failwith $"Error in okOrRaise: {e}"
+      | Ok o -> o
+
   module String =
     let startsWith (prefix : string) (str : string) : bool = str.StartsWith prefix
     let endsWith (suffix : string) (str : string) : bool = str.EndsWith suffix
