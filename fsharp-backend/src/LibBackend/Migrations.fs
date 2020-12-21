@@ -50,12 +50,14 @@ let runSystemMigration (name : string) (sql : string) : unit =
   let doneParams = [ "name", Sql.string "name"; "sql", Sql.string sql ]
 
   match String.splitOnNewline sql with
-  (* allow special "pragma" to skip wrapping in a transaction *)
-  (* be VERY careful with this! *)
+  // allow special "pragma" to skip wrapping in a transaction
+  // be VERY careful with this!
   | "--#[no_tx]" :: _ ->
       Sql.query sql |> Sql.executeStatement
       Sql.query doneStmt |> Sql.parameters doneParams |> Sql.executeStatement
   | _ ->
+      // a small number of migratios need this. We could move them to the
+      // migrations themselves, but we need to match the OCaml version for now
       let sql = $"DO $do$\nBEGIN\n{sql};\nEND\n$do$"
 
       let _ =
@@ -66,8 +68,7 @@ let runSystemMigration (name : string) (sql : string) : unit =
 
 let names () : List<string> =
   File.lsdir Config.Migrations ""
-  (* endsWith sql filters out, say, the .swp files vim sometimes leaves behind
-   * *)
+  // endsWith sql filters out, say, the .swp files vim sometimes leaves behind
   |> List.filter (String.endsWith ".sql")
   |> List.sort
 
