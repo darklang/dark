@@ -49,6 +49,13 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 
 let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
 
+let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
+  if expected <> actual then assert_
+                               $"assertion failure: {msg} (expected {expected}, got {
+                                                                                       actual
+                               })"
+                               false
+
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
   if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false

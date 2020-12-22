@@ -17,8 +17,8 @@ open Prelude.Tablecloth
 let isInitialized () : bool =
   Sql.query
     "SELECT 1
-    FROM pg_class
-    WHERE relname = 'system_migrations'"
+     FROM pg_class
+     WHERE relname = 'system_migrations'"
   |> Sql.executeExists
 
 let initializeMigrationsTable () : unit =
@@ -42,26 +42,34 @@ let runSystemMigration (name : string) (sql : string) : unit =
 
   // Insert into the string because params don't work here for some reason.
   // On conflict, do nothing because another starting process might be running this migration as well.
-  let doneStmt = "INSERT INTO system_migrations
-                  (name, execution_date, sql)
-                  VALUES
-                  (@name, CURRENT_TIMESTAMP, @sql)
-                  ON CONFLICT DO NOTHING"
-  let doneParams = [ "name", Sql.string "name"; "sql", Sql.string sql ]
+  let recordMigrationStmt = "INSERT INTO system_migrations
+                             (name, execution_date, sql)
+                             VALUES
+                             (@name, CURRENT_TIMESTAMP, @sql)
+                             ON CONFLICT DO NOTHING"
+  let recordMigrationParams = [ "name", Sql.string name; "sql", Sql.string sql ]
 
   match String.splitOnNewline sql with
   // allow special "pragma" to skip wrapping in a transaction
   // be VERY careful with this!
   | "--#[no_tx]" :: _ ->
       Sql.query sql |> Sql.executeStatement
-      Sql.query doneStmt |> Sql.parameters doneParams |> Sql.executeStatement
+
+      Sql.query recordMigrationStmt
+      |> Sql.parameters recordMigrationParams
+      |> Sql.executeStatement
   | _ ->
-      // a small number of migratios need this. We could move them to the
+      // a small number of migrations need this. We could move them to the
       // migrations themselves, but we need to match the OCaml version for now
       let sql = $"DO $do$\nBEGIN\n{sql};\nEND\n$do$"
 
-      let _ =
-        Db.connect () |> Sql.executeTransaction [ sql, []; doneStmt, [ doneParams ] ]
+      let counts =
+
+        Db.connect ()
+        |> Sql.executeTransaction [ sql, []
+                                    recordMigrationStmt, [ recordMigrationParams ] ]
+
+      assertEq "recorded migrations" 1 counts.[1]
 
       ()
 

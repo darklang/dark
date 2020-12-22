@@ -7,8 +7,7 @@ open FSharpPlus
 open Npgsql
 open Npgsql.FSharp.Tasks
 
-// make sure the connection is returned to the pool
-let connect () : Sql.SqlProps =
+let connectionString =
   Sql.host LibService.Config.pghost
   |> Sql.port 5432
   |> Sql.username LibService.Config.pguser
@@ -16,9 +15,11 @@ let connect () : Sql.SqlProps =
   |> Sql.database LibService.Config.pgdbname
 
   // |> Sql.sslMode SslMode.Require
+  // FSTODO pool size
   |> Sql.config "Pooling=true;Maximum Pool Size=50;Include Error Detail=true"
   |> Sql.formatConnectionString
-  |> Sql.connect
+
+let connect () : Sql.SqlProps = Sql.connect connectionString
 
 module Sql =
 
