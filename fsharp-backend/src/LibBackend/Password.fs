@@ -10,7 +10,7 @@ type T = private Pw of string
 let toString (Pw pw : T) : string = pw
 
 let fromPlaintext (password : string) : T =
-  password |> Sodium.PasswordHash.ArgonHashString |> Pw
+  password |> Sodium.PasswordHash.ArgonHashString |> Prelude.base64Encode |> Pw
 
 let invalid : T = Pw ""
 
