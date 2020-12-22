@@ -19,6 +19,10 @@ type Account =
     email : string
     name : string }
 
+type Validate =
+  | Validate
+  | DontValidate
+
 let bannedUsernames : List<string> =
   // originally from https://ldpreload.com/blog/names-to-reserve
   // we allow www, because we have a canvas there
@@ -96,7 +100,7 @@ let validateUsername (username : string) : Result<unit, string> =
 
 let validateEmail (email : string) : Result<unit, string> =
   (* just checking it's roughly the shape of an email *)
-  let reString = @"^.+@.+\\..+$"
+  let reString = "^.+@.+\\..+$"
 
   if FsRegEx.isMatch reString email then
     Ok()
@@ -109,10 +113,13 @@ let validateAccount (account : Account) : Result<unit, string> =
 
 // Passwords set here are only valid locally, production uses auth0 to check
 // access
-let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>> =
+let upsertAccount (admin : bool)
+                  (validate : Validate)
+                  (account : Account)
+                  : Task<Result<unit, string>> =
   task {
     // FSTODO - this used to be default true
-    let result = if true then validateAccount account else Ok() in
+    let result = if validate = Validate then validateAccount account else Ok() in
 
     match result with
     | Ok () ->
@@ -132,6 +139,10 @@ let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>
                               "name", Sql.string account.name
                               "email", Sql.string account.email
                               ("password",
+                               // FSTODO: not sure if bytea is appropriate, but
+                               // it's a varchar in the DB and strings are utf8.
+                               // Npgsql was failing with a UTF-8 conversion
+                               // error.
                                account.password |> Password.toString |> Sql.string) ]
           |> Sql.executeStatementAsync
           |> Task.map Ok
@@ -142,11 +153,11 @@ let upsertAdmin = upsertAccount true
 let upsertNonAdmin = upsertAccount false
 
 
-
 let initTestAccounts () : Task<unit> =
   task {
     let! test_unhashed =
       upsertNonAdmin
+        Validate
         { username = "test_unhashed"
           password = Password.fromHash "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+unhashed@darklang.com"
@@ -156,6 +167,7 @@ let initTestAccounts () : Task<unit> =
 
     let! test =
       upsertNonAdmin
+        Validate
         { username = "test"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test@darklang.com"
@@ -165,6 +177,7 @@ let initTestAccounts () : Task<unit> =
 
     let! test_admin =
       upsertAdmin
+        Validate
         { username = "test_admin"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+admin@darklang.com"
@@ -174,3 +187,10 @@ let initTestAccounts () : Task<unit> =
 
     return ()
   }
+
+let init () : Task<unit> =
+  if Config.createAccounts then initTestAccounts () else task { return () }
+// FSTODO
+// initBannedAccounts ()
+// initAdmins()
+// initUsefulCanvases()
