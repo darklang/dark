@@ -77,12 +77,12 @@ let run () : unit =
   if (not (isInitialized ())) then initializeMigrationsTable ()
 
   let migrations = names ()
-  // FSTODO migration 11 doesn't work with npgsql
-  printfn $"migrarions: {migrations}"
+  printfn $"migrations: {migrations}"
 
   List.iter
     (fun name ->
       if isAlreadyRun name then
+        printfn $"migration already run: {name}"
         () // FSTODO Log.infO "migration already run" name
       else
         printfn $"new migration: {name}"
