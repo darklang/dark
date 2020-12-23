@@ -69,6 +69,16 @@ module String =
 
   let toUpper (str : string) : string = str.ToUpper()
 
+  let base64UrlEncode (str: string) : string =
+
+    let inputBytes = System.Text.Encoding.UTF8.GetBytes(str)
+
+    // Special "url-safe" base64 encode.
+    System.Convert.ToBase64String(inputBytes)
+      .Replace('+', '-')
+      .Replace('/', '_')
+      .Replace("=", "")
+
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
