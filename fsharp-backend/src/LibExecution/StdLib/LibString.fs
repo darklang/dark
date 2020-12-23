@@ -422,13 +422,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let reverseString str =
-              StringInfo.ParseCombiningCharacters(str)
-              |> Array.rev
-              |> Seq.map (fun i -> StringInfo.GetNextTextElement(str, i))
-              |> String.concat ""
-
-            Value(DStr(reverseString s))
+            String.toEgcSeq s
+            |> Seq.rev
+            |> String.concat ""
+            |> DStr
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
