@@ -7,7 +7,7 @@ trap ctrl_c INT
 
 function ctrl_c() {
   killall -9 Build/out/Tests
-  exit -1
+  exit 1
 }
 
 ./scripts/support/wait-for-background-services postgresql
@@ -22,4 +22,4 @@ DARK_CONFIG_DB_HOST=localhost \
 DARK_CONFIG_DB_DBNAME=testdb \
 DARK_CONFIG_DB_USER=dark \
 DARK_CONFIG_DB_PASSWORD=eapnsdc \
-Build/out/Tests "${@}"
+Build/out/Tests --no-spinner "${@}" # spinner causes it to hang
