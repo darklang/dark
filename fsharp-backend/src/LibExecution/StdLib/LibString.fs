@@ -1,6 +1,7 @@
 module LibExecution.StdLib.LibString
 
 open System.Globalization
+open System.Security.Cryptography
 
 (* type coerces one list to another using a function *)
 
@@ -63,28 +64,32 @@ let fns : List<BuiltInFn> =
         | state, [ DStr s; DFnVal b ] ->
             (String.toEgcSeq s
              |> Seq.toList
-             |> Prelude.map_s (fun te ->
-                  (LibExecution.Interpreter.applyFnVal
-                    state
-                     b
-                     [ DChar te ]
-                     NotInPipe
-                     NoRail))
+             |> Prelude.map_s
+                  (fun te ->
+                    (LibExecution.Interpreter.applyFnVal
+                      state
+                      b
+                      [ DChar te ]
+                      NotInPipe
+                      NoRail))
              |> (fun dvals ->
-             (taskv {
-               let! dvals = dvals
+               (taskv {
+                 let! dvals = dvals
 
-               let chars =
-                 List.map (function
-                   | DChar c -> c
-                   | dv ->
-                       raise (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
-                   dvals
+                 let chars =
+                   List.map
+                     (function
+                     | DChar c -> c
+                     | dv ->
+                         raise (
+                           RuntimeException(LambdaResultHasWrongType(dv, TChar))
+                         ))
+                     dvals
 
-               let str = String.concat "" chars
+                 let str = String.concat "" chars
 
-               return DStr str
-              })))
+                 return DStr str
+                })))
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -295,12 +300,15 @@ let fns : List<BuiltInFn> =
             // This is a problem because it breaks our guarantees about strings always being normalized;
             // concatenating two normalized strings does not always result in a normalized string.
             // replicating known broken behaviour feels wrong, but maybe necessary
-            Value
-              (DStr
-                (System.Text.Encoding.UTF8.GetString
-                  (Array.append
+            Value(
+              DStr(
+                System.Text.Encoding.UTF8.GetString(
+                  Array.append
                     (System.Text.Encoding.UTF8.GetBytes s1)
-                     (System.Text.Encoding.UTF8.GetBytes s2))))
+                    (System.Text.Encoding.UTF8.GetBytes s2)
+                )
+              )
+            )
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -422,13 +430,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let reverseString str =
-              StringInfo.ParseCombiningCharacters(str)
-              |> Array.rev
-              |> Seq.map (fun i -> StringInfo.GetNextTextElement(str, i))
-              |> String.concat ""
-
-            Value(DStr(reverseString s))
+            String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -458,12 +460,14 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList l; DStr sep ] ->
             let strs =
-              List.map (fun s ->
-                match s with
-                | DStr st -> st
-                | _ ->
-                    raise
-                      (RuntimeException(JustAString(SourceNone, "Expected String"))))
+              List.map
+                (fun s ->
+                  match s with
+                  | DStr st -> st
+                  | _ ->
+                      raise (
+                        RuntimeException(JustAString(SourceNone, "Expected String"))
+                      ))
                 l
 
             Value(DStr((String.concat sep strs).Normalize()))
@@ -477,9 +481,11 @@ let fns : List<BuiltInFn> =
       description = "Returns the list of characters as a string"
       fn =
         (fun _ ->
-          raise
-            (RuntimeException
-              (JustAString(SourceNone, "This function no longer exists."))))
+          raise (
+            RuntimeException(
+              JustAString(SourceNone, "This function no longer exists.")
+            )
+          ))
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromList" 1) }
@@ -490,14 +496,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] ->
-            DStr
-              (l
-               |> List.map (function
-                    | DChar c -> c
-                    | dv ->
-                        raise (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
-               |> String.concat "" )
-             |> Value
+            DStr(
+              l
+              |> List.map
+                   (function
+                   | DChar c -> c
+                   | dv ->
+                       raise (RuntimeException(LambdaResultHasWrongType(dv, TChar))))
+              |> String.concat ""
+            )
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -521,25 +529,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "base64Encode" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (B64.encode
-//                  B64.uri_safe_alphabet
-//                  false
-//                  (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "base64Decode" 0
+    { name = fn "String" "base64Encode" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description =
+        "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
+      fn =
+        (function
+        | _, [ DStr s ] -> String.base64UrlEncode s |> DStr |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "base64Decode" 0
 //      ; parameters = [Param.make "s" TStr]
 //      ; returnType = TStr
 //      ; description =
@@ -583,37 +585,42 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "sha384" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Take a string and hash it using SHA384. Please use Crypto::sha384 instead."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (Libtarget.digest384 (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "sha256" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Take a string and hash it using SHA256. Please use Crypto::sha256 instead."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (Libtarget.digest256 (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "random" 0
+    { name = fn "String" "sha384" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description =
+        "Take a string and hash it using SHA. Please use Crypto::sha384 instead."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            let sha384Hash = SHA384.Create()
+            let data = System.Text.Encoding.UTF8.GetBytes(s)
+
+            let bytes = sha384Hash.ComputeHash(data)
+            System.Convert.ToBase64String(bytes) |> DStr |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "String" "sha256" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description =
+        "Take a string and hash it using SHA256. Please use Crypto::sha256 instead."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            let sha256Hash = SHA256.Create()
+            let data = System.Text.Encoding.UTF8.GetBytes(s)
+
+            let bytes = sha256Hash.ComputeHash(data)
+            System.Convert.ToBase64String(bytes)
+            |> DStr |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //      { name = fn "String" "random" 0
 //      ; parameters = [Param.make "length" TInt]
 //      ; returnType = TStr
 //      ; description =
