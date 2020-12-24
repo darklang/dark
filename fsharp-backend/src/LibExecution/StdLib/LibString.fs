@@ -696,22 +696,37 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Impure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "htmlEscape" 0
-//      ; parameters = [Param.make "html" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Escape an untrusted string in order to include it safely in HTML output."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (Stdlib_util.html_escape (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Impure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toUUID" 0
+    { name = fn "String" "htmlEscape" 0
+      parameters = [ Param.make "html" TStr "" ]
+      returnType = TStr
+      description =
+        "Escape an untrusted string in order to include it safely in HTML output."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            let html_escape (html : string) : string =
+              List.map
+                (fun c ->
+                  match c with
+                  | '<' -> "&lt;"
+                  | '>' -> "&gt;"
+                  | '&' -> "&amp;"
+                  (* include these for html-attribute-escaping
+                            even though they're not strictly necessary
+                            for html-escaping proper. *)
+                  | '"' -> "&quot;"
+                  (* &apos; doesn't work in IE.... *)
+                  | ''' -> "&#x27;"
+                  | _ -> string c)
+                (Seq.toList html)
+              |> String.concat ""
+
+            Value(DStr(html_escape s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "toUUID" 0
 //      ; parameters = [Param.make "uuid" TStr]
 //      ; returnType = TUuid
 //      ; description =
