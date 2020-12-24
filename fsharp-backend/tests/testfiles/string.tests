@@ -40,6 +40,12 @@ String.sha256_v0 "😄" = "JQME7QhZCYN_m3giiRc9GbdVDVQqtRZG6UwPOEOEpQI="
 String.sha256_v0 "ελπίδα" = "v9JGQTLCr2YCjR5CWDh2Il-ZjVZeQRdU5lZ7xlVKuZM="
 String.sha256_v0 "/*-+(&@98521" = "nein0Hm1h0t_G0Uap2unSIMj06hYVr-xYHCWeo-VRyw="
 String.sha256_v0 "👩🏻‍🚀🍇" = "ZI3NDYn6EVKAxsQlsDzfUNu35MJyGt6QIKOj_FkZB04="
+String.length_v0 (String.random_v0 10) = 10
+String.length_v0 (String.random_v0 5) = 5
+String.length_v0 (String.random_v0 0) = 0
+String.length_v0 (String.random_v0 -1) = (Test.typeError_v0 "l should be a positive integer")
+(String.random_v0 5) == (String.random_v0 5) = false
+(String.random_v0 2) == (String.random_v0 2) = false
 // String.first_v0 "abcd" -3 = ""
 // String.first_v0 "abcd" 0 = ""
 // String.first_v0 "abcd" 3 = "abc"
