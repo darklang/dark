@@ -597,7 +597,10 @@ let fns : List<BuiltInFn> =
             let data = System.Text.Encoding.UTF8.GetBytes(s)
 
             let bytes = sha384Hash.ComputeHash(data)
-            System.Convert.ToBase64String(bytes) |> DStr |> Value
+
+            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+            |> DStr
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -614,8 +617,10 @@ let fns : List<BuiltInFn> =
             let data = System.Text.Encoding.UTF8.GetBytes(s)
 
             let bytes = sha256Hash.ComputeHash(data)
-            System.Convert.ToBase64String(bytes)
-            |> DStr |> Value
+
+            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+            |> DStr
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
