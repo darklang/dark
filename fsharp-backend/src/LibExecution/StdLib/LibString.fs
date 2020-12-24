@@ -597,7 +597,10 @@ let fns : List<BuiltInFn> =
             let data = System.Text.Encoding.UTF8.GetBytes(s)
 
             let bytes = sha384Hash.ComputeHash(data)
-            System.Convert.ToBase64String(bytes) |> DStr |> Value
+
+            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+            |> DStr
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -614,31 +617,47 @@ let fns : List<BuiltInFn> =
             let data = System.Text.Encoding.UTF8.GetBytes(s)
 
             let bytes = sha256Hash.ComputeHash(data)
-            System.Convert.ToBase64String(bytes)
-            |> DStr |> Value
+
+            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+            |> DStr
+            |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
-    //      { name = fn "String" "random" 0
-//      ; parameters = [Param.make "length" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Generate a string of length `length` from random characters."
-//      ; fn =
-//         (function
-//         | _, [DInt l] ->
-//             if l < Dint.zero
-//             then Exception.code "l should be a positive integer"
-//             else
-//               Dval.dstr_of_string_exn
-//                 (Stdlib_util.random_string (Dint.to_int_exn l))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Impure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "random" 1
+    { name = fn "String" "random" 0
+      parameters = [ Param.make "length" TInt "" ]
+      returnType = TStr
+      description = "Generate a string of length `length` from random characters."
+      fn =
+        (function
+        | _, [ DInt l ] ->
+            if l < bigint 0 then
+              raise (
+                RuntimeException(
+                  JustAString(SourceNone, "l should be a positive integer")
+                )
+              )
+            else
+              let random_string length =
+                let gen () =
+                  match random.Next(26 + 26 + 10) with
+                  | n when n < 26 -> ('a' |> int) + n
+                  | n when n < 26 + 26 -> ('A' |> int) + n - 26
+                  | n -> ('0' |> int) + n - 26 - 26
+
+                let gen _ = char (gen ()) in
+
+                (Array.toList (Array.init length gen))
+                |> List.map (fun i -> i.ToString())
+                |> String.concat ""
+
+              random_string (int l) |> DStr |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //      { name = fn "String" "random" 1
 //      ; parameters = [Param.make "length" TInt]
 //      ; returnType = TResult
 //      ; description =
@@ -677,22 +696,37 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Impure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "htmlEscape" 0
-//      ; parameters = [Param.make "html" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Escape an untrusted string in order to include it safely in HTML output."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (Stdlib_util.html_escape (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Impure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toUUID" 0
+    { name = fn "String" "htmlEscape" 0
+      parameters = [ Param.make "html" TStr "" ]
+      returnType = TStr
+      description =
+        "Escape an untrusted string in order to include it safely in HTML output."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            let html_escape (html : string) : string =
+              List.map
+                (fun c ->
+                  match c with
+                  | '<' -> "&lt;"
+                  | '>' -> "&gt;"
+                  | '&' -> "&amp;"
+                  (* include these for html-attribute-escaping
+                            even though they're not strictly necessary
+                            for html-escaping proper. *)
+                  | '"' -> "&quot;"
+                  (* &apos; doesn't work in IE.... *)
+                  | ''' -> "&#x27;"
+                  | _ -> string c)
+                (Seq.toList html)
+              |> String.concat ""
+
+            Value(DStr(html_escape s))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "toUUID" 0
 //      ; parameters = [Param.make "uuid" TStr]
 //      ; returnType = TUuid
 //      ; description =

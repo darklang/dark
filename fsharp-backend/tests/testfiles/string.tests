@@ -19,6 +19,10 @@ String.endsWith_v0 "a string" "in" = false
 String.endsWith_v0 "a string" "ing" = true
 String.foreach_v1 "a string" (fun x -> x) = "a string"
 String.fromChar_v1 'a' = "a"
+String.base64Encode_v0 "+" = "Kw"
+String.base64Encode_v0 "Ⱥ" = "yLo"
+String.base64Encode_v0 "żółw" = "xbzDs8WCdw"
+String.base64Encode_v0 "/*-+(&@98521" = "LyotKygmQDk4NTIx"
 String.base64Encode_v0 "" = ""
 String.base64Encode_v0 "f" = "Zg"
 String.base64Encode_v0 "fo" = "Zm8"
@@ -27,11 +31,29 @@ String.base64Encode_v0 "foob" = "Zm9vYg"
 String.base64Encode_v0 "fooba" = "Zm9vYmE"
 String.base64Encode_v0 "foobar" = "Zm9vYmFy"
 String.sha384_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
+String.sha384_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
+String.sha384_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
+String.sha384_v0 "/*-+(&@98521" = "wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr"
+String.sha384_v0 "👩🏻‍🚀🍇" = "hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ"
 String.sha256_v0 "" = "47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU="
+String.sha256_v0 "😄" = "JQME7QhZCYN_m3giiRc9GbdVDVQqtRZG6UwPOEOEpQI="
+String.sha256_v0 "ελπίδα" = "v9JGQTLCr2YCjR5CWDh2Il-ZjVZeQRdU5lZ7xlVKuZM="
+String.sha256_v0 "/*-+(&@98521" = "nein0Hm1h0t_G0Uap2unSIMj06hYVr-xYHCWeo-VRyw="
+String.sha256_v0 "👩🏻‍🚀🍇" = "ZI3NDYn6EVKAxsQlsDzfUNu35MJyGt6QIKOj_FkZB04="
+String.length_v0 (String.random_v0 10) = 10
+String.length_v0 (String.random_v0 5) = 5
+String.length_v0 (String.random_v0 0) = 0
+String.length_v0 (String.random_v0 -1) = (Test.typeError_v0 "l should be a positive integer")
+(String.random_v0 5) == (String.random_v0 5) = false
+(String.random_v0 2) == (String.random_v0 2) = false
 // String.first_v0 "abcd" -3 = ""
 // String.first_v0 "abcd" 0 = ""
 // String.first_v0 "abcd" 3 = "abc"
-// String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
+String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
+String.htmlEscape_v0 "<html><head></head><body><h1>This is f#</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;" // HTML escaping works reasonably
+String.htmlEscape_v0 "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
+String.htmlEscape_v0 "" = ""
+String.htmlEscape_v0 "😄" = "😄"
 String.isEmpty_v0 "" = true
 String.isEmpty_v0 "a" = false
 String.newline_v0 = "\n"
