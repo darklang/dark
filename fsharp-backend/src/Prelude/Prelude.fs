@@ -5,34 +5,58 @@ open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
 
+// ----------------------
+// Exceptions
+// ----------------------
+
 // Exceptions that should not be exposed to users, and that indicate unexpected
 // behaviour
+
 exception InternalException of string
+
+// ----------------------
+// Regex patterns
+// ----------------------
 
 // Active pattern for regexes
 let (|Regex|_|) (pattern : string) (input : string) =
   let m = Regex.Match(input, pattern)
   if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
 
+// ----------------------
+// Debugging
+// ----------------------
+
 let debug (msg : string) (a : 'a) : 'a =
   printfn $"DEBUG: {msg} ({a})"
   a
 
+// Print the value of `a`. Note that since this is wrapped in a task, it must
+// resolve the task before it can print, which could lead to different ordering
+// of operations.
+let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
+  task {
+    let! a = a
+    printfn $"DEBUG: {msg} ({a})"
+    return a
+  }
+
+// ----------------------
+// Assertions
+// ----------------------
 // Asserts are problematic because they don't run in prod, and if they did they
 // wouldn't be caught by the webserver
+
 let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
   if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false
 
-
-// .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
-// OS-generated truly-random number.
-// https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
-// also use a single global value for the VM, so that users cannot be
-// guaranteed to get multiple consequetive values (as other requests may intervene)
-let random : System.Random = System.Random()
+// ----------------------
+// Standard conversion functions
+// ----------------------
+// There are multiple ways to convert things in dotnet. Let's have a consistent set we use.
 
 let parseInt64 (str : string) : int64 =
   try
@@ -65,6 +89,26 @@ let makeFloat (whole : int64) (fraction : uint64) : float =
     System.Double.Parse($"{whole}.{fraction}")
   with e -> raise (InternalException $"makeFloat failed: {whole}.{fraction} - {e}")
 
+let base64Encode (input : string) : string =
+  input |> System.Text.Encoding.UTF8.GetBytes |> System.Convert.ToBase64String
+
+let base64Decode (encoded : string) : string =
+  encoded
+  |> System.Convert.FromBase64String
+  |> System.Text.Encoding.UTF8.GetString
+
+
+// ----------------------
+// Random numbers
+// ----------------------
+
+// .NET's System.Random is a PRNG, and on .NET Core, this is seeded from an
+// OS-generated truly-random number.
+// https://github.com/dotnet/runtime/issues/23198#issuecomment-668263511 We
+// also use a single global value for the VM, so that users cannot be
+// guaranteed to get multiple consequetive values (as other requests may intervene)
+let random : System.Random = System.Random()
+
 let gid () : uint64 =
   try
     // get enough bytes for an int64, trim it to an int31 for now to match the frontend
@@ -77,16 +121,9 @@ let gid () : uint64 =
     rand64 &&& mask
   with e -> raise (InternalException $"gid failed: {e}")
 
-// Print the value of `a`. Note that since this is wrapped in a task, it must
-// resolve the task before it can print, which could lead to different ordering
-// of operations.
-let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
-  task {
-    let! a = a
-    printfn $"DEBUG: {msg} ({a})"
-    return a
-  }
-
+// ----------------------
+// TODO move elsewhere
+// ----------------------
 module String =
   // Returns a seq of EGC (extended grapheme cluster - essentially a visible
   // screen character)
@@ -106,15 +143,22 @@ module String =
 
   let toUpper (str : string) : string = str.ToUpper()
 
-  let base64UrlEncode (str: string) : string =
+  let base64UrlEncode (str : string) : string =
 
     let inputBytes = System.Text.Encoding.UTF8.GetBytes(str)
 
     // Special "url-safe" base64 encode.
-    System.Convert.ToBase64String(inputBytes)
+    System
+      .Convert
+      .ToBase64String(inputBytes)
       .Replace('+', '-')
       .Replace('/', '_')
       .Replace("=", "")
+
+// ----------------------
+// TaskOrValue
+// ----------------------
+// A way of combining non-task values with tasks, complete with computation expressions
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -257,6 +301,9 @@ let filter_s (f : 'a -> TaskOrValue<bool>)
     return (result |> Seq.toList)
   }
 
+// ----------------------
+// Json auto-serialization
+// ----------------------
 module Json =
   module AutoSerialize =
     open System.Text.Json
@@ -276,6 +323,9 @@ module Json =
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
 
+// ----------------------
+// Task list processing
+// ----------------------
 module Task =
   // Processes each item of the list in order, waiting for the previous one to
   // finish. This ensures each request in the list is processed to completion
@@ -387,6 +437,9 @@ module Task =
           return List.head (lastcomp :: accum)
     }
 
+// ----------------------
+// Tablecloth
+// ----------------------
 module Tablecloth =
   // An implementation of https://github.com/darklang/tablecloth, in F#. Intended
   // to be upstreamed.
