@@ -17,9 +17,12 @@ createdb testdb
 BINPATH="fsharp-backend/Build/out/"
 cp "/home/dark/app/_build/default/backend/bin/libserialization.so" "${BINPATH}"
 
+# Expecto has a number of async bugs causing it to hang. It appears to be due
+# to the test framework though it's hard to tell. It's solved by disabling the
+# spinner and not running the tests in parallel.
 cd fsharp-backend
 DARK_CONFIG_DB_HOST=localhost \
 DARK_CONFIG_DB_DBNAME=testdb \
 DARK_CONFIG_DB_USER=dark \
 DARK_CONFIG_DB_PASSWORD=eapnsdc \
-Build/out/Tests --no-spinner "${@}" # spinner causes it to hang
+Build/out/Tests --no-spinner --sequenced "${@}"
