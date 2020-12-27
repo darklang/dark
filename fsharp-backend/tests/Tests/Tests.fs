@@ -17,11 +17,10 @@ let tests =
 
 [<EntryPoint>]
 let main args =
+  let (_ : Task) = Tests.BwdServer.init ()
   LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
   LibBackend.Migrations.init ()
   (LibBackend.Account.initTestAccounts ()).Wait()
-
-  Tests.BwdServer.init ()
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang
