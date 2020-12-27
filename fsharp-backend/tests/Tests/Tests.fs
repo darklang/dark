@@ -3,6 +3,7 @@ module Tests.All
 // Main entry point for tests being run
 
 open Expecto
+open System.Threading
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -16,20 +17,12 @@ let tests =
 
 [<EntryPoint>]
 let main args =
-
   LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+  LibBackend.Migrations.init ()
+  (LibBackend.Account.initTestAccounts ()).Wait()
 
-  // Run but don't wait for it
-  let (_task : Task) = Tests.BwdServer.init ()
+  Tests.BwdServer.init ()
 
-  let t =
-    task {
-
-      LibBackend.Migrations.init ()
-      do! LibBackend.Account.initTestAccounts ()
-
-      return runTestsWithCLIArgs [] args tests
-    }
-
-  t.Wait()
-  t.Result
+  // this does async stuff within it, so do not run it from a task/async
+  // context or it may hang
+  runTestsWithCLIArgs [] args tests
