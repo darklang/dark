@@ -35,12 +35,8 @@ let any =
 let prefixFns : List<BuiltInFn> =
   (LibString.fns
    @ LibList.fns
-   @ LibInt.fns
-   @ LibBool.fns
-   @ LibDict.fns
-   @ LibBytes.fns
-   @ LibMiddleware.fns
-   @ any)
+     @ LibInt.fns
+       @ LibBool.fns @ LibDict.fns @ LibBytes.fns @ LibMiddleware.fns @ any)
 
 // Map of prefix names to their infix versions
 let infixFnMapping =
@@ -53,8 +49,9 @@ let infixFnMapping =
     ("Int", "power", 0), "^"
     ("String", "append", 1), "++"
     ("", "equals", 0), "==" ]
-  |> List.map (fun ((module_, name, version), opName) ->
-       FQFnName.stdlibName module_ name version, FQFnName.stdlibName "" opName 0)
+  |> List.map
+       (fun ((module_, name, version), opName) ->
+         FQFnName.stdlibName module_ name version, FQFnName.stdlibName "" opName 0)
   |> Map
 
 // set of infix names
@@ -66,9 +63,11 @@ let isInfixName (name : FQFnName.T) = infixFnNames.Contains name
 
 let infixFns =
   let fns =
-    List.choose (fun builtin ->
-      let opName = infixFnMapping.TryFind builtin.name
-      Option.map (fun newName -> { builtin with name = newName }) opName) prefixFns
+    List.choose
+      (fun builtin ->
+        let opName = infixFnMapping.TryFind builtin.name
+        Option.map (fun newName -> { builtin with name = newName }) opName)
+      prefixFns
 
   assert (fns.Length = infixFnMapping.Count) // make sure we got them all
   fns
