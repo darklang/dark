@@ -26,7 +26,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
     | EString (_id, s) -> return (DStr s)
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return Dval.int i
-    | EFloat (_id, whole, fractional) -> return Dval.float whole fractional
+    | EFloat (_id, value) -> return DFloat value
     | ENull _id -> return DNull
     | ECharacter (_id, s) -> return DChar s
     | EList (_id, exprs) ->
@@ -193,8 +193,9 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
               else
                 traceNonMatch st expr builtUpTraces pid v
-          | PFloat (pid, whole, fraction) ->
-              let v = Dval.float whole fraction
+          | PFloat (pid, v) ->
+              let v = DFloat v
+
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
               else

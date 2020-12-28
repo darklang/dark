@@ -195,7 +195,7 @@ def fsharp_backend_test():
   #    configuration = "Release"
   #  else:
   #    configuration = "Debug"
-  build = f"cd fsharp-backend && Build/out/Tests"
+  build = f"scripts/run-fsharp-tests"
   run_test(start, build)
   # Don't break the build for F#, since the tests are not expected to succeed
   return True
@@ -253,9 +253,6 @@ def fsharp_backend_quick_build():
   # it for the main binaries, but for now let's just not generate them.
   build = f"cd fsharp-backend \
     && unbuffer dotnet build \
-      --no-dependencies \
-      /p:DebugType=None \
-      /p:DebugSymbols=false \
       --no-restore \
       --verbosity minimal \
       --configuration Debug "

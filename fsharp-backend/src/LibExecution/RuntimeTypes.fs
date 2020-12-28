@@ -74,11 +74,11 @@ module FQFnName =
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
-  | EInteger of id * string
+  | EInteger of id * bigint
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
-  | EFloat of id * string * string // first string might have a sign in it
+  | EFloat of id * double // first string might have a sign in it
   | ENull of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
@@ -117,11 +117,11 @@ and IsInPipe =
 and Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
-  | PInteger of id * string
+  | PInteger of id * bigint
   | PBool of id * bool
   | PCharacter of id * string
   | PString of id * string
-  | PFloat of id * string * string
+  | PFloat of id * double
   | PNull of id
   | PBlank of id
 
@@ -188,13 +188,28 @@ and Dval =
     | other -> other
 
   static member int(i : int) = DInt(bigint i)
-  static member int(i : string) = DInt(System.Numerics.BigInteger.Parse i)
+  static member int(i : bigint) = DInt i
+  static member int(i : string) = DInt(parseBigint i)
 
-  static member float (whole : string) (fractional : string) : Dval =
+  static member float(value : double) : Dval = DFloat value
+
+  static member float(sign : Sign, whole : bigint, fraction : bigint) : Dval =
     // FSTODO - add sourceID to errors
     try
-      (DFloat(float $"{whole}.{fractional}"))
-    with _ -> ((DFakeVal(DError((InvalidFloatExpression(whole, fractional))))))
+      DFloat(makeFloat (sign = Positive) whole fraction)
+    with _ ->
+      DFakeVal(
+        DError(InvalidFloatExpression(sign, whole.ToString(), fraction.ToString()))
+      )
+
+  static member float(sign : Sign, whole : string, fraction : string) : Dval =
+    // FSTODO - add sourceID to errors
+    try
+      DFloat(parseFloat whole fraction)
+    with _ -> DFakeVal(DError((InvalidFloatExpression(sign, whole, fraction))))
+
+
+
 
   // Dvals should never be constructed that contain fakevals - the fakeval
   // should always propagate (though, there are specific cases in the
@@ -320,7 +335,7 @@ and RuntimeError =
   | LambdaCalledWithWrongCount of List<Dval> * List<string>
   | LambdaCalledWithWrongType of List<Dval> * List<string>
   | LambdaResultHasWrongType of Dval * DType
-  | InvalidFloatExpression of string * string
+  | InvalidFloatExpression of Sign * string * string
   | UndefinedVariable of string
   | UndefinedConstructor of string
   // We want to remove this and make it just a string. So let's start here. And
@@ -352,10 +367,6 @@ and DvalSource =
 // ------------
 // Exceptions
 // ------------
-
-// Exceptions that should not be exposed to users, and that indicate unexpected
-// behaviour
-exception InternalException of string
 
 // This creates an error which can be wrapped in a DError. All errors that
 // occur at runtime should be represented here
@@ -492,7 +503,7 @@ module Shortcuts =
     | ECharacter (_, char) -> $"eChar '{char}'"
     | EInteger (_, num) -> $"eInt {num}"
     | EString (_, str) -> $"eStr {q str}"
-    | EFloat (_, whole, fraction) -> $"eFloat {whole} {fraction}"
+    | EFloat (_, number) -> $"eFloat {number}"
     | EBool (_, b) -> $"eBool {b}"
     | ENull _ -> $"eNull ()"
     | EVariable (_, var) -> $"eVar {q var}"
@@ -639,11 +650,9 @@ module Shortcuts =
 
   let eStr (str : string) : Expr = EString(gid (), str)
 
-  let eInt (i : int) : Expr = EInteger(gid (), i.ToString())
+  let eInt (i : int) : Expr = EInteger(gid (), bigint i)
 
-  let eIntStr (i : string) : Expr =
-    assert ((new Regex(@"-?\d+")).IsMatch(i))
-    EInteger(gid (), i)
+  let eIntStr (i : string) : Expr = EInteger(gid (), parseBigint i)
 
   let eChar (c : char) : Expr = ECharacter(gid (), string c)
   let eCharStr (c : string) : Expr = ECharacter(gid (), c)
@@ -651,14 +660,11 @@ module Shortcuts =
 
   let eBool (b : bool) : Expr = EBool(gid (), b)
 
-  let eFloat (whole : int) (fraction : int) : Expr =
-    EFloat(gid (), whole.ToString(), fraction.ToString())
+  let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
+    EFloat(gid (), makeFloat (sign = Positive) whole fraction)
 
   let eFloatStr (whole : string) (fraction : string) : Expr =
-    // FSTODO: don't actually assert, report to rollbar
-    assert ((new Regex(@"-?\d+")).IsMatch(whole))
-    assert ((new Regex(@"\d+")).IsMatch(fraction))
-    EFloat(gid (), whole, fraction)
+    EFloat(gid (), parseFloat whole fraction)
 
   let eNull () : Expr = ENull(gid ())
 
@@ -698,9 +704,9 @@ module Shortcuts =
   let eMatch (cond : Expr) (matches : List<Pattern * Expr>) : Expr =
     EMatch(gid (), cond, matches)
 
-  let pInt (int : int) : Pattern = PInteger(gid (), int.ToString())
+  let pInt (int : int) : Pattern = PInteger(gid (), bigint int)
 
-  let pIntStr (int : string) : Pattern = PInteger(gid (), int)
+  let pIntStr (int : string) : Pattern = PInteger(gid (), parseBigint int)
 
   let pVar (name : string) : Pattern = PVariable(gid (), name)
 
@@ -723,10 +729,10 @@ module Shortcuts =
   let pString (str : string) : Pattern = PString(gid (), str)
 
   let pFloatStr (whole : string) (fraction : string) : Pattern =
-    PFloat(gid (), whole, fraction)
+    PFloat(gid (), float $"{whole}{fraction}")
 
   let pFloat (whole : int) (fraction : int) : Pattern =
-    PFloat(gid (), whole.ToString(), fraction.ToString())
+    PFloat(gid (), float $"{whole}{fraction}")
 
   let pNull () : Pattern = PNull(gid ())
 

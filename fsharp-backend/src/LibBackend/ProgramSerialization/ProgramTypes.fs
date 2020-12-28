@@ -93,13 +93,13 @@ module FQFnName =
   let stdlibName (module_ : string) (function_ : string) (version : int) : T =
     name "dark" "stdlib" module_ function_ version
 
-
 type Expr =
-  | EInteger of id * string
+  | EInteger of id * bigint
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
-  | EFloat of id * string * string // first string might have a sign in it
+  // allow the user to have arbitrarily big numbers, even if they don't make sense as floats
+  | EFloat of id * Sign * bigint * bigint
   | ENull of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
@@ -132,13 +132,12 @@ type Expr =
     | EBlank _, EBlank _
     | EPipeTarget _, EPipeTarget _ -> true
     (* expressions with single string values *)
-    | EInteger (_, v), EInteger (_, v')
     | EString (_, v), EString (_, v')
     | ECharacter (_, v), ECharacter (_, v')
     | EVariable (_, v), EVariable (_, v') -> v = v'
+    | EInteger (_, v), EInteger (_, v') -> v = v'
+    | EFloat (_, s, w, f), EFloat (_, s', w', f') -> s = s' && w = w' && f = f'
     | EBool (_, v), EBool (_, v') -> v = v'
-    | EFloat (_, whole, frac), EFloat (_, whole', frac') ->
-        whole = whole' && frac = frac'
     | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
         lhs = lhs' && eq rhs rhs' && eq body body'
     | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
@@ -210,7 +209,8 @@ type Expr =
     | ECharacter (id, char) -> RT.ECharacter(id, char)
     | EInteger (id, num) -> RT.EInteger(id, num)
     | EString (id, str) -> RT.EString(id, str)
-    | EFloat (id, whole, fraction) -> RT.EFloat(id, whole, fraction)
+    | EFloat (id, sign, whole, fraction) ->
+        RT.EFloat(id, makeFloat (sign = Positive) whole fraction)
     | EBool (id, b) -> RT.EBool(id, b)
     | ENull id -> RT.ENull id
     | EVariable (id, var) -> RT.EVariable(id, var)
@@ -298,11 +298,11 @@ and SendToRail =
 and Pattern =
   | PVariable of id * string
   | PConstructor of id * string * List<Pattern>
-  | PInteger of id * string
+  | PInteger of id * bigint
   | PBool of id * bool
   | PCharacter of id * string
   | PString of id * string
-  | PFloat of id * string * string
+  | PFloat of id * Sign * bigint * bigint
   | PNull of id
   | PBlank of id
 
@@ -316,7 +316,7 @@ and Pattern =
     | PBool (id, b) -> RT.PBool(id, b)
     | PCharacter (id, c) -> RT.PCharacter(id, c)
     | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, w, f) -> RT.PFloat(id, w, f)
+    | PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat (s = Positive) w f)
     | PNull id -> RT.PNull id
     | PBlank id -> RT.PBlank id
 
@@ -331,7 +331,7 @@ and Pattern =
         name = name' && eqList patterns patterns'
     | PString (_, str), PString (_, str') -> str = str'
     | PInteger (_, l), PInteger (_, l') -> l = l'
-    | PFloat (_, w, f), PFloat (_, w', f') -> (w, f) = (w', f')
+    | PFloat (_, s, w, f), PFloat (_, s', w', f') -> (s, w, f) = (s', w', f')
     | PBool (_, l), PBool (_, l') -> l = l'
     | PCharacter (_, c), PCharacter (_, c') -> c = c'
     | PNull (_), PNull (_) -> true
@@ -361,7 +361,8 @@ module Shortcuts =
     | ECharacter (_, char) -> $"eChar '{char}'"
     | EInteger (_, num) -> $"eInt {num}"
     | EString (_, str) -> $"eStr {q str}"
-    | EFloat (_, whole, fraction) -> $"eFloat {whole} {fraction}"
+    | EFloat (_, sign, whole, fraction) ->
+        $"eFloat {sign = Positive} {whole} {fraction}"
     | EBool (_, b) -> $"eBool {b}"
     | ENull _ -> $"eNull ()"
     | EVariable (_, var) -> $"eVar {q var}"
@@ -502,25 +503,20 @@ module Shortcuts =
     eBinOp' module_ function_ version arg1 arg2 Rail
 
   let eStr (str : string) : Expr = EString(gid (), str)
-  let eInt (i : int) : Expr = EInteger(gid (), i.ToString())
+  let eInt (i : int) : Expr = EInteger(gid (), bigint i)
 
-  let eIntStr (i : string) : Expr =
-    assert ((new Regex(@"-?\d+")).IsMatch(i))
-    EInteger(gid (), i)
+  let eIntStr (i : string) : Expr = EInteger(gid (), parseBigint i)
 
   let eChar (c : char) : Expr = ECharacter(gid (), string c)
   let eCharStr (c : string) : Expr = ECharacter(gid (), c)
   let eBlank () : Expr = EBlank(gid ())
   let eBool (b : bool) : Expr = EBool(gid (), b)
 
-  let eFloat (whole : int) (fraction : int) : Expr =
-    EFloat(gid (), whole.ToString(), fraction.ToString())
+  let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
+    EFloat(gid (), sign, whole, fraction)
 
-  let eFloatStr (whole : string) (fraction : string) : Expr =
-    // FSTODO: don't actually assert, report to rollbar
-    assert ((new Regex(@"-?\d+")).IsMatch(whole))
-    assert ((new Regex(@"\d+")).IsMatch(fraction))
-    EFloat(gid (), whole, fraction)
+  let eFloatStr (sign : Sign) (whole : string) (fraction : string) : Expr =
+    EFloat(gid (), sign, parseBigint whole, parseBigint fraction)
 
   let eNull () : Expr = ENull(gid ())
 
@@ -574,10 +570,10 @@ module Shortcuts =
     EMatch(gid (), cond, matches)
 
 
-  let pInt (int : int) : Pattern = PInteger(gid (), int.ToString())
+  let pInt (int : int) : Pattern = PInteger(gid (), bigint int)
 
 
-  let pIntStr (int : string) : Pattern = PInteger(gid (), int)
+  let pIntStr (int : string) : Pattern = PInteger(gid (), parseBigint int)
 
   let pVar (name : string) : Pattern = PVariable(gid (), name)
 
@@ -599,11 +595,11 @@ module Shortcuts =
 
   let pString (str : string) : Pattern = PString(gid (), str)
 
-  let pFloatStr (whole : string) (fraction : string) : Pattern =
-    PFloat(gid (), whole, fraction)
+  let pFloatStr (sign : Sign) (whole : string) (fraction : string) : Pattern =
+    PFloat(gid (), sign, parseBigint whole, parseBigint fraction)
 
-  let pFloat (whole : int) (fraction : int) : Pattern =
-    PFloat(gid (), whole.ToString(), fraction.ToString())
+  let pFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Pattern =
+    PFloat(gid (), sign, whole, fraction)
 
   let pNull () : Pattern = PNull(gid ())
 

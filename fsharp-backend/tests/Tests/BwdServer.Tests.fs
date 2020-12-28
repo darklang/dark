@@ -8,6 +8,7 @@ open LibBackend.ProgramSerialization
 open BwdServer
 
 module RT = LibExecution.RuntimeTypes
+
 open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
@@ -35,37 +36,62 @@ let clearTestData (canvasName : string) : Task<unit> =
     match canvasID with
     | None -> return ()
     | Some canvasID ->
-        do! Sql.query "DELETE FROM events where canvas_id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        let events =
+          Sql.query "DELETE FROM events where canvas_id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+          :> Task
 
-        do! Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        let storedEvents =
+          Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+          :> Task
 
-        do! Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        let functionResults =
+          Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+          :> Task
 
-        do! Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        let functionArguments =
+          Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+          :> Task
 
-        do! Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        let userData =
+          Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+          :> Task
 
-        do! Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        let cronRecords =
+          Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+          :> Task
 
-        do! Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        let toplevelOplists =
+          Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+          :> Task
 
-        do! Sql.query "DELETE FROM canvases where id = @id::uuid"
-            |> Sql.parameters [ "id", Sql.uuid canvasID ]
-            |> Sql.executeStatementAsync
+        do!
+          Task.WhenAll [| cronRecords
+                          toplevelOplists
+                          userData
+                          functionArguments
+                          functionResults
+                          storedEvents
+                          events |]
+
+        do!
+          Sql.query "DELETE FROM canvases where id = @id::uuid"
+          |> Sql.parameters [ "id", Sql.uuid canvasID ]
+          |> Sql.executeStatementAsync
+
         return ()
   }
 
@@ -84,98 +110,100 @@ let t name =
       // line endings
       let mutable justSawNewline = false
       let mutable inBody = false
+
       text
       |> Array.toList
-      |> List.collect (fun b ->
-           if inBody = false && b = byte '\n' then
-             if justSawNewline then inBody <- true
-             justSawNewline <- true
-             [ byte '\r'; b ]
-           else
-             justSawNewline <- false
-             [ b ])
+      |> List.collect
+           (fun b ->
+             if not inBody && b = byte '\n' then
+               if justSawNewline then inBody <- true
+               justSawNewline <- true
+               [ byte '\r'; b ]
+             else
+               justSawNewline <- false
+               [ b ])
       |> List.toArray
 
-    let request, expectedResponse, httpDefs =
-      let filename = $"tests/httptestfiles/{name}"
-      let contents = filename |> System.IO.File.ReadAllBytes |> toStr
+    let filename = $"tests/httptestfiles/{name}"
+    let! contents = System.IO.File.ReadAllBytesAsync filename
+    let contents = toStr contents
 
+    let request, expectedResponse, httpDefs =
       // TODO: use FsRegex instead
       let options = System.Text.RegularExpressions.RegexOptions.Singleline
 
       let m =
-        Regex.Match
-          (contents,
-           "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
-           options)
+        Regex.Match(
+          contents,
+          "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
+          options
+        )
 
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
-      g.[3].Value |> toBytes |> setHeadersToCRLF,
-      g.[4].Value |> toBytes |> setHeadersToCRLF,
-      g.[2].Value
+
+      (g.[3].Value |> toBytes |> setHeadersToCRLF,
+       g.[4].Value |> toBytes |> setHeadersToCRLF,
+       g.[2].Value)
 
     let handlers =
       Regex.Matches(httpDefs, "\[http-handler (\S+) (\S+)\]\n(.*)\n")
       |> Seq.toList
-      |> List.map (fun m ->
-           let progString = m.Groups.[3].Value
-           let httpRoute = m.Groups.[2].Value
-           let httpMethod = m.Groups.[1].Value
+      |> List.map
+           (fun m ->
+             let progString = m.Groups.[3].Value
+             let httpRoute = m.Groups.[2].Value
+             let httpMethod = m.Groups.[1].Value
 
-           let (source : ProgramTypes.Expr) =
-             progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+             let (source : ProgramTypes.Expr) =
+               progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
-           let gid = Prelude.gid
+             let gid = Prelude.gid
 
-           let ids : ProgramTypes.Handler.ids =
-             { moduleID = gid (); nameID = gid (); modifierID = gid () }
+             let ids : ProgramTypes.Handler.ids =
+               { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-           ProgramTypes.TLHandler
-             { tlid = gid ()
-               ast = source
-               spec =
-                 ProgramTypes.Handler.HTTP
-                   (route = httpRoute, method = httpMethod, ids = ids) })
+             ProgramTypes.TLHandler
+               { tlid = gid ()
+                 ast = source
+                 spec =
+                   ProgramTypes.Handler.HTTP(
+                     route = httpRoute,
+                     method = httpMethod,
+                     ids = ids
+                   ) })
 
     let! ownerID = LibBackend.Account.userIDForUsername "test"
 
     let! canvasID = LibBackend.Canvas.canvasIDForCanvas ownerID $"test-{name}"
 
-    do! LibBackend.ProgramSerialization.SQL.saveHttpHandlersToCache
-          canvasID
-          ownerID
-          handlers
+    do!
+      LibBackend.ProgramSerialization.SQL.saveHttpHandlersToCache
+        canvasID
+        ownerID
+        handlers
 
     // Web server might not be loaded yet
-    let client = new TcpClient()
+    use client = new TcpClient()
 
     let mutable connected = false
 
     for i in 1 .. 10 do
       try
         if not connected then
-          do! client.ConnectAsync("127.0.0.1", 9001)
+          do! client.ConnectAsync("127.0.0.1", 10001)
           connected <- true
       with _ -> do! System.Threading.Tasks.Task.Delay 1000
 
-    let stream = client.GetStream()
-
+    use stream = client.GetStream()
     stream.ReadTimeout <- 1000 // responses should be instant, right?
 
-    stream.Write(request, 0, request.Length)
+    do! stream.WriteAsync(request, 0, request.Length)
 
     let length = 10000
-
     let response = Array.zeroCreate length
-
-    let byteCount = stream.Read(response, 0, length)
-
+    let! byteCount = stream.ReadAsync(response, 0, length)
     let response = Array.take byteCount response
-
-    stream.Close()
-
-    client.Close()
 
     let response =
       FsRegEx.replace
@@ -189,6 +217,7 @@ let t name =
 let testsFromFiles =
   // get all files
   let dir = "tests/httptestfiles/"
+
   System.IO.Directory.GetFiles(dir, "*")
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
@@ -197,27 +226,33 @@ let testsFromFiles =
 let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
   testList
     name
-    (List.mapi (fun i (input, expected) ->
-      test $"{name}[{i}]: ({input}) -> {expected}" {
-        Expect.equal (fn input) expected "" }) values)
+    (List.mapi
+      (fun i (input, expected) ->
+        test $"{name}[{i}]: ({input}) -> {expected}" {
+          Expect.equal (fn input) expected "" })
+      values)
 
 let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>) =
   testList
     name
-    (List.mapi (fun i (input1, input2, expected) ->
-      test $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
-        Expect.equal (fn input1 input2) expected "" }) values)
+    (List.mapi
+      (fun i (input1, input2, expected) ->
+        test $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
+          Expect.equal (fn input1 input2) expected "" })
+      values)
 
 
 
 let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) =
   testList
     name
-    (List.mapi (fun i (input, expected) ->
-      testTask $"{name} - {i}" {
-        let! result = fn input
-        Expect.equal result expected ""
-      }) values)
+    (List.mapi
+      (fun i (input, expected) ->
+        testTask $"{name} - {i}" {
+          let! result = fn input
+          Expect.equal result expected ""
+        })
+      values)
 
 let unitTests =
   [ testMany
@@ -268,3 +303,7 @@ let tests =
   testList
     "BwdServer"
     [ testList "From files" testsFromFiles; testList "unit tests" unitTests ]
+
+open Microsoft.AspNetCore.Hosting
+// run our own webserver instead of relying on the dev webserver
+let init () : Task = (BwdServer.webserver 10001).RunAsync()

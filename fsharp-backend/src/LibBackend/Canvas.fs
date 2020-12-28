@@ -34,7 +34,7 @@ let fetchReleventTLIDsForHTTP (host : string)
   |> Sql.parameters [ "path", Sql.string path
                       "method", Sql.string method
                       "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.int64 "tlid")
+  |> Sql.executeAsync (fun read -> read.int64 "tlid" |> uint64)
 
 let canvasIDForCanvas (owner : UserID) (canvasName : string) : Task<CanvasID> =
   printfn $"calling canvasIDForCanvas {owner} {canvasName}"

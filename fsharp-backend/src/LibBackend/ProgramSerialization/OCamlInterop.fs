@@ -21,47 +21,82 @@ module PT = ProgramTypes
 open LibExecution.SharedTypes
 
 module Binary =
-  // These allow us to call C functions from serialization_stubs.c, which in
-  // turn call into the OCaml runtime.
+  module Internal =
+    // These allow us to call C functions from serialization_stubs.c, which in
+    // turn call into the OCaml runtime.
 
-  // FSTODO if we have segfaults, we might need to use this:
-  // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#keeping-managed-objects-alive
+    // FSTODO if we have segfaults, we might need to use this:
+    // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#keeping-managed-objects-alive
 
-  // initialize OCaml runtime
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "dark_init_ocaml")>]
-  extern string darkInitOcaml()
+    // initialize OCaml runtime
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "dark_init_ocaml")>]
+    extern string darkInitOcaml()
 
-  // take a binary rep of a handler from the DB and convert it into JSON
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "handler_bin2json")>]
-  extern string handlerBin2Json(byte[] bytes, int length)
+    // take a binary rep of a handler from the DB and convert it into JSON
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "handler_bin2json")>]
+    extern string handlerBin2Json(byte[] bytes, int length)
 
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "handler_json2bin")>]
-  extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "handler_json2bin")>]
+    extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
 
-  [<DllImport("./libserialization.so",
-              CallingConvention = CallingConvention.Cdecl,
-              EntryPoint = "digest")>]
-  extern string digest()
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "digest")>]
+    extern string digest()
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "register_thread")>]
+    extern void registerThread()
+
+  type OncePerThread private () =
+    static let initializedTLS = new System.Threading.ThreadLocal<_>(fun () -> false)
+    static member initialized : bool = initializedTLS.Value
+    static member markInitialized() : unit = initializedTLS.Value <- true
+
+  let registerThread () : unit =
+    if not OncePerThread.initialized then
+      OncePerThread.markInitialized ()
+      Internal.registerThread ()
+    else
+      ()
+
+  let handlerJson2Bin (json : string) : byte [] =
+    registerThread ()
+    let mutable destPtr = System.IntPtr()
+    let length = Internal.handlerJson2Bin (json, &destPtr)
+    let mutable (bytes : byte array) = Array.zeroCreate length
+    Marshal.Copy(destPtr, bytes, 0, length)
+    bytes
+
+  let handlerBin2Json (bytes : byte []) (length : int) : string =
+    registerThread ()
+    Internal.handlerBin2Json (bytes, length)
+
+  let digest () = Internal.digest ()
 
   let init () =
     printfn "serialization_init"
-    let str = darkInitOcaml ()
+    let str = Internal.darkInitOcaml ()
     printfn "serialization_inited: %s" str
     ()
 
 module OCamlTypes =
+  // These types come directly from OCaml, and are used for automatic json
+  // serializers, which match the Yojson derived serializers on the OCaml side.
 
   // fsharplint:disable FL0038
 
   type pos = { x : int; y : int }
 
-  type id = int64
+  type id = uint64
 
   type tlid = id
 
@@ -288,10 +323,13 @@ module Yojson =
     | RT.FPVariable (_, id, str) -> PT.PVariable(id, str)
     | RT.FPConstructor (_, id, name, pats) ->
         PT.PConstructor(id, name, List.map r pats)
-    | RT.FPInteger (_, id, i) -> PT.PInteger(id, i)
+    | RT.FPInteger (_, id, i) -> PT.PInteger(id, parseBigint i)
     | RT.FPBool (_, id, b) -> PT.PBool(id, b)
     | RT.FPString (_, id, s) -> PT.PString(id, s)
-    | RT.FPFloat (_, id, w, f) -> PT.PFloat(id, w, f)
+    | RT.FPFloat (_, id, w, f) ->
+        let whole = parseBigint w
+        let sign = if w.[0] = '-' then Negative else Positive
+        PT.PFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
     | RT.FPNull (_, id) -> PT.PNull id
     | RT.FPBlank (_, id) -> PT.PBlank id
 
@@ -305,9 +343,12 @@ module Yojson =
 
     match o with
     | RT.EBlank id -> PT.EBlank id
-    | RT.EInteger (id, num) -> PT.EInteger(id, num)
+    | RT.EInteger (id, num) -> PT.EInteger(id, parseBigint num)
     | RT.EString (id, str) -> PT.EString(id, str)
-    | RT.EFloat (id, whole, fraction) -> PT.EFloat(id, whole, fraction)
+    | RT.EFloat (id, w, f) ->
+        let whole = parseBigint w
+        let sign = if w.[0] = '-' then Negative else Positive
+        PT.EFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
     | RT.EBool (id, b) -> PT.EBool(id, b)
     | RT.ENull id -> PT.ENull id
     | RT.EVariable (id, var) -> PT.EVariable(id, var)
@@ -350,7 +391,7 @@ module Yojson =
 
     match bo2String o.``module``, bo2String o.name, bo2String o.modifier with
     | "HTTP", route, method -> PT.Handler.HTTP(route, method, ids)
-    | "Worker", name, _ -> PT.Handler.Worker(name, ids)
+    | "WORKER", name, _ -> PT.Handler.Worker(name, ids)
     | "CRON", name, interval -> PT.Handler.Cron(name, interval, ids)
     | "REPL", name, _ -> PT.Handler.REPL(name, ids)
     | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
@@ -371,11 +412,13 @@ module Yojson =
     | PT.PVariable (id, str) -> RT.FPVariable(mid, id, str)
     | PT.PConstructor (id, name, pats) ->
         RT.FPConstructor(mid, id, name, List.map r pats)
-    | PT.PInteger (id, i) -> RT.FPInteger(mid, id, i)
+    | PT.PInteger (id, i) -> RT.FPInteger(mid, id, i.ToString())
     | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | PT.PBool (id, b) -> RT.FPBool(mid, id, b)
     | PT.PString (id, s) -> RT.FPString(mid, id, s)
-    | PT.PFloat (id, w, f) -> RT.FPFloat(mid, id, w, f)
+    | PT.PFloat (id, Positive, w, f) ->
+        RT.FPFloat(mid, id, w.ToString(), f.ToString())
+    | PT.PFloat (id, Negative, w, f) -> RT.FPFloat(mid, id, $"-{w}", f.ToString())
     | PT.PNull (id) -> RT.FPNull(mid, id)
     | PT.PBlank (id) -> RT.FPBlank(mid, id)
 
@@ -389,10 +432,11 @@ module Yojson =
 
     match p with
     | PT.EBlank id -> RT.EBlank id
-    | PT.EInteger (id, num) -> RT.EInteger(id, num)
+    | PT.EInteger (id, num) -> RT.EInteger(id, num.ToString())
     | PT.ECharacter (id, num) -> failwith "Characters not supported"
     | PT.EString (id, str) -> RT.EString(id, str)
-    | PT.EFloat (id, whole, fraction) -> RT.EFloat(id, whole, fraction)
+    | PT.EFloat (id, Positive, w, f) -> RT.EFloat(id, w.ToString(), f.ToString())
+    | PT.EFloat (id, Negative, w, f) -> RT.EFloat(id, $"-{w}", f.ToString())
     | PT.EBool (id, b) -> RT.EBool(id, b)
     | PT.ENull id -> RT.ENull id
     | PT.EVariable (id, var) -> RT.EVariable(id, var)
@@ -443,7 +487,7 @@ module Yojson =
           modifier = pt2bo ids.modifierID "_"
           types = types }
     | PT.Handler.Cron (name, interval, ids) ->
-        { ``module`` = pt2bo ids.moduleID "HTTP"
+        { ``module`` = pt2bo ids.moduleID "CRON"
           name = pt2bo ids.nameID name
           modifier = pt2bo ids.modifierID interval
           types = types }
@@ -467,7 +511,7 @@ module Yojson =
 // ----------------
 let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
                            : PT.Toplevel =
-  Binary.handlerBin2Json (data, data.Length)
+  Binary.handlerBin2Json data data.Length
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
   |> Yojson.ocamlHandler2PT
   |> PT.TLHandler
@@ -475,11 +519,9 @@ let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
 let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
   match toplevel with
   | PT.TLHandler h ->
-      let json = h |> Yojson.pt2ocamlHandler |> Json.AutoSerialize.serialize
-      let mutable destPtr = System.IntPtr()
-      let length = Binary.handlerJson2Bin (json, &destPtr)
-      let mutable (bytes : byte array) = Array.zeroCreate length
-      Marshal.Copy(destPtr, bytes, 0, length)
-      bytes
+      h
+      |> Yojson.pt2ocamlHandler
+      |> Json.AutoSerialize.serialize
+      |> Binary.handlerJson2Bin
 
   | _ -> failwith $"toplevel not supported yet {toplevel}"

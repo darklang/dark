@@ -4,12 +4,11 @@
 
 ### VS Code
 
-VS Code works pretty well when set up to run within the container. Choose "open folder within container" and it should work.
+VS Code works pretty well when set up to run within the container. Choose "open
+folder within container" and it should work.
 
-Use Ionide for F#. If you have problems with intellisense, you may need to
-start a terminal and run `dotnet tool restore` and the `dotnet build` and
-restart the container once or twice using the "developer: reload window"
-command.
+Use Ionide for F#. It's important to use (at least) version 5, which solves a
+few bugs and has the latest version of fantomas (the code formatter).
 
 ### Merlin
 

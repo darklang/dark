@@ -5,10 +5,11 @@
     <LangVersion>5.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
-    <ProjectReference Include="../../tests/PropertyTests/PropertyTests.fsproj" />
+    <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FSharpToExpr.fs" />

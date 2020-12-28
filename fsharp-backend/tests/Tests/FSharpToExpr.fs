@@ -10,6 +10,7 @@ open Prelude
 
 module DarkTypes = LibBackend.ProgramSerialization.ProgramTypes
 module D = DarkTypes
+
 open LibExecution.SharedTypes
 open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
@@ -51,10 +52,19 @@ let parse (input) : SynExpr =
 let rec convertToExpr (ast : SynExpr) : D.Expr =
   let c = convertToExpr
 
-  let parseFloat d : string * string =
-    match sprintf "%f" d with
-    | Regex "(.*)\.(.*)" [ whole; fraction ] -> (whole, fraction |> int |> string)
-    | str -> failwith $"Could not parse {str}"
+  let splitFloat (d : float) : Sign * bigint * bigint =
+    match System.Decimal(d).ToString() with
+    | Regex "-([0-9]+)\.(\d+)" [ whole; fraction ] ->
+        (Negative,
+         whole |> debug "whole" |> parseBigint |> debug "parsed",
+         parseBigint fraction)
+    | Regex "([0-9]+)\.(\d+)" [ whole; fraction ] ->
+        (Positive,
+         whole |> debug "whole" |> parseBigint |> debug "parsed",
+         parseBigint fraction)
+    | Regex "-([0-9]+)" [ whole ] -> (Negative, whole |> parseBigint, 0I)
+    | Regex "([0-9]+)" [ whole ] -> (Positive, whole |> parseBigint, 0I)
+    | str -> failwith $"Could not splitFloat {d}"
 
   let rec convertPattern (pat : SynPat) : D.Pattern =
     match pat with
@@ -62,13 +72,14 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
         pBlank ()
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
     | SynPat.Const (SynConst.Int32 n, _) -> pInt n
-    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> D.PInteger(gid (), n)
+    | SynPat.Const (SynConst.UserNum (n, "I"), _) ->
+        D.PInteger(gid (), parseBigint n)
     | SynPat.Const (SynConst.Char c, _) -> pChar c
     | SynPat.Const (SynConst.Bool b, _) -> pBool b
     | SynPat.Null _ -> pNull ()
     | SynPat.Const (SynConst.Double d, _) ->
-        let whole, fraction = parseFloat d
-        pFloatStr whole fraction
+        let sign, whole, fraction = splitFloat d
+        pFloat sign whole fraction
     | SynPat.Const (SynConst.String (s, _), _) -> pString s
     | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
                         _,
@@ -99,13 +110,13 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
 
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
-  | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> D.EInteger(gid (), n)
+  | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> D.EInteger(gid (), parseBigint n)
   | SynExpr.Null _ -> eNull ()
   | SynExpr.Const (SynConst.Char c, _) -> eChar c
   | SynExpr.Const (SynConst.Bool b, _) -> eBool b
   | SynExpr.Const (SynConst.Double d, _) ->
-      let whole, fraction = parseFloat d
-      eFloatStr whole fraction
+      let sign, whole, fraction = splitFloat d
+      eFloat sign whole fraction
   | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
   | SynExpr.Ident ident when ident.idText = "op_Addition" ->
       eBinOp "" "+" 0 (eBlank ()) (eBlank ())
@@ -208,7 +219,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
       eMatch (c cond) (List.map convertClause clauses)
   | SynExpr.Record (_, _, fields, _) ->
       fields
-      |> List.map (function
+      |> List.map
+           (function
            | ((LongIdentWithDots ([ name ], _), _), Some expr, _) ->
                (name.idText, c expr)
            | f -> failwith $"Not an expected field {f}")
@@ -218,8 +230,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
   // op_PipeRight, and the inner app has two arguments. Those arguments might
   // also be pipes
-  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText =
-                                                                                              "op_PipeRight" ->
+  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
       | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
           // when we just built the lowest, the second one goes here
@@ -279,7 +290,8 @@ let convertToTest (ast : SynExpr)
                  expected,
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
-      (convert actual, convert expected)
+      (convert actual, expected |> debug "expected" |> convert)
+      |> debug "actual and expected"
   | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true
 
 let parseDarkExpr (code : string) : D.Expr = code |> parse |> convertToExpr

@@ -28,7 +28,7 @@ let loadUncachedToplevels (host : string)
              FROM toplevel_oplists
              WHERE canvas_id = @canvasID
              AND tlid = ANY(@tlids)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidArray tlids ]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read -> read.bytea "data")
 
 let fetchCachedToplevels (host : string)
@@ -40,9 +40,9 @@ let fetchCachedToplevels (host : string)
              AND tlid = ANY (@tlids)
              AND deleted IS FALSE
              AND (((tipe = 'handler'::toplevel_type) AND pos IS NOT NULL))"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidArray tlids ]
-  |> Sql.executeAsync (fun read ->
-       (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+  |> Sql.executeAsync
+       (fun read -> (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
 
 
 let loadHttpHandlersFromCache (host : string)
@@ -110,7 +110,7 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
                  pos = @pos"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "ownerID", Sql.uuid ownerID
-                      "tlid", Sql.int64 (tl.toTLID ())
+                      "tlid", Sql.id (tl.toTLID ())
                       "digest", Sql.string digest
                       "tipe", Sql.string sqlType
                       "path", Sql.stringOrNone path
