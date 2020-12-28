@@ -52,11 +52,18 @@ let parse (input) : SynExpr =
 let rec convertToExpr (ast : SynExpr) : D.Expr =
   let c = convertToExpr
 
-  let splitFloat (d : float) : int64 * uint64 =
+  let splitFloat (d : float) : Sign * bigint * bigint =
     match d.ToString() with
-    | Regex "([-0-9]+)\.(\d+)" [ whole; fraction ] ->
-        (parseInt64 whole, parseUInt64 fraction)
-    | Regex "([-0-9]+)" [ whole ] -> (whole |> parseInt64, 0UL)
+    | Regex "(-[0-9]+)\.(\d+)" [ whole; fraction ] ->
+        (Negative,
+         whole |> debug "whole" |> parseBigint |> debug "parsed",
+         parseBigint fraction)
+    | Regex "([0-9]+)\.(\d+)" [ whole; fraction ] ->
+        (Positive,
+         whole |> debug "whole" |> parseBigint |> debug "parsed",
+         parseBigint fraction)
+    | Regex "(-[0-9]+)" [ whole ] -> (Negative, whole |> parseBigint, 0I)
+    | Regex "([0-9]+)" [ whole ] -> (Positive, whole |> parseBigint, 0I)
     | str -> failwith $"Could not splitFloat {d}"
 
   let rec convertPattern (pat : SynPat) : D.Pattern =
@@ -71,8 +78,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
     | SynPat.Const (SynConst.Bool b, _) -> pBool b
     | SynPat.Null _ -> pNull ()
     | SynPat.Const (SynConst.Double d, _) ->
-        let whole, fraction = splitFloat d
-        pFloat whole fraction
+        let sign, whole, fraction = splitFloat d
+        pFloat sign whole fraction
     | SynPat.Const (SynConst.String (s, _), _) -> pString s
     | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
                         _,
@@ -108,8 +115,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   | SynExpr.Const (SynConst.Char c, _) -> eChar c
   | SynExpr.Const (SynConst.Bool b, _) -> eBool b
   | SynExpr.Const (SynConst.Double d, _) ->
-      let whole, fraction = splitFloat d
-      eFloat whole fraction
+      let sign, whole, fraction = splitFloat d
+      eFloat sign whole fraction
   | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
   | SynExpr.Ident ident when ident.idText = "op_Addition" ->
       eBinOp "" "+" 0 (eBlank ()) (eBlank ())
@@ -283,7 +290,8 @@ let convertToTest (ast : SynExpr)
                  expected,
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
-      (convert actual, convert expected)
+      (convert actual, expected |> debug "expected" |> convert)
+      |> debug "actual and expected"
   | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true
 
 let parseDarkExpr (code : string) : D.Expr = code |> parse |> convertToExpr

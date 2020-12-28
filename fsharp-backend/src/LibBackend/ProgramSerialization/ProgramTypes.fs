@@ -98,7 +98,8 @@ type Expr =
   | EBool of id * bool
   | EString of id * string
   | ECharacter of id * string
-  | EFloat of id * int64 * uint64
+  // allow the user to have arbitrarily big numbers, even if they don't make sense as floats
+  | EFloat of id * Sign * bigint * bigint
   | ENull of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
@@ -135,7 +136,7 @@ type Expr =
     | ECharacter (_, v), ECharacter (_, v')
     | EVariable (_, v), EVariable (_, v') -> v = v'
     | EInteger (_, v), EInteger (_, v') -> v = v'
-    | EFloat (_, w, f), EFloat (_, w', f') -> w = w' && f = f'
+    | EFloat (_, s, w, f), EFloat (_, s', w', f') -> s = s' && w = w' && f = f'
     | EBool (_, v), EBool (_, v') -> v = v'
     | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
         lhs = lhs' && eq rhs rhs' && eq body body'
@@ -208,7 +209,8 @@ type Expr =
     | ECharacter (id, char) -> RT.ECharacter(id, char)
     | EInteger (id, num) -> RT.EInteger(id, num)
     | EString (id, str) -> RT.EString(id, str)
-    | EFloat (id, whole, fraction) -> RT.EFloat(id, makeFloat whole fraction)
+    | EFloat (id, sign, whole, fraction) ->
+        RT.EFloat(id, makeFloat (sign = Positive) whole fraction)
     | EBool (id, b) -> RT.EBool(id, b)
     | ENull id -> RT.ENull id
     | EVariable (id, var) -> RT.EVariable(id, var)
@@ -300,7 +302,7 @@ and Pattern =
   | PBool of id * bool
   | PCharacter of id * string
   | PString of id * string
-  | PFloat of id * int64 * uint64
+  | PFloat of id * Sign * bigint * bigint
   | PNull of id
   | PBlank of id
 
@@ -314,7 +316,7 @@ and Pattern =
     | PBool (id, b) -> RT.PBool(id, b)
     | PCharacter (id, c) -> RT.PCharacter(id, c)
     | PString (id, s) -> RT.PString(id, s)
-    | PFloat (id, w, f) -> RT.PFloat(id, makeFloat w f)
+    | PFloat (id, s, w, f) -> RT.PFloat(id, makeFloat (s = Positive) w f)
     | PNull id -> RT.PNull id
     | PBlank id -> RT.PBlank id
 
@@ -329,7 +331,7 @@ and Pattern =
         name = name' && eqList patterns patterns'
     | PString (_, str), PString (_, str') -> str = str'
     | PInteger (_, l), PInteger (_, l') -> l = l'
-    | PFloat (_, w, f), PFloat (_, w', f') -> (w, f) = (w', f')
+    | PFloat (_, s, w, f), PFloat (_, s', w', f') -> (s, w, f) = (s', w', f')
     | PBool (_, l), PBool (_, l') -> l = l'
     | PCharacter (_, c), PCharacter (_, c') -> c = c'
     | PNull (_), PNull (_) -> true
@@ -359,7 +361,8 @@ module Shortcuts =
     | ECharacter (_, char) -> $"eChar '{char}'"
     | EInteger (_, num) -> $"eInt {num}"
     | EString (_, str) -> $"eStr {q str}"
-    | EFloat (_, whole, fraction) -> $"eFloat {whole} {fraction}"
+    | EFloat (_, sign, whole, fraction) ->
+        $"eFloat {sign = Positive} {whole} {fraction}"
     | EBool (_, b) -> $"eBool {b}"
     | ENull _ -> $"eNull ()"
     | EVariable (_, var) -> $"eVar {q var}"
@@ -509,11 +512,11 @@ module Shortcuts =
   let eBlank () : Expr = EBlank(gid ())
   let eBool (b : bool) : Expr = EBool(gid (), b)
 
-  let eFloat (whole : int64) (fraction : uint64) : Expr =
-    EFloat(gid (), whole, fraction)
+  let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
+    EFloat(gid (), sign, whole, fraction)
 
-  let eFloatStr (whole : string) (fraction : string) : Expr =
-    EFloat(gid (), parseInt64 whole, parseUInt64 fraction)
+  let eFloatStr (sign : Sign) (whole : string) (fraction : string) : Expr =
+    EFloat(gid (), sign, parseBigint whole, parseBigint fraction)
 
   let eNull () : Expr = ENull(gid ())
 
@@ -592,11 +595,11 @@ module Shortcuts =
 
   let pString (str : string) : Pattern = PString(gid (), str)
 
-  let pFloatStr (whole : string) (fraction : string) : Pattern =
-    PFloat(gid (), parseInt64 whole, parseUInt64 fraction)
+  let pFloatStr (sign : Sign) (whole : string) (fraction : string) : Pattern =
+    PFloat(gid (), sign, parseBigint whole, parseBigint fraction)
 
-  let pFloat (whole : int64) (fraction : uint64) : Pattern =
-    PFloat(gid (), whole, fraction)
+  let pFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Pattern =
+    PFloat(gid (), sign, whole, fraction)
 
   let pNull () : Pattern = PNull(gid ())
 

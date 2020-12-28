@@ -91,10 +91,12 @@ let parseFloat (whole : string) (fraction : string) : float =
     System.Double.Parse($"{whole}.{fraction}")
   with e -> raise (InternalException $"parseFloat failed: {whole}.{fraction} - {e}")
 
-let makeFloat (whole : int64) (fraction : uint64) : float =
+let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float =
   try
-    System.Double.Parse($"{whole}.{fraction}")
-  with e -> raise (InternalException $"makeFloat failed: {whole}.{fraction} - {e}")
+    let sign = if positiveSign then "" else "-"
+    System.Double.Parse($"{sign}{whole}.{fraction}")
+  with e ->
+    raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
 
 let base64Encode (input : string) : string =
   input |> System.Text.Encoding.UTF8.GetBytes |> System.Convert.ToBase64String

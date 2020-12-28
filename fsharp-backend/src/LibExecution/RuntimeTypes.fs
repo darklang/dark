@@ -193,18 +193,20 @@ and Dval =
 
   static member float(value : double) : Dval = DFloat value
 
-  static member float(whole : int64, fraction : uint64) : Dval =
+  static member float(sign : Sign, whole : bigint, fraction : bigint) : Dval =
     // FSTODO - add sourceID to errors
     try
-      DFloat(makeFloat whole fraction)
+      DFloat(makeFloat (sign = Positive) whole fraction)
     with _ ->
-      DFakeVal(DError(InvalidFloatExpression(whole.ToString(), fraction.ToString())))
+      DFakeVal(
+        DError(InvalidFloatExpression(sign, whole.ToString(), fraction.ToString()))
+      )
 
-  static member float(whole : string, fraction : string) : Dval =
+  static member float(sign : Sign, whole : string, fraction : string) : Dval =
     // FSTODO - add sourceID to errors
     try
       DFloat(parseFloat whole fraction)
-    with _ -> DFakeVal(DError((InvalidFloatExpression(whole, fraction))))
+    with _ -> DFakeVal(DError((InvalidFloatExpression(sign, whole, fraction))))
 
 
 
@@ -333,7 +335,7 @@ and RuntimeError =
   | LambdaCalledWithWrongCount of List<Dval> * List<string>
   | LambdaCalledWithWrongType of List<Dval> * List<string>
   | LambdaResultHasWrongType of Dval * DType
-  | InvalidFloatExpression of string * string
+  | InvalidFloatExpression of Sign * string * string
   | UndefinedVariable of string
   | UndefinedConstructor of string
   // We want to remove this and make it just a string. So let's start here. And
@@ -658,8 +660,8 @@ module Shortcuts =
 
   let eBool (b : bool) : Expr = EBool(gid (), b)
 
-  let eFloat (whole : int64) (fraction : uint64) : Expr =
-    EFloat(gid (), makeFloat whole fraction)
+  let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
+    EFloat(gid (), makeFloat (sign = Positive) whole fraction)
 
   let eFloatStr (whole : string) (fraction : string) : Expr =
     EFloat(gid (), parseFloat whole fraction)
