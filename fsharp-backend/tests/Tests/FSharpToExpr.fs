@@ -53,8 +53,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   let c = convertToExpr
 
   let splitFloat (d : float) : Sign * bigint * bigint =
-    match d.ToString() with
-    | Regex "(-[0-9]+)\.(\d+)" [ whole; fraction ] ->
+    match System.Decimal(d).ToString() with
+    | Regex "-([0-9]+)\.(\d+)" [ whole; fraction ] ->
         (Negative,
          whole |> debug "whole" |> parseBigint |> debug "parsed",
          parseBigint fraction)
@@ -62,7 +62,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
         (Positive,
          whole |> debug "whole" |> parseBigint |> debug "parsed",
          parseBigint fraction)
-    | Regex "(-[0-9]+)" [ whole ] -> (Negative, whole |> parseBigint, 0I)
+    | Regex "-([0-9]+)" [ whole ] -> (Negative, whole |> parseBigint, 0I)
     | Regex "([0-9]+)" [ whole ] -> (Positive, whole |> parseBigint, 0I)
     | str -> failwith $"Could not splitFloat {d}"
 

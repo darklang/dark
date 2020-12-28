@@ -81,7 +81,7 @@ let parseBigint (str : string) : bigint =
   try
     assertRe "bigint" @"-?\d+" str
     System.Numerics.BigInteger.Parse str
-  with e -> raise (InternalException $"parseUInt64 failed: {str} - {e}")
+  with e -> raise (InternalException $"parseBigint failed: {str} - {e}")
 
 let parseFloat (whole : string) (fraction : string) : float =
   try
@@ -93,8 +93,9 @@ let parseFloat (whole : string) (fraction : string) : float =
 
 let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float =
   try
+    assert_ "makefloat" (whole >= 0I)
     let sign = if positiveSign then "" else "-"
-    System.Double.Parse($"{sign}{whole}.{fraction}")
+    $"{sign}{whole}.{fraction}" |> debug "makeFloat" |> System.Double.Parse
   with e ->
     raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
 
