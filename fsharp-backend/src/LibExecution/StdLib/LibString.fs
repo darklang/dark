@@ -873,24 +873,23 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "dropFirst" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns all but the first `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns the empty string.
-//       If `characterCount` is negative, returns `string`."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.drop_first_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "padStart" 0
+    { name = fn "String" "dropFirst" 0
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
+      returnType = TStr
+      description = "Returns all but the first `characterCount` characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns the empty string.
+        If `characterCount` is negative, returns `string`."
+      fn =
+        (function
+        | _, [ DStr s; DInt n ] ->
+            let characterCount = int n
+            Value(DStr(s.[characterCount..]))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "padStart" 0
 //      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
 //      ; returnType = TStr
 //      ; description =
@@ -961,18 +960,14 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "trimStart" 0
-      parameters = [Param.make "str" TStr ""]
+      parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description =
         @"Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes "" "", ""\t"" and ""\n""."
       fn =
         (function
-        | _, [DStr to_trim] ->
-            String.trimStart [] to_trim
-            |> DStr
-            |> Value
-        | args ->
-            incorrectArgs ())
+        | _, [ DStr to_trim ] -> String.trimStart [] to_trim |> DStr |> Value
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -983,10 +978,7 @@ let fns : List<BuiltInFn> =
         @"Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes "" "", ""\t"" and ""\n""."
       fn =
         (function
-        | _, [ DStr to_trim ] ->
-            String.trimEnd [] to_trim
-            |> DStr
-            |> Value
+        | _, [ DStr to_trim ] -> String.trimEnd [] to_trim |> DStr |> Value
         | args -> incorrectArgs ())
 
       sqlSpec = NotYetImplementedTODO
