@@ -988,30 +988,28 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toBytes" 0
-//      ; parameters = [Param.make "str" TStr]
-//      ; returnType = TBytes
-//      ; description =
-//       "Converts the given unicode string to a utf8-encoded byte sequence."
-//      ; fn =
-//         (function
-//         | _, [DStr str] ->
-//             let theBytes = Unicode_string.to_utf8_bytes str in
-//             DBytes theBytes
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "toBytes" 0
+      parameters = [ Param.make "str" TStr "" ]
+      returnType = TBytes
+      description =
+        "Converts the given unicode string to a utf8-encoded byte sequence."
+      fn =
+        (function
+        | _, [ DStr str ] ->
+            let theBytes = System.Text.Encoding.UTF8.GetBytes str in
+            Value(DBytes theBytes)
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "startsWith" 0
-      parameters = [Param.make "subject" TStr ""; Param.make "prefix" TStr ""]
+      parameters = [ Param.make "subject" TStr ""; Param.make "prefix" TStr "" ]
       returnType = TBool
       description = "Checks if `subject` starts with `prefix`"
       fn =
         (function
         | _, [ DStr subject; DStr prefix ] -> Value(DBool(subject.StartsWith prefix))
-        | args ->
-            incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
