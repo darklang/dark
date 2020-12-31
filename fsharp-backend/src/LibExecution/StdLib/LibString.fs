@@ -1003,19 +1003,18 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "startsWith" 0
-//      ; parameters = [Param.make "subject" TStr; Param.make "prefix" TStr]
-//      ; returnType = TBool
-//      ; description = "Checks if `subject` starts with `prefix`"
-//      ; fn =
-//         (function
-//         | _, [DStr subject; DStr prefix] ->
-//             DBool (Unicode_string.starts_with ~prefix subject)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "startsWith" 0
+      parameters = [Param.make "subject" TStr ""; Param.make "prefix" TStr ""]
+      returnType = TBool
+      description = "Checks if `subject` starts with `prefix`"
+      fn =
+        (function
+        | _, [ DStr subject; DStr prefix ] -> Value(DBool(subject.StartsWith prefix))
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "endsWith" 0
       parameters =
         [ Param.make "subject" TStr "String to test"
