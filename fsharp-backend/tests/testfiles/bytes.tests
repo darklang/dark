@@ -1,1 +1,1 @@
-// Bytes.length_v0 (String.toBytes_v0 "abcdef") = 6
+Bytes.length_v0 (String.toBytes_v0 "abcdef") = 6
