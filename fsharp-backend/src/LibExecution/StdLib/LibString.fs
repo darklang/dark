@@ -856,23 +856,39 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//      { name = fn "String" "first" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns the first `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns `string`.
-//       If `characterCount` is negative, returns the empty string."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.first_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "first" 0
+      parameters = [Param.make "string" TStr ""; Param.make "characterCount" TInt ""]
+      returnType = TStr
+      description = "Returns the first `characterCount` characters of `string`, as a String.
+      If `characterCount` is longer than `string`, returns `string`.
+      If `characterCount` is negative, returns the empty string."
+      fn =
+        (function
+        | _, [DStr s; DInt n] ->
+            let first_n s (num_egcs : bigint) =
+              let b = new StringBuilder(String.length s) in
+              (* We iterate through every EGC, adding it to the buffer
+               * if its index < num_egcs: *)
+
+              let first_func (idx : bigint) (seg : string) =
+                if idx < num_egcs then b.Append seg |> ignore else () |> ignore
+                bigint 1 + idx
+
+              ignore (
+                String.toEgcSeq s
+                |> Seq.toList
+                |> List.mapi (fun index value -> (first_func (bigint index) value))
+              )
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              b.ToString()
+
+            Value(DStr(first_n s n))
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "last" 0
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]

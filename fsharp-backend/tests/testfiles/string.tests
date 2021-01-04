@@ -53,9 +53,6 @@ String.length_v0 (String.random_v0 0) = 0
 String.length_v0 (String.random_v0 -1) = (Test.typeError_v0 "l should be a positive integer")
 (String.random_v0 5) == (String.random_v0 5) = false
 (String.random_v0 2) == (String.random_v0 2) = false
-// String.first_v0 "abcd" -3 = ""
-// String.first_v0 "abcd" 0 = ""
-// String.first_v0 "abcd" 3 = "abc"
 String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
 String.htmlEscape_v0 "<html><head></head><body><h1>This is f#</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;" // HTML escaping works reasonably
 String.htmlEscape_v0 "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
@@ -197,6 +194,13 @@ String.slice_v0 "abcd" 2 3 = "c"
 String.slice_v0 "abcd" 2 6 = "cd"
 String.slice_v0 "abcd" 3 2 = ""
 String.slice_v0 "abcd" 5 6 = ""
+String.first_v0 "abcd" -3 = ""
+String.first_v0 "abcd" 0 = ""
+String.first_v0 "abcd" 1 = "a"
+String.first_v0 "abcd" 2 = "ab"
+String.first_v0 "abcd" 3 = "abc"
+String.first_v0 "🍍🍍🍏" 1 = "🍍"
+String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
 [test.stringForeach]
 // Check that foreach executes the right number of times
 (let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 false) in
