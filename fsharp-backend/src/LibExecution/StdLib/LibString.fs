@@ -2,6 +2,8 @@ module LibExecution.StdLib.LibString
 
 open System.Globalization
 open System.Security.Cryptography
+open System
+open System.Text
 
 (* type coerces one list to another using a function *)
 
@@ -839,24 +841,22 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "last" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns the last `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns `string`.
-//       If `characterCount` is negative, returns the empty string."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.last_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "dropLast" 0
+    // { name = fn "String" "last" 0
+    //   parameters = [ Param.make "string" TStr ""; Param.make "characterCount" TInt ""]
+    //   returnType = TStr
+    //   description = "Returns the last `characterCount` characters of `string`, as a String.
+    //   If `characterCount` is longer than `string`, returns `string`.
+    //   If `characterCount` is negative, returns the empty string."
+    //   fn =
+    //     (function
+    //     | _, [ DStr s; DInt n ] ->
+    //         let characterCount = int n
+    //         Value(DStr(String.last s characterCount))
+    //     | args -> incorrectArgs ())
+    //   sqlSpec = NotYetImplementedTODO
+    //   previewable = Pure
+    //   deprecated = NotDeprecated }
+    //      { name = fn "String" "dropLast" 0
 //      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
 //      ; returnType = TStr
 //      ; description =
@@ -883,8 +883,25 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let characterCount = int n
-            Value(DStr(s.[characterCount..]))
+            let drop_first_n s (num_egcs : bigint) =
+              let b = new StringBuilder(String.length s) in
+              (* We iterate through every EGC, adding it to the buffer
+               * if its index >= num_egcs. This works by the inverse of the logic for [first_n]: *)
+              let first_func (idx : bigint) (seg : string) =
+                if idx >= num_egcs then b.Append seg |> ignore else () |> ignore
+                bigint 1 + idx
+
+              ignore (
+                String.toEgcSeq s
+                (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+                |> Seq.toList
+                |> List.mapi (fun index value -> (first_func (bigint index) value))
+              )
+
+              b.ToString()
+
+            Value(DStr(drop_first_n s n))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
