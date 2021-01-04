@@ -842,7 +842,8 @@ let fns : List<BuiltInFn> =
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
     { name = fn "String" "last" 0
-      parameters = [ Param.make "string" TStr ""; Param.make "characterCount" TInt ""]
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
       description = "Returns the last `characterCount` characters of `string`, as a String.
       If `characterCount` is longer than `string`, returns `string`.
@@ -855,13 +856,14 @@ let fns : List<BuiltInFn> =
 
             let last_n s (num_egcs : bigint) =
               let b = new StringBuilder(String.length s) in
-               (* We iterate through every EGC, adding it to the buffer
+              (* We iterate through every EGC, adding it to the buffer
                 * if its [idx] >= ([s_egc_count] - [num_egcs]).
                 * Consider if the string is "abcde" and [num_egcs] = 2,
                 * [s_egc_count] = 5; 5-2 = 3. The index of "d" is 3 and
                 * we want to keep it and everything after it so we end up with "de". *)
 
               let start_idx = bigint s_egc_count - num_egcs in
+
               let last_func (idx : bigint) (seg : string) =
                 if idx >= start_idx then b.Append seg |> ignore else () |> ignore
                 bigint 1 + idx
@@ -879,23 +881,43 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "dropLast" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns all but the last `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns the empty string.
-//       If `characterCount` is negative, returns `string`."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.drop_last_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "dropLast" 0
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
+      returnType = TStr
+      description = "Returns all but the last `characterCount` characters of `string`, as a String.
+      If `characterCount` is longer than `string`, returns the empty string.
+      If `characterCount` is negative, returns `string`."
+      fn =
+        (function
+        | _, [ DStr s; DInt n ] ->
+            let egc_seq_list = String.toEgcSeq s |> Seq.toList
+            let s_egc_count = egc_seq_list.Length
+
+            let drop_last_n s (num_egcs : bigint) =
+              let b = new StringBuilder(String.length s) in
+              (* We iterate through every EGC, adding it to the buffer
+               * if its [idx] < ([s_egc_count] - [num_egcs]).
+               * This works by the inverse of the logic for [last_n]. *)
+
+              let start_idx = bigint s_egc_count - num_egcs in
+              let last_func (idx : bigint) (seg : string) =
+                if idx < start_idx then b.Append seg |> ignore else () |> ignore
+                bigint 1 + idx
+
+              in
+              ignore (
+                egc_seq_list
+                |> List.mapi (fun index value -> (last_func (bigint index) value))
+              );
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              b.ToString()
+            Value(DStr(drop_last_n s n))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "dropFirst" 0
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
