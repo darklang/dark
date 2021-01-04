@@ -819,8 +819,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt f; DInt l ] ->
-            let egc_seq_list = String.toEgcSeq s |> Seq.toList
-            let s_egc_count = bigint egc_seq_list.Length
+            let egc_seq = String.toEgcSeq s
+            let s_egc_count = bigint (length egc_seq)
 
             let slice s (first : bigint) (last : bigint) =
               let clamp_unchecked t min max =
@@ -860,7 +860,8 @@ let fns : List<BuiltInFn> =
                 bigint 1 + acc
 
               ignore (
-                egc_seq_list
+                egc_seq
+                |> Seq.toList
                 |> List.mapi (fun index value -> (slicer_func (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
@@ -916,8 +917,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let egc_seq_list = String.toEgcSeq s |> Seq.toList
-            let s_egc_count = egc_seq_list.Length
+            let egc_seq = String.toEgcSeq s
+            let s_egc_count = length egc_seq
 
             let last_n s (num_egcs : bigint) =
               let b = new StringBuilder(String.length s) in
@@ -934,7 +935,8 @@ let fns : List<BuiltInFn> =
                 bigint 1 + idx
 
               ignore (
-                egc_seq_list
+                egc_seq
+                |> Seq.toList
                 |> List.mapi (fun index value -> (last_func (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
@@ -956,8 +958,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let egc_seq_list = String.toEgcSeq s |> Seq.toList
-            let s_egc_count = egc_seq_list.Length
+            let egc_seq = String.toEgcSeq s
+            let s_egc_count = length egc_seq
 
             let drop_last_n s (num_egcs : bigint) =
               let b = new StringBuilder(String.length s) in
@@ -972,7 +974,8 @@ let fns : List<BuiltInFn> =
                 bigint 1 + idx
 
               ignore (
-                egc_seq_list
+                egc_seq
+                |> Seq.toList
                 |> List.mapi (fun index value -> (last_func (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
@@ -1028,7 +1031,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr s; DStr pad_with; DInt l ] ->
 
-            let egc_seq_list = String.toEgcSeq s |> Seq.toList
+            let egc_seq_list = String.toEgcSeq s
 
             let pad_start s pad_with target_egcs =
               let max a b = if a > b then a else b in
@@ -1086,7 +1089,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr s; DStr pad_with; DInt l ] ->
 
-            let egc_seq_list = String.toEgcSeq s |> Seq.toList
+            let egc_seq_list = String.toEgcSeq s
 
             let pad_end s pad_with target_egcs =
               let max a b = if a > b then a else b in
