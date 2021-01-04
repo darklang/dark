@@ -1028,6 +1028,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr s; DStr pad_with; DInt l ] ->
 
+            let egc_seq_list = String.toEgcSeq s |> Seq.toList
+
             let pad_start s pad_with target_egcs =
               let max a b = if a > b then a else b in
               (* Compute the size in bytes and # of required EGCs for s and pad_with: *)
@@ -1035,7 +1037,7 @@ let fns : List<BuiltInFn> =
 
               let pad_egcs = length pad_with in
               let s_size = String.length s in
-              let s_egcs = length s in
+              let s_egcs = length egc_seq_list in
               (* Compute how many copies of pad_with we require,
                * accounting for the string longer than [target_egcs]: *)
               let req_egcs = target_egcs - s_egcs in
@@ -1084,6 +1086,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr s; DStr pad_with; DInt l ] ->
 
+            let egc_seq_list = String.toEgcSeq s |> Seq.toList
+
             let pad_end s pad_with target_egcs =
               let max a b = if a > b then a else b in
               (* Compute the size in bytes and # of required EGCs for s and pad_with: *)
@@ -1091,7 +1095,7 @@ let fns : List<BuiltInFn> =
 
               let pad_egcs = length pad_with in
               let s_size = String.length s in
-              let s_egcs = length s in
+              let s_egcs = length egc_seq_list in
               (* Compute how many copies of pad_with we require,
                * accounting for the string longer than [target_egcs]: *)
               let req_egcs = target_egcs - s_egcs in
