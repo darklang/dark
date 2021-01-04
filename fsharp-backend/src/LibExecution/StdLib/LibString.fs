@@ -808,44 +808,61 @@ let fns : List<BuiltInFn> =
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
     { name = fn "String" "slice" 0
-      parameters = [Param.make "string" TStr ""; Param.make "from" TInt ""; Param.make "to" TInt ""]
+      parameters =
+        [ Param.make "string" TStr ""
+          Param.make "from" TInt ""
+          Param.make "to" TInt "" ]
       returnType = TStr
       description = "Returns the substring of `string` between the `from` and `to` indices.
        Negative indices start counting from the end of `string`.
        Indices represent characters."
       fn =
         (function
-        | _, [DStr s; DInt f; DInt l] ->
+        | _, [ DStr s; DInt f; DInt l ] ->
             let egc_seq_list = String.toEgcSeq s |> Seq.toList
             let s_egc_count = bigint egc_seq_list.Length
 
             let slice s (first : bigint) (last : bigint) =
               let clamp_unchecked t min max =
-                if t < min then min else if t <= max then t else max
-              in
+                if t < min then min
+                else if t <= max then t
+                else max
+
               let len = s_egc_count in
               let min = bigint 0 in
-              let max = len +  (bigint 1) in
+              let max = len + (bigint 1) in
               (* If we get negative indices, we need to treat them as indices from the end
                * which means that we need to add [len] to them. We clamp the result to
                * a value within range of the actual string: *)
               let bigint_cero = bigint 0
+
               let first =
-                if first >= bigint_cero then first else len + first |> clamp_unchecked min max
-              in
+                if first >= bigint_cero then
+                  first
+                else
+                  len + first |> clamp_unchecked min max
+
               let last =
-                if last >= bigint_cero then last else len + last |> clamp_unchecked min max
-              in
+                if last >= bigint_cero then
+                  last
+                else
+                  len + last |> clamp_unchecked min max
+
               let b = new StringBuilder(String.length s) in
               (* To slice, we iterate through every EGC, adding it to the buffer
                * if it is within the specified index range: *)
               let slicer_func (acc : bigint) (seg : string) =
-                if acc >= first && acc < last then b.Append seg |> ignore else () |> ignore
+                if acc >= first && acc < last then
+                  b.Append seg |> ignore
+                else
+                  () |> ignore
+
                 bigint 1 + acc
+
               ignore (
                 egc_seq_list
                 |> List.mapi (fun index value -> (slicer_func (bigint index) value))
-              );
+              )
               (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
               b.ToString()
@@ -857,14 +874,15 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "first" 0
-      parameters = [Param.make "string" TStr ""; Param.make "characterCount" TInt ""]
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
       description = "Returns the first `characterCount` characters of `string`, as a String.
       If `characterCount` is longer than `string`, returns `string`.
       If `characterCount` is negative, returns the empty string."
       fn =
         (function
-        | _, [DStr s; DInt n] ->
+        | _, [ DStr s; DInt n ] ->
             let first_n s (num_egcs : bigint) =
               let b = new StringBuilder(String.length s) in
               (* We iterate through every EGC, adding it to the buffer
@@ -884,8 +902,7 @@ let fns : List<BuiltInFn> =
               b.ToString()
 
             Value(DStr(first_n s n))
-        | args ->
-            incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -949,18 +966,19 @@ let fns : List<BuiltInFn> =
                * This works by the inverse of the logic for [last_n]. *)
 
               let start_idx = bigint s_egc_count - num_egcs in
+
               let last_func (idx : bigint) (seg : string) =
                 if idx < start_idx then b.Append seg |> ignore else () |> ignore
                 bigint 1 + idx
 
-              in
               ignore (
                 egc_seq_list
                 |> List.mapi (fun index value -> (last_func (bigint index) value))
-              );
+              )
               (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
               b.ToString()
+
             Value(DStr(drop_last_n s n))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -998,36 +1016,63 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "padStart" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
-//       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//      ; fn =
-//         (function
-//         | state, [DStr s; DStr pad_with; DInt l] ->
-//             let padLen = Unicode_string.length pad_with in
-//             if padLen = 1
-//             then
-//               let l = Dint.to_int_exn l in
-//               DStr (Unicode_string.pad_start s ~pad_with l)
-//             else
-//               DError
-//                 ( SourceNone
-//                 , "Expected the argument `padWith` passed to `"
-//                   ^ state.executing_fnname
-//                   ^ "` to be one character long. However, `"
-//                   ^ Dval.to_developer_repr_v0 (DStr pad_with)
-//                   ^ "` is "
-//                   ^ Int.to_string padLen
-//                   ^ " characters long." )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "padEnd" 0
+    { name = fn "String" "padStart" 0
+      parameters =
+        [ Param.make "string" TStr ""
+          Param.make "padWith" TStr ""
+          Param.make "goalLength" TInt "" ]
+      returnType = TStr
+      description = "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
+      If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+      fn =
+        (function
+        | state, [ DStr s; DStr pad_with; DInt l ] ->
+
+            let pad_start s pad_with target_egcs =
+              let max a b = if a > b then a else b in
+              (* Compute the size in bytes and # of required EGCs for s and pad_with: *)
+              let pad_size = String.length pad_with in
+
+              let pad_egcs = length pad_with in
+              let s_size = String.length s in
+              let s_egcs = length s in
+              (* Compute how many copies of pad_with we require,
+               * accounting for the string longer than [target_egcs]: *)
+              let req_egcs = target_egcs - s_egcs in
+
+              let req_pads = max 0 (if pad_egcs = 0 then 0 else req_egcs / pad_egcs) in
+              (* Create a buffer large enough to hold the padded result: *)
+              let req_size = s_size + (req_pads * pad_size) in
+
+              let b = new StringBuilder(req_size) in
+              (* Fill with the required number of pads: *)
+              for i = 1 to req_pads do
+                b.Append pad_with
+              (* Finish by filling with the string: *)
+              b.Append s
+              (* Renormalize because concatenation may break normalization
+               * (see https://unicode.org/reports/tr15/#Concatenation): *)
+
+              b.ToString().Normalize()
+
+            let padLen = length pad_with in
+
+            if padLen = 1 then
+              let l = int l in
+              Value(DStr(pad_start s pad_with l))
+            else
+              Value(
+                errStr (
+                  $"Expected the argument `padWith` passed to ` String:padStart ` to be one character long. However, `({
+                                                                                                                          pad_with
+                  }).` is characters long."
+                )
+              )
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "padEnd" 0
 //      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
 //      ; returnType = TStr
 //      ; description =
