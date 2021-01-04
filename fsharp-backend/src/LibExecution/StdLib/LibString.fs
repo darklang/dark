@@ -1047,9 +1047,9 @@ let fns : List<BuiltInFn> =
               let b = new StringBuilder(req_size) in
               (* Fill with the required number of pads: *)
               for i = 1 to req_pads do
-                b.Append pad_with
+                b.Append pad_with |> ignore
               (* Finish by filling with the string: *)
-              b.Append s
+              b.Append s |> ignore
               (* Renormalize because concatenation may break normalization
                * (see https://unicode.org/reports/tr15/#Concatenation): *)
 
@@ -1072,35 +1072,62 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "padEnd" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
-//       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//      ; fn =
-//         (function
-//         | state, [DStr s; DStr pad_with; DInt l] ->
-//             let padLen = Unicode_string.length pad_with in
-//             if padLen = 1
-//             then
-//               let l = Dint.to_int_exn l in
-//               DStr (Unicode_string.pad_end s ~pad_with l)
-//             else
-//               DError
-//                 ( SourceNone
-//                 , "Expected the argument `padWith` passed to `"
-//                   ^ state.executing_fnname
-//                   ^ "` to be one character long. However, `"
-//                   ^ Dval.to_developer_repr_v0 (DStr pad_with)
-//                   ^ "` is "
-//                   ^ Int.to_string padLen
-//                   ^ " characters long." )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "padEnd" 0
+      parameters =
+        [ Param.make "string" TStr ""
+          Param.make "padWith" TStr ""
+          Param.make "goalLength" TInt "" ]
+      returnType = TStr
+      description = "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
+      If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+      fn =
+        (function
+        | state, [ DStr s; DStr pad_with; DInt l ] ->
+
+            let pad_end s pad_with target_egcs =
+              let max a b = if a > b then a else b in
+              (* Compute the size in bytes and # of required EGCs for s and pad_with: *)
+              let pad_size = String.length pad_with in
+
+              let pad_egcs = length pad_with in
+              let s_size = String.length s in
+              let s_egcs = length s in
+              (* Compute how many copies of pad_with we require,
+               * accounting for the string longer than [target_egcs]: *)
+              let req_egcs = target_egcs - s_egcs in
+
+              let req_pads = max 0 (if pad_egcs = 0 then 0 else req_egcs / pad_egcs) in
+              (* Create a buffer large enough to hold the padded result: *)
+              let req_size = s_size + (req_pads * pad_size) in
+
+              let b = new StringBuilder(req_size) in
+              (* Start the buffer with the string: *)
+              b.Append s |> ignore
+              (* Finish by filling with the required number of pads: *)
+              for i = 1 to req_pads do
+                b.Append pad_with |> ignore
+              (* Renormalize because concatenation may break normalization
+               * (see https://unicode.org/reports/tr15/#Concatenation): *)
+
+              b.ToString().Normalize()
+
+            let padLen = length pad_with in
+
+            if padLen = 1 then
+              let l = int l in
+              Value(DStr(pad_end s pad_with l))
+            else
+              Value(
+                errStr (
+                  $"Expected the argument `padWith` passed to ` String:padEnd ` to be one character long. However, `({
+                                                                                                                        pad_with
+                  }).` is characters long."
+                )
+              )
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "trim" 0
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
