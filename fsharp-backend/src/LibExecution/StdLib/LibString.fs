@@ -807,23 +807,55 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "slice" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "from" TInt; Param.make "to" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns the substring of `string` between the `from` and `to` indices.
-//        Negative indices start counting from the end of `string`.
-//        Indices represent characters."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt f; DInt l] ->
-//             let first, last = (Dint.to_int_exn f, Dint.to_int_exn l) in
-//             DStr (Unicode_string.slice s ~first ~last)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "slice" 0
+      parameters = [Param.make "string" TStr ""; Param.make "from" TInt ""; Param.make "to" TInt ""]
+      returnType = TStr
+      description = "Returns the substring of `string` between the `from` and `to` indices.
+       Negative indices start counting from the end of `string`.
+       Indices represent characters."
+      fn =
+        (function
+        | _, [DStr s; DInt f; DInt l] ->
+            let egc_seq_list = String.toEgcSeq s |> Seq.toList
+            let s_egc_count = bigint egc_seq_list.Length
+
+            let slice s (first : bigint) (last : bigint) =
+              let clamp_unchecked t min max =
+                if t < min then min else if t <= max then t else max
+              in
+              let len = s_egc_count in
+              let min = bigint 0 in
+              let max = len +  (bigint 1) in
+              (* If we get negative indices, we need to treat them as indices from the end
+               * which means that we need to add [len] to them. We clamp the result to
+               * a value within range of the actual string: *)
+              let bigint_cero = bigint 0
+              let first =
+                if first >= bigint_cero then first else len + first |> clamp_unchecked min max
+              in
+              let last =
+                if last >= bigint_cero then last else len + last |> clamp_unchecked min max
+              in
+              let b = new StringBuilder(String.length s) in
+              (* To slice, we iterate through every EGC, adding it to the buffer
+               * if it is within the specified index range: *)
+              let slicer_func (acc : bigint) (seg : string) =
+                if acc >= first && acc < last then b.Append seg |> ignore else () |> ignore
+                bigint 1 + acc
+              ignore (
+                egc_seq_list
+                |> List.mapi (fun index value -> (slicer_func (bigint index) value))
+              );
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              b.ToString()
+
+            let first, last = (f, l) in
+            Value(DStr(slice s first last))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //      { name = fn "String" "first" 0
 //      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
 //      ; returnType = TStr
