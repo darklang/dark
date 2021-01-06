@@ -55,13 +55,9 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   let splitFloat (d : float) : Sign * bigint * bigint =
     match System.Decimal(d).ToString() with
     | Regex "-([0-9]+)\.(\d+)" [ whole; fraction ] ->
-        (Negative,
-         whole |> debug "whole" |> parseBigint |> debug "parsed",
-         parseBigint fraction)
+        (Negative, whole |> parseBigint, parseBigint fraction)
     | Regex "([0-9]+)\.(\d+)" [ whole; fraction ] ->
-        (Positive,
-         whole |> debug "whole" |> parseBigint |> debug "parsed",
-         parseBigint fraction)
+        (Positive, whole |> parseBigint, parseBigint fraction)
     | Regex "-([0-9]+)" [ whole ] -> (Negative, whole |> parseBigint, 0I)
     | Regex "([0-9]+)" [ whole ] -> (Positive, whole |> parseBigint, 0I)
     | str -> failwith $"Could not splitFloat {d}"
@@ -290,8 +286,7 @@ let convertToTest (ast : SynExpr)
                  expected,
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
-      (convert actual, expected |> debug "expected" |> convert)
-      |> debug "actual and expected"
+      (convert actual, convert expected)
   | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true
 
 let parseDarkExpr (code : string) : D.Expr = code |> parse |> convertToExpr

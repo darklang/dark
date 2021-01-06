@@ -95,7 +95,7 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
   try
     assert_ "makefloat" (whole >= 0I)
     let sign = if positiveSign then "" else "-"
-    $"{sign}{whole}.{fraction}" |> debug "makeFloat" |> System.Double.Parse
+    $"{sign}{whole}.{fraction}" |> System.Double.Parse
   with e ->
     raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
 
