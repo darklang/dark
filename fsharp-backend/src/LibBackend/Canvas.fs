@@ -12,11 +12,10 @@ open LibBackend.Db
 open System.Text.RegularExpressions
 
 open Prelude
-open LibExecution.SharedTypes
 open LibExecution.RuntimeTypes
 
 let fetchReleventTLIDsForHTTP
-  (canvasName : Account.CanvasName.T)
+  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (path : string)
   (method : string)
@@ -37,28 +36,23 @@ let fetchReleventTLIDsForHTTP
                       "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.int64 "tlid" |> uint64)
 
-let canvasIDForCanvas
+let canvasIDForCanvasName
   (owner : UserID)
-  (canvasName : Account.CanvasName.T)
+  (canvasName : CanvasName.T)
   : Task<CanvasID> =
   let canvasName = canvasName.ToString()
+  // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
+  Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
+  |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
+                      "owner", Sql.uuid owner
+                      "canvasName", Sql.string canvasName ]
+  |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
-  if canvasName.Length > 64 then
-    failwith $"Canvas name was length {canvasName.Length}, must be <= 64"
-  else
-    // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
-    Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
-    |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
-                        "owner", Sql.uuid owner
-                        "canvasName", Sql.string canvasName ]
-    |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
-
-
-let canvasNameFromCustomDomain host : Task<Option<Account.CanvasName.T>> =
+let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.T>> =
   Sql.query
     "SELECT canvas
-             FROM custom_domains
-             WHERE host = @host"
-  |> Sql.parameters [ "host", Sql.string host ]
+     FROM custom_domains
+     WHERE host = @host"
+  |> Sql.parameters [ "host", Sql.string customDomain ]
   |> Sql.executeRowOptionAsync
-       (fun read -> read.string "canvas" |> Account.CanvasName.create)
+       (fun read -> read.string "canvas" |> CanvasName.create)

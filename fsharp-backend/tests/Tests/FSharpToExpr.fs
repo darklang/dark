@@ -11,7 +11,6 @@ open Prelude
 module DarkTypes = LibBackend.ProgramSerialization.ProgramTypes
 module D = DarkTypes
 
-open LibExecution.SharedTypes
 open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
 let parse (input) : SynExpr =

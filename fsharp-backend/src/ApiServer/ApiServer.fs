@@ -14,6 +14,13 @@ open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open FSharpPlus
+open Prelude
+open Prelude.Tablecloth
+
+module Config = LibBackend.Config
+module Session = LibBackend.Session
+module Account = LibBackend.Account
 
 let apiHandler : HttpHandler =
   fun (_ : HttpFunc) (ctx : HttpContext) -> "api test" |> ctx.WriteTextAsync
@@ -27,49 +34,77 @@ let uiHandler (canvasName : string) : HttpHandler =
     task {
 
       let liveLogin, loginUrl, logoutUri =
-        if LibBackend.Config.useLoginDarklangComForLogin then
+        if Config.useLoginDarklangComForLogin then
           Live, "https://login.darklang.com", "https://logout.darklang.com/logout"
         else
           Local, "/login", "/logout"
 
       let sessionKey = ctx.Session.Get("__session")
 
-      match! LibBackend.Session.get sessionKey with
+      match! Session.get sessionKey with
       | None ->
           // FSTODO: redirect to Login
           ctx.Response.StatusCode <- 401
           return! ctx.WriteTextAsync "Not Authorized"
       | Some sessionData ->
           let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
-          let user = LibBackend.Account.getUser sessionData.username
-          let ownerName = LibBackend.Account.ownerFromHost canvasName
+          // FSTODO: validate csrfToken before doing anything else
           let csrfToken = sessionData.csrfToken
 
-          // FSTODO: support integration tests
-          // if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-          if not (LibBackend.Authorization.canViewCanvas canvasName user.username) then
-            ctx.Response.StatusCode <- 404
-            return! ctx.WriteTextAsync "Not found"
-          else
-            let canvasID = LibBackend.Account.fetchCanvasID canvasName
+          match! Account.getUser (UserName.create sessionData.username) with
+          | None ->
+              ctx.Response.StatusCode <- 404
+              return! ctx.WriteTextAsync "Not found"
+          | Some user ->
+              let canvasName = CanvasName.create canvasName
+              // FSTODO: support integration tests
+              // if integration_test then Canvas.load_and_resave_from_test_file canvas ;
+              let! canView =
+                LibBackend.Authorization.canViewCanvas canvasName user.username
 
-            if localhostAssets.IsSome then
-              ctx.SetHttpHeader("Access-Control-Allow_origin", "*")
-            else
-              ()
+              if not canView then
+                ctx.Response.StatusCode <- 404
+                return! ctx.WriteTextAsync "Not found"
+              else
+                // FSTODO: this has only the read permission, but this will create a canvas
+                let! ownerID =
+                  (Account.ownerNameFromCanvasName canvasName).toUserName
+                  |> Account.ownerID
+                  |> Task.map Option.someOrRaise
 
-            ctx.SetHttpHeader("Content-type", "text/html; charset=utf-8")
-            // Clickjacking: Don't allow any other websites to put this in an iframe;
-            // this prevents "clickjacking" attacks.
-            // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-            // It would be nice to use CSP to limit where we can load scripts etc from,
-            // but right now we load from CDNs, <script> tags, etc. So the only thing
-            // we could do is script-src: 'unsafe-inline', which doesn't offer us any
-            // additional security.
-            ctx.SetHttpHeader("Content-security-policy", "frame-ancestors 'none';")
+                let! canvasID =
+                  LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
 
-            return!
-              ctx.WriteHtmlStringAsync(Ui.uiHtml canvasID canvasName localhostAssets)
+                let! createdAt = Account.getUserCreatedAt user.username
+
+                if localhostAssets.IsSome then
+                  ctx.SetHttpHeader("Access-Control-Allow_origin", "*")
+                else
+                  ()
+
+                ctx.SetHttpHeader("Content-type", "text/html; charset=utf-8")
+                // Clickjacking: Don't allow any other websites to put this in an iframe;
+                // this prevents "clickjacking" attacks.
+                // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+                // It would be nice to use CSP to limit where we can load scripts etc from,
+                // but right now we load from CDNs, <script> tags, etc. So the only thing
+                // we could do is script-src: 'unsafe-inline', which doesn't offer us any
+                // additional security.
+                ctx.SetHttpHeader(
+                  "Content-security-policy",
+                  "frame-ancestors 'none';"
+                )
+
+                return!
+                  ctx.WriteHtmlStringAsync(
+                    Ui.uiHtml
+                      canvasID
+                      canvasName
+                      csrfToken
+                      localhostAssets
+                      createdAt
+                      user
+                  )
     }
 
 let apiEndpoints = [ GET [ routef "/%s" (fun guid -> apiHandler) ] ]
@@ -80,17 +115,16 @@ let notFoundHandler = "Not Found" |> text |> RequestErrors.notFound
 
 let errorHandler (ex : Exception) (logger : ILogger) =
   printfn "%s" ex.Message
-  clearResponse >=> ServerErrors.INTERNAL_ERROR ex.Message
-// FSTODO: configure logger and don't print the message to output
+  // FSTODO: configure logger and don't print the message to output
 // logger.LogError
 //   (EventId(),
 //    ex,
 //    "An unhandled exception has occurred while executing the request.")
+  Giraffe.Core.compose clearResponse (ServerErrors.INTERNAL_ERROR ex.Message)
 
 let configureApp (appBuilder : IApplicationBuilder) =
   appBuilder
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
-  |> fun app -> app.UseGiraffeErrorHandler(errorHandler)
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   |> fun app ->
@@ -109,6 +143,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
        else
          app
 
+  |> fun app -> app.UseGiraffeErrorHandler(errorHandler)
   |> fun app -> app.UseGiraffe(endpoints)
   |> fun app -> app.UseGiraffe(notFoundHandler)
 

@@ -6,7 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="SharedTypes.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="DvalRepr.fs" />
     <Compile Include="Interpreter.fs" />

@@ -8,7 +8,6 @@ open Npgsql
 
 open Prelude
 open Prelude.Tablecloth
-open LibExecution.SharedTypes
 open Db
 
 type JsonData = { username : string; csrfToken : string }

@@ -10,41 +10,11 @@ open Npgsql
 
 open Prelude
 open Prelude.Tablecloth
-open LibExecution.SharedTypes
 open Db
 
 // **********************
 // Types
 // **********************
-
-// since these are all usernames, use types for safety
-module UserName =
-  type T =
-    private
-    | UserName of string
-
-    override this.ToString() = let (UserName username) = this in username
-
-  let create (str : string) : T = UserName str
-
-module OwnerName =
-  type T =
-    private
-    | OwnerName of string
-
-    override this.ToString() = let (OwnerName name) = this in name
-
-  let create (str : string) : T = OwnerName str
-
-
-module CanvasName =
-  type T =
-    private
-    | CanvasName of string
-
-    override this.ToString() = let (CanvasName name) = this in name
-
-  let create (str : string) : T = CanvasName str
 
 type Account =
   { username : UserName.T
@@ -234,7 +204,7 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
            admin = read.bool "admin"
            id = read.uuid "id" })
 
-let getUserCreatedAtExn (username : UserName.T) : Task<System.DateTime> =
+let getUserCreatedAt (username : UserName.T) : Task<System.DateTime> =
   Sql.query
     "SELECT created_at
      FROM accounts
@@ -315,7 +285,6 @@ let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
   match String.split '-' (host.ToString()) with
   | owner :: _ -> OwnerName.create owner
   | _ -> OwnerName.create (host.ToString())
-
 
 
 // **********************

@@ -89,16 +89,16 @@ let normalizeRequest : HttpHandler =
     ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
     next ctx
 
-let canvasNameFromHost (host : string) : Task<Option<string>> =
+let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
   task {
     match host.Split [| '.' |] with
     // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
     // just another load balancer
     | [| a; "darkcustomdomain"; "com" |]
     | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some a
+    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
     | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some "builtwithdark"
+    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
     | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
   }
 
@@ -131,16 +131,20 @@ let runDarkHandler : HttpHandler =
 
           match! canvasNameFromHost ctx.Request.Host.Host with
           | Some canvasName ->
-              let ownerName = LibBackend.Canvas.ownerNameFromHost canvasName
-              let! userID = LibBackend.Account.userIDForUserName ownerName
-              let! canvasID = LibBackend.Canvas.canvasIDForCanvas userID canvasName
+              let ownerName = LibBackend.Account.ownerNameFromCanvasName canvasName
+              let ownerUsername = UserName.create (ownerName.ToString())
+              let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
+
+              let! canvasID =
+                LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+
               let method = ctx.Request.Method
 
               return!
                 LibBackend.ProgramSerialization.SQL.loadHttpHandlersFromCache
                   canvasName
                   canvasID
-                  userID
+                  ownerID
                   requestPath
                   method
           | None -> return []

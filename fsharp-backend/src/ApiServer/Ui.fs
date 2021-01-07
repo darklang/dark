@@ -1,17 +1,19 @@
 module ApiServer.Ui
 
+open Prelude
 module Config = LibBackend.Config
 
 let adminUiTemplate = LibBackend.File.readfile Config.Templates "ui.html"
 
 // FSTODO: clickjacking/ CSP/ frame-ancestors
-let uiHtml (canvasID : System.Guid)
-           (canvasName : string)
-           (csrfToken : string)
-           (localhostAssets : string option)
-           (accountCreated : System.DateTime)
-           (user : LibBackend.Account.UserInfo)
-           : string =
+let uiHtml
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  (csrfToken : string)
+  (localhostAssets : string option)
+  (accountCreated : System.DateTime)
+  (user : LibBackend.Account.UserInfo)
+  : string =
   // let username = Auth.SessionLwt.username_for session
   // let user = Account.get_user username
   // let accountCreated = Account.getUserCreatedAt username
@@ -88,7 +90,7 @@ let uiHtml (canvasID : System.Guid)
     .Replace("{{USER_IS_ADMIN}}", "false")
     // .Replace("{{USER_ID}}", (Uuidm.to_string user.id))
     // .Replace("{{CANVAS_ID}}", (Uuidm.to_string canvas_id))
-    .Replace("{{CANVAS_NAME}}", canvasName)
+    .Replace("{{CANVAS_NAME}}", canvasName.ToString())
     .Replace("{{APPSUPPORT}}",
              (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"))
     // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)

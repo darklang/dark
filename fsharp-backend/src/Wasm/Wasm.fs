@@ -4,6 +4,7 @@ open Microsoft.AspNetCore.Components.WebAssembly.Hosting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open Prelude
 
 module Program =
 
@@ -15,11 +16,7 @@ module Program =
       let prog = LibExecution.RuntimeTypes.Shortcuts.eInt arg
 
       let! result =
-        LibExecution.Execution.run
-          (LibExecution.SharedTypes.id 7)
-          []
-          LibExecution.StdLib.StdLib.fns
-          prog
+        LibExecution.Execution.run (id 7) [] LibExecution.StdLib.StdLib.fns prog
 
       return result.ToString()
     }

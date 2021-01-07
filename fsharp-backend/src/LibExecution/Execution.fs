@@ -5,13 +5,13 @@ open FSharp.Control.Tasks
 
 open Prelude
 open RuntimeTypes
-open SharedTypes
 
-let run (tlid : tlid)
-        (vars : List<string * Dval>)
-        (fns : List<BuiltInFn>)
-        (e : Expr)
-        : Task<Dval> =
+let run
+  (tlid : tlid)
+  (vars : List<string * Dval>)
+  (fns : List<BuiltInFn>)
+  (e : Expr)
+  : Task<Dval> =
   task {
     let functions = fns |> List.map (fun fn -> (fn.name, fn)) |> Map
     let state = { functions = functions; tlid = tlid }
@@ -26,13 +26,14 @@ let run (tlid : tlid)
 
 open Shortcuts
 
-let runHttp (tlid : tlid)
-            (url : string)
-            (vars : DvalMap)
-            (body : byte array)
-            (fns : List<BuiltInFn>)
-            (e : Expr)
-            : Task<Dval> =
+let runHttp
+  (tlid : tlid)
+  (url : string)
+  (vars : DvalMap)
+  (body : byte array)
+  (fns : List<BuiltInFn>)
+  (e : Expr)
+  : Task<Dval> =
   task {
     let functions = fns |> List.map (fun fn -> (fn.name, fn)) |> Map
     let state = { functions = functions; tlid = tlid }
@@ -44,8 +45,9 @@ let runHttp (tlid : tlid)
         [ DStr url
           DBytes body
           DObj Map.empty
-          DFnVal
-            (Lambda { parameters = [ gid (), "request" ]; symtable = vars; body = e }) ]
+          DFnVal(
+            Lambda { parameters = [ gid (), "request" ]; symtable = vars; body = e }
+          ) ]
         NotInPipe
         NoRail
 

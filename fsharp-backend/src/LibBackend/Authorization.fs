@@ -11,6 +11,9 @@ module LibBackend.Authorization
 
 module Account = LibBackend.Account
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+open Prelude
 open Prelude.Tablecloth
 
 type Permission =
@@ -30,7 +33,7 @@ type Permission =
     | "rw" -> ReadWrite
     | _ -> failwith "couldn't decode permission"
 
-  member this.ToString() : string =
+  override this.ToString() : string =
     match this with
     | Read -> "r"
     | ReadWrite -> "rw"
@@ -118,17 +121,17 @@ type Permission =
 
 
 // We special-case some users, so they have access to particular shared canvases
-let specialCases : List<Account.OwnerName.T * Account.UserName.T> =
-  [ (Account.OwnerName.create "pixelkeet", Account.UserName.create "laxels")
-    (Account.OwnerName.create "rootvc", Account.UserName.create "adam")
-    (Account.OwnerName.create "rootvc", Account.UserName.create "lee")
-    (Account.OwnerName.create "talkhiring", Account.UserName.create "harris")
-    (Account.OwnerName.create "talkhiring", Account.UserName.create "anson") ]
+let specialCases : List<OwnerName.T * UserName.T> =
+  [ (OwnerName.create "pixelkeet", UserName.create "laxels")
+    (OwnerName.create "rootvc", UserName.create "adam")
+    (OwnerName.create "rootvc", UserName.create "lee")
+    (OwnerName.create "talkhiring", UserName.create "harris")
+    (OwnerName.create "talkhiring", UserName.create "anson") ]
 
 
 let specialCasePermission
-  (username : Account.UserName.T)
-  (ownerName : Account.OwnerName.T)
+  (username : UserName.T)
+  (ownerName : OwnerName.T)
   : Option<Permission> =
   if List.any ((=) (ownerName, username)) specialCases then
     Some ReadWrite
@@ -137,55 +140,59 @@ let specialCasePermission
 
 // People should have access to the canvases under their name
 let matchPermission
-  (username : Account.UserName.T)
-  (ownerName : Account.OwnerName.T)
+  (username : UserName.T)
+  (ownerName : OwnerName.T)
   : Option<Permission> =
   if (username.ToString()) = (ownerName.ToString()) then Some ReadWrite else None
 
 // Everyone should have read-access to 'sample'.
-let samplePermission (owner : Account.OwnerName.T) : Option<Permission> =
+let samplePermission (owner : OwnerName.T) : Option<Permission> =
   if "sample" = (owner.ToString()) then Some Read else None
 
 // What's the highest level of access a particular user has to a
 // particular user's canvas
 let permission
-  (owner : Account.OwnerName.T)
-  (username : Account.UserName.T)
-  : Option<Permission> =
+  (owner : OwnerName.T)
+  (username : UserName.T)
+  : Task<Option<Permission>> =
+  let permFs : List<unit -> Task<Option<Permission>>> =
+    [ (fun _ -> task { return matchPermission username owner })
+      // FSTODO: remove specialCasePermission
+      (fun _ -> task { return specialCasePermission username owner })
+      (fun _ -> task { return samplePermission owner }) ]
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
-  let maxPermissionF fs =
-    List.fold
-      (fun (p : Option<Permission>) (f : unit -> Option<Permission>) ->
-        Option.map2 (fun (a : Permission) b -> a.max (b)) p (f ()))
-      None
-      fs
+  List.fold
+    (fun (p : Task<Option<Permission>>) (f : unit -> Task<Option<Permission>>) ->
+      task {
+        match! p with
+        | Some ReadWrite -> return Some ReadWrite
+        | Some older ->
+            match! f () with
+            | Some newer -> return Some(older.max (newer))
+            | None -> return! p
+        | None -> return! f ()
+      })
+    (task { return None })
+    permFs
 
-  maxPermissionF [ (fun _ -> matchPermission username owner)
-                   // FSTODO: remove specialCasePermission
-                   (fun _ -> specialCasePermission username owner)
-                   (fun _ -> samplePermission owner)
-                   (fun _ -> grantedPermission username owner)
-                   (fun _ -> adminPermission username) ]
 
-let canEditCanvas
-  (canvas : Account.CanvasName.T)
-  (username : Account.UserName.T)
-  : bool =
+let canEditCanvas (canvas : CanvasName.T) (username : UserName.T) : Task<bool> =
   let owner = Account.ownerNameFromCanvasName canvas in
 
-  match permission owner username with
-  | Some Read -> false
-  | Some ReadWrite -> true
-  | None -> false
+  task {
+    match! permission owner username with
+    | Some Read -> return false
+    | Some ReadWrite -> return true
+    | None -> return false
+  }
 
-let canViewCanvas
-  (canvas : Account.CanvasName.T)
-  (username : Account.UserName.T)
-  : bool =
+let canViewCanvas (canvas : CanvasName.T) (username : UserName.T) : Task<bool> =
   let owner = Account.ownerNameFromCanvasName canvas in
 
-  match permission owner username with
-  | Some Read -> true
-  | Some ReadWrite -> true
-  | None -> false
+  task {
+    match! permission owner username with
+    | Some Read -> return true
+    | Some ReadWrite -> return true
+    | None -> return false
+  }

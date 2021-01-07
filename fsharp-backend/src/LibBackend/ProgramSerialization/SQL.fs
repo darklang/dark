@@ -12,7 +12,6 @@ open LibBackend.Db
 open System.Text.RegularExpressions
 
 open Prelude
-open LibExecution.SharedTypes
 open ProgramTypes
 
 module Http = LibExecution.Http
@@ -34,7 +33,7 @@ let loadUncachedToplevels
   |> Sql.executeAsync (fun read -> read.bytea "data")
 
 let fetchCachedToplevels
-  (canvasName : LibBackend.Account.CanvasName.T)
+  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (tlids : List<tlid>)
   : Task<List<byte array * string option>> =
@@ -50,7 +49,7 @@ let fetchCachedToplevels
 
 
 let loadHttpHandlersFromCache
-  (canvasName : LibBackend.Account.CanvasName.T)
+  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (owner : UserID)
   (path : string)

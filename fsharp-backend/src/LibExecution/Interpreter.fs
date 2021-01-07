@@ -6,7 +6,6 @@ open FSharpPlus
 
 open Prelude
 open RuntimeTypes
-open SharedTypes
 
 
 // fsharplint:disable FL0039
