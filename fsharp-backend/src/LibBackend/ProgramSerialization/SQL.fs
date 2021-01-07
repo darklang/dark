@@ -26,9 +26,9 @@ let loadUncachedToplevels
 
   Sql.query
     "SELECT data
-             FROM toplevel_oplists
-             WHERE canvas_id = @canvasID
-             AND tlid = ANY(@tlids)"
+       FROM toplevel_oplists
+      WHERE canvas_id = @canvasID
+        AND tlid = ANY(@tlids)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read -> read.bytea "data")
 
@@ -39,10 +39,10 @@ let fetchCachedToplevels
   : Task<List<byte array * string option>> =
   Sql.query
     "SELECT rendered_oplist_cache, pos FROM toplevel_oplists
-             WHERE canvas_id = @canvasID
-             AND tlid = ANY (@tlids)
-             AND deleted IS FALSE
-             AND (((tipe = 'handler'::toplevel_type) AND pos IS NOT NULL))"
+      WHERE canvas_id = @canvasID
+        AND tlid = ANY (@tlids)
+        AND deleted IS FALSE
+        AND (((tipe = 'handler'::toplevel_type) AND pos IS NOT NULL))"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync
        (fun read -> (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
@@ -100,21 +100,21 @@ let saveCachedToplevelForTestingOnly
 
   Sql.query
     "INSERT INTO toplevel_oplists
-               (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
-                data, rendered_oplist_cache, deleted, pos)
-             VALUES (@canvasID, @ownerID, @tlid, @digest, @tipe::toplevel_type,
-                     @path, @module, @modifier, @oplistData, @cacheData, @deleted, @pos)
-             ON CONFLICT (canvas_id, tlid) DO UPDATE
-             SET account_id = @ownerID,
-                 digest = @digest,
-                 tipe = @tipe::toplevel_type,
-                 name = @path,
-                 module = @module,
-                 modifier = @modifier,
-                 data = @oplistData,
-                 rendered_oplist_cache = @cacheData,
-                 deleted = @deleted,
-                 pos = @pos"
+       (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
+        data, rendered_oplist_cache, deleted, pos)
+     VALUES (@canvasID, @ownerID, @tlid, @digest, @tipe::toplevel_type,
+             @path, @module, @modifier, @oplistData, @cacheData, @deleted, @pos)
+     ON CONFLICT (canvas_id, tlid) DO UPDATE
+     SET account_id = @ownerID,
+         digest = @digest,
+         tipe = @tipe::toplevel_type,
+         name = @path,
+         module = @module,
+         modifier = @modifier,
+         data = @oplistData,
+         rendered_oplist_cache = @cacheData,
+         deleted = @deleted,
+         pos = @pos"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "ownerID", Sql.uuid ownerID
                       "tlid", Sql.id (tl.toTLID ())
