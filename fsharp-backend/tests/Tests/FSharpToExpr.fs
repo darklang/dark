@@ -165,15 +165,15 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
 
       let desc = D.FQFnName.stdlibName modName.idText name version
       D.EFnCall(gid (), desc, [], ster)
-  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _) ->
+  | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
       let rec extractVarsAndBody expr =
         match expr with
         // The 2nd param indicates this was part of a lambda
-        | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), body, _) ->
+        | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), body, _, _) ->
             let nestedVars, body = extractVarsAndBody body
             vars @ nestedVars, body
         // The 2nd param indicates this was not nested
-        | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), body, _) ->
+        | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), body, _, _) ->
             vars, body
         | SynExpr.Lambda _ -> failwith $"TODO: other types of lambda: {expr}"
         | _ -> [], expr
@@ -207,8 +207,9 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
                       body,
                       _) -> eLet "_" (c rhs) (c body)
   | SynExpr.Match (_, cond, clauses, _) ->
-      let convertClause (Clause (pat, _, expr, _, _) : SynMatchClause)
-                        : D.Pattern * D.Expr =
+      let convertClause
+        (Clause (pat, _, expr, _, _) : SynMatchClause)
+        : D.Pattern * D.Expr =
         (convertPattern pat, c expr)
 
       eMatch (c cond) (List.map convertClause clauses)
@@ -225,7 +226,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
   // op_PipeRight, and the inner app has two arguments. Those arguments might
   // also be pipes
-  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when pipe.idText = "op_PipeRight" ->
+  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when
+    pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
       | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
           // when we just built the lowest, the second one goes here
@@ -240,12 +242,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
       ePipe (c expr) (eStr "SENTINEL EXPR FOR PIPES") []
-  | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when List.contains
-                                                          name.idText
-                                                          [ "Ok"
-                                                            "Nothing"
-                                                            "Just"
-                                                            "Error" ] ->
+  | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
+    List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ] ->
       eConstructor name.idText [ c arg ]
   // Most functions are LongIdents, toString isn't
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString" ->
@@ -272,8 +270,9 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
       failwith $"There was a parser error parsing: {expr}"
   | expr -> failwith $"Unsupported expression: {ast}"
 
-let convertToTest (ast : SynExpr)
-                  : LibExecution.RuntimeTypes.Expr * LibExecution.RuntimeTypes.Expr =
+let convertToTest
+  (ast : SynExpr)
+  : LibExecution.RuntimeTypes.Expr * LibExecution.RuntimeTypes.Expr =
   // Split equality into actual vs expected in tests.
   let convert (x : SynExpr) : LibExecution.RuntimeTypes.Expr =
     (convertToExpr x).toRuntimeType()
