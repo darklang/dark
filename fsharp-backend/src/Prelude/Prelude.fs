@@ -50,11 +50,8 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
 
 let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
-  if expected <> actual then assert_
-                               $"assertion failure: {msg} (expected {expected}, got {
-                                                                                       actual
-                               })"
-                               false
+  if expected <> actual then
+    assert_ $"assertion failure: {msg} (expected {expected}, got {actual})" false
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
@@ -269,9 +266,10 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
   }
 
 
-let filter_s (f : 'a -> TaskOrValue<bool>)
-             (list : List<'a>)
-             : TaskOrValue<List<'a>> =
+let filter_s
+  (f : 'a -> TaskOrValue<bool>)
+  (list : List<'a>)
+  : TaskOrValue<List<'a>> =
   taskv {
     let! result =
       match list with
@@ -473,4 +471,14 @@ module Tablecloth =
     let splitOnNewline (str : string) : List<string> =
       str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
+    let split (char : char) (str : string) : List<string> =
+      str.Split([| char |], System.StringSplitOptions.None) |> Array.toList
+
     let dropLeft (count : int) (str : string) : string = str.Remove(0, count)
+
+  module List =
+    let any (f : 'a -> bool) (items : List<'a>) : bool =
+      List.fold (fun (accum : bool) (v : 'a) -> accum || f v) false items
+
+    let all (f : 'a -> bool) (items : List<'a>) : bool =
+      List.fold (fun (accum : bool) (v : 'a) -> accum && f v) true items

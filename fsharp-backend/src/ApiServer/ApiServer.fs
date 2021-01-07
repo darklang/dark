@@ -12,25 +12,65 @@ open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Giraffe.EndpointRouting
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 let apiHandler : HttpHandler =
   fun (_ : HttpFunc) (ctx : HttpContext) -> "api test" |> ctx.WriteTextAsync
 
+type LoginKind =
+  | Local
+  | Live
+
 let uiHandler (canvasName : string) : HttpHandler =
   fun (_ : HttpFunc) (ctx : HttpContext) ->
-    let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
-    if localhostAssets.IsSome then ctx.SetHttpHeader
-                                     ("Access-Control-Allow_origin", "*")
+    task {
 
-    // Clickjacking: Don't allow any other websites to put this in an iframe;
-    // this prevents "clickjacking" attacks.
-    // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-    // It would be nice to use CSP to limit where we can load scripts etc from,
-    // but right now we load from CDNs, <script> tags, etc. So the only thing
-    // we could do is script-src: 'unsafe-inline', which doesn't offer us any
-    // additional security.
-    ctx.SetHttpHeader("Content-security-policy", "frame-ancestors 'none';")
+      let liveLogin, loginUrl, logoutUri =
+        if LibBackend.Config.useLoginDarklangComForLogin then
+          Live, "https://login.darklang.com", "https://logout.darklang.com/logout"
+        else
+          Local, "/login", "/logout"
 
-    ctx.WriteHtmlStringAsync(Ui.ui canvasName localhostAssets)
+      let sessionKey = ctx.Session.Get("__session")
+
+      match! LibBackend.Session.get sessionKey with
+      | None ->
+          // FSTODO: redirect to Login
+          ctx.Response.StatusCode <- 401
+          return! ctx.WriteTextAsync "Not Authorized"
+      | Some sessionData ->
+          let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
+          let user = LibBackend.Account.getUser sessionData.username
+          let ownerName = LibBackend.Account.ownerFromHost canvasName
+          let csrfToken = sessionData.csrfToken
+
+          // FSTODO: support integration tests
+          // if integration_test then Canvas.load_and_resave_from_test_file canvas ;
+          if not (LibBackend.Authorization.canViewCanvas canvasName user.username) then
+            ctx.Response.StatusCode <- 404
+            return! ctx.WriteTextAsync "Not found"
+          else
+            let canvasID = LibBackend.Account.fetchCanvasID canvasName
+
+            if localhostAssets.IsSome then
+              ctx.SetHttpHeader("Access-Control-Allow_origin", "*")
+            else
+              ()
+
+            ctx.SetHttpHeader("Content-type", "text/html; charset=utf-8")
+            // Clickjacking: Don't allow any other websites to put this in an iframe;
+            // this prevents "clickjacking" attacks.
+            // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+            // It would be nice to use CSP to limit where we can load scripts etc from,
+            // but right now we load from CDNs, <script> tags, etc. So the only thing
+            // we could do is script-src: 'unsafe-inline', which doesn't offer us any
+            // additional security.
+            ctx.SetHttpHeader("Content-security-policy", "frame-ancestors 'none';")
+
+            return!
+              ctx.WriteHtmlStringAsync(Ui.uiHtml canvasID canvasName localhostAssets)
+    }
 
 let apiEndpoints = [ GET [ routef "/%s" (fun guid -> apiHandler) ] ]
 let uiEndpoints = GET [ routef "/a/%s" uiHandler ]
@@ -55,12 +95,17 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   |> fun app ->
        if LibBackend.Config.staticHost.Contains "localhost:8000" then
-         app.UseStaticFiles
-           (StaticFileOptions
-             (FileProvider =
-               new PhysicalFileProvider(System.IO.Path.Combine
-                                          (System.IO.Directory.GetCurrentDirectory(),
-                                           "backend/static"))))
+         app.UseStaticFiles(
+           StaticFileOptions(
+             FileProvider =
+               new PhysicalFileProvider(
+                 System.IO.Path.Combine(
+                   System.IO.Directory.GetCurrentDirectory(),
+                   "backend/static"
+                 )
+               )
+           )
+         )
        else
          app
 
@@ -79,4 +124,5 @@ let main args =
   |> fun wh -> wh.UseUrls("http://darklang.localhost:9000")
   |> fun wh -> wh.Build()
   |> fun wh -> wh.Run()
+
   0

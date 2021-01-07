@@ -173,7 +173,7 @@ let t name =
                      ids = ids
                    ) })
 
-    let! ownerID = LibBackend.Account.userIDForUsername "test"
+    let! ownerID = LibBackend.Account.userIDForUserName (Account.UserName "test")
 
     let! canvasID = LibBackend.Canvas.canvasIDForCanvas ownerID $"test-{name}"
 
