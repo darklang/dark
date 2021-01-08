@@ -14,15 +14,9 @@ let uiHtml
   (accountCreated : System.DateTime)
   (user : LibBackend.Account.UserInfo)
   : string =
-  // let username = Auth.SessionLwt.username_for session
-  // let user = Account.get_user username
-  // let accountCreated = Account.getUserCreatedAt username
 
-  // let accountCreatedMsTs =
-  //   accountCreated
-  //   |> Core_kernel.Time.to_span_since_epoch
-  //   |> Core_kernel.Time.Span.to_ms
-  //   |> Float.iround_exn
+  let accountCreatedMsTs =
+    System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds().ToString()
 
   let staticHost =
     match localhostAssets with
@@ -82,20 +76,19 @@ let uiHtml
     .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
     .Replace("{{PUSHERCONFIG}}", Config.pusherJs)
     .Replace("{{USER_CONTENT_HOST}}", Config.userContentHost)
-    // .Replace("{{USER_USERNAME}}", user.username).Replace("{{USER_EMAIL}}", user.email)
-    // .Replace("{{USER_FULLNAME}}", user.name)
-    // .Replace("{{USER_CREATED_AT_UNIX_MSTS}}", (string_of_int account_created_msts))
-    .Replace("{{USER_CREATED_AT_UNIX_MSTS}}", "0")
-    // .Replace("{{USER_IS_ADMIN}}", (string_of_bool user.admin))
-    .Replace("{{USER_IS_ADMIN}}", "false")
-    // .Replace("{{USER_ID}}", (Uuidm.to_string user.id))
-    // .Replace("{{CANVAS_ID}}", (Uuidm.to_string canvas_id))
+    .Replace("{{USER_USERNAME}}", user.username.ToString())
+    .Replace("{{USER_EMAIL}}", user.email)
+    .Replace("{{USER_FULLNAME}}", user.name)
+    .Replace("{{USER_CREATED_AT_UNIX_MSTS}}", accountCreatedMsTs)
+    .Replace("{{USER_IS_ADMIN}}", (if user.admin then "true" else "false"))
+    .Replace("{{USER_ID}}", user.id.ToString())
+    .Replace("{{CANVAS_ID}}", (canvasID.ToString()))
     .Replace("{{CANVAS_NAME}}", canvasName.ToString())
     .Replace("{{APPSUPPORT}}",
              (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"))
     // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)
     .Replace("{{HASH_REPLACEMENTS}}", "[]")
-    // .Replace("{{CSRF_TOKEN}}", csrf_token)
+    .Replace("{{CSRF_TOKEN}}", csrfToken)
     .Replace("{{BUILD_HASH}}", Config.buildHash)
     // There isn't separate routing for static in ASP.NET
     .Replace("http://static.darklang.localhost:8000", "darklang.localhost:9000")
