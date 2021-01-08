@@ -10,23 +10,22 @@ open Prelude
 open Prelude.Tablecloth
 open Db
 
-type JsonData = { username : string; csrfToken : string }
+type JsonData = { username : string; csrf_token : string }
 type T = { username : string; csrfToken : string; expiry : System.DateTime }
 
-let get (key : byte []) : Task<Option<T>> =
-  let keyAsString = System.Text.Encoding.UTF8.GetString key
+let get (key : string) : Task<Option<T>> =
 
   Sql.query
     "SELECT expire_date, session_data
      FROM session
      WHERE session_key = @key"
-  |> Sql.parameters [ "key", Sql.string keyAsString ]
+  |> Sql.parameters [ "key", Sql.string key ]
   |> Sql.executeRowOptionAsync
        (fun read ->
          let serializedData = read.string "session_data"
          let date = read.dateTime "expire_date"
          let data = Json.AutoSerialize.deserialize<JsonData> serializedData
-         { username = data.username; expiry = date; csrfToken = data.csrfToken })
+         { username = data.username; expiry = date; csrfToken = data.csrf_token })
 
 //   let random_string (len : int) : string =
 //     Cstruct.to_string
