@@ -2,6 +2,8 @@ module LibExecution.StdLib.LibString
 
 open System.Globalization
 open System.Security.Cryptography
+open System
+open System.Text
 
 (* type coerces one list to another using a function *)
 
@@ -404,17 +406,17 @@ let fns : List<BuiltInFn> =
             // Should work the same as https://blog.tersmitten.nl/slugify/
 
             // explicitly limit to (roman) alphanumeric for pretty urls
-            let to_remove = @"[^a-z0-9\s_-]+"
-            let to_be_hyphenated = @"[-_\s]+"
+            let toRemove = @"[^a-z0-9\s_-]+"
+            let toBeHyphenated = @"[-_\s]+"
 
             let objRegex (pattern : string) (input : string) (replacement : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
             |> String.toLower
-            |> fun s -> objRegex to_remove s ""
+            |> fun s -> objRegex toRemove s ""
             |> fun s -> s.Trim()
-            |> fun s -> objRegex to_be_hyphenated s "-"
+            |> fun s -> objRegex toBeHyphenated s "-"
 
             |> String.toLower
             |> DStr
@@ -632,14 +634,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l ] ->
-            if l < bigint 0 then
+            if l < 0I then
               raise (
                 RuntimeException(
                   JustAString(SourceNone, "l should be a positive integer")
                 )
               )
             else
-              let random_string length =
+              let randomString length =
                 let gen () =
                   match random.Next(26 + 26 + 10) with
                   | n when n < 26 -> ('a' |> int) + n
@@ -652,7 +654,7 @@ let fns : List<BuiltInFn> =
                 |> List.map (fun i -> i.ToString())
                 |> String.concat ""
 
-              random_string (int l) |> DStr |> Value
+              randomString (int l) |> DStr |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -704,7 +706,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let html_escape (html : string) : string =
+            let htmlEscape (html : string) : string =
               List.map
                 (fun c ->
                   match c with
@@ -721,7 +723,7 @@ let fns : List<BuiltInFn> =
                 (Seq.toList html)
               |> String.concat ""
 
-            Value(DStr(html_escape s))
+            Value(DStr(htmlEscape s))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -805,149 +807,333 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "slice" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "from" TInt; Param.make "to" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns the substring of `string` between the `from` and `to` indices.
-//        Negative indices start counting from the end of `string`.
-//        Indices represent characters."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt f; DInt l] ->
-//             let first, last = (Dint.to_int_exn f, Dint.to_int_exn l) in
-//             DStr (Unicode_string.slice s ~first ~last)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "first" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns the first `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns `string`.
-//       If `characterCount` is negative, returns the empty string."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.first_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "last" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns the last `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns `string`.
-//       If `characterCount` is negative, returns the empty string."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.last_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "dropLast" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns all but the last `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns the empty string.
-//       If `characterCount` is negative, returns `string`."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.drop_last_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "dropFirst" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "characterCount" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns all but the first `characterCount` characters of `string`, as a String.
-//       If `characterCount` is longer than `string`, returns the empty string.
-//       If `characterCount` is negative, returns `string`."
-//      ; fn =
-//         (function
-//         | _, [DStr s; DInt n] ->
-//             let n = Dint.to_int_exn n in
-//             DStr (Unicode_string.drop_first_n s n)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "padStart" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
-//       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//      ; fn =
-//         (function
-//         | state, [DStr s; DStr pad_with; DInt l] ->
-//             let padLen = Unicode_string.length pad_with in
-//             if padLen = 1
-//             then
-//               let l = Dint.to_int_exn l in
-//               DStr (Unicode_string.pad_start s ~pad_with l)
-//             else
-//               DError
-//                 ( SourceNone
-//                 , "Expected the argument `padWith` passed to `"
-//                   ^ state.executing_fnname
-//                   ^ "` to be one character long. However, `"
-//                   ^ Dval.to_developer_repr_v0 (DStr pad_with)
-//                   ^ "` is "
-//                   ^ Int.to_string padLen
-//                   ^ " characters long." )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "padEnd" 0
-//      ; parameters = [Param.make "string" TStr; Param.make "padWith" TStr; Param.make "goalLength" TInt]
-//      ; returnType = TStr
-//      ; description =
-//       "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
-//       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
-//      ; fn =
-//         (function
-//         | state, [DStr s; DStr pad_with; DInt l] ->
-//             let padLen = Unicode_string.length pad_with in
-//             if padLen = 1
-//             then
-//               let l = Dint.to_int_exn l in
-//               DStr (Unicode_string.pad_end s ~pad_with l)
-//             else
-//               DError
-//                 ( SourceNone
-//                 , "Expected the argument `padWith` passed to `"
-//                   ^ state.executing_fnname
-//                   ^ "` to be one character long. However, `"
-//                   ^ Dval.to_developer_repr_v0 (DStr pad_with)
-//                   ^ "` is "
-//                   ^ Int.to_string padLen
-//                   ^ " characters long." )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "slice" 0
+      parameters =
+        [ Param.make "string" TStr ""
+          Param.make "from" TInt ""
+          Param.make "to" TInt "" ]
+      returnType = TStr
+      description = "Returns the substring of `string` between the `from` and `to` indices.
+       Negative indices start counting from the end of `string`.
+       Indices represent characters."
+      fn =
+        (function
+        | _, [ DStr s; DInt f; DInt l ] ->
+            let egcSeq= String.toEgcSeq s
+            let stringEgcCount = bigint (length egcSeq)
+
+            let slice s (first : bigint) (last : bigint) =
+              let clampUnchecked t min max =
+                if t < min then min
+                else if t <= max then t
+                else max
+
+              let len = stringEgcCount in
+              let min = 0I in
+              let max = len + 1I in
+              (* If we get negative indices, we need to treat them as indices from the end
+               * which means that we need to add [len] to them. We clamp the result to
+               * a value within range of the actual string: *)
+
+              let first =
+                if first >= 0I then
+                  first
+                else
+                  len + first |> clampUnchecked min max
+
+              let last =
+                if last >= 0I then
+                  last
+                else
+                  len + last |> clampUnchecked min max
+
+              let stringBuilder = new StringBuilder(String.length s) in
+              (* To slice, we iterate through every EGC, adding it to the buffer
+               * if it is within the specified index range: *)
+              let slicerFunc (acc : bigint) (seg : string) =
+                if acc >= first && acc < last then
+                  stringBuilder.Append seg |> ignore
+                else
+                  () |> ignore
+
+                1I + acc
+
+              ignore (
+                egcSeq
+                |> Seq.toList
+                |> List.mapi (fun index value -> (slicerFunc (bigint index) value))
+              )
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              stringBuilder.ToString()
+
+            let first, last = (f, l) in
+            Value(DStr(slice s first last))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "first" 0
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
+      returnType = TStr
+      description = "Returns the first `characterCount` characters of `string`, as a String.
+      If `characterCount` is longer than `string`, returns `string`.
+      If `characterCount` is negative, returns the empty string."
+      fn =
+        (function
+        | _, [ DStr s; DInt n ] ->
+            let firstN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
+              (* We iterate through every EGC, adding it to the buffer
+               * if its index < numEgcs: *)
+
+              let firstFunc (idx : bigint) (seg : string) =
+                if idx < numEgcs then stringBuilder.Append seg |> ignore else () |> ignore
+                1I + idx
+
+              ignore (
+                String.toEgcSeq s
+                |> Seq.toList
+                |> List.mapi (fun index value -> (firstFunc (bigint index) value))
+              )
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              stringBuilder.ToString()
+
+            Value(DStr(firstN s n))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "last" 0
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
+      returnType = TStr
+      description = "Returns the last `characterCount` characters of `string`, as a String.
+      If `characterCount` is longer than `string`, returns `string`.
+      If `characterCount` is negative, returns the empty string."
+      fn =
+        (function
+        | _, [ DStr s; DInt n ] ->
+            let egcSeq = String.toEgcSeq s
+            let stringEgcCount = length egcSeq
+
+            let lastN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
+              (* We iterate through every EGC, adding it to the buffer
+                * if its [idx] >= ([stringEgcCount] - [numEgcs]).
+                * Consider if the string is "abcde" and [numEgcs] = 2,
+                * [stringEgcCount] = 5; 5-2 = 3. The index of "d" is 3 and
+                * we want to keep it and everything after it so we end up with "de". *)
+
+              let startIdx = bigint stringEgcCount - numEgcs in
+
+              let lastFunc (idx : bigint) (seg : string) =
+                if idx >= startIdx then stringBuilder.Append seg |> ignore else () |> ignore
+                1I + idx
+
+              ignore (
+                egcSeq
+                |> Seq.toList
+                |> List.mapi (fun index value -> (lastFunc (bigint index) value))
+              )
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              stringBuilder.ToString()
+
+            Value(DStr(lastN s n))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "dropLast" 0
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
+      returnType = TStr
+      description = "Returns all but the last `characterCount` characters of `string`, as a String.
+      If `characterCount` is longer than `string`, returns the empty string.
+      If `characterCount` is negative, returns `string`."
+      fn =
+        (function
+        | _, [ DStr s; DInt n ] ->
+            let egcSeq = String.toEgcSeq s
+            let stringEgcCount = length egcSeq
+
+            let dropLastN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
+              (* We iterate through every EGC, adding it to the buffer
+               * if its [idx] < ([stringEgcCount] - [numEgcs]).
+               * This works by the inverse of the logic for [lastN]. *)
+
+              let startIdx = bigint stringEgcCount - numEgcs in
+
+              let lastFunc (idx : bigint) (seg : string) =
+                if idx < startIdx then stringBuilder.Append seg |> ignore else () |> ignore
+                1I + idx
+
+              ignore (
+                egcSeq
+                |> Seq.toList
+                |> List.mapi (fun index value -> (lastFunc (bigint index) value))
+              )
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              stringBuilder.ToString()
+
+            Value(DStr(dropLastN s n))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "dropFirst" 0
+      parameters =
+        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
+      returnType = TStr
+      description = "Returns all but the first `characterCount` characters of `string`, as a String.
+        If `characterCount` is longer than `string`, returns the empty string.
+        If `characterCount` is negative, returns `string`."
+      fn =
+        (function
+        | _, [ DStr s; DInt n ] ->
+            let dropFirstN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
+              (* We iterate through every EGC, adding it to the buffer
+               * if its index >= numEgcs. This works by the inverse of the logic for [first_n]: *)
+              let firstFunc (idx : bigint) (seg : string) =
+                if idx >= numEgcs then stringBuilder.Append seg |> ignore else () |> ignore
+                1I + idx
+
+              ignore (
+                String.toEgcSeq s
+                |> Seq.toList
+                |> List.mapi (fun index value -> (firstFunc (bigint index) value))
+              )
+              (* We don't need to renormalize because all normalization forms are closed
+               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              stringBuilder.ToString()
+
+            Value(DStr(dropFirstN s n))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "padStart" 0
+      parameters =
+        [ Param.make "string" TStr ""
+          Param.make "padWith" TStr ""
+          Param.make "goalLength" TInt "" ]
+      returnType = TStr
+      description = "If `string` is shorter than `goalLength` characters, returns a copy of `string` starting with enough copies of `padWith` for the result have `goalLength`.
+      If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+      fn =
+        (function
+        | state, [ DStr s; DStr padWith; DInt l ] ->
+
+            let egcSeq = String.toEgcSeq s
+
+            let padStart s padWith targetEgcs =
+              let max a b = if a > b then a else b in
+              (* Compute the size in bytes and # of required EGCs for s and padWith: *)
+              let padSize = String.length padWith in
+
+              let padEgcs = length padWith in
+              let stringSize = String.length s in
+              let stringEgcs = length egcSeq in
+              (* Compute how many copies of padWith we require,
+               * accounting for the string longer than [targetEgcs]: *)
+              let requiredEgcs = targetEgcs - stringEgcs in
+
+              let reqPads = max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
+              (* Create a buffer large enough to hold the padded result: *)
+              let requiredSize = stringSize + (reqPads * padSize) in
+
+              let stringBuilder = new StringBuilder(requiredSize) in
+              (* Fill with the required number of pads: *)
+              for i = 1 to reqPads do
+                stringBuilder.Append padWith |> ignore
+              (* Finish by filling with the string: *)
+              stringBuilder.Append s |> ignore
+              (* Renormalize because concatenation may break normalization
+               * (see https://unicode.org/reports/tr15/#Concatenation): *)
+
+              stringBuilder.ToString().Normalize()
+
+            let padLen = length padWith in
+
+            if padLen = 1 then
+              let l = int l in
+              Value(DStr(padStart s padWith l))
+            else
+              Value(
+                errStr (
+                  $"Expected the argument `padWith` passed to ` String:padStart ` to be one character long. However, `({
+                                                                                                                          padWith
+                  }).` is characters long."
+                )
+              )
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "padEnd" 0
+      parameters =
+        [ Param.make "string" TStr ""
+          Param.make "padWith" TStr ""
+          Param.make "goalLength" TInt "" ]
+      returnType = TStr
+      description = "If `string` is shorter than `goalLength` characters, returns a copy of `string` ending with enough copies of `padWith` for the result have `goalLength`.
+      If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
+      fn =
+        (function
+        | state, [ DStr s; DStr padWith; DInt l ] ->
+
+            let egcSeq = String.toEgcSeq s
+
+            let padEnd s padWith targetEgcs =
+              let max a b = if a > b then a else b in
+              (* Compute the size in bytes and # of required EGCs for s and padWith: *)
+              let padSize = String.length padWith in
+
+              let padEgcs = length padWith in
+              let stringSize = String.length s in
+              let stringEgcs = length egcSeq in
+              (* Compute how many copies of padWith we require,
+               * accounting for the string longer than [targetEgcs]: *)
+              let requiredEgcs = targetEgcs - stringEgcs in
+
+              let requiredPads = max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
+              (* Create a buffer large enough to hold the padded result: *)
+              let requiredSize = stringSize + (requiredPads * padSize) in
+
+              let stringBuilder = new StringBuilder(requiredSize) in
+              (* Start the buffer with the string: *)
+              stringBuilder.Append s |> ignore
+              (* Finish by filling with the required number of pads: *)
+              for i = 1 to requiredPads do
+                stringBuilder.Append padWith |> ignore
+              (* Renormalize because concatenation may break normalization
+               * (see https://unicode.org/reports/tr15/#Concatenation): *)
+
+              stringBuilder.ToString().Normalize()
+
+            let padLen = length padWith in
+
+            if padLen = 1 then
+              let l = int l in
+              Value(DStr(padEnd s padWith l))
+            else
+              Value(
+                errStr (
+                  $"Expected the argument `padWith` passed to ` String:padEnd ` to be one character long. However, `({
+                                                                                                                        padWith
+                  }).` is characters long."
+                )
+              )
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "trim" 0
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
@@ -988,34 +1174,31 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "toBytes" 0
-//      ; parameters = [Param.make "str" TStr]
-//      ; returnType = TBytes
-//      ; description =
-//       "Converts the given unicode string to a utf8-encoded byte sequence."
-//      ; fn =
-//         (function
-//         | _, [DStr str] ->
-//             let theBytes = Unicode_string.to_utf8_bytes str in
-//             DBytes theBytes
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "startsWith" 0
-//      ; parameters = [Param.make "subject" TStr; Param.make "prefix" TStr]
-//      ; returnType = TBool
-//      ; description = "Checks if `subject` starts with `prefix`"
-//      ; fn =
-//         (function
-//         | _, [DStr subject; DStr prefix] ->
-//             DBool (Unicode_string.starts_with ~prefix subject)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "toBytes" 0
+      parameters = [ Param.make "str" TStr "" ]
+      returnType = TBytes
+      description =
+        "Converts the given unicode string to a utf8-encoded byte sequence."
+      fn =
+        (function
+        | _, [ DStr str ] ->
+            let theBytes = System.Text.Encoding.UTF8.GetBytes str in
+            Value(DBytes theBytes)
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "startsWith" 0
+      parameters = [ Param.make "subject" TStr ""; Param.make "prefix" TStr "" ]
+      returnType = TBool
+      description = "Checks if `subject` starts with `prefix`"
+      fn =
+        (function
+        | _, [ DStr subject; DStr prefix ] -> Value(DBool(subject.StartsWith prefix))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "endsWith" 0
       parameters =
         [ Param.make "subject" TStr "String to test"
