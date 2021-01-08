@@ -39,7 +39,7 @@ let uiHandler (canvasName : string) : HttpHandler =
         else
           Local, "/login", "/logout"
 
-      let sessionKey = ctx.Session.Get("__session")
+      let sessionKey = ctx.Request.Cookies.Item "__session"
 
       match! Session.get sessionKey with
       | None ->
