@@ -3,3 +3,4 @@ FSharp.Compiler.Service
 FsRegEx
 FsCheck
 Expecto.FsCheck
+FSharp.Core

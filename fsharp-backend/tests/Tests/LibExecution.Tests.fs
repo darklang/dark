@@ -72,7 +72,7 @@ let t (comment : string) (code : string) : Test =
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
-        let tlid = LibExecution.SharedTypes.id 7
+        let tlid = id 7
         let! actual = LibExecution.Execution.run tlid [] fns actualProg
         let! expected = LibExecution.Execution.run tlid [] fns expectedResult
         let actual = normalizeDvalResult actual

@@ -20,7 +20,6 @@ open Npgsql
 open System.Text.RegularExpressions
 
 open Prelude
-open LibExecution.SharedTypes
 
 // Used for conversion functions
 module RT = LibExecution.RuntimeTypes

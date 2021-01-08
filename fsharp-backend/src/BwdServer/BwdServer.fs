@@ -31,12 +31,14 @@ module RT = LibExecution.RuntimeTypes
 // https://github.com/giraffe-fsharp/Giraffe/blob/9598682f4f68e23217c4199a48f30ca3457b037e/src/Giraffe/Core.fs
 
 type HttpFuncResult = Task<HttpContext option>
+
 type HttpFunc = HttpContext -> HttpFuncResult
 type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
 
 let compose (handler1 : HttpHandler) (handler2 : HttpHandler) : HttpHandler =
   fun (final : HttpFunc) ->
     let func = final |> handler2 |> handler1
+
     fun (ctx : HttpContext) ->
       match ctx.Response.HasStarted with
       | true -> final ctx
@@ -87,16 +89,16 @@ let normalizeRequest : HttpHandler =
     ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
     next ctx
 
-let canvasNameFromHost (host : string) : Task<Option<string>> =
+let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
   task {
     match host.Split [| '.' |] with
     // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
     // just another load balancer
     | [| a; "darkcustomdomain"; "com" |]
     | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some a
+    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
     | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some "builtwithdark"
+    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
     | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
   }
 
@@ -104,8 +106,10 @@ let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-        ctx.Response.Headers.Add
-          (name, Microsoft.Extensions.Primitives.StringValues([| value |]))
+        ctx.Response.Headers.Add(
+          name,
+          Microsoft.Extensions.Primitives.StringValues([| value |])
+        )
 
       let e500 (msg : string) =
         task {
@@ -124,24 +128,31 @@ let runDarkHandler : HttpHandler =
         task {
           let executionID = gid ()
           let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
+
           match! canvasNameFromHost ctx.Request.Host.Host with
           | Some canvasName ->
-              let ownerName = LibBackend.Canvas.ownerNameFromHost canvasName
-              let! userID = LibBackend.Account.userIDForUsername ownerName
-              let! canvasID = LibBackend.Canvas.canvasIDForCanvas userID canvasName
+              let ownerName = LibBackend.Account.ownerNameFromCanvasName canvasName
+              let ownerUsername = UserName.create (ownerName.ToString())
+              let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
+
+              let! canvasID =
+                LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+
               let method = ctx.Request.Method
 
-              return! LibBackend.ProgramSerialization.SQL.loadHttpHandlersFromCache
-                        canvasName
-                        canvasID
-                        userID
-                        requestPath
-                        method
+              return!
+                LibBackend.ProgramSerialization.SQL.loadHttpHandlersFromCache
+                  canvasName
+                  canvasID
+                  ownerID
+                  requestPath
+                  method
           | None -> return []
         }
 
       match! exprs with
-      | [ PT.TLHandler { spec = PT.Handler.HTTP(route = route); ast = expr;
+      | [ PT.TLHandler { spec = PT.Handler.HTTP (route = route)
+                         ast = expr
                          tlid = tlid } ] ->
           let ms = new IO.MemoryStream()
           do! ctx.Request.Body.CopyToAsync(ms)
@@ -150,12 +161,12 @@ let runDarkHandler : HttpHandler =
           let expr = expr.toRuntimeType ()
           let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
           let vars = LibExecution.Http.routeInputVars route requestPath
+
           match vars with
           | None ->
-              return! e500
-                        $"The request ({requestPath}) does not match the route ({
-                                                                                   route
-                        })"
+              return!
+                e500
+                  $"The request ({requestPath}) does not match the route ({route})"
           | Some vars ->
               let symtable = Map.ofList vars
 
@@ -178,8 +189,9 @@ let runDarkHandler : HttpHandler =
                   addHeader ctx "server" "darklang"
                   return Some ctx
               | RT.DFakeVal (RT.DIncomplete _) ->
-                  return! e500
-                            "Error calling server code: Handler returned an \
+                  return!
+                    e500
+                      "Error calling server code: Handler returned an \
                                 incomplete result. Please inform the owner of this \
                                 site that their code is broken."
               | other ->
@@ -208,9 +220,10 @@ let configureLogging (builder : ILoggingBuilder) =
   let filter (l : LogLevel) : bool = true
 
   // Configure the logging factory
-  builder.AddFilter(filter) // Optional filter
-         .AddConsole() // Set up the Console logger
-         .AddDebug() // Set up the Debug logger
+  builder
+    .AddFilter(filter) // Optional filter
+    .AddConsole() // Set up the Console logger
+    .AddDebug() // Set up the Debug logger
   // Add additional loggers if wanted...
   |> ignore
 

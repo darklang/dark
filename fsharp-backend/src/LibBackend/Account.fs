@@ -10,20 +10,42 @@ open Npgsql
 
 open Prelude
 open Prelude.Tablecloth
-open LibExecution.SharedTypes
 open Db
 
+// **********************
+// Types
+// **********************
+
 type Account =
-  { username : string
-    password : LibBackend.Password.T
+  { username : UserName.T
+    password : Password.T
     email : string
     name : string }
+
+type UserInfo =
+  { username : UserName.T
+    name : string
+    admin : bool
+    email : string
+    id : System.Guid }
+
+type UserInfoAndCreatedAt =
+  { username : UserName.T
+    name : string
+    admin : bool
+    email : string
+    id : System.Guid
+    createdAt : System.DateTime }
 
 type Validate =
   | Validate
   | DontValidate
 
-let bannedUsernames : List<string> =
+// **********************
+// Special usernames
+// **********************
+
+let bannedUserNames : List<UserName.T> =
   // originally from https://ldpreload.com/blog/names-to-reserve
   // we allow www, because we have a canvas there
   [ "abuse"
@@ -72,22 +94,15 @@ let bannedUsernames : List<string> =
     // alpha, but not beta, because user beta already exists (with ownership
     // transferred to us)
     "alpha" ]
-
-let userIDForUsername (user : string) : Task<UserID> =
-  let owner = String.toLower user
-
-  if List.contains owner bannedUsernames then
-    failwith "Banned username"
-  else
-    Sql.query
-      "SELECT id
-       FROM accounts
-       WHERE accounts.username = @username"
-    |> Sql.parameters [ "username", Sql.string user ]
-    |> Sql.executeRowAsync (fun read -> read.uuid "id")
+  |> List.map UserName.create
 
 
-let validateUsername (username : string) : Result<unit, string> =
+
+// **********************
+// Adding
+// **********************
+
+let validateUserName (username : string) : Result<unit, string> =
   (* rules: no uppercase, ascii only, must start with letter, other letters can
    * be numbers or underscores. 3-20 characters. *)
   let reString = @"^[a-z][a-z0-9_]{2,20}$"
@@ -109,14 +124,16 @@ let validateEmail (email : string) : Result<unit, string> =
 
 
 let validateAccount (account : Account) : Result<unit, string> =
-  validateUsername account.username |> Result.and_ (validateEmail account.email)
+  validateUserName (account.username.ToString())
+  |> Result.and_ (validateEmail account.email)
 
 // Passwords set here are only valid locally, production uses auth0 to check
 // access
-let upsertAccount (admin : bool)
-                  (validate : Validate)
-                  (account : Account)
-                  : Task<Result<unit, string>> =
+let upsertAccount
+  (admin : bool)
+  (validate : Validate)
+  (account : Account)
+  : Task<Result<unit, string>> =
   task {
     // FSTODO - this used to be default true
     let result = if validate = Validate then validateAccount account else Ok() in
@@ -134,15 +151,11 @@ let upsertAccount (admin : bool)
                            email = EXCLUDED.email,
                            password = EXCLUDED.password"
           |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                              "username", Sql.string account.username
+                              "username", Sql.string (account.username.ToString())
                               "admin", Sql.bool admin
                               "name", Sql.string account.name
                               "email", Sql.string account.email
                               ("password",
-                               // FSTODO: not sure if bytea is appropriate, but
-                               // it's a varchar in the DB and strings are utf8.
-                               // Npgsql was failing with a UTF-8 conversion
-                               // error.
                                account.password |> Password.toString |> Sql.string) ]
           |> Sql.executeStatementAsync
           |> Task.map Ok
@@ -152,13 +165,138 @@ let upsertAccount (admin : bool)
 let upsertAdmin = upsertAccount true
 let upsertNonAdmin = upsertAccount false
 
+// **********************
+// Querying
+// **********************
+
+let userIDForUserName (username : UserName.T) : Task<UserID> =
+  if List.contains username bannedUserNames then
+    failwith "Banned username"
+  else
+    Sql.query
+      "SELECT id
+       FROM accounts
+       WHERE accounts.username = @username"
+    |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+    |> Sql.executeRowAsync (fun read -> read.uuid "id")
+
+
+let usernameForUserID (userID : System.Guid) : Task<Option<UserName.T>> =
+  Sql.query
+    "SELECT username
+     FROM accounts
+     WHERE accounts.id = @userid"
+  |> Sql.parameters [ "userid", Sql.uuid userID ]
+  |> Sql.executeRowOptionAsync
+       (fun read -> read.string "username" |> UserName.create)
+
+let getUser (username : UserName.T) : Task<Option<UserInfo>> =
+  Sql.query
+    "SELECT name, email, admin, id
+     FROM accounts
+     WHERE accounts.username = @username"
+  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.executeRowOptionAsync
+       (fun read ->
+         { username = username
+           name = read.string "name"
+           email = read.string "email"
+           admin = read.bool "admin"
+           id = read.uuid "id" })
+
+let getUserCreatedAt (username : UserName.T) : Task<System.DateTime> =
+  Sql.query
+    "SELECT created_at
+     FROM accounts
+     WHERE accounts.username = @username"
+  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
+
+let getUserAndCreatedAtAndAnalyticsMetadata
+  (username : UserName.T)
+  : Task<Option<UserInfoAndCreatedAt * string>> =
+  Sql.query
+    "SELECT name, email, admin, created_at, id, segment_metadata
+     FROM accounts
+     WHERE accounts.username = @username"
+  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.executeRowOptionAsync
+       (fun read ->
+         { username = username
+           name = read.string "name"
+           email = read.string "email"
+           admin = read.bool "admin"
+           id = read.uuid "id"
+           createdAt = read.dateTime "created_at" },
+         read.string "segment_metadata")
+
+let getUserByEmail (email : string) : Task<Option<UserInfo>> =
+  Sql.query
+    "SELECT name, username, admin, id
+     FROM accounts
+     WHERE accounts.email = @email"
+  |> Sql.parameters [ "email", Sql.string email ]
+  |> Sql.executeRowOptionAsync
+       (fun read ->
+         { username = UserName.create (read.string "username")
+           name = read.string "name"
+           email = email
+           admin = read.bool "admin"
+           id = read.uuid "id" })
+
+let getUsers : Task<List<UserName.T>> =
+  Sql.query
+    "SELECT username
+     FROM accounts"
+  |> Sql.executeAsync (fun read -> UserName.create (read.string "username"))
+
+let isAdmin (username : UserName.T) : Task<bool> =
+  Sql.query
+    "SELECT 1
+     FROM accounts
+     WHERE accounts.username = @username
+       AND admin = true"
+  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.executeExistsAsync
+
+let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
+  Sql.query
+    "UPDATE accounts
+        SET admin = @admin where username = @username"
+  |> Sql.parameters [ "admin", Sql.bool admin
+                      "username", Sql.string (username.ToString()) ]
+  |> Sql.executeStatementAsync
+
+let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
+
+let ownerID (username : UserName.T) : Task<Option<System.Guid>> =
+  if List.contains username bannedUserNames then
+    task { return None }
+  else
+    Sql.query
+      "SELECT id
+       FROM accounts
+       WHERE accounts.username = @username"
+    |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+    |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+
+// formerly called auth_domain_for
+let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
+  match String.split '-' (host.ToString()) with
+  | owner :: _ -> OwnerName.create owner
+  | _ -> OwnerName.create (host.ToString())
+
+
+// **********************
+// Testing
+// **********************
 
 let initTestAccounts () : Task<unit> =
   task {
     let! test_unhashed =
       upsertNonAdmin
         Validate
-        { username = "test_unhashed"
+        { username = UserName.create "test_unhashed"
           password = Password.fromHash "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+unhashed@darklang.com"
           name = "Dark OCaml Tests with Unhashed Password" }
@@ -168,7 +306,7 @@ let initTestAccounts () : Task<unit> =
     let! test =
       upsertNonAdmin
         Validate
-        { username = "test"
+        { username = UserName.create "test"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test@darklang.com"
           name = "Dark OCaml Tests" }
@@ -178,7 +316,7 @@ let initTestAccounts () : Task<unit> =
     let! test_admin =
       upsertAdmin
         Validate
-        { username = "test_admin"
+        { username = UserName.create "test_admin"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test+admin@darklang.com"
           name = "Dark OCaml Test Admin" }

@@ -32,7 +32,6 @@ module LibExecution.RuntimeTypes
 open System.Text.RegularExpressions
 
 open Prelude
-open SharedTypes
 
 module J = Prelude.Json
 

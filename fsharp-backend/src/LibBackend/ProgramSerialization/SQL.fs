@@ -12,48 +12,52 @@ open LibBackend.Db
 open System.Text.RegularExpressions
 
 open Prelude
-open LibExecution.SharedTypes
 open ProgramTypes
 
 module Http = LibExecution.Http
 module Canvas = LibBackend.Canvas
 
 
-let loadUncachedToplevels (host : string)
-                          (canvasID : CanvasID)
-                          (tlids : List<tlid>)
-                          : Task<List<byte array>> =
+let loadUncachedToplevels
+  (host : string)
+  (canvasID : CanvasID)
+  (tlids : List<tlid>)
+  : Task<List<byte array>> =
 
-  Sql.query "SELECT data
-             FROM toplevel_oplists
-             WHERE canvas_id = @canvasID
-             AND tlid = ANY(@tlids)"
+  Sql.query
+    "SELECT data
+       FROM toplevel_oplists
+      WHERE canvas_id = @canvasID
+        AND tlid = ANY(@tlids)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read -> read.bytea "data")
 
-let fetchCachedToplevels (host : string)
-                         (canvasID : CanvasID)
-                         (tlids : List<tlid>)
-                         : Task<List<byte array * string option>> =
-  Sql.query "SELECT rendered_oplist_cache, pos FROM toplevel_oplists
-             WHERE canvas_id = @canvasID
-             AND tlid = ANY (@tlids)
-             AND deleted IS FALSE
-             AND (((tipe = 'handler'::toplevel_type) AND pos IS NOT NULL))"
+let fetchCachedToplevels
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (tlids : List<tlid>)
+  : Task<List<byte array * string option>> =
+  Sql.query
+    "SELECT rendered_oplist_cache, pos FROM toplevel_oplists
+      WHERE canvas_id = @canvasID
+        AND tlid = ANY (@tlids)
+        AND deleted IS FALSE
+        AND (((tipe = 'handler'::toplevel_type) AND pos IS NOT NULL))"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync
        (fun read -> (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
 
 
-let loadHttpHandlersFromCache (host : string)
-                              (canvasID : CanvasID)
-                              (owner : UserID)
-                              (path : string)
-                              (method : string)
-                              : Task<List<Toplevel>> =
+let loadHttpHandlersFromCache
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (owner : UserID)
+  (path : string)
+  (method : string)
+  : Task<List<Toplevel>> =
   task {
-    let! tlids = Canvas.fetchReleventTLIDsForHTTP host canvasID path method
-    let! binaryTLs = fetchCachedToplevels host canvasID tlids
+    let! tlids = Canvas.fetchReleventTLIDsForHTTP canvasName canvasID path method
+    let! binaryTLs = fetchCachedToplevels canvasName canvasID tlids
     let tls = List.map OCamlInterop.toplevelOfCachedBinary binaryTLs
 
     return tls
@@ -61,10 +65,11 @@ let loadHttpHandlersFromCache (host : string)
 
 // FSTODO This is for testing only as it blows away the old oplist, which is
 // needed for undos.
-let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
-                                     (ownerID : UserID)
-                                     (tl : Toplevel)
-                                     : Task<unit> =
+let saveCachedToplevelForTestingOnly
+  (canvasID : CanvasID)
+  (ownerID : UserID)
+  (tl : Toplevel)
+  : Task<unit> =
   let module_, path, modifier =
     match tl with
     | TLDB _
@@ -92,22 +97,24 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
   let (oplistBinary : byte array) = [||] // FSTODO get an actual oplist
   let digest = OCamlInterop.Binary.digest ()
   let pos = Some "{ \"x\": 0, \"y\": 0 }"
-  Sql.query "INSERT INTO toplevel_oplists
-               (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
-                data, rendered_oplist_cache, deleted, pos)
-             VALUES (@canvasID, @ownerID, @tlid, @digest, @tipe::toplevel_type,
-                     @path, @module, @modifier, @oplistData, @cacheData, @deleted, @pos)
-             ON CONFLICT (canvas_id, tlid) DO UPDATE
-             SET account_id = @ownerID,
-                 digest = @digest,
-                 tipe = @tipe::toplevel_type,
-                 name = @path,
-                 module = @module,
-                 modifier = @modifier,
-                 data = @oplistData,
-                 rendered_oplist_cache = @cacheData,
-                 deleted = @deleted,
-                 pos = @pos"
+
+  Sql.query
+    "INSERT INTO toplevel_oplists
+       (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
+        data, rendered_oplist_cache, deleted, pos)
+     VALUES (@canvasID, @ownerID, @tlid, @digest, @tipe::toplevel_type,
+             @path, @module, @modifier, @oplistData, @cacheData, @deleted, @pos)
+     ON CONFLICT (canvas_id, tlid) DO UPDATE
+     SET account_id = @ownerID,
+         digest = @digest,
+         tipe = @tipe::toplevel_type,
+         name = @path,
+         module = @module,
+         modifier = @modifier,
+         data = @oplistData,
+         rendered_oplist_cache = @cacheData,
+         deleted = @deleted,
+         pos = @pos"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                       "ownerID", Sql.uuid ownerID
                       "tlid", Sql.id (tl.toTLID ())
@@ -122,15 +129,16 @@ let saveCachedToplevelForTestingOnly (canvasID : CanvasID)
                       "pos", Sql.jsonbOrNone pos ] // FSTODO
   |> Sql.executeStatementAsync
 
-let saveHttpHandlersToCache (canvasID : CanvasID)
-                            (ownerID : UserID)
-                            (tls : List<Toplevel>)
-                            : Task<unit> =
+let saveHttpHandlersToCache
+  (canvasID : CanvasID)
+  (ownerID : UserID)
+  (tls : List<Toplevel>)
+  : Task<unit> =
   task {
     let results =
       tls
-      |> List.map (fun tl ->
-           (saveCachedToplevelForTestingOnly canvasID ownerID tl) :> Task)
+      |> List.map
+           (fun tl -> (saveCachedToplevelForTestingOnly canvasID ownerID tl) :> Task)
       |> List.toArray
 
     return Task.WaitAll(results)

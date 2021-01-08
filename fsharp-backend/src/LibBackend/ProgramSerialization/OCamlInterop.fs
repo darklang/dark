@@ -18,7 +18,6 @@ open Prelude
 open LibBackend.Db
 
 module PT = ProgramTypes
-open LibExecution.SharedTypes
 
 module Binary =
   module Internal =

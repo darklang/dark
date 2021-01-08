@@ -238,8 +238,8 @@ Our certs are badly organized and are spread out, but here is the current status
 - \*.builtwithdark.com: positivessl.com. Cert installed in a k8s ingress/secret. TODO: move to cert-manager
 - builtwithdark.com: cert exists, not installed for some reason. TODO: move to cert-manager
 - \*.darklang.com: positivessl.com. Cert installed in a k8s ingress/secret. Note DNS is at cloudflare. TODO: move to cert manager. Move DNS to google.
-- darksa.com: new one being bought at positivessl.
-- darkstaticassets.com: new one being bought at positivessl.
+- darksa.com: new one being bought at positivessl. DNS at name.com
+- darkstaticassets.com: new one being bought at positivessl. DNS at name.com
 - old certs have also been bought via cloudflare, store.sectigo.com and secure.sectigo.com (which are different!)
 - customer certs use cert-manager (using k8s, see darkcustomdomain, other docs mentioning custom-domain)
 - some customer certs use google managed certs, we've stopped adding new ones but the old ones are still there
@@ -255,7 +255,14 @@ How to buy a cert:
 - It tells you an MD5 and a SHA1, but doesn't tell you how to enter them in the
   DNS. Write them down as you'll need them if the next step fails.
 - Go to support.sectigo.com and click "Order Status checker".
-- Enter details. Here it tells you what to actually put in the cname.
+- Enter details. Here it tells you what to actually put in the cname. (Note
+  there's a space you have to delete because of how they print it)
+- DNS is hosted in name.com or in GCP Cloud DNS or in Cloudflare
 - If this fails, presumably because you bought more than 1 cert and it won't
-  show you the certs, add a CNAME like so:
-  \_{MD5}.darkstaticassets.com CNAME {SHA1_20_digits}.{SHA2_next_20_digits}.comodoca.com
+  show you the certs, add a CNAME like so: `\_{MD5}.darkstaticassets.com CNAME {SHA1_20_digits}.{SHA2_next_20_digits}.comodoca.com`
+- Download the Cert from PositiveSSL. You need to make a certificate chain:
+  `cat AAACertificateServices.crt SectigoRSADomainValidationSecureServerCA.crt USERTrustRSAAAACA.crt > certchain.crt`
+- In "loadbalancing" on google cloud, add a new certificate to the appropriate
+  load balancer. Name the certificate with the date, and include the chain
+  created above, the private key created during the CSR creation process
+  (called `.key`), and the public key certificate sent by Comodo. Don't forget to click "Update"

@@ -50,11 +50,8 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
 
 let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
-  if expected <> actual then assert_
-                               $"assertion failure: {msg} (expected {expected}, got {
-                                                                                       actual
-                               })"
-                               false
+  if expected <> actual then
+    assert_ $"assertion failure: {msg} (expected {expected}, got {actual})" false
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
@@ -95,7 +92,7 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
   try
     assert_ "makefloat" (whole >= 0I)
     let sign = if positiveSign then "" else "-"
-    $"{sign}{whole}.{fraction}" |> debug "makeFloat" |> System.Double.Parse
+    $"{sign}{whole}.{fraction}" |> System.Double.Parse
   with e ->
     raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
 
@@ -269,9 +266,10 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
   }
 
 
-let filter_s (f : 'a -> TaskOrValue<bool>)
-             (list : List<'a>)
-             : TaskOrValue<List<'a>> =
+let filter_s
+  (f : 'a -> TaskOrValue<bool>)
+  (list : List<'a>)
+  : TaskOrValue<List<'a>> =
   taskv {
     let! result =
       match list with
@@ -466,6 +464,12 @@ module Tablecloth =
       | Error e -> failwith $"Error in okOrRaise: {e}"
       | Ok o -> o
 
+  module Option =
+    let someOrRaise (o : Option<'t>) : 't =
+      match o with
+      | Some o -> o
+      | None -> failwith $"None in someOrRaise"
+
   module String =
     let startsWith (prefix : string) (str : string) : bool = str.StartsWith prefix
     let endsWith (suffix : string) (str : string) : bool = str.EndsWith suffix
@@ -473,4 +477,75 @@ module Tablecloth =
     let splitOnNewline (str : string) : List<string> =
       str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
+    let split (char : char) (str : string) : List<string> =
+      str.Split([| char |], System.StringSplitOptions.None) |> Array.toList
+
     let dropLeft (count : int) (str : string) : string = str.Remove(0, count)
+
+  module List =
+    let any (f : 'a -> bool) (items : List<'a>) : bool =
+      List.fold (fun (accum : bool) (v : 'a) -> accum || f v) false items
+
+    let all (f : 'a -> bool) (items : List<'a>) : bool =
+      List.fold (fun (accum : bool) (v : 'a) -> accum && f v) true items
+
+
+// ----------------------
+// Shared Types
+// ----------------------
+// Some fundamental types that we want to use everywhere.
+
+// DO NOT define any serialization on these types. If you want to serialize
+// them, you should move these to the files with specific formats and serialize
+// them there.
+
+type pos = { x : int; y : int }
+
+// We use an explicit sign for Floats, instead of making it implicit in the
+// first digit, because otherwise we lose the sign on 0, and can't represent
+// things like -0.5
+type Sign =
+  | Positive
+  | Negative
+
+type tlid = uint64
+
+type id = uint64
+type CanvasID = System.Guid
+type UserID = System.Guid
+
+// since these are all usernames, use types for safety
+module UserName =
+  type T =
+    private
+    | UserName of string
+
+    override this.ToString() = let (UserName username) = this in username
+
+  let create (str : string) : T = UserName(String.toLower str)
+
+module OwnerName =
+  type T =
+    private
+    | OwnerName of string
+
+    override this.ToString() = let (OwnerName name) = this in name
+    member this.toUserName : UserName.T = UserName.create (this.ToString())
+
+  let create (str : string) : T = OwnerName(String.toLower str)
+
+
+module CanvasName =
+  type T =
+    private
+    | CanvasName of string
+
+    override this.ToString() = let (CanvasName name) = this in name
+
+  let create (name : string) : T =
+    if String.length name > 64 then
+      failwith $"Canvas name was too long, must be <= 64."
+
+    CanvasName(String.toLower name)
+
+let id (x : int) : id = uint64 x

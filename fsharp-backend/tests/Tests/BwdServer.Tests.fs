@@ -2,17 +2,6 @@ module Tests.BwdServer
 
 open Expecto
 
-open LibExecution
-open LibBackend
-open LibBackend.ProgramSerialization
-open BwdServer
-
-module RT = LibExecution.RuntimeTypes
-
-open Npgsql.FSharp.Tasks
-open Npgsql
-open LibBackend.Db
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open System.IO
@@ -20,11 +9,23 @@ open System.Threading
 open System.Net
 open System.Net.Sockets
 open System.Text.RegularExpressions
+open FSharpPlus
+open Npgsql.FSharp.Tasks
+open Npgsql
+
+open Prelude
+open LibExecution
+open LibBackend
+open LibBackend.Db
+open LibBackend.ProgramSerialization
+open BwdServer
+
+module RT = LibExecution.RuntimeTypes
 
 // delete test data for one canvas
 let clearTestData (canvasName : string) : Task<unit> =
   task {
-    let! owner = Account.userIDForUsername "test"
+    let! owner = Account.userIDForUserName (UserName.create "test")
 
     let! canvasID =
       Sql.query
@@ -173,9 +174,12 @@ let t name =
                      ids = ids
                    ) })
 
-    let! ownerID = LibBackend.Account.userIDForUsername "test"
+    let! ownerID = LibBackend.Account.userIDForUserName (UserName.create "test")
 
-    let! canvasID = LibBackend.Canvas.canvasIDForCanvas ownerID $"test-{name}"
+    let! canvasID =
+      LibBackend.Canvas.canvasIDForCanvasName
+        ownerID
+        (CanvasName.create $"test-{name}")
 
     do!
       LibBackend.ProgramSerialization.SQL.saveHttpHandlersToCache
@@ -268,7 +272,11 @@ let unitTests =
         ("", "/") ]
     testMany
       "ownerNameFromHost"
-      LibBackend.Canvas.ownerNameFromHost
+      (fun cn ->
+        cn
+        |> CanvasName.create
+        |> LibBackend.Account.ownerNameFromCanvasName
+        |> fun (on : OwnerName.T) -> on.ToString())
       [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
     testMany
       "routeVariables"
@@ -292,7 +300,10 @@ let unitTests =
         ("/letters:var", "lettersextra", None) ]
     testManyTask
       "canvasNameFromHost"
-      BwdServer.canvasNameFromHost
+      (fun h ->
+        h
+        |> BwdServer.canvasNameFromHost
+        |> Task.map (Option.map (fun cn -> cn.ToString())))
       [ ("test-something.builtwithdark.com", Some "test-something")
         ("my-canvas.builtwithdark.localhost", Some "my-canvas")
         ("builtwithdark.localhost", Some "builtwithdark")
