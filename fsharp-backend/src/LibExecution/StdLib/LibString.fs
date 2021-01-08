@@ -406,17 +406,17 @@ let fns : List<BuiltInFn> =
             // Should work the same as https://blog.tersmitten.nl/slugify/
 
             // explicitly limit to (roman) alphanumeric for pretty urls
-            let to_remove = @"[^a-z0-9\s_-]+"
-            let to_be_hyphenated = @"[-_\s]+"
+            let toRemove = @"[^a-z0-9\s_-]+"
+            let toBeHyphenated = @"[-_\s]+"
 
             let objRegex (pattern : string) (input : string) (replacement : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
             |> String.toLower
-            |> fun s -> objRegex to_remove s ""
+            |> fun s -> objRegex toRemove s ""
             |> fun s -> s.Trim()
-            |> fun s -> objRegex to_be_hyphenated s "-"
+            |> fun s -> objRegex toBeHyphenated s "-"
 
             |> String.toLower
             |> DStr
@@ -641,7 +641,7 @@ let fns : List<BuiltInFn> =
                 )
               )
             else
-              let random_string length =
+              let randomString length =
                 let gen () =
                   match random.Next(26 + 26 + 10) with
                   | n when n < 26 -> ('a' |> int) + n
@@ -654,7 +654,7 @@ let fns : List<BuiltInFn> =
                 |> List.map (fun i -> i.ToString())
                 |> String.concat ""
 
-              random_string (int l) |> DStr |> Value
+              randomString (int l) |> DStr |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -706,7 +706,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let html_escape (html : string) : string =
+            let htmlEscape (html : string) : string =
               List.map
                 (fun c ->
                   match c with
@@ -723,7 +723,7 @@ let fns : List<BuiltInFn> =
                 (Seq.toList html)
               |> String.concat ""
 
-            Value(DStr(html_escape s))
+            Value(DStr(htmlEscape s))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -819,16 +819,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt f; DInt l ] ->
-            let egc_seq = String.toEgcSeq s
-            let s_egc_count = bigint (length egc_seq)
+            let egcSeq= String.toEgcSeq s
+            let stringEgcCount = bigint (length egcSeq)
 
             let slice s (first : bigint) (last : bigint) =
-              let clamp_unchecked t min max =
+              let clampUnchecked t min max =
                 if t < min then min
                 else if t <= max then t
                 else max
 
-              let len = s_egc_count in
+              let len = stringEgcCount in
               let min = 0I in
               let max = len + 1I in
               (* If we get negative indices, we need to treat them as indices from the end
@@ -839,33 +839,33 @@ let fns : List<BuiltInFn> =
                 if first >= 0I then
                   first
                 else
-                  len + first |> clamp_unchecked min max
+                  len + first |> clampUnchecked min max
 
               let last =
                 if last >= 0I then
                   last
                 else
-                  len + last |> clamp_unchecked min max
+                  len + last |> clampUnchecked min max
 
-              let b = new StringBuilder(String.length s) in
+              let stringBuilder = new StringBuilder(String.length s) in
               (* To slice, we iterate through every EGC, adding it to the buffer
                * if it is within the specified index range: *)
-              let slicer_func (acc : bigint) (seg : string) =
+              let slicerFunc (acc : bigint) (seg : string) =
                 if acc >= first && acc < last then
-                  b.Append seg |> ignore
+                  stringBuilder.Append seg |> ignore
                 else
                   () |> ignore
 
                 1I + acc
 
               ignore (
-                egc_seq
+                egcSeq
                 |> Seq.toList
-                |> List.mapi (fun index value -> (slicer_func (bigint index) value))
+                |> List.mapi (fun index value -> (slicerFunc (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              b.ToString()
+              stringBuilder.ToString()
 
             let first, last = (f, l) in
             Value(DStr(slice s first last))
@@ -883,25 +883,25 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let first_n s (num_egcs : bigint) =
-              let b = new StringBuilder(String.length s) in
+            let firstN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
               (* We iterate through every EGC, adding it to the buffer
-               * if its index < num_egcs: *)
+               * if its index < numEgcs: *)
 
-              let first_func (idx : bigint) (seg : string) =
-                if idx < num_egcs then b.Append seg |> ignore else () |> ignore
+              let firstFunc (idx : bigint) (seg : string) =
+                if idx < numEgcs then stringBuilder.Append seg |> ignore else () |> ignore
                 1I + idx
 
               ignore (
                 String.toEgcSeq s
                 |> Seq.toList
-                |> List.mapi (fun index value -> (first_func (bigint index) value))
+                |> List.mapi (fun index value -> (firstFunc (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              b.ToString()
+              stringBuilder.ToString()
 
-            Value(DStr(first_n s n))
+            Value(DStr(firstN s n))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -916,33 +916,33 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let egc_seq = String.toEgcSeq s
-            let s_egc_count = length egc_seq
+            let egcSeq = String.toEgcSeq s
+            let stringEgcCount = length egcSeq
 
-            let last_n s (num_egcs : bigint) =
-              let b = new StringBuilder(String.length s) in
+            let lastN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
               (* We iterate through every EGC, adding it to the buffer
-                * if its [idx] >= ([s_egc_count] - [num_egcs]).
-                * Consider if the string is "abcde" and [num_egcs] = 2,
-                * [s_egc_count] = 5; 5-2 = 3. The index of "d" is 3 and
+                * if its [idx] >= ([stringEgcCount] - [numEgcs]).
+                * Consider if the string is "abcde" and [numEgcs] = 2,
+                * [stringEgcCount] = 5; 5-2 = 3. The index of "d" is 3 and
                 * we want to keep it and everything after it so we end up with "de". *)
 
-              let start_idx = bigint s_egc_count - num_egcs in
+              let startIdx = bigint stringEgcCount - numEgcs in
 
-              let last_func (idx : bigint) (seg : string) =
-                if idx >= start_idx then b.Append seg |> ignore else () |> ignore
+              let lastFunc (idx : bigint) (seg : string) =
+                if idx >= startIdx then stringBuilder.Append seg |> ignore else () |> ignore
                 1I + idx
 
               ignore (
-                egc_seq
+                egcSeq
                 |> Seq.toList
-                |> List.mapi (fun index value -> (last_func (bigint index) value))
+                |> List.mapi (fun index value -> (lastFunc (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              b.ToString()
+              stringBuilder.ToString()
 
-            Value(DStr(last_n s n))
+            Value(DStr(lastN s n))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -957,31 +957,31 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let egc_seq = String.toEgcSeq s
-            let s_egc_count = length egc_seq
+            let egcSeq = String.toEgcSeq s
+            let stringEgcCount = length egcSeq
 
-            let drop_last_n s (num_egcs : bigint) =
-              let b = new StringBuilder(String.length s) in
+            let dropLastN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
               (* We iterate through every EGC, adding it to the buffer
-               * if its [idx] < ([s_egc_count] - [num_egcs]).
-               * This works by the inverse of the logic for [last_n]. *)
+               * if its [idx] < ([stringEgcCount] - [numEgcs]).
+               * This works by the inverse of the logic for [lastN]. *)
 
-              let start_idx = bigint s_egc_count - num_egcs in
+              let startIdx = bigint stringEgcCount - numEgcs in
 
-              let last_func (idx : bigint) (seg : string) =
-                if idx < start_idx then b.Append seg |> ignore else () |> ignore
+              let lastFunc (idx : bigint) (seg : string) =
+                if idx < startIdx then stringBuilder.Append seg |> ignore else () |> ignore
                 1I + idx
 
               ignore (
-                egc_seq
+                egcSeq
                 |> Seq.toList
-                |> List.mapi (fun index value -> (last_func (bigint index) value))
+                |> List.mapi (fun index value -> (lastFunc (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              b.ToString()
+              stringBuilder.ToString()
 
-            Value(DStr(drop_last_n s n))
+            Value(DStr(dropLastN s n))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -996,24 +996,24 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let drop_first_n s (num_egcs : bigint) =
-              let b = new StringBuilder(String.length s) in
+            let dropFirstN s (numEgcs : bigint) =
+              let stringBuilder = new StringBuilder(String.length s) in
               (* We iterate through every EGC, adding it to the buffer
-               * if its index >= num_egcs. This works by the inverse of the logic for [first_n]: *)
-              let first_func (idx : bigint) (seg : string) =
-                if idx >= num_egcs then b.Append seg |> ignore else () |> ignore
+               * if its index >= numEgcs. This works by the inverse of the logic for [first_n]: *)
+              let firstFunc (idx : bigint) (seg : string) =
+                if idx >= numEgcs then stringBuilder.Append seg |> ignore else () |> ignore
                 1I + idx
 
               ignore (
                 String.toEgcSeq s
                 |> Seq.toList
-                |> List.mapi (fun index value -> (first_func (bigint index) value))
+                |> List.mapi (fun index value -> (firstFunc (bigint index) value))
               )
               (* We don't need to renormalize because all normalization forms are closed
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              b.ToString()
+              stringBuilder.ToString()
 
-            Value(DStr(drop_first_n s n))
+            Value(DStr(dropFirstN s n))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1028,47 +1028,47 @@ let fns : List<BuiltInFn> =
       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
       fn =
         (function
-        | state, [ DStr s; DStr pad_with; DInt l ] ->
+        | state, [ DStr s; DStr padWith; DInt l ] ->
 
-            let egc_seq = String.toEgcSeq s
+            let egcSeq = String.toEgcSeq s
 
-            let pad_start s pad_with target_egcs =
+            let padStart s padWith targetEgcs =
               let max a b = if a > b then a else b in
-              (* Compute the size in bytes and # of required EGCs for s and pad_with: *)
-              let pad_size = String.length pad_with in
+              (* Compute the size in bytes and # of required EGCs for s and padWith: *)
+              let padSize = String.length padWith in
 
-              let pad_egcs = length pad_with in
-              let s_size = String.length s in
-              let s_egcs = length egc_seq in
-              (* Compute how many copies of pad_with we require,
-               * accounting for the string longer than [target_egcs]: *)
-              let req_egcs = target_egcs - s_egcs in
+              let padEgcs = length padWith in
+              let stringSize = String.length s in
+              let stringEgcs = length egcSeq in
+              (* Compute how many copies of padWith we require,
+               * accounting for the string longer than [targetEgcs]: *)
+              let requiredEgcs = targetEgcs - stringEgcs in
 
-              let req_pads = max 0 (if pad_egcs = 0 then 0 else req_egcs / pad_egcs) in
+              let reqPads = max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
               (* Create a buffer large enough to hold the padded result: *)
-              let req_size = s_size + (req_pads * pad_size) in
+              let requiredSize = stringSize + (reqPads * padSize) in
 
-              let b = new StringBuilder(req_size) in
+              let stringBuilder = new StringBuilder(requiredSize) in
               (* Fill with the required number of pads: *)
-              for i = 1 to req_pads do
-                b.Append pad_with |> ignore
+              for i = 1 to reqPads do
+                stringBuilder.Append padWith |> ignore
               (* Finish by filling with the string: *)
-              b.Append s |> ignore
+              stringBuilder.Append s |> ignore
               (* Renormalize because concatenation may break normalization
                * (see https://unicode.org/reports/tr15/#Concatenation): *)
 
-              b.ToString().Normalize()
+              stringBuilder.ToString().Normalize()
 
-            let padLen = length pad_with in
+            let padLen = length padWith in
 
             if padLen = 1 then
               let l = int l in
-              Value(DStr(pad_start s pad_with l))
+              Value(DStr(padStart s padWith l))
             else
               Value(
                 errStr (
                   $"Expected the argument `padWith` passed to ` String:padStart ` to be one character long. However, `({
-                                                                                                                          pad_with
+                                                                                                                          padWith
                   }).` is characters long."
                 )
               )
@@ -1086,47 +1086,47 @@ let fns : List<BuiltInFn> =
       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
       fn =
         (function
-        | state, [ DStr s; DStr pad_with; DInt l ] ->
+        | state, [ DStr s; DStr padWith; DInt l ] ->
 
-            let egc_seq = String.toEgcSeq s
+            let egcSeq = String.toEgcSeq s
 
-            let pad_end s pad_with target_egcs =
+            let padEnd s padWith targetEgcs =
               let max a b = if a > b then a else b in
-              (* Compute the size in bytes and # of required EGCs for s and pad_with: *)
-              let pad_size = String.length pad_with in
+              (* Compute the size in bytes and # of required EGCs for s and padWith: *)
+              let padSize = String.length padWith in
 
-              let pad_egcs = length pad_with in
-              let s_size = String.length s in
-              let s_egcs = length egc_seq in
-              (* Compute how many copies of pad_with we require,
-               * accounting for the string longer than [target_egcs]: *)
-              let req_egcs = target_egcs - s_egcs in
+              let padEgcs = length padWith in
+              let stringSize = String.length s in
+              let stringEgcs = length egcSeq in
+              (* Compute how many copies of padWith we require,
+               * accounting for the string longer than [targetEgcs]: *)
+              let requiredEgcs = targetEgcs - stringEgcs in
 
-              let req_pads = max 0 (if pad_egcs = 0 then 0 else req_egcs / pad_egcs) in
+              let requiredPads = max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
               (* Create a buffer large enough to hold the padded result: *)
-              let req_size = s_size + (req_pads * pad_size) in
+              let requiredSize = stringSize + (requiredPads * padSize) in
 
-              let b = new StringBuilder(req_size) in
+              let stringBuilder = new StringBuilder(requiredSize) in
               (* Start the buffer with the string: *)
-              b.Append s |> ignore
+              stringBuilder.Append s |> ignore
               (* Finish by filling with the required number of pads: *)
-              for i = 1 to req_pads do
-                b.Append pad_with |> ignore
+              for i = 1 to requiredPads do
+                stringBuilder.Append padWith |> ignore
               (* Renormalize because concatenation may break normalization
                * (see https://unicode.org/reports/tr15/#Concatenation): *)
 
-              b.ToString().Normalize()
+              stringBuilder.ToString().Normalize()
 
-            let padLen = length pad_with in
+            let padLen = length padWith in
 
             if padLen = 1 then
               let l = int l in
-              Value(DStr(pad_end s pad_with l))
+              Value(DStr(padEnd s padWith l))
             else
               Value(
                 errStr (
                   $"Expected the argument `padWith` passed to ` String:padEnd ` to be one character long. However, `({
-                                                                                                                        pad_with
+                                                                                                                        padWith
                   }).` is characters long."
                 )
               )
