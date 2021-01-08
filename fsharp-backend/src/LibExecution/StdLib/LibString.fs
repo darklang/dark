@@ -634,7 +634,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt l ] ->
-            if l < bigint 0 then
+            if l < 0I then
               raise (
                 RuntimeException(
                   JustAString(SourceNone, "l should be a positive integer")
@@ -829,21 +829,20 @@ let fns : List<BuiltInFn> =
                 else max
 
               let len = s_egc_count in
-              let min = bigint 0 in
-              let max = len + (bigint 1) in
+              let min = 0I in
+              let max = len + 1I in
               (* If we get negative indices, we need to treat them as indices from the end
                * which means that we need to add [len] to them. We clamp the result to
                * a value within range of the actual string: *)
-              let bigint_cero = bigint 0
 
               let first =
-                if first >= bigint_cero then
+                if first >= 0I then
                   first
                 else
                   len + first |> clamp_unchecked min max
 
               let last =
-                if last >= bigint_cero then
+                if last >= 0I then
                   last
                 else
                   len + last |> clamp_unchecked min max
@@ -857,7 +856,7 @@ let fns : List<BuiltInFn> =
                 else
                   () |> ignore
 
-                bigint 1 + acc
+                1I + acc
 
               ignore (
                 egc_seq
@@ -891,7 +890,7 @@ let fns : List<BuiltInFn> =
 
               let first_func (idx : bigint) (seg : string) =
                 if idx < num_egcs then b.Append seg |> ignore else () |> ignore
-                bigint 1 + idx
+                1I + idx
 
               ignore (
                 String.toEgcSeq s
@@ -932,7 +931,7 @@ let fns : List<BuiltInFn> =
 
               let last_func (idx : bigint) (seg : string) =
                 if idx >= start_idx then b.Append seg |> ignore else () |> ignore
-                bigint 1 + idx
+                1I + idx
 
               ignore (
                 egc_seq
@@ -971,7 +970,7 @@ let fns : List<BuiltInFn> =
 
               let last_func (idx : bigint) (seg : string) =
                 if idx < start_idx then b.Append seg |> ignore else () |> ignore
-                bigint 1 + idx
+                1I + idx
 
               ignore (
                 egc_seq
@@ -1003,7 +1002,7 @@ let fns : List<BuiltInFn> =
                * if its index >= num_egcs. This works by the inverse of the logic for [first_n]: *)
               let first_func (idx : bigint) (seg : string) =
                 if idx >= num_egcs then b.Append seg |> ignore else () |> ignore
-                bigint 1 + idx
+                1I + idx
 
               ignore (
                 String.toEgcSeq s
