@@ -5,6 +5,29 @@ module Config = LibBackend.Config
 
 let adminUiTemplate = LibBackend.File.readfile Config.Templates "ui.html"
 
+
+let prodHashReplacements : string =
+  "etags.json"
+  |> LibBackend.File.readfile Config.Webroot
+  |> Prelude.Json.AutoSerialize.deserialize<Map<string, string>>
+  |> Map.remove "__date"
+  |> Map.remove ".gitkeep"
+  // Only hash our assets, not vendored assets
+  |> Map.filter (fun k v -> not (k.Contains "vendor/"))
+  |> Map.toList
+  |> List.map
+       (fun (filename, hash) ->
+         let hashed =
+           match filename.Split '.' with
+           | [| name; extension |] -> $"/{name}-{hash}{extension}"
+           | _ -> failwith "incorrect hash name"
+
+         ($"/{filename}", hashed))
+  |> Map.ofList
+  |> Prelude.Json.AutoSerialize.serialize
+
+
+
 // FSTODO: clickjacking/ CSP/ frame-ancestors
 let uiHtml
   (canvasID : CanvasID)
@@ -15,6 +38,12 @@ let uiHtml
   (user : LibBackend.Account.UserInfo)
   : string =
 
+  let hashReplacements =
+    let shouldHash =
+      if localhostAssets = None then Config.hashStaticFilenames else false
+
+    if shouldHash then prodHashReplacements else "{}"
+
   let accountCreatedMsTs =
     System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds().ToString()
 
@@ -24,45 +53,12 @@ let uiHtml
     | Some username -> $"darklang-{username}.ngrok.io"
     | _ -> Config.staticHost
 
-  // let hashStaticFilenames =
-  //   if local = None then Config.hashStaticFilenames else false
 
   let liveReloadJs =
     if Config.browserReloadEnabled then
       "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
     else
       ""
-
-  let hashedStaticFilenames source =
-    // FSTODO
-    ""
-  // if not hash_static_filenames
-  // then "{{HASH_REPLACEMENTS}}" "{}" x
-  // else
-  //   let etags_str = File.readfile ~root:Webroot "etags.json" in
-  //   let etags_json = Yojson.Safe.from_string etags_str in
-  //   let etag_assoc_list =
-  //     to_assoc_list etags_json
-  //     |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
-  //     |> List.filter (* Only hash our assets, not vendored assets *)
-  //          ~f:(fun (file, _) ->
-  //            not (String.is_substring ~substring:"vendor/" file))
-  //   in
-  //   x
-  //   |> fun instr ->
-  //   etag_assoc_list
-  //   |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
-  //          (Util.string_replace file (hashed_filename file hash)) acc)
-  //   |> fun instr ->
-  //   Util.string_replace
-  //     "{{HASH_REPLACEMENTS}}"
-  //     ( etag_assoc_list
-  //     |> List.map ~f:(fun (k, v) ->
-  //            ("/" ^ k, `String ("/" ^ hashed_filename k v)))
-  //     |> (fun x -> `Assoc x)
-  //     |> Yojson.Safe.to_string )
-  //     instr)
-  //
 
   (* TODO: allow APPSUPPORT in here *)
   let t = System.Text.StringBuilder(adminUiTemplate)
@@ -86,8 +82,7 @@ let uiHtml
     .Replace("{{CANVAS_NAME}}", canvasName.ToString())
     .Replace("{{APPSUPPORT}}",
              (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"))
-    // .Replace("{{HASH_REPLACEMENTS}}", hash_replacements)
-    .Replace("{{HASH_REPLACEMENTS}}", "[]")
+    .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
     .Replace("{{BUILD_HASH}}", Config.buildHash)
     // There isn't separate routing for static in ASP.NET
