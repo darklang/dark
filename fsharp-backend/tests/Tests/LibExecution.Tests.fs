@@ -6,6 +6,7 @@ open Expecto
 open Prelude
 
 module R = LibExecution.RuntimeTypes
+module P = LibBackend.ProgramSerialization.ProgramTypes
 
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : R.Dval) : R.Dval =
@@ -166,4 +167,31 @@ let fileTests () : Test =
   |> Array.toList
   |> testList "All files"
 
-let tests = testList "LibExecution" [ fileTests () ]
+let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
+  testList
+    name
+    (List.mapi
+      (fun i (input, expected) ->
+        test $"{name}[{i}]: ({input}) -> {expected}" {
+          Expect.equal (fn input) expected "" })
+      values)
+
+let fqFnName =
+  testMany
+    "FQFnName.ToString"
+    (fun (name : FQFnName.T) -> name.ToString())
+    [ (FQFnName.stdlibName "" "++" 0), "++_v0"
+      (FQFnName.stdlibName "" "toString" 0), "toString_v0"
+      (FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+
+let backendFqFnName =
+  testMany
+    "ProgramTypes.FQFnName.ToString"
+    (fun (name : P.FQFnName.T) -> name.ToString())
+    [
+      // (P.FQFnName.stdlibName "" "++" 0), "++_v0"
+      (P.FQFnName.stdlibName "" "toString" 0), "toString_v0"
+      (P.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+
+
+let tests = testList "LibExecution" [ fqFnName; backendFqFnName; fileTests () ]

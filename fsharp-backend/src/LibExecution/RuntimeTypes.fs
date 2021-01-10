@@ -29,8 +29,6 @@ module LibExecution.RuntimeTypes
 // back.
 
 
-open System.Text.RegularExpressions
-
 open Prelude
 
 module J = Prelude.Json
@@ -48,9 +46,9 @@ module FQFnName =
 
     override this.ToString() : string =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
-      let fn = $"{this.module_}{this.function_}_v{this.version}"
+      let fn = $"{module_}{this.function_}_v{this.version}"
 
-      if this.owner = "dark" && module_ = "stdlib" then
+      if this.owner = "dark" && this.package = "stdlib" then
         fn
       else
         $"{this.owner}/{this.package}::{fn}"
