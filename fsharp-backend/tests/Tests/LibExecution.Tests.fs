@@ -181,6 +181,8 @@ let fqFnName =
     "FQFnName.ToString"
     (fun (name : FQFnName.T) -> name.ToString())
     [ (FQFnName.stdlibName "" "++" 0), "++_v0"
+      (FQFnName.stdlibName "" "!=" 0), "!=_v0"
+      (FQFnName.stdlibName "" "&&" 0), "&&_v0"
       (FQFnName.stdlibName "" "toString" 0), "toString_v0"
       (FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
@@ -188,8 +190,9 @@ let backendFqFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun (name : P.FQFnName.T) -> name.ToString())
-    [
-      // (P.FQFnName.stdlibName "" "++" 0), "++_v0"
+    [ (P.FQFnName.stdlibName "" "++" 0), "++_v0"
+      (P.FQFnName.stdlibName "" "!=" 0), "!=_v0"
+      (P.FQFnName.stdlibName "" "&&" 0), "&&_v0"
       (P.FQFnName.stdlibName "" "toString" 0), "toString_v0"
       (P.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 

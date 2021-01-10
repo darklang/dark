@@ -50,15 +50,16 @@ module FQFnName =
         function_ = this.function_
         version = this.version }
 
-  let name (owner : string)
-           (package : string)
-           (module_ : string)
-           (function_ : string)
-           (version : int)
-           : T =
+  let name
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : T =
     let namePat = @"^[a-z][a-z0-9_]*$"
     let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
-    let fnnamePat = @"^[a-z][a-z0-9A-Z_]*$"
+    let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
