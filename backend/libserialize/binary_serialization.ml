@@ -2,6 +2,18 @@ open Core_kernel
 open Libexecution
 module SF = Serialization_format
 
+let expr_of_binary_string (str : string) : Types.fluid_expr =
+  Core_extended.Bin_io_utils.of_line str SF.RuntimeT.bin_expr
+  |> Serialization_converters.toFluidExpr
+
+
+let expr_to_binary_string (h : Types.fluid_expr) : string =
+  h
+  |> Serialization_converters.fromFluidExpr
+  |> Core_extended.Bin_io_utils.to_line SF.RuntimeT.bin_expr
+  |> Bigstring.to_string
+
+
 let handler_of_binary_string (str : string) : Types.RuntimeT.HandlerT.handler =
   Core_extended.Bin_io_utils.of_line
     str
@@ -140,6 +152,10 @@ let pos_bin2json (str : string) : string =
   bin2json pos_of_binary_string Types.pos_to_yojson str
 
 
+let expr_bin2json (str : string) : string =
+  bin2json expr_of_binary_string Types.fluid_expr_to_yojson str
+
+
 (* ----------------------- *)
 (* Convert JSON to binary for F# *)
 (* ----------------------- *)
@@ -181,6 +197,10 @@ let oplist_json2bin (str : string) : string =
 
 let pos_json2bin (str : string) : string =
   json2bin Types.pos_of_yojson pos_to_binary_string str
+
+
+let expr_json2bin (str : string) : string =
+  json2bin Types.fluid_expr_of_yojson expr_to_binary_string str
 
 
 (* We serialize oplists for each toplevel in the DB. This affects making

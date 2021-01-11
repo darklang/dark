@@ -23,6 +23,7 @@
     <Compile Include="ProgramSerialization/ProgramTypes.fs" />
     <Compile Include="ProgramSerialization/OCamlInterop.fs" />
     <Compile Include="ProgramSerialization/SQL.fs" />
+    <Compile Include="PackageManager.fs" />
     <Compile Include="StdLib/StdLib.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

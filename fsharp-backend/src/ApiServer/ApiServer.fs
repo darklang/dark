@@ -22,6 +22,16 @@ module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 
+let apiPackages (canvasName : string) : HttpHandler =
+  fun (_ : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let! fns = LibBackend.PackageManager.allFunctions ()
+      let fns = List.map LibBackend.PackageManager.toFrontendPackage fns
+      printfn "Packages: %s" (fns.ToString())
+      ctx.SetContentType "application/json"
+      return! ctx.WriteTextAsync(Json.AutoSerialize.serialize fns)
+    }
+
 let apiHandler : HttpHandler =
   fun (_ : HttpFunc) (ctx : HttpContext) -> "api test" |> ctx.WriteTextAsync
 
@@ -107,14 +117,19 @@ let uiHandler (canvasName : string) : HttpHandler =
                   )
     }
 
-let apiEndpoints = [ GET [ routef "/%s" (fun guid -> apiHandler) ] ]
-let uiEndpoints = GET [ routef "/a/%s" uiHandler ]
-let endpoints = [ uiEndpoints; subRoute "/api" apiEndpoints ]
+let apiEndpoints : Endpoint list =
+  [
+    // FSTODO: why is this a POST?
+    POST [ routef "/api/%s/packages" apiPackages ] ]
+
+let uiEndpoints : Endpoint list = [ GET [ routef "/a/%s" uiHandler ] ]
+let endpoints : Endpoint list = uiEndpoints ++ apiEndpoints
 
 let notFoundHandler = "Not Found" |> text |> RequestErrors.notFound
 
 let errorHandler (ex : Exception) (logger : ILogger) =
-  printfn "%s" ex.Message
+  printfn "Exception: %s" ex.Message
+  printfn "%s" (ex.ToString())
   // FSTODO: configure logger and don't print the message to output
 // logger.LogError
 //   (EventId(),

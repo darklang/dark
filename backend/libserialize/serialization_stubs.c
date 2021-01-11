@@ -121,6 +121,9 @@ extern char* oplist_bin2json(void* bytes, int length) {
 extern char* pos_bin2json(void* bytes, int length) {
   return call_bin2json("pos_bin2json", bytes, length);
 }
+extern char* expr_bin2json(void* bytes, int length) {
+  return call_bin2json("expr_bin2json", bytes, length);
+}
 
 /* --------------------
  * Convert from json to binary strings
@@ -160,6 +163,9 @@ extern int oplist_json2bin(char* json, void** out_bytes) {
 }
 extern int pos_json2bin(char* json, void** out_bytes) {
   return call_json2bin("pos_json2bin", json, out_bytes);
+}
+extern int expr_json2bin(char* json, void** out_bytes) {
+  return call_json2bin("expr_json2bin", json, out_bytes);
 }
 
 

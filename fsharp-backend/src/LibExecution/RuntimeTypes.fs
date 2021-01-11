@@ -30,6 +30,7 @@ module LibExecution.RuntimeTypes
 
 
 open Prelude
+open Prelude.Tablecloth
 
 module J = Prelude.Json
 
@@ -53,12 +54,13 @@ module FQFnName =
       else
         $"{this.owner}/{this.package}::{fn}"
 
-  let name (owner : string)
-           (package : string)
-           (module_ : string)
-           (function_ : string)
-           (version : int)
-           : T =
+  let name
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : T =
     { owner = owner
       package = package
       module_ = module_
@@ -204,7 +206,6 @@ and Dval =
     try
       DFloat(parseFloat whole fraction)
     with _ -> DFakeVal(DError((InvalidFloatExpression(sign, whole, fraction))))
-
 
 
 
@@ -505,8 +506,8 @@ module Shortcuts =
     | ENull _ -> $"eNull ()"
     | EVariable (_, var) -> $"eVar {q var}"
     | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
-    | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when name.owner = "dark"
-                                                                   && name.package = "stdlib" ->
+    | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when
+      name.owner = "dark" && name.package = "stdlib" ->
         let fn, suffix =
           match ster with
           | NoRail -> "eFn", ""
@@ -593,44 +594,49 @@ module Shortcuts =
   //
   //
 
-  let eFnVal (owner : string)
-             (package : string)
-             (module_ : string)
-             (function_ : string)
-             (version : int)
-             : Expr =
+  let eFnVal
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : Expr =
     EFQFnValue(gid (), FQFnName.name owner package module_ function_ version)
 
   let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
     eFnVal "dark" "stdlib" module_ function_ version
 
-  let eFn' (module_ : string)
-           (function_ : string)
-           (version : int)
-           (args : List<Expr>)
-           (ster : SendToRail)
-           : Expr =
+  let eFn'
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (args : List<Expr>)
+    (ster : SendToRail)
+    : Expr =
     EApply(gid (), (eStdFnVal module_ function_ version), args, NotInPipe, ster)
 
-  let eFn (module_ : string)
-          (function_ : string)
-          (version : int)
-          (args : List<Expr>)
-          : Expr =
+  let eFn
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (args : List<Expr>)
+    : Expr =
     eFn' module_ function_ version args NoRail
 
-  let eFnRail (module_ : string)
-              (function_ : string)
-              (version : int)
-              (args : List<Expr>)
-              : Expr =
+  let eFnRail
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (args : List<Expr>)
+    : Expr =
     eFn' module_ function_ version args Rail
 
-  let eApply' (fnVal : Expr)
-              (args : List<Expr>)
-              (isInPipe : IsInPipe)
-              (ster : SendToRail)
-              : Expr =
+  let eApply'
+    (fnVal : Expr)
+    (args : List<Expr>)
+    (isInPipe : IsInPipe)
+    (ster : SendToRail)
+    : Expr =
     EApply(gid (), fnVal, args, isInPipe, ster)
 
   let eApply (fnVal : Expr) (args : List<Expr>) : Expr =

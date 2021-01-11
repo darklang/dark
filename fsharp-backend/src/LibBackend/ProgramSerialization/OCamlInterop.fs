@@ -44,6 +44,16 @@ module Binary =
                 EntryPoint = "handler_json2bin")>]
     extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
 
+    // take a binary rep of an expr from the DB and convert it into JSON
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "expr_bin2json")>]
+    extern string exprBin2Json(byte[] bytes, int length)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "expr_json2bin")>]
+    extern int exprJson2Bin(string str, System.IntPtr& byteArray)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
@@ -78,6 +88,20 @@ module Binary =
   let handlerBin2Json (bytes : byte []) (length : int) : string =
     registerThread ()
     Internal.handlerBin2Json (bytes, length)
+
+  let exprJson2Bin (json : string) : byte [] =
+    registerThread ()
+    let mutable destPtr = System.IntPtr()
+    let length = Internal.exprJson2Bin (json, &destPtr)
+    let mutable (bytes : byte array) = Array.zeroCreate length
+    Marshal.Copy(destPtr, bytes, 0, length)
+    bytes
+
+  let exprBin2Json (bytes : byte []) (length : int) : string =
+    registerThread ()
+    Internal.exprBin2Json (bytes, length)
+
+
 
   let digest () = Internal.digest ()
 
@@ -508,8 +532,9 @@ module Yojson =
 // ----------------
 // Binary conversions
 // ----------------
-let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
-                           : PT.Toplevel =
+let toplevelOfCachedBinary
+  ((data, pos) : (byte array * string option))
+  : PT.Toplevel =
   Binary.handlerBin2Json data data.Length
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
   |> Yojson.ocamlHandler2PT
@@ -524,3 +549,14 @@ let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
       |> Binary.handlerJson2Bin
 
   | _ -> failwith $"toplevel not supported yet {toplevel}"
+
+let exprOfCachedBinary (data : byte array) : PT.Expr =
+  Binary.exprBin2Json data data.Length
+  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.fluidExpr>
+  |> Yojson.ocamlExpr2PT
+
+let exprToCachedBinary (expr : PT.Expr) : byte array =
+  expr
+  |> Yojson.pt2ocamlExpr
+  |> Json.AutoSerialize.serialize
+  |> Binary.exprJson2Bin

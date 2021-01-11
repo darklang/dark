@@ -13,7 +13,7 @@ module PT = LibBackend.ProgramSerialization.ProgramTypes
 
 let (.=.) actual expected : bool =
   (if actual = expected then
-    true
+     true
    else
      printfn $"Expected:\n{expected}\n but got:\n{actual}"
      false)
@@ -140,6 +140,14 @@ let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> LibBackend.ProgramSerialization.OCamlInterop.toplevelOfCachedBinary
   .=. h
 
+let ocamlInteropBinaryExprRoundtrip (e : PT.Expr) : bool =
+  e
+  |> LibBackend.ProgramSerialization.OCamlInterop.exprToCachedBinary
+  |> LibBackend.ProgramSerialization.OCamlInterop.exprOfCachedBinary
+  .=. e
+
+
+
 
 let roundtrips =
   testList
@@ -147,6 +155,9 @@ let roundtrips =
     [ testProperty
         "roundtripping OCamlInteropBinaryHandler"
         ocamlInteropBinaryHandlerRoundtrip
+      testProperty
+        "roundtripping OCamlInteropBinaryExpr"
+        ocamlInteropBinaryExprRoundtrip
       testProperty
         "roundtripping OCamlInteropYojsonHandler"
         ocamlInteropYojsonHandlerRoundtrip

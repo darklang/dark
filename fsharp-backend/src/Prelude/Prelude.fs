@@ -482,6 +482,10 @@ module Tablecloth =
 
     let dropLeft (count : int) (str : string) : string = str.Remove(0, count)
 
+    let dropRight (count : int) (str : string) : string =
+      let len = str.Length
+      str.Remove(count, len - count)
+
   module List =
     let any (f : 'a -> bool) (items : List<'a>) : bool =
       List.fold (fun (accum : bool) (v : 'a) -> accum || f v) false items
