@@ -332,7 +332,7 @@ let allFunctions () : Task<List<Fn>> =
 type FrontendPackageFn =
   { user : string
     package : string
-    module_ : string
+    ``module`` : string
     fnname : string
     version : int
     body : PT.Expr
@@ -346,7 +346,7 @@ type FrontendPackageFn =
 let toFrontendPackage (fn : Fn) : FrontendPackageFn =
   { user = fn.name.owner
     package = fn.name.package
-    module_ = fn.name.module_
+    ``module`` = fn.name.module_
     fnname = fn.name.function_
     version = fn.name.version
     body = fn.body
