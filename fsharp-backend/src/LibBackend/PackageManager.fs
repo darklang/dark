@@ -107,7 +107,7 @@ type Fn =
 //            "Invalid function name, missing part of the name. It should match {user_or_org}/{package}/{module}::{fnname}_v{number}")
 //
 //
-// type expr_with_tlid =
+// type expr_tlid_pair =
 //   { tlid : Serialization_format.tlid
 //   ; expr : Serialization_format.RuntimeT.expr }
 // [@@deriving bin_io, show]
@@ -117,13 +117,13 @@ type Fn =
 // let expr_tlid_pair_to_binary_string ((expr, tlid) : expr_tlid_pair) : string =
 //   let expr = Serialization_converters.fromFluidExpr expr in
 //   {expr; tlid}
-//   |> Core_extended.Bin_io_utils.to_line bin_expr_with_tlid
+//   |> Core_extended.Bin_io_utils.to_line bin_expr_tlid_pair
 //   |> Bigstring.to_string
 //
 //
 // let binary_string_to_expr_tlid_pair (str : string) : expr_tlid_pair =
 //   let {expr; tlid} =
-//     Core_extended.Bin_io_utils.of_line str bin_expr_with_tlid
+//     Core_extended.Bin_io_utils.of_line str bin_expr_tlid_pair
 //   in
 //   (Serialization_converters.toFluidExpr expr, tlid)
 //
@@ -315,9 +315,10 @@ let allFunctions () : Task<List<Fn>> =
                (read.string "module")
                (read.string "fnname")
                (read.int "version")
-           body = PT.EBlank(id 0)
-           // read.bytea "body"
-           // |> ProgramSerialization.OCamlInterop.exprOfCachedBinary
+           body =
+             read.bytea "body"
+             |> ProgramSerialization.OCamlInterop.exprTLIDPairOfCachedBinary
+             |> fun (expr, _) -> expr
            returnType = PT.DType.parse (read.string "return_type")
            parameters =
              read.string "parameters"

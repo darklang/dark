@@ -66,7 +66,6 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
-
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -140,11 +139,11 @@ let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> LibBackend.ProgramSerialization.OCamlInterop.toplevelOfCachedBinary
   .=. h
 
-let ocamlInteropBinaryExprRoundtrip (e : PT.Expr) : bool =
-  e
-  |> LibBackend.ProgramSerialization.OCamlInterop.exprToCachedBinary
-  |> LibBackend.ProgramSerialization.OCamlInterop.exprOfCachedBinary
-  .=. e
+let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
+  pair
+  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairToCachedBinary
+  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairOfCachedBinary
+  .=. pair
 
 
 

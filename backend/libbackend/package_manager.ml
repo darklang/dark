@@ -2,6 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Types
+module BS = Libserialize.Binary_serialization
 
 (* ------------------ *)
 (* APIs *)
@@ -129,27 +130,6 @@ let parse_fnname (name : string) : string * string * string * string * int =
            "Invalid function name, missing part of the name. It should match {user_or_org}/{package}/{module}::{fnname}_v{number}")
 
 
-type expr_with_tlid =
-  { tlid : Serialization_format.tlid
-  ; expr : Serialization_format.RuntimeT.expr }
-[@@deriving bin_io, show]
-
-type expr_tlid_pair = Types.fluid_expr * tlid [@@deriving show]
-
-let expr_tlid_pair_to_binary_string ((expr, tlid) : expr_tlid_pair) : string =
-  let expr = Serialization_converters.fromFluidExpr expr in
-  {expr; tlid}
-  |> Core_extended.Bin_io_utils.to_line bin_expr_with_tlid
-  |> Bigstring.to_string
-
-
-let binary_string_to_expr_tlid_pair (str : string) : expr_tlid_pair =
-  let {expr; tlid} =
-    Core_extended.Bin_io_utils.of_line str bin_expr_with_tlid
-  in
-  (Serialization_converters.toFluidExpr expr, tlid)
-
-
 let function_name (fn : fn) : string =
   fn.module_ ^ "::" ^ fn.fnname ^ "_v" ^ string_of_int fn.version
 
@@ -228,7 +208,7 @@ let add_function (fn : fn) : unit =
           ; Db.String fn.fnname
           ; Db.Int version
           ; Db.String fn.description
-          ; Db.Binary (expr_tlid_pair_to_binary_string (fn.body, fn.tlid))
+          ; Db.Binary (BS.expr_tlid_pair_to_binary_string (fn.body, fn.tlid))
           ; Db.String (Dval.tipe_to_string fn.return_type)
           ; Db.String
               (fn.parameters |> parameters_to_yojson |> Yojson.Safe.to_string)
@@ -376,7 +356,7 @@ let all_functions () : fn list =
     |> List.filter_map ~f:(function
            | [user_id; package; module_; fnname; version; body] ->
              ( try
-                 let expr, tlid = binary_string_to_expr_tlid_pair body in
+                 let expr, tlid = BS.expr_tlid_pair_of_binary_string body in
                  Some (string_of_id tlid, expr)
                with _ ->
                  let fnkey =

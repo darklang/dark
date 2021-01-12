@@ -167,6 +167,8 @@ let configureServices (services : IServiceCollection) =
 
 [<EntryPoint>]
 let main args =
+  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel()
   |> fun wh -> wh.ConfigureServices(configureServices)

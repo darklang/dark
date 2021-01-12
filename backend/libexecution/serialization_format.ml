@@ -252,4 +252,9 @@ type 'expr_type oplist = 'expr_type op list
 type 'expr_type tlid_oplists = (tlid * 'expr_type oplist) list
 [@@deriving eq, yojson, show, bin_io]
 
+type expr_with_tlid =
+  { tlid : tlid
+  ; expr : RuntimeT.expr }
+[@@deriving eq, yojson, show, bin_io]
+
 (* DO NOT CHANGE ANYTHING IN THIS FILE WITHOUT READING docs/oplist-serialization.md *)

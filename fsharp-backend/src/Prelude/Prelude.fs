@@ -493,6 +493,15 @@ module Tablecloth =
     let all (f : 'a -> bool) (items : List<'a>) : bool =
       List.fold (fun (accum : bool) (v : 'a) -> accum && f v) true items
 
+  module Tuple2 =
+    let get1 ((v1, _2) : ('a * 'b)) : 'a = v1
+    let get2 ((_1, v2) : ('a * 'b)) : 'b = v2
+
+  module Tuple3 =
+    let get1 ((v1, _2, _3) : ('a * 'b * 'c)) : 'a = v1
+    let get2 ((_1, v2, _3) : ('a * 'b * 'c)) : 'b = v2
+    let get3 ((_1, _2, v3) : ('a * 'b * 'c)) : 'c = v3
+
 
 // ----------------------
 // Shared Types
