@@ -314,16 +314,39 @@ let filter_s
 // ----------------------
 module Json =
   module AutoSerialize =
+    open System
+    open System.Collections.Generic
     open System.Text.Json
     open System.Text.Json.Serialization
 
+    // Serialize bigints as strings
+    type BigIntConverter() =
+      inherit JsonConverter<bigint>()
+
+      override this.Read
+        (
+          reader : byref<Utf8JsonReader>,
+          _typ : Type,
+          options : JsonSerializerOptions
+        ) =
+        JsonSerializer.Deserialize<string>(&reader, options) |> parseBigint
+
+      override this.Write
+        (
+          writer : Utf8JsonWriter,
+          value : bigint,
+          options : JsonSerializerOptions
+        ) =
+        JsonSerializer.Serialize(writer, value.ToString(), options)
+
+
     let _options =
-      (let options = JsonSerializerOptions()
+      (let fsharpConverter =
+        JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag)
 
-       options.Converters.Add(
-         JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag)
-       )
-
+       let options = JsonSerializerOptions()
+       options.Converters.Add(fsharpConverter)
+       options.Converters.Add(BigIntConverter())
        options)
 
     let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
