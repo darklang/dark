@@ -1,12 +1,12 @@
 module ApiServer.Ui
 
 open Prelude
+
 module Config = LibBackend.Config
 
-let adminUiTemplate = LibBackend.File.readfile Config.Templates "ui.html"
+let adminUiTemplate : string = LibBackend.File.readfile Config.Templates "ui.html"
 
-
-let appSupportFile =
+let appSupportFile : string =
   LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"
 
 
