@@ -22,17 +22,31 @@ module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 
+let json (taskVal : Task<'a>) : HttpHandler =
+  Giraffe.Core.handleContext
+    (fun ctx ->
+      task {
+        let! v = taskVal
+        return! ctx.WriteJsonAsync v
+      })
+
+
 let apiPackages (canvasName : string) : HttpHandler =
-  fun (_ : HttpFunc) (ctx : HttpContext) ->
+  json (
     task {
       let! fns = LibBackend.PackageManager.allFunctions ()
-      let fns = List.map LibBackend.PackageManager.toFrontendPackage fns
-      ctx.SetContentType "application/json"
-      return! ctx.WriteTextAsync(Json.AutoSerialize.serialize fns)
+      return List.map LibBackend.PackageManager.toFrontendPackage fns
     }
+  )
 
-let apiHandler : HttpHandler =
-  fun (_ : HttpFunc) (ctx : HttpContext) -> "api test" |> ctx.WriteTextAsync
+let apiInitialLoad (canvasName : string) : HttpHandler =
+  json (task { return "todo: initialLoad" })
+
+let apiEndpoints : Endpoint list =
+  [
+    // TODO: why is this a POST?
+    POST [ routef "/api/%s/packages" apiPackages ]
+    POST [ routef "/api/%s/initial_load" apiInitialLoad ] ]
 
 type LoginKind =
   | Local
@@ -116,11 +130,6 @@ let uiHandler (canvasName : string) : HttpHandler =
                   )
     }
 
-let apiEndpoints : Endpoint list =
-  [
-    // TODO: why is this a POST?
-    POST [ routef "/api/%s/packages" apiPackages ] ]
-
 let uiEndpoints : Endpoint list = [ GET [ routef "/a/%s" uiHandler ] ]
 let endpoints : Endpoint list = uiEndpoints ++ apiEndpoints
 
@@ -162,7 +171,12 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseGiraffe(notFoundHandler)
 
 let configureServices (services : IServiceCollection) =
-  services.AddRouting().AddGiraffe() |> ignore
+  services
+    .AddRouting()
+    .AddGiraffe()
+    .AddSingleton<Json.ISerializer>(SystemTextJson.Serializer
+                                      (Prelude.Json.AutoSerialize._options))
+  |> ignore
 
 [<EntryPoint>]
 let main args =
