@@ -6,6 +6,10 @@ module Config = LibBackend.Config
 let adminUiTemplate = LibBackend.File.readfile Config.Templates "ui.html"
 
 
+let appSupportFile =
+  LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"
+
+
 let prodHashReplacements : string =
   "etags.json"
   |> LibBackend.File.readfile Config.Webroot
@@ -49,7 +53,7 @@ let uiHtml
 
   let staticHost =
     match localhostAssets with
-    (* TODO: can add other people to this for easier debugging *)
+    // TODO: can add other people to this for easier debugging
     | Some username -> $"darklang-{username}.ngrok.io"
     | _ -> Config.staticHost
 
@@ -80,8 +84,7 @@ let uiHtml
     .Replace("{{USER_ID}}", user.id.ToString())
     .Replace("{{CANVAS_ID}}", (canvasID.ToString()))
     .Replace("{{CANVAS_NAME}}", canvasName.ToString())
-    .Replace("{{APPSUPPORT}}",
-             (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"))
+    .Replace("{{APPSUPPORT}}", appSupportFile)
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
     .Replace("{{BUILD_HASH}}", Config.buildHash)
