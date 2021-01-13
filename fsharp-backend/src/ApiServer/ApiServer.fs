@@ -27,7 +27,6 @@ let apiPackages (canvasName : string) : HttpHandler =
     task {
       let! fns = LibBackend.PackageManager.allFunctions ()
       let fns = List.map LibBackend.PackageManager.toFrontendPackage fns
-      printfn "Packages: %s" (fns.ToString())
       ctx.SetContentType "application/json"
       return! ctx.WriteTextAsync(Json.AutoSerialize.serialize fns)
     }
@@ -119,7 +118,7 @@ let uiHandler (canvasName : string) : HttpHandler =
 
 let apiEndpoints : Endpoint list =
   [
-    // FSTODO: why is this a POST?
+    // TODO: why is this a POST?
     POST [ routef "/api/%s/packages" apiPackages ] ]
 
 let uiEndpoints : Endpoint list = [ GET [ routef "/a/%s" uiHandler ] ]
