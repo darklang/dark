@@ -44,6 +44,16 @@ module Binary =
                 EntryPoint = "handler_json2bin")>]
     extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
 
+    // take a binary rep of an expr from the DB and convert it into JSON
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "expr_tlid_pair_bin2json")>]
+    extern string exprTLIDPairBin2Json(byte[] bytes, int length)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "expr_tlid_pair_json2bin")>]
+    extern int exprTLIDPairJson2Bin(string str, System.IntPtr& byteArray)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
@@ -75,9 +85,24 @@ module Binary =
     Marshal.Copy(destPtr, bytes, 0, length)
     bytes
 
-  let handlerBin2Json (bytes : byte []) (length : int) : string =
+  let handlerBin2Json (bytes : byte []) : string =
     registerThread ()
-    Internal.handlerBin2Json (bytes, length)
+    Internal.handlerBin2Json (bytes, bytes.Length)
+
+  let exprTLIDPairJson2Bin (json : string) : byte [] =
+    registerThread ()
+    let mutable destPtr = System.IntPtr()
+    let length = Internal.exprTLIDPairJson2Bin (json, &destPtr)
+    let mutable (bytes : byte array) = Array.zeroCreate length
+    Marshal.Copy(destPtr, bytes, 0, length)
+    bytes
+
+  let exprTLIDPairBin2Json (bytes : byte []) : string =
+    registerThread ()
+    let result = Internal.exprTLIDPairBin2Json (bytes, bytes.Length)
+    result
+
+
 
   let digest () = Internal.digest ()
 
@@ -382,6 +407,11 @@ module Yojson =
         PT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
 
 
+  let ocamlexprTLIDPair2PT
+    ((expr, tlid) : (RT.fluidExpr * OT.tlid))
+    : PT.Expr * tlid =
+    (ocamlExpr2PT expr, tlid)
+
   let ocamlSpec2PT (o : RT.HandlerT.spec) : PT.Handler.Spec =
     let ids : PT.Handler.ids =
       { moduleID = bo2ID o.``module``
@@ -469,6 +499,11 @@ module Yojson =
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
         RT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
 
+  let pt2ocamlexprTLIDPair
+    ((expr, tlid) : (PT.Expr * tlid))
+    : RT.fluidExpr * OT.tlid =
+    (pt2ocamlExpr expr, tlid)
+
 
   let pt2ocamlSpec (p : PT.Handler.Spec) : RT.HandlerT.spec =
     let types : RT.HandlerT.spec_types =
@@ -508,9 +543,10 @@ module Yojson =
 // ----------------
 // Binary conversions
 // ----------------
-let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
-                           : PT.Toplevel =
-  Binary.handlerBin2Json data data.Length
+let toplevelOfCachedBinary
+  ((data, pos) : (byte array * string option))
+  : PT.Toplevel =
+  Binary.handlerBin2Json data
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
   |> Yojson.ocamlHandler2PT
   |> PT.TLHandler
@@ -524,3 +560,14 @@ let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
       |> Binary.handlerJson2Bin
 
   | _ -> failwith $"toplevel not supported yet {toplevel}"
+
+let exprTLIDPairOfCachedBinary (data : byte array) : PT.Expr * tlid =
+  Binary.exprTLIDPairBin2Json data
+  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
+  |> Yojson.ocamlexprTLIDPair2PT
+
+let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
+  (expr, tlid)
+  |> Yojson.pt2ocamlexprTLIDPair
+  |> Json.AutoSerialize.serialize
+  |> Binary.exprTLIDPairJson2Bin

@@ -20,6 +20,7 @@ open Npgsql
 open System.Text.RegularExpressions
 
 open Prelude
+open Prelude.Tablecloth
 
 // Used for conversion functions
 module RT = LibExecution.RuntimeTypes
@@ -36,7 +37,7 @@ module FQFnName =
 
     override this.ToString() : string =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
-      let fn = $"{this.module_}::{this.function_}_v{this.version}"
+      let fn = $"{module_}{this.function_}_v{this.version}"
 
       if this.owner = "dark" && this.package = "stdlib" then
         fn
@@ -50,15 +51,16 @@ module FQFnName =
         function_ = this.function_
         version = this.version }
 
-  let name (owner : string)
-           (package : string)
-           (module_ : string)
-           (function_ : string)
-           (version : int)
-           : T =
+  let name
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : T =
     let namePat = @"^[a-z][a-z0-9_]*$"
     let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
-    let fnnamePat = @"^[a-z][a-z0-9A-Z_]*$"
+    let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
@@ -201,7 +203,7 @@ type Expr =
 
 
   member this.toRuntimeType() : RT.Expr =
-    let r (v : Expr) = v.toRuntimeType ()
+    let r(v : Expr) = v.toRuntimeType ()
 
     match this with
     | EBlank id -> RT.EBlank id
@@ -306,7 +308,7 @@ and Pattern =
   | PBlank of id
 
   member this.toRuntimeType() : RT.Pattern =
-    let r (v : Pattern) = v.toRuntimeType ()
+    let r(v : Pattern) = v.toRuntimeType ()
 
     match this with
     | PVariable (id, str) -> RT.PVariable(id, str)
@@ -433,12 +435,13 @@ module Shortcuts =
   // | EFeatureFlag (_, name, cond, caseA, caseB) ->
   //     R.EFeatureFlag(id, r cond, r caseA, r caseB)
   //
-  let eFn' (module_ : string)
-           (function_ : string)
-           (version : int)
-           (args : List<Expr>)
-           (ster : SendToRail)
-           : Expr =
+  let eFn'
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (args : List<Expr>)
+    (ster : SendToRail)
+    : Expr =
     EFnCall(
       gid (),
       { owner = "dark"
@@ -451,27 +454,30 @@ module Shortcuts =
     )
 
 
-  let eFn (module_ : string)
-          (function_ : string)
-          (version : int)
-          (args : List<Expr>)
-          : Expr =
+  let eFn
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (args : List<Expr>)
+    : Expr =
     eFn' module_ function_ version args NoRail
 
-  let eRailFn (module_ : string)
-              (function_ : string)
-              (version : int)
-              (args : List<Expr>)
-              : Expr =
+  let eRailFn
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (args : List<Expr>)
+    : Expr =
     eFn' module_ function_ version args Rail
 
-  let eBinOp' (module_ : string)
-              (function_ : string)
-              (version : int)
-              (arg1 : Expr)
-              (arg2 : Expr)
-              (ster : SendToRail)
-              : Expr =
+  let eBinOp'
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (arg1 : Expr)
+    (arg2 : Expr)
+    (ster : SendToRail)
+    : Expr =
     EBinOp(
       gid (),
       { owner = "dark"
@@ -484,21 +490,23 @@ module Shortcuts =
       ster
     )
 
-  let eBinOp (module_ : string)
-             (function_ : string)
-             (version : int)
-             (arg1 : Expr)
-             (arg2 : Expr)
-             : Expr =
+  let eBinOp
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (arg1 : Expr)
+    (arg2 : Expr)
+    : Expr =
     eBinOp' module_ function_ version arg1 arg2 NoRail
 
   // An ebinOp that's on the rail
-  let eRailBinOp (module_ : string)
-                 (function_ : string)
-                 (version : int)
-                 (arg1 : Expr)
-                 (arg2 : Expr)
-                 : Expr =
+  let eRailBinOp
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    (arg1 : Expr)
+    (arg2 : Expr)
+    : Expr =
     eBinOp' module_ function_ version arg1 arg2 Rail
 
   let eStr (str : string) : Expr = EString(gid (), str)
@@ -635,6 +643,7 @@ type DType =
   | TVariable of string
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
+  | TDbList of DType // TODO: cleanup and remove
   // This allows you to build up a record to eventually be the right shape.
   // | TRecordWithFields of List<string * DType>
   // | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
@@ -673,6 +682,57 @@ type DType =
         )
     | TRecord (rows) ->
         RT.TRecord(List.map (fun (f, v : DType) -> f, v.toRuntimeType ()) rows)
+    | TDbList typ -> RT.TList(typ.toRuntimeType ())
+
+  static member parse(str : string) : DType =
+    match String.toLower str with
+    | "any" -> TAny
+    | "int" -> TInt
+    | "integer" -> TInt
+    | "float" -> TFloat
+    | "bool" -> TBool
+    | "boolean" -> TBool
+    | "nothing" -> TNull
+    | "character"
+    | "char" -> TChar
+    | "str" -> TStr
+    | "string" -> TStr
+    | "list" -> TList TAny
+    | "obj" -> TDict TAny
+    | "block" -> TFn([ TAny ], TAny)
+    | "incomplete" -> TIncomplete
+    | "error" -> TError
+    | "response" -> THttpResponse TAny
+    | "datastore" -> TDB
+    | "date" -> TDate
+    | "password" -> TPassword
+    | "uuid" -> TUuid
+    | "option" -> TOption TAny
+    | "errorrail" -> TErrorRail
+    | "result" -> TResult(TAny, TAny)
+    | "dict" -> TDict TAny
+    | _ ->
+        let parseListTyp(listTyp : string) : DType =
+          match String.toLower listTyp with
+          | "str" -> TDbList TStr
+          | "string" -> TDbList TStr
+          | "int" -> TDbList TInt
+          | "integer" -> TDbList TInt
+          | "float" -> TDbList TFloat
+          | "bool" -> TDbList TBool
+          | "boolean" -> TDbList TBool
+          | "password" -> TDbList TPassword
+          | "uuid" -> TDbList TUuid
+          | "dict" -> TDbList(TDict TAny)
+          | "date" -> TDbList TDate
+          | "title" -> TDbList TStr
+          | "url" -> TDbList TStr
+          | _ -> failwith $"Unhandled parseListTyp: {listTyp}"
+
+        if String.startsWith "[" str && String.endsWith "]" str then
+          str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
+        else
+          failwith $"Unhandled DType.parse: {str}"
 
 
 

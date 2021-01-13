@@ -314,16 +314,39 @@ let filter_s
 // ----------------------
 module Json =
   module AutoSerialize =
+    open System
+    open System.Collections.Generic
     open System.Text.Json
     open System.Text.Json.Serialization
 
+    // Serialize bigints as strings
+    type BigIntConverter() =
+      inherit JsonConverter<bigint>()
+
+      override this.Read
+        (
+          reader : byref<Utf8JsonReader>,
+          _typ : Type,
+          options : JsonSerializerOptions
+        ) =
+        JsonSerializer.Deserialize<string>(&reader, options) |> parseBigint
+
+      override this.Write
+        (
+          writer : Utf8JsonWriter,
+          value : bigint,
+          options : JsonSerializerOptions
+        ) =
+        JsonSerializer.Serialize(writer, value.ToString(), options)
+
+
     let _options =
-      (let options = JsonSerializerOptions()
+      (let fsharpConverter =
+        JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag)
 
-       options.Converters.Add(
-         JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag)
-       )
-
+       let options = JsonSerializerOptions()
+       options.Converters.Add(fsharpConverter)
+       options.Converters.Add(BigIntConverter())
        options)
 
     let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
@@ -482,12 +505,25 @@ module Tablecloth =
 
     let dropLeft (count : int) (str : string) : string = str.Remove(0, count)
 
+    let dropRight (count : int) (str : string) : string =
+      let len = str.Length
+      str.Remove(count, len - count)
+
   module List =
     let any (f : 'a -> bool) (items : List<'a>) : bool =
       List.fold (fun (accum : bool) (v : 'a) -> accum || f v) false items
 
     let all (f : 'a -> bool) (items : List<'a>) : bool =
       List.fold (fun (accum : bool) (v : 'a) -> accum && f v) true items
+
+  module Tuple2 =
+    let get1 ((v1, _2) : ('a * 'b)) : 'a = v1
+    let get2 ((_1, v2) : ('a * 'b)) : 'b = v2
+
+  module Tuple3 =
+    let get1 ((v1, _2, _3) : ('a * 'b * 'c)) : 'a = v1
+    let get2 ((_1, v2, _3) : ('a * 'b * 'c)) : 'b = v2
+    let get3 ((_1, _2, v3) : ('a * 'b * 'c)) : 'c = v3
 
 
 // ----------------------

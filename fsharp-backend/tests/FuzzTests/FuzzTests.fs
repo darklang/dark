@@ -13,7 +13,7 @@ module PT = LibBackend.ProgramSerialization.ProgramTypes
 
 let (.=.) actual expected : bool =
   (if actual = expected then
-    true
+     true
    else
      printfn $"Expected:\n{expected}\n but got:\n{actual}"
      false)
@@ -66,7 +66,6 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
-
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -140,6 +139,14 @@ let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> LibBackend.ProgramSerialization.OCamlInterop.toplevelOfCachedBinary
   .=. h
 
+let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
+  pair
+  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairToCachedBinary
+  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairOfCachedBinary
+  .=. pair
+
+
+
 
 let roundtrips =
   testList
@@ -147,6 +154,9 @@ let roundtrips =
     [ testProperty
         "roundtripping OCamlInteropBinaryHandler"
         ocamlInteropBinaryHandlerRoundtrip
+      testProperty
+        "roundtripping OCamlInteropBinaryExpr"
+        ocamlInteropBinaryExprRoundtrip
       testProperty
         "roundtripping OCamlInteropYojsonHandler"
         ocamlInteropYojsonHandlerRoundtrip

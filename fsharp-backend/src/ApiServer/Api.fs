@@ -208,21 +208,24 @@ let typToApiString (typ : RT.DType) : string =
 
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
-  |> List.map (fun (fn : RT.BuiltInFn) ->
-       { name = fn.name.ToString()
-         parameters =
-           List.map (fun (p : RT.Param) ->
-             ({ name = p.name
-                tipe = typToApiString p.typ
-                block_args = []
-                optional = false
-                description = p.doc } : ParamMetadata)) fn.parameters
-         description = fn.description
-         return_type = typToApiString fn.returnType
-         preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
-         infix = LibExecution.StdLib.StdLib.isInfixName fn.name
-         deprecated = fn.deprecated <> RT.NotDeprecated
-         is_supported_in_query = fn.sqlSpec <> RT.NotQueryable })
+  |> List.map
+       (fun (fn : RT.BuiltInFn) ->
+         { name = fn.name.ToString()
+           parameters =
+             List.map
+               (fun (p : RT.Param) ->
+                 ({ name = p.name
+                    tipe = typToApiString p.typ
+                    block_args = []
+                    optional = false
+                    description = p.doc } : ParamMetadata))
+               fn.parameters
+           description = fn.description
+           return_type = typToApiString fn.returnType
+           preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
+           infix = LibExecution.StdLib.StdLib.isInfixName fn.name
+           deprecated = fn.deprecated <> RT.NotDeprecated
+           is_supported_in_query = fn.sqlSpec <> RT.NotQueryable })
   |> Prelude.Json.AutoSerialize.serialize
 
 let adminFunctions : string = allFunctions |> functionsToString
@@ -232,9 +235,5 @@ let userFunctions =
   |> List.filter (fun fn -> fn.name.module_ <> "DarkInternal")
   |> functionsToString
 
-let functions (username : string) =
-  if false // FSTODO: is admin
-  then
-    adminFunctions
-  else
-    userFunctions
+let functions (includeAdminFns : bool) : string =
+  if includeAdminFns then adminFunctions else userFunctions

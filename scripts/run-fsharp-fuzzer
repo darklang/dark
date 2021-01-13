@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+trap ctrl_c INT
+
+function ctrl_c() {
+  killall -9 Build/out/FuzzTests
+  exit 1
+}
+
+BINPATH="fsharp-backend/Build/out/"
+cp "/home/dark/app/_build/default/backend/bin/libserialization.so" "${BINPATH}"
+
+# Expecto has a number of async bugs causing it to hang. It appears to be due
+# to the test framework though it's hard to tell. It's solved by disabling the
+# spinner and not running the tests in parallel.
+cd fsharp-backend
+Build/out/FuzzTests --no-spinner --sequenced "${@}"
