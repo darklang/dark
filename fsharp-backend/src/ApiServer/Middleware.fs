@@ -130,6 +130,18 @@ let preventClickjacking : HttpHandler =
   // additional security.
   setHttpHeader "Content-security-policy" "frame-ancestors 'none';"
 
+let addServerVersion : HttpHandler =
+  // Clickjacking: Don't allow any other websites to put this in an iframe;
+  // this prevents "clickjacking" attacks.
+  // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+  // It would be nice to use CSP to limit where we can load scripts etc from,
+  // but right now we load from CDNs, <script> tags, etc. So the only thing
+  // we could do is script-src: 'unsafe-inline', which doesn't offer us any
+  // additional security.
+  setHttpHeader "x-darklang-server-version" Config.buildHash
+
+
+
 let allowCorsForLocalhostAssets : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
@@ -159,6 +171,7 @@ let apiHandler
       let! result = handler ctx
       return! ctx.WriteJsonAsync result
     })
+  >=> addServerVersion
   >=> setStatusCode 200
 
 let htmlHandler
@@ -178,4 +191,5 @@ let htmlHandler
     })
   >=> allowCorsForLocalhostAssets
   >=> preventClickjacking
+  >=> addServerVersion
   >=> setStatusCode 200
