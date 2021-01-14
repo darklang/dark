@@ -571,22 +571,27 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "digest" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Take a string and hash it to a cryptographically-secure digest.
-// Don't rely on either the size or the algorithm."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (Libtarget.digest384 (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "digest" 0
+      parameters = [Param.make "s" TStr ""]
+      returnType = TStr
+      description = "Take a string and hash it to a cryptographically-secure digest.
+Don't rely on either the size or the algorithm."
+      fn =
+        (function
+        | _, [DStr s] ->
+           let sha384Hash = SHA384.Create()
+           let data = System.Text.Encoding.UTF8.GetBytes(s)
+
+           let bytes = sha384Hash.ComputeHash(data)
+
+           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+           |> DStr
+           |> Value
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "sha384" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
