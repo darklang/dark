@@ -630,7 +630,7 @@ Don't rely on either the size or the algorithm."
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "String" "random" 1) }
+      deprecated = ReplacedBy(fn "" "" 0) }
     { name = fn "String" "random" 0
       parameters = [ Param.make "length" TInt "" ]
       returnType = TStr
@@ -664,14 +664,42 @@ Don't rely on either the size or the algorithm."
       previewable = Impure
       deprecated = ReplacedBy(fn "String" "random" 1) }
     { name = fn "String" "random" 1
-      parameters = [ Param.make "length" TInt ""]
+      parameters = [ Param.make "length" TInt "" ]
       returnType = TStr
       description = "Generate a string of length `length` from random characters."
       fn =
         (function
         | _, [ DInt l ] ->
             if l < 0I then
-              Value(errStr ("l should be a positive intege"))
+              "l should be a positive integer" |> DStr |> Error |> DResult |> Value
+            else
+              let randomString length =
+                let gen () =
+                  match random.Next(26 + 26 + 10) with
+                  | n when n < 26 -> ('a' |> int) + n
+                  | n when n < 26 + 26 -> ('A' |> int) + n - 26
+                  | n -> ('0' |> int) + n - 26 - 26
+
+                let gen _ = char (gen ()) in
+
+                (Array.toList (Array.init length gen))
+                |> List.map (fun i -> i.ToString())
+                |> String.concat ""
+
+              randomString (int l) |> DStr |> Ok |> DResult |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = ReplacedBy(fn "String" "random" 1) }
+    { name = fn "String" "random" 2
+      parameters = [ Param.make "length" TInt "" ]
+      returnType = TStr
+      description = "Generate a string of length `length` from random characters."
+      fn =
+        (function
+        | _, [ DInt l ] ->
+            if l < 0I then
+              Value(errStr ("l should be a positive integer"))
             else
               let randomString length =
                 let gen () =
@@ -690,26 +718,7 @@ Don't rely on either the size or the algorithm."
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
-    //      { name = fn "String" "random" 2
-//      ; parameters = [Param.make "length" TInt]
-//      ; returnType = TResult
-//      ; description =
-//       "Generate a string of length `length` from random characters."
-//      ; fn =
-//         (function
-//         | _, [DInt l] ->
-//             if l < Dint.zero
-//             then error_result "l should be a positive integer"
-//             else
-//               Dval.to_res_ok
-//                 (Dval.dstr_of_string_exn
-//                    (Stdlib_util.random_string (Dint.to_int_exn l)))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Impure
-//      ; deprecated = NotDeprecated }
+      deprecated = NotDeprecated }
     { name = fn "String" "htmlEscape" 0
       parameters = [ Param.make "html" TStr "" ]
       returnType = TStr
