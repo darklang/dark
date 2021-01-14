@@ -815,19 +815,19 @@ Don't rely on either the size or the algorithm."
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "contains" 0
-//      ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
-//      ; returnType = TBool
-//      ; description = "Checks if `lookingIn` contains `searchingFor`"
-//      ; fn =
-//         (function
-//         | _, [DStr haystack; DStr needle] ->
-//             DBool (Unicode_string.is_substring needle haystack)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "contains" 0
+      parameters =
+        [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
+      returnType = TBool
+      description = "Checks if `lookingIn` contains `searchingFor`"
+      fn =
+        (function
+        | _, [ DStr haystack; DStr needle ] ->
+            Value(DBool(haystack.Contains needle))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "slice" 0
       parameters =
         [ Param.make "string" TStr ""
