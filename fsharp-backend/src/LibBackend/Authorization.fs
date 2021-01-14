@@ -160,6 +160,7 @@ let permission
       // FSTODO: remove specialCasePermission
       (fun _ -> task { return specialCasePermission username owner })
       (fun _ -> task { return samplePermission owner }) ]
+  // FSTODO: missing two permissions here
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
   List.fold

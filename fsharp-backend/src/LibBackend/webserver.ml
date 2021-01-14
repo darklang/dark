@@ -1,3 +1,6 @@
+// This file is being split between ApiServer.fs and BwdServer.fs. I'll delete from it as it's ported.
+
+
 open Core_kernel
 open Libcommon
 open Lwt
@@ -1059,24 +1062,6 @@ let upload_function
     response
 
 
-let get_all_packages ~(execution_id : Types.id) (parent : Span.t) () :
-    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let t1, packages =
-    time "1-get-packages" (fun _ -> Package_manager.all_functions ())
-  in
-  let t2, response =
-    time "2-to-frontend" (fun _ ->
-        Package_manager.to_get_packages_rpc_result
-          (Package_manager.all_functions ()))
-  in
-  respond
-    ~execution_id
-    ~resp_headers:(server_timing [t1; t2])
-    parent
-    `OK
-    response
-
-
 let trigger_handler
     ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
@@ -1420,94 +1405,6 @@ let to_assoc_list etags_json : (string * string) list =
       else mutated
   | _ ->
       Exception.internal "etags.json must be a top-level object."
-
-
-let admin_ui_template = File.readfile ~root:Templates "ui.html"
-
-let admin_ui_html
-    ~(canvas_id : Uuidm.t)
-    ~(canvas : string)
-    ~(csrf_token : string)
-    ~(local : string option)
-    ~(account_created : Core_kernel.Time.t)
-    (user : Account.user_info) =
-  let account_created_msts =
-    account_created
-    |> Core_kernel.Time.to_span_since_epoch
-    |> Core_kernel.Time.Span.to_ms
-    |> Float.iround_exn
-  in
-  let static_host =
-    match local with
-    (* TODO: if you want access, we can make this more general *)
-    | Some username ->
-        "darklang-" ^ username ^ ".ngrok.io"
-    | _ ->
-        Config.static_host
-  in
-  let hash_static_filenames =
-    if local = None then Config.hash_static_filenames else false
-  in
-  (* TODO: allow APPSUPPORT in here *)
-  admin_ui_template
-  |> Util.string_replace
-       "{{ALLFUNCTIONS}}"
-       (Api.functions ~username:user.username)
-  |> Util.string_replace
-       "{{LIVERELOADJS}}"
-       ( if Config.browser_reload_enabled
-       then
-         "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-       else "" )
-  |> Util.string_replace "{{STATIC}}" static_host
-  |> Util.string_replace "{{HEAPIO_ID}}" Config.heapio_id
-  |> Util.string_replace "{{ROLLBARCONFIG}}" Config.rollbar_js
-  |> Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
-  |> Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
-  |> Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
-  |> Util.string_replace "{{USER_USERNAME}}" user.username
-  |> Util.string_replace "{{USER_EMAIL}}" user.email
-  |> Util.string_replace "{{USER_FULLNAME}}" user.name
-  |> Util.string_replace
-       "{{USER_CREATED_AT_UNIX_MSTS}}"
-       (string_of_int account_created_msts)
-  |> Util.string_replace "{{USER_IS_ADMIN}}" (string_of_bool user.admin)
-  |> Util.string_replace "{{USER_ID}}" (Uuidm.to_string user.id)
-  |> Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
-  |> Util.string_replace "{{CANVAS_NAME}}" canvas
-  |> Util.string_replace
-       "{{APPSUPPORT}}"
-       (File.readfile ~root:Webroot "appsupport.js")
-  |> Util.string_replace "{{STATIC}}" static_host
-  |> (fun x ->
-       if not hash_static_filenames
-       then Util.string_replace "{{HASH_REPLACEMENTS}}" "{}" x
-       else
-         let etags_str = File.readfile ~root:Webroot "etags.json" in
-         let etags_json = Yojson.Safe.from_string etags_str in
-         let etag_assoc_list =
-           to_assoc_list etags_json
-           |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
-           |> List.filter (* Only hash our assets, not vendored assets *)
-                ~f:(fun (file, _) ->
-                  not (String.is_substring ~substring:"vendor/" file))
-         in
-         x
-         |> fun instr ->
-         etag_assoc_list
-         |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
-                (Util.string_replace file (hashed_filename file hash)) acc)
-         |> fun instr ->
-         Util.string_replace
-           "{{HASH_REPLACEMENTS}}"
-           ( etag_assoc_list
-           |> List.map ~f:(fun (k, v) ->
-                  ("/" ^ k, `String ("/" ^ hashed_filename k v)))
-           |> (fun x -> `Assoc x)
-           |> Yojson.Safe.to_string )
-           instr)
-  |> Util.string_replace "{{CSRF_TOKEN}}" csrf_token
-  |> Util.string_replace "{{BUILD_HASH}}" Config.build_hash
 
 
 let save_test_handler ~(execution_id : Types.id) (parent : Span.t) host =

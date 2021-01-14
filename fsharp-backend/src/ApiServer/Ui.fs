@@ -1,9 +1,25 @@
 module ApiServer.Ui
 
-open Prelude
-module Config = LibBackend.Config
+open Microsoft.AspNetCore
+open Microsoft.AspNetCore.Http
+open Giraffe
+open Giraffe.EndpointRouting
 
-let adminUiTemplate = LibBackend.File.readfile Config.Templates "ui.html"
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+open FSharpPlus
+open Prelude
+open Prelude.Tablecloth
+
+module Config = LibBackend.Config
+module Session = LibBackend.Session
+module Account = LibBackend.Account
+module Auth = LibBackend.Authorization
+
+let adminUiTemplate : string = LibBackend.File.readfile Config.Templates "ui.html"
+
+let appSupportFile : string =
+  LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"
 
 
 let prodHashReplacements : string =
@@ -49,7 +65,7 @@ let uiHtml
 
   let staticHost =
     match localhostAssets with
-    (* TODO: can add other people to this for easier debugging *)
+    // TODO: can add other people to this for easier debugging
     | Some username -> $"darklang-{username}.ngrok.io"
     | _ -> Config.staticHost
 
@@ -80,8 +96,7 @@ let uiHtml
     .Replace("{{USER_ID}}", user.id.ToString())
     .Replace("{{CANVAS_ID}}", (canvasID.ToString()))
     .Replace("{{CANVAS_NAME}}", canvasName.ToString())
-    .Replace("{{APPSUPPORT}}",
-             (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"))
+    .Replace("{{APPSUPPORT}}", appSupportFile)
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
     .Replace("{{BUILD_HASH}}", Config.buildHash)
@@ -91,3 +106,25 @@ let uiHtml
     .Replace("http://darklang.localhost:8000", "darklang.localhost:9000")
     .Replace("http://builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
     .ToString()
+
+let uiHandler (ctx : HttpContext) : Task<string> =
+  task {
+    let user = Middleware.load<Account.UserInfo> "user" ctx
+    let sessionData = Middleware.load<Session.T> "session" ctx
+    let canvasName = Middleware.load<CanvasName.T> "canvasName" ctx
+
+    let! ownerID =
+      (Account.ownerNameFromCanvasName canvasName).toUserName
+      |> Account.ownerID
+      |> Task.map Option.someOrRaise
+
+    let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+    let! createdAt = Account.getUserCreatedAt user.username
+    let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
+
+    return
+      uiHtml canvasID canvasName sessionData.csrfToken localhostAssets createdAt user
+  }
+
+let endpoints : Endpoint list =
+  [ GET [ routef "/a/%s" (Middleware.htmlHandler uiHandler Auth.Read) ] ]

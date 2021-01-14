@@ -1,9 +1,22 @@
 module ApiServer.Api
 
+// Functions and API endpoints for the API
+
+open Microsoft.AspNetCore.Http
+open Giraffe
+open Giraffe.EndpointRouting
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+open FSharpPlus
 open Prelude
+open Prelude.Tablecloth
 
+module Config = LibBackend.Config
+module Session = LibBackend.Session
+module Account = LibBackend.Account
+module Auth = LibBackend.Authorization
 module RT = LibExecution.RuntimeTypes
-
 
 
 // type add_op_rpc_params =
@@ -237,3 +250,26 @@ let userFunctions =
 
 let functions (includeAdminFns : bool) : string =
   if includeAdminFns then adminFunctions else userFunctions
+
+// --------------------
+// Endpoints
+// --------------------
+
+let packages
+  (ctx : HttpContext)
+  : Task<List<LibBackend.PackageManager.FrontendPackageFn>> =
+  task {
+    let! fns = LibBackend.PackageManager.allFunctions ()
+    return List.map LibBackend.PackageManager.toFrontendPackage fns
+  }
+
+let initialLoad (ctx : HttpContext) : Task<string> =
+  task { return "todo: initialLoad" }
+
+let endpoints : Endpoint list =
+  let h = Middleware.apiHandler
+
+  [
+    // TODO: why is this a POST?
+    POST [ routef "/api/%s/packages" (h packages Auth.Read) ]
+    POST [ routef "/api/%s/initial_load" (h initialLoad Auth.Read) ] ]
