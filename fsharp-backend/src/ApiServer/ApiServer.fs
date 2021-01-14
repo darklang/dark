@@ -4,7 +4,6 @@ open System
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
-open Microsoft.AspNetCore.StaticFiles
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
 open Microsoft.AspNetCore.Http
@@ -12,16 +11,10 @@ open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Giraffe.EndpointRouting
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open FSharpPlus
 open Prelude
-open Prelude.Tablecloth
 
 module Config = LibBackend.Config
-module Session = LibBackend.Session
-module Account = LibBackend.Account
-module Auth = LibBackend.Authorization
 
 // --------------------
 // Handlers
