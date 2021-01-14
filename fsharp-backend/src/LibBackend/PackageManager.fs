@@ -327,33 +327,3 @@ let allFunctions () : Task<List<Fn>> =
            author = read.string "author"
            deprecated = read.bool "deprecated"
            tlid = read.int64 "tlid" |> uint64 })
-
-
-// Convert to the type the frontend uses (which is what OCaml used)
-type FrontendPackageFn =
-  { user : string
-    package : string
-    ``module`` : string
-    fnname : string
-    version : int
-    body : PT.Expr
-    parameters : List<Parameter>
-    return_type : PT.DType
-    description : string
-    author : string
-    deprecated : bool
-    tlid : id }
-
-let toFrontendPackage (fn : Fn) : FrontendPackageFn =
-  { user = fn.name.owner
-    package = fn.name.package
-    ``module`` = fn.name.module_
-    fnname = fn.name.function_
-    version = fn.name.version
-    body = fn.body
-    parameters = fn.parameters
-    return_type = fn.returnType
-    description = fn.description
-    author = fn.author
-    deprecated = fn.deprecated
-    tlid = fn.tlid }

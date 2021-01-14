@@ -46,11 +46,27 @@ let notFound (ctx : HttpContext) : Task<HttpContext option> =
 // --------------------
 // Accessing data from a HttpContext
 // --------------------
-let save (name : string) (value : 'a) (ctx : HttpContext) : HttpContext =
-  ctx.Items.[name] <- value
+
+// Don't use strings for this interface
+type dataID =
+  | UserInfo
+  | SessionData
+  | CanvasName
+  | Permission
+
+  override this.ToString() : string =
+    match this with
+    | UserInfo -> "user"
+    | SessionData -> "sessionData"
+    | CanvasName -> "canvasName"
+    | Permission -> "permission"
+
+let save (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
+  ctx.Items.[id.ToString()] <- value
   ctx
 
-let load<'a> (name : string) (ctx : HttpContext) : 'a = ctx.Items.[name] :?> 'a
+let load<'a> (id : dataID) (ctx : HttpContext) : 'a =
+  ctx.Items.[id.ToString()] :?> 'a
 
 // --------------------
 // APIServer Middlewares
@@ -59,7 +75,7 @@ type LoginKind =
   | Local
   | Live
 
-let getSessionData : HttpHandler =
+let sessionDataMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let sessionKey = ctx.Request.Cookies.Item "__session"
@@ -76,29 +92,34 @@ let getSessionData : HttpHandler =
               Local, "/login", "/logout"
 
           return! unauthorized ctx
-      | Some sessionData -> return! next (save "session" sessionData ctx)
+      | Some sessionData -> return! next (save SessionData sessionData ctx)
     })
 
-let getUserData : HttpHandler =
+let loadSessionData (ctx : HttpContext) = load<Session.T> SessionData ctx
+
+let userInfoMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let sessionData = load<Session.T> "session" ctx
+      let sessionData = loadSessionData ctx
 
       match! Account.getUser (UserName.create sessionData.username) with
       | None -> return! notFound ctx
-      | Some user -> return! next (save "user" user ctx)
+      | Some user -> return! next (save UserInfo user ctx)
     })
 
-// checks permission on the canvas and continues. As a safety check, the
-// "canvasName" property is added here only if the permission passes. This way
-// we can not accidentally bypass it
-let checkPermission
+let loadUserInfo (ctx : HttpContext) = load<Account.UserInfo> UserInfo ctx
+
+// checks permission on the canvas and continues. As a safety check, we add the
+// CanvasName property here instead of the handler just fetching it. It's only
+// added here only if the permission passes. This way we can not accidentally
+// bypass it
+let permissionMiddleware
   (permissionNeeded : Auth.Permission)
   (canvasName : CanvasName.T)
   : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let user = load<Account.UserInfo> "user" ctx
+      let user = loadUserInfo ctx
 
       let! permitted =
         if permissionNeeded = Auth.Read then
@@ -110,8 +131,8 @@ let checkPermission
 
       if permitted then
         ctx
-        |> save "canvasName" canvasName
-        |> save "permission" permissionNeeded
+        |> save CanvasName canvasName
+        |> save Permission permissionNeeded
         |> ignore // ignored as `save` is side-effecting
 
         return! next ctx
@@ -120,7 +141,10 @@ let checkPermission
         return! unauthorized ctx
     })
 
-let preventClickjacking : HttpHandler =
+let loadCanvasName (ctx : HttpContext) = load<CanvasName.T> CanvasName ctx
+let loadPermission (ctx : HttpContext) = load<Auth.Permission> Permission ctx
+
+let antiClickjackingMiddleware : HttpHandler =
   // Clickjacking: Don't allow any other websites to put this in an iframe;
   // this prevents "clickjacking" attacks.
   // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
@@ -130,19 +154,10 @@ let preventClickjacking : HttpHandler =
   // additional security.
   setHttpHeader "Content-security-policy" "frame-ancestors 'none';"
 
-let addServerVersion : HttpHandler =
-  // Clickjacking: Don't allow any other websites to put this in an iframe;
-  // this prevents "clickjacking" attacks.
-  // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-  // It would be nice to use CSP to limit where we can load scripts etc from,
-  // but right now we load from CDNs, <script> tags, etc. So the only thing
-  // we could do is script-src: 'unsafe-inline', which doesn't offer us any
-  // additional security.
+let serverVersionMiddleware : HttpHandler =
   setHttpHeader "x-darklang-server-version" Config.buildHash
 
-
-
-let allowCorsForLocalhostAssets : HttpHandler =
+let corsForLocalhostAssetsMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let result = next ctx
@@ -154,7 +169,6 @@ let allowCorsForLocalhostAssets : HttpHandler =
     })
 
 
-
 // --------------------
 // Middleware stacks for the API
 // --------------------
@@ -163,15 +177,15 @@ let apiHandler
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  getSessionData
-  >=> getUserData
-  >=> checkPermission neededPermission (CanvasName.create canvasName)
+  sessionDataMiddleware
+  >=> userInfoMiddleware
+  >=> permissionMiddleware neededPermission (CanvasName.create canvasName)
   >=> (fun _ ctx ->
     task {
       let! result = handler ctx
       return! ctx.WriteJsonAsync result
     })
-  >=> addServerVersion
+  >=> serverVersionMiddleware
   >=> setStatusCode 200
 
 let htmlHandler
@@ -181,15 +195,15 @@ let htmlHandler
   : HttpHandler =
   // FSTODO: support integration tests
 // if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-  getSessionData
-  >=> getUserData
-  >=> checkPermission neededPermission (CanvasName.create canvasName)
+  sessionDataMiddleware
+  >=> userInfoMiddleware
+  >=> permissionMiddleware neededPermission (CanvasName.create canvasName)
   >=> (fun _ ctx ->
     task {
       let! result = handler ctx
       return! ctx.WriteHtmlStringAsync result
     })
-  >=> allowCorsForLocalhostAssets
-  >=> preventClickjacking
-  >=> addServerVersion
+  >=> corsForLocalhostAssetsMiddleware
+  >=> antiClickjackingMiddleware
+  >=> serverVersionMiddleware
   >=> setStatusCode 200

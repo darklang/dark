@@ -109,9 +109,9 @@ let uiHtml
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
-    let user = Middleware.load<Account.UserInfo> "user" ctx
-    let sessionData = Middleware.load<Session.T> "session" ctx
-    let canvasName = Middleware.load<CanvasName.T> "canvasName" ctx
+    let user = Middleware.loadUserInfo ctx
+    let sessionData = Middleware.loadSessionData ctx
+    let canvasName = Middleware.loadCanvasName ctx
 
     let! ownerID =
       (Account.ownerNameFromCanvasName canvasName).toUserName

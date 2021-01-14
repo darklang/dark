@@ -255,21 +255,119 @@ let functions (includeAdminFns : bool) : string =
 // Endpoints
 // --------------------
 
-let packages
-  (ctx : HttpContext)
-  : Task<List<LibBackend.PackageManager.FrontendPackageFn>> =
-  task {
-    let! fns = LibBackend.PackageManager.allFunctions ()
-    return List.map LibBackend.PackageManager.toFrontendPackage fns
-  }
+module Packages =
+  module PM = LibBackend.PackageManager
+  module PT = LibBackend.ProgramSerialization.ProgramTypes
 
-let initialLoad (ctx : HttpContext) : Task<string> =
-  task { return "todo: initialLoad" }
+  type ApiPackageFn =
+    { user : string
+      package : string
+      ``module`` : string
+      fnname : string
+      version : int
+      body : PT.Expr
+      parameters : List<PM.Parameter>
+      return_type : PT.DType
+      description : string
+      author : string
+      deprecated : bool
+      tlid : id }
+
+  let toApi (fn : PM.Fn) : ApiPackageFn =
+    { user = fn.name.owner
+      package = fn.name.package
+      ``module`` = fn.name.module_
+      fnname = fn.name.function_
+      version = fn.name.version
+      body = fn.body
+      parameters = fn.parameters
+      return_type = fn.returnType
+      description = fn.description
+      author = fn.author
+      deprecated = fn.deprecated
+      tlid = fn.tlid }
+
+  let packages (ctx : HttpContext) : Task<List<ApiPackageFn>> =
+    task {
+      let! fns = LibBackend.PackageManager.allFunctions ()
+      return List.map toApi fns
+    }
+
+module InitialLoad =
+  let initialLoad (ctx : HttpContext) : Task<string> =
+    task {
+      let user = Middleware.loadUserInfo ctx
+      let canvasName = Middleware.loadCanvasName ctx
+      return "todo: initialLoad"
+    }
+//   ~(execution_id : Types.id)
+//   ~(permission : Authorization.permission option)
+//   (parent : Span.t)
+//   body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+//   let t1, (c, op_ctrs) =
+//     time "1-load-saved-ops" (fun _ ->
+//         let c =
+//           C.load_all_from_cache canvas
+//           |> Result.map_error ~f:(String.concat ~sep:", ")
+//           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
+//         in
+//         let op_ctrs =
+//           Db.fetch
+//             ~name:"fetch_op_ctrs_for_canvas"
+//             "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
+//             ~params:[Db.Uuid !c.id]
+//           |> List.map ~f:(function
+//                  | [clientOpCtr_id; op_ctr] ->
+//                      (clientOpCtr_id, op_ctr |> int_of_string)
+//                  | _ ->
+//                      Exception.internal
+//                        "wrong record shape from fetch_op_Ctrs_for_canvas")
+//         in
+//         (c, op_ctrs))
+//   in
+//   let t2, unlocked =
+//     time "2-analyze-unlocked-dbs" (fun _ ->
+//         Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
+//   in
+//   let t3, assets =
+//     time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
+//   in
+//   let t5, canvas_list =
+//     time "5-canvas-list" (fun _ -> Serialize.hosts_for user.username)
+//   in
+//   let t6, org_canvas_list =
+//     time "6-org-list" (fun _ -> Serialize.orgs_for user.username)
+//   in
+//   let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs user.username) in
+//   let t8, worker_schedules =
+//     time "8-worker-schedules" (fun _ ->
+//         Event_queue.get_worker_schedules_for_canvas !c.id)
+//   in
+//   let t9, secrets =
+//     time "9-secrets" (fun _ -> Secret.secrets_in_canvas !c.id)
+//   in
+//   let t10, result =
+//     time "10-to-frontend" (fun _ ->
+//         Analysis.to_initial_load_rpc_result
+//           !c
+//           op_ctrs
+//           permission
+//           unlocked
+//           assets
+//           user
+//           canvas_list
+//           orgs
+//           org_canvas_list
+//           worker_schedules
+//           secrets)
+
+
+
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
 
   [
     // TODO: why is this a POST?
-    POST [ routef "/api/%s/packages" (h packages Auth.Read) ]
-    POST [ routef "/api/%s/initial_load" (h initialLoad Auth.Read) ] ]
+    POST [ routef "/api/%s/packages" (h Packages.packages Auth.Read) ]
+    POST [ routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read) ] ]
