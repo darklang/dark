@@ -206,9 +206,6 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     let sessionData = load<Session.T> "session" ctx
     let canvasName = load<CanvasName.T> "canvasName" ctx
 
-    let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
-    let csrfToken = sessionData.csrfToken
-
     let! ownerID =
       (Account.ownerNameFromCanvasName canvasName).toUserName
       |> Account.ownerID
@@ -217,7 +214,15 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
     let! createdAt = Account.getUserCreatedAt user.username
     let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
-    return Ui.uiHtml canvasID canvasName csrfToken localhostAssets createdAt user
+
+    return
+      Ui.uiHtml
+        canvasID
+        canvasName
+        sessionData.csrfToken
+        localhostAssets
+        createdAt
+        user
   }
 
 let uiEndpoints : Endpoint list =
