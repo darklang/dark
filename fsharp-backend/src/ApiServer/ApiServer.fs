@@ -21,9 +21,13 @@ open Prelude.Tablecloth
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
+module Auth = LibBackend.Authorization
 
 let (>=>) = Giraffe.Core.compose
 
+// --------------------
+// Generic middlewares
+// --------------------
 let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
   task {
     ctx.SetStatusCode 401
@@ -36,11 +40,21 @@ let notFound (ctx : HttpContext) : Task<HttpContext option> =
     return! ctx.WriteTextAsync "Not Found"
   }
 
+// --------------------
+// Accessing data from a HttpContext
+// --------------------
 let save (name : string) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx.Items.[name] <- value
   ctx
 
 let load<'a> (name : string) (ctx : HttpContext) : 'a = ctx.Items.[name] :?> 'a
+
+// --------------------
+// Dark Middlewares
+// --------------------
+type LoginKind =
+  | Local
+  | Live
 
 let getSessionData : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -50,6 +64,14 @@ let getSessionData : HttpHandler =
       match! Session.get sessionKey with
       | None ->
           // FSTODO: redirect to Login
+          let liveLogin, loginUrl, logoutUri =
+            if Config.useLoginDarklangComForLogin then
+              Live,
+              "https://login.darklang.com",
+              "https://logout.darklang.com/logout"
+            else
+              Local, "/login", "/logout"
+
           return! unauthorized ctx
       | Some sessionData -> return! next (save "session" sessionData ctx)
     })
@@ -64,13 +86,71 @@ let getUserData : HttpHandler =
       | Some user -> return! next (save "user" user ctx)
     })
 
+// checks permission on the canvas and continues. As a safety check, the
+// "canvasName" property is added here only if the permission passes. This way
+// we can not accidentally bypass it
+let checkPermission
+  (permissionNeeded : Auth.Permission)
+  (canvasName : CanvasName.T)
+  : HttpHandler =
+  (fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let user = load<Account.UserInfo> "user" ctx
 
+      let! permitted =
+        if permissionNeeded = Auth.Read then
+          Auth.canViewCanvas canvasName user.username
+        else if permissionNeeded = Auth.ReadWrite then
+          Auth.canEditCanvas canvasName user.username
+        else
+          task { return false }
+
+      if permitted then
+        ctx
+        |> save "canvasName" canvasName
+        |> save "permission" permissionNeeded
+        |> ignore // ignored as `save` is side-effecting
+
+        return! next ctx
+      else
+        // Note that by design, canvasName is not saved if there is not permission
+        return! unauthorized ctx
+    })
+
+let preventClickjacking : HttpHandler =
+  // Clickjacking: Don't allow any other websites to put this in an iframe;
+  // this prevents "clickjacking" attacks.
+  // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+  // It would be nice to use CSP to limit where we can load scripts etc from,
+  // but right now we load from CDNs, <script> tags, etc. So the only thing
+  // we could do is script-src: 'unsafe-inline', which doesn't offer us any
+  // additional security.
+  setHttpHeader "Content-security-policy" "frame-ancestors 'none';"
+
+let allowCorsForLocalhostAssets : HttpHandler =
+  (fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let result = next ctx
+
+      if Option.isSome (ctx.TryGetQueryStringValue "localhost-assets") then
+        ctx.SetHttpHeader("Access-Control-Allow_origin", "*")
+
+      return! result
+    })
+
+
+
+// --------------------
+// Middleware stacks for the API
+// --------------------
 let apiHandler
   (handler : HttpContext -> Task<'a>)
+  (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
   getSessionData
   >=> getUserData
+  >=> checkPermission neededPermission (CanvasName.create canvasName)
   >=> (fun _ ctx ->
     task {
       let! result = handler ctx
@@ -78,66 +158,28 @@ let apiHandler
     })
   >=> setStatusCode 200
 
-let httpHandler
-  (handler : HttpContext -> string)
+let htmlHandler
+  (handler : HttpContext -> Task<string>)
+  (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
+  // FSTODO: support integration tests
+// if integration_test then Canvas.load_and_resave_from_test_file canvas ;
   getSessionData
   >=> getUserData
+  >=> checkPermission neededPermission (CanvasName.create canvasName)
   >=> (fun _ ctx ->
     task {
-      let result = handler ctx
+      let! result = handler ctx
       return! ctx.WriteHtmlStringAsync result
     })
+  >=> allowCorsForLocalhostAssets
+  >=> preventClickjacking
   >=> setStatusCode 200
 
-
-let api (handler : HttpContext -> Task<'a>) (canvasName : string) : HttpHandler =
-  Giraffe.Core.handleContext
-    (fun ctx ->
-      task {
-        let sessionKey = ctx.Request.Cookies.Item "__session"
-
-        match! Session.get sessionKey with
-        | None ->
-            // FSTODO: redirect to Login
-            ctx.Response.StatusCode <- 401
-            return! ctx.WriteTextAsync "Not Authorized"
-        | Some sessionData ->
-            let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
-            // FSTODO: validate csrfToken before doing anything else
-            let csrfToken = sessionData.csrfToken
-
-            match! Account.getUser (UserName.create sessionData.username) with
-            | None ->
-                ctx.Response.StatusCode <- 404
-                return! ctx.WriteTextAsync "Not found"
-            | Some user ->
-                let canvasName = CanvasName.create canvasName
-                // FSTODO: support integration tests
-                // if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-                let! canView =
-                  LibBackend.Authorization.canViewCanvas canvasName user.username
-
-                if not canView then
-                  ctx.Response.StatusCode <- 404
-                  return! ctx.WriteTextAsync "Not found"
-                else
-                  // TODO: this has only the read permission, but this will create a canvas
-                  let! ownerID =
-                    (Account.ownerNameFromCanvasName canvasName).toUserName
-                    |> Account.ownerID
-                    |> Task.map Option.someOrRaise
-
-                  let! canvasID =
-                    LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
-
-                  let! v = handler ctx
-
-                  return! ctx.WriteJsonAsync v
-      })
-
-
+// --------------------
+// API endpoints
+// --------------------
 let packages
   (ctx : HttpContext)
   : Task<List<LibBackend.PackageManager.FrontendPackageFn>> =
@@ -146,99 +188,41 @@ let packages
     return List.map LibBackend.PackageManager.toFrontendPackage fns
   }
 
-
 let initialLoad (ctx : HttpContext) : Task<string> =
   task { return "todo: initialLoad" }
 
 let apiEndpoints : Endpoint list =
   [
     // TODO: why is this a POST?
-    POST [ routef "/api/%s/packages" (apiHandler packages) ]
-    POST [ routef "/api/%s/initial_load" (apiHandler initialLoad) ] ]
+    POST [ routef "/api/%s/packages" (apiHandler packages Auth.Read) ]
+    POST [ routef "/api/%s/initial_load" (apiHandler initialLoad Auth.Read) ] ]
 
-type LoginKind =
-  | Local
-  | Live
+// --------------------
+// UI endpoint
+// --------------------
+let uiHandler (ctx : HttpContext) : Task<string> =
+  task {
+    let user = load<Account.UserInfo> "user" ctx
+    let sessionData = load<Session.T> "session" ctx
+    let canvasName = load<CanvasName.T> "canvasName" ctx
 
-let uiHandler (canvasName : string) : HttpHandler =
-  fun (_ : HttpFunc) (ctx : HttpContext) ->
-    task {
+    let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
+    let csrfToken = sessionData.csrfToken
 
-      let liveLogin, loginUrl, logoutUri =
-        if Config.useLoginDarklangComForLogin then
-          Live, "https://login.darklang.com", "https://logout.darklang.com/logout"
-        else
-          Local, "/login", "/logout"
+    let! ownerID =
+      (Account.ownerNameFromCanvasName canvasName).toUserName
+      |> Account.ownerID
+      |> Task.map Option.someOrRaise
 
-      let sessionKey = ctx.Request.Cookies.Item "__session"
+    let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+    let! createdAt = Account.getUserCreatedAt user.username
+    let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
+    return Ui.uiHtml canvasID canvasName csrfToken localhostAssets createdAt user
+  }
 
-      match! Session.get sessionKey with
-      | None ->
-          // FSTODO: redirect to Login
-          ctx.Response.StatusCode <- 401
-          return! ctx.WriteTextAsync "Not Authorized"
-      | Some sessionData ->
-          let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
-          // FSTODO: validate csrfToken before doing anything else
-          let csrfToken = sessionData.csrfToken
+let uiEndpoints : Endpoint list =
+  [ GET [ routef "/a/%s" (htmlHandler uiHandler Auth.Read) ] ]
 
-          match! Account.getUser (UserName.create sessionData.username) with
-          | None ->
-              ctx.Response.StatusCode <- 404
-              return! ctx.WriteTextAsync "Not found"
-          | Some user ->
-              let canvasName = CanvasName.create canvasName
-              // FSTODO: support integration tests
-              // if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-              let! canView =
-                LibBackend.Authorization.canViewCanvas canvasName user.username
-
-              if not canView then
-                ctx.Response.StatusCode <- 404
-                return! ctx.WriteTextAsync "Not found"
-              else
-                // FSTODO: this has only the read permission, but this will create a canvas
-                let! ownerID =
-                  (Account.ownerNameFromCanvasName canvasName).toUserName
-                  |> Account.ownerID
-                  |> Task.map Option.someOrRaise
-
-                let! canvasID =
-                  LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
-
-                let! createdAt = Account.getUserCreatedAt user.username
-
-                if localhostAssets.IsSome then
-                  ctx.SetHttpHeader("Access-Control-Allow_origin", "*")
-                else
-                  ()
-
-                ctx.SetHttpHeader("Content-type", "text/html; charset=utf-8")
-                // Clickjacking: Don't allow any other websites to put this in an iframe;
-                // this prevents "clickjacking" attacks.
-                // https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-                // It would be nice to use CSP to limit where we can load scripts etc from,
-                // but right now we load from CDNs, <script> tags, etc. So the only thing
-                // we could do is script-src: 'unsafe-inline', which doesn't offer us any
-                // additional security.
-                ctx.SetHttpHeader(
-                  "Content-security-policy",
-                  "frame-ancestors 'none';"
-                )
-
-                return!
-                  ctx.WriteHtmlStringAsync(
-                    Ui.uiHtml
-                      canvasID
-                      canvasName
-                      csrfToken
-                      localhostAssets
-                      createdAt
-                      user
-                  )
-    }
-
-let uiEndpoints : Endpoint list = [ GET [ routef "/a/%s" uiHandler ] ]
 let endpoints : Endpoint list = uiEndpoints ++ apiEndpoints
 
 let notFoundHandler = "Not Found" |> text |> RequestErrors.notFound
