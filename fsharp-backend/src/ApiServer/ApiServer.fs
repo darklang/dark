@@ -22,31 +22,139 @@ module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 
-let json (taskVal : Task<'a>) : HttpHandler =
+let (>=>) = Giraffe.Core.compose
+
+let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
+  task {
+    ctx.SetStatusCode 401
+    return! ctx.WriteTextAsync "Not Authorized"
+  }
+
+let notFound (ctx : HttpContext) : Task<HttpContext option> =
+  task {
+    ctx.SetStatusCode 404
+    return! ctx.WriteTextAsync "Not Found"
+  }
+
+let save (name : string) (value : 'a) (ctx : HttpContext) : HttpContext =
+  ctx.Items.[name] <- value
+  ctx
+
+let load<'a> (name : string) (ctx : HttpContext) : 'a = ctx.Items.[name] :?> 'a
+
+let getSessionData : HttpHandler =
+  (fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let sessionKey = ctx.Request.Cookies.Item "__session"
+
+      match! Session.get sessionKey with
+      | None ->
+          // FSTODO: redirect to Login
+          return! unauthorized ctx
+      | Some sessionData -> return! next (save "session" sessionData ctx)
+    })
+
+let getUserData : HttpHandler =
+  (fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let sessionData = load<Session.T> "session" ctx
+
+      match! Account.getUser (UserName.create sessionData.username) with
+      | None -> return! notFound ctx
+      | Some user -> return! next (save "user" user ctx)
+    })
+
+
+let apiHandler
+  (handler : HttpContext -> Task<'a>)
+  (canvasName : string)
+  : HttpHandler =
+  getSessionData
+  >=> getUserData
+  >=> (fun _ ctx ->
+    task {
+      let! result = handler ctx
+      return! ctx.WriteJsonAsync result
+    })
+  >=> setStatusCode 200
+
+let httpHandler
+  (handler : HttpContext -> string)
+  (canvasName : string)
+  : HttpHandler =
+  getSessionData
+  >=> getUserData
+  >=> (fun _ ctx ->
+    task {
+      let result = handler ctx
+      return! ctx.WriteHtmlStringAsync result
+    })
+  >=> setStatusCode 200
+
+
+let api (handler : HttpContext -> Task<'a>) (canvasName : string) : HttpHandler =
   Giraffe.Core.handleContext
     (fun ctx ->
       task {
-        let! v = taskVal
-        return! ctx.WriteJsonAsync v
+        let sessionKey = ctx.Request.Cookies.Item "__session"
+
+        match! Session.get sessionKey with
+        | None ->
+            // FSTODO: redirect to Login
+            ctx.Response.StatusCode <- 401
+            return! ctx.WriteTextAsync "Not Authorized"
+        | Some sessionData ->
+            let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
+            // FSTODO: validate csrfToken before doing anything else
+            let csrfToken = sessionData.csrfToken
+
+            match! Account.getUser (UserName.create sessionData.username) with
+            | None ->
+                ctx.Response.StatusCode <- 404
+                return! ctx.WriteTextAsync "Not found"
+            | Some user ->
+                let canvasName = CanvasName.create canvasName
+                // FSTODO: support integration tests
+                // if integration_test then Canvas.load_and_resave_from_test_file canvas ;
+                let! canView =
+                  LibBackend.Authorization.canViewCanvas canvasName user.username
+
+                if not canView then
+                  ctx.Response.StatusCode <- 404
+                  return! ctx.WriteTextAsync "Not found"
+                else
+                  // TODO: this has only the read permission, but this will create a canvas
+                  let! ownerID =
+                    (Account.ownerNameFromCanvasName canvasName).toUserName
+                    |> Account.ownerID
+                    |> Task.map Option.someOrRaise
+
+                  let! canvasID =
+                    LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+
+                  let! v = handler ctx
+
+                  return! ctx.WriteJsonAsync v
       })
 
 
-let apiPackages (canvasName : string) : HttpHandler =
-  json (
-    task {
-      let! fns = LibBackend.PackageManager.allFunctions ()
-      return List.map LibBackend.PackageManager.toFrontendPackage fns
-    }
-  )
+let packages
+  (ctx : HttpContext)
+  : Task<List<LibBackend.PackageManager.FrontendPackageFn>> =
+  task {
+    let! fns = LibBackend.PackageManager.allFunctions ()
+    return List.map LibBackend.PackageManager.toFrontendPackage fns
+  }
 
-let apiInitialLoad (canvasName : string) : HttpHandler =
-  json (task { return "todo: initialLoad" })
+
+let initialLoad (ctx : HttpContext) : Task<string> =
+  task { return "todo: initialLoad" }
 
 let apiEndpoints : Endpoint list =
   [
     // TODO: why is this a POST?
-    POST [ routef "/api/%s/packages" apiPackages ]
-    POST [ routef "/api/%s/initial_load" apiInitialLoad ] ]
+    POST [ routef "/api/%s/packages" (apiHandler packages) ]
+    POST [ routef "/api/%s/initial_load" (apiHandler initialLoad) ] ]
 
 type LoginKind =
   | Local
