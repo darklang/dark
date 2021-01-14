@@ -571,22 +571,26 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = NotDeprecated }
-//      { name = fn "String" "digest" 0
-//      ; parameters = [Param.make "s" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Take a string and hash it to a cryptographically-secure digest.
-// Don't rely on either the size or the algorithm."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             Dval.dstr_of_string_exn
-//               (Libtarget.digest384 (Unicode_string.to_string s))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "digest" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description = "Take a string and hash it to a cryptographically-secure digest.
+Don't rely on either the size or the algorithm."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            let sha384Hash = SHA384.Create()
+            let data = System.Text.Encoding.UTF8.GetBytes(s)
+
+            let bytes = sha384Hash.ComputeHash(data)
+
+            System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+            |> DStr
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "sha384" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
@@ -658,46 +662,63 @@ let fns : List<BuiltInFn> =
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
-    //      { name = fn "String" "random" 1
-//      ; parameters = [Param.make "length" TInt]
-//      ; returnType = TResult
-//      ; description =
-//       "Generate a string of length `length` from random characters."
-//      ; fn =
-//         (function
-//         | _, [DInt l] ->
-//             if l < Dint.zero
-//             then error_result "l should be a positive integer"
-//             else
-//               DResult
-//                 (ResOk
-//                    (Dval.dstr_of_string_exn
-//                       (Stdlib_util.random_string (Dint.to_int_exn l))))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Impure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "random" 2
-//      ; parameters = [Param.make "length" TInt]
-//      ; returnType = TResult
-//      ; description =
-//       "Generate a string of length `length` from random characters."
-//      ; fn =
-//         (function
-//         | _, [DInt l] ->
-//             if l < Dint.zero
-//             then error_result "l should be a positive integer"
-//             else
-//               Dval.to_res_ok
-//                 (Dval.dstr_of_string_exn
-//                    (Stdlib_util.random_string (Dint.to_int_exn l)))
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Impure
-//      ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "String" "random" 1) }
+    { name = fn "String" "random" 1
+      parameters = [ Param.make "length" TInt "" ]
+      returnType = TStr
+      description = "Generate a string of length `length` from random characters."
+      fn =
+        (function
+        | _, [ DInt l ] ->
+            if l < 0I then
+              "l should be a positive integer" |> DStr |> Error |> DResult |> Value
+            else
+              let randomString length =
+                let gen () =
+                  match random.Next(26 + 26 + 10) with
+                  | n when n < 26 -> ('a' |> int) + n
+                  | n when n < 26 + 26 -> ('A' |> int) + n - 26
+                  | n -> ('0' |> int) + n - 26 - 26
+
+                let gen _ = char (gen ()) in
+
+                (Array.toList (Array.init length gen))
+                |> List.map (fun i -> i.ToString())
+                |> String.concat ""
+
+              randomString (int l) |> DStr |> Ok |> DResult |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = ReplacedBy(fn "String" "random" 1) }
+    { name = fn "String" "random" 2
+      parameters = [ Param.make "length" TInt "" ]
+      returnType = TStr
+      description = "Generate a string of length `length` from random characters."
+      fn =
+        (function
+        | _, [ DInt l ] ->
+            if l < 0I then
+              Value(errStr ("l should be a positive integer"))
+            else
+              let randomString length =
+                let gen () =
+                  match random.Next(26 + 26 + 10) with
+                  | n when n < 26 -> ('a' |> int) + n
+                  | n when n < 26 + 26 -> ('A' |> int) + n - 26
+                  | n -> ('0' |> int) + n - 26 - 26
+
+                let gen _ = char (gen ()) in
+
+                (Array.toList (Array.init length gen))
+                |> List.map (fun i -> i.ToString())
+                |> String.concat ""
+
+              randomString (int l) |> DStr |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "String" "htmlEscape" 0
       parameters = [ Param.make "html" TStr "" ]
       returnType = TStr
@@ -794,19 +815,19 @@ let fns : List<BuiltInFn> =
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
 //      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "contains" 0
-//      ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
-//      ; returnType = TBool
-//      ; description = "Checks if `lookingIn` contains `searchingFor`"
-//      ; fn =
-//         (function
-//         | _, [DStr haystack; DStr needle] ->
-//             DBool (Unicode_string.is_substring needle haystack)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "contains" 0
+      parameters =
+        [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
+      returnType = TBool
+      description = "Checks if `lookingIn` contains `searchingFor`"
+      fn =
+        (function
+        | _, [ DStr haystack; DStr needle ] ->
+            Value(DBool(haystack.Contains needle))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "slice" 0
       parameters =
         [ Param.make "string" TStr ""
@@ -819,7 +840,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt f; DInt l ] ->
-            let egcSeq= String.toEgcSeq s
+            let egcSeq = String.toEgcSeq s
             let stringEgcCount = bigint (length egcSeq)
 
             let slice s (first : bigint) (last : bigint) =
@@ -836,16 +857,10 @@ let fns : List<BuiltInFn> =
                * a value within range of the actual string: *)
 
               let first =
-                if first >= 0I then
-                  first
-                else
-                  len + first |> clampUnchecked min max
+                if first >= 0I then first else len + first |> clampUnchecked min max
 
               let last =
-                if last >= 0I then
-                  last
-                else
-                  len + last |> clampUnchecked min max
+                if last >= 0I then last else len + last |> clampUnchecked min max
 
               let stringBuilder = new StringBuilder(String.length s) in
               (* To slice, we iterate through every EGC, adding it to the buffer
@@ -889,7 +904,11 @@ let fns : List<BuiltInFn> =
                * if its index < numEgcs: *)
 
               let firstFunc (idx : bigint) (seg : string) =
-                if idx < numEgcs then stringBuilder.Append seg |> ignore else () |> ignore
+                if idx < numEgcs then
+                  stringBuilder.Append seg |> ignore
+                else
+                  () |> ignore
+
                 1I + idx
 
               ignore (
@@ -930,7 +949,11 @@ let fns : List<BuiltInFn> =
               let startIdx = bigint stringEgcCount - numEgcs in
 
               let lastFunc (idx : bigint) (seg : string) =
-                if idx >= startIdx then stringBuilder.Append seg |> ignore else () |> ignore
+                if idx >= startIdx then
+                  stringBuilder.Append seg |> ignore
+                else
+                  () |> ignore
+
                 1I + idx
 
               ignore (
@@ -969,7 +992,11 @@ let fns : List<BuiltInFn> =
               let startIdx = bigint stringEgcCount - numEgcs in
 
               let lastFunc (idx : bigint) (seg : string) =
-                if idx < startIdx then stringBuilder.Append seg |> ignore else () |> ignore
+                if idx < startIdx then
+                  stringBuilder.Append seg |> ignore
+                else
+                  () |> ignore
+
                 1I + idx
 
               ignore (
@@ -1001,7 +1028,11 @@ let fns : List<BuiltInFn> =
               (* We iterate through every EGC, adding it to the buffer
                * if its index >= numEgcs. This works by the inverse of the logic for [first_n]: *)
               let firstFunc (idx : bigint) (seg : string) =
-                if idx >= numEgcs then stringBuilder.Append seg |> ignore else () |> ignore
+                if idx >= numEgcs then
+                  stringBuilder.Append seg |> ignore
+                else
+                  () |> ignore
+
                 1I + idx
 
               ignore (
@@ -1102,7 +1133,8 @@ let fns : List<BuiltInFn> =
                * accounting for the string longer than [targetEgcs]: *)
               let requiredEgcs = targetEgcs - stringEgcs in
 
-              let requiredPads = max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
+              let requiredPads =
+                max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
               (* Create a buffer large enough to hold the padded result: *)
               let requiredSize = stringSize + (requiredPads * padSize) in
 
