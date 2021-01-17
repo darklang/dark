@@ -805,17 +805,19 @@ module DB =
 module UserType =
   type RecordField =
     { name : string
-      typ : DType }
+      type' : DType
+      nameID : id
+      typeID : id }
 
     member this.toRuntimeType() : RT.UserType.RecordField =
-      { name = this.name; typ = this.typ.toRuntimeType () }
+      { name = this.name; typ = this.type'.toRuntimeType () }
 
   type Definition =
-    | UTRecord of List<RecordField>
+    | Record of List<RecordField>
 
     member this.toRuntimeType() : RT.UserType.Definition =
       match this with
-      | UTRecord fields ->
+      | Record fields ->
           RT.UserType.UTRecord(
             List.map (fun (rf : RecordField) -> rf.toRuntimeType ()) fields
           )
@@ -824,6 +826,7 @@ module UserType =
   type T =
     { tlid : tlid
       name : string
+      nameID : id
       version : int
       definition : Definition }
 
@@ -836,19 +839,23 @@ module UserType =
 module UserFunction =
   type Parameter =
     { name : string
-      typ : DType
+      nameID : id
+      type' : DType
+      typeID : id
       description : string }
 
     member this.toRuntimeType() : RT.UserFunction.Parameter =
       { name = this.name
-        typ = this.typ.toRuntimeType ()
+        type' = this.type'.toRuntimeType ()
         description = this.description }
 
   type T =
     { tlid : tlid
       name : string
+      nameID : id
       parameters : List<Parameter>
       returnType : DType
+      returnTypeID : id
       description : string
       infix : bool
       ast : Expr }
@@ -882,3 +889,36 @@ type Toplevel =
     | TLDB db -> RT.TLDB(db.toRuntimeType ())
     | TLFunction f -> RT.TLFunction(f.toRuntimeType ())
     | TLType t -> RT.TLType(t.toRuntimeType ())
+
+type Op =
+  | SetHandler of tlid * pos * Handler.T
+  | CreateDB of tlid * pos * string
+  | AddDBCol of tlid * id * id
+  | SetDBColName of tlid * id * string
+  | SetDBColType of tlid * id * string
+  | DeleteTL of tlid
+  | MoveTL of tlid * pos
+  | SetFunction of UserFunction.T
+  | ChangeDBColName of tlid * id * string
+  | ChangeDBColType of tlid * id * string
+  | UndoTL of tlid
+  | RedoTL of tlid
+  | SetExpr of tlid * id * Expr
+  | TLSavepoint of tlid
+  | DeleteFunction of tlid
+  | CreateDBMigration of tlid * id * id * (string * id * string * id) list
+  | AddDBColToDBMigration of tlid * id * id
+  | SetDBColNameInDBMigration of tlid * id * string
+  | SetDBColTypeInDBMigration of tlid * id * string
+  | AbandonDBMigration of tlid
+  | DeleteColInDBMigration of tlid * id
+  | DeleteDBCol of tlid * id
+  | RenameDBname of tlid * string
+  | CreateDBWithBlankOr of tlid * pos * id * string
+  | DeleteTLForever of tlid
+  | DeleteFunctionForever of tlid
+  | SetType of UserType.T
+  | DeleteType of tlid
+  | DeleteTypeForever of tlid
+
+type Oplist = List<Op>

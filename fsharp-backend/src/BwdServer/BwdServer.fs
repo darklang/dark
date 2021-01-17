@@ -20,6 +20,7 @@ open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Prelude
+open Prelude.Tablecloth
 open FSharpx
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
@@ -140,13 +141,18 @@ let runDarkHandler : HttpHandler =
 
               let method = ctx.Request.Method
 
-              return!
-                LibBackend.ProgramSerialization.SQL.loadHttpHandlersFromCache
+              let! canvas =
+                LibBackend.Canvas.loadHttpHandlersFromCache
                   canvasName
                   canvasID
                   ownerID
                   requestPath
                   method
+
+              match canvas with
+              // FSTODO: print or log error
+              | Error _ -> return []
+              | Ok canvas -> return LibBackend.Canvas.toplevels canvas |> Map.values
           | None -> return []
         }
 

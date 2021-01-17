@@ -298,6 +298,8 @@ module InitialLoad =
     task {
       let user = Middleware.loadUserInfo ctx
       let canvasName = Middleware.loadCanvasName ctx
+      // let! canvas = LibBackend.Canvas.loadAllFromCache canvasName
+      // let! unlocked = LibBackend.Analysis.unlocked canvas.id
       return "todo: initialLoad"
     }
 //   ~(execution_id : Types.id)

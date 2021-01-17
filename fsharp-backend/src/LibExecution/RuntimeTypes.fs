@@ -774,7 +774,7 @@ module UserType =
   type T = { tlid : tlid; name : string; version : int; definition : Definition }
 
 module UserFunction =
-  type Parameter = { name : string; typ : DType; description : string }
+  type Parameter = { name : string; type' : DType; description : string }
 
   type T =
     { tlid : tlid

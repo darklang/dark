@@ -474,6 +474,7 @@ module Task =
 module Tablecloth =
   // An implementation of https://github.com/darklang/tablecloth, in F#. Intended
   // to be upstreamed.
+  let identity (a : 'a) = a
 
   module Result =
 
@@ -519,11 +520,17 @@ module Tablecloth =
   module Tuple2 =
     let get1 ((v1, _2) : ('a * 'b)) : 'a = v1
     let get2 ((_1, v2) : ('a * 'b)) : 'b = v2
+    let map1 (f : 'a -> 'x) ((v1, v2) : ('a * 'b)) : ('x * 'b) = (f v1, v2)
+    let map2 (f : 'b -> 'x) ((v1, v2) : ('a * 'b)) : ('a * 'x) = (v1, f v2)
+    let create (a : 'a) (b : 'b) : 'a * 'b = (a, b)
 
   module Tuple3 =
     let get1 ((v1, _2, _3) : ('a * 'b * 'c)) : 'a = v1
     let get2 ((_1, v2, _3) : ('a * 'b * 'c)) : 'b = v2
     let get3 ((_1, _2, v3) : ('a * 'b * 'c)) : 'c = v3
+
+  module Map =
+    let values (m : Map<'k, 'v>) : List<'v> = Map.toList m |> List.map Tuple2.get2
 
 
 // ----------------------
@@ -545,7 +552,6 @@ type Sign =
   | Negative
 
 type tlid = uint64
-
 type id = uint64
 type CanvasID = System.Guid
 type UserID = System.Guid
