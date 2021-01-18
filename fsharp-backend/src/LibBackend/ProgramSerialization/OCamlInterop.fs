@@ -15,7 +15,7 @@ open FSharpPlus
 open System.Text.RegularExpressions
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 open LibBackend.Db
 
 module PT = ProgramTypes

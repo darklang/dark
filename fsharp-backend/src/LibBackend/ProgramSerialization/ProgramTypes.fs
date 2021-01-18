@@ -20,7 +20,7 @@ open Npgsql
 open System.Text.RegularExpressions
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 // Used for conversion functions
 module RT = LibExecution.RuntimeTypes

@@ -14,7 +14,7 @@ module Account = LibBackend.Account
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 type Permission =
   | Read

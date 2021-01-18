@@ -30,7 +30,7 @@ module LibExecution.RuntimeTypes
 
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 module J = Prelude.Json
 

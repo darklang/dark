@@ -18,7 +18,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 
 module Config = LibBackend.Config

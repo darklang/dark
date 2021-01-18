@@ -10,7 +10,7 @@ open Npgsql.FSharp.Tasks
 open Npgsql
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 open Db
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes

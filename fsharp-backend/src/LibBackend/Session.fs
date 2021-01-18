@@ -7,7 +7,7 @@ open Npgsql.FSharp.Tasks
 open Npgsql
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 open Db
 
 type JsonData = { username : string; csrf_token : string }

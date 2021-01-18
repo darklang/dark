@@ -20,7 +20,7 @@ open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 open FSharpx
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes

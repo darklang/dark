@@ -9,7 +9,7 @@ open Npgsql.FSharp.Tasks
 open Npgsql
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 open Db
 
 // **********************

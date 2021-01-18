@@ -7,6 +7,20 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <!-- <Compile Include="TableclothArray.fs" /> -->
+    <!-- <Compile Include="TableclothBool.fs" /> -->
+    <!-- <Compile Include="TableclothChar.fs" /> -->
+    <!-- <Compile Include="TableclothFloat.fs" /> -->
+    <!-- <Compile Include="TableclothInt.fs" /> -->
+    <Compile Include="TableclothList.fsi" />
+    <Compile Include="TableclothList.fs" />
+    <!-- <Compile Include="TableclothMap.fs" /> -->
+    <!-- <Compile Include="TableclothOption.fs" /> -->
+    <!-- <Compile Include="TableclothResult.fs" /> -->
+    <!-- <Compile Include="TableclothSet.fs" /> -->
+    <!-- <Compile Include="TableclothString.fs" /> -->
+    <!-- <Compile Include="TableclothTuple2.fs" /> -->
+    <!-- <Compile Include="TableclothTuple3.fs" /> -->
     <Compile Include="Prelude.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

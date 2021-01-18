@@ -12,7 +12,7 @@ open LibBackend.Db
 open System.Text.RegularExpressions
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 module PT = ProgramSerialization.ProgramTypes
 
