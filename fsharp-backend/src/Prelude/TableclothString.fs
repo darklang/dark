@@ -174,7 +174,4 @@ let fold (initial : 'a) (f : 'a -> char -> 'a) (s : string) : 'a =
 
 let equal (s1 : string) (s2 : string) = s1 = s2
 
-let compare (s1 : string) (s2 : string) =
-  if s1 = s2 then 0
-  else if s1 < s2 then -1
-  else 1
+let compare (s1 : string) (s2 : string) = s1.CompareTo s2

@@ -11,7 +11,8 @@
     <!-- <Compile Include="TableclothBool.fs" /> -->
     <!-- <Compile Include="TableclothChar.fs" /> -->
     <!-- <Compile Include="TableclothFloat.fs" /> -->
-    <!-- <Compile Include="TableclothInt.fs" /> -->
+    <Compile Include="TableclothInt.fsi" />
+    <Compile Include="TableclothInt.fs" />
     <Compile Include="TableclothList.fsi" />
     <Compile Include="TableclothList.fs" />
     <!-- <Compile Include="TableclothMap.fs" /> -->
