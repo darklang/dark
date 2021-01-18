@@ -18,7 +18,8 @@
     <!-- <Compile Include="TableclothOption.fs" /> -->
     <!-- <Compile Include="TableclothResult.fs" /> -->
     <!-- <Compile Include="TableclothSet.fs" /> -->
-    <!-- <Compile Include="TableclothString.fs" /> -->
+    <Compile Include="TableclothString.fsi" />
+    <Compile Include="TableclothString.fs" />
     <!-- <Compile Include="TableclothTuple2.fs" /> -->
     <!-- <Compile Include="TableclothTuple3.fs" /> -->
     <Compile Include="Prelude.fs" />
