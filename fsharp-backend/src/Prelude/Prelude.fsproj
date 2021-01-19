@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <!-- <Compile Include="TableclothArray.fsi" /> -->
     <!-- <Compile Include="TableclothArray.fs" /> -->
     <Compile Include="TableclothBool.fsi" />
     <Compile Include="TableclothBool.fs" />
@@ -18,15 +19,20 @@
     <Compile Include="TableclothFloat.fs" />
     <Compile Include="TableclothList.fsi" />
     <Compile Include="TableclothList.fs" />
+    <!-- <Compile Include="TableclothMap.fsi" /> -->
     <!-- <Compile Include="TableclothMap.fs" /> -->
+    <!-- <Compile Include="TableclothOption.fsi" /> -->
     <!-- <Compile Include="TableclothOption.fs" /> -->
+    <!-- <Compile Include="TableclothResult.fsi" /> -->
     <!-- <Compile Include="TableclothResult.fs" /> -->
+    <!-- <Compile Include="TableclothSet.fsi" /> -->
     <!-- <Compile Include="TableclothSet.fs" /> -->
     <Compile Include="TableclothString.fsi" />
     <Compile Include="TableclothString.fs" />
     <Compile Include="TableclothTuple2.fsi" />
     <Compile Include="TableclothTuple2.fs" />
-    <!-- <Compile Include="TableclothTuple3.fs" /> -->
+    <Compile Include="TableclothTuple3.fsi" />
+    <Compile Include="TableclothTuple3.fs" />
     <Compile Include="Prelude.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
