@@ -8,7 +8,8 @@
   <ItemGroup>
     <None Include="paket.references" />
     <!-- <Compile Include="TableclothArray.fs" /> -->
-    <!-- <Compile Include="TableclothBool.fs" /> -->
+    <Compile Include="TableclothBool.fsi" />
+    <Compile Include="TableclothBool.fs" />
     <Compile Include="TableclothChar.fsi" />
     <Compile Include="TableclothChar.fs" />
     <Compile Include="TableclothInt.fsi" />
