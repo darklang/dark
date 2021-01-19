@@ -176,7 +176,7 @@ type Direction =
   | Closest of Direction
   | ClosestToEven
 
-let round (direction : Direction) (n : t) : t =
+let rec round (direction : Direction) (n : t) : t =
   match direction with
   | Up -> ceil n
   | Down -> floor n
@@ -185,7 +185,7 @@ let round (direction : Direction) (n : t) : t =
   | Closest Zero -> if n > 0. then ceil (n - 0.5) else floor (n + 0.5)
   | Closest AwayFromZero -> if n > 0. then floor (n + 0.5) else ceil (n - 0.5)
   | Closest Down -> ceil (n - 0.5)
-  | Closest Up -> round n
+  | Closest Up -> FSharp.Core.Operators.round n
   | Closest ClosestToEven
   | ClosestToEven ->
       let roundNearestLowerBound = -(2. ** 52.) in
@@ -203,6 +203,7 @@ let round (direction : Direction) (n : t) : t =
         else if diff_floor > diff_ceil then ceil_or_succ
         else if floor % 2. = 0. then floor
         else ceil_or_succ
+  | Closest (Closest x) -> round (Closest x) n
 
 
 let floor n = floor n
