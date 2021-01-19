@@ -64,7 +64,7 @@ val from_string: string -> bool option
 
 (** {1 Basic operations} *)
 
-val ``and``: bool -> bool -> bool
+val and_: bool -> bool -> bool
 (** The lazy logical AND operator.
 
     Returns [true] if both of its operands evaluate to [true].
@@ -82,7 +82,7 @@ val ``and``: bool -> bool -> bool
     {[Bool.(false && false) = false]}
 *)
 
-val ``or``: bool -> bool -> bool
+val or_: bool -> bool -> bool
 (** The lazy logical OR operator.
 
     Returns [true] if one of its operands evaluates to [true].

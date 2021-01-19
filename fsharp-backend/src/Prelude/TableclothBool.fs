@@ -22,9 +22,9 @@ let fromString string =
 
 let from_string s = fromString s
 
-let ``and`` (b1 : bool) (b2 : bool) : bool = b1 && b2
+let and_ (b1 : bool) (b2 : bool) : bool = b1 && b2
 
-let ``or`` (b1 : bool) (b2 : bool) : bool = b1 || b2
+let or_ (b1 : bool) (b2 : bool) : bool = b1 || b2
 
 let xor a b = (a && not b) || ((not a) && b)
 
