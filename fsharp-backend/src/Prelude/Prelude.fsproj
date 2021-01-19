@@ -24,7 +24,8 @@
     <!-- <Compile Include="TableclothSet.fs" /> -->
     <Compile Include="TableclothString.fsi" />
     <Compile Include="TableclothString.fs" />
-    <!-- <Compile Include="TableclothTuple2.fs" /> -->
+    <Compile Include="TableclothTuple2.fsi" />
+    <Compile Include="TableclothTuple2.fs" />
     <!-- <Compile Include="TableclothTuple3.fs" /> -->
     <Compile Include="Prelude.fs" />
   </ItemGroup>
