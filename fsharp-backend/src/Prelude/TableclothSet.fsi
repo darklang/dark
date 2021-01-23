@@ -2,20 +2,20 @@ module Tablecloth.Set
 
 (** A {!Set} represents a collection of unique values.
 
-    [Set] is an immutable data structure which means operations like {!Set.add} and {!Set.remove} do not modify the data structure, but return a new set with the desired changes.
+    [Set] is an immutable data structure which means operations like {!Set.add}
+    and {!Set.remove} do not modify the data structure, but return a new set
+    with the desired changes.
 
-    Since sets of [int]s and [string]s are so common the specialised {!Set.Int} and {!Set.String} modules are available which offer a convenient way to construct new sets.
-
-    Custom data types can be used with sets as long as the module satisfies the {!comparison} trait.
+    Unlike OCaml and Bucklescript versions of Sets, F# Sets work on any type
+    with the comparison trait, and do not require different modules.
 *)
 
 type t<'a when 'a: comparison> = 'a Set
 
 (** {1 Create}
 
-  You can create a Set by providing a module conform to the {!Comparator.S} signature by using {!empty}, {!singleton}, {!fromList} or {!fromArray}.
-
   Specialised versions of the {!empty}, {!singleton}, {!fromList} and {!fromArray} functions available in the {!Set.Int} and {!Set.String} sub-modules.
+
 *)
 
 val empty: 'a t

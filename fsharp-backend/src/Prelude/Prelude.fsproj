@@ -21,12 +21,12 @@
     <Compile Include="TableclothFloat.fs" />
     <Compile Include="TableclothList.fsi" />
     <Compile Include="TableclothList.fs" />
-    <!-- <Compile Include="TableclothMap.fsi" /> -->
-    <!-- <Compile Include="TableclothMap.fs" /> -->
+    <Compile Include="TableclothMap.fsi" />
+    <Compile Include="TableclothMap.fs" />
     <Compile Include="TableclothOption.fsi" />
     <Compile Include="TableclothOption.fs" />
-    <!-- <Compile Include="TableclothResult.fsi" /> -->
-    <!-- <Compile Include="TableclothResult.fs" /> -->
+    <Compile Include="TableclothResult.fsi" />
+    <Compile Include="TableclothResult.fs" />
     <Compile Include="TableclothSet.fsi" />
     <Compile Include="TableclothSet.fs" />
     <Compile Include="TableclothString.fsi" />
