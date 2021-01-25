@@ -168,21 +168,22 @@ let values a =
 
 let join sep (a : string t) = String.concat sep a
 
-// let groupBy f a =
-//   fold
-//     (fun map element ->
-//       let key = f element in
-//
-//       Tablecloth.Map.update
-//         key
-//         (function
-//         | None -> Some [ element ]
-//         | Some elements -> Some(element :: elements))
-//         map)
-//     a
-//
+let groupBy (f : 'v -> 'k) (a : 'v array) : Map<'k, 'v list> =
+  fold
+    Map.empty
+    (fun map element ->
+      let key = f element in
 
-// let group_by f a = groupBy f a
+      Tablecloth.Map.update
+        key
+        (function
+        | None -> Some [ element ]
+        | Some elements -> Some(element :: elements))
+        map)
+    a
+
+
+let group_by f a = groupBy f a
 
 let slice ``to`` from array =
   let sliceFrom =

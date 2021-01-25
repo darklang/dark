@@ -792,24 +792,26 @@ val join: sep:string -> string t -> string
     {[Array.join ", " [|"Ant"; "Bat"; "Cat"|] = "Ant, Bat, Cat"]}
  *)
 
-// val groupBy: ('value -> 'key) -> 'value t -> Map<'key, 'value list>
-// (** Collect elements which [f] produces the same key for
-//
-//     Produces a map from ['key] to a {!List} of all elements which produce the same ['key]
-//
-//     {2 Examples}
-//
-//     {[
-//       let animals = ["Ant"; "Bear"; "Cat"; "Dewgong"] in
-//       Array.groupBy animals (module Int) ~f:String.length = Map.Int.fromList [
-//         (3, ["Cat"; "Ant"]);
-//         (4, ["Bear"]);
-//         (7, ["Dewgong"]);
-//       ]
-//     ]}
-// *)
-//
-// val group_by: ('value -> 'key) -> 'value t -> Map<'key, 'value list>
+val groupBy: ('value -> 'key) -> 'value t -> Map<'key, 'value list>
+  when 'key: comparison
+(** Collect elements which [f] produces the same key for
+
+    Produces a map from ['key] to a {!List} of all elements which produce the same ['key]
+
+    {2 Examples}
+
+    {[
+      let animals = ["Ant"; "Bear"; "Cat"; "Dewgong"] in
+      Array.groupBy animals (module Int) ~f:String.length = Map.Int.fromList [
+        (3, ["Cat"; "Ant"]);
+        (4, ["Bear"]);
+        (7, ["Dewgong"]);
+      ]
+    ]}
+*)
+
+val group_by: ('value -> 'key) -> 'value t -> Map<'key, 'value list>
+  when 'key: comparison
 
 val toList: 'a t -> 'a list
 (** Create a {!List} of elements from an array.
