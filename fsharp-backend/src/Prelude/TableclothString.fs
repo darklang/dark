@@ -170,7 +170,7 @@ let forEach f s = String.iter f s
 let for_each f s = forEach f s
 
 let fold (initial : 'a) (f : 'a -> char -> 'a) (s : string) : 'a =
-  s |> toArray |> Array.fold (fun accum c -> f accum c) initial
+  s |> toArray |> Array.fold initial (fun accum c -> f accum c)
 
 let equal (s1 : string) (s2 : string) = s1 = s2
 

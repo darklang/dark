@@ -68,7 +68,7 @@ val repeat: count:int -> 'a -> 'a t
 *)
 
 val range: from:int -> ``to``:int -> int t
-(** Creates a list containing all of the integers from [from] if it is provided or [0] if not, up to but not including [to]
+(** Creates a list containing all of the integers from [from] up to but not including [to]
 
     {2 Examples}
 
@@ -505,11 +505,7 @@ val inline sum: 'a list -> 'a
 
     {[List.sum [4.0;4.5;5.0] = 13.5]}
 
-    {[
-      List.sum
-        ["a"; "b"; "c"]
-        = "abc"
-    ]}
+    {[ List.sum ["a"; "b"; "c"] = "abc" ]}
 *)
 
 (** {1 Transform} *)

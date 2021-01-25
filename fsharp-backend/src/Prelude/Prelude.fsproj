@@ -7,8 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <!-- <Compile Include="TableclothArray.fsi" /> -->
-    <!-- <Compile Include="TableclothArray.fs" /> -->
     <Compile Include="TableclothBool.fsi" />
     <Compile Include="TableclothBool.fs" />
     <Compile Include="TableclothChar.fsi" />
@@ -23,6 +21,8 @@
     <Compile Include="TableclothList.fs" />
     <Compile Include="TableclothMap.fsi" />
     <Compile Include="TableclothMap.fs" />
+    <Compile Include="TableclothArray.fsi" />
+    <Compile Include="TableclothArray.fs" />
     <Compile Include="TableclothOption.fsi" />
     <Compile Include="TableclothOption.fs" />
     <Compile Include="TableclothResult.fsi" />
