@@ -461,34 +461,34 @@ val includes: 'a -> 'a t -> bool when 'a: equality
     {[List.includes [] 5 = false]}
 *)
 
-val minimum: compare:('a -> 'a -> int) -> 'a t -> 'a option
-(** Find the smallest element using the provided [compare] function.
+val minimum: 'a t -> 'a option when 'a: comparison
+(** Find the smallest element.
 
     Returns [None] if called on an empty array.
 
     {2 Examples}
 
-    {[List.minimum Int.compare [|7; 5; 8; 6|] = Some 5]}
+    {[List.minimum [|7; 5; 8; 6|] = Some 5]}
 *)
 
-val maximum: compare:('a -> 'a -> int) -> 'a t -> 'a option
-(** Find the largest element using the provided [compare] function.
+val maximum: 'a t -> 'a option when 'a: comparison
+(** Find the largest element.
 
     Returns [None] if called on an empty array.
 
     {2 Examples}
 
-    {[List.maximum Int.compare [|7; 5; 8; 6|] = Some 8]}
+    {[List.maximum [|7; 5; 8; 6|] = Some 8]}
 *)
 
-val extent: compare:('a -> 'a -> int) -> 'a t -> ('a * 'a) option
-(** Find a {!Tuple} of the [(minimum, maximum)] elements using the provided [compare] function.
+val extent: 'a t -> ('a * 'a) option when 'a: comparison
+(** Find a {!Tuple} of the [(minimum, maximum)] elements.
 
     Returns [None] if called on an empty array.
 
     {2 Examples}
 
-    {[List.extent Int.compare [|7; 5; 8; 6|] = Some (5, 8)]}
+    {[List.extent [|7; 5; 8; 6|] = Some (5, 8)]}
 *)
 
 // when clause copied from

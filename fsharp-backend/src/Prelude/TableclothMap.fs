@@ -15,110 +15,107 @@ let fromArray (elements : ('key * 'value) array) : t<'key, 'value> =
 
 let from_array a = fromArray a
 
-// let fromList
-//
-//     (elements : ('key * 'value) list) : t<'key, 'value> =
-//   Base.Map.of_alist_reduce
-//     elements
-//     ~f:keepLatestOnly
-//
-//
-// let from_list = fromList
-//
-// let isEmpty = Base.Map.is_empty
-//
-// let is_empty = isEmpty
-//
-// let includes = Base.Map.mem
-//
-// let length = Base.Map.length
-//
-// let minimum t = Base.Map.min_elt t |> Option.map fst
-//
-// let maximum t = Base.Map.max_elt t |> Option.map fst
-//
-// let extent t = TableclothOption.both (minimum t) (maximum t)
-//
-// let add m ~key ~value = Base.Map.set m ~key ~data:value
+let fromList (elements : ('key * 'value) list) : t<'key, 'value> =
+  Map.ofList elements
+
+let from_list es = fromList es
+
+let isEmpty m = Map.isEmpty m
+
+let is_empty m = isEmpty m
+
+let includes k m = Map.containsKey k m
+
+let length m = Map.count m
+
+let minimum m =
+  if length m = 0 then
+    None
+  else
+    m |> Map.toList |> List.map fst |> Tablecloth.List.minimum
+
+let maximum m =
+  if length m = 0 then
+    None
+  else
+    m |> Map.toList |> List.map fst |> Tablecloth.List.maximum
+
+let extent t = Tablecloth.Option.both (minimum t) (maximum t)
+
+let add key value m = Map.add key value m
 //
 // let ( .?{}<- ) (map : t<'key, 'value>) (key : 'key) (value : 'value) :
 //     t<'key, 'value> =
 //   add map ~key ~value
 //
 //
-// let remove = Base.Map.remove
-//
-// let get = Base.Map.find
-//
+let remove k m = Map.remove k m
+
+let get k m = Map.tryFind k m
+
 // let ( .?{} ) (map : ('key, 'value, _) t) (key : 'key) : 'value option =
 //   get map key
-//
-//
-// let update m ~key ~f = Base.Map.change m key ~f
-//
-// let merge m1 m2 ~f =
-//   Base.Map.merge m1 m2 ~f:(fun ~key desc ->
+
+
+let update key f m = Map.change key f m
+
+// let merge f m1 m2 =
+//   Map.merge m1 m2 (fun key desc ->
 //       match desc with
-//       | `Left v1 ->
+//       | Left v1 ->
 //           f key (Some v1) None
-//       | `Right v2 ->
+//       | Right v2 ->
 //           f key None (Some v2)
-//       | `Both (v1, v2) ->
+//       | Both (v1, v2) ->
 //           f key (Some v1) (Some v2))
-//
-//
-// let map = Base.Map.map
-//
-// let mapWithIndex t ~f = Base.Map.mapi t ~f:(fun ~key ~data -> f key data)
-//
-// let map_with_index = mapWithIndex
-//
-// let filter = Base.Map.filter
-//
-// let partition m ~f =
-//   Base.Map.partition_mapi m ~f:(fun ~key ~data ->
-//       if f ~key ~value:data then `Fst data else `Snd data)
-//
-//
-// let find m ~f =
-//   Base.Map.fold m ~init:None ~f:(fun ~key ~data matching ->
-//       match matching with
-//       | Some _ ->
-//           matching
-//       | None ->
-//           if f ~key ~value:data then Some (key, data) else None)
-//
-//
-// let any = Base.Map.exists
-//
-// let all = Base.Map.for_all
-//
-// let forEach = Base.Map.iter
-//
-// let for_each = forEach
-//
-// let forEachWithIndex
-//     (map : ('key, 'value, _) t) ~(f : key:'key -> value:'value -> unit) : unit =
-//   Base.Map.iteri map ~f:(fun ~key ~data -> f ~key ~value:data)
-//
-//
-// let for_each_with_index = forEachWithIndex
-//
-// let fold m ~initial ~f =
-//   Base.Map.fold m ~init:initial ~f:(fun ~key ~data acc ->
-//       f acc ~key ~value:data)
-//
-//
-// let keys = Base.Map.keys
-//
-// let values = Base.Map.data
-//
-// let toArray m = Base.Map.to_alist m |> Base.List.to_array
-//
-// let to_array = toArray
-//
-// let toList m = Base.Map.to_alist m
-//
-// let to_list = toList
-//
-let placeholder = 0
+
+let fold (initial : 'a) (f : 'key -> 'value -> 'a -> 'a) (m : t<'key, 'value>) : 'a =
+  Map.fold (fun map k v -> f k v map) initial m
+
+let map f m = Map.map (fun _ v -> f v) m
+
+let mapWithIndex (f : 'key -> 'value -> 'b) (m : t<'key, 'value>) : t<'key, 'b> =
+  Map.map f m
+
+let map_with_index f m = mapWithIndex f m
+
+let filter f m = Map.filter (fun _ v -> f v) m
+
+let partition f m = Map.partition f m
+
+let find f m = Map.tryFindKey f m |> Option.map (fun k -> (k, m.[k]))
+
+let any f m = Map.exists (fun _ v -> f v) m
+
+let all f m = Map.forall (fun _ v -> f v) m
+
+let forEach f m = Map.iter (fun _ v -> f v) m
+
+let for_each f m = forEach f m
+
+let forEachWithIndex f m : unit = Map.iter f m
+
+let for_each_with_index f m = forEachWithIndex f m
+
+let keys (map : Map<'k, 'v>) =
+  seq {
+    for KeyValue (key, value) in map do
+      yield key
+  }
+  |> List.ofSeq
+
+let values (map : Map<'k, 'v>) =
+  seq {
+    for KeyValue (key, value) in map do
+      yield value
+  }
+  |> List.ofSeq
+
+
+let toArray m = Map.toArray m
+
+let to_array m = toArray m
+
+let toList m = Map.toList m
+
+let to_list m = toList m

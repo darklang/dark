@@ -159,31 +159,10 @@ let removeAt (index : int) (l : 'a list) =
 
 let remove_at i l = removeAt i l
 
-let minimum compare l =
-  fold
-    None
-    (fun min element ->
-      match min with
-      | None -> Some element
-      | Some value ->
-          (match compare element value < 0 with
-           | true -> Some element
-           | false -> min))
-    l
+let minimum l = if length l = 0 then None else Some(List.min l)
+let maximum l = if length l = 0 then None else Some(List.max l)
 
-let maximum compare l =
-  fold
-    None
-    (fun max element ->
-      match max with
-      | None -> Some element
-      | Some value ->
-          (match compare element value > 0 with
-           | true -> Some element
-           | false -> max))
-    l
-
-let extent compare l =
+let extent l =
   fold
     None
     (fun current element ->
@@ -235,6 +214,7 @@ let sliding (step : int) (size : int) (l : 'a t) =
      else
        let sample = takeAllOrEmpty t size ([], 0) in
        if isEmpty sample then [] else sample :: loop (List.skip step l)
+
 
    loop l : 'a t t)
 
