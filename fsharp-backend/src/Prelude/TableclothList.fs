@@ -80,7 +80,6 @@ let find f l = List.tryFind f l
 
 // Implementation adapted from https://github.com/dotnet/fsharp/blob/main/src/fsharp/FSharp.Core/list.fs
 let findIndex f l =
-
   let rec loop n list =
     match list with
     | [] -> None
@@ -128,7 +127,6 @@ let splitWhen (f : 'a -> bool) (l : 'a list) =
    | Some (index, _) -> splitAt index l
    | None -> (l, []) : 'a list * 'a list)
 
-
 let split_when f l = splitWhen f l
 
 let updateAt (index : int) (f : 'a -> 'a) (l : 'a list) =
@@ -140,7 +138,6 @@ let updateAt (index : int) (f : 'a -> 'a) (l : 'a list) =
      match back with
      | [] -> l
      | x :: rest -> append front (f x :: rest) : 'a list)
-
 
 let update_at i f l = updateAt i f l
 
@@ -156,10 +153,10 @@ let removeAt (index : int) (l : 'a list) =
      | None -> l
      | Some t -> append front t : 'a list)
 
-
 let remove_at i l = removeAt i l
 
 let minimum l = if length l = 0 then None else Some(List.min l)
+
 let maximum l = if length l = 0 then None else Some(List.max l)
 
 let extent l =
@@ -179,11 +176,9 @@ let extent l =
           ))
     l
 
-
 let insertAt (index : int) (value : 'a) (l : 'a list) =
   (let front, back = splitAt index l in
    append front (value :: back) : 'a list)
-
 
 let insert_at i v l = insertAt i v l
 
@@ -218,7 +213,6 @@ let sliding (step : int) (size : int) (l : 'a t) =
 
    loop l : 'a t t)
 
-
 let chunksOf size l = sliding size size l
 
 let chunks_of size l = chunksOf size l
@@ -228,7 +222,6 @@ let intersperse sep l =
    | [] -> []
    | [ x ] -> [ x ]
    | x :: rest -> x :: foldRight [] (fun acc x -> sep :: x :: acc) rest : 'a list)
-
 
 let forEach f l = List.iter f l
 
@@ -257,7 +250,7 @@ let rec groupWhile f l =
 
 let group_while f l = groupWhile f l
 
-let sort f l = List.sortWith f l
+let sort l = List.sort l
 
 let join (sep : string) (l : string list) = String.concat sep l
 
@@ -270,7 +263,6 @@ let rec equal equalElement (a : 'a list) (b : 'a list) : bool =
   | [], [] -> true
   | x :: xs, y :: ys -> equalElement x y && equal equalElement xs ys
   | _ -> false
-
 
 let rec compare compareElement (a : 'a list) (b : 'a list) : int =
   match (a, b) with

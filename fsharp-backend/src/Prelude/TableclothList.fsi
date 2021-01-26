@@ -314,14 +314,14 @@ val reverse: 'a t -> 'a t
     {[List.reverse [1; 2; 3] = [3; 2; 1]]}
  *)
 
-val sort: compare:('a -> 'a -> int) -> 'a t -> 'a t
-(** Sort using the provided [compare] function.
+val sort: 'a t -> 'a t when 'a: comparison
+(** Sort list using comparison trait
 
     Sorting is stable.
 
     {2 Examples}
 
-    {[List.sort Int.compare [5;6;8;3;6] = [3;5;6;6;8]]}
+    {[List.sort [5;6;8;3;6] = [3;5;6;6;8]]}
 *)
 
 (** {1 Query} *)
