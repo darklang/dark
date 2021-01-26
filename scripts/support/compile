@@ -255,8 +255,7 @@ def fsharp_backend_quick_build():
     && unbuffer dotnet build \
       --no-restore \
       --verbosity minimal \
-      --configuration Debug \
-      src/Prelude"
+      --configuration Debug"
   return run_backend(start, build)
 
 
