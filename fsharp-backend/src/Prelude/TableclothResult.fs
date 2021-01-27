@@ -52,7 +52,7 @@ let unwrap ``default`` r =
 let unwrapUnsafe r =
   match r with
   | Ok v -> v
-  | Error _ -> raise (System.ArgumentException "expected OK, got result")
+  | Error e -> invalidArg "result" $"Result.unwrapUnsafe called with Error {e}"
 
 let unwrap_unsafe r = unwrapUnsafe r
 
