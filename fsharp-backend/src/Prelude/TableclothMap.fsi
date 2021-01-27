@@ -341,6 +341,28 @@ val filter: f:('value -> bool) -> t<'key, 'value> -> t<'key, 'value>
     ]}
 *)
 
+val filterWithIndex:
+  f:('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value>
+(** Keep elements that [f] returns [true] for.
+
+    {2 Examples}
+
+    {[
+      Map.String.fromList [
+        ("Elephant", 3_156);
+        ("Shrew", 56_423);
+      ]
+      |> Map.filter (fun _ population -> population > 10_000)
+      |> Map.toList
+        = [
+        ("Shrew", "56423");
+      ]
+    ]}
+*)
+
+val filter_with_index:
+  f:('key -> 'value -> bool) -> t<'key, 'value> -> t<'key, 'value>
+
 val partition:
   f:('key -> 'value -> bool)
    -> t<'key, 'value> -> t<'key, 'value> * t<'key, 'value>

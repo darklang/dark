@@ -243,6 +243,7 @@ type Expr =
         let inner = r expr1
 
         List.fold
+          inner
           (fun prev next ->
             match next with
             // TODO: support currying
@@ -268,8 +269,6 @@ type Expr =
             // Here, the expression evaluates to an FnValue. This is for eg variables containing values
             | other ->
                 RT.EApply(id, r other, [ prev ], RT.InPipe, NoRail.toRuntimeType ()))
-
-          inner
           (expr2 :: rest)
 
     | EConstructor (id, name, exprs) -> RT.EConstructor(id, name, List.map r exprs)

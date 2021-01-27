@@ -143,12 +143,11 @@ module String =
         yield tee.GetTextElement()
     }
 
+  let splitOnNewline (str : string) : List<string> =
+    str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
+
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
-
-  let toLower (str : string) : string = str.ToLower()
-
-  let toUpper (str : string) : string = str.ToUpper()
 
   let base64UrlEncode (str : string) : string =
 
@@ -166,9 +165,6 @@ module String =
 // TaskOrValue
 // ----------------------
 // A way of combining non-task values with tasks, complete with computation expressions
-
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 type TaskOrValue<'T> =
   | Task of Task<'T>
@@ -499,7 +495,7 @@ module UserName =
 
     override this.ToString() = let (UserName username) = this in username
 
-  let create (str : string) : T = UserName(String.toLower str)
+  let create (str : string) : T = UserName(Tablecloth.String.toLowercase str)
 
 module OwnerName =
   type T =
@@ -509,7 +505,7 @@ module OwnerName =
     override this.ToString() = let (OwnerName name) = this in name
     member this.toUserName : UserName.T = UserName.create (this.ToString())
 
-  let create (str : string) : T = OwnerName(String.toLower str)
+  let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
 
 
 module CanvasName =
@@ -523,6 +519,6 @@ module CanvasName =
     if String.length name > 64 then
       failwith $"Canvas name was too long, must be <= 64."
 
-    CanvasName(String.toLower name)
+    CanvasName(Tablecloth.String.toLowercase name)
 
 let id (x : int) : id = uint64 x

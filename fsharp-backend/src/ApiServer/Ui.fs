@@ -29,7 +29,7 @@ let prodHashReplacements : string =
   |> Map.remove "__date"
   |> Map.remove ".gitkeep"
   // Only hash our assets, not vendored assets
-  |> Map.filter (fun k v -> not (k.Contains "vendor/"))
+  |> Map.filterWithIndex (fun k v -> not (String.includes "vendor/" k))
   |> Map.toList
   |> List.map
        (fun (filename, hash) ->
@@ -116,7 +116,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     let! ownerID =
       (Account.ownerNameFromCanvasName canvasName).toUserName
       |> Account.ownerID
-      |> Task.map Option.someOrRaise
+      |> Task.map Option.unwrapUnsafe
 
     let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
     let! createdAt = Account.getUserCreatedAt user.username

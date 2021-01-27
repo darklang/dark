@@ -594,7 +594,7 @@ module Yojson =
   let ocamlTLIDOplist2PT
     (tlidOplist : OT.tlid_oplist<RT.fluidExpr>)
     : tlid * PT.Oplist =
-    Tuple2.map2 ocamlOplist2PT tlidOplist
+    Tuple2.mapItem2 ocamlOplist2PT tlidOplist
 
   // ----------------
   // ProgramTypes to OCaml

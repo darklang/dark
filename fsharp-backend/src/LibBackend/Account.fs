@@ -282,7 +282,7 @@ let ownerID (username : UserName.T) : Task<Option<System.Guid>> =
 
 // formerly called auth_domain_for
 let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
-  match String.split '-' (host.ToString()) with
+  match String.split "-" (host.ToString()) with
   | owner :: _ -> OwnerName.create owner
   | _ -> OwnerName.create (host.ToString())
 
@@ -301,7 +301,7 @@ let initTestAccounts () : Task<unit> =
           email = "test+unhashed@darklang.com"
           name = "Dark OCaml Tests with Unhashed Password" }
 
-    Result.okOrRaise test_unhashed
+    Result.unwrapUnsafe test_unhashed
 
     let! test =
       upsertNonAdmin
@@ -311,7 +311,7 @@ let initTestAccounts () : Task<unit> =
           email = "test@darklang.com"
           name = "Dark OCaml Tests" }
 
-    Result.okOrRaise test
+    Result.unwrapUnsafe test
 
     let! test_admin =
       upsertAdmin
@@ -321,7 +321,7 @@ let initTestAccounts () : Task<unit> =
           email = "test+admin@darklang.com"
           name = "Dark OCaml Test Admin" }
 
-    Result.okOrRaise test_admin
+    Result.unwrapUnsafe test_admin
 
     return ()
   }

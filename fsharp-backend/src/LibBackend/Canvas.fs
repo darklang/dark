@@ -45,7 +45,7 @@ type Canvas' =
 type Canvas = Ref<Canvas'>
 
 let toplevels (c : Canvas) : Map<tlid, PT.Toplevel> =
-  let map f l = Map.map (fun k v -> f v) l |> Map.toSeq
+  let map f l = Map.map f l |> Map.toSeq
 
   [ map PT.TLHandler (!c).handlers
     map PT.TLDB (!c).dbs
