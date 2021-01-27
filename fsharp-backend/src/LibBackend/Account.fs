@@ -105,7 +105,7 @@ let bannedUserNames : List<UserName.T> =
 let validateUserName (username : string) : Result<unit, string> =
   (* rules: no uppercase, ascii only, must start with letter, other letters can
    * be numbers or underscores. 3-20 characters. *)
-  let reString = @"^[a-z][a-z0-9_]{2,20}$"
+  let reString = @"^[a-z][a-z0-9_]{2,19}$"
 
   if FsRegEx.isMatch reString username then
     Ok()
