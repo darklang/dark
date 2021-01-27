@@ -25,7 +25,7 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
   if (root <> Config.NoCheck)
      && (f.Contains ".." |> debug "dots"
          || f.Contains "~" |> debug "tilde"
-         || f.EndsWith "." |> debug "tilde"
+         || f.EndsWith "." |> debug "ends dot"
          || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
          || (not (dir.EndsWith "/")) |> debug "dir no slash"
          || f.EndsWith "etc/passwd" |> debug "etc"
