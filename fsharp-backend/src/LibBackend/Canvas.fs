@@ -18,261 +18,207 @@ module PT = ProgramSerialization.ProgramTypes
 
 type Oplist = List<int>
 
-type corsSetting =
+type CorsSetting =
   | AllOrigins
   | Origins of List<string>
 
-type Canvas' =
+type T =
   { name : CanvasName.T
     owner : UserID
     id : CanvasID
     creationDate : System.DateTime
     ops : List<tlid * Oplist>
-    corsSetting : Option<corsSetting>
+    corsSetting : Option<CorsSetting>
     handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
-    // ; package_fns : RTT.fn list [@opaque]
+    packageFns : List<PackageManager.Fn>
     // TODO CLEANUP: no separate fields for deleted, combine them
-    // ; deleted_handlers : TL.toplevels
-    // ; deleted_dbs : TL.toplevels
-    // ; deleted_user_functions : RTT.user_fn IDMap.t
-    // ; deleted_user_tipes : RTT.user_tipe IDMap.t
-    // just added to stop the comment being deleted
-    extra : int }
+    deletedHandlers : Map<tlid, PT.Handler.T>
+    deletedDBs : Map<tlid, PT.DB.T>
+    deletedUserFunctions : Map<tlid, PT.UserFunction.T>
+    deletedUserTypes : Map<tlid, PT.UserType.T> }
 
-type Canvas = Ref<Canvas'>
+let addToplevel (tl : PT.Toplevel) (c : T) : T =
+  let tlid = tl.toTLID ()
 
-let toplevels (c : Canvas) : Map<tlid, PT.Toplevel> =
+  match tl with
+  | PT.TLHandler h -> { c with handlers = Map.add tlid h c.handlers }
+  | PT.TLDB db -> { c with dbs = Map.add tlid db c.dbs }
+  | PT.TLType t -> { c with userTypes = Map.add tlid t c.userTypes }
+  | PT.TLFunction f -> { c with userFunctions = Map.add tlid f c.userFunctions }
+
+let addToplevels (tls : PT.Toplevel list) (canvas : T) : T =
+  List.fold canvas (fun c tl -> addToplevel tl c) tls
+
+let toplevels (c : T) : Map<tlid, PT.Toplevel> =
   let map f l = Map.map f l |> Map.toSeq
 
-  [ map PT.TLHandler (!c).handlers
-    map PT.TLDB (!c).dbs
-    map PT.TLType (!c).userTypes
-    map PT.TLFunction (!c).userFunctions ]
+  [ map PT.TLHandler c.handlers
+    map PT.TLDB c.dbs
+    map PT.TLType c.userTypes
+    map PT.TLFunction c.userFunctions ]
   |> Seq.concat
   |> Map
 
-// (* ------------------------- *)
-// (* Toplevel *)
-// (* ------------------------- *)
-//
-// let set_db tlid pos data c =
-//   (* if the db had been deleted, remove it from the deleted set. This handles
-//    * a data race where a Set comes in after a Delete. *)
-//   { c with
-//     dbs = IDMap.set c.dbs tlid {tlid; pos; data}
-//   ; deleted_dbs = IDMap.remove c.deleted_dbs tlid }
-//
-//
-// let set_handler tlid pos data c =
-//   (* if the handler had been deleted, remove it from the deleted set. This handles
-//    * a data race where a Set comes in after a Delete. *)
-//   { c with
-//     handlers = IDMap.set c.handlers tlid {tlid; pos; data}
-//   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
-//
-//
-// let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
-//   (* if the fn had been deleted, remove it from the deleted set. This handles
-//    * a data race where a Set comes in after a Delete. *)
-//   { c with
-//     user_functions = IDMap.set c.user_functions user_fn.tlid user_fn
-//   ; deleted_user_functions = IDMap.remove c.deleted_user_functions user_fn.tlid
-//   }
-//
-//
-// let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
-//   (* if the tipe had been deleted, remove it from the deleted set. This handles
-//    * a data race where a Set comes in after a Delete. *)
-//   { c with
-//     user_tipes = IDMap.set c.user_tipes user_tipe.tlid user_tipe
-//   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid }
-//
-//
-// let delete_function (tlid : tlid) (c : canvas) : canvas =
-//   match IDMap.find c.user_functions tlid with
-//   | None ->
-//       c
-//   | Some user_fn ->
-//       { c with
-//         user_functions = IDMap.remove c.user_functions tlid
-//       ; deleted_user_functions = IDMap.set c.deleted_user_functions tlid user_fn
-//       }
-//
-//
-// let delete_function_forever (tlid : tlid) (c : canvas) : canvas =
-//   { c with
-//     user_functions = IDMap.remove c.user_functions tlid
-//   ; deleted_user_functions = IDMap.remove c.deleted_user_functions tlid }
-//
-//
-// let delete_tipe (tlid : tlid) (c : canvas) : canvas =
-//   match IDMap.find c.user_tipes tlid with
-//   | None ->
-//       c
-//   | Some user_tipe ->
-//       { c with
-//         user_tipes = IDMap.remove c.user_tipes tlid
-//       ; deleted_user_tipes = IDMap.set c.deleted_user_tipes tlid user_tipe }
-//
-//
-// let delete_tipe_forever (tlid : tlid) (c : canvas) : canvas =
-//   { c with
-//     user_tipes = IDMap.remove c.user_tipes tlid
-//   ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes tlid }
-//
-//
-// let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
-//   { c with
-//     dbs = IDMap.remove c.dbs tlid
-//   ; handlers = IDMap.remove c.handlers tlid
-//   ; deleted_dbs = IDMap.remove c.deleted_dbs tlid
-//   ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
-//
-//
-// let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
-//   let db = IDMap.find c.dbs tlid in
-//   let handler = IDMap.find c.handlers tlid in
-//   { c with
-//     dbs = IDMap.remove c.dbs tlid
-//   ; handlers = IDMap.remove c.handlers tlid
-//   ; deleted_dbs = IDMap.change c.deleted_dbs tlid ~f:(fun _ -> db)
-//   ; deleted_handlers =
-//       IDMap.change c.deleted_handlers tlid ~f:(fun _ -> handler) }
-//
-//
-// let apply_to_toplevel
-//     ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (tls : TL.toplevels) =
-//   IDMap.change tls tlid ~f:(Option.map ~f)
-//
-//
-// let apply_to_all_toplevels
-//     ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (c : canvas) : canvas =
-//   { c with
-//     handlers = apply_to_toplevel ~f tlid c.handlers
-//   ; dbs = apply_to_toplevel ~f tlid c.dbs }
-//
-//
-// let apply_to_db ~(f : RTT.DbT.db -> RTT.DbT.db) (tlid : tlid) (c : canvas) :
-//     canvas =
-//   let tlf (tl : TL.toplevel) =
-//     let data =
-//       match tl.data with
-//       | TL.DB db ->
-//           TL.DB (f db)
-//       | _ ->
-//           Exception.internal "Provided ID is not for a DB"
-//     in
-//     {tl with data}
-//   in
-//   {c with dbs = apply_to_toplevel tlid ~f:tlf c.dbs}
-//
-//
-// let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
-//   apply_to_all_toplevels ~f:(fun tl -> {tl with pos}) tlid c
-//
-//
-// (* ------------------------- *)
-// (* Build *)
-// (* ------------------------- *)
-//
-// let apply_op (is_new : bool) (op : Types.op) (c : canvas ref) : unit =
-//   try
-//     c :=
-//       !c
-//       |>
-//       match op with
-//       | SetHandler (tlid, pos, handler) ->
-//           set_handler tlid pos (TL.Handler handler)
-//       | CreateDB (tlid, pos, name) ->
-//           if is_new && name = "" then Exception.client "DB must have a name" ;
-//           let db = User_db.create name tlid in
-//           set_db tlid pos (TL.DB db)
-//       | AddDBCol (tlid, colid, typeid) ->
-//           apply_to_db ~f:(User_db.add_col colid typeid) tlid
-//       | SetDBColName (tlid, id, name) ->
-//           apply_to_db ~f:(User_db.set_col_name id name) tlid
-//       | ChangeDBColName (tlid, id, name) ->
-//           apply_to_db ~f:(User_db.change_col_name id name) tlid
-//       | SetDBColType (tlid, id, tipe) ->
-//           apply_to_db
-//             ~f:(User_db.set_col_type id (Dval.tipe_of_string tipe))
-//             tlid
-//       | ChangeDBColType (tlid, id, tipe) ->
-//           apply_to_db
-//             ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe))
-//             tlid
-//       | DeleteDBCol (tlid, id) ->
-//           apply_to_db ~f:(User_db.delete_col id) tlid
-//       | DeprecatedInitDbm (tlid, id, rbid, rfid, kind) ->
-//           ident
-//       | CreateDBMigration (tlid, rbid, rfid, cols) ->
-//           let typed_cols =
-//             List.map cols ~f:(fun (n, t) ->
-//                 match t with
-//                 | Filled (id, ts) ->
-//                     (n, Filled (id, Dval.tipe_of_string ts))
-//                 | Partial _ as b ->
-//                     (n, b)
-//                 | Blank _ as b ->
-//                     (n, b))
-//           in
-//           apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
-//       | AddDBColToDBMigration (tlid, colid, typeid) ->
-//           apply_to_db ~f:(User_db.add_col_to_migration colid typeid) tlid
-//       | SetDBColNameInDBMigration (tlid, id, name) ->
-//           apply_to_db ~f:(User_db.set_col_name_in_migration id name) tlid
-//       | SetDBColTypeInDBMigration (tlid, id, tipe) ->
-//           apply_to_db
-//             ~f:(User_db.set_col_type_in_migration id (Dval.tipe_of_string tipe))
-//             tlid
-//       | AbandonDBMigration tlid ->
-//           apply_to_db ~f:User_db.abandon_migration tlid
-//       | DeleteColInDBMigration (tlid, id) ->
-//           apply_to_db ~f:(User_db.delete_col_in_migration id) tlid
-//       | SetExpr (tlid, id, e) ->
-//           apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
-//       | DeleteTL tlid ->
-//           delete_toplevel tlid
-//       | MoveTL (tlid, pos) ->
-//           move_toplevel tlid pos
-//       | SetFunction user_fn ->
-//           set_function user_fn
-//       | DeleteFunction tlid ->
-//           delete_function tlid
-//       | TLSavepoint _ ->
-//           ident
-//       | UndoTL _ | RedoTL _ ->
-//           Exception.internal
-//             ("This should have been preprocessed out! " ^ Types.show_op op)
-//       | RenameDBname (tlid, name) ->
-//           apply_to_db ~f:(User_db.rename_db name) tlid
-//       | CreateDBWithBlankOr (tlid, pos, id, name) ->
-//           let db = User_db.create2 name tlid id in
-//           set_db tlid pos (TL.DB db)
-//       | DeleteTLForever tlid ->
-//           delete_tl_forever tlid
-//       | DeleteFunctionForever tlid ->
-//           delete_function_forever tlid
-//       | SetType user_tipe ->
-//           set_tipe user_tipe
-//       | DeleteType tlid ->
-//           delete_tipe tlid
-//       | DeleteTypeForever tlid ->
-//           delete_tipe_forever tlid
-//   with e ->
-//     (* Log here so we have context, but then re-raise *)
-//     Log.erroR
-//       "apply_op failure"
-//       ~params:
-//         [ ("host", !c.host)
-//         ; ("op", Types.show_op op)
-//         ; ("exn", Exception.to_string e) ] ;
-//     Exception.reraise e
-//
-//
+(* ------------------------- *)
+(* Toplevel *)
+(* ------------------------- *)
+
+let setDB (db : PT.DB.T) (c : T) : T =
+  // if the db had been deleted, remove it from the deleted set. This handles
+  // a data race where a Set comes in after a Delete.
+  { c with
+      dbs = Map.add db.tlid db c.dbs
+      deletedDBs = Map.remove db.tlid c.deletedDBs }
+
+let deleteDB (tlid : tlid) c =
+  match Map.get tlid c.dbs with
+  | None -> c
+  | Some db ->
+      { c with
+          dbs = Map.remove db.tlid c.dbs
+          deletedDBs = Map.add db.tlid db c.deletedDBs }
+
+let setHandler (h : PT.Handler.T) c =
+  // if the handler had been deleted, remove it from the deleted set. This handles
+  // a data race where a Set comes in after a Delete.
+  { c with
+      handlers = Map.add h.tlid h c.handlers
+      deletedHandlers = Map.remove h.tlid c.deletedHandlers }
+
+let deleteHandler (tlid : tlid) c =
+  match Map.get tlid c.handlers with
+  | None -> c
+  | Some h ->
+      { c with
+          handlers = Map.remove h.tlid c.handlers
+          deletedHandlers = Map.add h.tlid h c.deletedHandlers }
+
+let setFunction (f : PT.UserFunction.T) (c : T) : T =
+  // if the fn had been deleted, remove it from the deleted set. This handles
+  // a data race where a Set comes in after a Delete.
+  { c with
+      userFunctions = Map.add f.tlid f c.userFunctions
+      deletedUserFunctions = Map.remove f.tlid c.deletedUserFunctions }
+
+let setType (t : PT.UserType.T) (c : T) : T =
+  // if the tipe had been deleted, remove it from the deleted set. This handles
+  // a data race where a Set comes in after a Delete.
+  { c with
+      userTypes = Map.add t.tlid t c.userTypes
+      deletedUserTypes = Map.remove t.tlid c.deletedUserTypes }
+
+let deleteFunction (tlid : tlid) (c : T) : T =
+  match Map.get tlid c.userFunctions with
+  | None -> c
+  | Some f ->
+      { c with
+          userFunctions = Map.remove tlid c.userFunctions
+          deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
+
+let deleteFunctionForever (tlid : tlid) (c : T) : T =
+  { c with
+      userFunctions = Map.remove tlid c.userFunctions
+      deletedUserFunctions = Map.remove tlid c.deletedUserFunctions }
+
+let deleteType (tlid : tlid) (c : T) : T =
+  match Map.get tlid c.userTypes with
+  | None -> c
+  | Some t ->
+      { c with
+          userTypes = Map.remove tlid c.userTypes
+          deletedUserTypes = Map.add tlid t c.deletedUserTypes }
+
+let deleteTypeForever (tlid : tlid) (c : T) : T =
+  { c with
+      userTypes = Map.remove tlid c.userTypes
+      deletedUserTypes = Map.remove tlid c.deletedUserTypes }
+
+let deleteTLForever (tlid : tlid) (c : T) : T =
+  { c with
+      dbs = Map.remove tlid c.dbs
+      handlers = Map.remove tlid c.handlers
+      deletedDBs = Map.remove tlid c.deletedDBs
+      deletedHandlers = Map.remove tlid c.deletedHandlers }
+
+// TODO: CLEANUP Historically, on the backend, toplevel meant handler or DB
+let deleteToplevel (tlid : tlid) (c : T) : T =
+  c |> deleteHandler tlid |> deleteDB tlid
+
+let applyToMap (tlid : tlid) (f : 'a -> 'a) (m : Map<tlid, 'a>) : Map<tlid, 'a> =
+  Map.update tlid (Option.map f) m
+
+
+
+let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
+  { c with dbs = applyToMap tlid f c.dbs }
+
+
+let moveToplevel (tlid : tlid) (pos : pos) (c : T) : T =
+  { c with
+      handlers = applyToMap tlid (fun h -> { h with pos = pos }) c.handlers
+      dbs = applyToMap tlid (fun db -> { db with pos = pos }) c.dbs }
+
+// -------------------------
+// Build
+// -------------------------
+let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
+  try
+    match op with
+    | PT.SetHandler (_, _, h) -> setHandler h c
+    | PT.CreateDB (tlid, pos, name) ->
+        if isNew && name = "" then failwith "DB must have a name"
+        let db = UserDB.create tlid name pos
+        setDB db c
+    | PT.AddDBCol (tlid, colid, typeid) ->
+        applyToDB (UserDB.addCol colid typeid) tlid c
+    | PT.SetDBColName (tlid, id, name) ->
+        applyToDB (UserDB.setColName id name) tlid c
+    | PT.ChangeDBColName (tlid, id, name) ->
+        applyToDB (UserDB.setColName id name) tlid c
+    | PT.SetDBColType (tlid, id, tipe) ->
+        applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+    | PT.ChangeDBColType (tlid, id, tipe) ->
+        applyToDB (UserDB.setColType id (PT.DType.parse tipe)) tlid c
+    | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
+    | PT.DeprecatedInitDBm (tlid, id, rbid, rfid, kind) -> c
+    | PT.CreateDBMigration (tlid, rbid, rfid, cols) -> c
+    | PT.AddDBColToDBMigration (tlid, colid, typeid) -> c
+    | PT.SetDBColNameInDBMigration (tlid, id, name) -> c
+    | PT.SetDBColTypeInDBMigration (tlid, id, tipe) -> c
+    | PT.AbandonDBMigration tlid -> c
+    | PT.DeleteColInDBMigration (tlid, id) -> c
+    | PT.SetExpr (tlid, id, e) -> fstodo "setexpr"
+    // applyToAllToplevels (TL.set_expr id e) tlid c
+    | PT.DeleteTL tlid -> deleteToplevel tlid c
+    | PT.MoveTL (tlid, pos) -> moveToplevel tlid pos c
+    | PT.SetFunction user_fn -> setFunction user_fn c
+    | PT.DeleteFunction tlid -> deleteFunction tlid c
+    | PT.TLSavepoint _ -> c
+    | PT.UndoTL _
+    | PT.RedoTL _ -> failwith $"This should have been preprocessed out! {op}"
+    | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
+    | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
+        setDB (UserDB.create2 tlid name pos id) c
+    | PT.DeleteTLForever tlid -> deleteTLForever tlid c
+    | PT.DeleteFunctionForever tlid -> deleteFunctionForever tlid c
+    | PT.SetType t -> setType t c
+    | PT.DeleteType tlid -> deleteType tlid c
+    | PT.DeleteTypeForever tlid -> deleteTypeForever tlid c
+  with e ->
+    // FSTODO
+    (* Log here so we have context, but then re-raise *)
+    // Log.erroR
+    //   "apply_op failure"
+    //   ~params:
+    //     [ ("host", !c.host)
+    //     ; ("op", Types.show_op op)
+    //     ; ("exn", Exception.to_string e) ] ;
+    fstodo (e.ToString())
+
+
 // (* NOTE: If you add a new verification here, please ensure all places that
 //  * load canvases/apply ops correctly load the requisite data.
 //  *
@@ -281,7 +227,7 @@ let toplevels (c : Canvas) : Map<tlid, PT.Toplevel> =
 //  * context to be loaded to appropriately verify.
 //  *
 //  * *)
-// let verify (c : canvas ref) : (unit, string list) Result.t =
+// let verify (c T ref) : (unit, string list) Result.t =
 //   let duped_db_names =
 //     !c.dbs
 //     |> TL.dbs
@@ -303,60 +249,43 @@ let toplevels (c : Canvas) : Map<tlid, PT.Toplevel> =
 //   match duped_db_names with [] -> Ok () | dupes -> Error dupes
 //
 //
-// let add_ops (c : canvas ref) (oldops : Types.op list) (newops : Types.op list) :
-//     unit =
-//   let oldops = List.map ~f:(fun op -> (false, op)) oldops in
-//   let newops = List.map ~f:(fun op -> (true, op)) newops in
-//   let reduced_ops = Undo.preprocess (oldops @ newops) in
-//   List.iter ~f:(fun (is_new, op) -> apply_op is_new op c) reduced_ops ;
-//   let allops = oldops @ newops |> List.map ~f:Tuple.T2.get2 in
-//   c := {!c with ops = Op.oplist2tlid_oplists allops}
-//
-//
-// let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
-//   let cors_setting_of_db_string (string_from_db : string) : cors_setting option
-//       =
-//     (* none if null from datastore *)
-//     (if string_from_db = "" then None else Some string_from_db)
-//     (* parse json, handle if it's not valid... *)
-//     |> Option.map ~f:Yojson.Safe.from_string
-//     (* json -> string list *)
-//     |> Option.bind ~f:(fun j ->
-//            match j with
-//            | `String "*" ->
-//                Some AllOrigins
-//            | `List js ->
-//                js
-//                |> List.map ~f:(fun s ->
-//                       match s with
-//                       | `String s ->
-//                           s
-//                       | _ ->
-//                           Exception.internal
-//                             "CORS setting from DB is a list containing a non-string")
-//                |> Origins
-//                |> Some
-//            | _ ->
-//                Exception.internal
-//                  "CORS setting from DB is neither a string or a list.")
-//   in
-//   Db.fetch_one
-//     ~name:"fetch_cors_setting"
-//     "SELECT cors_setting FROM canvases WHERE id = $1"
-//     ~params:[Uuid id]
-//   |> List.hd_exn
-//   |> cors_setting_of_db_string
-//
-//
-// let canvas_creation_date canvas_id : Core_kernel.Time.t =
-//   Db.fetch_one
-//     ~name:"canvas_creation_date"
-//     "SELECT created_at from canvases\n      WHERE canvases.id = $1"
-//     ~params:[Uuid canvas_id]
-//   |> List.hd_exn
-//   |> Db.date_of_sqlstring
-//
-//
+let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
+  let oldops = List.map (fun op -> (false, op)) oldops
+  let newops = List.map (fun op -> (true, op)) newops
+  let reducedOps = oldops @ newops
+  fstodo "preprocess undo"
+  // let reducedOps = Undo.preprocess (oldops @ newops) in
+  let c = List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
+  let allops = oldops @ newops |> List.map Tuple2.second
+  // { c with ops = Op.oplist2tlid_oplists allops }
+  fstodo "addOps"
+
+let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
+  Sql.query "SELECT cors_setting FROM canvases WHERE id = @canvasID"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeRowAsync
+       (fun read ->
+         match read.stringOrNone "cors_setting" with
+         | None -> None
+         | Some str ->
+             let json = System.Text.Json.JsonDocument.Parse str
+
+             match json.RootElement.ValueKind with
+             | System.Text.Json.JsonValueKind.String when
+               json.RootElement.GetString() = "*" -> Some AllOrigins
+             | System.Text.Json.JsonValueKind.Array ->
+                 json.RootElement.EnumerateArray()
+                 |> Seq.map (fun e -> e.ToString())
+                 |> Seq.toList
+                 |> Origins
+                 |> Some
+             | _ -> failwith "invalid json in CorsSettings")
+
+let canvasCreationDate canvasID : Task<System.DateTime> =
+  Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
+
 // let init (host : string) (ops : Types.oplist) :
 //     (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
@@ -374,12 +303,12 @@ let toplevels (c : Canvas) : Map<tlid, PT.Toplevel> =
 //       ; handlers = IDMap.empty
 //       ; dbs = IDMap.empty
 //       ; user_functions = IDMap.empty
-//       ; user_tipes = IDMap.empty
+//       ; userTypes = IDMap.empty
 //       ; package_fns = []
 //       ; deleted_handlers = IDMap.empty
 //       ; deleted_dbs = IDMap.empty
 //       ; deleted_user_functions = IDMap.empty
-//       ; deleted_user_tipes = IDMap.empty }
+//       ; deletedUserTypes = IDMap.empty }
 //   in
 //   add_ops c [] ops ;
 //   c |> verify |> Result.map ~f:(fun _ -> c)
@@ -424,7 +353,7 @@ let toplevels (c : Canvas) : Map<tlid, PT.Toplevel> =
 //       Exception.internal "Wrong db shape in Canvas.id_and_account_id"
 //
 //
-// let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
+// let update_cors_setting (c T ref) (setting : cors_setting option) : unit
 //     =
 //   let cors_setting_to_db (setting : cors_setting option) : Db.param =
 //     match setting with
@@ -458,46 +387,68 @@ let toplevels (c : Canvas) : Map<tlid, PT.Toplevel> =
 //  Loading/saving *)
 //  -------------------------
 
-// let load_from
-//     (host : string)
-//     (owner : Uuidm.t)
-//     (newops : Types.oplist)
-//     ~(f : host:string -> canvas_id:Uuidm.t -> unit -> Types.tlid_oplists) :
-//     (canvas ref, string list) Result.t =
-//   try
-//     let canvas_id = Serialize.fetch_canvas_id owner host in
-//     let cors = fetch_cors_setting canvas_id in
-//     let creation_date = canvas_creation_date canvas_id in
-//     let oldops = f ~host ~canvas_id () in
-//     (* TODO optimization: can we get only the functions we need (based on
-//      * fnnames found in the canvas) and/or cache this like we do the oplist? *)
-//     let package_fns =
-//       Package_manager.all_functions ()
-//       |> List.map ~f:Package_manager.runtime_fn_of_package_fn
-//     in
-//     let c : canvas ref =
-//       ref
-//         ( { host
-//           ; owner
-//           ; id = canvas_id
-//           ; creation_date
-//           ; ops = []
-//           ; cors_setting = cors
-//           ; handlers = IDMap.empty
-//           ; dbs = IDMap.empty
-//           ; user_functions = IDMap.empty
-//           ; user_tipes = IDMap.empty
-//           ; package_fns
-//           ; deleted_handlers = IDMap.empty
-//           ; deleted_dbs = IDMap.empty
-//           ; deleted_user_functions = IDMap.empty
-//           ; deleted_user_tipes = IDMap.empty }
-//           : canvas )
-//     in
-//     add_ops c (Op.tlid_oplists2oplist oldops) newops ;
-//     c |> verify |> Result.map ~f:(fun _ -> c)
-//   with e -> Libexecution.Exception.reraise_as_pageable e
+// Loads all ops
+type OpsLoader = CanvasID -> Task<List<tlid * PT.Oplist>>
+
+// Loads from the cache app
+type TLLoader =
+  CanvasID -> List<tlid> -> Task<Result<tlid * PT.Toplevel, string list>>
+
+let loadEmpty
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  (owner : UserID)
+  : Task<T> =
+  task {
+    // try
+    // TODO: combine into one query
+    let! cors = fetchCORSSetting canvasID
+    let! creationDate = canvasCreationDate canvasID
+    // TODO optimization: can we get only the functions we need (based on
+    // fnnames found in the canvas) and/or cache this like we do the oplist?
+    let! packageFns = PackageManager.allFunctions ()
+
+    return
+      { name = canvasName
+        owner = owner
+        id = canvasID
+        creationDate = creationDate
+        ops = []
+        corsSetting = cors
+        handlers = Map.empty
+        dbs = Map.empty
+        userFunctions = Map.empty
+        userTypes = Map.empty
+        packageFns = packageFns
+        deletedHandlers = Map.empty
+        deletedDBs = Map.empty
+        deletedUserFunctions = Map.empty
+        deletedUserTypes = Map.empty }
+
+  }
+
+
+// let loadFrom
+//   (canvasID : CanvasID)
+//   (canvasName : CanvasName.T)
+//   (owner : UserID)
+//   (newops : PT.Oplist)
+//   (f : OpsLoader)
+//   : Task<Result<T, string list>> =
+//   task {
+//     let! oldops = f canvasID
+//     let! c = loadEmpty canvasID canvasName owner
+//     return Ok c
+//   // |> addOps oldops newops
+//   // |> verify
 //
+//   // FSTODO
+//   // addOps c (Op.tlid_oplists2oplist oldops) newops
+//   // FSTODO
+//   // c |> verify |> Result.map (fun _ -> c)
+//   // FSTODO
+//   // with e -> Libexecution.Exception.reraise_as_pageable e
+//   }
 //
 // let load_without_tls host : (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
@@ -560,87 +511,81 @@ let loadOnlyRenderedTLIDs (canvasID : CanvasID) (tlids : List<tlid>) () =
 
          |> ProgramSerialization.OCamlInterop.toplevelOfCachedBinary)
 
+type LoadAmount =
+  | LiveToplevels
+  | IncludeDeletedToplevels
 
-// `uncached_loader` is the function used to initialize the canvas, and load
-// any necessary tlids that were not returned from the fast_loader/materialized view.
-//
-// tlids might not be returned from the materialized view/fast loader/cache if:
+// Load oplists for anything that wasn't cached.
+// TLs might not be returned from the materialized view/fast loader/cache if:
 //  a) they have no materialized view (probably not possible anymore!)
 //  b) they are deleted, because the cache query filters out deleted items
 //  c) the deserializers for the cache version are broken (due to a binary version
 //  change!)
-let loadFromCache
-  (uncached_loader : Serialize.Loader)
+let loadOplists
+  (loadAmount : LoadAmount)
+  (canvasID : CanvasID)
   (tlids : List<tlid>)
+  : Task<List<tlid * PT.Oplist>> =
+  let query =
+    match loadAmount with
+    | LiveToplevels ->
+        "SELECT tlid, data FROM toplevel_oplists
+          WHERE canvas_id = @canvasID
+            AND tlid = ANY(@tlids)
+            AND deleted IS NOT TRUE"
+    | IncludeDeletedToplevels ->
+        "SELECT tlid, data FROM toplevel_oplists
+          WHERE canvas_id = @canvasID
+            AND tlid = ANY(@tlids)"
+
+  Sql.query query
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+  |> Sql.executeAsync
+       (fun read ->
+         (read.int64 "tlid" |> uint64,
+          read.bytea "data" |> ProgramSerialization.OCamlInterop.oplistOfBinary))
+
+
+let loadFrom
+  (loadAmount : LoadAmount)
   (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (owner : UserID)
-  : Result<Canvas, string list> =
-  Error [ "todo: implement loadFromCache" ]
-// let ( fast_loaded_handlers
-//     , fast_loaded_dbs
-//     , fast_loaded_user_fns
-//     , fast_loaded_user_tipes ) =
-//   Serialize.load_only_rendered_tlids host canvas_id tlids ()
-// in
-// let fast_loaded_tlids =
-//   IDMap.keys fast_loaded_handlers
-//   @ IDMap.keys fast_loaded_dbs
-//   @ IDMap.keys fast_loaded_user_fns
-//   @ IDMap.keys fast_loaded_user_tipes
-// in
-// let not_loaded_tlids =
-//   List.filter
-//     ~f:(fun x -> not (List.mem ~equal:( = ) fast_loaded_tlids x))
-//     tlids
-// in
-// (* canvas initialized via the normal loading path with the non-fast loaded tlids
-//  * loaded traditionally via the oplist *)
-// let canvas = uncached_loader not_loaded_tlids host [] in
-// canvas
-// |> Result.map (fun canvas ->
-//        List.iter
-//          (IDMap.to_alist fast_loaded_handlers)
-//          (fun (tlid, (h, pos)) ->
-//            let c = !canvas in
-//            let c =
-//              { c with
-//                handlers =
-//                  IDMap.set c.handlers tlid {tlid; pos; data = Handler h} }
-//            in
-//            canvas := c) ;
-//        List.iter (IDMap.to_alist fast_loaded_dbs) (fun (tlid, (db, pos)) ->
-//            let c = !canvas in
-//            let c =
-//              {c with dbs = IDMap.set c.dbs tlid {tlid; pos; data = DB db}}
-//            in
-//            canvas := c) ;
-//        List.iter (IDMap.to_alist fast_loaded_user_fns) (fun (tlid, ufn) ->
-//            let c = !canvas in
-//            let c =
-//              {c with user_functions = IDMap.set c.user_functions tlid ufn}
-//            in
-//            canvas := c) ;
-//        List.iter (IDMap.to_alist fast_loaded_user_tipes) (fun (tlid, ut) ->
-//            let c = !canvas in
-//            let c = {c with user_tipes = IDMap.set c.user_tipes tlid ut} in
-//            canvas := c) ;
-//        canvas)
-// |> Result.map (fun canvas ->
-//        (* Empty out the oplist, this prevents anyone accidentally saving a canvas
-//         * partially loaded from the cache. *)
-//        canvas := {!canvas with ops = []} ;
-//        canvas)
-//
-//
-let loadAllFromCache
+  (tlids : List<tlid>)
+  : Task<Result<T, string list>> =
+  task {
+    // CLEANUP: rename "rendered" and "cached" to be consistent
+
+    // load
+    let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs canvasName canvasID tlids ()
+
+    let fastLoadedTLIDs =
+      List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
+
+    let notLoadedTLIDs =
+      List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
+
+    // canvas initialized via the normal loading path with the non-fast loaded tlids
+    // loaded traditionally via the oplist
+    let! uncachedOplists = loadOplists loadAmount canvasID notLoadedTLIDs
+
+    let! c = loadEmpty canvasID canvasName owner
+    let c = addToplevels fastLoadedTLs c
+    fstodo "uncachedOplists"
+    // let! c = addOps uncachedOplists c
+    // Empty out the oplist, this prevents anyone accidentally saving
+    // a canvas partially loaded from the cache.
+    return Result.map (fun c -> { c with ops = [] }) (Ok c)
+  }
+
+let loadAll
   (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (ownerID : UserID)
-  : Task<Result<Canvas, List<string>>> =
+  : Task<Result<T, List<string>>> =
   task {
     let! tlids = Serialize.fetchAllTLIDs canvasID
-    return loadFromCache Serialize.loadOnlyTLIDs tlids canvasName canvasID ownerID
+    return! loadFrom LiveToplevels canvasName canvasID ownerID tlids
   }
 
 
@@ -650,13 +595,11 @@ let loadHttpHandlersFromCache
   (ownerID : UserID)
   (path : string)
   (method : string)
-  : Task<Result<Canvas, List<string>>> =
+  : Task<Result<T, List<string>>> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP canvasName canvasID path method
-    return loadFromCache Serialize.loadOnlyTLIDs tlids canvasName canvasID ownerID
+    return! loadFrom LiveToplevels canvasName canvasID ownerID tlids
   }
-
-
 
 
 // let load_tlids_from_cache ~tlids host : (canvas ref, string list) Result.t =
@@ -705,7 +648,7 @@ let loadHttpHandlersFromCache
 //     owner
 //
 //
-// let serialize_only (tlids : tlid list) (c : canvas) : unit =
+// let serialize_only (tlids : tlid list) (c T) : unit =
 //   try
 //     let munge_name module_ n =
 //       if Ast.blank_to_option module_ = Some "HTTP"
@@ -788,7 +731,7 @@ let loadHttpHandlersFromCache
 //                    , TL.TLUserFunction ))
 //           in
 //           let user_tipe () =
-//             IDMap.find c.user_tipes tlid
+//             IDMap.find c.userTypes tlid
 //             |> Option.map ~f:(fun t ->
 //                    ( Binary_serialization.user_tipe_to_binary_string t
 //                    , false
@@ -796,7 +739,7 @@ let loadHttpHandlersFromCache
 //                    , TL.TLUserTipe ))
 //           in
 //           let deleted_user_tipe () =
-//             IDMap.find c.deleted_user_tipes tlid
+//             IDMap.find c.deletedUserTypes tlid
 //             |> Option.map ~f:(fun t ->
 //                    ( Binary_serialization.user_tipe_to_binary_string t
 //                    , true
@@ -836,9 +779,9 @@ let loadHttpHandlersFromCache
 //   with e -> Libexecution.Exception.reraise_as_pageable e
 //
 //
-// let save_tlids (c : canvas) (tlids : tlid list) : unit = serialize_only tlids c
+// let save_tlids (c T) (tlids : tlid list) : unit = serialize_only tlids c
 //
-// let save_all (c : canvas) : unit =
+// let save_all (c T) : unit =
 //   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
 //   save_tlids c tlids
 //
@@ -903,7 +846,7 @@ let loadHttpHandlersFromCache
 //   save_all !c
 //
 //
-// let minimize (c : canvas) : canvas =
+// let minimize (c T) T =
 //   (* TODO *)
 //   (* let ops = *)
 //   (*   c.ops *)
@@ -913,7 +856,7 @@ let loadHttpHandlersFromCache
 //   c
 //
 //
-// let save_test (c : canvas) : string =
+// let save_test (c T) : string =
 //   let c = minimize c in
 //   let host = "test-" ^ c.host in
 //   let file = json_filename host in

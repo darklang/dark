@@ -778,6 +778,7 @@ module Handler =
 
   type T =
     { tlid : tlid
+      pos : pos
       ast : Expr
       spec : Spec }
 
@@ -787,29 +788,29 @@ module Handler =
         spec = this.spec.toRuntimeType () }
 
 module DB =
-  type Col = string * DType
+  type Col = { name : string; typ : Option<DType>; nameID : id; typeID : id }
 
   type T =
     { tlid : tlid
+      pos : pos
+      nameID : id
       name : string
+      version : int
       cols : List<Col> }
 
     member this.toRuntimeType() : RT.DB.T =
       { tlid = this.tlid
         name = this.name
-        cols = List.map (fun (k, t : DType) -> k, t.toRuntimeType ()) this.cols }
-
-
+        cols =
+          List.filterMap
+            (fun c ->
+              match c.typ with
+              | Some t -> Some(c.name, t.toRuntimeType ())
+              | None -> None)
+            this.cols }
 
 module UserType =
-  type RecordField =
-    { name : string
-      type' : DType
-      nameID : id
-      typeID : id }
-
-    member this.toRuntimeType() : RT.UserType.RecordField =
-      { name = this.name; typ = this.type'.toRuntimeType () }
+  type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
 
   type Definition =
     | Record of List<RecordField>
@@ -818,7 +819,12 @@ module UserType =
       match this with
       | Record fields ->
           RT.UserType.UTRecord(
-            List.map (fun (rf : RecordField) -> rf.toRuntimeType ()) fields
+            List.filterMap
+              (fun (rf : RecordField) ->
+                match rf.typ with
+                | Some t -> Some({ name = rf.name; typ = t.toRuntimeType () })
+                | None -> None)
+              fields
           )
 
 
@@ -889,6 +895,8 @@ type Toplevel =
     | TLFunction f -> RT.TLFunction(f.toRuntimeType ())
     | TLType t -> RT.TLType(t.toRuntimeType ())
 
+type DeprecatedMigrationKind = | DeprecatedMigrationKind
+
 type Op =
   | SetHandler of tlid * pos * Handler.T
   | CreateDB of tlid * pos * string
@@ -912,6 +920,7 @@ type Op =
   | AbandonDBMigration of tlid
   | DeleteColInDBMigration of tlid * id
   | DeleteDBCol of tlid * id
+  | DeprecatedInitDBm of tlid * id * id * id * DeprecatedMigrationKind
   | RenameDBname of tlid * string
   | CreateDBWithBlankOr of tlid * pos * id * string
   | DeleteTLForever of tlid

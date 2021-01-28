@@ -3,10 +3,6 @@ module LibBackend.Serialize
 // Serializing to the DB. Serialization formats and binary conversions are
 // stored elsewhere
 
-// module SF = Serialization_format
-// module Binary_serialization = Libserialize.Binary_serialization
-// module Span = Telemetry.Span
-
 open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -20,7 +16,7 @@ open Prelude
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 
-
+// FSTODO inline this file into canvas
 
 // (* -------------------------------------------------------- *)
 // (* Moved from op.ml as it touches the DB *)
@@ -61,7 +57,6 @@ module PT = LibBackend.ProgramSerialization.ProgramTypes
 // --------------------------------------------------------
 // Load serialized data from the DB *)
 // --------------------------------------------------------
-type Loader = CanvasID -> List<tlid> -> Task<List<tlid * PT.Oplist>>
 
 // let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Types.tlid_oplists =
 //   Db.fetch
@@ -72,37 +67,6 @@ type Loader = CanvasID -> List<tlid> -> Task<List<tlid * PT.Oplist>>
 //     ~result:BinaryResult
 //   |> Binary_serialization.strs2tlid_oplists
 
-
-let loadOnlyTLIDs
-  (canvasID : CanvasID)
-  (tlids : List<tlid>)
-  : Task<List<tlid * PT.Oplist>> =
-  Sql.query
-    "SELECT tlid, data FROM toplevel_oplists
-      WHERE canvas_id = @canvasID
-        AND tlid = ANY(@tlids)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync
-       (fun read ->
-         (read.int64 "tlid" |> uint64,
-          read.bytea "data" |> ProgramSerialization.OCamlInterop.oplistOfBinary))
-
-
-// let load_only_undeleted_tlids
-//     ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
-//     Types.tlid_oplists =
-//   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
-//   Db.fetch
-//     ~name:"load_only_undeleted_tlids"
-//     "SELECT data FROM toplevel_oplists
-//       WHERE canvas_id = $1
-//       AND tlid = ANY (string_to_array($2, $3)::bigint[])
-//       AND deleted IS NOT TRUE"
-//     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
-//     ~result:BinaryResult
-//   |> Binary_serialization.strs2tlid_oplists
-//
-//
 // This is a special `load_*` function that specifically loads toplevels
 // via the `rendered_oplist_cache` column on `toplevel_oplists`. This column
 // stores a binary-serialized representation of the toplevel after the oplist
@@ -110,37 +74,39 @@ let loadOnlyTLIDs
 // the full oplist across the network from Postgres to the OCaml boxes,
 // and similarly they don't have to apply the full history of the canvas
 // in memory before they can execute the code.
-//
-// let loadOnlyRenderedTLIDs
-//   (canvasName : CanvasName.T)
-//   (canvasID : CanvasID)
-//   (tlids : List<tlid>)
-//   ()
-//   : Binary_serialization.rendered_oplist_cache_query_result =
-//   // We specifically only load where `deleted` IS FALSE (even though the column
-//   // is nullable). This means we will not load undeleted handlers from the
-//   // cache if we've never written their `deleted` state. This is less
-//   // efficient, but still correct, as they'll still be loaded via their oplist.
-//   // It avoids loading deleted handlers that have had their cached version
-//   // written but never their deleted state, which could be true for some
-//   // handlers that were touched between the addition of the
-//   // `rendered_oplist_cache` column and the addition of the `deleted` column.
-//   Sql.query
-//     "SELECT tipe, rendered_oplist_cache, pos FROM toplevel_oplists
-//       WHERE canvas_id = @canvasID
-//       AND tlid = ANY (@tlids)
-//       AND deleted IS FALSE
-//       AND (
-//            ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type)
-//             AND pos IS NOT NULL)
-//            OR tipe = 'user_function'::toplevel_type
-//            OR tipe = 'user_tipe'::toplevel_type)"
-//     [ "canvasID", Sql.uuid canvasID; "tlids", Sql.tlidList tlids ]
-//   |> Sql.executeAsync
-//        (fun read -> read.bytea "rendered_oplist_cache", read.string "pos")
-//   |> OcamlInterop.strs2rendered_oplist_cache_query_result
-//
-//
+
+let loadOnlyRenderedTLIDs
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (tlids : List<tlid>)
+  ()
+  : Task<List<PT.Toplevel>> =
+  // We specifically only load where `deleted` IS FALSE (even though the column
+  // is nullable). This means we will not load undeleted handlers from the
+  // cache if we've never written their `deleted` state. This is less
+  // efficient, but still correct, as they'll still be loaded via their oplist.
+  // It avoids loading deleted handlers that have had their cached version
+  // written but never their deleted state, which could be true for some
+  // handlers that were touched between the addition of the
+  // `rendered_oplist_cache` column and the addition of the `deleted` column.
+  Sql.query
+    "SELECT tipe, rendered_oplist_cache, pos FROM toplevel_oplists
+      WHERE canvas_id = @canvasID
+      AND tlid = ANY (@tlids)
+      AND deleted IS FALSE
+      AND (
+           ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type)
+            AND pos IS NOT NULL)
+           OR tipe = 'user_function'::toplevel_type
+           OR tipe = 'user_tipe'::toplevel_type)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+  |> Sql.executeAsync
+       (fun read ->
+         let cache = read.bytea "rendered_oplist_cache"
+         let pos = read.stringOrNone "pos"
+         ProgramSerialization.OCamlInterop.toplevelOfCachedBinary (cache, pos))
+
+
 // let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
 //     Types.tlid_oplists =
 //   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in

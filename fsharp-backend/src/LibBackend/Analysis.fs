@@ -37,8 +37,8 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //       match (db, IDMap.find map tlid) with
 //       | Some db, None ->
 //           let account_id, canvas_id = (c.owner, c.id) in
-//           let count = User_db.stats_count ~account_id ~canvas_id db in
-//           let example = User_db.stats_pluck ~account_id ~canvas_id db in
+//           let count = UserDB.stats_count ~account_id ~canvas_id db in
+//           let example = UserDB.stats_pluck ~account_id ~canvas_id db in
 //           IDMap.add_exn ~data:{count; example} ~key:tlid map
 //       | _ ->
 //           map)
@@ -214,7 +214,7 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //     ~trace_id
 //     ~dbs:(TL.dbs c.dbs)
 //     ~user_fns:(c.user_functions |> IDMap.data)
-//     ~user_tipes:(c.user_tipes |> IDMap.data)
+//     ~userTypes:(c.userTypes |> IDMap.data)
 //     ~package_fns:c.package_fns
 //     ~secrets:(Secret.secrets_in_canvas c.id)
 //     ~account_id:c.owner
@@ -291,8 +291,8 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //   ; deleted_toplevels : TL.toplevel list (* replace, see note above *)
 //   ; user_functions : RTT.user_fn list (* replace *)
 //   ; deleted_user_functions : RTT.user_fn list
-//   ; user_tipes : RTT.user_tipe list
-//   ; deleted_user_tipes : RTT.user_tipe list (* replace, see deleted_toplevels *)
+//   ; userTypes : RTT.user_tipe list
+//   ; deletedUserTypes : RTT.user_tipe list (* replace, see deleted_toplevels *)
 //   }
 // [@@deriving to_yojson]
 //
@@ -301,8 +301,8 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //   ; deleted_toplevels = []
 //   ; user_functions = []
 //   ; deleted_user_functions = []
-//   ; user_tipes = []
-//   ; deleted_user_tipes = [] }
+//   ; userTypes = []
+//   ; deletedUserTypes = [] }
 //
 //
 // type add_op_stroller_msg =
@@ -315,8 +315,8 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
 //   ; user_functions = IDMap.data c.user_functions
 //   ; deleted_user_functions = IDMap.data c.deleted_user_functions
-//   ; user_tipes = IDMap.data c.user_tipes
-//   ; deleted_user_tipes = IDMap.data c.deleted_user_tipes }
+//   ; userTypes = IDMap.data c.userTypes
+//   ; deletedUserTypes = IDMap.data c.deletedUserTypes }
 //
 //
 // type all_traces_result = {traces : tlid_traceid list} [@@deriving to_yojson]
@@ -353,8 +353,8 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //   ; deleted_user_functions : RTT.user_fn list
 //   ; unlocked_dbs : tlid list
 //   ; assets : SA.static_deploy list
-//   ; user_tipes : RTT.user_tipe list
-//   ; deleted_user_tipes : RTT.user_tipe list
+//   ; userTypes : RTT.user_tipe list
+//   ; deletedUserTypes : RTT.user_tipe list
 //   ; op_ctrs : (string * int) list
 //   ; permission : Authorization.permission option
 //   ; account : Account.user_info
@@ -382,8 +382,8 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
 //   ; user_functions = IDMap.data c.user_functions
 //   ; deleted_user_functions = IDMap.data c.deleted_user_functions
-//   ; user_tipes = IDMap.data c.user_tipes
-//   ; deleted_user_tipes = IDMap.data c.deleted_user_tipes
+//   ; userTypes = IDMap.data c.userTypes
+//   ; deletedUserTypes = IDMap.data c.deletedUserTypes
 //   ; unlocked_dbs
 //   ; assets
 //   ; op_ctrs

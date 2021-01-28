@@ -12,13 +12,15 @@ open Prelude
 open Tablecloth
 open Db
 
-
+module PT = ProgramSerialization.ProgramTypes
 // Bump this if you make a breaking change to the underlying data format, and
 // are migrating user data to the new version
 //
 // ! you should definitely notify the entire engineering team about this
 let currentDarkVersion = 0
-//
+
+type db = PT.DB.T
+
 // let find_db (tables : db list) (table_name : string) : db option =
 //   List.find tables ~f:(fun (d : db) ->
 //       Ast.blank_to_string d.name = String.capitalize table_name)
@@ -573,99 +575,40 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.executeAsync (fun read -> read.int64 "tlid" |> uint64)
 
 
-// (* ------------------------- *)
-// (* DB schema *)
-// (* ------------------------- *)
-//
-// let create (name : string) (id : tlid) : db =
-//   { tlid = id
-//   ; name = Filled (id, name)
-//   ; cols = []
-//   ; version = 0
-//   ; old_migrations = []
-//   ; active_migration = None }
-//
-//
-// let create2 (name : string) (tlid : tlid) (name_id : id) : db =
-//   { tlid
-//   ; name = Filled (name_id, name)
-//   ; cols = []
-//   ; version = 0
-//   ; old_migrations = []
-//   ; active_migration = None }
-//
-//
-// let rename_db (n : string) (db : db) : db =
-//   let id =
-//     match db.name with Partial (i, _) | Blank i -> i | Filled (i, _) -> i
-//   in
-//   {db with name = Filled (id, n)}
-//
-//
-// let add_col colid typeid (db : db) =
-//   {db with cols = db.cols @ [(Blank colid, Blank typeid)]}
-//
-//
-// let set_col_name id name (db : db) : db =
-//   let set col =
-//     match col with
-//     | Blank hid, tipe when hid = id ->
-//         (Filled (hid, name), tipe)
-//     | _ ->
-//         col
-//   in
-//   let newcols = List.map ~f:set db.cols in
-//   {db with cols = newcols}
-//
-//
-// let change_col_name id name (db : db) =
-//   let change col =
-//     match col with
-//     | Filled (hid, oldname), tipe when hid = id ->
-//         (Filled (hid, name), tipe)
-//     | _ ->
-//         col
-//   in
-//   {db with cols = List.map ~f:change db.cols}
-//
-//
-// let set_col_type id tipe (db : db) =
-//   let set col =
-//     match col with
-//     | name, Blank hid when hid = id ->
-//         (name, Filled (hid, tipe))
-//     | _ ->
-//         col
-//   in
-//   let newcols = List.map ~f:set db.cols in
-//   {db with cols = newcols}
-//
-//
-// let change_col_type id newtipe (db : db) =
-//   let change col =
-//     match col with
-//     | Filled (nameid, name), Filled (tipeid, oldtipe) when tipeid = id ->
-//         (Filled (nameid, name), Filled (tipeid, newtipe))
-//     | _ ->
-//         col
-//   in
-//   {db with cols = List.map ~f:change db.cols}
-//
-//
-// let delete_col id (db : db) =
-//   let newcols =
-//     List.filter db.cols ~f:(fun col ->
-//         match col with
-//         | Blank nid, _ when nid = id ->
-//             false
-//         | Filled (nid, _), _ when nid = id ->
-//             false
-//         | _ ->
-//             true)
-//   in
-//   {db with cols = newcols}
-//
-//
+// -------------------------
+// DB schema
+// -------------------------
+
+let create (tlid : tlid) (name : string) (pos : pos) : db =
+  { tlid = tlid; pos = pos; name = name; nameID = gid (); cols = []; version = 0 }
+
+
+let create2 (tlid : tlid) (name : string) (pos : pos) (nameID : id) : db =
+  { tlid = tlid; name = name; nameID = nameID; pos = pos; cols = []; version = 0 }
+
+let renameDB (n : string) (db : db) : db = { db with name = n }
+
+let addCol colid typeid (db : db) : db =
+  { db with
+      cols = db.cols @ [ { name = ""; typ = None; nameID = colid; typeID = typeid } ] }
+
+let setColName id name (db : db) : db =
+  let set (col : PT.DB.Col) =
+    if col.nameID = id then { col with name = name } else col
+
+  { db with cols = List.map set db.cols }
+
+let setColType (id : id) (typ : PT.DType) (db : db) =
+  let set (col : PT.DB.Col) =
+    if col.typeID = id then { col with typ = Some typ } else col
+
+  { db with cols = List.map set db.cols }
+
+let deleteCol id (db : db) =
+  { db with
+      cols = List.filter (fun col -> col.nameID <> id && col.typeID <> id) db.cols }
+
+
 // let create_migration rbid rfid cols (db : db) =
 //   match db.active_migration with
 //   | Some migration ->
@@ -766,3 +709,5 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 //       let mutated_migration = {migration with cols = newcols} in
 //       {db with active_migration = Some mutated_migration}
 //
+
+let placeholder = 0

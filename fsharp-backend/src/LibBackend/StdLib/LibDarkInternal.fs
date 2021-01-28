@@ -486,7 +486,7 @@ that's already taken, returns an error."
                 in
                 ( match db with
                 | Some db ->
-                    User_db.cols_for db
+                    UserDB.cols_for db
                     |> List.map (fun (k, v) ->
                            ( canvas_name
                              ^ "-"

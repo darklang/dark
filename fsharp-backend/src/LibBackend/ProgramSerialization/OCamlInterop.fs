@@ -461,8 +461,14 @@ module Yojson =
     | "REPL", name, _ -> PT.Handler.REPL(name, ids)
     | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
 
-  let ocamlHandler2PT (o : RT.HandlerT.handler<RT.fluidExpr>) : PT.Handler.T =
-    { tlid = o.tlid; ast = ocamlExpr2PT o.ast; spec = ocamlSpec2PT o.spec }
+  let ocamlHandler2PT
+    (pos : pos)
+    (o : RT.HandlerT.handler<RT.fluidExpr>)
+    : PT.Handler.T =
+    { tlid = o.tlid
+      ast = ocamlExpr2PT o.ast
+      spec = ocamlSpec2PT o.spec
+      pos = pos }
 
 
   let rec ocamlTipe2PT (o : OT.tipe) : PT.DType =
@@ -511,11 +517,7 @@ module Yojson =
                 (fun (rf : RT.user_record_field) ->
                   { name = rf.name |> bo2String
                     nameID = bo2ID rf.name
-                    type' =
-                      rf.tipe
-                      |> bo2Option
-                      |> Option.map ocamlTipe2PT
-                      |> Option.defaultValue PT.TAny
+                    typ = rf.tipe |> bo2Option |> Option.map ocamlTipe2PT
                     typeID = bo2ID rf.tipe })
                 fields
             ) }
@@ -539,7 +541,7 @@ module Yojson =
   let ocamlOp2PT (o : OT.op<RT.fluidExpr>) : PT.Op =
     match o with
     | OT.SetHandler (tlid, pos, handler) ->
-        PT.SetHandler(tlid, pos, ocamlHandler2PT handler)
+        PT.SetHandler(tlid, pos, ocamlHandler2PT pos handler)
     | OT.CreateDB (tlid, pos, name) -> PT.CreateDB(tlid, pos, name)
     | OT.AddDBCol (tlid, id1, id2) -> PT.AddDBCol(tlid, id1, id2)
     | OT.SetDBColName (tlid, id, name) -> PT.SetDBColName(tlid, id, name)
@@ -551,7 +553,8 @@ module Yojson =
     | OT.ChangeDBColType (tlid, id, string) -> PT.ChangeDBColType(tlid, id, string)
     | OT.UndoTL tlid -> PT.UndoTL tlid
     | OT.RedoTL tlid -> PT.RedoTL tlid
-    | OT.DeprecatedInitDbm (tlid, id1, id2, id3, kind) -> failwith "shouldnt exist"
+    | OT.DeprecatedInitDbm (tlid, id1, id2, id3, kind) ->
+        PT.DeprecatedInitDBm(tlid, id1, id2, id3, PT.DeprecatedMigrationKind)
     | OT.SetExpr (tlid, id, e) -> PT.SetExpr(tlid, id, ocamlExpr2PT e)
     | OT.TLSavepoint tlid -> PT.TLSavepoint tlid
     | OT.DeleteFunction tlid -> PT.DeleteFunction tlid
@@ -753,7 +756,7 @@ module Yojson =
               List.map
                 (fun (rf : PT.UserType.RecordField) ->
                   { name = string2bo rf.nameID rf.name
-                    tipe = rf.type' |> pt2ocamlTipe |> Some |> option2bo rf.typeID })
+                    tipe = rf.typ |> Option.map pt2ocamlTipe |> option2bo rf.typeID })
                 fields
             ) }
 
@@ -803,6 +806,14 @@ module Yojson =
         OT.SetDBColTypeInDBMigration(tlid, id, tipe)
     | PT.AbandonDBMigration tlid -> OT.AbandonDBMigration tlid
     | PT.DeleteColInDBMigration (tlid, id) -> OT.DeleteColInDBMigration(tlid, id)
+    | PT.DeprecatedInitDBm (tlid, id1, id2, id3, kind) ->
+        OT.DeprecatedInitDbm(
+          tlid,
+          id1,
+          id2,
+          id3,
+          OT.RuntimeT.DbT.DeprecatedMigrationKind
+        )
     | PT.DeleteDBCol (tlid, id) -> OT.DeleteDBCol(tlid, id)
     | PT.RenameDBname (tlid, string) -> OT.RenameDBname(tlid, string)
     | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
@@ -826,9 +837,11 @@ let toplevelOfCachedBinary
   // FSTODO: incorporate pos
   // FSTODO: support tipes, dbs, functions
   : PT.Toplevel =
+  let pos = { x = 0; y = 0 } // FSTODO
+
   Binary.handlerBin2Json data
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
-  |> Yojson.ocamlHandler2PT
+  |> Yojson.ocamlHandler2PT pos
   |> PT.TLHandler
 
 let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =

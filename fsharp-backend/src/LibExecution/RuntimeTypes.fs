@@ -451,7 +451,7 @@ and ExecutionState = { functions : Map<FQFnName.T, BuiltInFn>; tlid : tlid }
 // ; canvas_id : Uuidm.t
 // ; account_id : Uuidm.t
 // ; user_fns : user_fn list
-// ; user_tipes : user_tipe list
+// ; userTypes : user_tipe list
 // ; package_fns : fn list
 // ; dbs : DbT.db list
 // ; secrets : secret list

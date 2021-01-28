@@ -41,6 +41,8 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     return a
   }
 
+let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
+
 // ----------------------
 // Assertions
 // ----------------------
