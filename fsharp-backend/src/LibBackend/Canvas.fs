@@ -216,34 +216,27 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
     fstodo (e.ToString())
 
 
-// (* NOTE: If you add a new verification here, please ensure all places that
-//  * load canvases/apply ops correctly load the requisite data.
-//  *
-//  *
-//  * See `Op.required_context` for how we determine which ops need what other
-//  * context to be loaded to appropriately verify.
-//  *
-//  * *)
-// let verify (c T ref) : (unit, string list) Result.t =
-//   let duped_db_names =
-//     !c.dbs
-//     |> TL.dbs
-//     |> List.filter_map ~f:(fun db ->
-//            Option.map
-//              ~f:(fun name -> (db.tlid, name))
-//              (Ast.blank_to_option db.name))
-//     |> List.group ~break:(fun (_, name1) (_, name2) -> name1 <> name2)
-//     |> List.filter ~f:(fun g -> List.length g > 1)
-//     |> List.map ~f:(fun gs ->
-//            let string_of_pair (tlid, name) =
-//              Printf.sprintf "(%s, %s)" (string_of_id tlid) name
-//            in
-//            let string_of_pairs ps =
-//              String.concat ~sep:", " (List.map ~f:string_of_pair ps)
-//            in
-//            Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs))
-//   in
-//   match duped_db_names with [] -> Ok () | dupes -> Error dupes
+// NOTE: If you add a new verification here, please ensure all places that
+// load canvases/apply ops correctly load the requisite data.
+//
+// See `Op.RequiredContext` for how we determine which ops need what other
+// context to be loaded to appropriately verify.
+// FSTODO: tests
+let verify (c : T) : Result<unit, string list> =
+  let dupedNames =
+    c.dbs
+    |> Map.values
+    |> List.groupBy (fun db -> db.name)
+    |> Map.filter (fun db -> List.length db > 1)
+    |> Map.values
+    |> List.map
+         (fun names ->
+           let names = List.map (fun db -> db.name)
+           $"Duplicate DB names: {names}")
+
+  match dupedNames with
+  | [] -> Ok()
+  | dupes -> Error dupes
 
 
 let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
@@ -565,11 +558,17 @@ let loadFrom
     let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
 
     let! c = loadEmpty canvasID canvasName owner
-    let c = addToplevels fastLoadedTLs c
-    let c = addOps uncachedOplists [] c
+    printfn ($"current canvas: {c}")
+    // FSTODO: we don't always want to remove the oplist
     // Empty out the oplist, this prevents anyone accidentally saving
     // a canvas partially loaded from the cache.
-    return Result.map (fun c -> { c with ops = [] }) (Ok c)
+
+    return
+      c
+      |> addToplevels fastLoadedTLs
+      |> addOps uncachedOplists []
+      |> verify
+      |> Result.map (fun () -> { c with ops = [] })
   }
 
 let loadAll
