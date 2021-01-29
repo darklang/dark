@@ -5,7 +5,6 @@ module LibBackend.Canvas
 open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
 open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
@@ -16,8 +15,6 @@ open Tablecloth
 
 module PT = ProgramSerialization.ProgramTypes
 
-type Oplist = List<int>
-
 type CorsSetting =
   | AllOrigins
   | Origins of List<string>
@@ -27,7 +24,7 @@ type T =
     owner : UserID
     id : CanvasID
     creationDate : System.DateTime
-    ops : List<tlid * Oplist>
+    ops : PT.TLIDOplists
     corsSetting : Option<CorsSetting>
     handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
@@ -247,18 +244,15 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
 //            Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs))
 //   in
 //   match duped_db_names with [] -> Ok () | dupes -> Error dupes
-//
-//
+
+
 let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   let oldops = List.map (fun op -> (false, op)) oldops
   let newops = List.map (fun op -> (true, op)) newops
-  let reducedOps = oldops @ newops
-  fstodo "preprocess undo"
-  // let reducedOps = Undo.preprocess (oldops @ newops) in
+  let reducedOps = Undo.preprocess (oldops @ newops) in
   let c = List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
   let allops = oldops @ newops |> List.map Tuple2.second
-  // { c with ops = Op.oplist2tlid_oplists allops }
-  fstodo "addOps"
+  { c with ops = Op.oplist2TLIDOplists allops }
 
 let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
   Sql.query "SELECT cors_setting FROM canvases WHERE id = @canvasID"
@@ -568,11 +562,11 @@ let loadFrom
     // canvas initialized via the normal loading path with the non-fast loaded tlids
     // loaded traditionally via the oplist
     let! uncachedOplists = loadOplists loadAmount canvasID notLoadedTLIDs
+    let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
 
     let! c = loadEmpty canvasID canvasName owner
     let c = addToplevels fastLoadedTLs c
-    fstodo "uncachedOplists"
-    // let! c = addOps uncachedOplists c
+    let c = addOps uncachedOplists [] c
     // Empty out the oplist, this prevents anyone accidentally saving
     // a canvas partially loaded from the cache.
     return Result.map (fun c -> { c with ops = [] }) (Ok c)

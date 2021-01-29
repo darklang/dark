@@ -930,3 +930,4 @@ type Op =
   | DeleteTypeForever of tlid
 
 type Oplist = List<Op>
+type TLIDOplists = List<tlid * Oplist>
