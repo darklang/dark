@@ -26,9 +26,12 @@ let (|Regex|_|) (pattern : string) (input : string) =
 // ----------------------
 // Debugging
 // ----------------------
+let debuG (msg : string) (a : 'a) : unit = printfn $"DEBUG: {msg} ({a})"
+
+
 
 let debug (msg : string) (a : 'a) : 'a =
-  printfn $"DEBUG: {msg} ({a})"
+  debuG msg a
   a
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must

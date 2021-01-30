@@ -59,6 +59,7 @@ let toplevels (c : T) : Map<tlid, PT.Toplevel> =
   |> Seq.concat
   |> Map
 
+
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
@@ -222,7 +223,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
 // See `Op.RequiredContext` for how we determine which ops need what other
 // context to be loaded to appropriately verify.
 // FSTODO: tests
-let verify (c : T) : Result<unit, string list> =
+let verify (c : T) : Result<T, string list> =
   let dupedNames =
     c.dbs
     |> Map.values
@@ -235,7 +236,7 @@ let verify (c : T) : Result<unit, string list> =
            $"Duplicate DB names: {names}")
 
   match dupedNames with
-  | [] -> Ok()
+  | [] -> Ok c
   | dupes -> Error dupes
 
 
@@ -559,16 +560,16 @@ let loadFrom
 
     let! c = loadEmpty canvasID canvasName owner
     printfn ($"current canvas: {c}")
-    // FSTODO: we don't always want to remove the oplist
-    // Empty out the oplist, this prevents anyone accidentally saving
-    // a canvas partially loaded from the cache.
 
     return
       c
       |> addToplevels fastLoadedTLs
       |> addOps uncachedOplists []
       |> verify
-      |> Result.map (fun () -> { c with ops = [] })
+      // Empty out the oplist, this prevents anyone accidentally saving
+      // a canvas partially loaded from the cache.
+      // FSTODO: we don't always want to remove the oplist
+      |> Result.map (fun c -> { c with ops = [] })
   }
 
 let loadAll
@@ -981,7 +982,7 @@ let loadHttpHandlersFromCache
 //   let a = fn () in
 //   let elapsed = (Unix.gettimeofday () -. start) *. 1000.0 in
 //   (elapsed, a)
-//
+
 
 let canvasIDForCanvasName
   (owner : UserID)
