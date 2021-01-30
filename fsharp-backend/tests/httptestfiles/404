@@ -10,6 +10,8 @@ Content-Length: 0
 [response]
 HTTP/1.1 404 Not Found
 Date: XXX, XX XXX XXXX XX:XX:XX XXX
+Content-Type: text/plain
 Server: darklang
-Content-Length: 0
+Content-Length: 33
 
+No handler was found for this URL

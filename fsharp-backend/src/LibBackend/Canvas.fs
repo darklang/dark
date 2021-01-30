@@ -559,7 +559,6 @@ let loadFrom
     let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
 
     let! c = loadEmpty canvasID canvasName owner
-    printfn ($"current canvas: {c}")
 
     return
       c
