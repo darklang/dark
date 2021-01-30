@@ -66,6 +66,7 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -119,13 +120,13 @@ let ocamlInteropYojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT
+  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a

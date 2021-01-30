@@ -104,15 +104,7 @@ module FuzzTests =
         testListUsingProperty
           "OCamlInterop Binary handler tests"
           FuzzTests.All.ocamlInteropBinaryHandlerRoundtrip
-          [ { tlid = 0UL
-              ast = PT.EPipeTarget 0UL
-              pos = { x = 0; y = 0 }
-              spec =
-                PT.Handler.OldWorker(
-                  "",
-                  "",
-                  { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
-                ) } ] ]
+          [] ]
 
 
 let tests = testList "LibBackend" [ parserTests; FuzzTests.fuzzedTests ]
