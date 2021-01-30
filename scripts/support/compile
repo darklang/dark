@@ -255,7 +255,7 @@ def fsharp_backend_quick_build():
     && unbuffer dotnet build \
       --no-restore \
       --verbosity minimal \
-      --configuration Debug "
+      --configuration Debug"
   return run_backend(start, build)
 
 
@@ -559,6 +559,9 @@ def mark(should, f):
       should.fsharp_backend_full_build = True
 
   elif ("/fsharp-backend/" in f) and (f.endswith(".fs")):
+      should.fsharp_backend_quick_build = True
+
+  elif ("/fsharp-backend/" in f) and (f.endswith(".fsi")):
       should.fsharp_backend_quick_build = True
 
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):

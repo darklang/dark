@@ -26,9 +26,12 @@ let (|Regex|_|) (pattern : string) (input : string) =
 // ----------------------
 // Debugging
 // ----------------------
+let debuG (msg : string) (a : 'a) : unit = printfn $"DEBUG: {msg} ({a})"
+
+
 
 let debug (msg : string) (a : 'a) : 'a =
-  printfn $"DEBUG: {msg} ({a})"
+  debuG msg a
   a
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
@@ -40,6 +43,8 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
     printfn $"DEBUG: {msg} ({a})"
     return a
   }
+
+let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
 
 // ----------------------
 // Assertions
@@ -143,12 +148,11 @@ module String =
         yield tee.GetTextElement()
     }
 
+  let splitOnNewline (str : string) : List<string> =
+    str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
+
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
-
-  let toLower (str : string) : string = str.ToLower()
-
-  let toUpper (str : string) : string = str.ToUpper()
 
   let base64UrlEncode (str : string) : string =
 
@@ -166,9 +170,6 @@ module String =
 // TaskOrValue
 // ----------------------
 // A way of combining non-task values with tasks, complete with computation expressions
-
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 type TaskOrValue<'T> =
   | Task of Task<'T>
@@ -469,64 +470,6 @@ module Task =
     }
 
 // ----------------------
-// Tablecloth
-// ----------------------
-module Tablecloth =
-  // An implementation of https://github.com/darklang/tablecloth, in F#. Intended
-  // to be upstreamed.
-
-  module Result =
-
-    let and_ (a : Result<'ok, 'err>) (b : Result<'ok, 'err>) : Result<'ok, 'err> =
-      match a with
-      | Ok _ -> b
-      | _ -> a
-
-    let okOrRaise (r : Result<'ok, 'err>) : 'ok =
-      match r with
-      | Error e -> failwith $"Error in okOrRaise: {e}"
-      | Ok o -> o
-
-  module Option =
-    let someOrRaise (o : Option<'t>) : 't =
-      match o with
-      | Some o -> o
-      | None -> failwith $"None in someOrRaise"
-
-  module String =
-    let startsWith (prefix : string) (str : string) : bool = str.StartsWith prefix
-    let endsWith (suffix : string) (str : string) : bool = str.EndsWith suffix
-
-    let splitOnNewline (str : string) : List<string> =
-      str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
-
-    let split (char : char) (str : string) : List<string> =
-      str.Split([| char |], System.StringSplitOptions.None) |> Array.toList
-
-    let dropLeft (count : int) (str : string) : string = str.Remove(0, count)
-
-    let dropRight (count : int) (str : string) : string =
-      let len = str.Length
-      str.Remove(count, len - count)
-
-  module List =
-    let any (f : 'a -> bool) (items : List<'a>) : bool =
-      List.fold (fun (accum : bool) (v : 'a) -> accum || f v) false items
-
-    let all (f : 'a -> bool) (items : List<'a>) : bool =
-      List.fold (fun (accum : bool) (v : 'a) -> accum && f v) true items
-
-  module Tuple2 =
-    let get1 ((v1, _2) : ('a * 'b)) : 'a = v1
-    let get2 ((_1, v2) : ('a * 'b)) : 'b = v2
-
-  module Tuple3 =
-    let get1 ((v1, _2, _3) : ('a * 'b * 'c)) : 'a = v1
-    let get2 ((_1, v2, _3) : ('a * 'b * 'c)) : 'b = v2
-    let get3 ((_1, _2, v3) : ('a * 'b * 'c)) : 'c = v3
-
-
-// ----------------------
 // Shared Types
 // ----------------------
 // Some fundamental types that we want to use everywhere.
@@ -545,7 +488,6 @@ type Sign =
   | Negative
 
 type tlid = uint64
-
 type id = uint64
 type CanvasID = System.Guid
 type UserID = System.Guid
@@ -558,7 +500,7 @@ module UserName =
 
     override this.ToString() = let (UserName username) = this in username
 
-  let create (str : string) : T = UserName(String.toLower str)
+  let create (str : string) : T = UserName(Tablecloth.String.toLowercase str)
 
 module OwnerName =
   type T =
@@ -568,7 +510,7 @@ module OwnerName =
     override this.ToString() = let (OwnerName name) = this in name
     member this.toUserName : UserName.T = UserName.create (this.ToString())
 
-  let create (str : string) : T = OwnerName(String.toLower str)
+  let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
 
 
 module CanvasName =
@@ -582,6 +524,6 @@ module CanvasName =
     if String.length name > 64 then
       failwith $"Canvas name was too long, must be <= 64."
 
-    CanvasName(String.toLower name)
+    CanvasName(Tablecloth.String.toLowercase name)
 
 let id (x : int) : id = uint64 x

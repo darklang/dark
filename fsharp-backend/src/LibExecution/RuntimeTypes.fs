@@ -30,7 +30,7 @@ module LibExecution.RuntimeTypes
 
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 module J = Prelude.Json
 
@@ -451,7 +451,7 @@ and ExecutionState = { functions : Map<FQFnName.T, BuiltInFn>; tlid : tlid }
 // ; canvas_id : Uuidm.t
 // ; account_id : Uuidm.t
 // ; user_fns : user_fn list
-// ; user_tipes : user_tipe list
+// ; userTypes : user_tipe list
 // ; package_fns : fn list
 // ; dbs : DbT.db list
 // ; secrets : secret list
@@ -774,7 +774,7 @@ module UserType =
   type T = { tlid : tlid; name : string; version : int; definition : Definition }
 
 module UserFunction =
-  type Parameter = { name : string; typ : DType; description : string }
+  type Parameter = { name : string; type' : DType; description : string }
 
   type T =
     { tlid : tlid

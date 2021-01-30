@@ -6,7 +6,7 @@ module LibBackend.File
 // Note: none of these are async because System.IO is not async
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 type Mode =
   | Check

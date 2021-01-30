@@ -210,33 +210,6 @@ let redirect_to uri =
   else None
 
 
-(* there might be some better way to do this... *)
-let over_headers (r : CResponse.t) ~(f : Header.t -> Header.t) : CResponse.t =
-  CResponse.make
-    ~version:(CResponse.version r)
-    ~status:(CResponse.status r)
-    ~flush:(CResponse.flush r)
-    ~encoding:(CResponse.encoding r)
-    ~headers:(r |> CResponse.headers |> f)
-    ()
-
-
-let over_headers_promise
-    (resp_promise : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t)
-    ~(f : Header.t -> Header.t) :
-    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let%lwt resp, body = resp_promise in
-  return (over_headers ~f resp, body)
-
-
-let wrap_editor_api_headers =
-  let headers =
-    [ ("Content-type", "application/json; charset=utf-8")
-    ; (Libshared.Header.server_version, Config.build_hash) ]
-  in
-  over_headers_promise ~f:(fun h -> Header.add_list h headers)
-
-
 (* Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
    or X-Forwarded-Proto: https.
 

@@ -20,7 +20,7 @@ let fns : fn list =
           | state, [DObj value; DStr key; DDB dbname] ->
               let db = find_db state.dbs dbname in
               let key = Unicode_string.to_string key in
-              ignore (User_db.set ~state true db key value) ;
+              ignore (UserDB.set ~state true db key value) ;
               DObj value
           | args ->
               incorrectArgs ())
@@ -39,7 +39,7 @@ let fns : fn list =
           | state, [DObj value; DDB dbname] ->
               let key = Uuidm.v `V4 |> Uuidm.to_string in
               let db = find_db state.dbs dbname in
-              ignore (User_db.set ~state true db key value) ;
+              ignore (UserDB.set ~state true db key value) ;
               Dval.dstr_of_string_exn key
           | args ->
               incorrectArgs ())
@@ -57,7 +57,7 @@ let fns : fn list =
           | state, [DStr key; DDB dbname] ->
               let key = Unicode_string.to_string key in
               let db = find_db state.dbs dbname in
-              User_db.get_option ~state db key |> Dval.dopt_of_option
+              UserDB.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
@@ -74,7 +74,7 @@ let fns : fn list =
           | state, [DStr key; DDB dbname] ->
               let key = Unicode_string.to_string key in
               let db = find_db state.dbs dbname in
-              User_db.get_option ~state db key |> Dval.dopt_of_option
+              UserDB.get_option ~state db key |> Dval.dopt_of_option
           | args ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
@@ -101,7 +101,7 @@ let fns : fn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many ~state db skeys
+              UserDB.get_many ~state db skeys
               |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -131,7 +131,7 @@ let fns : fn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many ~state db skeys
+              UserDB.get_many ~state db skeys
               |> List.map (fun (_, v) -> v)
               |> DList
           | args ->
@@ -160,7 +160,7 @@ let fns : fn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              let items = User_db.get_many ~state db skeys in
+              let items = UserDB.get_many ~state db skeys in
               if List.length items = List.length skeys
               then
                 List.map items (fun (_, v) -> v) |> DList |> OptJust |> DOption
@@ -191,7 +191,7 @@ let fns : fn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many ~state db skeys
+              UserDB.get_many ~state db skeys
               |> List.map (fun (_, v) -> v)
               |> DList
           | args ->
@@ -220,7 +220,7 @@ let fns : fn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many_with_keys ~state db skeys
+              UserDB.get_many_with_keys ~state db skeys
               |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -250,7 +250,7 @@ let fns : fn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many_with_keys ~state db skeys
+              UserDB.get_many_with_keys ~state db skeys
               |> DvalMap.from_list
               |> DObj
           | args ->
@@ -269,7 +269,7 @@ let fns : fn list =
           | state, [DStr key; DDB dbname] ->
               let db = find_db state.dbs dbname in
               let key = Unicode_string.to_string key in
-              User_db.delete ~state db key ;
+              UserDB.delete ~state db key ;
               DNull
           | args ->
               incorrectArgs ())
@@ -286,7 +286,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.delete_all state db ;
+              UserDB.delete_all state db ;
               DNull
           | args ->
               incorrectArgs ())
@@ -305,7 +305,7 @@ let fns : fn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_exact_fields ~state db obj
+              UserDB.query_exact_fields ~state db obj
               |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -325,7 +325,7 @@ let fns : fn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_exact_fields ~state db obj
+              UserDB.query_exact_fields ~state db obj
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -345,7 +345,7 @@ let fns : fn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_exact_fields ~state db obj
+              UserDB.query_exact_fields ~state db obj
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -364,7 +364,7 @@ let fns : fn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_exact_fields ~state db obj
+              UserDB.query_exact_fields ~state db obj
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -384,7 +384,7 @@ let fns : fn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_exact_fields ~state db obj
+              UserDB.query_exact_fields ~state db obj
               |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -406,7 +406,7 @@ let fns : fn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_exact_fields ~state db obj
+              UserDB.query_exact_fields ~state db obj
               |> DvalMap.from_list
               |> DObj
           | args ->
@@ -426,7 +426,7 @@ let fns : fn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_exact_fields ~state db obj
+              UserDB.query_exact_fields ~state db obj
               |> DvalMap.from_list
               |> DObj
           | args ->
@@ -446,7 +446,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query_exact_fields ~state db obj
+                UserDB.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -470,7 +470,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query_exact_fields ~state db obj
+                UserDB.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -495,7 +495,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query_exact_fields ~state db obj
+                UserDB.query_exact_fields ~state db obj
               in
               ( match results with
               | [(_, v)] ->
@@ -519,7 +519,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query_exact_fields ~state db obj
+                UserDB.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
@@ -543,7 +543,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query_exact_fields ~state db obj
+                UserDB.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
@@ -568,7 +568,7 @@ let fns : fn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let results =
                 let db = find_db state.dbs dbname in
-                User_db.query_exact_fields ~state db obj
+                UserDB.query_exact_fields ~state db obj
               in
               ( match results with
               | [(k, v)] ->
@@ -592,7 +592,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.get_all ~state db
+              UserDB.get_all ~state db
               |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -611,7 +611,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.get_all ~state db
+              UserDB.get_all ~state db
               |> List.map (fun (k, v) -> v)
               |> DList
           | args ->
@@ -629,7 +629,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.get_all ~state db
+              UserDB.get_all ~state db
               |> List.map (fun (k, v) -> v)
               |> Dval.to_list
           | args ->
@@ -649,7 +649,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.get_all ~state db
+              UserDB.get_all ~state db
               |> List.map (fun (k, v) ->
                      DList [Dval.dstr_of_string_exn k; v])
               |> DList
@@ -669,7 +669,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.get_all ~state db |> DvalMap.from_list |> DObj
+              UserDB.get_all ~state db |> DvalMap.from_list |> DObj
           | args ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
@@ -685,7 +685,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.count ~state db |> Dval.dint
+              UserDB.count ~state db |> Dval.dint
           | args ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
@@ -702,7 +702,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.cols_for db
+              UserDB.cols_for db
               |> List.map (fun (k, v) -> Dval.dstr_of_string_exn k)
               |> DList
           | args ->
@@ -721,7 +721,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.cols_for db
+              UserDB.cols_for db
               |> List.map (fun (k, v) ->
                      (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)))
               |> Dval.to_dobj_exn
@@ -756,7 +756,7 @@ let fns : fn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.get_all_keys ~state db
+              UserDB.get_all_keys ~state db
               |> List.map (fun k -> Dval.dstr_of_string_exn k)
               |> DList
           | args ->
@@ -776,7 +776,7 @@ let fns : fn list =
           | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db b
+                UserDB.query ~state db b
                 |> List.map (fun (k, v) -> v)
                 |> Dval.to_list
               with Db.DBQueryException _ as e ->
@@ -798,7 +798,7 @@ let fns : fn list =
           | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
-                User_db.query ~state db b |> DvalMap.from_list |> DObj
+                UserDB.query ~state db b |> DvalMap.from_list |> DObj
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->
@@ -818,7 +818,7 @@ let fns : fn list =
           | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
-                let results = User_db.query ~state db b in
+                let results = UserDB.query ~state db b in
                 match results with
                 | [(_, v)] ->
                     Dval.to_opt_just v
@@ -843,7 +843,7 @@ let fns : fn list =
           | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
-                let results = User_db.query ~state db b in
+                let results = UserDB.query ~state db b in
                 match results with
                 | [(_, v)] ->
                     Dval.to_opt_just v
@@ -868,7 +868,7 @@ let fns : fn list =
           | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
-                let results = User_db.query ~state db b in
+                let results = UserDB.query ~state db b in
                 match results with
                 | [(k, v)] ->
                     DOption (OptJust (DObj (DvalMap.singleton k v)))
@@ -893,7 +893,7 @@ let fns : fn list =
           | state, [DDB dbname; DFnVal b] ->
             ( try
                 let db = find_db state.dbs dbname in
-                User_db.query_count ~state db b |> Dval.dint
+                UserDB.query_count ~state db b |> Dval.dint
               with Db.DBQueryException _ as e ->
                 DError (SourceNone, Db.dbQueryExceptionToString e) )
           | args ->

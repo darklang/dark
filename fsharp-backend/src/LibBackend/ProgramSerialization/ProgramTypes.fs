@@ -20,7 +20,7 @@ open Npgsql
 open System.Text.RegularExpressions
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 // Used for conversion functions
 module RT = LibExecution.RuntimeTypes
@@ -85,6 +85,8 @@ module FQFnName =
       | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
           ("dark", "stdlib", module_, name, 0)
       | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
+          ("dark", "stdlib", "", name, int version)
+      | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
           ("dark", "stdlib", "", name, int version)
       | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
       | _ -> failwith $"Bad format in function name: \"{fnName}\""
@@ -243,6 +245,7 @@ type Expr =
         let inner = r expr1
 
         List.fold
+          inner
           (fun prev next ->
             match next with
             // TODO: support currying
@@ -268,8 +271,6 @@ type Expr =
             // Here, the expression evaluates to an FnValue. This is for eg variables containing values
             | other ->
                 RT.EApply(id, r other, [ prev ], RT.InPipe, NoRail.toRuntimeType ()))
-
-          inner
           (expr2 :: rest)
 
     | EConstructor (id, name, exprs) -> RT.EConstructor(id, name, List.map r exprs)
@@ -779,6 +780,7 @@ module Handler =
 
   type T =
     { tlid : tlid
+      pos : pos
       ast : Expr
       spec : Spec }
 
@@ -788,42 +790,50 @@ module Handler =
         spec = this.spec.toRuntimeType () }
 
 module DB =
-  type Col = string * DType
+  type Col = { name : string; typ : Option<DType>; nameID : id; typeID : id }
 
   type T =
     { tlid : tlid
+      pos : pos
+      nameID : id
       name : string
+      version : int
       cols : List<Col> }
 
     member this.toRuntimeType() : RT.DB.T =
       { tlid = this.tlid
         name = this.name
-        cols = List.map (fun (k, t : DType) -> k, t.toRuntimeType ()) this.cols }
-
-
+        cols =
+          List.filterMap
+            (fun c ->
+              match c.typ with
+              | Some t -> Some(c.name, t.toRuntimeType ())
+              | None -> None)
+            this.cols }
 
 module UserType =
-  type RecordField =
-    { name : string
-      typ : DType }
-
-    member this.toRuntimeType() : RT.UserType.RecordField =
-      { name = this.name; typ = this.typ.toRuntimeType () }
+  type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
 
   type Definition =
-    | UTRecord of List<RecordField>
+    | Record of List<RecordField>
 
     member this.toRuntimeType() : RT.UserType.Definition =
       match this with
-      | UTRecord fields ->
+      | Record fields ->
           RT.UserType.UTRecord(
-            List.map (fun (rf : RecordField) -> rf.toRuntimeType ()) fields
+            List.filterMap
+              (fun (rf : RecordField) ->
+                match rf.typ with
+                | Some t -> Some({ name = rf.name; typ = t.toRuntimeType () })
+                | None -> None)
+              fields
           )
 
 
   type T =
     { tlid : tlid
       name : string
+      nameID : id
       version : int
       definition : Definition }
 
@@ -836,19 +846,23 @@ module UserType =
 module UserFunction =
   type Parameter =
     { name : string
-      typ : DType
+      nameID : id
+      type' : DType
+      typeID : id
       description : string }
 
     member this.toRuntimeType() : RT.UserFunction.Parameter =
       { name = this.name
-        typ = this.typ.toRuntimeType ()
+        type' = this.type'.toRuntimeType ()
         description = this.description }
 
   type T =
     { tlid : tlid
       name : string
+      nameID : id
       parameters : List<Parameter>
       returnType : DType
+      returnTypeID : id
       description : string
       infix : bool
       ast : Expr }
@@ -882,3 +896,40 @@ type Toplevel =
     | TLDB db -> RT.TLDB(db.toRuntimeType ())
     | TLFunction f -> RT.TLFunction(f.toRuntimeType ())
     | TLType t -> RT.TLType(t.toRuntimeType ())
+
+type DeprecatedMigrationKind = | DeprecatedMigrationKind
+
+type Op =
+  | SetHandler of tlid * pos * Handler.T
+  | CreateDB of tlid * pos * string
+  | AddDBCol of tlid * id * id
+  | SetDBColName of tlid * id * string
+  | SetDBColType of tlid * id * string
+  | DeleteTL of tlid
+  | MoveTL of tlid * pos
+  | SetFunction of UserFunction.T
+  | ChangeDBColName of tlid * id * string
+  | ChangeDBColType of tlid * id * string
+  | UndoTL of tlid
+  | RedoTL of tlid
+  | SetExpr of tlid * id * Expr
+  | TLSavepoint of tlid
+  | DeleteFunction of tlid
+  | CreateDBMigration of tlid * id * id * (string * id * string * id) list
+  | AddDBColToDBMigration of tlid * id * id
+  | SetDBColNameInDBMigration of tlid * id * string
+  | SetDBColTypeInDBMigration of tlid * id * string
+  | AbandonDBMigration of tlid
+  | DeleteColInDBMigration of tlid * id
+  | DeleteDBCol of tlid * id
+  | DeprecatedInitDBm of tlid * id * id * id * DeprecatedMigrationKind
+  | RenameDBname of tlid * string
+  | CreateDBWithBlankOr of tlid * pos * id * string
+  | DeleteTLForever of tlid
+  | DeleteFunctionForever of tlid
+  | SetType of UserType.T
+  | DeleteType of tlid
+  | DeleteTypeForever of tlid
+
+type Oplist = List<Op>
+type TLIDOplists = List<tlid * Oplist>

@@ -20,6 +20,7 @@ open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Prelude
+open Tablecloth
 open FSharpx
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
@@ -111,10 +112,10 @@ let runDarkHandler : HttpHandler =
           Microsoft.Extensions.Primitives.StringValues([| value |])
         )
 
-      let e500 (msg : string) =
+      let msg (code : int) (msg : string) =
         task {
           let bytes = System.Text.Encoding.UTF8.GetBytes msg
-          ctx.Response.StatusCode <- 500
+          ctx.Response.StatusCode <- code
           addHeader ctx "server" "darklang"
           if bytes.Length > 0 then addHeader ctx "Content-Type" "text/plain"
           addHeader ctx "Content-Length" (bytes.Length.ToString())
@@ -127,7 +128,9 @@ let runDarkHandler : HttpHandler =
       let exprs : Task<List<PT.Toplevel>> =
         task {
           let executionID = gid ()
-          let logger = ctx.RequestServices.GetService(typeof<ILogger>) :?> ILogger
+          let loggerFactory = ctx.RequestServices.GetService<ILoggerFactory>()
+          let logger = loggerFactory.CreateLogger("logger")
+          let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
 
           match! canvasNameFromHost ctx.Request.Host.Host with
           | Some canvasName ->
@@ -140,14 +143,22 @@ let runDarkHandler : HttpHandler =
 
               let method = ctx.Request.Method
 
-              return!
-                LibBackend.ProgramSerialization.SQL.loadHttpHandlersFromCache
+              let! canvas =
+                LibBackend.Canvas.loadHttpHandlersFromCache
                   canvasName
                   canvasID
                   ownerID
                   requestPath
                   method
-          | None -> return []
+
+              return
+                canvas
+                |> Result.unwrapUnsafe
+                |> LibBackend.Canvas.toplevels
+                |> Map.values
+          | None ->
+              log "no canvas found" []
+              return []
         }
 
       match! exprs with
@@ -165,7 +176,8 @@ let runDarkHandler : HttpHandler =
           match vars with
           | None ->
               return!
-                e500
+                msg
+                  500
                   $"The request ({requestPath}) does not match the route ({route})"
           | Some vars ->
               let symtable = Map.ofList vars
@@ -190,18 +202,16 @@ let runDarkHandler : HttpHandler =
                   return Some ctx
               | RT.DFakeVal (RT.DIncomplete _) ->
                   return!
-                    e500
+                    msg
+                      500
                       "Error calling server code: Handler returned an \
-                                incomplete result. Please inform the owner of this \
-                                site that their code is broken."
+                       incomplete result. Please inform the owner of this \
+                       site that their code is broken."
               | other ->
                   printfn $"Not a HTTP response: {other}"
-                  return! e500 "body is not a HttpResponse"
-      | [] ->
-          ctx.Response.StatusCode <- 404
-          addHeader ctx "server" "darklang"
-          return Some ctx
-      | _ -> return! e500 "More than one handler found for this URL"
+                  return! msg 500 "body is not a HttpResponse"
+      | [] -> return! msg 404 "No handler was found for this URL"
+      | _ -> return! msg 500 "More than one handler found for this URL"
     }
 
 let webApp : HttpHandler =

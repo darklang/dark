@@ -166,6 +166,7 @@ let t name =
 
              ProgramTypes.TLHandler
                { tlid = gid ()
+                 pos = { x = 0; y = 0 }
                  ast = source
                  spec =
                    ProgramTypes.Handler.HTTP(
@@ -215,7 +216,10 @@ let t name =
         "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
         (toStr response)
 
-    Expect.equal response (toStr expectedResponse) ""
+    if String.startsWith "_" name then
+      skiptest $"underscore test - {name}"
+    else
+      Expect.equal response (toStr expectedResponse) ""
   }
 
 let testsFromFiles =

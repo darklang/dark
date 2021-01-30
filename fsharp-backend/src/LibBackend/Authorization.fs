@@ -14,7 +14,7 @@ module Account = LibBackend.Account
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 type Permission =
   | Read
@@ -164,6 +164,7 @@ let permission
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
   List.fold
+    (task { return None })
     (fun (p : Task<Option<Permission>>) (f : unit -> Task<Option<Permission>>) ->
       task {
         match! p with
@@ -174,7 +175,6 @@ let permission
             | None -> return! p
         | None -> return! f ()
       })
-    (task { return None })
     permFs
 
 

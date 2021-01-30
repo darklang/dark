@@ -18,12 +18,17 @@
     <Compile Include="Account.fs" />
     <Compile Include="Authorization.fs" />
     <Compile Include="Session.fs" />
-    <Compile Include="Canvas.fs" />
-    <Compile Include="Migrations.fs" />
     <Compile Include="ProgramSerialization/ProgramTypes.fs" />
     <Compile Include="ProgramSerialization/OCamlInterop.fs" />
     <Compile Include="ProgramSerialization/SQL.fs" />
+    <Compile Include="UserDB.fs" />
+    <Compile Include="Analysis.fs" />
+    <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
+    <Compile Include="Op.fs" />
+    <Compile Include="Undo.fs" />
+    <Compile Include="Canvas.fs" />
+    <Compile Include="Migrations.fs" />
     <Compile Include="StdLib/StdLib.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

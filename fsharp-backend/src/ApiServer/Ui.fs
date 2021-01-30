@@ -9,7 +9,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharpPlus
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 module Config = LibBackend.Config
 module Session = LibBackend.Session
@@ -29,7 +29,7 @@ let prodHashReplacements : string =
   |> Map.remove "__date"
   |> Map.remove ".gitkeep"
   // Only hash our assets, not vendored assets
-  |> Map.filter (fun k v -> not (k.Contains "vendor/"))
+  |> Map.filterWithIndex (fun k v -> not (String.includes "vendor/" k))
   |> Map.toList
   |> List.map
        (fun (filename, hash) ->
@@ -109,14 +109,14 @@ let uiHtml
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
-    let user = Middleware.load<Account.UserInfo> "user" ctx
-    let sessionData = Middleware.load<Session.T> "session" ctx
-    let canvasName = Middleware.load<CanvasName.T> "canvasName" ctx
+    let user = Middleware.loadUserInfo ctx
+    let sessionData = Middleware.loadSessionData ctx
+    let canvasName = Middleware.loadCanvasName ctx
 
     let! ownerID =
       (Account.ownerNameFromCanvasName canvasName).toUserName
       |> Account.ownerID
-      |> Task.map Option.someOrRaise
+      |> Task.map Option.unwrapUnsafe
 
     let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
     let! createdAt = Account.getUserCreatedAt user.username

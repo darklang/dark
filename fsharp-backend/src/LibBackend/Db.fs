@@ -25,9 +25,10 @@ module Sql =
 
   let query (sql : string) : Sql.SqlProps = connect () |> Sql.query sql
 
-  let executeRowOptionAsync (reader : RowReader -> 't)
-                            (props : Sql.SqlProps)
-                            : Task<Option<'t>> =
+  let executeRowOptionAsync
+    (reader : RowReader -> 't)
+    (props : Sql.SqlProps)
+    : Task<Option<'t>> =
     task {
       match! Sql.executeAsync reader props with
       | [ a ] -> return Some a
@@ -35,9 +36,10 @@ module Sql =
       | list -> return failwith $"Too many results, expected 0 or 1, got {list}"
     }
 
-  let executeRowOption (reader : RowReader -> 't)
-                       (props : Sql.SqlProps)
-                       : Option<'t> =
+  let executeRowOption
+    (reader : RowReader -> 't)
+    (props : Sql.SqlProps)
+    : Option<'t> =
     match Sql.execute reader props with
     | [ a ] -> Some a
     | [] -> None

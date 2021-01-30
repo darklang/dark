@@ -85,6 +85,7 @@ module FuzzTests =
           FuzzTests.All.ocamlInteropYojsonHandlerRoundtrip
           [ { tlid = 0UL
               ast = EFnCall(0UL, FQFnName.parse "o/t/F::e_v1", [], NoRail)
+              pos = { x = 0; y = 0 }
               spec =
                 Handler.Worker(
                   "",
@@ -92,6 +93,7 @@ module FuzzTests =
                 ) }
 
             { tlid = 0UL
+              pos = { x = 0; y = 0 }
               ast = EBool(0UL, false)
               spec =
                 Handler.Cron(
@@ -102,14 +104,7 @@ module FuzzTests =
         testListUsingProperty
           "OCamlInterop Binary handler tests"
           FuzzTests.All.ocamlInteropBinaryHandlerRoundtrip
-          [ { tlid = 0UL
-              ast = PT.EPipeTarget 0UL
-              spec =
-                PT.Handler.OldWorker(
-                  "",
-                  "",
-                  { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
-                ) } ] ]
+          [] ]
 
 
 let tests = testList "LibBackend" [ parserTests; FuzzTests.fuzzedTests ]

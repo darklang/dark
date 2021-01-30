@@ -12,7 +12,7 @@ open Npgsql.FSharp.Tasks
 open Db
 
 open Prelude
-open Prelude.Tablecloth
+open Tablecloth
 
 let isInitialized () : bool =
   Sql.query
