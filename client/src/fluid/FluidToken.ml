@@ -247,6 +247,73 @@ let isTextToken (t : t) : bool =
   | TFlagEnabledKeyword _ ->
       false
 
+let isPipeable (t : t) : bool =
+  match t with
+  | TInteger _
+  | TLetVarName _
+  | TListClose _
+  | TRecordClose _
+  | TFieldName _
+  | TVariable _
+  | TFnName _
+  | TString _
+  | TTrue _
+  | TFalse _
+  | TNullToken _
+  | TFloatWhole _
+  | TFloatPoint _
+  | TFloatFractional _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternBlank _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFractional _ ->
+      true
+  | TFnVersion _
+  | TBlank _
+  | TPlaceholder _
+  | TPartial _
+  | TRightPartial _
+  | TLeftPartial _
+  | TPartialGhost _
+  | TRecordFieldname _
+  | TConstructorName _
+  | TBinOp _
+  | TLambdaVar _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
+  | TListOpen _
+  | TFieldPartial _
+  | TListComma (_, _)
+  | TSep _
+  | TLetKeyword _
+  | TRecordOpen _
+  | TRecordSep _
+  | TLetAssignment _
+  | TIfKeyword _
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TFieldOp _
+  | TNewline _
+  | TIndent _
+  | TLambdaSymbol _
+  | TLambdaComma _
+  | TMatchKeyword _
+  | TMatchBranchArrow _
+  | TPipe _
+  | TLambdaArrow _
+  | TParenOpen _
+  | TParenClose _
+  | TFlagWhenKeyword _
+  | TFlagEnabledKeyword _ ->
+      false
 
 let isStringToken t : bool =
   match t with

@@ -2021,7 +2021,9 @@ let rec findAppropriateParentToWrap
     (oldExpr : FluidExpression.t) (ast : FluidAST.t) : FluidExpression.t option
     =
   let child = oldExpr in
+  Js.log2 "child" child ;
   let parent = FluidAST.findParent (E.toID oldExpr) ast in
+  Js.log2 "parent" parent ;
   match parent with
   | Some parent ->
     ( match parent with
@@ -2071,6 +2073,7 @@ let createPipe ~(findParent : bool) (id : ID.t) (astInfo : ASTInfo.t) :
   let action =
     Printf.sprintf "createPipe(id=%s findParent=%B)" (ID.toString id) findParent
   in
+  Js.log2 "createPipe id" id ;
   let astInfo = recordAction action astInfo in
   let exprToReplace =
     FluidAST.find id astInfo.ast
@@ -4059,7 +4062,6 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   in
   Option.withDefault mod' ~default:NoChange
 
-
 let rec updateKey
     ?(recursing = false) (inputEvent : fluidInputEvent) (astInfo : ASTInfo.t) =
   (* These might be the same token *)
@@ -4162,8 +4164,36 @@ let rec updateKey
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline (astInfo : ASTInfo.t) : ASTInfo.t =
           let startPos, endPos = FluidUtil.getSelectionRange astInfo.state in
-          let topmostID = getTopmostSelectionID startPos endPos astInfo in
-          let findParent = startPos = endPos in
+          let topmostSelectionID = getTopmostSelectionID startPos endPos astInfo in
+          let topmostID, findParent =
+            if startPos = endPos
+            then
+              begin
+                Js.log "No selection" ;
+                let tokenAtLeft = getLeftTokenAt astInfo.state.newPos (ASTInfo.activeTokenInfos astInfo) in
+                match tokenAtLeft with
+                | Some current when T.isPipeable current.token ->
+                  Js.log "Pipeable Token at left " ;
+                  Some (T.tid current.token), false
+                | Some ({token = TPipe _; _} as current) ->
+                  Js.log "Pipe Token at left " ;
+                  Some (T.tid current.token), false
+                | _ ->
+                  Js.log "Unmatched Token at left " ;
+                  match topmostSelectionID with
+                  | Some id -> Some (id), startPos = endPos;
+                  | None -> Some (T.fakeid), startPos = endPos
+              end
+            else
+              begin
+                match topmostSelectionID with
+                  | Some id -> Some (id), startPos = endPos;
+                  | None -> Some (T.fakeid), startPos = endPos
+              end
+          in
+          Js.log2 "topmostID: " topmostID ;
+          Js.log2 "find Parent: " findParent ;
+
           Option.map topmostID ~f:(fun id ->
               let astInfo, blankId = createPipe ~findParent id astInfo in
               match blankId with
