@@ -45,18 +45,20 @@ let notFound (ctx : HttpContext) : Task<HttpContext option> =
   }
 
 let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
-  (fun _ ctx ->
-    task {
-      let! result = f ctx
-      return! ctx.WriteHtmlStringAsync result
-    })
+  handleContext
+    (fun ctx ->
+      task {
+        let! result = f ctx
+        return! ctx.WriteHtmlStringAsync result
+      })
 
 let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
-  (fun _ ctx ->
-    task {
-      let! result = f ctx
-      return! ctx.WriteJsonAsync result
-    })
+  handleContext
+    (fun ctx ->
+      task {
+        let! result = f ctx
+        return! ctx.WriteJsonAsync result
+      })
 
 // Either redirect to a login page, or apply the passed function if a
 // redirection is inappropriate (eg for the API)

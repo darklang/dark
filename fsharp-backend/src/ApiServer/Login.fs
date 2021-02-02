@@ -71,39 +71,44 @@ let logout : HttpHandler =
 let loginUiTemplate : string = LibBackend.File.readfile Config.Templates "login.html"
 
 let loginPage : HttpHandler =
+  // CLEANUP move these into config urls
   if Config.useLoginDarklangComForLogin then
-    fun (next : HttpFunc) (ctx : HttpContext) ->
-      // CLEANUP move these into config urls
-      redirectTo false "https://login.darklang.com" next ctx
+    handleContext
+      (fun ctx -> redirectTo false "https://login.darklang.com" earlyReturn ctx)
   else
-    (Middleware.loggedOutHtmlHandler (fun _ -> task { return loginUiTemplate }))
+    (Middleware.loggedOutHtmlHandler
+      (fun _ ->
+        task {
+          debuG "executing login page" ()
+          return loginUiTemplate
+        }))
 
 let loginHandler : HttpHandler =
-  fun (next : HttpFunc) (ctx : HttpContext) ->
-    task {
-      let usernameOrEmail = ctx.Request.Form.Item "username" |> toString
-      let password = ctx.Request.Form.Item "password" |> toString
-      let redirect = ctx.Request.Form.Item "redirect" |> toString
+  handleContext
+    (fun (ctx : HttpContext) ->
+      task {
+        debuG "executing login handler" ()
+        let usernameOrEmail = ctx.Request.Form.Item "username" |> toString
+        let password = ctx.Request.Form.Item "password" |> toString
+        let redirect = ctx.Request.Form.Item "redirect" |> toString
 
-      match! Account.authenticate usernameOrEmail password with
-      | None ->
-          fstodo "add error to query"
-          fstodo "add redirect to query"
-          return! redirectTo false "/login" next ctx
-      | Some username ->
-          let! sessionData = Session.insert username
+        match! Account.authenticate usernameOrEmail password with
+        | None ->
+            fstodo "add error to query"
+            fstodo "add redirect to query"
+            return! redirectTo false "/login" earlyReturn ctx
+        | Some username ->
+            let! sessionData = Session.insert username
 
-          ctx.Response.Cookies.Append(
-            Session.cookieKey,
-            sessionData.sessionKey,
-            cookieOptionsFor ctx
-          )
+            ctx.Response.Cookies.Append(
+              Session.cookieKey,
+              sessionData.sessionKey,
+              cookieOptionsFor ctx
+            )
 
-          let location = if redirect = "" then $"/a/{username}" else redirect
-
-          ctx.Response.Redirect(location, false)
-          return Some ctx
-    }
+            let location = if redirect = "" then $"/a/{username}" else redirect
+            return! redirectTo false location earlyReturn ctx
+      })
 
 // --------------------
 // endpoints
