@@ -517,7 +517,7 @@ module OwnerName =
     | OwnerName of string
 
     override this.ToString() = let (OwnerName name) = this in name
-    member this.toUserName : UserName.T = UserName.create (this.ToString())
+    member this.toUserName() : UserName.T = UserName.create (this.ToString())
 
   let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
 

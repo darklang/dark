@@ -297,8 +297,10 @@ module InitialLoad =
   let initialLoad (ctx : HttpContext) : Task<string> =
     task {
       let user = Middleware.loadUserInfo ctx
-      let canvasName = Middleware.loadCanvasName ctx
-      // let! canvas = LibBackend.Canvas.loadAllFromCache canvasName
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+
+      let! canvas =
+        LibBackend.Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
       // let! unlocked = LibBackend.Analysis.unlocked canvas.id
       return "todo: initialLoad"
     }

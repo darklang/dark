@@ -153,6 +153,7 @@ let samplePermission (owner : OwnerName.T) : Option<Permission> =
 // particular user's canvas
 let permission
   (owner : OwnerName.T)
+  (ownerID : UserID)
   (username : UserName.T)
   : Task<Option<Permission>> =
   let permFs : List<unit -> Task<Option<Permission>>> =
@@ -178,21 +179,27 @@ let permission
     permFs
 
 
-let canEditCanvas (canvas : CanvasName.T) (username : UserName.T) : Task<bool> =
-  let owner = Account.ownerNameFromCanvasName canvas in
-
+let canEditCanvas
+  (canvas : CanvasName.T)
+  (ownerName : OwnerName.T)
+  (ownerID : UserID)
+  (username : UserName.T)
+  : Task<bool> =
   task {
-    match! permission owner username with
+    match! permission ownerName ownerID username with
     | Some Read -> return false
     | Some ReadWrite -> return true
     | None -> return false
   }
 
-let canViewCanvas (canvas : CanvasName.T) (username : UserName.T) : Task<bool> =
-  let owner = Account.ownerNameFromCanvasName canvas in
-
+let canViewCanvas
+  (canvas : CanvasName.T)
+  (ownerName : OwnerName.T)
+  (ownerID : UserID)
+  (username : UserName.T)
+  : Task<bool> =
   task {
-    match! permission owner username with
+    match! permission ownerName ownerID username with
     | Some Read -> return true
     | Some ReadWrite -> return true
     | None -> return false

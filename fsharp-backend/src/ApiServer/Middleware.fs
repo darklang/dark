@@ -91,26 +91,49 @@ let redirectOr
 type dataID =
   | UserInfo
   | SessionData
-  | CanvasName
+  | CanvasInfo
   | Permission
 
   override this.ToString() : string =
     match this with
     | UserInfo -> "user"
     | SessionData -> "sessionData"
-    | CanvasName -> "canvasName"
+    | CanvasInfo -> "canvasName"
     | Permission -> "permission"
 
-let save (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
+let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx.Items.[id.ToString()] <- value
   ctx
 
-let load<'a> (id : dataID) (ctx : HttpContext) : 'a =
+let load'<'a> (id : dataID) (ctx : HttpContext) : 'a =
   ctx.Items.[$"{id}".ToString()] :?> 'a
+
+type CanvasInfo = { name : CanvasName.T; id : CanvasID; owner : UserID }
+
+let loadSessionData (ctx : HttpContext) : Session.T =
+  load'<Session.T> SessionData ctx
+
+let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
+  load'<Account.UserInfo> UserInfo ctx
+
+let loadCanvasInfo (ctx : HttpContext) : CanvasInfo =
+  load'<CanvasInfo> CanvasInfo ctx
+
+let loadPermission (ctx : HttpContext) : Auth.Permission =
+  load'<Auth.Permission> Permission ctx
+
+let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
+let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
+let saveCanvasInfo (c : CanvasInfo) (ctx : HttpContext) = save' CanvasInfo c ctx
+let savePermission (p : Auth.Permission) (ctx : HttpContext) = save' Permission p ctx
+
+
 
 // --------------------
 // APIServer Middlewares
 // --------------------
+
+
 let sessionDataMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
@@ -125,10 +148,9 @@ let sessionDataMiddleware : HttpHandler =
 
       match session with
       | None -> return! redirectOr unauthorized ctx
-      | Some sessionData -> return! next (save SessionData sessionData ctx)
+      | Some sessionData -> return! next (saveSessionData sessionData ctx)
     })
 
-let loadSessionData (ctx : HttpContext) : Session.T = load<Session.T> SessionData ctx
 
 let userInfoMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -137,11 +159,8 @@ let userInfoMiddleware : HttpHandler =
 
       match! Account.getUser (UserName.create sessionData.username) with
       | None -> return! redirectOr notFound ctx
-      | Some user -> return! next (save UserInfo user ctx)
+      | Some user -> return! next (saveUserInfo user ctx)
     })
-
-let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
-  load<Account.UserInfo> UserInfo ctx
 
 // checks permission on the canvas and continues. As a safety check, we add the
 // CanvasName property here instead of the handler just fetching it. It's only
@@ -154,20 +173,23 @@ let withPermissionMiddleware
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let user = loadUserInfo ctx
+      // CLEANUP: reduce to one query
+      // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
+      let ownerName = Account.ownerNameFromCanvasName canvasName
+      let! ownerID = Account.userIDForUserName (ownerName.toUserName ())
+      let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+      let canvasInfo = { name = canvasName; id = canvasID; owner = ownerID }
 
       let! permitted =
         if permissionNeeded = Auth.Read then
-          Auth.canViewCanvas canvasName user.username
+          Auth.canViewCanvas canvasName ownerName ownerID user.username
         else if permissionNeeded = Auth.ReadWrite then
-          Auth.canEditCanvas canvasName user.username
+          Auth.canEditCanvas canvasName ownerName ownerID user.username
         else
-          task { return false }
+          Task.FromResult false
 
       if permitted then
-        ctx
-        |> save CanvasName canvasName
-        |> save Permission permissionNeeded
-        |> ignore // ignored as `save` is side-effecting
+        ctx |> saveCanvasInfo canvasInfo |> savePermission permissionNeeded |> ignore // ignored as `save` is side-effecting
 
         return! next ctx
       else
@@ -175,8 +197,6 @@ let withPermissionMiddleware
         return! unauthorized ctx
     })
 
-let loadCanvasName (ctx : HttpContext) = load<CanvasName.T> CanvasName ctx
-let loadPermission (ctx : HttpContext) = load<Auth.Permission> Permission ctx
 
 let antiClickjackingMiddleware : HttpHandler =
   // Clickjacking: Don't allow any other websites to put this in an iframe;
