@@ -16,23 +16,9 @@ module Session = LibBackend.Session
 module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
 
-let loginUiTemplate : string = LibBackend.File.readfile Config.Templates "login.html"
-
-let logout : HttpHandler =
-  fun (next : HttpFunc) (ctx : HttpContext) ->
-    // CLEANUP move these into config urls
-    if Config.useLoginDarklangComForLogin then
-      redirectTo false "https://logout.darklang.com/logout" next ctx
-    else
-      fstodo "clear the session"
-      redirectTo false "/" next ctx
-
-let loginPage : HttpHandler =
-  if Config.useLoginDarklangComForLogin then
-    fun (next : HttpFunc) (ctx : HttpContext) ->
-      redirectTo false "https://login.darklang.com" next ctx
-  else
-    (Middleware.loggedOutHtmlHandler (fun _ -> task { return loginUiTemplate }))
+// --------------------
+// Cookie stuff
+// --------------------
 
 // get the domain of a request
 let domain (ctx : HttpContext) : string =
@@ -59,6 +45,38 @@ let cookieOptionsFor (ctx : HttpContext) =
   options
 
 
+// --------------------
+// Logout
+// --------------------
+// FSTODO: test logout when logged in, and when logged out
+let logout : HttpHandler =
+  Middleware.userMiddleware
+    (fun next (ctx : HttpContext) ->
+      // CLEANUP move these into config urls
+      if Config.useLoginDarklangComForLogin then
+        redirectTo false "https://logout.darklang.com/logout" next ctx
+      else
+        task {
+          let sessionData = Middleware.loadSessionData ctx
+          do! Session.clear sessionData.key
+
+          ctx.Response.Cookies.Delete(Session.cookieKey, cookieOptionsFor ctx)
+
+          return! redirectTo false "/login" next ctx
+        })
+
+// --------------------
+// Login
+// --------------------
+let loginUiTemplate : string = LibBackend.File.readfile Config.Templates "login.html"
+
+let loginPage : HttpHandler =
+  if Config.useLoginDarklangComForLogin then
+    fun (next : HttpFunc) (ctx : HttpContext) ->
+      // CLEANUP move these into config urls
+      redirectTo false "https://login.darklang.com" next ctx
+  else
+    (Middleware.loggedOutHtmlHandler (fun _ -> task { return loginUiTemplate }))
 
 let loginHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -87,7 +105,9 @@ let loginHandler : HttpHandler =
           return Some ctx
     }
 
-
+// --------------------
+// endpoints
+// --------------------
 let endpoints : Endpoint list =
   [ GET [ route "/login" loginPage; route "/logout" logout ]
-    POST [ route "login" loginHandler ] ]
+    POST [ route "login" loginHandler; route "/logout" logout ] ]

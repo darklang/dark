@@ -11,12 +11,20 @@ open Tablecloth
 open Db
 
 type JsonData = { username : string; csrf_token : string }
-type T = { username : string; csrfToken : string; expiry : System.DateTime }
+
+type T =
+  { username : string
+    csrfToken : string
+    expiry : System.DateTime
+    key : string }
+
 type AuthData = { csrfToken : string; sessionKey : string }
 
 let cookieKey = "__session"
+let csrfHeader = "X-CSRF-Token"
 
-let get (key : string) : Task<Option<T>> =
+// Get the sessionData with no CSRF. By default you should be using CSRF, the only exception is for GETs
+let getNoCSRF (key : string) : Task<Option<T>> =
   Sql.query
     "SELECT expire_date, session_data
      FROM session
@@ -27,7 +35,19 @@ let get (key : string) : Task<Option<T>> =
          let serializedData = read.string "session_data"
          let date = read.dateTime "expire_date"
          let data = Json.AutoSerialize.deserialize<JsonData> serializedData
-         { username = data.username; expiry = date; csrfToken = data.csrf_token })
+
+         { username = data.username
+           expiry = date
+           csrfToken = data.csrf_token
+           key = key })
+
+// Get the sessionData
+let get (key : string) (csrfToken : string) : Task<Option<T>> =
+  getNoCSRF key
+  |> Task.map (
+    Option.bind (fun sd -> if sd.csrfToken <> csrfToken then None else Some sd)
+  )
+
 
 // Creates a session in the DB, returning a new session key and new CSRF token
 // to be returned to the user
@@ -51,6 +71,14 @@ let insert (username : string) : Task<AuthData> =
 
     return { csrfToken = csrfToken; sessionKey = key }
   }
+
+let clear (key : string) : Task<unit> =
+  Sql.query
+    "DELETE
+     FROM session
+     WHERE session_key = @key"
+  |> Sql.parameters [ "key", Sql.string key ]
+  |> Sql.executeStatementAsync
 
 
 //   let username_of_key (key : string) : string option =

@@ -126,4 +126,4 @@ let uiHandler (ctx : HttpContext) : Task<string> =
   }
 
 let endpoints : Endpoint list =
-  [ GET [ routef "/a/%s" (Middleware.loggedInHtmlHandler uiHandler Auth.Read) ] ]
+  [ GET [ routef "/a/%s" (Middleware.canvasHtmlHandler uiHandler Auth.Read) ] ]
