@@ -115,8 +115,7 @@ let uiHandler (ctx : HttpContext) : Task<string> =
 
     let! ownerID =
       (Account.ownerNameFromCanvasName canvasName).toUserName
-      |> Account.ownerID
-      |> Task.map Option.unwrapUnsafe
+      |> Account.userIDForUserName
 
     let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
     let! createdAt = Account.getUserCreatedAt user.username
@@ -127,4 +126,4 @@ let uiHandler (ctx : HttpContext) : Task<string> =
   }
 
 let endpoints : Endpoint list =
-  [ GET [ routef "/a/%s" (Middleware.htmlHandler uiHandler Auth.Read) ] ]
+  [ GET [ routef "/a/%s" (Middleware.loggedInHtmlHandler uiHandler Auth.Read) ] ]

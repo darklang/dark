@@ -8,6 +8,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Middleware.fs" />
+    <Compile Include="Login.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Ui.fs" />
     <Compile Include="ApiServer.fs" />

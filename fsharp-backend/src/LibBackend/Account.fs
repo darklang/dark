@@ -27,14 +27,14 @@ type UserInfo =
     name : string
     admin : bool
     email : string
-    id : System.Guid }
+    id : UserID }
 
 type UserInfoAndCreatedAt =
   { username : UserName.T
     name : string
     admin : bool
     email : string
-    id : System.Guid
+    id : UserID
     createdAt : System.DateTime }
 
 type Validate =
@@ -45,7 +45,7 @@ type Validate =
 // Special usernames
 // **********************
 
-let bannedUserNames : List<UserName.T> =
+let bannedUsernames : List<UserName.T> =
   // originally from https://ldpreload.com/blog/names-to-reserve
   // we allow www, because we have a canvas there
   [ "abuse"
@@ -170,7 +170,7 @@ let upsertNonAdmin = upsertAccount false
 // **********************
 
 let userIDForUserName (username : UserName.T) : Task<UserID> =
-  if List.contains username bannedUserNames then
+  if List.contains username bannedUsernames then
     failwith "Banned username"
   else
     Sql.query
@@ -180,8 +180,7 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
     |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
     |> Sql.executeRowAsync (fun read -> read.uuid "id")
 
-
-let usernameForUserID (userID : System.Guid) : Task<Option<UserName.T>> =
+let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
     "SELECT username
      FROM accounts
@@ -267,18 +266,37 @@ let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
                       "username", Sql.string (username.ToString()) ]
   |> Sql.executeStatementAsync
 
-let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
+// Returns None if no valid user, or Some username _from the db_ if valid.
+// Note: the input username may also be an email address. We do this because
+// users input data this way and it seems silly not to allow it.
+//
+// No need to detect which and SQL differently; no valid username contains a
+// '@', and every valid email address does. [If you say 'uucp bang path', I
+// will laugh and then tell you to give me a real email address.]
+//
+// This function was converted from OCaml. The OCaml Libsodium
+// (https://github.com/ahrefs/ocaml-sodium/blob/master/lib/sodium.ml), the F#
+// version is libsodium-net
+// (https://github.com/tabrath/libsodium-core/blob/master/src/Sodium.Core/PasswordHash.cs).
+// The OCaml version uses the argon2i versions under the hood, which we use explicitly in F#.
+let authenticate
+  (usernameOrEmail : string)
+  (givenPassword : string)
+  : Task<Option<string>> =
+  Sql.query
+    "SELECT username, password from accounts
+      WHERE accounts.username = @usernameOrEmail OR accounts.email = @usernameOrEmail"
+  |> Sql.parameters [ "usernameOrEmail", Sql.string usernameOrEmail ]
+  |> Sql.executeRowAsync
+       (fun read ->
+         let dbHash = read.string "password" |> base64Decode
 
-let ownerID (username : UserName.T) : Task<Option<System.Guid>> =
-  if List.contains username bannedUserNames then
-    task { return None }
-  else
-    Sql.query
-      "SELECT id
-       FROM accounts
-       WHERE accounts.username = @username"
-    |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
-    |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+         if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
+           Some(read.string "username")
+         else
+           None)
+
+let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
 // formerly called auth_domain_for
 let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
@@ -288,7 +306,7 @@ let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
 
 
 // **********************
-// Testing
+// Local/test developement
 // **********************
 
 let initTestAccounts () : Task<unit> =
@@ -326,9 +344,81 @@ let initTestAccounts () : Task<unit> =
     return ()
   }
 
+let initBannedAccounts () : Task<unit> =
+  task {
+    do!
+      bannedUsernames
+      |> Task.iterSequentially
+           (fun username ->
+             task {
+               let! result =
+                 upsertNonAdmin
+                   Validate
+                   { username = username
+                     password = Password.invalid
+                     email = $"ops+{username}@darklang.com"
+                     name = $"Disallowed account {username}" }
+
+               return Result.unwrapUnsafe result
+             })
+
+    return ()
+  }
+
+let initAdmins () : Task<unit> =
+  task {
+    let password =
+      Password.fromHash
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+    let! darkUser =
+      upsertAdmin
+        Validate
+        { username = UserName.create "dark"
+          password = password
+          email = "ops+darkuser@darklang.com"
+          name = "Dark Local Admin user" }
+
+    Result.unwrapUnsafe darkUser
+
+    let! paulUser =
+      upsertAdmin
+        Validate
+        { username = UserName.create "paul"
+          password = password
+          email = "paul@darklang.com"
+          name = "Paul Biggar" }
+
+    Result.unwrapUnsafe paulUser
+    return ()
+  }
+
+// accounts to create namespaces for dark canvases
+let initUsefulCanvases () : Task<unit> =
+  // Needed for tests
+  task {
+    let! darkUser =
+      upsertNonAdmin
+        Validate
+        { username = UserName.create "sample"
+          password = Password.invalid
+          email = "opsample@darklang.com"
+          name = "Sample owner" }
+
+    Result.unwrapUnsafe darkUser
+
+    return ()
+  }
+
+
 let init () : Task<unit> =
-  if Config.createAccounts then initTestAccounts () else task { return () }
-// FSTODO
-// initBannedAccounts ()
-// initAdmins()
-// initUsefulCanvases()
+  task {
+    if Config.createAccounts then
+      do! initTestAccounts ()
+      do! initBannedAccounts ()
+      do! initAdmins ()
+      do! initUsefulCanvases ()
+      return ()
+    else
+      return ()
+  }

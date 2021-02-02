@@ -31,6 +31,7 @@ let (>=>) = Giraffe.Core.compose
 // --------------------
 // Generic middlewares
 // --------------------
+
 let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
   task {
     ctx.SetStatusCode 401
@@ -43,6 +44,28 @@ let notFound (ctx : HttpContext) : Task<HttpContext option> =
     return! ctx.WriteTextAsync "Not Found"
   }
 
+// Either redirect to a login page, or apply the passed function if a
+// redirection is inappropriate (eg for the API)
+let redirectOr
+  (f : HttpContext -> Task<HttpContext option>)
+  (ctx : HttpContext)
+  : Task<HttpContext option> =
+  task {
+    if String.startsWith "/api/" ctx.Request.Path.Value then
+      return! f ctx
+    else
+      let redirect = ctx.GetRequestUrl() |> System.Web.HttpUtility.UrlEncode
+
+      let destination =
+        if Config.useLoginDarklangComForLogin then
+          "https://login.darklang.com"
+        else
+          "/login"
+
+      let url = $"{destination}?redirect={redirect}"
+      ctx.Response.Redirect(url, false)
+      return Some ctx
+  }
 // --------------------
 // Accessing data from a HttpContext
 // --------------------
@@ -71,31 +94,18 @@ let load<'a> (id : dataID) (ctx : HttpContext) : 'a =
 // --------------------
 // APIServer Middlewares
 // --------------------
-type LoginKind =
-  | Local
-  | Live
-
 let sessionDataMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let sessionKey = ctx.Request.Cookies.Item "__session"
 
       match! Session.get sessionKey with
-      | None ->
-          // FSTODO: redirect to Login
-          let liveLogin, loginUrl, logoutUri =
-            if Config.useLoginDarklangComForLogin then
-              Live,
-              "https://login.darklang.com",
-              "https://logout.darklang.com/logout"
-            else
-              Local, "/login", "/logout"
-
-          return! unauthorized ctx
+      | None -> return! redirectOr unauthorized ctx
       | Some sessionData -> return! next (save SessionData sessionData ctx)
     })
 
 let loadSessionData (ctx : HttpContext) = load<Session.T> SessionData ctx
+
 
 let userInfoMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -103,7 +113,7 @@ let userInfoMiddleware : HttpHandler =
       let sessionData = loadSessionData ctx
 
       match! Account.getUser (UserName.create sessionData.username) with
-      | None -> return! notFound ctx
+      | None -> return! redirectOr notFound ctx
       | Some user -> return! next (save UserInfo user ctx)
     })
 
@@ -188,7 +198,7 @@ let apiHandler
   >=> serverVersionMiddleware
   >=> setStatusCode 200
 
-let htmlHandler
+let loggedInHtmlHandler
   (handler : HttpContext -> Task<string>)
   (neededPermission : Auth.Permission)
   (canvasName : string)
@@ -199,6 +209,17 @@ let htmlHandler
   >=> userInfoMiddleware
   >=> permissionMiddleware neededPermission (CanvasName.create canvasName)
   >=> (fun _ ctx ->
+    task {
+      let! result = handler ctx
+      return! ctx.WriteHtmlStringAsync result
+    })
+  >=> corsForLocalhostAssetsMiddleware
+  >=> antiClickjackingMiddleware
+  >=> serverVersionMiddleware
+  >=> setStatusCode 200
+
+let loggedOutHtmlHandler (handler : HttpContext -> Task<string>) : HttpHandler =
+  (fun _ ctx ->
     task {
       let! result = handler ctx
       return! ctx.WriteHtmlStringAsync result
