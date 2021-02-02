@@ -12,9 +12,11 @@ open Db
 
 type JsonData = { username : string; csrf_token : string }
 type T = { username : string; csrfToken : string; expiry : System.DateTime }
+type AuthData = { csrfToken : string; sessionKey : string }
+
+let cookieKey = "__session"
 
 let get (key : string) : Task<Option<T>> =
-
   Sql.query
     "SELECT expire_date, session_data
      FROM session
@@ -27,24 +29,30 @@ let get (key : string) : Task<Option<T>> =
          let data = Json.AutoSerialize.deserialize<JsonData> serializedData
          { username = data.username; expiry = date; csrfToken = data.csrf_token })
 
-//   let random_string (len : int) : string =
-//     Cstruct.to_string
-//       (let open Nocrypto in
-//       Base64.encode (Rng.generate len))
-//
-//
-//   (* We store two values alongside each other in the session.value: one, the
-//    * username; and two, the current CSRF token. These are stored as a JSON map
-//    * with values "username" and "csrf_token". *)
-//   let session_data (username : string) : string =
-//     Yojson.to_string
-//       (`Assoc
-//         [ ("username", `String username)
-//           (* Generate a random CSRF token the same way Session
-//                does internally *)
-//         ; ("csrf_token", `String (random_string 30)) ])
-//
-//
+// Creates a session in the DB, returning a new session key and new CSRF token
+// to be returned to the user
+let insert (username : string) : Task<AuthData> =
+  task {
+    let key = randomString 40
+    let csrfToken = randomString 40
+    let expiryDate = System.DateTime.Now
+
+    let sessionData =
+      Json.AutoSerialize.serialize { username = username; csrf_token = csrfToken }
+
+    do!
+      Sql.query
+        "INSERT INTO session
+         (session_key, expire_date, session_data)
+         VALUES (@key, now() + interval '2 weeks', @sessionData)"
+      |> Sql.parameters [ "key", Sql.string key
+                          "sessionData", Sql.string sessionData ]
+      |> Sql.executeStatementAsync
+
+    return { csrfToken = csrfToken; sessionKey = key }
+  }
+
+
 //   let username_of_key (key : string) : string option =
 //     Db.fetch_one_option
 //       ~name:"username_of_key"
