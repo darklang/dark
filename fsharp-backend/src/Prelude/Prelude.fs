@@ -28,8 +28,6 @@ let (|Regex|_|) (pattern : string) (input : string) =
 // ----------------------
 let debuG (msg : string) (a : 'a) : unit = printfn $"DEBUG: {msg} ({a})"
 
-
-
 let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
   a
@@ -109,6 +107,7 @@ let base64Decode (encoded : string) : string =
   |> System.Convert.FromBase64String
   |> System.Text.Encoding.UTF8.GetString
 
+let toString (v : 'a) : string = v.ToString()
 
 // ----------------------
 // Random numbers
@@ -124,7 +123,7 @@ let random : System.Random = System.Random()
 let gid () : uint64 =
   try
     // get enough bytes for an int64, trim it to an int31 for now to match the frontend
-    let bytes = Array.init 8 (fun _ -> (byte) 0)
+    let bytes = Array.create 8 (byte 0)
     random.NextBytes(bytes)
     let rand64 : uint64 = System.BitConverter.ToUInt64(bytes, 0)
     // Keep 30 bits
@@ -132,6 +131,14 @@ let gid () : uint64 =
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
   with e -> raise (InternalException $"gid failed: {e}")
+
+let randomString (length : int) : string =
+  let bytes = Array.create length (byte 0)
+  random.NextBytes(bytes)
+  // this can be longer than length because of base64
+  (System.Convert.ToBase64String bytes).Substring(0, 40)
+
+
 
 // ----------------------
 // TODO move elsewhere
@@ -165,6 +172,8 @@ module String =
       .Replace('+', '-')
       .Replace('/', '_')
       .Replace("=", "")
+
+
 
 // ----------------------
 // TaskOrValue
