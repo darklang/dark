@@ -50,20 +50,24 @@ let cookieOptionsFor (ctx : HttpContext) =
 // --------------------
 // FSTODO: test logout when logged in, and when logged out
 let logout : HttpHandler =
-  Middleware.userMiddleware
-    (fun next (ctx : HttpContext) ->
-      // CLEANUP move these into config urls
-      if Config.useLoginDarklangComForLogin then
-        redirectTo false "https://logout.darklang.com/logout" next ctx
-      else
-        task {
+  (fun next (ctx : HttpContext) ->
+    // CLEANUP move these into config urls
+    if Config.useLoginDarklangComForLogin then
+      redirectTo false "https://login.darklang.com/logout" next ctx
+    else
+      task {
+        try
+          // if no session data, continue without deleting it
           let sessionData = Middleware.loadSessionData ctx
           do! Session.clear sessionData.key
+        with _ -> ()
 
-          ctx.Response.Cookies.Delete(Session.cookieKey, cookieOptionsFor ctx)
+        ctx.Response.Cookies.Delete(Session.cookieKey, cookieOptionsFor ctx)
 
-          return! redirectTo false "/login" next ctx
-        })
+        return! redirectTo false "/login" next ctx
+      })
+  >=> Middleware.userMiddleware
+
 
 // --------------------
 // Login
@@ -76,43 +80,42 @@ let loginPage : HttpHandler =
     handleContext
       (fun ctx -> redirectTo false "https://login.darklang.com" earlyReturn ctx)
   else
-    (Middleware.loggedOutHtmlHandler
-      (fun _ ->
-        task {
-          debuG "executing login page" ()
-          return loginUiTemplate
-        }))
+    (Middleware.loggedOutHtmlHandler (fun _ -> task { return loginUiTemplate }))
 
 let loginHandler : HttpHandler =
-  handleContext
-    (fun (ctx : HttpContext) ->
-      task {
-        debuG "executing login handler" ()
-        let usernameOrEmail = ctx.Request.Form.Item "username" |> toString
-        let password = ctx.Request.Form.Item "password" |> toString
-        let redirect = ctx.Request.Form.Item "redirect" |> toString
+  (fun _ (ctx : HttpContext) ->
+    task {
+      let usernameOrEmail = ctx.Request.Form.Item "username" |> toString
+      let password = ctx.Request.Form.Item "password" |> toString
 
-        match! Account.authenticate usernameOrEmail password with
-        | None ->
-            fstodo "add error to query"
-            fstodo "add redirect to query"
-            return! redirectTo false "/login" earlyReturn ctx
-        | Some username ->
-            let! sessionData = Session.insert username
+      let redirect =
+        ctx.Request.Form.Item "redirect"
+        |> toString
+        |> System.Web.HttpUtility.UrlDecode
 
-            ctx.Response.Cookies.Append(
-              Session.cookieKey,
-              sessionData.sessionKey,
-              cookieOptionsFor ctx
-            )
+      match! Account.authenticate usernameOrEmail password with
+      | None ->
+          let redirect = if redirect = "" then [] else [ "redirect", redirect ]
+          let error = [ "error", "Invalid username or password" ]
+          let qs = Middleware.queryString (redirect @ error)
 
-            let location = if redirect = "" then $"/a/{username}" else redirect
-            return! redirectTo false location earlyReturn ctx
-      })
+          return! redirectTo false $"/login?{qs}" earlyReturn ctx
+      | Some username ->
+          let! sessionData = Session.insert username
+
+          ctx.Response.Cookies.Append(
+            Session.cookieKey,
+            sessionData.sessionKey,
+            cookieOptionsFor ctx
+          )
+
+          let location = if redirect = "" then $"/a/{username}" else redirect
+          return! redirectTo false location earlyReturn ctx
+    })
 
 // --------------------
 // endpoints
 // --------------------
 let endpoints : Endpoint list =
   [ GET [ route "/login" loginPage; route "/logout" logout ]
-    POST [ route "login" loginHandler; route "/logout" logout ] ]
+    POST [ route "/login" loginHandler; route "/logout" logout ] ]

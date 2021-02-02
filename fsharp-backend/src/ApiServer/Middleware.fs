@@ -32,6 +32,15 @@ let (>=>) = Giraffe.Core.compose
 // Generic middlewares
 // --------------------
 
+let queryString (queries : List<string * string>) : string =
+  queries
+  |> List.map
+       (fun (k, v) ->
+         let k = System.Web.HttpUtility.UrlEncode k
+         let v = System.Web.HttpUtility.UrlEncode v
+         $"{k}={v}")
+  |> String.concat "&"
+
 let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
   task {
     ctx.SetStatusCode 401
@@ -50,14 +59,6 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
       task {
         let! result = f ctx
         return! ctx.WriteHtmlStringAsync result
-      })
-
-let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
-  handleContext
-    (fun ctx ->
-      task {
-        let! result = f ctx
-        return! ctx.WriteJsonAsync result
       })
 
 // Either redirect to a login page, or apply the passed function if a
@@ -105,7 +106,7 @@ let save (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx
 
 let load<'a> (id : dataID) (ctx : HttpContext) : 'a =
-  ctx.Items.[id.ToString()] :?> 'a
+  ctx.Items.[$"{id}".ToString()] :?> 'a
 
 // --------------------
 // APIServer Middlewares
@@ -201,60 +202,47 @@ let corsForLocalhostAssetsMiddleware : HttpHandler =
       return! result
     })
 
-let withUserMiddleware : HttpHandler = sessionDataMiddleware >=> userInfoMiddleware
+let userMiddleware : HttpHandler = sessionDataMiddleware >=> userInfoMiddleware
 
-let withCanvasMiddleware
+let canvasMiddleware
   (neededPermission : Auth.Permission)
   (canvasName : CanvasName.T)
   : HttpHandler =
-  withUserMiddleware >=> withPermissionMiddleware neededPermission canvasName
+  userMiddleware >=> withPermissionMiddleware neededPermission canvasName
 
 // --------------------
 // Composed middlewarestacks for the API
 // --------------------
-let standardMiddleware (next : HttpHandler) : HttpHandler =
-  // FSTODO: we probably dont need the cors and CJ middleware except for HTTP handlers, leave it for now
-  next
+let htmlMiddleware : HttpHandler =
+  serverVersionMiddleware
   >=> corsForLocalhostAssetsMiddleware
   >=> antiClickjackingMiddleware
-  >=> serverVersionMiddleware
   >=> setStatusCode 200
-
-let loggedOutMiddleware (next : HttpHandler) : HttpHandler = standardMiddleware next
-
-// Returns arbitrary HTTP stuff via `next`, after loading the user
-let userMiddleware (next : HttpHandler) : HttpHandler =
-  withUserMiddleware >=> standardMiddleware next
-
-// Returns arbitrary HTTP stuff via `next`, after loading the Canvas
-let canvasMiddleware
-  (neededPermission : Auth.Permission)
-  (canvasName : CanvasName.T)
-  (next : HttpHandler)
-  : HttpHandler =
-  withCanvasMiddleware neededPermission canvasName >=> standardMiddleware next
 
 // --------------------
 // Middleware stacks for the API
 // --------------------
+
 // Returns JSON API for calls on a particular canvas. Loads user and checks permission.
 let apiHandler
   (f : HttpContext -> Task<'a>)
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  let canvasName = CanvasName.create canvasName
-  canvasMiddleware neededPermission canvasName (jsonHandler f)
+  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  >=> json f
+  >=> serverVersionMiddleware
+  >=> setStatusCode 200
 
 let canvasHtmlHandler
   (f : HttpContext -> Task<string>)
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  let canvasName = CanvasName.create canvasName
-  canvasMiddleware neededPermission canvasName (htmlHandler f)
-
+  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  >=> htmlHandler f
+  >=> htmlMiddleware
 
 // Returns HTML without doing much else
 let loggedOutHtmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
-  loggedOutMiddleware (htmlHandler f)
+  htmlHandler f >=> htmlMiddleware
