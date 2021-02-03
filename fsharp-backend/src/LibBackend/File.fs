@@ -33,8 +33,8 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
          || f.EndsWith "//" |> debug "double slash"
          (* check for irregular file *)
          || (mode = Read
-             && (System.IO.File.GetAttributes(f) <> System.IO.FileAttributes.Normal)))
-        |> debug "irreg" then
+             && (System.IO.File.GetAttributes(f) <> System.IO.FileAttributes.Normal))
+            |> debug "irreg") then
     printfn $"SECURITY_VIOLATION: {f}"
     failwith "FILE SECURITY VIOLATION"
   // FSTODO
