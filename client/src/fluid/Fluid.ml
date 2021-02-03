@@ -4162,26 +4162,32 @@ let rec updateKey
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline (astInfo : ASTInfo.t) : ASTInfo.t =
           let startPos, endPos = FluidUtil.getSelectionRange astInfo.state in
-          let topmostSelectionID = getTopmostSelectionID startPos endPos astInfo in
+          let topmostSelectionID =
+            getTopmostSelectionID startPos endPos astInfo
+          in
           let topmostID, findParent =
             if startPos = endPos
             then
-              begin
-                let tokenAtLeft = getLeftTokenAt astInfo.state.newPos (ASTInfo.activeTokenInfos astInfo) in
-                match tokenAtLeft with
-                | Some current when T.isPipeable current.token ->
-                  Some (T.tid current.token), false
-                | _ ->
-                  match topmostSelectionID with
-                  | Some id -> Some (id), startPos = endPos;
-                  | None -> Some (T.fakeid), startPos = endPos
-              end
+              let tokenAtLeft =
+                getLeftTokenAt
+                  astInfo.state.newPos
+                  (ASTInfo.activeTokenInfos astInfo)
+              in
+              match tokenAtLeft with
+              | Some current when T.isPipeable current.token ->
+                  (Some (T.tid current.token), false)
+              | _ ->
+                ( match topmostSelectionID with
+                | Some id ->
+                    (Some id, startPos = endPos)
+                | None ->
+                    (Some T.fakeid, startPos = endPos) )
             else
-              begin
-                match topmostSelectionID with
-                  | Some id -> Some (id), startPos = endPos;
-                  | None -> Some (T.fakeid), startPos = endPos
-              end
+              match topmostSelectionID with
+              | Some id ->
+                  (Some id, startPos = endPos)
+              | None ->
+                  (Some T.fakeid, startPos = endPos)
           in
 
           Option.map topmostID ~f:(fun id ->

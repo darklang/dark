@@ -3678,7 +3678,7 @@ let run () =
         "List::append [5\n              |>~___\n             ]" ;
       t
         "inserting a pipe into a list within a list gives a new pipe from the interior list element"
-        (listFn [list [five; list[six]]])
+        (listFn [list [five; list [six]]])
         ~pos:18
         (key K.ShiftEnter)
         "List::append [5,[6\n                 |>~___\n                ]]" ;

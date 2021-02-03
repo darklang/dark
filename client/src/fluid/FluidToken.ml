@@ -247,6 +247,7 @@ let isTextToken (t : t) : bool =
   | TFlagEnabledKeyword _ ->
       false
 
+
 let isPipeable (t : t) : bool =
   match t with
   | TInteger _
@@ -314,6 +315,7 @@ let isPipeable (t : t) : bool =
   | TFlagWhenKeyword _
   | TFlagEnabledKeyword _ ->
       false
+
 
 let isStringToken t : bool =
   match t with
