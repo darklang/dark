@@ -555,10 +555,10 @@ type db = PT.DB.T
 // pass in a whole canvas and get [canvasID] and [accountID] from that, but
 // that would require loading the canvas, which is undesirable for performance
 // reasons
-let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
-  (* this will need to be fixed when we allow migrations *)
-  (* Note: tl.module IS NULL means it's a db; anything else will be
-   * HTTP/REPL/CRON/WORKER or a legacy space *)
+let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
+  // this will need to be fixed when we allow migrations
+  // Note: tl.module IS NULL means it's a db; anything else will be
+  // HTTP/REPL/CRON/WORKER or a legacy space
   Sql.query
     "SELECT tl.tlid
      FROM toplevel_oplists as tl
@@ -571,7 +571,7 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
        AND tl.deleted = false
        AND ud.table_tlid IS NULL
      GROUP BY tl.tlid"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "accountID", Sql.uuid ownerID ]
   |> Sql.executeAsync (fun read -> read.int64 "tlid" |> uint64)
 
 
