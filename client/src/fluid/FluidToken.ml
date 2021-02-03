@@ -273,10 +273,11 @@ let isPipeable (t : t) : bool =
   | TPatternNullToken _
   | TPatternFloatWhole _
   | TPatternFloatPoint _
-  | TPatternFloatFractional _ ->
+  | TPatternFloatFractional _
+  | TBlank _
+  | TPipe _ ->
       true
   | TFnVersion _
-  | TBlank _
   | TPlaceholder _
   | TPartial _
   | TRightPartial _
@@ -307,7 +308,6 @@ let isPipeable (t : t) : bool =
   | TLambdaComma _
   | TMatchKeyword _
   | TMatchBranchArrow _
-  | TPipe _
   | TLambdaArrow _
   | TParenOpen _
   | TParenClose _
