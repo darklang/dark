@@ -286,11 +286,11 @@ module InitialLoad =
       canvas_list : string list
       org_canvas_list : string list
       permission : Auth.Permission option
-      orgs : string list }
-  // account : Account.UserInfo
+      orgs : string list
+      account : Account.UserInfo
+      creation_date : System.DateTime }
   //   ; worker_schedules : Event_queue.Worker_states.t
   //   ; secrets : RTT.secret list
-  //   ; creation_date : time }
 
   let initialLoad (ctx : HttpContext) : Task<T> =
     task {
@@ -341,7 +341,9 @@ module InitialLoad =
           canvas_list = List.map toString canvasList
           org_canvas_list = List.map toString orgCanvasList
           permission = Some(Middleware.loadPermission ctx)
-          orgs = List.map toString orgList }
+          orgs = List.map toString orgList
+          account = user
+          creation_date = canvas.creationDate }
     }
 //   let t1, (c, op_ctrs) =
 //   let t2, unlocked =
@@ -352,24 +354,9 @@ module InitialLoad =
 //   let t8, worker_schedules =
 //     time "8-worker-schedules" (fun _ ->
 //         Event_queue.get_worker_schedules_for_canvas !c.id)
-//   in
 //   let t9, secrets =
 //     time "9-secrets" (fun _ -> Secret.secrets_in_canvas !c.id)
-//   in
-//   let t10, result =
-//     time "10-to-frontend" (fun _ ->
-//         Analysis.to_initial_load_rpc_result
-//           !c
-//           op_ctrs
-//           permission
-//           unlocked
-//           assets
-//           user
-//           canvas_list
-//           orgs
-//           org_canvas_list
-//           worker_schedules
-//           secrets)
+
 
 
 
