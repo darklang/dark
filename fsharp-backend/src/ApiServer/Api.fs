@@ -273,6 +273,13 @@ module Packages =
     }
 
 module InitialLoad =
+  type ApiUserInfo =
+    { username : string // as opposed to UserName.T
+      name : string
+      admin : bool
+      email : string
+      id : UserID }
+
   type T =
     { toplevels : RT.toplevels
       deleted_toplevels : RT.toplevels
@@ -287,9 +294,9 @@ module InitialLoad =
       org_canvas_list : string list
       permission : Auth.Permission option
       orgs : string list
-      account : Account.UserInfo
-      creation_date : System.DateTime }
-  //   ; worker_schedules : Event_queue.Worker_states.t
+      account : ApiUserInfo
+      creation_date : System.DateTime
+      worker_schedules : LibBackend.EventQueue.WorkerStates.T }
   //   ; secrets : RTT.secret list
 
   let initialLoad (ctx : HttpContext) : Task<T> =
@@ -328,6 +335,9 @@ module InitialLoad =
       // t7
       let! orgList = LibBackend.Account.accessibleCanvases user.id
 
+      // t8
+      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.id
+
       return
         { toplevels = Tuple3.first ocamlToplevels
           deleted_toplevels = Map.empty
@@ -342,7 +352,13 @@ module InitialLoad =
           org_canvas_list = List.map toString orgCanvasList
           permission = Some(Middleware.loadPermission ctx)
           orgs = List.map toString orgList
-          account = user
+          worker_schedules = workerSchedules
+          account =
+            { username = user.name.ToString()
+              name = user.name
+              email = user.email
+              admin = user.admin
+              id = user.id }
           creation_date = canvas.creationDate }
     }
 //   let t1, (c, op_ctrs) =

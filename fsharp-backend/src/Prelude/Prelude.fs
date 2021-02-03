@@ -549,7 +549,6 @@ module OwnerName =
 
   let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
 
-
 module CanvasName =
   type T =
     private

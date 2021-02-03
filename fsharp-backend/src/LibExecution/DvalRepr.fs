@@ -81,8 +81,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DFloat f -> f.ToString()
     | DChar c -> c
     | DNull -> "null"
-    // | DDate d ->
-    //     Util.isostring_of_date d
+    | DDate d -> fstodo "represent date" // Util.isostring_of_date d
     | DUuid uuid -> uuid.ToString()
     | DDB dbname -> $"<DB: {dbname}>"
     | DFakeVal (DError _) ->
@@ -142,8 +141,7 @@ let toPrettyMachineJsonValueV1 dval : FSharp.Data.JsonValue =
         J.object [ "Error", J.string "TODO: error" ]
     | DHttpResponse (code, headers, response) -> r response
     | DDB dbname -> J.string dbname
-    // | DDate date ->
-    //     `String (Util.isostring_of_date date)
+    | DDate date -> fstodo "prettymachinejson of date" // `String (Util.isostring_of_date date)
     // | DPassword hashed ->
     //     `Assoc [("Error", `String "Password is redacted")]
     | DUuid uuid -> J.string (uuid.ToString())
