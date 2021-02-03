@@ -934,3 +934,16 @@ type Op =
 
 type Oplist = List<Op>
 type TLIDOplists = List<tlid * Oplist>
+
+module PackageManager =
+  type Parameter = { name : string; typ : DType; description : string }
+
+  type Fn =
+    { name : FQFnName.T
+      body : Expr
+      parameters : List<Parameter>
+      returnType : DType
+      description : string
+      author : string
+      deprecated : bool
+      tlid : tlid }

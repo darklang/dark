@@ -13,25 +13,9 @@ open Prelude
 open Tablecloth
 open Db
 
-module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
-
-type Parameter = { name : string; typ : PT.DType; description : string }
-
-let ocamlParamater2PT (o : OT.package_manager_parameter) : Parameter =
-  { name = o.name; description = o.description; typ = Convert.ocamlTipe2PT o.tipe }
-
-type Fn =
-  { name : PT.FQFnName.T
-    body : PT.Expr
-    parameters : List<Parameter>
-    returnType : PT.DType
-    description : string
-    author : string
-    deprecated : bool
-    tlid : tlid }
-
+module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
 
 (* ------------------ *)
 (* Uploading *)
@@ -302,7 +286,7 @@ type Fn =
 (* Fetching functions *)
 (* ------------------ *)
 
-let allFunctions () : Task<List<Fn>> =
+let allFunctions () : Task<List<PT.PackageManager.Fn>> =
   Sql.query
     "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
             P.body, P.description, P.return_type, P.parameters, P.deprecated,
@@ -327,8 +311,8 @@ let allFunctions () : Task<List<Fn>> =
            returnType = PT.DType.parse (read.string "return_type")
            parameters =
              read.string "parameters"
-             |> Json.AutoSerialize.deserialize<List<OT.package_manager_parameter>>
-             |> List.map ocamlParamater2PT
+             |> Json.AutoSerialize.deserialize<List<OT.PackageManager.parameter>>
+             |> List.map Convert.ocamlPackageManagerParameter2PT
            description = read.string "description"
            author = read.string "author"
            deprecated = read.bool "deprecated"

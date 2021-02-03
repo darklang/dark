@@ -30,7 +30,7 @@ type T =
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
-    packageFns : List<PackageManager.Fn>
+    packageFns : List<PT.PackageManager.Fn>
     // TODO CLEANUP: no separate fields for deleted, combine them
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
@@ -557,9 +557,7 @@ let loadFrom
     // loaded traditionally via the oplist
     let! uncachedOplists = loadOplists loadAmount canvasID notLoadedTLIDs
     let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
-
     let! c = loadEmpty canvasID canvasName owner
-
     return
       c
       |> addToplevels fastLoadedTLs

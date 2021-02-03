@@ -8,6 +8,9 @@ module LibBackend.ProgramSerialization.OCamlInterop
 // into F#. At that point we convert it to these types, and potentially convert
 // it to the runtime types to run it.
 
+// We also use these types to convert to the types the API uses, which are
+// typically direct deserializations of these types.
+
 open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -298,8 +301,6 @@ module OCamlTypes =
         metadata : ufn_metadata
         ast : 'expr_type }
 
-    type 'expr_type package_fn = { metadata : ufn_metadata; ast : 'expr_type }
-
     type user_record_field = { name : string or_blank; tipe : tipe or_blank }
 
     type user_tipe_definition = UTRecord of user_record_field list
@@ -318,10 +319,22 @@ module OCamlTypes =
 
     type toplevels = Map<id, toplevel>
 
-  type package_manager_parameter =
-    { name : string
-      tipe : tipe
-      description : string }
+  module PackageManager =
+    type parameter = { name : string; tipe : tipe; description : string }
+
+    type fn =
+      { user : string
+        package : string
+        ``module`` : string
+        fnname : string
+        version : int
+        body : RuntimeT.fluidExpr
+        parameters : parameter list
+        return_type : tipe
+        description : string
+        author : string
+        deprecated : bool
+        tlid : id }
 
   type 'expr_type op =
     | SetHandler of tlid * pos * 'expr_type RuntimeT.HandlerT.handler
@@ -877,6 +890,47 @@ module Convert =
                (Map.add db.tlid ocamlTL tls, ufns, uts)
            | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
            | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
+
+  let ocamlPackageManagerParameter2PT
+    (o : OT.PackageManager.parameter)
+    : PT.PackageManager.Parameter =
+    { name = o.name; description = o.description; typ = ocamlTipe2PT o.tipe }
+
+  let pt2ocamlPackageManagerParameter
+    (p : PT.PackageManager.Parameter)
+    : OT.PackageManager.parameter =
+    { name = p.name; description = p.description; tipe = pt2ocamlTipe p.typ }
+
+
+  // let ocamlPackageManagerFn2PT (o : OT.PackageManager.fn) : PT.PackageManager.Fn =
+  //   { user = fn.name.owner
+  //     package = fn.name.package
+  //     ``module`` = fn.name.module_
+  //     fnname = fn.name.function_
+  //     version = fn.name.version
+  //     body = fn.body
+  //     parameters = fn.parameters
+  //     return_type = fn.returnType
+  //     description = fn.description
+  //     author = fn.author
+  //     deprecated = fn.deprecated
+  //     tlid = fn.tlid }
+  //
+  let pt2ocamlPackageManagerFn (p : PT.PackageManager.Fn) : OT.PackageManager.fn =
+    { user = p.name.owner
+      package = p.name.package
+      ``module`` = p.name.module_
+      fnname = p.name.function_
+      version = p.name.version
+      body = p.body |> pt2ocamlExpr
+      parameters = p.parameters |> List.map pt2ocamlPackageManagerParameter
+      return_type = p.returnType |> pt2ocamlTipe
+      description = p.description
+      author = p.author
+      deprecated = p.deprecated
+      tlid = p.tlid }
+
+
 
 
 

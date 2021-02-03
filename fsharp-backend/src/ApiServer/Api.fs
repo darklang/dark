@@ -19,6 +19,7 @@ open LibBackend.Db
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
 module RT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes.RuntimeT
+module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
 
 module Config = LibBackend.Config
 module Session = LibBackend.Session
@@ -264,41 +265,10 @@ let functions (includeAdminFns : bool) : string =
 // --------------------
 
 module Packages =
-  module PM = LibBackend.PackageManager
-  module PT = LibBackend.ProgramSerialization.ProgramTypes
-
-  type ApiPackageFn =
-    { user : string
-      package : string
-      ``module`` : string
-      fnname : string
-      version : int
-      body : PT.Expr
-      parameters : List<PM.Parameter>
-      return_type : PT.DType
-      description : string
-      author : string
-      deprecated : bool
-      tlid : id }
-
-  let toApi (fn : PM.Fn) : ApiPackageFn =
-    { user = fn.name.owner
-      package = fn.name.package
-      ``module`` = fn.name.module_
-      fnname = fn.name.function_
-      version = fn.name.version
-      body = fn.body
-      parameters = fn.parameters
-      return_type = fn.returnType
-      description = fn.description
-      author = fn.author
-      deprecated = fn.deprecated
-      tlid = fn.tlid }
-
-  let packages (ctx : HttpContext) : Task<List<ApiPackageFn>> =
+  let packages (ctx : HttpContext) : Task<List<OT.PackageManager.fn>> =
     task {
       let! fns = LibBackend.PackageManager.allFunctions ()
-      return List.map toApi fns
+      return List.map Convert.pt2ocamlPackageManagerFn fns
     }
 
 module InitialLoad =

@@ -66,7 +66,7 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
     (fun ctx ->
       task {
         let! result = f ctx
-        return! ctx.WriteJsonAsync(Json.AutoSerialize.serialize result)
+        return! ctx.WriteJsonAsync result
       })
 
 // Either redirect to a login page, or apply the passed function if a
