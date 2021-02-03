@@ -25,6 +25,7 @@ module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
+module SA = LibBackend.StaticAssets
 module RT = LibExecution.RuntimeTypes
 
 
@@ -279,11 +280,11 @@ module InitialLoad =
       deleted_user_functions : RT.user_fn<RT.fluidExpr> list
       unlocked_dbs : tlid list
       user_tipes : RT.user_tipe list
-      deleted_user_tipes : RT.user_tipe list }
-  // op_ctrs : (string * int) list
+      deleted_user_tipes : RT.user_tipe list
+      assets : List<SA.StaticDeploy>
+      op_ctrs : (string * int) list }
   // permission : Auth.Permission option
   // account : Account.UserInfo
-  //   ; assets : SA.static_deploy list
   //   ; canvas_list : string list
   //   ; orgs : string list
   //   ; org_canvas_list : string list
@@ -315,6 +316,12 @@ module InitialLoad =
         |> LibBackend.Canvas.toplevels
         |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlToplevels
 
+      // t3
+      let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
+
+      // t5
+
+
       return
         { toplevels = Tuple3.first ocamlToplevels
           deleted_toplevels = Map.empty
@@ -322,13 +329,13 @@ module InitialLoad =
           deleted_user_functions = []
           user_tipes = Tuple3.third ocamlToplevels
           deleted_user_tipes = []
-          unlocked_dbs = unlocked }
+          unlocked_dbs = unlocked
+          assets = staticAssets
+          op_ctrs = opCtrs }
     }
 //   let t1, (c, op_ctrs) =
 //   let t2, unlocked =
 //   let t3, assets =
-//     time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
-//   in
 //   let t5, canvas_list =
 //     time "5-canvas-list" (fun _ -> Serialize.hosts_for user.username)
 //   in

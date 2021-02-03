@@ -99,13 +99,19 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
   with e ->
     raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
 
+let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
+
+let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
+
 let base64Encode (input : string) : string =
-  input |> System.Text.Encoding.UTF8.GetBytes |> System.Convert.ToBase64String
+  input |> toBytes |> System.Convert.ToBase64String
 
 let base64Decode (encoded : string) : string =
-  encoded
-  |> System.Convert.FromBase64String
-  |> System.Text.Encoding.UTF8.GetString
+  encoded |> System.Convert.FromBase64String |> ofBytes
+
+let sha1digest (input : string) : string =
+  use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
+  input |> toBytes |> sha1.ComputeHash |> ofBytes
 
 let toString (v : 'a) : string = v.ToString()
 
@@ -363,6 +369,19 @@ module Json =
 
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
+
+// ----------------------
+// Functions we'll later add to Tablecloth
+// ----------------------
+module TableCloth =
+  module String =
+    let take (count : int) (str : string) : string = str.Substring(0, count)
+
+    let removeSuffix (suffix : string) (str : string) : string =
+      if str.EndsWith(suffix) then
+        str.Substring(0, str.Length - suffix.Length)
+      else
+        str
 
 // ----------------------
 // Task list processing

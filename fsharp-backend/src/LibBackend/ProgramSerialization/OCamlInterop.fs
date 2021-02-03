@@ -971,18 +971,9 @@ let oplistToBinary (oplist : PT.Oplist) : byte array =
   |> Binary.oplistJson2Bin
 
 let exprTLIDPairOfCachedBinary (data : byte array) : PT.Expr * tlid =
-  let json = Binary.exprTLIDPairBin2Json data
-  printfn $"JSON {json}"
-
-  let deserialized =
-    Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid> (
-      json
-    )
-
-  printfn $"DESERIALIZED {deserialized}"
-  let converted = Convert.ocamlexprTLIDPair2PT deserialized
-  printfn $"CONVERTED {converted}"
-  converted
+  Binary.exprTLIDPairBin2Json data
+  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
+  |> Convert.ocamlexprTLIDPair2PT
 
 let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
   (expr, tlid)
