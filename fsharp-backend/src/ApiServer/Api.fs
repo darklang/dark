@@ -12,6 +12,14 @@ open FSharpPlus
 open Prelude
 open Tablecloth
 
+open Npgsql.FSharp.Tasks
+open Npgsql
+open LibBackend.Db
+
+module PT = LibBackend.ProgramSerialization.ProgramTypes
+module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
+module RT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes.RuntimeT
+
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
@@ -294,45 +302,72 @@ module Packages =
     }
 
 module InitialLoad =
-  let initialLoad (ctx : HttpContext) : Task<string> =
-    task {
-      let user = Middleware.loadUserInfo ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
+  type T =
+    { toplevels : RT.toplevels
+      deleted_toplevels : RT.toplevels
+      user_functions : RT.user_fn<RT.fluidExpr> list
+      deleted_user_functions : RT.user_fn<RT.fluidExpr> list
+      unlocked_dbs : tlid list
+      user_tipes : RT.user_tipe list
+      deleted_user_tipes : RT.user_tipe list }
+  // op_ctrs : (string * int) list
+  // permission : Auth.Permission option
+  // account : Account.UserInfo
+  //   ; assets : SA.static_deploy list
+  //   ; canvas_list : string list
+  //   ; orgs : string list
+  //   ; org_canvas_list : string list
+  //   ; worker_schedules : Event_queue.Worker_states.t
+  //   ; secrets : RTT.secret list
+  //   ; creation_date : time }
 
+  let initialLoad (ctx : HttpContext) : Task<T> =
+    task {
+      debuG "initialLoad" "x1"
+      let user = Middleware.loadUserInfo ctx
+      debuG "initialLoad" "x2"
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      debuG "initialLoad" "x3"
+
+      // t1
       let! canvas =
         LibBackend.Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
-      // let! unlocked = LibBackend.Analysis.unlocked canvas.id
-      return "todo: initialLoad"
+
+      let canvas = Result.unwrapUnsafe canvas
+      debuG "initialLoad" "x7"
+
+      debuG "initialLoad" "x8"
+
+      let! opCtrs =
+        Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
+        |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
+        |> Sql.executeAsync (fun read -> (read.string "browser_id", read.int "ctr"))
+
+      debuG "initialLoad" "x9"
+
+      // t2
+      debuG "initialLoad" "x10"
+      let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+      debuG "initialLoad" "x11"
+
+      let ocamlToplevels =
+        canvas
+        |> LibBackend.Canvas.toplevels
+        |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlToplevels
+
+      debuG "initialLoad" "x12"
+
+      return
+        { toplevels = Tuple3.first ocamlToplevels
+          deleted_toplevels = Map.empty
+          user_functions = Tuple3.second ocamlToplevels
+          deleted_user_functions = []
+          user_tipes = Tuple3.third ocamlToplevels
+          deleted_user_tipes = []
+          unlocked_dbs = unlocked }
     }
-//   ~(execution_id : Types.id)
-//   ~(permission : Authorization.permission option)
-//   (parent : Span.t)
-//   body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
 //   let t1, (c, op_ctrs) =
-//     time "1-load-saved-ops" (fun _ ->
-//         let c =
-//           C.load_all_from_cache canvas
-//           |> Result.map_error ~f:(String.concat ~sep:", ")
-//           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
-//         in
-//         let op_ctrs =
-//           Db.fetch
-//             ~name:"fetch_op_ctrs_for_canvas"
-//             "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
-//             ~params:[Db.Uuid !c.id]
-//           |> List.map ~f:(function
-//                  | [clientOpCtr_id; op_ctr] ->
-//                      (clientOpCtr_id, op_ctr |> int_of_string)
-//                  | _ ->
-//                      Exception.internal
-//                        "wrong record shape from fetch_op_Ctrs_for_canvas")
-//         in
-//         (c, op_ctrs))
-//   in
 //   let t2, unlocked =
-//     time "2-analyze-unlocked-dbs" (fun _ ->
-//         Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
-//   in
 //   let t3, assets =
 //     time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
 //   in
