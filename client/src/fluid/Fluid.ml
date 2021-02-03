@@ -2022,7 +2022,6 @@ let rec findAppropriateParentToWrap
     =
   let child = oldExpr in
   let parent = FluidAST.findParent (E.toID oldExpr) ast in
-
   match parent with
   | Some parent ->
     ( match parent with
@@ -2072,7 +2071,6 @@ let createPipe ~(findParent : bool) (id : ID.t) (astInfo : ASTInfo.t) :
   let action =
     Printf.sprintf "createPipe(id=%s findParent=%B)" (ID.toString id) findParent
   in
-
   let astInfo = recordAction action astInfo in
   let exprToReplace =
     FluidAST.find id astInfo.ast
@@ -4061,6 +4059,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   in
   Option.withDefault mod' ~default:NoChange
 
+
 let rec updateKey
     ?(recursing = false) (inputEvent : fluidInputEvent) (astInfo : ASTInfo.t) =
   (* These might be the same token *)
@@ -5756,6 +5755,7 @@ let updateMsg'
   (* Js.log2 "ast" (show_ast newAST) ; *)
   (* Js.log2 "tokens" (eToStructure s newAST) ; *)
   astInfo
+
 
 let updateMsg
     (m : model)
