@@ -293,39 +293,27 @@ module InitialLoad =
 
   let initialLoad (ctx : HttpContext) : Task<T> =
     task {
-      debuG "initialLoad" "x1"
       let user = Middleware.loadUserInfo ctx
-      debuG "initialLoad" "x2"
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      debuG "initialLoad" "x3"
 
       // t1
       let! canvas =
         LibBackend.Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
 
       let canvas = Result.unwrapUnsafe canvas
-      debuG "initialLoad" "x7"
-
-      debuG "initialLoad" "x8"
 
       let! opCtrs =
         Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
         |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
         |> Sql.executeAsync (fun read -> (read.string "browser_id", read.int "ctr"))
 
-      debuG "initialLoad" "x9"
-
       // t2
-      debuG "initialLoad" "x10"
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
-      debuG "initialLoad" "x11"
 
       let ocamlToplevels =
         canvas
         |> LibBackend.Canvas.toplevels
         |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlToplevels
-
-      debuG "initialLoad" "x12"
 
       return
         { toplevels = Tuple3.first ocamlToplevels
