@@ -372,47 +372,7 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //   |> List.dedup_and_sort ~compare
 //
 //
-// let hosts_for (account_name : string) : string list =
-//   Db.fetch
-//     ~name:"hosts_for"
-//     "SELECT DISTINCT c.name
-//      FROM canvases c
-//      JOIN accounts acc ON c.account_id = acc.id
-//      WHERE acc.username = $1"
-//     ~params:[String account_name]
-//   |> List.map ~f:List.hd_exn
-//   |> List.dedup_and_sort ~compare
-//
-//
-// (* NB: this returns canvases an account has access to via an organization, not
-//  * the organization(s) themselves *)
-// let orgs_for (account_name : string) : string list =
-//   Db.fetch
-//     ~name:"fetch_orgs_for"
-//     "SELECT c.name
-//      FROM access
-//      INNER JOIN accounts as user_ on access.access_account = user_.id
-//      INNER JOIN accounts as org on access.organization_account = org.id
-//      INNER JOIN canvases as c on org.id = account_id
-//      WHERE user_.username = $1"
-//     ~params:[String account_name]
-//   |> List.map ~f:List.hd_exn
-//   |> List.dedup_and_sort ~compare
-//
-//
-// let orgs (account_name : string) : string list =
-//   Db.fetch
-//     ~name:"fetch_orgs"
-//     "SELECT org.username
-//      FROM access
-//      INNER JOIN accounts as user_ on access.access_account = user_.id
-//      INNER JOIN accounts as org on access.organization_account = org.id
-//      WHERE user_.username = $1"
-//     ~params:[String account_name]
-//   |> List.map ~f:List.hd_exn
-//   |> List.dedup_and_sort ~compare
-//
-//
+
 // let tier_one_hosts () : string list =
 //   [ "ian-httpbin"
 //   ; "paul-slackermuse"

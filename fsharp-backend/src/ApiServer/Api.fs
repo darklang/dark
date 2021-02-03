@@ -282,12 +282,12 @@ module InitialLoad =
       user_tipes : RT.user_tipe list
       deleted_user_tipes : RT.user_tipe list
       assets : List<SA.StaticDeploy>
-      op_ctrs : (string * int) list }
+      op_ctrs : (string * int) list
+      canvas_list : string list
+      org_canvas_list : string list }
   // permission : Auth.Permission option
   // account : Account.UserInfo
-  //   ; canvas_list : string list
   //   ; orgs : string list
-  //   ; org_canvas_list : string list
   //   ; worker_schedules : Event_queue.Worker_states.t
   //   ; secrets : RTT.secret list
   //   ; creation_date : time }
@@ -320,7 +320,10 @@ module InitialLoad =
       let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
 
       // t5
+      let! canvasList = LibBackend.Account.ownedCanvases user.id
 
+      // t6
+      let! orgCanvasList = LibBackend.Account.accessibleCanvases user.id
 
       return
         { toplevels = Tuple3.first ocamlToplevels
@@ -331,14 +334,14 @@ module InitialLoad =
           deleted_user_tipes = []
           unlocked_dbs = unlocked
           assets = staticAssets
-          op_ctrs = opCtrs }
+          op_ctrs = opCtrs
+          canvas_list = List.map toString canvasList
+          org_canvas_list = List.map toString orgCanvasList }
     }
 //   let t1, (c, op_ctrs) =
 //   let t2, unlocked =
 //   let t3, assets =
 //   let t5, canvas_list =
-//     time "5-canvas-list" (fun _ -> Serialize.hosts_for user.username)
-//   in
 //   let t6, org_canvas_list =
 //     time "6-org-list" (fun _ -> Serialize.orgs_for user.username)
 //   in
