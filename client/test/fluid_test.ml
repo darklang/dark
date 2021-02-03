@@ -3671,17 +3671,35 @@ let run () =
         enter
         "let a = []\n        |>List::append [5]\nlet *** = ___\n~5" ;
       t
+        "inserting a pipe into a list at a pipeble gives a new pipe from the list element"
+        (listFn [aList5])
+        ~pos:15
+        (key K.ShiftEnter)
+        "List::append [5\n              |>~___\n             ]" ;
+      t
+        "inserting a pipe into a list within a list gives a new pipe from the interior list element"
+        (listFn [list [five; list[six]]])
+        ~pos:18
+        (key K.ShiftEnter)
+        "List::append [5,[6\n                 |>~___\n                ]]" ;
+      t
+        "inserting a pipe at a blank element within a list gives a new pipe from the blank element"
+        (listFn [list [b; six]])
+        ~pos:15
+        (key K.ShiftEnter)
+        "List::append [___\n              |>~___\n             ,6]" ;
+      t
         "inserting a pipe into another pipe gives a single pipe1"
         (pipe five [listFn [rightPartial "|>" aList5]])
         ~pos:23
         enter
         "5\n|>List::append [5]\n|>~___\n" ;
       t
-        "inserting a pipe into another pipe gives a single pipe2"
+        "inserting a pipe into another pipe at a pipeable gives a new pipe"
         (pipe five [listFn [aList5]])
         ~pos:19
         (key K.ShiftEnter)
-        "5\n|>List::append [5]\n|>~___\n" ;
+        "5\n|>List::append [5\n                |>~___\n               ]\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe3"
         five
