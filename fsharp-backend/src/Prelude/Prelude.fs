@@ -530,6 +530,15 @@ module UserName =
 
   let create (str : string) : T = UserName(Tablecloth.String.toLowercase str)
 
+module OrgName =
+  type T =
+    private
+    | OrgName of string
+
+    override this.ToString() = let (OrgName orgName) = this in orgName
+
+  let create (str : string) : T = OrgName(Tablecloth.String.toLowercase str)
+
 module OwnerName =
   type T =
     private

@@ -284,10 +284,10 @@ module InitialLoad =
       assets : List<SA.StaticDeploy>
       op_ctrs : (string * int) list
       canvas_list : string list
-      org_canvas_list : string list }
-  // permission : Auth.Permission option
+      org_canvas_list : string list
+      permission : Auth.Permission option
+      orgs : string list }
   // account : Account.UserInfo
-  //   ; orgs : string list
   //   ; worker_schedules : Event_queue.Worker_states.t
   //   ; secrets : RTT.secret list
   //   ; creation_date : time }
@@ -325,6 +325,9 @@ module InitialLoad =
       // t6
       let! orgCanvasList = LibBackend.Account.accessibleCanvases user.id
 
+      // t7
+      let! orgList = LibBackend.Account.accessibleCanvases user.id
+
       return
         { toplevels = Tuple3.first ocamlToplevels
           deleted_toplevels = Map.empty
@@ -336,16 +339,16 @@ module InitialLoad =
           assets = staticAssets
           op_ctrs = opCtrs
           canvas_list = List.map toString canvasList
-          org_canvas_list = List.map toString orgCanvasList }
+          org_canvas_list = List.map toString orgCanvasList
+          permission = Some(Middleware.loadPermission ctx)
+          orgs = List.map toString orgList }
     }
 //   let t1, (c, op_ctrs) =
 //   let t2, unlocked =
 //   let t3, assets =
 //   let t5, canvas_list =
 //   let t6, org_canvas_list =
-//     time "6-org-list" (fun _ -> Serialize.orgs_for user.username)
-//   in
-//   let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs user.username) in
+//   let t7, orgs =
 //   let t8, worker_schedules =
 //     time "8-worker-schedules" (fun _ ->
 //         Event_queue.get_worker_schedules_for_canvas !c.id)

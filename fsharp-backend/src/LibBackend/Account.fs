@@ -314,9 +314,7 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
      FROM canvases c
      WHERE c.account_id = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name")
-  |> Task.map List.sort
-  |> Task.map (List.map CanvasName.create)
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
 
 
 // NB: this returns canvases an account has access to via an organization, not
@@ -324,28 +322,21 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
 let accessibleCanvases (userID : UserID) : Task<List<CanvasName.T>> =
   Sql.query
     "SELECT c.name
+       FROM access
+      INNER JOIN accounts as org on access.organization_account = org.id
+      INNER JOIN canvases as c on org.id = account_id
+      WHERE access.access_account = @userID"
+  |> Sql.parameters [ "userID", Sql.uuid userID ]
+  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.create)
+
+let orgs (userID : UserID) : Task<List<OrgName.T>> =
+  Sql.query
+    "SELECT org.username
      FROM access
      INNER JOIN accounts as org on access.organization_account = org.id
-     INNER JOIN canvases as c on org.id = account_id
      WHERE access.access_account = @userID"
   |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name")
-  |> Task.map List.sort
-  |> Task.map (List.map CanvasName.create)
-
-// let orgs (account_name : string) : string list =
-//   Db.fetch
-//     ~name:"fetch_orgs"
-//     "SELECT org.username
-//      FROM access
-//      INNER JOIN accounts as user_ on access.access_account = user_.id
-//      INNER JOIN accounts as org on access.organization_account = org.id
-//      WHERE user_.username = $1"
-//     ~params:[String account_name]
-//   |> List.map ~f:List.hd_exn
-//   |> List.dedup_and_sort ~compare
-
-
+  |> Sql.executeAsync (fun read -> read.string "name" |> OrgName.create)
 
 
 // **********************
