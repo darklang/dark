@@ -318,7 +318,10 @@ module OCamlTypes =
 
     type toplevels = Map<id, toplevel>
 
-
+  type package_manager_parameter =
+    { name : string
+      tipe : tipe
+      description : string }
 
   type 'expr_type op =
     | SetHandler of tlid * pos * 'expr_type RuntimeT.HandlerT.handler

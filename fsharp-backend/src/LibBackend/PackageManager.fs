@@ -13,9 +13,14 @@ open Prelude
 open Tablecloth
 open Db
 
+module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
 module PT = LibBackend.ProgramSerialization.ProgramTypes
+module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
 
-type Parameter = { name : string; tipe : PT.DType; description : string }
+type Parameter = { name : string; typ : PT.DType; description : string }
+
+let ocamlParamater2PT (o : OT.package_manager_parameter) : Parameter =
+  { name = o.name; description = o.description; typ = Convert.ocamlTipe2PT o.tipe }
 
 type Fn =
   { name : PT.FQFnName.T
@@ -322,7 +327,8 @@ let allFunctions () : Task<List<Fn>> =
            returnType = PT.DType.parse (read.string "return_type")
            parameters =
              read.string "parameters"
-             |> Json.AutoSerialize.deserialize<List<Parameter>>
+             |> Json.AutoSerialize.deserialize<List<OT.package_manager_parameter>>
+             |> List.map ocamlParamater2PT
            description = read.string "description"
            author = read.string "author"
            deprecated = read.bool "deprecated"
