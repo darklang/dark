@@ -86,6 +86,7 @@ module FQFnName =
           ("dark", "stdlib", module_, name, 0)
       | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
           ("dark", "stdlib", "", name, int version)
+      | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> ("dark", "stdlib", "", name, 0)
       | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
           ("dark", "stdlib", "", name, int version)
       | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
