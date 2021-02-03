@@ -61,6 +61,14 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
         return! ctx.WriteHtmlStringAsync result
       })
 
+let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
+  handleContext
+    (fun ctx ->
+      task {
+        let! result = f ctx
+        return! ctx.WriteJsonAsync(Json.AutoSerialize.serialize result)
+      })
+
 // Either redirect to a login page, or apply the passed function if a
 // redirection is inappropriate (eg for the API)
 let redirectOr
@@ -250,7 +258,7 @@ let apiHandler
   (canvasName : string)
   : HttpHandler =
   canvasMiddleware neededPermission (CanvasName.create canvasName)
-  >=> json f
+  >=> jsonHandler f
   >=> serverVersionMiddleware
   >=> setStatusCode 200
 
