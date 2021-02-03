@@ -101,32 +101,32 @@ let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
 
 let ocamlInteropYojsonExprRoundtrip (a : PT.Expr) : bool =
   a
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlExpr
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlExpr2PT
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlExpr
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlExpr
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlExpr2PT
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlExpr2PT
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a
 
 let ocamlInteropYojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   a
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlHandler
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT a.pos
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.pt2ocamlHandler
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Yojson.ocamlHandler2PT a.pos
+  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a
