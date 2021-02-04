@@ -27,6 +27,7 @@
     <Compile Include="PackageManager.fs" />
     <Compile Include="StaticAssets.fs" />
     <Compile Include="EventQueue.fs" />
+    <Compile Include="Secret.fs" />
     <Compile Include="Op.fs" />
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />

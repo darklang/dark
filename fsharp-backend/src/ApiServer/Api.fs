@@ -265,6 +265,9 @@ let functions (includeAdminFns : bool) : string =
 // Endpoints
 // --------------------
 
+module Secrets =
+  type ApiSecret = { secret_name : string; secret_value : string }
+
 module Packages =
   let packages (ctx : HttpContext) : Task<List<OT.PackageManager.fn>> =
     task {
@@ -296,8 +299,8 @@ module InitialLoad =
       orgs : string list
       account : ApiUserInfo
       creation_date : System.DateTime
-      worker_schedules : LibBackend.EventQueue.WorkerStates.T }
-  //   ; secrets : RTT.secret list
+      worker_schedules : LibBackend.EventQueue.WorkerStates.T
+      secrets : List<Secrets.ApiSecret> }
 
   let initialLoad (ctx : HttpContext) : Task<T> =
     task {
@@ -338,6 +341,9 @@ module InitialLoad =
       // t8
       let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.id
 
+      // t9
+      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.id
+
       return
         { toplevels = Tuple3.first ocamlToplevels
           deleted_toplevels = Map.empty
@@ -359,23 +365,13 @@ module InitialLoad =
               email = user.email
               admin = user.admin
               id = user.id }
-          creation_date = canvas.creationDate }
+          creation_date = canvas.creationDate
+          secrets =
+            List.map
+              (fun (s : LibBackend.Secret.Secret) ->
+                { secret_name = s.name; secret_value = s.value })
+              secrets }
     }
-//   let t1, (c, op_ctrs) =
-//   let t2, unlocked =
-//   let t3, assets =
-//   let t5, canvas_list =
-//   let t6, org_canvas_list =
-//   let t7, orgs =
-//   let t8, worker_schedules =
-//     time "8-worker-schedules" (fun _ ->
-//         Event_queue.get_worker_schedules_for_canvas !c.id)
-//   let t9, secrets =
-//     time "9-secrets" (fun _ -> Secret.secrets_in_canvas !c.id)
-
-
-
-
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
