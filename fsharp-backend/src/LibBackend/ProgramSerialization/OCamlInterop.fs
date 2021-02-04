@@ -1008,19 +1008,16 @@ module Convert =
       deprecated = p.deprecated
       tlid = p.tlid }
 
-
-
-
-
 // ----------------
 // Binary conversions
 // ----------------
 let toplevelOfCachedBinary
   ((data, pos) : (byte array * string option))
-  // FSTODO: incorporate pos
-  // FSTODO: support tipes, dbs, functions
   : PT.Toplevel =
-  let pos = { x = 0; y = 0 } // FSTODO
+  let pos =
+    pos
+    |> Option.map Json.AutoSerialize.deserialize<pos>
+    |> Option.unwrap { x = 0; y = 0 }
 
   let toplevelOfCachedHandler () =
     Binary.handlerBin2Json data
