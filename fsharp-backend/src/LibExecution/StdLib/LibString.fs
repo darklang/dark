@@ -749,27 +749,27 @@ Don't rely on either the size or the algorithm."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "toUUID" 0
-//      ; parameters = [Param.make "uuid" TStr]
-//      ; returnType = TUuid
-//      ; description =
-//       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//           ( match Uuidm.of_string (Unicode_string.to_string s) with
-//           | Some id ->
-//               DUuid id
-//           | None ->
-//               Exception.code
-//                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-//           )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toUUID" 1
+    { name = fn "String" "toUUID" 0
+      parameters = [ Param.make "uuid" TStr "  " ]
+      returnType = TUuid
+      description =
+        "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            match s with
+            | Parse (x : System.Guid) -> System.Guid.Parse s |> DUuid |> Value
+            | _ ->
+                Value(
+                  errStr (
+                    "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                  )
+                )
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //      { name = fn "String" "toUUID" 1
 //      ; parameters = [Param.make "uuid" TStr]
 //      ; returnType = TResult
 //      ; description =
@@ -822,8 +822,7 @@ Don't rely on either the size or the algorithm."
       description = "Checks if `lookingIn` contains `searchingFor`"
       fn =
         (function
-        | _, [ DStr haystack; DStr needle ] ->
-            Value(DBool(haystack.Contains needle))
+        | _, [ DStr haystack; DStr needle ] -> Value(DBool(haystack.Contains needle))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
