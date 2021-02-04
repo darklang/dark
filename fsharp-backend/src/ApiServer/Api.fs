@@ -292,7 +292,7 @@ module InitialLoad =
       user_tipes : RT.user_tipe list
       deleted_user_tipes : RT.user_tipe list
       assets : List<SA.StaticDeploy>
-      op_ctrs : (string * int) list
+      op_ctrs : (System.Guid * int) list
       canvas_list : string list
       org_canvas_list : string list
       permission : Auth.Permission option
@@ -316,7 +316,7 @@ module InitialLoad =
       let! opCtrs =
         Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
         |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
-        |> Sql.executeAsync (fun read -> (read.string "browser_id", read.int "ctr"))
+        |> Sql.executeAsync (fun read -> (read.uuid "browser_id", read.int "ctr"))
 
       // t2
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
@@ -346,11 +346,11 @@ module InitialLoad =
 
       return
         { toplevels = Tuple3.first ocamlToplevels
-          deleted_toplevels = Map.empty
+          deleted_toplevels = [] // FSTODO
           user_functions = Tuple3.second ocamlToplevels
-          deleted_user_functions = []
+          deleted_user_functions = [] // FSTODO
           user_tipes = Tuple3.third ocamlToplevels
-          deleted_user_tipes = []
+          deleted_user_tipes = [] // FSTODO
           unlocked_dbs = unlocked
           assets = staticAssets
           op_ctrs = opCtrs
