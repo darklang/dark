@@ -1,1 +1,7 @@
 Bytes.length_v0 (String.toBytes_v0 "abcdef") = 6
+Bytes.base64Encode_v0 (String.toBytes_v0 "abcdef") = "YWJjZGVm"
+//Bytes.base64Encode_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+Bytes.base64Encode_v0 (String.toBytes_v0 "اختبار النص") = "2KfYrtiq2KjYp9ixINin2YTZhti1"
+Bytes.base64Encode_v0 (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
+Bytes.base64Encode_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
+Bytes.base64Encode_v0 (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷") = "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw=="
