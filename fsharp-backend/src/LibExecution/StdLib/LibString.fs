@@ -790,20 +790,20 @@ Don't rely on either the size or the algorithm."
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "isSubstring" 0
-//      ; parameters = [Param.make "searchingFor" TStr; Param.make "lookingIn" TStr]
-//      ; returnType = TBool
-//      ; description = "Checks if `lookingIn` contains `searchingFor`"
-//      ; fn =
-//         (function
-//         | _, [DStr needle; DStr haystack] ->
-//             DBool (Unicode_string.is_substring needle haystack)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "isSubstring" 1
+    { name = fn "String" "isSubstring" 0
+      parameters =
+        [ Param.make "searchingFor" TStr ""; Param.make "lookingIn" TStr "" ]
+      returnType = TBool
+      description = "Checks if `lookingIn` contains `searchingFor`"
+      fn =
+        (function
+        | _, [ DStr needle; DStr haystack ] ->
+            DBool(needle.Contains haystack) |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    //      { name = fn "String" "isSubstring" 1
 //      ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
 //      ; returnType = TBool
 //      ; description = "Checks if `lookingIn` contains `searchingFor`"
