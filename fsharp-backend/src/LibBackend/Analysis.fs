@@ -63,35 +63,7 @@ open Prelude
 //   {count}
 //
 //
-// let get_recent_404s (canvas_id : Uuidm.t) : SE.four_oh_four list =
-//   SE.get_404s
-//     ~limit:(`After (Time.sub (Time.now ()) (Time.Span.of_day 7.0)))
-//     canvas_id
-//
-//
-// let get_old_404s (canvas_id : Uuidm.t) : SE.four_oh_four list =
-//   SE.get_404s
-//     ~limit:(`Before (Time.sub (Time.now ()) (Time.Span.of_day 7.0)))
-//     canvas_id
-//
-//
-// let get_all_404s (canvas_id : Uuidm.t) : SE.four_oh_four list =
-//   SE.get_404s ~limit:`All canvas_id
-//
-//
-// let delete_404s
-//     (cid : Uuidm.t) (space : string) (path : string) (modifier : string) : unit
-//     =
-//   Db.run
-//     ~name:"delete_404s"
-//     "DELETE FROM stored_events_v2
-//       WHERE canvas_id = $1
-//       AND module = $2
-//       AND path = $3
-//       AND modifier = $4"
-//     ~params:[Db.Uuid cid; Db.String space; Db.String path; Db.String modifier]
-//
-//
+
 // (* ------------------------- *)
 // (* Input vars *)
 // (* ------------------------- *)

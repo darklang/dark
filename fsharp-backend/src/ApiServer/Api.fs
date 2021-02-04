@@ -373,10 +373,95 @@ module InitialLoad =
               secrets }
     }
 
+module DB =
+  type T = { unlocked_dbs : tlid list }
+
+  let getUnlockedDBs (ctx : HttpContext) : Task<T> =
+    task {
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+      return { unlocked_dbs = unlocked }
+    }
+
+module F404 =
+  let get404s (ctx : HttpContext) : Task<List<tlid>> =
+    task {
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      return! LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+    }
+
+
+
+
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
 
   [
     // TODO: why is this a POST?
-    POST [ routef "/api/%s/packages" (h Packages.packages Auth.Read) ]
-    POST [ routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read) ] ]
+    POST [ routef "/api/%s/packages" (h Packages.packages Auth.Read)
+           routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read)
+           routef "/api/%s/get_unlocked_dbs" (h DB.getUnlockedDBs Auth.Read)
+           routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
+
+           // routef "/api/%s/save_test" (h Testing.saveTest Auth.ReadWrite)
+           //    when Config.allow_test_routes ->
+           //    save_test_handler ~execution_id parent canvas
+           // | `POST, ["api"; canvas; "add_op"] ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (admin_add_op_handler ~execution_id ~user parent canvas body))
+           // | `POST, ["api"; canvas; "all_traces"] ->
+           //     when_can_view ~canvas (fun permission ->
+           //         wrap_editor_api_headers
+           //           (fetch_all_traces
+           //              ~execution_id
+           //              ~user
+           //              ~canvas
+           //              ~permission
+           //              parent
+           //              body))
+           // | `POST, ["api"; canvas; "execute_function"] ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (execute_function ~execution_id parent canvas body))
+           // | `POST, ["api"; canvas; "packages"; "upload_function"] when user.admin ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (upload_function ~execution_id ~user parent body))
+           // | `POST, ["api"; canvas; "trigger_handler"] ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (trigger_handler ~execution_id parent canvas body))
+           // | `POST, ["api"; canvas; "get_trace_data"] ->
+           //     when_can_view ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (get_trace_data ~execution_id parent canvas body))
+           // | `POST, ["api"; canvas; "get_db_stats"] ->
+           //     when_can_view ~canvas (fun _ ->
+           //         wrap_editor_api_headers (db_stats ~execution_id parent canvas body))
+           // | `POST, ["api"; canvas; "get_worker_stats"] ->
+           //     when_can_view ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (worker_stats ~execution_id parent canvas body))
+           // | `POST, ["api"; canvas; "worker_schedule"] ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (worker_schedule ~execution_id parent canvas body))
+           // | `POST, ["api"; canvas; "delete_404"] ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers (delete_404 ~execution_id parent canvas body))
+           // | `POST, ["api"; canvas; "static_assets"] ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (static_assets_upload_handler
+           //              ~execution_id
+           //              ~user
+           //              parent
+           //              canvas
+           //              req
+           //              body))
+           // | `POST, ["api"; canvas; "insert_secret"] ->
+           //     when_can_edit ~canvas (fun _ ->
+           //         wrap_editor_api_headers
+           //           (insert_secret ~execution_id parent canvas body))
+            ] ]

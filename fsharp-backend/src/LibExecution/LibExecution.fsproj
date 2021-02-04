@@ -17,6 +17,7 @@
     <Compile Include="StdLib/LibBool.fs" />
     <Compile Include="StdLib/LibMiddleware.fs" />
     <Compile Include="StdLib/StdLib.fs" />
+    <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Http.fs" />
     <Compile Include="Execution.fs" />
   </ItemGroup>
