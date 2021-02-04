@@ -798,7 +798,7 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr needle; DStr haystack ] ->
-            DBool(needle.Contains haystack) |> Value
+            DBool(haystack.Contains needle) |> Value
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

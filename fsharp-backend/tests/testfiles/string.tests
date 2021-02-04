@@ -375,15 +375,15 @@ String.toUUID_v1 "👱🏼" = Error "`uuid` parameter was not of form XXXXXXXX-X
 String.toUUID_v1 "123🍊🍊000" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v1 "d388ff30-667f-11eb-ae93" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v1 "d388ff30-667f-11eb-ae93-0242ac13000" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.isSubstring_v0 "a string" "in" = true // substring works
-String.isSubstring_v0 "a string" "x" = false // substring works
-String.isSubstring_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" "✋🏻" = false
-String.isSubstring_v0 "اختبار النص" "اختبار" = true //these inputs are actually flipped over because of the language, that is why the result is true
+String.isSubstring_v0 "in" "a string" = true // substring works
+String.isSubstring_v0 "x" "a string"= false // substring works
+String.isSubstring_v0 "✋🏻" "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" = false
+String.isSubstring_v0 "اختبار" "اختبار النص" = true //these inputs are actually flipped over because of the language, that is why the result is true
 String.isSubstring_v0 "اختبار النص" "اختبار النص" = true
-String.isSubstring_v0 "🧟‍♀️🧟‍♂️" "🧟‍🧟‍♂️" = false
-String.isSubstring_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
-String.isSubstring_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
-String.isSubstring_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "🧟‍🧟‍♂️" = false
+String.isSubstring_v0  "🧟‍🧟‍♂️" "🧟‍♀️🧟‍♂️" = false
+String.isSubstring_v0 "﷽﷽﷽﷽" "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = true
+String.isSubstring_v0 "ǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = true
+String.isSubstring_v0 "🧟‍🧟‍♂️" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" = false
 
 
 // Test cases not working
