@@ -4181,13 +4181,13 @@ let rec updateKey
                 | Some id ->
                     (Some id, startPos = endPos)
                 | None ->
-                    (Some T.fakeid, startPos = endPos) )
+                    (None, startPos = endPos) )
             else
               match topmostSelectionID with
               | Some id ->
                   (Some id, startPos = endPos)
               | None ->
-                  (Some T.fakeid, startPos = endPos)
+                  (None, startPos = endPos)
           in
 
           Option.map topmostID ~f:(fun id ->
