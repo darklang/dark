@@ -768,28 +768,29 @@ Don't rely on either the size or the algorithm."
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
-    //      { name = fn "String" "toUUID" 1
-//      ; parameters = [Param.make "uuid" TStr]
-//      ; returnType = TResult
-//      ; description =
-//       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//           ( match Uuidm.of_string (Unicode_string.to_string s) with
-//           | Some id ->
-//               DResult (ResOk (DUuid id))
-//           | None ->
-//               error_result
-//                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-//           )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "isSubstring" 0
+      deprecated = ReplacedBy(fn "String" "toUUID" 1) }
+    { name = fn "String" "toUUID" 1
+      parameters = [ Param.make "uuid" TStr "" ]
+      returnType = TUuid
+      description =
+        "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            match s with
+            | Parse (x : System.Guid) ->
+                System.Guid.Parse s |> DUuid |> Ok |> DResult |> Value
+            | _ ->
+                "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                |> DStr
+                |> Error
+                |> DResult
+                |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //      { name = fn "String" "isSubstring" 0
 //      ; parameters = [Param.make "searchingFor" TStr; Param.make "lookingIn" TStr]
 //      ; returnType = TBool
 //      ; description = "Checks if `lookingIn` contains `searchingFor`"
