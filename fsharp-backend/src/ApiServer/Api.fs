@@ -12,10 +12,20 @@ open FSharpPlus
 open Prelude
 open Tablecloth
 
+open Npgsql.FSharp.Tasks
+open Npgsql
+open LibBackend.Db
+
+module PT = LibBackend.ProgramSerialization.ProgramTypes
+module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
+module RT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes.RuntimeT
+module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
+
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
+module SA = LibBackend.StaticAssets
 module RT = LibExecution.RuntimeTypes
 
 
@@ -255,116 +265,113 @@ let functions (includeAdminFns : bool) : string =
 // Endpoints
 // --------------------
 
+module Secrets =
+  type ApiSecret = { secret_name : string; secret_value : string }
+
 module Packages =
-  module PM = LibBackend.PackageManager
-  module PT = LibBackend.ProgramSerialization.ProgramTypes
-
-  type ApiPackageFn =
-    { user : string
-      package : string
-      ``module`` : string
-      fnname : string
-      version : int
-      body : PT.Expr
-      parameters : List<PM.Parameter>
-      return_type : PT.DType
-      description : string
-      author : string
-      deprecated : bool
-      tlid : id }
-
-  let toApi (fn : PM.Fn) : ApiPackageFn =
-    { user = fn.name.owner
-      package = fn.name.package
-      ``module`` = fn.name.module_
-      fnname = fn.name.function_
-      version = fn.name.version
-      body = fn.body
-      parameters = fn.parameters
-      return_type = fn.returnType
-      description = fn.description
-      author = fn.author
-      deprecated = fn.deprecated
-      tlid = fn.tlid }
-
-  let packages (ctx : HttpContext) : Task<List<ApiPackageFn>> =
+  let packages (ctx : HttpContext) : Task<List<OT.PackageManager.fn>> =
     task {
       let! fns = LibBackend.PackageManager.allFunctions ()
-      return List.map toApi fns
+      return List.map Convert.pt2ocamlPackageManagerFn fns
     }
 
 module InitialLoad =
-  let initialLoad (ctx : HttpContext) : Task<string> =
+  type ApiUserInfo =
+    { username : string // as opposed to UserName.T
+      name : string
+      admin : bool
+      email : string
+      id : UserID }
+
+  type T =
+    { toplevels : RT.toplevels
+      deleted_toplevels : RT.toplevels
+      user_functions : RT.user_fn<RT.fluidExpr> list
+      deleted_user_functions : RT.user_fn<RT.fluidExpr> list
+      unlocked_dbs : tlid list
+      user_tipes : RT.user_tipe list
+      deleted_user_tipes : RT.user_tipe list
+      assets : List<SA.StaticDeploy>
+      op_ctrs : (string * int) list
+      canvas_list : string list
+      org_canvas_list : string list
+      permission : Auth.Permission option
+      orgs : string list
+      account : ApiUserInfo
+      creation_date : System.DateTime
+      worker_schedules : LibBackend.EventQueue.WorkerStates.T
+      secrets : List<Secrets.ApiSecret> }
+
+  let initialLoad (ctx : HttpContext) : Task<T> =
     task {
       let user = Middleware.loadUserInfo ctx
-      let canvasName = Middleware.loadCanvasName ctx
-      // let! canvas = LibBackend.Canvas.loadAllFromCache canvasName
-      // let! unlocked = LibBackend.Analysis.unlocked canvas.id
-      return "todo: initialLoad"
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+
+      // t1
+      let! canvas =
+        LibBackend.Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
+
+      let canvas = Result.unwrapUnsafe canvas
+
+      let! opCtrs =
+        Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
+        |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
+        |> Sql.executeAsync (fun read -> (read.string "browser_id", read.int "ctr"))
+
+      // t2
+      let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+
+      let ocamlToplevels =
+        canvas
+        |> LibBackend.Canvas.toplevels
+        |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlToplevels
+
+      // t3
+      let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
+
+      // t5
+      let! canvasList = LibBackend.Account.ownedCanvases user.id
+
+      // t6
+      let! orgCanvasList = LibBackend.Account.accessibleCanvases user.id
+
+      // t7
+      let! orgList = LibBackend.Account.accessibleCanvases user.id
+
+      // t8
+      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.id
+
+      // t9
+      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.id
+
+      return
+        { toplevels = Tuple3.first ocamlToplevels
+          deleted_toplevels = Map.empty
+          user_functions = Tuple3.second ocamlToplevels
+          deleted_user_functions = []
+          user_tipes = Tuple3.third ocamlToplevels
+          deleted_user_tipes = []
+          unlocked_dbs = unlocked
+          assets = staticAssets
+          op_ctrs = opCtrs
+          canvas_list = List.map toString canvasList
+          org_canvas_list = List.map toString orgCanvasList
+          permission = Some(Middleware.loadPermission ctx)
+          orgs = List.map toString orgList
+          worker_schedules = workerSchedules
+          account =
+            { username = user.name.ToString()
+              name = user.name
+              email = user.email
+              admin = user.admin
+              id = user.id }
+          creation_date = canvas.creationDate
+          secrets =
+            List.map
+              (fun (s : LibBackend.Secret.Secret) ->
+                { secret_name = s.name; secret_value = s.value })
+              secrets }
     }
-//   ~(execution_id : Types.id)
-//   ~(permission : Authorization.permission option)
-//   (parent : Span.t)
-//   body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-//   let t1, (c, op_ctrs) =
-//     time "1-load-saved-ops" (fun _ ->
-//         let c =
-//           C.load_all_from_cache canvas
-//           |> Result.map_error ~f:(String.concat ~sep:", ")
-//           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
-//         in
-//         let op_ctrs =
-//           Db.fetch
-//             ~name:"fetch_op_ctrs_for_canvas"
-//             "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
-//             ~params:[Db.Uuid !c.id]
-//           |> List.map ~f:(function
-//                  | [clientOpCtr_id; op_ctr] ->
-//                      (clientOpCtr_id, op_ctr |> int_of_string)
-//                  | _ ->
-//                      Exception.internal
-//                        "wrong record shape from fetch_op_Ctrs_for_canvas")
-//         in
-//         (c, op_ctrs))
-//   in
-//   let t2, unlocked =
-//     time "2-analyze-unlocked-dbs" (fun _ ->
-//         Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
-//   in
-//   let t3, assets =
-//     time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
-//   in
-//   let t5, canvas_list =
-//     time "5-canvas-list" (fun _ -> Serialize.hosts_for user.username)
-//   in
-//   let t6, org_canvas_list =
-//     time "6-org-list" (fun _ -> Serialize.orgs_for user.username)
-//   in
-//   let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs user.username) in
-//   let t8, worker_schedules =
-//     time "8-worker-schedules" (fun _ ->
-//         Event_queue.get_worker_schedules_for_canvas !c.id)
-//   in
-//   let t9, secrets =
-//     time "9-secrets" (fun _ -> Secret.secrets_in_canvas !c.id)
-//   in
-//   let t10, result =
-//     time "10-to-frontend" (fun _ ->
-//         Analysis.to_initial_load_rpc_result
-//           !c
-//           op_ctrs
-//           permission
-//           unlocked
-//           assets
-//           user
-//           canvas_list
-//           orgs
-//           org_canvas_list
-//           worker_schedules
-//           secrets)
-
-
-
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler

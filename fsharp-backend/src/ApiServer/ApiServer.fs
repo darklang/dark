@@ -19,7 +19,7 @@ module Config = LibBackend.Config
 // --------------------
 // Handlers
 // --------------------
-let endpoints : Endpoint list = Ui.endpoints ++ Api.endpoints
+let endpoints : Endpoint list = Login.endpoints ++ Ui.endpoints ++ Api.endpoints
 
 // --------------------
 // Standard handlers
@@ -81,6 +81,7 @@ let main args =
   |> fun wh -> wh.UseKestrel()
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
+  // FSTODO: use a config value
   |> fun wh -> wh.UseUrls("http://darklang.localhost:9000")
   |> fun wh -> wh.Build()
   |> fun wh -> wh.Run()

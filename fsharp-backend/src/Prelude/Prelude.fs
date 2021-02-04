@@ -28,8 +28,6 @@ let (|Regex|_|) (pattern : string) (input : string) =
 // ----------------------
 let debuG (msg : string) (a : 'a) : unit = printfn $"DEBUG: {msg} ({a})"
 
-
-
 let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
   a
@@ -101,14 +99,21 @@ let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float
   with e ->
     raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
 
+let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
+
+let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
+
 let base64Encode (input : string) : string =
-  input |> System.Text.Encoding.UTF8.GetBytes |> System.Convert.ToBase64String
+  input |> toBytes |> System.Convert.ToBase64String
 
 let base64Decode (encoded : string) : string =
-  encoded
-  |> System.Convert.FromBase64String
-  |> System.Text.Encoding.UTF8.GetString
+  encoded |> System.Convert.FromBase64String |> ofBytes
 
+let sha1digest (input : string) : string =
+  use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
+  input |> toBytes |> sha1.ComputeHash |> ofBytes
+
+let toString (v : 'a) : string = v.ToString()
 
 // ----------------------
 // Random numbers
@@ -124,7 +129,7 @@ let random : System.Random = System.Random()
 let gid () : uint64 =
   try
     // get enough bytes for an int64, trim it to an int31 for now to match the frontend
-    let bytes = Array.init 8 (fun _ -> (byte) 0)
+    let bytes = Array.create 8 (byte 0)
     random.NextBytes(bytes)
     let rand64 : uint64 = System.BitConverter.ToUInt64(bytes, 0)
     // Keep 30 bits
@@ -132,6 +137,14 @@ let gid () : uint64 =
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
   with e -> raise (InternalException $"gid failed: {e}")
+
+let randomString (length : int) : string =
+  let bytes = Array.create length (byte 0)
+  random.NextBytes(bytes)
+  // this can be longer than length because of base64
+  (System.Convert.ToBase64String bytes).Substring(0, 40)
+
+
 
 // ----------------------
 // TODO move elsewhere
@@ -165,6 +178,8 @@ module String =
       .Replace('+', '-')
       .Replace('/', '_')
       .Replace("=", "")
+
+
 
 // ----------------------
 // TaskOrValue
@@ -356,6 +371,19 @@ module Json =
       JsonSerializer.Deserialize<'a>(json, _options)
 
 // ----------------------
+// Functions we'll later add to Tablecloth
+// ----------------------
+module TableCloth =
+  module String =
+    let take (count : int) (str : string) : string = str.Substring(0, count)
+
+    let removeSuffix (suffix : string) (str : string) : string =
+      if str.EndsWith(suffix) then
+        str.Substring(0, str.Length - suffix.Length)
+      else
+        str
+
+// ----------------------
 // Task list processing
 // ----------------------
 module Task =
@@ -502,16 +530,24 @@ module UserName =
 
   let create (str : string) : T = UserName(Tablecloth.String.toLowercase str)
 
+module OrgName =
+  type T =
+    private
+    | OrgName of string
+
+    override this.ToString() = let (OrgName orgName) = this in orgName
+
+  let create (str : string) : T = OrgName(Tablecloth.String.toLowercase str)
+
 module OwnerName =
   type T =
     private
     | OwnerName of string
 
     override this.ToString() = let (OwnerName name) = this in name
-    member this.toUserName : UserName.T = UserName.create (this.ToString())
+    member this.toUserName() : UserName.T = UserName.create (this.ToString())
 
   let create (str : string) : T = OwnerName(Tablecloth.String.toLowercase str)
-
 
 module CanvasName =
   type T =

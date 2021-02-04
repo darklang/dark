@@ -1,5 +1,7 @@
 module LibBackend.Analysis
 
+// Most of this file is being merged into Api.fs
+
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
@@ -14,13 +16,6 @@ open Prelude
 // -------------------------
 // Non-execution analysis *)
 // -------------------------
-
-// Given a [canvasID], return tlids for all unlocked databases - a database is
-// unlocked if it has no records, and thus its schema can be changed without a
-// migration.
-let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
-  LibBackend.UserDB.unlocked canvasID
-
 
 // type db_stat =
 //   { count : int

@@ -10,7 +10,7 @@ nuget FSharp.Core 5.0.0
 //github haf/expecto:8fb043f1de5c847979c4ccb2fa7c14696bfafe55
 nuget Expecto 9.0.2
 nuget Expecto.FsCheck 9.0.2
-nuget FsCheck = 3.0.0-alpha5
+nuget FsCheck = 2.14.2
 nuget FSharp.Compiler.Service = 38.0.2
 
 // Web servers

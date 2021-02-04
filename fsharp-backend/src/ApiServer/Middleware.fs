@@ -31,6 +31,16 @@ let (>=>) = Giraffe.Core.compose
 // --------------------
 // Generic middlewares
 // --------------------
+
+let queryString (queries : List<string * string>) : string =
+  queries
+  |> List.map
+       (fun (k, v) ->
+         let k = System.Web.HttpUtility.UrlEncode k
+         let v = System.Web.HttpUtility.UrlEncode v
+         $"{k}={v}")
+  |> String.concat "&"
+
 let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
   task {
     ctx.SetStatusCode 401
@@ -43,6 +53,44 @@ let notFound (ctx : HttpContext) : Task<HttpContext option> =
     return! ctx.WriteTextAsync "Not Found"
   }
 
+let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
+  handleContext
+    (fun ctx ->
+      task {
+        let! result = f ctx
+        return! ctx.WriteHtmlStringAsync result
+      })
+
+let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
+  handleContext
+    (fun ctx ->
+      task {
+        let! result = f ctx
+        return! ctx.WriteJsonAsync result
+      })
+
+// Either redirect to a login page, or apply the passed function if a
+// redirection is inappropriate (eg for the API)
+let redirectOr
+  (f : HttpContext -> Task<HttpContext option>)
+  (ctx : HttpContext)
+  : Task<HttpContext option> =
+  task {
+    if String.startsWith "/api/" ctx.Request.Path.Value then
+      return! f ctx
+    else
+      let redirect = ctx.GetRequestUrl() |> System.Web.HttpUtility.UrlEncode
+
+      let destination =
+        if Config.useLoginDarklangComForLogin then
+          "https://login.darklang.com"
+        else
+          "/login"
+
+      let url = $"{destination}?redirect={redirect}"
+      ctx.Response.Redirect(url, false)
+      return Some ctx
+  }
 // --------------------
 // Accessing data from a HttpContext
 // --------------------
@@ -51,51 +99,66 @@ let notFound (ctx : HttpContext) : Task<HttpContext option> =
 type dataID =
   | UserInfo
   | SessionData
-  | CanvasName
+  | CanvasInfo
   | Permission
 
   override this.ToString() : string =
     match this with
     | UserInfo -> "user"
     | SessionData -> "sessionData"
-    | CanvasName -> "canvasName"
+    | CanvasInfo -> "canvasName"
     | Permission -> "permission"
 
-let save (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
+let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx.Items.[id.ToString()] <- value
   ctx
 
-let load<'a> (id : dataID) (ctx : HttpContext) : 'a =
-  ctx.Items.[id.ToString()] :?> 'a
+let load'<'a> (id : dataID) (ctx : HttpContext) : 'a =
+  ctx.Items.[$"{id}".ToString()] :?> 'a
+
+type CanvasInfo = { name : CanvasName.T; id : CanvasID; owner : UserID }
+
+let loadSessionData (ctx : HttpContext) : Session.T =
+  load'<Session.T> SessionData ctx
+
+let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
+  load'<Account.UserInfo> UserInfo ctx
+
+let loadCanvasInfo (ctx : HttpContext) : CanvasInfo =
+  load'<CanvasInfo> CanvasInfo ctx
+
+let loadPermission (ctx : HttpContext) : Auth.Permission =
+  load'<Auth.Permission> Permission ctx
+
+let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
+let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
+let saveCanvasInfo (c : CanvasInfo) (ctx : HttpContext) = save' CanvasInfo c ctx
+let savePermission (p : Auth.Permission) (ctx : HttpContext) = save' Permission p ctx
+
+
 
 // --------------------
 // APIServer Middlewares
 // --------------------
-type LoginKind =
-  | Local
-  | Live
+
 
 let sessionDataMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let sessionKey = ctx.Request.Cookies.Item "__session"
+      let sessionKey = ctx.Request.Cookies.Item Session.cookieKey
 
-      match! Session.get sessionKey with
-      | None ->
-          // FSTODO: redirect to Login
-          let liveLogin, loginUrl, logoutUri =
-            if Config.useLoginDarklangComForLogin then
-              Live,
-              "https://login.darklang.com",
-              "https://logout.darklang.com/logout"
-            else
-              Local, "/login", "/logout"
+      let! session =
+        if ctx.Request.Method = "GET" then
+          Session.getNoCSRF sessionKey
+        else
+          let csrfToken = ctx.Request.Headers.Item Session.csrfHeader |> toString
+          Session.get sessionKey csrfToken
 
-          return! unauthorized ctx
-      | Some sessionData -> return! next (save SessionData sessionData ctx)
+      match session with
+      | None -> return! redirectOr unauthorized ctx
+      | Some sessionData -> return! next (saveSessionData sessionData ctx)
     })
 
-let loadSessionData (ctx : HttpContext) = load<Session.T> SessionData ctx
 
 let userInfoMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -103,37 +166,38 @@ let userInfoMiddleware : HttpHandler =
       let sessionData = loadSessionData ctx
 
       match! Account.getUser (UserName.create sessionData.username) with
-      | None -> return! notFound ctx
-      | Some user -> return! next (save UserInfo user ctx)
+      | None -> return! redirectOr notFound ctx
+      | Some user -> return! next (saveUserInfo user ctx)
     })
-
-let loadUserInfo (ctx : HttpContext) = load<Account.UserInfo> UserInfo ctx
 
 // checks permission on the canvas and continues. As a safety check, we add the
 // CanvasName property here instead of the handler just fetching it. It's only
 // added here only if the permission passes. This way we can not accidentally
 // bypass it
-let permissionMiddleware
+let withPermissionMiddleware
   (permissionNeeded : Auth.Permission)
   (canvasName : CanvasName.T)
   : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
       let user = loadUserInfo ctx
+      // CLEANUP: reduce to one query
+      // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
+      let ownerName = Account.ownerNameFromCanvasName canvasName
+      let! ownerID = Account.userIDForUserName (ownerName.toUserName ())
+      let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+      let canvasInfo = { name = canvasName; id = canvasID; owner = ownerID }
 
       let! permitted =
         if permissionNeeded = Auth.Read then
-          Auth.canViewCanvas canvasName user.username
+          Auth.canViewCanvas canvasName ownerName ownerID user.username
         else if permissionNeeded = Auth.ReadWrite then
-          Auth.canEditCanvas canvasName user.username
+          Auth.canEditCanvas canvasName ownerName ownerID user.username
         else
-          task { return false }
+          Task.FromResult false
 
       if permitted then
-        ctx
-        |> save CanvasName canvasName
-        |> save Permission permissionNeeded
-        |> ignore // ignored as `save` is side-effecting
+        ctx |> saveCanvasInfo canvasInfo |> savePermission permissionNeeded |> ignore // ignored as `save` is side-effecting
 
         return! next ctx
       else
@@ -141,8 +205,6 @@ let permissionMiddleware
         return! unauthorized ctx
     })
 
-let loadCanvasName (ctx : HttpContext) = load<CanvasName.T> CanvasName ctx
-let loadPermission (ctx : HttpContext) = load<Auth.Permission> Permission ctx
 
 let antiClickjackingMiddleware : HttpHandler =
   // Clickjacking: Don't allow any other websites to put this in an iframe;
@@ -168,42 +230,47 @@ let corsForLocalhostAssetsMiddleware : HttpHandler =
       return! result
     })
 
+let userMiddleware : HttpHandler = sessionDataMiddleware >=> userInfoMiddleware
+
+let canvasMiddleware
+  (neededPermission : Auth.Permission)
+  (canvasName : CanvasName.T)
+  : HttpHandler =
+  userMiddleware >=> withPermissionMiddleware neededPermission canvasName
+
+// --------------------
+// Composed middlewarestacks for the API
+// --------------------
+let htmlMiddleware : HttpHandler =
+  serverVersionMiddleware
+  >=> corsForLocalhostAssetsMiddleware
+  >=> antiClickjackingMiddleware
+  >=> setStatusCode 200
 
 // --------------------
 // Middleware stacks for the API
 // --------------------
+
+// Returns JSON API for calls on a particular canvas. Loads user and checks permission.
 let apiHandler
-  (handler : HttpContext -> Task<'a>)
+  (f : HttpContext -> Task<'a>)
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  sessionDataMiddleware
-  >=> userInfoMiddleware
-  >=> permissionMiddleware neededPermission (CanvasName.create canvasName)
-  >=> (fun _ ctx ->
-    task {
-      let! result = handler ctx
-      return! ctx.WriteJsonAsync result
-    })
+  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  >=> jsonHandler f
   >=> serverVersionMiddleware
   >=> setStatusCode 200
 
-let htmlHandler
-  (handler : HttpContext -> Task<string>)
+let canvasHtmlHandler
+  (f : HttpContext -> Task<string>)
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  // FSTODO: support integration tests
-// if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-  sessionDataMiddleware
-  >=> userInfoMiddleware
-  >=> permissionMiddleware neededPermission (CanvasName.create canvasName)
-  >=> (fun _ ctx ->
-    task {
-      let! result = handler ctx
-      return! ctx.WriteHtmlStringAsync result
-    })
-  >=> corsForLocalhostAssetsMiddleware
-  >=> antiClickjackingMiddleware
-  >=> serverVersionMiddleware
-  >=> setStatusCode 200
+  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  >=> htmlHandler f
+  >=> htmlMiddleware
+
+// Returns HTML without doing much else
+let loggedOutHtmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
+  htmlHandler f >=> htmlMiddleware

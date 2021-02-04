@@ -152,8 +152,7 @@ and Dval =
     headers : (string * string) list *
     body : Dval
   | DDB of string
-  // FSTODO
-  (* | DDate of time *)
+  | DDate of System.DateTime
   // FSTODO
   (* | DPassword of PasswordBytes.t *)
   | DUuid of System.Guid

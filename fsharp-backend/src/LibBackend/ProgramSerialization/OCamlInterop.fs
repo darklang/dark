@@ -8,6 +8,9 @@ module LibBackend.ProgramSerialization.OCamlInterop
 // into F#. At that point we convert it to these types, and potentially convert
 // it to the runtime types to run it.
 
+// We also use these types to convert to the types the API uses, which are
+// typically direct deserializations of these types.
+
 open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -298,8 +301,6 @@ module OCamlTypes =
         metadata : ufn_metadata
         ast : 'expr_type }
 
-    type 'expr_type package_fn = { metadata : ufn_metadata; ast : 'expr_type }
-
     type user_record_field = { name : string or_blank; tipe : tipe or_blank }
 
     type user_tipe_definition = UTRecord of user_record_field list
@@ -309,6 +310,31 @@ module OCamlTypes =
         name : string or_blank
         version : int
         definition : user_tipe_definition }
+
+    type tldata =
+      | Handler of HandlerT.handler<fluidExpr>
+      | DB of DbT.db<fluidExpr>
+
+    type toplevel = { tlid : id; pos : pos; data : tldata }
+
+    type toplevels = Map<id, toplevel>
+
+  module PackageManager =
+    type parameter = { name : string; tipe : tipe; description : string }
+
+    type fn =
+      { user : string
+        package : string
+        ``module`` : string
+        fnname : string
+        version : int
+        body : RuntimeT.fluidExpr
+        parameters : parameter list
+        return_type : tipe
+        description : string
+        author : string
+        deprecated : bool
+        tlid : id }
 
   type 'expr_type op =
     | SetHandler of tlid * pos * 'expr_type RuntimeT.HandlerT.handler
@@ -345,13 +371,13 @@ module OCamlTypes =
   type 'expr_type oplist = 'expr_type op list
   type 'expr_type tlid_oplist = (tlid * 'expr_type oplist)
 
-module Yojson =
-  // Yojson is the OCaml automated JSON format. This module generates and
-  // parses JSON in that format, so that it can be sent to/from OCaml.
 
-  // Prelude.Json.AutoSerialize generated JSON in the same format as OCaml's
-  // Yojson. We add the exact ocaml types so that we can serialize directly,
-  // and then convert those types into ProgramTypes.
+module Convert =
+  // This module converts back-and-forth between the F# ProgramTypes and OCaml
+  // types. Prelude.Json.AutoSerialize generates JSON in the same format as
+  // OCaml's Yojson so we can use these types directly to communicate with the
+  // client (which also uses these types) and the OCaml libserialization
+  // library.
   module OT = OCamlTypes
   module RT = OT.RuntimeT
 
@@ -744,6 +770,17 @@ module Yojson =
     | PT.TUserType (name, version) -> OT.TUserType(name, version)
     | PT.TBytes -> OT.TBytes
 
+  let pt2ocamlDBCol (p : PT.DB.Col) : RT.DbT.col =
+    (string2bo p.nameID p.name, option2bo p.typeID (Option.map pt2ocamlTipe p.typ))
+
+  let pt2ocamlDB (p : PT.DB.T) : RT.DbT.db<RT.fluidExpr> =
+    { tlid = p.tlid
+      name = string2bo p.nameID p.name
+      cols = List.map pt2ocamlDBCol p.cols
+      version = p.version
+      old_migrations = []
+      active_migration = None }
+
 
   let pt2ocamlUserType (p : PT.UserType.T) : RT.user_tipe =
     { tlid = p.tlid
@@ -828,6 +865,74 @@ module Yojson =
   let pt2ocamlOplist (list : PT.Oplist) : OT.oplist<RT.fluidExpr> =
     List.map pt2ocamlOp list
 
+  let pt2ocamlToplevels
+    (toplevels : Map<tlid, PT.Toplevel>)
+    : RT.toplevels * RT.user_fn<RT.fluidExpr> list * RT.user_tipe list =
+    toplevels
+    |> Map.values
+    |> List.fold
+         (Map.empty, [], [])
+         (fun (tls, ufns, uts) tl ->
+           match tl with
+           | PT.TLHandler h ->
+               let ocamlHandler = pt2ocamlHandler h
+
+               let ocamlTL : RT.toplevel =
+                 { tlid = h.tlid; pos = h.pos; data = RT.Handler ocamlHandler }
+
+               Map.add h.tlid ocamlTL tls, ufns, uts
+           | PT.TLDB db ->
+               let ocamlDB = pt2ocamlDB db
+
+               let ocamlTL : RT.toplevel =
+                 { tlid = db.tlid; pos = db.pos; data = RT.DB ocamlDB }
+
+               (Map.add db.tlid ocamlTL tls, ufns, uts)
+           | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
+           | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
+
+  let ocamlPackageManagerParameter2PT
+    (o : OT.PackageManager.parameter)
+    : PT.PackageManager.Parameter =
+    { name = o.name; description = o.description; typ = ocamlTipe2PT o.tipe }
+
+  let pt2ocamlPackageManagerParameter
+    (p : PT.PackageManager.Parameter)
+    : OT.PackageManager.parameter =
+    { name = p.name; description = p.description; tipe = pt2ocamlTipe p.typ }
+
+
+  // let ocamlPackageManagerFn2PT (o : OT.PackageManager.fn) : PT.PackageManager.Fn =
+  //   { user = fn.name.owner
+  //     package = fn.name.package
+  //     ``module`` = fn.name.module_
+  //     fnname = fn.name.function_
+  //     version = fn.name.version
+  //     body = fn.body
+  //     parameters = fn.parameters
+  //     return_type = fn.returnType
+  //     description = fn.description
+  //     author = fn.author
+  //     deprecated = fn.deprecated
+  //     tlid = fn.tlid }
+  //
+  let pt2ocamlPackageManagerFn (p : PT.PackageManager.Fn) : OT.PackageManager.fn =
+    { user = p.name.owner
+      package = p.name.package
+      ``module`` = p.name.module_
+      fnname = p.name.function_
+      version = p.name.version
+      body = p.body |> pt2ocamlExpr
+      parameters = p.parameters |> List.map pt2ocamlPackageManagerParameter
+      return_type = p.returnType |> pt2ocamlTipe
+      description = p.description
+      author = p.author
+      deprecated = p.deprecated
+      tlid = p.tlid }
+
+
+
+
 
 // ----------------
 // Binary conversions
@@ -841,14 +946,14 @@ let toplevelOfCachedBinary
 
   Binary.handlerBin2Json data
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
-  |> Yojson.ocamlHandler2PT pos
+  |> Convert.ocamlHandler2PT pos
   |> PT.TLHandler
 
 let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
   match toplevel with
   | PT.TLHandler h ->
       h
-      |> Yojson.pt2ocamlHandler
+      |> Convert.pt2ocamlHandler
       |> Json.AutoSerialize.serialize
       |> Binary.handlerJson2Bin
 
@@ -857,21 +962,21 @@ let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
 let oplistOfBinary (data : byte array) : PT.Oplist =
   Binary.oplistBin2Json data
   |> Json.AutoSerialize.deserialize<OCamlTypes.oplist<OCamlTypes.RuntimeT.fluidExpr>>
-  |> Yojson.ocamlOplist2PT
+  |> Convert.ocamlOplist2PT
 
 let oplistToBinary (oplist : PT.Oplist) : byte array =
   oplist
-  |> Yojson.pt2ocamlOplist
+  |> Convert.pt2ocamlOplist
   |> Json.AutoSerialize.serialize
   |> Binary.oplistJson2Bin
 
 let exprTLIDPairOfCachedBinary (data : byte array) : PT.Expr * tlid =
   Binary.exprTLIDPairBin2Json data
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
-  |> Yojson.ocamlexprTLIDPair2PT
+  |> Convert.ocamlexprTLIDPair2PT
 
 let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
   (expr, tlid)
-  |> Yojson.pt2ocamlexprTLIDPair
+  |> Convert.pt2ocamlexprTLIDPair
   |> Json.AutoSerialize.serialize
   |> Binary.exprTLIDPairJson2Bin

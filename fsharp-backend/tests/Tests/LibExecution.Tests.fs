@@ -47,6 +47,7 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   | DOption _, _
   // All others can be directly compared
   | DInt _, _
+  | DDate _, _
   | DBool _, _
   | DFloat _, _
   | DNull, _

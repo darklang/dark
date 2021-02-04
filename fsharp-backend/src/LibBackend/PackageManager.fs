@@ -14,19 +14,8 @@ open Tablecloth
 open Db
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
-
-type Parameter = { name : string; tipe : PT.DType; description : string }
-
-type Fn =
-  { name : PT.FQFnName.T
-    body : PT.Expr
-    parameters : List<Parameter>
-    returnType : PT.DType
-    description : string
-    author : string
-    deprecated : bool
-    tlid : tlid }
-
+module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
+module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
 
 (* ------------------ *)
 (* Uploading *)
@@ -297,7 +286,7 @@ type Fn =
 (* Fetching functions *)
 (* ------------------ *)
 
-let allFunctions () : Task<List<Fn>> =
+let allFunctions () : Task<List<PT.PackageManager.Fn>> =
   Sql.query
     "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
             P.body, P.description, P.return_type, P.parameters, P.deprecated,
@@ -322,7 +311,8 @@ let allFunctions () : Task<List<Fn>> =
            returnType = PT.DType.parse (read.string "return_type")
            parameters =
              read.string "parameters"
-             |> Json.AutoSerialize.deserialize<List<Parameter>>
+             |> Json.AutoSerialize.deserialize<List<OT.PackageManager.parameter>>
+             |> List.map Convert.ocamlPackageManagerParameter2PT
            description = read.string "description"
            author = read.string "author"
            deprecated = read.bool "deprecated"
