@@ -375,7 +375,7 @@ module Json =
 // ----------------------
 module TableCloth =
   module String =
-    let take (count : int) (str : string) : string = str.Substring(0, count)
+    let take (count : int) (str : string) : string = if count >= str.Length then str else str.Substring(0, count)
 
     let removeSuffix (suffix : string) (str : string) : string =
       if str.EndsWith(suffix) then
