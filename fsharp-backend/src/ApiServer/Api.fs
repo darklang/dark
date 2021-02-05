@@ -19,6 +19,7 @@ open LibBackend.Db
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
 module RT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes.RuntimeT
+module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
 
 module Config = LibBackend.Config
@@ -29,6 +30,8 @@ module SA = LibBackend.StaticAssets
 module RT = LibExecution.RuntimeTypes
 module Canvas = LibBackend.Canvas
 module TI = LibBackend.TraceInputs
+module TFR = LibBackend.TraceFunctionResults
+module TFA = LibBackend.TraceFunctionArguments
 
 
 // type add_op_rpc_params =
@@ -373,14 +376,15 @@ module DB =
     }
 
 module F404 =
-  let get404s (ctx : HttpContext) : Task<List<tlid>> =
+  type T = { f404s : List<TI.F404>}
+  let get404s (ctx : HttpContext) : Task<T> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      return! LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+      let! f404s = TI.getRecent404s canvasInfo.id
+      return { f404s = f404s }
     }
 
 module Traces =
-  module AT = LibExecution.AnalysisTypes
   type Params = { tlid : tlid; trace_id : AT.TraceID }
 
   type T = { trace : AT.Trace }
