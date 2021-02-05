@@ -358,7 +358,7 @@ module Json =
 
     let _options =
       (let fsharpConverter =
-        JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag)
+        JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption))
 
        let options = JsonSerializerOptions()
        options.Converters.Add(fsharpConverter)
