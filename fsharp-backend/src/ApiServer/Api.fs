@@ -275,6 +275,18 @@ module InitialLoad =
       email : string
       id : UserID }
 
+  type ApiStaticDeploy =
+    { deploy_hash : string
+      url : string
+      last_update : System.DateTime
+      status : SA.DeployStatus }
+
+  let toApiStaticDeploys (d : SA.StaticDeploy) : ApiStaticDeploy =
+    { deploy_hash = d.deployHash
+      url  = d.url
+      last_update = d.lastUpdate
+      status = d.status }
+
   type T =
     { toplevels : RT.toplevels
       deleted_toplevels : RT.toplevels
@@ -283,7 +295,7 @@ module InitialLoad =
       unlocked_dbs : tlid list
       user_tipes : RT.user_tipe list
       deleted_user_tipes : RT.user_tipe list
-      assets : List<SA.StaticDeploy>
+      assets : List<ApiStaticDeploy>
       op_ctrs : (System.Guid * int) list
       canvas_list : string list
       org_canvas_list : string list
@@ -344,7 +356,7 @@ module InitialLoad =
           user_tipes = Tuple3.third ocamlToplevels
           deleted_user_tipes = [] // FSTODO
           unlocked_dbs = unlocked
-          assets = staticAssets
+          assets = List.map toApiStaticDeploys staticAssets
           op_ctrs = opCtrs
           canvas_list = List.map toString canvasList
           org_canvas_list = List.map toString orgCanvasList
