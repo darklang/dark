@@ -10,8 +10,13 @@
 // - the parses uses Dark ProgramTypes Exprs, so you have to write code like
 //   that (eg use `x |> y` instead of `y x`)
 
-#load "../../.paket/load/main.group.fsx"
+// If there's a problem, you need to run:
+// $ rm paket-files/paket.restore.cached
+// $ dotnet restore
+// $ dotnet paket generate-load-scripts --framework net50
+#load "../../.paket/load/net50/main.group.fsx"
 #r "../../Build/out/Tests.dll"
+#r "../../Build/out/Prelude.dll"
 #r "../../Build/out/LibBackend.dll"
 #r "../../Build/out/LibExecution.dll"
 
