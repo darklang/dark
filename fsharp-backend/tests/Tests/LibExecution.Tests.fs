@@ -35,9 +35,12 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
           de v1 v2)
         (Map.toList ls)
         (Map.toList rs)
-  | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
+  | DHttpResponse (Response (sc1, h1), b1), DHttpResponse (Response (sc2, h2), b2) ->
       Expect.equal sc1 sc2 msg
       Expect.equal h1 h2 msg
+      de b1 b2
+  | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
+      Expect.equal u1 u2 msg
       de b1 b2
   // Keep for exhaustiveness checking
   | DHttpResponse _, _
