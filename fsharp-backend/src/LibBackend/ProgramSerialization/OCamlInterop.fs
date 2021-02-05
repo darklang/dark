@@ -272,12 +272,14 @@ module OCamlTypes =
       | Rail
       | NoRail
 
+    type FPString = { matchID : id; patternID : id; str : string }
+
     type fluidPattern =
       | FPVariable of id * id * string
       | FPConstructor of id * id * string * fluidPattern list
       | FPInteger of id * id * string
       | FPBool of id * id * bool
-      | FPString of matchID : id * patternID : id * str : string
+      | FPString of FPString
       | FPFloat of id * id * string * string
       | FPNull of id * id
       | FPBlank of id * id
@@ -476,7 +478,7 @@ module Convert =
         PT.PConstructor(id, name, List.map r pats)
     | RT.FPInteger (_, id, i) -> PT.PInteger(id, parseBigint i)
     | RT.FPBool (_, id, b) -> PT.PBool(id, b)
-    | RT.FPString (_, id, s) -> PT.PString(id, s)
+    | RT.FPString fp -> PT.PString(fp.patternID, fp.str)
     | RT.FPFloat (_, id, w, f) ->
         let whole = parseBigint w
         let sign = if w.[0] = '-' then Negative else Positive
@@ -724,7 +726,7 @@ module Convert =
     | PT.PInteger (id, i) -> RT.FPInteger(mid, id, i.ToString())
     | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | PT.PBool (id, b) -> RT.FPBool(mid, id, b)
-    | PT.PString (id, s) -> RT.FPString(mid, id, s)
+    | PT.PString (id, s) -> RT.FPString { matchID = mid; patternID = id; str = s }
     | PT.PFloat (id, Positive, w, f) ->
         RT.FPFloat(mid, id, w.ToString(), f.ToString())
     | PT.PFloat (id, Negative, w, f) -> RT.FPFloat(mid, id, $"-{w}", f.ToString())
@@ -1021,40 +1023,44 @@ let toplevelOfCachedBinary
 
   let toplevelOfCachedHandler () =
     Binary.handlerBin2Json data
+    |> debug "handler"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlHandler2PT pos
     |> PT.TLHandler
 
   let toplevelOfCachedDB () =
     Binary.dbBin2Json data
+    |> debug "db"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlDB2PT pos
     |> PT.TLDB
 
   let toplevelOfCachedUserFunction () =
     Binary.userfnBin2Json data
+    |> debug "userfn"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlUserFunction2PT
     |> PT.TLFunction
 
   let toplevelOfCachedUserTipe () =
     Binary.usertipeBin2Json data
+    |> debug "tipe"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_tipe>
     |> Convert.ocamlUserType2PT
     |> PT.TLType
 
   try
     toplevelOfCachedHandler ()
-  with _ ->
+  with e1 ->
     try
       toplevelOfCachedDB ()
-    with e ->
+    with e2 ->
       try
         toplevelOfCachedUserFunction ()
-      with e ->
+      with e3 ->
         try
           toplevelOfCachedUserTipe ()
-        with e -> failwith $"count not parse binary toplevel {e}"
+        with e4 -> failwith $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
 
 let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
   match toplevel with
