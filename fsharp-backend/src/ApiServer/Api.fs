@@ -390,8 +390,9 @@ module Traces =
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! args = ctx.BindModelAsync<Params>()
 
-      let c : LibBackend.Canvas.T =
-        Canvas.loadTLIDsFromCache [ args.tlid ] canvasInfo.name canvasInfo.id
+      let! (c : LibBackend.Canvas.T) =
+        Canvas.loadTLIDsFromCache [ args.tlid ] canvasInfo.name canvasInfo.id canvasInfo.owner
+        |> Task.map Result.unwrapUnsafe
 
       let handlerTraces =
         c.handlers

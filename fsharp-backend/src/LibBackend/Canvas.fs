@@ -592,12 +592,10 @@ let loadHttpHandlersFromCache
     return! loadFrom LiveToplevels canvasName canvasID ownerID tlids
   }
 
+let loadTLIDsFromCache (tlids : tlid list) (canvasName : CanvasName.T) (ownerID : UserID) (canvasID : CanvasID) : Task<Result<T, List<string>>> =
+  loadFrom LiveToplevels canvasName canvasID ownerID tlids
 
-// let load_tlids_from_cache ~tlids host : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from_cache ~tlids host owner
-//
-//
+
 // let load_tlids_with_context_from_cache ~tlids host :
 //     (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
