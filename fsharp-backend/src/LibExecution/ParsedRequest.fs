@@ -159,13 +159,3 @@ type T = RT.Dval
 //
 let toDval (self : T) : RT.Dval = self
 
-let sampleRequest : T =
-  let incomplete = RT.DFakeVal(RT.DIncomplete RT.SourceNone)
-
-  RT.Dval.obj [ ("body", incomplete)
-                ("jsonBody", incomplete)
-                ("formBody", incomplete)
-                ("queryParams", incomplete)
-                ("headers", incomplete)
-                ("fullBody", incomplete)
-                ("url", incomplete) ]

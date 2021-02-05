@@ -106,6 +106,9 @@ let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString 
 let base64Encode (input : string) : string =
   input |> toBytes |> System.Convert.ToBase64String
 
+let base64UrlEncode (str : string) : string =
+  (base64Encode str).Replace('+', '-').Replace('/', '_').Replace("=", "")
+
 let base64Decode (encoded : string) : string =
   encoded |> System.Convert.FromBase64String |> ofBytes
 
@@ -114,6 +117,14 @@ let sha1digest (input : string) : string =
   input |> toBytes |> sha1.ComputeHash |> ofBytes
 
 let toString (v : 'a) : string = v.ToString()
+
+type System.DateTime with
+
+  member this.toIsoString() : string =
+    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+
+  static member ofIsoString(str : string) : System.DateTime =
+    System.DateTime.Parse(str, System.Globalization.CultureInfo.InvariantCulture)
 
 // ----------------------
 // Random numbers
@@ -167,17 +178,6 @@ module String =
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
-  let base64UrlEncode (str : string) : string =
-
-    let inputBytes = System.Text.Encoding.UTF8.GetBytes(str)
-
-    // Special "url-safe" base64 encode.
-    System
-      .Convert
-      .ToBase64String(inputBytes)
-      .Replace('+', '-')
-      .Replace('/', '_')
-      .Replace("=", "")
 
 
 

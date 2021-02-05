@@ -848,13 +848,13 @@ module UserFunction =
   type Parameter =
     { name : string
       nameID : id
-      type' : DType
+      typ : Option<DType>
       typeID : id
       description : string }
 
     member this.toRuntimeType() : RT.UserFunction.Parameter =
       { name = this.name
-        type' = this.type'.toRuntimeType ()
+        typ = (Option.unwrap TAny this.typ).toRuntimeType()
         description = this.description }
 
   type T =

@@ -23,12 +23,14 @@ open Prelude
 open Prelude.TableCloth
 open Tablecloth
 
-module AnalysisTypes = LibExecution.AnalysisTypes
+module AT = LibExecution.AnalysisTypes
+module RT = LibExecution.RuntimeTypes
 
 
+// space, path, modifier
 type EventDesc = string * string * string
 
-type EventRecord = string * string * string * System.DateTime * AnalysisTypes.TraceID
+type EventRecord = string * string * string * System.DateTime * AT.TraceID
 
 type F404 = EventRecord
 
@@ -59,6 +61,9 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * EventDesc>> =
 // Event data *)
 // -------------------------
 
+// We store a set of events for each host. The events may or may not
+// belong to a toplevel. We provide a list in advance so that they can
+// be partitioned effectively. Returns the DB-assigned event timestamp.
 // let store_event
 //     ~(trace_id : Uuidm.t)
 //     ~(canvas_id : Uuidm.t)
@@ -178,28 +183,25 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 //              , Dval.of_internal_roundtrippable_v0 dval )
 //          | _ ->
 //              Exception.internal "Bad DB format for load_events")
-//
-//
-// let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
-//     (string * RTT.time * RTT.dval) option =
-//   Db.fetch
-//     ~name:"load_event_for_trace"
-//     ~subject:(Uuidm.to_string trace_id)
-//     "SELECT path, value, timestamp FROM stored_events_v2
-//     WHERE canvas_id = $1
-//       AND trace_id = $2
-//     LIMIT 1"
-//     ~params:[Uuid canvas_id; Uuid trace_id]
-//   |> List.hd
-//   |> Option.map ~f:(function
-//          | [request_path; dval; timestamp] ->
-//              ( request_path
-//              , Util.date_of_isostring timestamp
-//              , Dval.of_internal_roundtrippable_v0 dval )
-//          | _ ->
-//              Exception.internal "Bad DB format for load_event_for_trace")
-//
-//
+
+
+let loadEventForTrace
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  : Task<Option<string * System.DateTime * RT.Dval>> =
+  Sql.query
+    "SELECT path, value, timestamp FROM stored_events_v2
+       WHERE canvas_id = @canvasID
+         AND trace_id = @traceID
+       LIMIT 1"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.uuid traceID ]
+  |> Sql.executeRowOptionAsync
+       (fun read ->
+         (read.string "path",
+          read.dateTime "timestamp",
+          read.string "value" |> LibExecution.DvalRepr.ofInternalRoundtrippableV0))
+
+
 // let munge_path_for_postgres module_ path =
 //   (* Only munge the route for HTTP events, as they have wildcards, whereas
 //    * background events are completely concrete.
@@ -259,9 +261,6 @@ let getRecent404s (canvasID : CanvasID) : Task<F404 list> =
   get404s (After(System.DateTime.Now.AddDays(-7.0))) canvasID
 
 
-
-//
-//
 // let delete_404s
 //     (cid : Uuidm.t) (space : string) (path : string) (modifier : string) : unit
 //     =

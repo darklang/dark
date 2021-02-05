@@ -18,9 +18,10 @@ let fns : List<BuiltInFn> =
       returnType = TDict varA
       description = "Returns a new dictionary with a single entry `key`: `value`."
       fn =
-        (function
-        | _, [ DStr k; v ] -> Value(DObj(Map.ofList [ (k, v) ]))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DStr k; v ] -> Value(DObj(Map.ofList [ (k, v) ]))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -244,12 +245,13 @@ let fns : List<BuiltInFn> =
       description =
         "Looks up `key` in object `dict` and returns the value if found, and Error otherwise"
       fn =
-        (function
-        | _, [ DObj o; DStr s ] ->
-            (match Map.tryFind s o with
-             | Some d -> Value(d)
-             | None -> Value(DNull))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DObj o; DStr s ] ->
+              (match Map.tryFind s o with
+               | Some d -> Value(d)
+               | None -> Value(DNull))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
@@ -258,9 +260,10 @@ let fns : List<BuiltInFn> =
       returnType = TOption varA
       description = "Looks up `key` in object `dict` and returns an option"
       fn =
-        (function
-        | _, [ DObj o; DStr s ] -> Value(DOption(Map.tryFind s o))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DObj o; DStr s ] -> Value(DOption(Map.tryFind s o))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
@@ -537,9 +540,10 @@ let fns : List<BuiltInFn> =
       returnType = (TDict(TVariable "a"))
       description = "Returns a copy of `dict` with the `key` set to `val`."
       fn =
-        (function
-        | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -549,9 +553,10 @@ let fns : List<BuiltInFn> =
       description =
         "If the `dict` contains `key`, returns a copy of `dict` with `key` and its associated value removed. Otherwise, returns `dict` unchanged."
       fn =
-        (function
-        | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

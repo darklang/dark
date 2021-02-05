@@ -27,6 +27,8 @@ module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
 module SA = LibBackend.StaticAssets
 module RT = LibExecution.RuntimeTypes
+module Canvas = LibBackend.Canvas
+module TI = LibBackend.TraceInputs
 
 
 // type add_op_rpc_params =
@@ -38,11 +40,6 @@ module RT = LibExecution.RuntimeTypes
 // [@@deriving yojson]
 //
 // type db_stats_rpc_params = {tlids : tlid list} [@@deriving yojson]
-//
-// type get_trace_data_rpc_params =
-//   { tlid : tlid
-//   ; trace_id : traceid }
-// [@@deriving yojson]
 //
 // type execute_function_rpc_params =
 //   { tlid : tlid
@@ -107,14 +104,6 @@ module RT = LibExecution.RuntimeTypes
 //   payload
 //   |> Yojson.Safe.from_string
 //   |> worker_schedule_update_rpc_params_of_yojson
-//   |> Result.ok_or_failwith
-//
-//
-// let to_get_trace_data_rpc_params (payload : string) : get_trace_data_rpc_params
-//     =
-//   payload
-//   |> Yojson.Safe.from_string
-//   |> get_trace_data_rpc_params_of_yojson
 //   |> Result.ok_or_failwith
 //
 //
@@ -241,7 +230,7 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
                     tipe = typToApiString p.typ
                     block_args = []
                     optional = false
-                    description = p.doc } : ParamMetadata))
+                    description = p.description } : ParamMetadata))
                fn.parameters
            description = fn.description
            return_type = typToApiString fn.returnType
@@ -390,8 +379,46 @@ module F404 =
       return! LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
     }
 
+module Traces =
+  module AT = LibExecution.AnalysisTypes
+  type Params = { tlid : tlid; trace_id : AT.TraceID }
 
+  type T = { trace : AT.Trace }
 
+  let getTraceData (ctx : HttpContext) : Task<List<tlid>> =
+    task {
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! args = ctx.BindModelAsync<Params>()
+
+      let c : LibBackend.Canvas.T =
+        Canvas.loadTLIDsFromCache [ args.tlid ] canvasInfo.name canvasInfo.id
+
+      let handlerTraces =
+        c.handlers
+        |> Map.values
+        |> List.head
+        |> Option.unwrapUnsafe
+        |> LibBackend.Analysis.handlerTrace c.id args.trace_id
+
+      let userTraces =
+        c.userFunctions
+        |> Map.get args.tlid
+        |> Option.unwrapUnsafe
+        |> LibBackend.Analysis.userfnTrace c.id args.trace_id
+
+      return []
+    }
+//       c
+//       |> Result.bind ~f:(fun c ->
+//              Result.all [mft; mht]
+//              |> Result.map ~f:(fun traces ->
+//                     traces
+//                     (* take the first trace that is Some 'a, not None *)
+//                     |> List.find_map ~f:(fun x -> x)
+//                     |> Option.map
+//                          ~f:(Analysis.to_get_trace_data_rpc_result !c))))
+// in
+// let resp_headers = server_timing [t1; t2; t3; t4; t5] in
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
@@ -402,6 +429,7 @@ let endpoints : Endpoint list =
            routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read)
            routef "/api/%s/get_unlocked_dbs" (h DB.getUnlockedDBs Auth.Read)
            routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
+           routef "/api/%s/get_trace_data" (h Traces.getTraceData Auth.Read)
 
            // routef "/api/%s/save_test" (h Testing.saveTest Auth.ReadWrite)
            //    when Config.allow_test_routes ->
@@ -432,10 +460,6 @@ let endpoints : Endpoint list =
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers
            //           (trigger_handler ~execution_id parent canvas body))
-           // | `POST, ["api"; canvas; "get_trace_data"] ->
-           //     when_can_view ~canvas (fun _ ->
-           //         wrap_editor_api_headers
-           //           (get_trace_data ~execution_id parent canvas body))
            // | `POST, ["api"; canvas; "get_db_stats"] ->
            //     when_can_view ~canvas (fun _ ->
            //         wrap_editor_api_headers (db_stats ~execution_id parent canvas body))

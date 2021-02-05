@@ -188,7 +188,10 @@ let runDarkHandler : HttpHandler =
               printfn $"result of runHttp is {result}"
 
               match result with
-              | RT.DHttpResponse (status, headers, RT.DBytes body) ->
+              | RT.DHttpResponse (RT.Redirect url, _) ->
+                  ctx.Response.Redirect(url, false)
+                  return! next ctx
+              | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
                   ctx.Response.StatusCode <- status
                   List.iter (fun (k, v) -> addHeader ctx k v) headers
                   do! ctx.Response.Body.WriteAsync(body, 0, body.Length)

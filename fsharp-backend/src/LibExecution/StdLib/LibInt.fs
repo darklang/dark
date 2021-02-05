@@ -20,19 +20,23 @@ let fns : List<BuiltInFn> =
          The modulus `b` must be 0 or negative.
          Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
       fn =
-        (function
-        | state, [ DInt v; DInt m ] ->
-            (try
-              Value(DInt(v % m))
-             with e ->
-               if m = bigint 0
-               then
-                 Value(errStr ($"Expected the argument `b` to be positive, but it was ({m})"))
-               else
-                 // FSTODO
-                 // In case there's another failure mode, rollbar
-                 failwith "mpod error ")
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | state, [ DInt v; DInt m ] ->
+              (try
+                Value(DInt(v % m))
+               with e ->
+                 if m = bigint 0 then
+                   Value(
+                     errStr (
+                       $"Expected the argument `b` to be positive, but it was ({m})"
+                     )
+                   )
+                 else
+                   // FSTODO
+                   // In case there's another failure mode, rollbar
+                   failwith "mpod error ")
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       (*
@@ -71,28 +75,24 @@ let fns : List<BuiltInFn> =
       ; previewable = Pure
     ; deprecated = NotDeprecated } *)
     { name = fn "Int" "remainder" 0
-      parameters = [Param.make "value" TInt ""; Param.make "divisor" TInt ""]
+      parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
       returnType = TInt
-      description =
-          "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
+      description = "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
           For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
           The sign of `divisor` doesn't influence the outcome.
           Returns an `Error` if `divisor` is 0."
       fn =
-        (function
-        | _, [DInt v; DInt d] ->
-            (try
-              BigInteger.Remainder(v, d)
-              |> DInt
-              |> Value
-             with e ->
-               if d = bigint 0
-               then
-                 Value(errStr ($"`divisor` must be non-zero"))
-               else (* In case there's another failure mode, rollbar *)
-                 raise e)
-        | args ->
-            incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt v; DInt d ] ->
+              (try
+                BigInteger.Remainder(v, d) |> DInt |> Value
+               with e ->
+                 if d = bigint 0 then
+                   Value(errStr ($"`divisor` must be non-zero"))
+                 else (* In case there's another failure mode, rollbar *)
+                   raise e)
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -101,25 +101,34 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Adds two integers together"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ DStr a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a string, but Int:add only works on Ints."))
-        | _, [ _; DStr b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a string, but Int:add only works on Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ DStr a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a string, but Int:add only works on Ints."
+                )
+              )
+          | _, [ _; DStr b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a string, but Int:add only works on Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -128,17 +137,22 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Subtracts two integers"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -147,17 +161,22 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Multiplies two integers"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -166,62 +185,74 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Raise `base` to the power of `exponent`"
       fn =
-        (function
-        | state, [ DInt number; DInt exp ] ->
-            (try
-              Value(DInt (number ** (int exp)) )
-             with e ->
-               if exp < bigint 0
-               then
-                 Value(errStr ($"Expected the argument `exponent` to be positive, but it was ({exp})"))
-               else
-                 // FSTODO
-                 // In case there's another failure mode, rollbar
-                 failwith "mpod error ")
+        InProcess
+          (function
+          | state, [ DInt number; DInt exp ] ->
+              (try
+                Value(DInt(number ** (int exp)))
+               with e ->
+                 if exp < bigint 0 then
+                   Value(
+                     errStr (
+                       $"Expected the argument `exponent` to be positive, but it was ({
+                                                                                         exp
+                       })"
+                     )
+                   )
+                 else
+                   // FSTODO
+                   // In case there's another failure mode, rollbar
+                   failwith "mpod error ")
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "divide" 0
-      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Divides two integers"
       fn =
-        (function
-        | _, [DInt a; DInt b] -> Value(DInt(a / b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | args ->
-            incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "absoluteValue" 0
-      parameters = [Param.make "a" TInt ""]
+      parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
       description =
-          "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+        "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
       fn =
-        (function
-        | _, [DInt a] -> Value(DInt(abs a))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a ] -> Value(DInt(abs a))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "negate" 0
-      parameters = [Param.make "a" TInt ""]
+      parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
       description = "Returns the negation of `a`, `-a`."
       fn =
-        (function
-        | _, [DInt a] -> Value(DInt(-a))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a ] -> Value(DInt(-a))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -230,17 +261,22 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is greater than b"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -249,17 +285,22 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is greater than or equal to b"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -268,17 +309,22 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is less than b"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -287,17 +333,22 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is less than or equal to b"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a float, but Int:lessThanOrEqualTo only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:lessThanOrEqualTo but only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a float, but Int:lessThanOrEqualTo only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:lessThanOrEqualTo but only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -306,20 +357,23 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Returns a random integer between a and b (inclusive)"
       fn =
-        (function
-        | _, [ DInt a; DInt b ] ->
-            a + bigint (Prelude.random.Next((b - a) |> int))
-            |> DInt
-            |> Value
-        | _, [ DFloat a; _ ] ->
-            Value
-              (errStr
-                ($"The first  argument ({a}) is a float, but Int:random only works on Ints."))
-        | _, [ _; DFloat b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a float, but Int:random only works on Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] ->
+              a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
+          | _, [ DFloat a; _ ] ->
+              Value(
+                errStr (
+                  $"The first  argument ({a}) is a float, but Int:random only works on Ints."
+                )
+              )
+          | _, [ _; DFloat b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a float, but Int:random only works on Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "Int" "random" 1) }
@@ -328,14 +382,15 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Returns a random integer between `start` and `end` (inclusive)."
       fn =
-        (function
-        | _, [ DInt a; DInt b ] ->
-            let lower, upper = if a > b then (b, a) else (a, b)
-            lower
-            + (Prelude.random.Next((upper - lower) |> int) |> bigint)
-            |> DInt
-            |> Value
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] ->
+              let lower, upper = if a > b then (b, a) else (a, b)
+
+              lower + (Prelude.random.Next((upper - lower) |> int) |> bigint)
+              |> DInt
+              |> Value
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
@@ -344,13 +399,16 @@ let fns : List<BuiltInFn> =
       returnType = TFloat
       description = "Get the square root of an Int"
       fn =
-        (function
-        | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
-        | _, [ DFloat a ] ->
-            Value
-              (errStr
-                ($"The argument ({a}) is a float, but Int:sqrt only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
+          | _, [ DFloat a ] ->
+              Value(
+                errStr (
+                  $"The argument ({a}) is a float, but Int:sqrt only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -359,17 +417,22 @@ let fns : List<BuiltInFn> =
       returnType = TFloat
       description = "Converts an Int to a Float"
       fn =
-        (function
-        | _, [ DInt a ] -> Value(DFloat(float a))
-        | _, [ DStr a; _ ] ->
-            Value
-              (errStr
-                ($"The first argument ({a}) is a string, but Int:toFloat only works on Ints."))
-        | _, [ _; DStr b ] ->
-            Value
-              (errStr
-                ($"The second argument ({b}) is a string, but Int:toFloat only works on Ints."))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a ] -> Value(DFloat(float a))
+          | _, [ DStr a; _ ] ->
+              Value(
+                errStr (
+                  $"The first argument ({a}) is a string, but Int:toFloat only works on Ints."
+                )
+              )
+          | _, [ _; DStr b ] ->
+              Value(
+                errStr (
+                  $"The second argument ({b}) is a string, but Int:toFloat only works on Ints."
+                )
+              )
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -404,24 +467,26 @@ let fns : List<BuiltInFn> =
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Int" "max" 0
-      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Returns the higher of a and b"
       fn =
-        (function
-        | _, [DInt a; DInt b] -> Value(DInt(max a b))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DInt(max a b))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "min" 0
-      parameters = [Param.make "a" TInt ""; Param.make "b" TInt ""]
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Returns the lower of `a` and `b`"
       fn =
-        (function
-        | _, [DInt a; DInt b] -> Value(DInt(min a b))
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt a; DInt b ] -> Value(DInt(min a b))
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -435,13 +500,15 @@ let fns : List<BuiltInFn> =
    If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
    `limitA` and `limitB` can be provided in any order."
       fn =
-        (function
-        | _, [ DInt v; DInt a; DInt b ] ->
-            let min, max = if a < b then (a, b) else (b, a)
-            if v < min then Value(DInt min)
-            else if v > max then Value(DInt max)
-            else Value(DInt v)
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DInt v; DInt a; DInt b ] ->
+              let min, max = if a < b then (a, b) else (b, a)
+
+              if v < min then Value(DInt min)
+              else if v > max then Value(DInt max)
+              else Value(DInt v)
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

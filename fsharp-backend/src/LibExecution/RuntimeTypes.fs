@@ -131,7 +131,11 @@ and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : E
 
 and FnValImpl =
   | Lambda of LambdaImpl
-  | FQFnName of FQFnName.T
+  | FnName of FQFnName.T
+
+and DHTTP =
+  | Redirect of string
+  | Response of int * List<string * string>
 
 and Dval =
   | DInt of bigint
@@ -147,10 +151,7 @@ and Dval =
   | DFnVal of FnValImpl
   | DFakeVal of FakeDval
   (* user types: awaiting a better type system *)
-  | DHttpResponse of
-    statusCode : int *
-    headers : (string * string) list *
-    body : Dval
+  | DHttpResponse of DHTTP * Dval
   | DDB of string
   | DDate of System.DateTime
   // FSTODO
@@ -184,6 +185,13 @@ and Dval =
     match this with
     | DFakeVal (DErrorRail dv) -> dv
     | other -> other
+
+  member this.toPairs() : (string * Dval) list =
+    match this with
+    | DObj obj -> Map.toList obj
+    | _ -> failwith "expecting str"
+
+
 
   static member int(i : int) = DInt(bigint i)
   static member int(i : bigint) = DInt i
@@ -230,18 +238,9 @@ and Dval =
   static member optionJust(dv : Dval) : Dval =
     if dv.isFake then dv else DOption(Some dv)
 
-
 and DvalTask = Prelude.TaskOrValue<Dval>
 
 and Symtable = Map<string, Dval>
-
-and Param =
-  { name : string
-    typ : DType
-    doc : string }
-
-  static member make (name : string) (typ : DType) (doc : string) =
-    { name = name; typ = typ; doc = doc }
 
 // A Fake Dval is some control-flow that's modelled in the interpreter as a
 // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
@@ -360,6 +359,16 @@ and DvalSource =
   | SourceNone
   | SourceID of tlid * id
 
+and Param =
+  { name : string
+    typ : DType
+    blockArgs : List<string>
+    description : string }
+
+  static member make (name : string) (typ : DType) (description : string) : Param =
+    { name = name; typ = typ; description = description; blockArgs = [] }
+
+
 
 // ------------
 // Exceptions
@@ -428,7 +437,6 @@ type SqlSpec =
   // This is a query function (it can't be called inside a query, but it's argument can be a query)
   | QueryFunction
 
-
 type BuiltInFn =
   { name : FQFnName.T
     parameters : List<Param>
@@ -438,12 +446,17 @@ type BuiltInFn =
     deprecated : Deprecation
     sqlSpec : SqlSpec
     // Functions can be run in JS if they have an implementation in this
-    // LibExecution. Functions who's implementation is in LibBackend can only be
+    // LibExecution. Functions whose implementation is in LibBackend can only be
     // implemented on the server.
     // May throw a
-    fn : BuiltInFnSig }
+    fn : FnImpl }
 
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
+
+and FnImpl =
+  | InProcess of BuiltInFnSig
+  | UserCreated of tlid * Expr
+  | PackageFunction of Expr
 
 and ExecutionState = { functions : Map<FQFnName.T, BuiltInFn>; tlid : tlid }
 //    tlid : tlid
@@ -759,7 +772,6 @@ module Handler =
     | Cron of name : string * interval : string
     | REPL of name : string
 
-
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 module DB =
@@ -773,7 +785,7 @@ module UserType =
   type T = { tlid : tlid; name : string; version : int; definition : Definition }
 
 module UserFunction =
-  type Parameter = { name : string; type' : DType; description : string }
+  type Parameter = { name : string; typ : DType; description : string }
 
   type T =
     { tlid : tlid
@@ -783,6 +795,31 @@ module UserFunction =
       description : string
       infix : bool
       ast : Expr }
+
+  let paramToBuiltinParam (p : Parameter) : Option<Param> =
+    if p.name = "" then
+      None
+    else
+      Some
+        { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+
+  let toFn (uf : T) : Option<BuiltInFn> =
+    let parameters = List.filterMap paramToBuiltinParam uf.parameters in
+    let paramsAllFilled = List.length parameters = List.length uf.parameters
+
+    if uf.name = "" || (not paramsAllFilled) then
+      None
+    else
+      Some
+        { name = FQFnName.name "" "" "" uf.name 0
+          parameters = parameters
+          returnType = uf.returnType
+          description = uf.description
+          previewable = Impure
+          deprecated = NotDeprecated
+          sqlSpec = NotQueryable
+          fn = UserCreated(uf.tlid, uf.ast) }
+
 
 type Toplevel =
   | TLHandler of Handler.T

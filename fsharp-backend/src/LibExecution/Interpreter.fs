@@ -47,26 +47,30 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
     | ERecord (id, pairs) ->
         let skipEmptyKeys =
           pairs
-          |> List.choose (function
+          |> List.choose
+               (function
                | ("", e) -> None
                | k, e -> Some(k, e))
         // FSTODO: we actually want to stop on the first incomplete/error/etc, thing, not do them all.
         let! (resolved : List<string * Dval>) =
-          Prelude.map_s (fun (k, v) ->
-            taskv {
-              let! dv = eval state st v
-              return (k, dv)
-            }) skipEmptyKeys
+          Prelude.map_s
+            (fun (k, v) ->
+              taskv {
+                let! dv = eval state st v
+                return (k, dv)
+              })
+            skipEmptyKeys
 
-        return (resolved
-                // allow users to edit code safely
-                |> List.filter (fun (k, v : Dval) -> not v.isIncomplete)
-                |> Dval.obj)
+        return
+          (resolved
+           // allow users to edit code safely
+           |> List.filter (fun (k, v : Dval) -> not v.isIncomplete)
+           |> Dval.obj)
     | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
         let! args = Prelude.map_s (eval state st) exprs
         return! (applyFn state fnVal (Seq.toList args) inPipe ster)
-    | EFQFnValue (id, desc) -> return DFnVal(FQFnName(desc))
+    | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
     | EFieldAccess (id, _, _) ->
         failwith "todo"
         return! incomplete id
@@ -116,17 +120,20 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         let hasMatched = ref false
         let matchResult = ref (incomplete id)
 
-        let executeMatch (new_defs : (string * Dval) list)
-                         (traces : (id * Dval) list)
-                         (st : DvalMap)
-                         (expr : Expr)
-                         : unit =
+        let executeMatch
+          (new_defs : (string * Dval) list)
+          (traces : (id * Dval) list)
+          (st : DvalMap)
+          (expr : Expr)
+          : unit =
           (* Once a pattern is matched, this function is called to execute its
            * `expr`. It tracks whether this is the first pattern to execute,
            * and calls preview if it is not. Handles calling trace on the
            * traces that have been collected by pattern matching. *)
           let newVars = Map.ofList new_defs
+
           let newSt = Map.union newVars st
+
           if !hasMatched then
             ()
           // FSTODO
@@ -144,12 +151,13 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         // FSTODO
         // List.iter traces (fun (id, _) -> trace false id (incomplete id))
 
-        let traceNonMatch (st : DvalMap)
-                          (expr : Expr)
-                          (traces : (id * Dval) list)
-                          (id : id)
-                          (value : Dval)
-                          : unit =
+        let traceNonMatch
+          (st : DvalMap)
+          (expr : Expr)
+          (traces : (id * Dval) list)
+          (id : id)
+          (value : Dval)
+          : unit =
           // FSTODO
           // preview st expr
           // FSTODO
@@ -158,7 +166,11 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
           // trace false id value
           ()
 
-        let rec matchAndExecute dv (builtUpTraces : (id * Dval) list) (pattern, expr) =
+        let rec matchAndExecute
+          dv
+          (builtUpTraces : (id * Dval) list)
+          (pattern, expr)
+          =
           (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
            * matches. Tracks whether a branch has already been executed and
            * will exceute later matches in preview mode.  Ensures all patterns
@@ -169,18 +181,21 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
           match pattern with
           | PInteger (pid, i) ->
               let v = Dval.int i
+
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
               else
                 traceNonMatch st expr builtUpTraces pid v
           | PBool (pid, bool) ->
               let v = DBool bool
+
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
               else
                 traceNonMatch st expr builtUpTraces pid v
           | PCharacter (pid, c) ->
               let v = DChar(c)
+
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
               else
@@ -188,6 +203,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
 
           | PString (pid, str) ->
               let v = DStr(str)
+
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
               else
@@ -201,6 +217,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                 traceNonMatch st expr builtUpTraces pid v
           | PNull (pid) ->
               let v = DNull
+
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
               else
@@ -243,7 +260,8 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
 
         let! matchVal = eval state st matchExpr
 
-        List.iter (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
+        List.iter
+          (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
           cases
 
         return! !matchResult
@@ -271,12 +289,13 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
   }
 
 // Unwrap the dval, which we expect to be a function, and error if it's not
-and applyFn (state : ExecutionState)
-            (fn : Dval)
-            (args : List<Dval>)
-            (isInPipe : IsInPipe)
-            (ster : SendToRail)
-            : DvalTask =
+and applyFn
+  (state : ExecutionState)
+  (fn : Dval)
+  (args : List<Dval>)
+  (isInPipe : IsInPipe)
+  (ster : SendToRail)
+  : DvalTask =
   taskv {
     match fn with
     | DFnVal fnVal -> return! applyFnVal state fnVal args isInPipe ster
@@ -287,16 +306,17 @@ and applyFn (state : ExecutionState)
         return errStr $"Expected a function value, got something else: {other}"
   }
 
-and applyFnVal (state : ExecutionState)
-               (fnVal : FnValImpl)
-               (args : List<Dval>)
-               (isInPipe : IsInPipe)
-               (ster : SendToRail)
-               : DvalTask =
+and applyFnVal
+  (state : ExecutionState)
+  (fnVal : FnValImpl)
+  (args : List<Dval>)
+  (isInPipe : IsInPipe)
+  (ster : SendToRail)
+  : DvalTask =
   taskv {
     let isErrorAllowed =
       match fnVal with
-      | FQFnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
+      | FnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
       | _ -> false
 
     match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
@@ -330,23 +350,26 @@ and applyFnVal (state : ExecutionState)
               // paramSyms is higher priority
               let newSymtable = Map.union paramSyms l.symtable
               return! eval state newSymtable l.body
-        | (FQFnName desc) ->
+        | (FnName desc) ->
             let! result =
               // FSTODO: user functions
               match state.functions.TryFind desc with
-              | None -> Value(err (NotAFunction desc))
+              | None -> fstodo "support other function types"
               | Some fn ->
                   // FSTODO: if an argument is an error rail, return it
                   try
                     // FSTODO: all the behaviour in AST.exec_fn
-                    fn.fn (state, args)
+                    match fn.fn with
+                    | InProcess fnval -> fnval (state, args)
+                    | _ -> fstodo "support other function type"
                   with
                   | RuntimeException rte -> Value(err rte)
                   | FnCallException FnFunctionRemoved ->
                       Value(err (FunctionRemoved fn.name))
                   | FnCallException FnWrongTypes ->
-                      Value
-                        (err (FnCalledWithWrongTypes(fn.name, args, fn.parameters)))
+                      Value(
+                        err (FnCalledWithWrongTypes(fn.name, args, fn.parameters))
+                      )
                   | FakeDvalException dval -> Value(dval)
 
             if ster = Rail then

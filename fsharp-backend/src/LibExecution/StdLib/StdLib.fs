@@ -12,9 +12,10 @@ let any =
         [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "a") "" ]
       returnType = TBool
       fn =
-        (function
-        | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
-        | _ -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
+          | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -24,9 +25,10 @@ let any =
       parameters = [ Param.make "a" (TVariable "a") "" ]
       returnType = TStr
       fn =
-        (function
-        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Value
-        | _ -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Value
+          | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

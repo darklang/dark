@@ -9,7 +9,7 @@ open Prelude
 open Prelude.TableCloth
 open Tablecloth
 
-// module RT = Runtime
+module RT = LibExecution.RuntimeTypes
 // module PReq = Parsed_request
 
 // (* -------------------- *)
@@ -35,34 +35,29 @@ open Tablecloth
 // let intermediate_result_store_to_yojson (ds : intermediate_result_store) :
 //     Yojson.Safe.t =
 //   ht_to_json_dict ds ~f:execution_result_to_yojson
-//
-//
-// (* -------------------- *)
-// (* Analysis result *)
-// (* -------------------- *)
+
+
+// --------------------
+// Analysis result
+// --------------------
 // type analysis = intermediate_result_store [@@deriving to_yojson]
-//
-// type input_vars = (string * dval) list [@@deriving eq, show, yojson]
-//
-// type function_arg_hash = string [@@deriving eq, show, yojson]
-//
-// type hash_version = int [@@deriving eq, show, yojson]
-//
-// type fnname = string [@@deriving yojson]
-//
-// type function_result = fnname * id * function_arg_hash * hash_version * dval
-// [@@deriving eq, show, yojson]
+
+type InputVars = List<string * RT.Dval>
+
+type FunctionArgHash = string
+type HashVersion = int
+type FnName = string
+type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
 
 type TraceID = System.Guid
 
-// type trace_data =
-//   { input : input_vars
-//   ; timestamp : time
-//   ; function_results : function_result list }
-// [@@deriving eq, show, yojson]
-//
-// type trace = traceid * trace_data option [@@deriving yojson]
-//
+type TraceData =
+  { input : InputVars
+    timestamp : System.DateTime
+    function_results : List<FunctionResult> }
+
+type Trace = TraceID * Option<TraceData>
+
 // type tlid_traces = tlid * trace list [@@deriving to_yojson]
 //
 // type tlid_traceid = tlid * traceid [@@deriving to_yojson]

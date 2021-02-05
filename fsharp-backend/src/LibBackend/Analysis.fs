@@ -4,7 +4,13 @@ module LibBackend.Analysis
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
+open Tablecloth
+
+module RT = LibExecution.RuntimeTypes
+module AT = LibExecution.AnalysisTypes
+module PT = LibBackend.ProgramSerialization.ProgramTypes
 
 // open Analysis_types
 // module RTT = Types.RuntimeT
@@ -64,76 +70,123 @@ open Prelude
 //
 //
 
-// (* ------------------------- *)
-// (* Input vars *)
-// (* ------------------------- *)
-// let saved_input_vars
-//     (h : RTT.HandlerT.handler) (request_path : string) (event : RTT.dval) :
-//     input_vars =
-//   match Handler.module_type h with
-//   | `Http ->
-//       let with_r = [("request", event)] in
-//       let bound =
-//         match Handler.event_name_for h with
-//         | Some route ->
-//             (* Check the trace actually matches the route, if not the client has made a
-//              * mistake in matching the traceid to this handler, but that might happen due
-//              * to a race condition. If it does, carry on, if it doesn't -- just don't
-//              * do any bindings and inject the sample variables.
-//              * Communicating to the frontend that this trace doesn't
-//              * match the handler should be done in the future somehow. *)
-//             if Http.request_path_matches_route ~route request_path
-//             then Execution.http_route_input_vars h request_path
-//             else Execution.sample_route_input_vars h
-//         | None ->
-//             []
-//       in
-//       with_r @ bound
-//   | `Worker ->
-//       [("event", event)]
-//   | `Cron ->
-//       []
-//   | `Repl ->
-//       []
-//   | `Unknown ->
-//       []
-//
-//
-// let handler_trace
-//     (c : Canvas.canvas) (h : RTT.HandlerT.handler) (trace_id : traceid) : trace
-//     =
-//   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
-//   let input, timestamp =
-//     match event with
-//     | Some (request_path, timestamp, event) ->
-//         (saved_input_vars h request_path event, timestamp)
-//     | None ->
-//         (Execution.sample_input_vars h, Time.epoch)
-//   in
-//   let function_results =
-//     Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
-//   in
-//   (trace_id, Some {input; timestamp; function_results})
-//
-//
-// let user_fn_trace (c : Canvas.canvas) (fn : RTT.user_fn) (trace_id : traceid) :
-//     trace =
-//   let event =
-//     Stored_function_arguments.load_for_analysis ~canvas_id:c.id fn.tlid trace_id
-//   in
-//   let ivs, timestamp =
-//     match event with
-//     | Some (input_vars, timestamp) ->
-//         (input_vars, timestamp)
-//     | None ->
-//         (Execution.sample_function_input_vars fn, Time.epoch)
-//   in
-//   let function_results =
-//     Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
-//   in
-//   (trace_id, Some {input = ivs; timestamp; function_results})
-//
-//
+// -------------------------
+// Input vars
+// -------------------------
+let incomplete = RT.DFakeVal(RT.DIncomplete RT.SourceNone)
+let sampleRequest : LibExecution.ParsedRequest.T =
+  RT.Dval.obj [ ("body", incomplete)
+                ("jsonBody", incomplete)
+                ("formBody", incomplete)
+                ("queryParams", incomplete)
+                ("headers", incomplete)
+                ("fullBody", incomplete)
+                ("url", incomplete) ]
+
+let sampleRequestInputVars : AT.InputVars = [ ("request", sampleRequest) ]
+
+let sampleEventInputVars : AT.InputVars = [ ("event", RT.DFakeVal(RT.DIncomplete RT.SourceNone)) ]
+
+let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
+  match h.spec with
+  | PT.Handler.HTTP _ -> sampleRequestInputVars
+  | PT.Handler.Cron _ -> []
+  | PT.Handler.REPL _ -> []
+  | PT.Handler.Worker _
+  | PT.Handler.OldWorker _ -> sampleEventInputVars
+
+let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
+  match h.spec with
+  | PT.Handler.HTTP (route, _, _) ->
+      route
+      |> LibExecution.Http.routeVariables
+      |> List.map (fun k -> (k, RT.DFakeVal(RT.DIncomplete RT.SourceNone)))
+  | _ -> []
+
+let sampleInputVars (h : PT.Handler.T) : AT.InputVars =
+  sampleModuleInputVars h @ sampleRouteInputVars h
+
+let sampleFunctionInputVars (f : PT.UserFunction.T) : AT.InputVars =
+  f.parameters
+  |> List.map (fun p -> (p.name, incomplete))
+
+let savedInputVars
+  (h : PT.Handler.T)
+  (requestPath : string)
+  (event : RT.Dval)
+  : AT.InputVars =
+  match h.spec with
+  | PT.Handler.HTTP (route, method, _) ->
+      let withR = [ ("request", event) ] in
+
+      let bound =
+        if route = "" then
+          []
+        else
+          (
+          // Check the trace actually matches the route, if not the client
+          // has made a mistake in matching the traceid to this handler, but
+          // that might happen due to a race condition. If it does, carry
+          // on, if it doesn't -- just don't do any bindings and inject the
+          // sample variables. Communicating to the frontend that this
+          // trace doesn't match the handler should be done in the future
+          // somehow.
+          if LibExecution.Http.requestPathMatchesRoute route requestPath then
+            LibExecution.Http.routeInputVars route requestPath |> Option.unwrapUnsafe
+          else
+            sampleRouteInputVars h)
+
+      withR @ bound
+  | PT.Handler.Worker _ -> [ ("event", event) ]
+  | PT.Handler.Cron _ -> []
+  | PT.Handler.REPL _ -> []
+  | PT.Handler.OldWorker _ -> []
+
+let handlerTrace
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (h : PT.Handler.T)
+  : Task<AT.Trace> =
+  task {
+    let! event = TraceInputs.loadEventForTrace canvasID traceID
+
+    let input, timestamp =
+      match event with
+      | Some (requestPath, timestamp, event) ->
+          (savedInputVars h requestPath event, timestamp)
+      | None -> (sampleInputVars h, System.DateTime.UnixEpoch)
+
+    let! functionResults = TraceFunctionResults.load canvasID traceID h.tlid
+
+    return
+      (traceID,
+       Some
+         { input = input; timestamp = timestamp; function_results = functionResults })
+  }
+
+
+let userfnTrace
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (fn : PT.UserFunction.T)
+  : Task<AT.Trace> =
+  task {
+    let! event = TraceFunctionArguments.loadForAnalysis canvasID traceID fn.tlid
+
+    let ivs, timestamp =
+      match event with
+      | Some (inputVars, timestamp) -> (inputVars, timestamp)
+      | None -> (sampleFunctionInputVars fn, System.DateTime.UnixEpoch)
+
+    let! functionResults = TraceFunctionResults.load canvasID traceID fn.tlid
+
+    return
+      (traceID,
+       Some
+         { input = ivs; timestamp = timestamp; function_results = functionResults })
+  }
+
+
 // let traceid_of_tlid (tlid : tlid) : Uuidm.t =
 //   Uuidm.v5 Uuidm.nil (string_of_id tlid)
 //
