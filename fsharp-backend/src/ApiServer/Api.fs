@@ -336,7 +336,7 @@ module InitialLoad =
       let! orgCanvasList = LibBackend.Account.accessibleCanvases user.id
 
       // t7
-      let! orgList = LibBackend.Account.accessibleCanvases user.id
+      let! orgList = LibBackend.Account.orgs user.id
 
       // t8
       let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.id
