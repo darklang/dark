@@ -338,8 +338,6 @@ module Lazy =
 // ----------------------
 module Json =
   module AutoSerialize =
-    open System
-    open System.Collections.Generic
     open System.Text.Json
     open System.Text.Json.Serialization
 
@@ -350,30 +348,35 @@ module Json =
       override this.Read
         (
           reader : byref<Utf8JsonReader>,
-          _typ : Type,
-          options : JsonSerializerOptions
+          _typ : System.Type,
+          _options : JsonSerializerOptions
         ) =
-        JsonSerializer.Deserialize<string>(&reader, options) |> parseBigint
+        reader.GetString() |> parseBigint
 
       override this.Write
         (
           writer : Utf8JsonWriter,
           value : bigint,
-          options : JsonSerializerOptions
+          _options : JsonSerializerOptions
         ) =
-        JsonSerializer.Serialize(writer, value.ToString(), options)
-
+        writer.WriteStringValue(value.ToString())
 
     let _options =
       (let fsharpConverter =
         JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption))
 
        let options = JsonSerializerOptions()
-       options.Converters.Add(fsharpConverter)
        options.Converters.Add(BigIntConverter())
+       options.Converters.Add(fsharpConverter)
        options)
 
-    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+    let registerConverter (c : JsonConverter<'a>) =
+      // insert in the front as the formatter will use the first converter that
+      // supports the type, not the best one
+      _options.Converters.Insert(0, c)
+
+    let serialize (data : 'a) : string =
+      JsonSerializer.Serialize(data, _options)
 
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)

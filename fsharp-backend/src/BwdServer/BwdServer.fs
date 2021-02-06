@@ -254,6 +254,7 @@ let webserver (port : int) =
 
 [<EntryPoint>]
 let main _ =
-  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+  printfn "Starting BwdServer"
+  LibBackend.Init.init ()
   (webserver 9001).Run()
   0
