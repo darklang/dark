@@ -1023,28 +1023,28 @@ let toplevelOfCachedBinary
 
   let toplevelOfCachedHandler () =
     Binary.handlerBin2Json data
-    |> debug "handler"
+    // |> debug "handler"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlHandler2PT pos
     |> PT.TLHandler
 
   let toplevelOfCachedDB () =
     Binary.dbBin2Json data
-    |> debug "db"
+    // |> debug "db"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlDB2PT pos
     |> PT.TLDB
 
   let toplevelOfCachedUserFunction () =
     Binary.userfnBin2Json data
-    |> debug "userfn"
+    // |> debug "userfn"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlUserFunction2PT
     |> PT.TLFunction
 
   let toplevelOfCachedUserTipe () =
     Binary.usertipeBin2Json data
-    |> debug "tipe"
+    // |> debug "tipe"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_tipe>
     |> Convert.ocamlUserType2PT
     |> PT.TLType
