@@ -333,6 +333,13 @@ module Lazy =
   let map f l = lazy ((f << force) l)
   let bind f l = lazy ((force << f << force) l)
 
+
+// ----------------------
+// Important types
+// ----------------------
+type tlid = uint64
+type id = uint64
+
 // ----------------------
 // Json auto-serialization
 // ----------------------
@@ -361,11 +368,36 @@ module Json =
         ) =
         writer.WriteStringValue(value.ToString())
 
+    type TLIDConverter() =
+      inherit JsonConverter<tlid>()
+
+      override this.Read
+        (
+          reader : byref<Utf8JsonReader>,
+          _typ : System.Type,
+          _options : JsonSerializerOptions
+        ) =
+        if reader.TokenType = JsonTokenType.String
+        then
+          let str = reader.GetString()
+          parseUInt64 str
+        else reader.GetUInt64()
+
+      override this.Write
+        (
+          writer : Utf8JsonWriter,
+          value : tlid,
+          _options : JsonSerializerOptions
+        ) =
+        writer.WriteNumberValue(value)
+
+
     let _options =
       (let fsharpConverter =
         JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption))
 
        let options = JsonSerializerOptions()
+       options.Converters.Add(TLIDConverter())
        options.Converters.Add(BigIntConverter())
        options.Converters.Add(fsharpConverter)
        options)
@@ -526,8 +558,6 @@ type Sign =
   | Positive
   | Negative
 
-type tlid = uint64
-type id = uint64
 type CanvasID = System.Guid
 type UserID = System.Guid
 
