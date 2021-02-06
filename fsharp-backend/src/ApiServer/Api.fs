@@ -243,14 +243,16 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
            is_supported_in_query = fn.sqlSpec <> RT.NotQueryable })
   |> Prelude.Json.AutoSerialize.serialize
 
-let adminFunctions : string = allFunctions |> functionsToString
+let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)
 
-let userFunctions =
-  allFunctions
-  |> List.filter (fun fn -> fn.name.module_ <> "DarkInternal")
-  |> functionsToString
+let userFunctions : Lazy<string> =
+  lazy (
+    allFunctions
+    |> List.filter (fun fn -> fn.name.module_ <> "DarkInternal")
+    |> functionsToString)
 
-let functions (includeAdminFns : bool) : string =
+
+let functions (includeAdminFns : bool) : Lazy<string> =
   if includeAdminFns then adminFunctions else userFunctions
 
 // --------------------

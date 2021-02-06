@@ -16,31 +16,31 @@ module Session = LibBackend.Session
 module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
 
-let adminUiTemplate : string = LibBackend.File.readfile Config.Templates "ui.html"
+let adminUiTemplate : Lazy<string> = lazy (LibBackend.File.readfile Config.Templates "ui.html")
 
-let appSupportFile : string =
-  LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js"
+let appSupportFile : Lazy<string> =
+  lazy (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js")
 
+let prodHashReplacements : Lazy<string> =
+  lazy
+   ("etags.json"
+    |> LibBackend.File.readfile Config.Webroot
+    |> Prelude.Json.AutoSerialize.deserialize<Map<string, string>>
+    |> Map.remove "__date"
+    |> Map.remove ".gitkeep"
+    // Only hash our assets, not vendored assets
+    |> Map.filterWithIndex (fun k v -> not (String.includes "vendor/" k))
+    |> Map.toList
+    |> List.map
+         (fun (filename, hash) ->
+           let hashed =
+             match filename.Split '.' with
+             | [| name; extension |] -> $"/{name}-{hash}{extension}"
+             | _ -> failwith "incorrect hash name"
 
-let prodHashReplacements : string =
-  "etags.json"
-  |> LibBackend.File.readfile Config.Webroot
-  |> Prelude.Json.AutoSerialize.deserialize<Map<string, string>>
-  |> Map.remove "__date"
-  |> Map.remove ".gitkeep"
-  // Only hash our assets, not vendored assets
-  |> Map.filterWithIndex (fun k v -> not (String.includes "vendor/" k))
-  |> Map.toList
-  |> List.map
-       (fun (filename, hash) ->
-         let hashed =
-           match filename.Split '.' with
-           | [| name; extension |] -> $"/{name}-{hash}{extension}"
-           | _ -> failwith "incorrect hash name"
-
-         ($"/{filename}", hashed))
-  |> Map.ofList
-  |> Prelude.Json.AutoSerialize.serialize
+           ($"/{filename}", hashed))
+    |> Map.ofList
+    |> Prelude.Json.AutoSerialize.serialize)
 
 
 
@@ -58,7 +58,7 @@ let uiHtml
     let shouldHash =
       if localhostAssets = None then Config.hashStaticFilenames else false
 
-    if shouldHash then prodHashReplacements else "{}"
+    if shouldHash then prodHashReplacements.Force() else "{}"
 
   let accountCreatedMsTs =
     System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds().ToString()
@@ -77,11 +77,11 @@ let uiHtml
       ""
 
   (* TODO: allow APPSUPPORT in here *)
-  let t = System.Text.StringBuilder(adminUiTemplate)
+  let t = System.Text.StringBuilder(adminUiTemplate.Force())
 
   t
     .Replace("{{ENVIRONMENT_NAME}}", Config.envDisplayName)
-    .Replace("{{ALLFUNCTIONS}}", Api.functions user.admin)
+    .Replace("{{ALLFUNCTIONS}}", (Api.functions user.admin).Force())
     .Replace("{{LIVERELOADJS}}", liveReloadJs)
     .Replace("{{STATIC}}", staticHost)
     .Replace("{{HEAPIO_ID}}", Config.heapioId)
@@ -96,7 +96,7 @@ let uiHtml
     .Replace("{{USER_ID}}", user.id.ToString())
     .Replace("{{CANVAS_ID}}", (canvasID.ToString()))
     .Replace("{{CANVAS_NAME}}", canvasName.ToString())
-    .Replace("{{APPSUPPORT}}", appSupportFile)
+    .Replace("{{APPSUPPORT}}", appSupportFile.Force())
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
     .Replace("{{BUILD_HASH}}", Config.buildHash)
