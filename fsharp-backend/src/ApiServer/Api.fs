@@ -403,7 +403,7 @@ module Traces =
 
   type T = { trace : AT.Trace }
 
-  let getTraceData (ctx : HttpContext) : Task<List<tlid>> =
+  let getTraceData (ctx : HttpContext) : Task<AT.Trace> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! args = ctx.BindModelAsync<Params>()
@@ -412,32 +412,20 @@ module Traces =
         Canvas.loadTLIDsFromCache [ args.tlid ] canvasInfo.name canvasInfo.id canvasInfo.owner
         |> Task.map Result.unwrapUnsafe
 
-      let handlerTraces =
+      let handler =
         c.handlers
-        |> Map.values
-        |> List.head
-        |> Option.unwrapUnsafe
-        |> LibBackend.Analysis.handlerTrace c.id args.trace_id
-
-      let userTraces =
-        c.userFunctions
         |> Map.get args.tlid
-        |> Option.unwrapUnsafe
-        |> LibBackend.Analysis.userfnTrace c.id args.trace_id
 
-      return []
+      match handler with
+      | Some h -> return! LibBackend.Analysis.handlerTrace c.id args.trace_id h
+      | None ->
+          let userFn =
+            c.userFunctions
+          |> Map.get args.tlid
+          |> Option.unwrapUnsafe
+          return! LibBackend.Analysis.userfnTrace c.id args.trace_id userFn
+
     }
-//       c
-//       |> Result.bind ~f:(fun c ->
-//              Result.all [mft; mht]
-//              |> Result.map ~f:(fun traces ->
-//                     traces
-//                     (* take the first trace that is Some 'a, not None *)
-//                     |> List.find_map ~f:(fun x -> x)
-//                     |> Option.map
-//                          ~f:(Analysis.to_get_trace_data_rpc_result !c))))
-// in
-// let resp_headers = server_timing [t1; t2; t3; t4; t5] in
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
