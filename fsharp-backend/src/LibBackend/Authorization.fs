@@ -13,6 +13,11 @@ module Account = LibBackend.Account
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
+open Npgsql.FSharp.Tasks
+open Npgsql
+open LibBackend.Db
+
 open Prelude
 open Tablecloth
 
@@ -97,28 +102,29 @@ type Permission =
 //          | _ ->
 //              Exception.internal
 //                "bad format from Authorization.grants_for#fetch_orgs")
-//
-//
-// (* If a user has a DB row indicating granted access to this auth_domain,
-//    find it. *)
-// let granted_permission ~(username : Account.username) ~(auth_domain : string) :
-//     permission option =
-//   Db.fetch
-//     ~name:"check_access"
-//     "SELECT permission FROM access
-//        INNER JOIN accounts user_ ON access.access_account = user_.id
-//        INNER JOIN accounts org ON access.organization_account = org.id
-//        WHERE org.username = $1 AND user_.username = $2"
-//     ~params:[String auth_domain; String username]
-//   |> List.hd
-//   |> Option.bind ~f:List.hd
-//   |> Option.map ~f:permission_of_db
-//
-//
-// (* If a user is an admin they get write on everything. *)
-// let admin_permission ~(username : Account.username) =
-//   if Account.is_admin ~username then Some ReadWrite else None
 
+
+// If a user has a DB row indicating granted access to this auth_domain,
+// find it.
+let grantedPermission (username : UserName.T) (ownerName : OwnerName.T) :
+      Task<Option<Permission>> =
+  Sql.query
+    "SELECT permission FROM access
+     INNER JOIN accounts user_ ON access.access_account = user_.id
+     INNER JOIN accounts org ON access.organization_account = org.id
+     WHERE org.username = @ownerName
+       AND user_.username = @username"
+  |> Sql.parameters ["username", Sql.string (username |> toString); "ownerName", Sql.string (ownerName |> toString)]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "permission" |> Permission.parse)
+
+
+// If a user is an admin they get write on everything.
+let adminPermission (username : UserName.T) : Task<Option<Permission>> =
+  task {
+    let! isAdmin = Account.isAdmin username
+    if isAdmin then return Some ReadWrite
+    else return None
+  }
 
 // We special-case some users, so they have access to particular shared canvases
 let specialCases : List<OwnerName.T * UserName.T> =
@@ -160,8 +166,9 @@ let permission
     [ (fun () -> task { return matchPermission username owner })
       // FSTODO: remove specialCasePermission
       (fun () -> task { return specialCasePermission username owner })
-      (fun () -> task { return samplePermission owner }) ]
-  // FSTODO: missing two permissions here
+      (fun () -> task { return samplePermission owner })
+      (fun () -> task { return! grantedPermission username owner })
+      (fun () -> task { return! adminPermission username })  ]
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
   List.fold

@@ -16,7 +16,7 @@ open Tablecloth
 
 let isInitialized () : bool =
   Sql.query
-    "SELECT 1
+    "SELECT TRUE
      FROM pg_class
      WHERE relname = 'system_migrations'"
   |> Sql.executeExists
@@ -32,7 +32,7 @@ let initializeMigrationsTable () : unit =
 
 let isAlreadyRun (name : string) : bool =
   Sql.query
-    "SELECT 1 from system_migrations
+    "SELECT TRUE from system_migrations
      WHERE name = @name"
   |> Sql.parameters [ "name", Sql.string name ]
   |> Sql.executeExists

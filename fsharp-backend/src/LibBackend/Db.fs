@@ -52,7 +52,6 @@ module Sql =
       | [ true ] -> return true
       | [] -> return false
       | result -> return failwith $"Too many results, expected 1, got {result}"
-
     }
 
   let executeExists (props : Sql.SqlProps) : bool =
