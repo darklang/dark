@@ -749,73 +749,60 @@ Don't rely on either the size or the algorithm."
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "toUUID" 0
-//      ; parameters = [Param.make "uuid" TStr]
-//      ; returnType = TUuid
-//      ; description =
-//       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//           ( match Uuidm.of_string (Unicode_string.to_string s) with
-//           | Some id ->
-//               DUuid id
-//           | None ->
-//               Exception.code
-//                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-//           )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "toUUID" 1
-//      ; parameters = [Param.make "uuid" TStr]
-//      ; returnType = TResult
-//      ; description =
-//       "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//           ( match Uuidm.of_string (Unicode_string.to_string s) with
-//           | Some id ->
-//               DResult (ResOk (DUuid id))
-//           | None ->
-//               error_result
-//                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-//           )
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "isSubstring" 0
-//      ; parameters = [Param.make "searchingFor" TStr; Param.make "lookingIn" TStr]
-//      ; returnType = TBool
-//      ; description = "Checks if `lookingIn` contains `searchingFor`"
-//      ; fn =
-//         (function
-//         | _, [DStr needle; DStr haystack] ->
-//             DBool (Unicode_string.is_substring needle haystack)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-//      { name = fn "String" "isSubstring" 1
-//      ; parameters = [Param.make "lookingIn" TStr; Param.make "searchingFor" TStr]
-//      ; returnType = TBool
-//      ; description = "Checks if `lookingIn` contains `searchingFor`"
-//      ; fn =
-//         (function
-//         | _, [DStr haystack; DStr needle] ->
-//             DBool (Unicode_string.is_substring needle haystack)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = ReplacedBy(fn "" "" 0) }
-    { name = fn "String" "contains" 0
+    { name = fn "String" "toUUID" 0
+      parameters = [ Param.make "uuid" TStr "  " ]
+      returnType = TUuid
+      description =
+        "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            match Guid.TryParse s with
+            | true, x -> x |> DUuid |> Value
+            | _ ->
+                Value(
+                  errStr (
+                    "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                  )
+                )
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "toUUID" 1) }
+    { name = fn "String" "toUUID" 1
+      parameters = [ Param.make "uuid" TStr "" ]
+      returnType = TUuid
+      description =
+        "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            match Guid.TryParse s with
+            | true, x -> x |> DUuid |> Ok |> DResult |> Value
+            | _ ->
+                "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                |> DStr
+                |> Error
+                |> DResult
+                |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "isSubstring" 0
+      parameters =
+        [ Param.make "searchingFor" TStr ""; Param.make "lookingIn" TStr "" ]
+      returnType = TBool
+      description = "Checks if `lookingIn` contains `searchingFor`"
+      fn =
+        (function
+        | _, [ DStr needle; DStr haystack ] ->
+            DBool(haystack.Contains needle) |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "String" "isSubstring" 1) }
+    { name = fn "String" "isSubstring" 1
       parameters =
         [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
       returnType = TBool
@@ -823,7 +810,19 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr haystack; DStr needle ] ->
-            Value(DBool(haystack.Contains needle))
+            DBool(haystack.Contains needle) |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "String" "contains" 0
+      parameters =
+        [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
+      returnType = TBool
+      description = "Checks if `lookingIn` contains `searchingFor`"
+      fn =
+        (function
+        | _, [ DStr haystack; DStr needle ] -> Value(DBool(haystack.Contains needle))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
