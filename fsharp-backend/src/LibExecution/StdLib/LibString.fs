@@ -758,7 +758,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr s ] ->
             match s with
-            | Parse (x : System.Guid) -> System.Guid.Parse s |> DUuid |> Value
+            | Parse (x : System.Guid) -> x |> DUuid |> Value
             | _ ->
                 Value(
                   errStr (
@@ -778,8 +778,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr s ] ->
             match s with
-            | Parse (x : System.Guid) ->
-                System.Guid.Parse s |> DUuid |> Ok |> DResult |> Value
+            | Parse (x : System.Guid) -> x |> DUuid |> Ok |> DResult |> Value
             | _ ->
                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
                 |> DStr
