@@ -757,8 +757,8 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr s ] ->
-            match s with
-            | Parse (x : System.Guid) -> x |> DUuid |> Value
+            match Guid.TryParse s with
+            | true, x -> x |> DUuid |> Value
             | _ ->
                 Value(
                   errStr (
@@ -777,8 +777,8 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr s ] ->
-            match s with
-            | Parse (x : System.Guid) -> x |> DUuid |> Ok |> DResult |> Value
+            match Guid.TryParse s with
+            | true, x -> x |> DUuid |> Ok |> DResult |> Value
             | _ ->
                 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
                 |> DStr
