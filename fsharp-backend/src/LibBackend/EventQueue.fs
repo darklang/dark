@@ -126,13 +126,6 @@ module WorkerStates =
         printfn "serializing state"
         writer.WriteStringValue(toString value)
 
-  // FSTODO
-  // let to_yojson (m : t) =
-  //   `Assoc
-  //     ( Map.to_alist m
-  //     |> List.map ~f:(fun (k, v) -> (k, `String (state_to_string v))) )
-  //
-
   let find (k : string) (m : T) = Map.get k m
 
 
