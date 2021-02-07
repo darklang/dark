@@ -4167,10 +4167,10 @@ let rec updateKey
           in
           let defaultTopmostSelection =
             match topmostSelectionID with
-              | Some id ->
+            | Some id ->
                 (Some id, startPos = endPos)
-              | None ->
-                (None, startPos = endPos);
+            | None ->
+                (None, startPos = endPos)
           in
           let topmostID, findParent =
             if startPos = endPos
@@ -4185,9 +4185,8 @@ let rec updateKey
               | Some current when T.isPipeable current.token ->
                   (Some (T.tid current.token), false)
               | _ ->
-                defaultTopmostSelection
-            else
-              defaultTopmostSelection
+                  defaultTopmostSelection
+            else defaultTopmostSelection
           in
 
           Option.map topmostID ~f:(fun id ->
