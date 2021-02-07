@@ -530,7 +530,7 @@ let loadOplists
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync
        (fun read ->
-         (read.int64 "tlid" |> uint64,
+         (read.tlid "tlid",
           read.bytea "data" |> ProgramSerialization.OCamlInterop.oplistOfBinary))
 
 
