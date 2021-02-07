@@ -4165,6 +4165,13 @@ let rec updateKey
           let topmostSelectionID =
             getTopmostSelectionID startPos endPos astInfo
           in
+          let defaultTopmostSelection =
+            match topmostSelectionID with
+              | Some id ->
+                (Some id, startPos = endPos)
+              | None ->
+                (None, startPos = endPos);
+          in
           let topmostID, findParent =
             if startPos = endPos
             then
@@ -4173,21 +4180,14 @@ let rec updateKey
                   astInfo.state.newPos
                   (ASTInfo.activeTokenInfos astInfo)
               in
+
               match tokenAtLeft with
               | Some current when T.isPipeable current.token ->
                   (Some (T.tid current.token), false)
               | _ ->
-                ( match topmostSelectionID with
-                | Some id ->
-                    (Some id, startPos = endPos)
-                | None ->
-                    (None, startPos = endPos) )
+                defaultTopmostSelection
             else
-              match topmostSelectionID with
-              | Some id ->
-                  (Some id, startPos = endPos)
-              | None ->
-                  (None, startPos = endPos)
+              defaultTopmostSelection
           in
 
           Option.map topmostID ~f:(fun id ->
