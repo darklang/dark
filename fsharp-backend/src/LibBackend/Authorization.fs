@@ -157,10 +157,10 @@ let permission
   (username : UserName.T)
   : Task<Option<Permission>> =
   let permFs : List<unit -> Task<Option<Permission>>> =
-    [ (fun _ -> task { return matchPermission username owner })
+    [ (fun () -> task { return matchPermission username owner })
       // FSTODO: remove specialCasePermission
-      (fun _ -> task { return specialCasePermission username owner })
-      (fun _ -> task { return samplePermission owner }) ]
+      (fun () -> task { return specialCasePermission username owner })
+      (fun () -> task { return samplePermission owner }) ]
   // FSTODO: missing two permissions here
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
@@ -178,29 +178,11 @@ let permission
       })
     permFs
 
-
-let canEditCanvas
-  (canvas : CanvasName.T)
-  (ownerName : OwnerName.T)
-  (ownerID : UserID)
-  (username : UserName.T)
-  : Task<bool> =
-  task {
-    match! permission ownerName ownerID username with
-    | Some Read -> return false
-    | Some ReadWrite -> return true
-    | None -> return false
-  }
-
-let canViewCanvas
-  (canvas : CanvasName.T)
-  (ownerName : OwnerName.T)
-  (ownerID : UserID)
-  (username : UserName.T)
-  : Task<bool> =
-  task {
-    match! permission ownerName ownerID username with
-    | Some Read -> return true
-    | Some ReadWrite -> return true
-    | None -> return false
-  }
+let permitted (neededPermission : Permission) (actualPermission : Option<Permission>): bool =
+  match neededPermission, actualPermission with
+  | ReadWrite, Some ReadWrite -> true
+  | ReadWrite, Some Read -> false
+  | ReadWrite, None -> false
+  | Read, Some ReadWrite -> true
+  | Read, Some Read -> true
+  | Read, None -> false
