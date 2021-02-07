@@ -20,6 +20,7 @@
     <Compile Include="Session.fs" />
     <Compile Include="ProgramSerialization/ProgramTypes.fs" />
     <Compile Include="ProgramSerialization/OCamlInterop.fs" />
+    <Compile Include="Routing.fs" />
     <Compile Include="ProgramSerialization/SQL.fs" />
     <Compile Include="UserDB.fs" />
     <Compile Include="Serialize.fs" />

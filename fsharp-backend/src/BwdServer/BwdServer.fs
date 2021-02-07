@@ -171,7 +171,7 @@ let runDarkHandler : HttpHandler =
           let body = ms.ToArray()
           let expr = expr.toRuntimeType ()
           let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-          let vars = LibExecution.Http.routeInputVars route requestPath
+          let vars = LibBackend.Routing.routeInputVars route requestPath
 
           match vars with
           | None ->

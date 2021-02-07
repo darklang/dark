@@ -99,7 +99,7 @@ let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
   | PT.Handler.HTTP (route, _, _) ->
       route
-      |> LibExecution.Http.routeVariables
+      |> Routing.routeVariables
       |> List.map (fun k -> (k, RT.DFakeVal(RT.DIncomplete RT.SourceNone)))
   | _ -> []
 
@@ -131,8 +131,8 @@ let savedInputVars
           // sample variables. Communicating to the frontend that this
           // trace doesn't match the handler should be done in the future
           // somehow.
-          if LibExecution.Http.requestPathMatchesRoute route requestPath then
-            LibExecution.Http.routeInputVars route requestPath |> Option.unwrapUnsafe
+          if Routing.requestPathMatchesRoute route requestPath then
+            Routing.routeInputVars route requestPath |> Option.unwrapUnsafe
           else
             sampleRouteInputVars h)
 

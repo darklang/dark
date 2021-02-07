@@ -284,11 +284,11 @@ let unitTests =
       [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
     testMany
       "routeVariables"
-      Http.routeVariables
+      Routing.routeVariables
       [ ("/user/:userid/card/:cardid", [ "userid"; "cardid" ]) ]
     testMany2
       "routeInputServer"
-      Http.routeInputVars
+      Routing.routeInputVars
       [ ("/hello/:name", "/hello/alice-bob", Some [ "name", RT.DStr "alice-bob" ])
         ("/hello/alice-bob", "/hello/", None)
         ("/user/:userid/card/:cardid",

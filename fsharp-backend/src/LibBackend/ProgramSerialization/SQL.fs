@@ -14,8 +14,6 @@ open System.Text.RegularExpressions
 open Prelude
 open ProgramTypes
 
-module Http = LibExecution.Http
-
 // FSTODO This is for testing only as it blows away the old oplist, which is
 // needed for undos.
 let saveCachedToplevelForTestingOnly
@@ -32,7 +30,7 @@ let saveCachedToplevelForTestingOnly
         // FSTODO munge path for postgres, see munge_name in canvas.ml
         match h.spec with
         | Handler.HTTP (path, modifier, _) ->
-            Some "HTTP", Some(Http.routeToPostgresPattern path), Some modifier
+            Some "HTTP", Some(LibBackend.Routing.routeToPostgresPattern path), Some modifier
         | Handler.Worker (name, _) -> Some "Worker", Some name, Some "_"
         | Handler.OldWorker (modulename, name, _) ->
             Some modulename, Some name, Some "_"
