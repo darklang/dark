@@ -287,19 +287,19 @@ let unitTests =
       Routing.routeVariables
       [ ("/user/:userid/card/:cardid", [ "userid"; "cardid" ]) ]
     testMany2
-      "routeInputServer"
+      "routeInputVars"
       Routing.routeInputVars
       [ ("/hello/:name", "/hello/alice-bob", Some [ "name", RT.DStr "alice-bob" ])
         ("/hello/alice-bob", "/hello/", None)
         ("/user/:userid/card/:cardid",
          "/user/myid/card/0",
-         Some [ "cardid", RT.DStr "0"; "userid", RT.DStr "myid" ])
+         Some [ "userid", RT.DStr "myid" ; "cardid", RT.DStr "0"])
         ("/a/:b/c/d", "/a/b/c/d", Some [ "b", RT.DStr "b" ])
         ("/a/:b/c/d", "/a/b/c", None)
         ("/a/:b", "/a/b/c/d", Some [ "b", RT.DStr "b/c/d" ])
         ("/:a/:b/:c",
          "/a/b/c/d/e",
-         Some [ "c", RT.DStr "c/d/e"; "b", RT.DStr "b"; "a", RT.DStr "a" ])
+         Some [ "a", RT.DStr "a" ; "b", RT.DStr "b"; "c", RT.DStr "c/d/e"])
         ("/a/:b/c/d", "/a/b/c/e", None)
         ("/letters:var", "lettersextra", None) ]
     testManyTask
