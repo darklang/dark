@@ -10,14 +10,6 @@ module RT = RuntimeTypes
 module AT = AnalysisTypes
 module PReq = ParsedRequest
 
-// --------------------
-// Input_vars
-// --------------------
-
-let httpRouteInputVars (route : string) (requestPath : string) : AT.InputVars =
-  Http.routeInputVars route requestPath |> Option.unwrapUnsafe
-
-
 // (* -------------------- *)
 // (* For exec_state *)
 // (* -------------------- *)

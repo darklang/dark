@@ -56,28 +56,22 @@ let loadForAnalysis
           |> fun dv -> dv.toPairs (), read.dateTime "timestamp"))
 
 
-// let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
-//   (* We need to alias the subquery (here aliased as `q`) because Postgres
-//    * requires inner SELECTs to be aliased. *)
-//   Db.fetch
-//     ~name:"stored_function_arguments.load_traceids"
-//     "SELECT trace_id FROM (
-//       SELECT DISTINCT ON (trace_id) trace_id, timestamp
-//       FROM function_arguments
-//       WHERE canvas_id = $1 AND tlid = $2
-//       ORDER BY trace_id, timestamp DESC
-//       ) AS q
-//       ORDER BY timestamp DESC
-//       LIMIT 10"
-//     ~params:[Db.Uuid canvas_id; Db.ID tlid]
-//   |> List.map ~f:(function
-//          | [trace_id] ->
-//              Util.uuid_of_string trace_id
-//          | _ ->
-//              Exception.internal
-//                "Bad DB format for stored_functions.load_for_analysis")
-//
-//
+let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =
+  // We need to alias the subquery (here aliased as `q`) because Postgres
+  // requires inner SELECTs to be aliased.
+  Sql.query
+    "SELECT trace_id FROM (
+       SELECT DISTINCT ON (trace_id) trace_id, timestamp
+       FROM function_arguments
+       WHERE canvas_id = @canvasID
+         AND tlid = @tlid
+       ORDER BY trace_id, timestamp DESC
+     ) AS q
+     ORDER BY timestamp DESC
+     LIMIT 10"
+  |> Sql.parameters ["canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid]
+  |> Sql.executeAsync (fun read -> read.uuid "trace_id")
+
 // type trim_arguments_action = Stored_event.trim_events_action
 //
 // let trim_arguments_for_handler

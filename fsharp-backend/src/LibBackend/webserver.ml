@@ -914,27 +914,6 @@ let execute_function
     response
 
 
-let get_404s ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
-    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let t1, canvas_id =
-      time "1-load-canvas" (fun _ -> Canvas.id_for_name host)
-    in
-    let t2, f404s =
-      time "2-get-404s" (fun _ -> Analysis.get_recent_404s canvas_id)
-    in
-    let t3, result =
-      time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
-    in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3])
-      parent
-      `OK
-      result
-  with e -> Libexecution.Exception.reraise_as_pageable e
-
-
 let upload_function
     ~(execution_id : Types.id)
     ~(user : Account.user_info)
@@ -1020,69 +999,6 @@ let trigger_handler
     response
 
 
-let get_trace_data
-    ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
-    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let t1, params =
-    time "1-read-api-tlids" (fun _ -> Api.to_get_trace_data_rpc_params body)
-  in
-  let tlid = params.tlid in
-  let trace_id = params.trace_id in
-  let t2, c =
-    time "2-load-saved-ops" (fun _ ->
-        C.load_tlids_from_cache ~tlids:[params.tlid] host
-        |> Result.map_error ~f:(String.concat ~sep:", "))
-  in
-  let t3, mht =
-    time "3-handler-analyses" (fun _ ->
-        c
-        |> Result.map ~f:(fun c ->
-               !c.handlers
-               |> Types.IDMap.data
-               |> List.hd
-               |> Option.bind ~f:TL.as_handler
-               |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id)))
-  in
-  let t4, mft =
-    time "4-user-fn-analyses" (fun _ ->
-        c
-        |> Result.map ~f:(fun c ->
-               !c.user_functions
-               |> Types.IDMap.data
-               |> List.find ~f:(fun f -> tlid = f.tlid)
-               |> Option.map ~f:(fun f -> Analysis.user_fn_trace !c f trace_id)))
-  in
-  let t5, result =
-    time "5-to-frontend" (fun _ ->
-        c
-        |> Result.bind ~f:(fun c ->
-               Result.all [mft; mht]
-               |> Result.map ~f:(fun traces ->
-                      traces
-                      (* take the first trace that is Some 'a, not None *)
-                      |> List.find_map ~f:(fun x -> x)
-                      |> Option.map
-                           ~f:(Analysis.to_get_trace_data_rpc_result !c))))
-  in
-  let resp_headers = server_timing [t1; t2; t3; t4; t5] in
-  match result with
-  | Ok (Some str) ->
-      respond ~execution_id ~resp_headers parent `OK str
-  | Error err ->
-      Span.set_attrs
-        parent
-        [ ("error", `String err)
-        ; ("dark.tlid", `String (Types.string_of_id tlid)) ] ;
-      Exception.internal ~info:[("error", err)] "Failed to load canvas"
-  | Ok None ->
-      Span.set_attrs
-        parent
-        [ ("dark.trace_id", `String (Uuidm.to_string trace_id))
-        ; ("dark.tlid", `String (Types.string_of_id tlid))
-        ; ("warning", `String "no handler or userfn found") ] ;
-      respond ~execution_id ~resp_headers parent `Not_found ""
-
-
 let db_stats
     ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
     : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
@@ -1133,31 +1049,6 @@ let worker_stats
       `OK
       result
   with e -> raise e
-
-
-let get_unlocked_dbs
-    ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
-    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let t1, unlocked =
-      time "1-analyze-unlocked-dbs" (fun _ ->
-          let canvas_id, account_id =
-            Canvas.id_and_account_id_for_name_exn host
-          in
-          Analysis.unlocked ~canvas_id ~account_id)
-    in
-    let t2, result =
-      time "2-to-frontend" (fun _ ->
-          Analysis.to_get_unlocked_dbs_rpc_result unlocked)
-    in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2])
-      parent
-      `OK
-      result
-  with e -> raise e
-
 
 let worker_schedule
     ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)

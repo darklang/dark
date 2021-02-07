@@ -403,6 +403,8 @@ module Traces =
 
   type T = { trace : AT.Trace }
 
+  type AllTraces = { traces : List<tlid * AT.TraceID> }
+
   let getTraceData (ctx : HttpContext) : Task<AT.Trace> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
@@ -412,6 +414,8 @@ module Traces =
         Canvas.loadTLIDsFromCache [ args.tlid ] canvasInfo.name canvasInfo.id canvasInfo.owner
         |> Task.map Result.unwrapUnsafe
 
+      // TODO: we dont need the handlers or functions at all here, just for the sample
+      // values which we can do on the client instead
       let handler =
         c.handlers
         |> Map.get args.tlid
@@ -427,6 +431,35 @@ module Traces =
 
     }
 
+  let fetchAllTraces (ctx : HttpContext) : Task<AllTraces> =
+    task {
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! (c : LibBackend.Canvas.T) =
+        // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
+        Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
+        |> Task.map Result.unwrapUnsafe
+      let! hTraces =
+        c.handlers
+        |> Map.values
+        |> List.map (fun h ->
+            LibBackend.Analysis.traceIDsForHandler c h
+            |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
+        |> Task.flatten
+        |> Task.map List.concat
+      in
+      let! ufTraces =
+        c.userFunctions
+        |> Map.values
+        |> List.map (fun uf ->
+               LibBackend.Analysis.traceIDsForUserFn c.id uf.tlid
+               |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
+        |> Task.flatten
+        |> Task.map List.concat
+      return { traces = hTraces @ ufTraces }
+    }
+
+
+
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
 
@@ -437,6 +470,7 @@ let endpoints : Endpoint list =
            routef "/api/%s/get_unlocked_dbs" (h DB.getUnlockedDBs Auth.Read)
            routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
            routef "/api/%s/get_trace_data" (h Traces.getTraceData Auth.Read)
+           routef "/api/%s/all_traces" (h Traces.fetchAllTraces Auth.Read)
 
            // routef "/api/%s/save_test" (h Testing.saveTest Auth.ReadWrite)
            //    when Config.allow_test_routes ->
@@ -445,16 +479,6 @@ let endpoints : Endpoint list =
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers
            //           (admin_add_op_handler ~execution_id ~user parent canvas body))
-           // | `POST, ["api"; canvas; "all_traces"] ->
-           //     when_can_view ~canvas (fun permission ->
-           //         wrap_editor_api_headers
-           //           (fetch_all_traces
-           //              ~execution_id
-           //              ~user
-           //              ~canvas
-           //              ~permission
-           //              parent
-           //              body))
            // | `POST, ["api"; canvas; "execute_function"] ->
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers

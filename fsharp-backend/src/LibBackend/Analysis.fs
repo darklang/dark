@@ -187,45 +187,51 @@ let userfnTrace
   }
 
 
-// let traceid_of_tlid (tlid : tlid) : Uuidm.t =
-//   Uuidm.v5 Uuidm.nil (string_of_id tlid)
-//
-//
-// let traceids_for_handler (c : Canvas.canvas) (h : RTT.HandlerT.handler) :
-//     traceid list =
-//   match Handler.event_desc_for h with
-//   | Some ((hmodule, _, _) as desc) ->
-//       let events = SE.load_event_ids ~canvas_id:c.id desc in
-//       events
-//       |> List.filter_map ~f:(fun (trace_id, path) ->
-//              if String.Caseless.equal hmodule "HTTP"
-//              then
-//                (* Ensure we only return trace_ids that would bind to this handler
-//                 * if the trace was executed for real now *)
-//                c.handlers
-//                |> Toplevel.handlers
-//                (* Filter and order the handlers that would match the trace's path *)
-//                |> Http.filter_matching_handlers path
-//                |> List.hd
-//                |> Option.bind ~f:(fun matching ->
-//                       if matching.tlid = h.tlid then Some trace_id else None)
-//              else
-//                (* Don't use HTTP filtering stack for non-HTTP traces *)
-//                Some trace_id)
-//       (* If there's no matching traces, add the default trace *)
-//       |> (function [] -> [traceid_of_tlid h.tlid] | x -> x)
-//   | None ->
-//       (* If the event description isn't complete, add the default trace *)
-//       [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
-//
-//
-// let traceids_for_user_fn (c : Canvas.canvas) (fn : RTT.user_fn) : traceid list =
-//   Stored_function_arguments.load_traceids c.id fn.tlid
-//
-//
-// (* ------------------------- *)
-// (* function execution *)
-// (* ------------------------- *)
+let traceIDofTLID (tlid : tlid) : AT.TraceID =
+  // This was what we originally used in OCaml, so I guess we're stuck with it.
+  let nilNamespace = "00000000-0000-0000-0000-000000000000"
+  // Literally the only package I could find that does v5 UUIDs
+  System.GuidEx.op_Implicit (System.GuidEx(tlid.ToString(), nilNamespace))
+
+
+let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) :
+    Task<List<AT.TraceID>> =
+  task {
+    match h.spec.toDesc() with
+    | Some desc ->
+        let! events = TraceInputs.loadEventIDs c.id desc in
+        return
+          events
+          |> List.filterMap (fun (traceID, path) ->
+               match h.spec with
+               | PT.Handler.Spec.HTTP _ ->
+                   // Ensure we only return trace_ids that would bind to this handler
+                   // if the trace was executed for real now
+                   c.handlers
+                   (* Filter and order the handlers that would match the trace's path *)
+                   |> Map.values
+                   |> Routing.filterMatchingHandlers path
+                   |> List.head
+                   |> Option.bind (fun matching ->
+                        if matching.tlid = h.tlid then Some traceID else None)
+               | _ ->
+                 // Don't use HTTP filtering stack for non-HTTP traces
+                 Some traceID)
+        // If there's no matching traces, add the default trace
+        |> (function [] -> [traceIDofTLID h.tlid] | x -> x)
+    | None ->
+        (* If the event description isn't complete, add the default trace *)
+        return [traceIDofTLID h.tlid]
+    }
+
+
+let traceIDsForUserFn (canvasID : CanvasID) (fnTLID : tlid) : Task<List<AT.TraceID>> =
+  TraceFunctionArguments.loadTraceIDs canvasID fnTLID
+
+
+// ------------------------
+// function execution
+// ------------------------
 // let execute_function
 //     (c : Canvas.canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
 //   Execution.execute_function

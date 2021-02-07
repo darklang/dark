@@ -472,7 +472,6 @@ module Task =
       return (result |> Seq.toList)
     }
 
-
   let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
     task {
       let! result =
@@ -539,6 +538,22 @@ module Task =
 
           return List.head (lastcomp :: accum)
     }
+
+  // takes a list of tasks and calls f on it, turning it into a single task
+  let flatten (list : List<Task<'a>>) : Task<List<'a>> =
+    let rec loop (acc : Task<List<'a>>) (xs : List<Task<'a>>) =
+      task {
+        let! acc = acc
+        match xs with
+        | [] ->
+            return List.rev acc
+        | x :: xs ->
+            let! x = x
+            return! loop ( task { return (x::acc) }) xs }
+    loop (task { return [] }) list
+
+
+
 
 // ----------------------
 // Shared Types

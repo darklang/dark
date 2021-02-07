@@ -202,39 +202,33 @@ let loadEventForTrace
           read.string "value" |> LibExecution.DvalRepr.ofInternalRoundtrippableV0))
 
 
-// let munge_path_for_postgres module_ path =
-//   (* Only munge the route for HTTP events, as they have wildcards, whereas
-//    * background events are completely concrete.
-//    *
-//    * `split_uri_path` inside `Http.route_to_postgres_pattern` doesn't like that background
-//    * events don't have leading slashes. *)
-//   if String.Caseless.equal module_ "HTTP"
-//   then Http.route_to_postgres_pattern path
-//   else
-//     (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
-//     path |> Util.string_replace "%" "\\%" |> Util.string_replace "_" "\\_"
-//
-//
-// let load_event_ids
-//     ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
-//     (Uuidm.t * string) list =
-//   let route = munge_path_for_postgres module_ route in
-//   Db.fetch
-//     ~name:"load_events"
-//     ~subject:(event_subject module_ route modifier)
-//     "SELECT trace_id, path FROM stored_events_v2
-//     WHERE canvas_id = $1
-//       AND module = $2
-//       AND path LIKE $3
-//       AND modifier = $4
-//     ORDER BY timestamp DESC
-//     LIMIT 10"
-//     ~params:[Uuid canvas_id; String module_; String route; String modifier]
-//   |> List.map ~f:(function
-//          | [trace_id; path] ->
-//              (Util.uuid_of_string trace_id, path)
-//          | _ ->
-//              Exception.internal "Bad DB format for stored_events")
+let mungePathForPostgres (module_ : string) (path : string) =
+  // Only munge the route for HTTP events, as they have wildcards, whereas
+  // background events are completely concrete.
+  //
+  // `split_uri_path` inside `Routing.routeToPostgresPattern` doesn't like that background
+  // events don't have leading slashes
+  if String.toLowercase module_ = "HTTP"
+  then Routing.routeToPostgresPattern path
+  else
+    (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
+    path.Replace("%","\\%").Replace("_", "\\_")
+
+
+let loadEventIDs
+    (canvasID : CanvasID) ((module_, route, modifier) : EventDesc) :
+    Task<List<AT.TraceID * string>> =
+  let route = mungePathForPostgres module_ route
+  Sql.query
+    "SELECT trace_id, path FROM stored_events_v2
+     WHERE canvas_id = @canvasID
+       AND module = @module
+       AND path LIKE @path
+       AND modifier = @modifier
+     ORDER BY timestamp DESC
+     LIMIT 10"
+  |> Sql.parameters ["canvasID", Sql.uuid canvasID; "module", Sql.string module_; "path", Sql.string route; "modifier", Sql.string modifier]
+  |> Sql.executeAsync (fun read -> (read.uuid "trace_id", read.string "path"))
 
 
 let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
@@ -247,7 +241,7 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
 
       let hSpace, hName, hModifier = h in
 
-      LibExecution.Http.requestPathMatchesRoute hName requestPath
+      Routing.requestPathMatchesRoute hName requestPath
       && hModifier = modifier
       && hSpace = space
 
