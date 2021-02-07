@@ -4162,8 +4162,34 @@ let rec updateKey
     | Keypress {key = K.ShiftEnter; _}, left, _ ->
         let doPipeline (astInfo : ASTInfo.t) : ASTInfo.t =
           let startPos, endPos = FluidUtil.getSelectionRange astInfo.state in
-          let topmostID = getTopmostSelectionID startPos endPos astInfo in
-          let findParent = startPos = endPos in
+          let topmostSelectionID =
+            getTopmostSelectionID startPos endPos astInfo
+          in
+          let defaultTopmostSelection =
+            match topmostSelectionID with
+              | Some id ->
+                (Some id, startPos = endPos)
+              | None ->
+                (None, startPos = endPos);
+          in
+          let topmostID, findParent =
+            if startPos = endPos
+            then
+              let tokenAtLeft =
+                getLeftTokenAt
+                  astInfo.state.newPos
+                  (ASTInfo.activeTokenInfos astInfo)
+              in
+
+              match tokenAtLeft with
+              | Some current when T.isPipeable current.token ->
+                  (Some (T.tid current.token), false)
+              | _ ->
+                defaultTopmostSelection
+            else
+              defaultTopmostSelection
+          in
+
           Option.map topmostID ~f:(fun id ->
               let astInfo, blankId = createPipe ~findParent id astInfo in
               match blankId with
