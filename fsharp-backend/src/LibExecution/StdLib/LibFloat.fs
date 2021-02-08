@@ -57,22 +57,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-  // ; { name = fn "Float::truncate"; "Float" "roundTowardsZero" 0
-
-  //   ; parameters = [Param.make "a" TFloat]
-  //   ; returnType = TInt
-  //   ; description =
-  //       "Discard the fractional portion of the float, rounding towards zero."
-  //   ; fn =
-
-  //         (function
-  //         | _, [DFloat a] ->
-  //             DInt (Float.round_towards_zero a |> Dint.of_float)
-  //         | args ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //     ; previewable = Pure
-  //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "truncate" 0
+      parameters = [Param.make "a" TFloat ""]
+      returnType = TInt
+      description =
+         "Discard the fractional portion of the float, rounding towards zero."
+      fn =
+        (function
+        | _, [DFloat a] -> bigint(Math.Truncate a) |> DInt |> Value
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
   // ; { name = fn "Float" "absoluteValue" 0
 
   //   ; parameters = [Param.make "a" TFloat]
