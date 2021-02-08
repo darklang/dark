@@ -45,9 +45,6 @@ module Sql =
     | [] -> None
     | list -> failwith $"Too many results, expected 0 or 1, got {list}"
 
-
-
-
   // FSTODO do a better job of naming these
   let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
     task {
@@ -55,7 +52,6 @@ module Sql =
       | [ true ] -> return true
       | [] -> return false
       | result -> return failwith $"Too many results, expected 1, got {result}"
-
     }
 
   let executeExists (props : Sql.SqlProps) : bool =
@@ -91,3 +87,8 @@ module Sql =
     let idsParam = NpgsqlParameter("ids", typ)
     idsParam.Value <- ids |> List.map int64 |> List.toArray
     Sql.parameter idsParam
+
+// Extension methods
+type RowReader with
+
+  member this.tlid(name : string) = this.int64 name |> uint64

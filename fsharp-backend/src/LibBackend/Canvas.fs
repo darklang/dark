@@ -530,7 +530,7 @@ let loadOplists
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync
        (fun read ->
-         (read.int64 "tlid" |> uint64,
+         (read.tlid "tlid",
           read.bytea "data" |> ProgramSerialization.OCamlInterop.oplistOfBinary))
 
 
@@ -592,12 +592,10 @@ let loadHttpHandlersFromCache
     return! loadFrom LiveToplevels canvasName canvasID ownerID tlids
   }
 
+let loadTLIDsFromCache (tlids : tlid list) (canvasName : CanvasName.T) (canvasID : CanvasID) (ownerID : UserID) : Task<Result<T, List<string>>> =
+  loadFrom LiveToplevels canvasName canvasID ownerID tlids
 
-// let load_tlids_from_cache ~tlids host : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from_cache ~tlids host owner
-//
-//
+
 // let load_tlids_with_context_from_cache ~tlids host :
 //     (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in

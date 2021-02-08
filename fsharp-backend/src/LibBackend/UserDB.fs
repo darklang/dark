@@ -559,12 +559,15 @@ let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be
   // HTTP/REPL/CRON/WORKER or a legacy space
+  // NOTE: the line `AND tl.account_id = ud.account_id` seems redunant, but
+  // it's required to hit the index
   Sql.query
     "SELECT tl.tlid
      FROM toplevel_oplists as tl
      LEFT JOIN user_data as ud
             ON tl.tlid = ud.table_tlid
            AND tl.canvas_id = ud.canvas_id
+           AND tl.account_id = ud.account_id
      WHERE tl.canvas_id = @canvasID
        AND tl.account_id = @accountID
        AND tl.module IS NULL
@@ -572,7 +575,7 @@ let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
        AND ud.table_tlid IS NULL
      GROUP BY tl.tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "accountID", Sql.uuid ownerID ]
-  |> Sql.executeAsync (fun read -> read.int64 "tlid" |> uint64)
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
 // -------------------------

@@ -141,7 +141,7 @@ let fetchReleventTLIDsForHTTP
   |> Sql.parameters [ "path", Sql.string path
                       "method", Sql.string method
                       "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.int64 "tlid" |> uint64)
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 // let fetch_relevant_tlids_for_execution ~host ~canvas_id () : Types.tlid list =
 //   Db.fetch
@@ -216,7 +216,7 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
     "SELECT tlid FROM toplevel_oplists
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.int64 "tlid" |> uint64)
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
 // let transactionally_migrate_oplist

@@ -66,6 +66,7 @@ NUGET
       Utf8Json (>= 1.3.7)
     Giraffe.ViewEngine (1.3)
       FSharp.Core (>= 5.0)
+    GuidEx.Standard (1.0.2)
     libsodium (1.0.18)
       Microsoft.NETCore.Platforms (>= 1.0.1)
     Microsoft.Build.Framework (16.8)

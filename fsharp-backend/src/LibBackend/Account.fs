@@ -251,7 +251,7 @@ let getUsers : Task<List<UserName.T>> =
 
 let isAdmin (username : UserName.T) : Task<bool> =
   Sql.query
-    "SELECT 1
+    "SELECT TRUE
      FROM accounts
      WHERE accounts.username = @username
        AND admin = true"

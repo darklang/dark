@@ -171,7 +171,7 @@ let runDarkHandler : HttpHandler =
           let body = ms.ToArray()
           let expr = expr.toRuntimeType ()
           let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-          let vars = LibExecution.Http.routeInputVars route requestPath
+          let vars = LibBackend.Routing.routeInputVars route requestPath
 
           match vars with
           | None ->
@@ -188,7 +188,10 @@ let runDarkHandler : HttpHandler =
               printfn $"result of runHttp is {result}"
 
               match result with
-              | RT.DHttpResponse (status, headers, RT.DBytes body) ->
+              | RT.DHttpResponse (RT.Redirect url, _) ->
+                  ctx.Response.Redirect(url, false)
+                  return! next ctx
+              | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
                   ctx.Response.StatusCode <- status
                   List.iter (fun (k, v) -> addHeader ctx k v) headers
                   do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
@@ -251,6 +254,7 @@ let webserver (port : int) =
 
 [<EntryPoint>]
 let main _ =
-  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+  printfn "Starting BwdServer"
+  LibBackend.Init.init ()
   (webserver 9001).Run()
   0

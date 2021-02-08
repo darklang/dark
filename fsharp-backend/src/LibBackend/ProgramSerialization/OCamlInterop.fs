@@ -31,13 +31,9 @@ module Binary =
     // FSTODO if we have segfaults, we might need to use this:
     // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#keeping-managed-objects-alive
 
-    // initialize OCaml runtime
-    [<DllImport("./libserialization.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "dark_init_ocaml")>]
-    extern string darkInitOcaml()
-
-    // take a binary rep of a handler from the DB and convert it into JSON
+    // ----------------
+    // toplevels
+    // ----------------
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "handler_bin2json")>]
@@ -48,7 +44,39 @@ module Binary =
                 EntryPoint = "handler_json2bin")>]
     extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
 
-    // take a binary rep of an expr&tlid from the DB and convert it into JSON
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "db_bin2json")>]
+    extern string dbBin2Json(byte[] bytes, int length)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "db_json2bin")>]
+    extern int dbJson2Bin(string str, System.IntPtr& byteArray)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "user_fn_bin2json")>]
+    extern string userfnBin2Json(byte[] bytes, int length)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "user_fn_json2bin")>]
+    extern int userfnJson2Bin(string str, System.IntPtr& byteArray)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "user_tipe_bin2json")>]
+    extern string usertipeBin2Json(byte[] bytes, int length)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "user_tipe_json2bin")>]
+    extern int usertipeJson2Bin(string str, System.IntPtr& byteArray)
+
+    // ----------------
+    // expr/tlid pairs (used for packages)
+    // ----------------
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "expr_tlid_pair_bin2json")>]
@@ -59,7 +87,9 @@ module Binary =
                 EntryPoint = "expr_tlid_pair_json2bin")>]
     extern int exprTLIDPairJson2Bin(string str, System.IntPtr& byteArray)
 
-    // take a binary rep of an oplist from the DB and convert it into JSON
+    // ----------------
+    // oplists
+    // ----------------
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "oplist_bin2json")>]
@@ -70,15 +100,29 @@ module Binary =
                 EntryPoint = "oplist_json2bin")>]
     extern int oplistJson2Bin(string str, System.IntPtr& byteArray)
 
+    // ----------------
+    // serialization digest
+    // ----------------
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "digest")>]
     extern string digest()
 
+    // ----------------
+    // OCaml runtime
+    // ----------------
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "dark_init_ocaml")>]
+    extern string darkInitOcaml()
+
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "register_thread")>]
     extern void registerThread()
+
+
+
 
   type OncePerThread private () =
     static let initializedTLS = new System.Threading.ThreadLocal<_>(fun () -> false)
@@ -124,6 +168,27 @@ module Binary =
 
   let handlerBin2Json (bytes : byte []) : string =
     translateBin2Json Internal.handlerBin2Json bytes
+
+  let dbJson2Bin (json : string) : byte [] =
+    let mutable ptr = startTranslateJson2Bin ()
+    Internal.dbJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
+
+  let dbBin2Json (bytes : byte []) : string =
+    translateBin2Json Internal.dbBin2Json bytes
+
+  let userfnJson2Bin (json : string) : byte [] =
+    let mutable ptr = startTranslateJson2Bin ()
+    Internal.userfnJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
+
+  let userfnBin2Json (bytes : byte []) : string =
+    translateBin2Json Internal.userfnBin2Json bytes
+
+  let usertipeJson2Bin (json : string) : byte [] =
+    let mutable ptr = startTranslateJson2Bin ()
+    Internal.usertipeJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
+
+  let usertipeBin2Json (bytes : byte []) : string =
+    translateBin2Json Internal.usertipeBin2Json bytes
 
   let exprTLIDPairJson2Bin (json : string) : byte [] =
     let mutable ptr = startTranslateJson2Bin ()
@@ -207,12 +272,14 @@ module OCamlTypes =
       | Rail
       | NoRail
 
+    type FPString = { matchID : id; patternID : id; str : string }
+
     type fluidPattern =
       | FPVariable of id * id * string
       | FPConstructor of id * id * string * fluidPattern list
       | FPInteger of id * id * string
       | FPBool of id * id * bool
-      | FPString of matchID : id * patternID : id * str : string
+      | FPString of FPString
       | FPFloat of id * id * string * string
       | FPNull of id * id
       | FPBlank of id * id
@@ -317,7 +384,7 @@ module OCamlTypes =
 
     type toplevel = { tlid : id; pos : pos; data : tldata }
 
-    type toplevels = Map<id, toplevel>
+    type toplevels = List<toplevel>
 
   module PackageManager =
     type parameter = { name : string; tipe : tipe; description : string }
@@ -411,7 +478,7 @@ module Convert =
         PT.PConstructor(id, name, List.map r pats)
     | RT.FPInteger (_, id, i) -> PT.PInteger(id, parseBigint i)
     | RT.FPBool (_, id, b) -> PT.PBool(id, b)
-    | RT.FPString (_, id, s) -> PT.PString(id, s)
+    | RT.FPString fp -> PT.PString(fp.patternID, fp.str)
     | RT.FPFloat (_, id, w, f) ->
         let whole = parseBigint w
         let sign = if w.[0] = '-' then Negative else Positive
@@ -529,6 +596,19 @@ module Convert =
     | OT.TUserType (name, version) -> PT.TUserType(name, version)
     | OT.TBytes -> PT.TBytes
 
+  let ocamlDBCol2PT ((name, tipe) : RT.DbT.col) : PT.DB.Col =
+    { nameID = bo2ID name
+      name = bo2String name
+      typ = bo2Option tipe |> Option.map ocamlTipe2PT
+      typeID = bo2ID tipe }
+
+  let ocamlDB2PT (pos : pos) (o : RT.DbT.db<RT.fluidExpr>) : PT.DB.T =
+    { tlid = o.tlid
+      name = bo2String o.name
+      nameID = bo2ID o.name
+      pos = pos
+      cols = List.map ocamlDBCol2PT o.cols
+      version = o.version }
 
   let ocamlUserType2PT (o : RT.user_tipe) : PT.UserType.T =
     { tlid = o.tlid
@@ -646,7 +726,7 @@ module Convert =
     | PT.PInteger (id, i) -> RT.FPInteger(mid, id, i.ToString())
     | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
     | PT.PBool (id, b) -> RT.FPBool(mid, id, b)
-    | PT.PString (id, s) -> RT.FPString(mid, id, s)
+    | PT.PString (id, s) -> RT.FPString { matchID = mid; patternID = id; str = s }
     | PT.PFloat (id, Positive, w, f) ->
         RT.FPFloat(mid, id, w.ToString(), f.ToString())
     | PT.PFloat (id, Negative, w, f) -> RT.FPFloat(mid, id, $"-{w}", f.ToString())
@@ -871,7 +951,7 @@ module Convert =
     toplevels
     |> Map.values
     |> List.fold
-         (Map.empty, [], [])
+         ([], [], [])
          (fun (tls, ufns, uts) tl ->
            match tl with
            | PT.TLHandler h ->
@@ -880,14 +960,14 @@ module Convert =
                let ocamlTL : RT.toplevel =
                  { tlid = h.tlid; pos = h.pos; data = RT.Handler ocamlHandler }
 
-               Map.add h.tlid ocamlTL tls, ufns, uts
+               ocamlTL :: tls, ufns, uts
            | PT.TLDB db ->
                let ocamlDB = pt2ocamlDB db
 
                let ocamlTL : RT.toplevel =
                  { tlid = db.tlid; pos = db.pos; data = RT.DB ocamlDB }
 
-               (Map.add db.tlid ocamlTL tls, ufns, uts)
+               ocamlTL :: tls, ufns, uts
            | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
            | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
@@ -930,24 +1010,57 @@ module Convert =
       deprecated = p.deprecated
       tlid = p.tlid }
 
-
-
-
-
 // ----------------
 // Binary conversions
 // ----------------
 let toplevelOfCachedBinary
   ((data, pos) : (byte array * string option))
-  // FSTODO: incorporate pos
-  // FSTODO: support tipes, dbs, functions
   : PT.Toplevel =
-  let pos = { x = 0; y = 0 } // FSTODO
+  let pos =
+    pos
+    |> Option.map Json.AutoSerialize.deserialize<pos>
+    |> Option.unwrap { x = 0; y = 0 }
 
-  Binary.handlerBin2Json data
-  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
-  |> Convert.ocamlHandler2PT pos
-  |> PT.TLHandler
+  let toplevelOfCachedHandler () =
+    Binary.handlerBin2Json data
+    // |> debug "handler"
+    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
+    |> Convert.ocamlHandler2PT pos
+    |> PT.TLHandler
+
+  let toplevelOfCachedDB () =
+    Binary.dbBin2Json data
+    // |> debug "db"
+    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
+    |> Convert.ocamlDB2PT pos
+    |> PT.TLDB
+
+  let toplevelOfCachedUserFunction () =
+    Binary.userfnBin2Json data
+    // |> debug "userfn"
+    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
+    |> Convert.ocamlUserFunction2PT
+    |> PT.TLFunction
+
+  let toplevelOfCachedUserTipe () =
+    Binary.usertipeBin2Json data
+    // |> debug "tipe"
+    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_tipe>
+    |> Convert.ocamlUserType2PT
+    |> PT.TLType
+
+  try
+    toplevelOfCachedHandler ()
+  with e1 ->
+    try
+      toplevelOfCachedDB ()
+    with e2 ->
+      try
+        toplevelOfCachedUserFunction ()
+      with e3 ->
+        try
+          toplevelOfCachedUserTipe ()
+        with e4 -> failwith $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
 
 let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
   match toplevel with
@@ -957,7 +1070,19 @@ let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
       |> Json.AutoSerialize.serialize
       |> Binary.handlerJson2Bin
 
-  | _ -> failwith $"toplevel not supported yet {toplevel}"
+  | PT.TLDB db ->
+      db |> Convert.pt2ocamlDB |> Json.AutoSerialize.serialize |> Binary.dbJson2Bin
+  | PT.TLFunction db ->
+      db
+      |> Convert.pt2ocamlUserFunction
+      |> Json.AutoSerialize.serialize
+      |> Binary.userfnJson2Bin
+  | PT.TLType db ->
+      db
+      |> Convert.pt2ocamlUserType
+      |> Json.AutoSerialize.serialize
+      |> Binary.usertipeJson2Bin
+
 
 let oplistOfBinary (data : byte array) : PT.Oplist =
   Binary.oplistBin2Json data

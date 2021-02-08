@@ -106,6 +106,9 @@ let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString 
 let base64Encode (input : string) : string =
   input |> toBytes |> System.Convert.ToBase64String
 
+let base64UrlEncode (str : string) : string =
+  (base64Encode str).Replace('+', '-').Replace('/', '_').Replace("=", "")
+
 let base64Decode (encoded : string) : string =
   encoded |> System.Convert.FromBase64String |> ofBytes
 
@@ -114,6 +117,14 @@ let sha1digest (input : string) : string =
   input |> toBytes |> sha1.ComputeHash |> ofBytes
 
 let toString (v : 'a) : string = v.ToString()
+
+type System.DateTime with
+
+  member this.toIsoString() : string =
+    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+
+  static member ofIsoString(str : string) : System.DateTime =
+    System.DateTime.Parse(str, System.Globalization.CultureInfo.InvariantCulture)
 
 // ----------------------
 // Random numbers
@@ -167,17 +178,6 @@ module String =
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
-  let base64UrlEncode (str : string) : string =
-
-    let inputBytes = System.Text.Encoding.UTF8.GetBytes(str)
-
-    // Special "url-safe" base64 encode.
-    System
-      .Convert
-      .ToBase64String(inputBytes)
-      .Replace('+', '-')
-      .Replace('/', '_')
-      .Replace("=", "")
 
 
 
@@ -326,12 +326,25 @@ let filter_s
   }
 
 // ----------------------
+// Lazy utilities
+// ----------------------
+module Lazy =
+  let inline force (l: Lazy<_>) = l.Force ()
+  let map f l = lazy ((f << force) l)
+  let bind f l = lazy ((force << f << force) l)
+
+
+// ----------------------
+// Important types
+// ----------------------
+type tlid = uint64
+type id = uint64
+
+// ----------------------
 // Json auto-serialization
 // ----------------------
 module Json =
   module AutoSerialize =
-    open System
-    open System.Collections.Generic
     open System.Text.Json
     open System.Text.Json.Serialization
 
@@ -342,30 +355,60 @@ module Json =
       override this.Read
         (
           reader : byref<Utf8JsonReader>,
-          _typ : Type,
-          options : JsonSerializerOptions
+          _typ : System.Type,
+          _options : JsonSerializerOptions
         ) =
-        JsonSerializer.Deserialize<string>(&reader, options) |> parseBigint
+        reader.GetString() |> parseBigint
 
       override this.Write
         (
           writer : Utf8JsonWriter,
           value : bigint,
-          options : JsonSerializerOptions
+          _options : JsonSerializerOptions
         ) =
-        JsonSerializer.Serialize(writer, value.ToString(), options)
+        writer.WriteStringValue(value.ToString())
+
+    type TLIDConverter() =
+      inherit JsonConverter<tlid>()
+
+      override this.Read
+        (
+          reader : byref<Utf8JsonReader>,
+          _typ : System.Type,
+          _options : JsonSerializerOptions
+        ) =
+        if reader.TokenType = JsonTokenType.String
+        then
+          let str = reader.GetString()
+          parseUInt64 str
+        else reader.GetUInt64()
+
+      override this.Write
+        (
+          writer : Utf8JsonWriter,
+          value : tlid,
+          _options : JsonSerializerOptions
+        ) =
+        writer.WriteNumberValue(value)
 
 
     let _options =
       (let fsharpConverter =
-        JsonFSharpConverter(unionEncoding = JsonUnionEncoding.InternalTag)
+        JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption))
 
        let options = JsonSerializerOptions()
-       options.Converters.Add(fsharpConverter)
+       options.Converters.Add(TLIDConverter())
        options.Converters.Add(BigIntConverter())
+       options.Converters.Add(fsharpConverter)
        options)
 
-    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+    let registerConverter (c : JsonConverter<'a>) =
+      // insert in the front as the formatter will use the first converter that
+      // supports the type, not the best one
+      _options.Converters.Insert(0, c)
+
+    let serialize (data : 'a) : string =
+      JsonSerializer.Serialize(data, _options)
 
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
@@ -375,7 +418,7 @@ module Json =
 // ----------------------
 module TableCloth =
   module String =
-    let take (count : int) (str : string) : string = str.Substring(0, count)
+    let take (count : int) (str : string) : string = if count >= str.Length then str else str.Substring(0, count)
 
     let removeSuffix (suffix : string) (str : string) : string =
       if str.EndsWith(suffix) then
@@ -428,7 +471,6 @@ module Task =
 
       return (result |> Seq.toList)
     }
-
 
   let filterSequentially (f : 'a -> Task<bool>) (list : List<'a>) : Task<List<'a>> =
     task {
@@ -497,6 +539,22 @@ module Task =
           return List.head (lastcomp :: accum)
     }
 
+  // takes a list of tasks and calls f on it, turning it into a single task
+  let flatten (list : List<Task<'a>>) : Task<List<'a>> =
+    let rec loop (acc : Task<List<'a>>) (xs : List<Task<'a>>) =
+      task {
+        let! acc = acc
+        match xs with
+        | [] ->
+            return List.rev acc
+        | x :: xs ->
+            let! x = x
+            return! loop ( task { return (x::acc) }) xs }
+    loop (task { return [] }) list
+
+
+
+
 // ----------------------
 // Shared Types
 // ----------------------
@@ -515,8 +573,6 @@ type Sign =
   | Positive
   | Negative
 
-type tlid = uint64
-type id = uint64
 type CanvasID = System.Guid
 type UserID = System.Guid
 

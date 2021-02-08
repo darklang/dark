@@ -28,15 +28,11 @@ void check_string(value v) {
     printf("Value is exception!\n");
     fflush(stdout);
     unlock();
-    // FSTODO remove
-    exit(1);
   }
   if (Tag_val(v) != String_tag) {
     printf("Value is expected to be a string but isn't!\n");
     unlock();
     fflush(stdout);
-    // FSTODO remove
-    exit(1);
   }
 }
 

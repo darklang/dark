@@ -80,27 +80,51 @@ module SchedulingRule =
                ("created_at", Dval.DDate r.createdAt) ]
 
 module WorkerStates =
+
   type State =
     | Running
     | Blocked
     | Paused
 
-  let toString s =
+  let toString (s : State) : string =
     match s with
     | Running -> "run"
     | Blocked -> "block"
     | Paused -> "pause"
 
+  let parse (str : string) : State =
+    match str with
+    | "run" -> Running
+    | "block" -> Blocked
+    | "pause" -> Paused
+    | _ -> failwith "invalid WorkerState: {str}"
+
   type T = Map<string, State>
 
   let empty = Map.empty
 
-  // FSTODO
-  // let to_yojson (m : t) =
-  //   `Assoc
-  //     ( Map.to_alist m
-  //     |> List.map ~f:(fun (k, v) -> (k, `String (state_to_string v))) )
-  //
+  module JsonConverter =
+    open System.Text.Json
+    open System.Text.Json.Serialization
+    type WorkerStateConverter() =
+      inherit JsonConverter<State>()
+
+      override this.Read
+        (
+          reader : byref<Utf8JsonReader>,
+          _typ : System.Type,
+          options : JsonSerializerOptions
+        ) =
+        reader.GetString() |> parse
+
+      override this.Write
+        (
+          writer : Utf8JsonWriter,
+          value : State,
+          options : JsonSerializerOptions
+        ) =
+        printfn "serializing state"
+        writer.WriteStringValue(toString value)
 
   let find (k : string) (m : T) = Map.get k m
 

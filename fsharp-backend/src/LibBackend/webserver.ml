@@ -869,79 +869,6 @@ let fetch_all_traces
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
-let initial_load
-    ~(execution_id : Types.id)
-    ~(user : Account.user_info)
-    ~(canvas : string)
-    ~(permission : Authorization.permission option)
-    (parent : Span.t)
-    body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let t1, (c, op_ctrs) =
-      time "1-load-saved-ops" (fun _ ->
-          let c =
-            C.load_all_from_cache canvas
-            |> Result.map_error ~f:(String.concat ~sep:", ")
-            |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
-          in
-          let op_ctrs =
-            Db.fetch
-              ~name:"fetch_op_ctrs_for_canvas"
-              "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
-              ~params:[Db.Uuid !c.id]
-            |> List.map ~f:(function
-                   | [clientOpCtr_id; op_ctr] ->
-                       (clientOpCtr_id, op_ctr |> int_of_string)
-                   | _ ->
-                       Exception.internal
-                         "wrong record shape from fetch_op_Ctrs_for_canvas")
-          in
-          (c, op_ctrs))
-    in
-    let t2, unlocked =
-      time "2-analyze-unlocked-dbs" (fun _ ->
-          Analysis.unlocked ~canvas_id:!c.id ~account_id:!c.owner)
-    in
-    let t3, assets =
-      time "3-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
-    in
-    let t5, canvas_list =
-      time "5-canvas-list" (fun _ -> Serialize.hosts_for user.username)
-    in
-    let t6, org_canvas_list =
-      time "6-org-list" (fun _ -> Serialize.orgs_for user.username)
-    in
-    let t7, orgs = time "7-orgs" (fun _ -> Serialize.orgs user.username) in
-    let t8, worker_schedules =
-      time "8-worker-schedules" (fun _ ->
-          Event_queue.get_worker_schedules_for_canvas !c.id)
-    in
-    let t9, secrets =
-      time "9-secrets" (fun _ -> Secret.secrets_in_canvas !c.id)
-    in
-    let t10, result =
-      time "10-to-frontend" (fun _ ->
-          Analysis.to_initial_load_rpc_result
-            !c
-            op_ctrs
-            permission
-            unlocked
-            assets
-            user
-            canvas_list
-            orgs
-            org_canvas_list
-            worker_schedules
-            secrets)
-    in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t5; t6; t7; t8; t9; t10])
-      parent
-      `OK
-      result
-  with e -> Libexecution.Exception.reraise_as_pageable e
-
 
 let execute_function
     ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
@@ -985,27 +912,6 @@ let execute_function
     parent
     `OK
     response
-
-
-let get_404s ~(execution_id : Types.id) (parent : Span.t) (host : string) body :
-    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let t1, canvas_id =
-      time "1-load-canvas" (fun _ -> Canvas.id_for_name host)
-    in
-    let t2, f404s =
-      time "2-get-404s" (fun _ -> Analysis.get_recent_404s canvas_id)
-    in
-    let t3, result =
-      time "3-to-frontend" (fun _ -> Analysis.to_get_404s_result f404s)
-    in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3])
-      parent
-      `OK
-      result
-  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let upload_function
@@ -1093,69 +999,6 @@ let trigger_handler
     response
 
 
-let get_trace_data
-    ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
-    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let t1, params =
-    time "1-read-api-tlids" (fun _ -> Api.to_get_trace_data_rpc_params body)
-  in
-  let tlid = params.tlid in
-  let trace_id = params.trace_id in
-  let t2, c =
-    time "2-load-saved-ops" (fun _ ->
-        C.load_tlids_from_cache ~tlids:[params.tlid] host
-        |> Result.map_error ~f:(String.concat ~sep:", "))
-  in
-  let t3, mht =
-    time "3-handler-analyses" (fun _ ->
-        c
-        |> Result.map ~f:(fun c ->
-               !c.handlers
-               |> Types.IDMap.data
-               |> List.hd
-               |> Option.bind ~f:TL.as_handler
-               |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id)))
-  in
-  let t4, mft =
-    time "4-user-fn-analyses" (fun _ ->
-        c
-        |> Result.map ~f:(fun c ->
-               !c.user_functions
-               |> Types.IDMap.data
-               |> List.find ~f:(fun f -> tlid = f.tlid)
-               |> Option.map ~f:(fun f -> Analysis.user_fn_trace !c f trace_id)))
-  in
-  let t5, result =
-    time "5-to-frontend" (fun _ ->
-        c
-        |> Result.bind ~f:(fun c ->
-               Result.all [mft; mht]
-               |> Result.map ~f:(fun traces ->
-                      traces
-                      (* take the first trace that is Some 'a, not None *)
-                      |> List.find_map ~f:(fun x -> x)
-                      |> Option.map
-                           ~f:(Analysis.to_get_trace_data_rpc_result !c))))
-  in
-  let resp_headers = server_timing [t1; t2; t3; t4; t5] in
-  match result with
-  | Ok (Some str) ->
-      respond ~execution_id ~resp_headers parent `OK str
-  | Error err ->
-      Span.set_attrs
-        parent
-        [ ("error", `String err)
-        ; ("dark.tlid", `String (Types.string_of_id tlid)) ] ;
-      Exception.internal ~info:[("error", err)] "Failed to load canvas"
-  | Ok None ->
-      Span.set_attrs
-        parent
-        [ ("dark.trace_id", `String (Uuidm.to_string trace_id))
-        ; ("dark.tlid", `String (Types.string_of_id tlid))
-        ; ("warning", `String "no handler or userfn found") ] ;
-      respond ~execution_id ~resp_headers parent `Not_found ""
-
-
 let db_stats
     ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
     : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
@@ -1206,31 +1049,6 @@ let worker_stats
       `OK
       result
   with e -> raise e
-
-
-let get_unlocked_dbs
-    ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)
-    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let t1, unlocked =
-      time "1-analyze-unlocked-dbs" (fun _ ->
-          let canvas_id, account_id =
-            Canvas.id_and_account_id_for_name_exn host
-          in
-          Analysis.unlocked ~canvas_id ~account_id)
-    in
-    let t2, result =
-      time "2-to-frontend" (fun _ ->
-          Analysis.to_get_unlocked_dbs_rpc_result unlocked)
-    in
-    respond
-      ~execution_id
-      ~resp_headers:(server_timing [t1; t2])
-      parent
-      `OK
-      result
-  with e -> raise e
-
 
 let worker_schedule
     ~(execution_id : Types.id) (parent : Span.t) (host : string) (body : string)

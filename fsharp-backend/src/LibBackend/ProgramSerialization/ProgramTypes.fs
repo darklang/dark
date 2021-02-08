@@ -86,6 +86,8 @@ module FQFnName =
           ("dark", "stdlib", module_, name, 0)
       | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
           ("dark", "stdlib", "", name, int version)
+      | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] ->
+          ("dark", "stdlib", "Date", name, 0)
       | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> ("dark", "stdlib", "", name, 0)
       | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
           ("dark", "stdlib", "", name, int version)
@@ -778,6 +780,45 @@ module Handler =
       | Cron (name, interval, _ids) -> RT.Handler.Cron(name, interval)
       | REPL (name, _ids) -> RT.Handler.REPL(name)
 
+    member this.name () =
+      match this with
+      | HTTP (route, method, _ids) -> route
+      | Worker (name, _ids) -> name
+      | OldWorker (modulename, name, _ids) -> name
+      | Cron (name, interval, _ids) -> name
+      | REPL (name, _ids) -> name
+
+    member this.modifier () =
+      match this with
+      | HTTP (route, method, _ids) -> method
+      | Worker (name, _ids) -> "_"
+      | OldWorker (modulename, name, _ids) -> "_"
+      | Cron (name, interval, _ids) -> interval
+      | REPL (name, _ids) -> "_"
+
+    member this.module' () =
+      match this with
+      | HTTP (route, method, _ids) -> "HTTP"
+      | Worker (name, _ids) -> "Worker"
+      | OldWorker (modulename, name, _ids) -> modulename
+      | Cron (name, interval, _ids) -> "Cron"
+      | REPL (name, _ids) -> "REPL"
+
+    member this.complete() : bool =
+      match this with
+      | HTTP ("", _, _) -> false
+      | HTTP (_, "", _) -> false
+      | Worker ("", _) -> false
+      | OldWorker ("", _, _) -> false
+      | OldWorker (_, "", _) -> false
+      | Cron ("", _, _) -> false
+      | Cron (_, "", _) -> false
+      | REPL ("", _) -> false
+      | _ -> true
+
+    // Same as a TraceInput.EventDesc
+    member this.toDesc() : Option<string * string * string> =
+      if this.complete() then Some (this.name(), this.name(), this.modifier()) else None
 
   type T =
     { tlid : tlid
@@ -848,13 +889,13 @@ module UserFunction =
   type Parameter =
     { name : string
       nameID : id
-      type' : DType
+      typ : Option<DType>
       typeID : id
       description : string }
 
     member this.toRuntimeType() : RT.UserFunction.Parameter =
       { name = this.name
-        type' = this.type'.toRuntimeType ()
+        typ = (Option.unwrap TAny this.typ).toRuntimeType()
         description = this.description }
 
   type T =

@@ -127,13 +127,13 @@ let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
 let loadCanvasInfo (ctx : HttpContext) : CanvasInfo =
   load'<CanvasInfo> CanvasInfo ctx
 
-let loadPermission (ctx : HttpContext) : Auth.Permission =
-  load'<Auth.Permission> Permission ctx
+let loadPermission (ctx : HttpContext) : Option<Auth.Permission> =
+  load'<Option<Auth.Permission>> Permission ctx
 
 let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
 let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
 let saveCanvasInfo (c : CanvasInfo) (ctx : HttpContext) = save' CanvasInfo c ctx
-let savePermission (p : Auth.Permission) (ctx : HttpContext) = save' Permission p ctx
+let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) = save' Permission p ctx
 
 
 
@@ -187,17 +187,11 @@ let withPermissionMiddleware
       let! ownerID = Account.userIDForUserName (ownerName.toUserName ())
       let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
       let canvasInfo = { name = canvasName; id = canvasID; owner = ownerID }
+      let! permission = Auth.permission ownerName ownerID user.username
 
-      let! permitted =
-        if permissionNeeded = Auth.Read then
-          Auth.canViewCanvas canvasName ownerName ownerID user.username
-        else if permissionNeeded = Auth.ReadWrite then
-          Auth.canEditCanvas canvasName ownerName ownerID user.username
-        else
-          Task.FromResult false
-
-      if permitted then
-        ctx |> saveCanvasInfo canvasInfo |> savePermission permissionNeeded |> ignore // ignored as `save` is side-effecting
+      // This is a precarious function call, be careful
+      if Auth.permitted permissionNeeded permission then
+        ctx |> saveCanvasInfo canvasInfo |> savePermission permission |> ignore // ignored as `save` is side-effecting
 
         return! next ctx
       else

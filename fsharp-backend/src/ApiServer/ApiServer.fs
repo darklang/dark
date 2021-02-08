@@ -12,7 +12,9 @@ open Giraffe
 open Giraffe.EndpointRouting
 
 open FSharpPlus
+
 open Prelude
+open Tablecloth
 
 module Config = LibBackend.Config
 
@@ -70,13 +72,13 @@ let configureServices (services : IServiceCollection) =
     .AddRouting()
     .AddGiraffe()
     .AddSingleton<Json.ISerializer>(SystemTextJson.Serializer
-                                      (Prelude.Json.AutoSerialize._options))
+                                      (Json.AutoSerialize._options))
   |> ignore
 
 [<EntryPoint>]
 let main args =
-  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
-
+  printfn "Starting BwdServer"
+  LibBackend.Init.init ()
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel()
   |> fun wh -> wh.ConfigureServices(configureServices)
