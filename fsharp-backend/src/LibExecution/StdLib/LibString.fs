@@ -823,17 +823,18 @@ Don't rely on either the size or the algorithm."
       description =
         "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
       fn =
-        (function
-        | _, [ DStr s ] ->
-            match Guid.TryParse s with
-            | true, x -> x |> DUuid |> Value
-            | _ ->
-                Value(
-                  errStr (
-                    "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+        InProcess
+          (function
+          | _, [ DStr s ] ->
+              match Guid.TryParse s with
+              | true, x -> x |> DUuid |> Value
+              | _ ->
+                  Value(
+                    errStr (
+                      "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                    )
                   )
-                )
-        | args -> incorrectArgs ())
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUUID" 1) }
@@ -843,17 +844,18 @@ Don't rely on either the size or the algorithm."
       description =
         "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
       fn =
-        (function
-        | _, [ DStr s ] ->
-            match Guid.TryParse s with
-            | true, x -> x |> DUuid |> Ok |> DResult |> Value
-            | _ ->
-                "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                |> DStr
-                |> Error
-                |> DResult
-                |> Value
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DStr s ] ->
+              match Guid.TryParse s with
+              | true, x -> x |> DUuid |> Ok |> DResult |> Value
+              | _ ->
+                  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+                  |> DStr
+                  |> Error
+                  |> DResult
+                  |> Value
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -863,10 +865,11 @@ Don't rely on either the size or the algorithm."
       returnType = TBool
       description = "Checks if `lookingIn` contains `searchingFor`"
       fn =
-        (function
-        | _, [ DStr needle; DStr haystack ] ->
-            DBool(haystack.Contains needle) |> Value
-        | args -> incorrectArgs ())
+        InProcess
+          (function
+          | _, [ DStr needle; DStr haystack ] ->
+              DBool(haystack.Contains needle) |> Value
+          | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "isSubstring" 1) }
