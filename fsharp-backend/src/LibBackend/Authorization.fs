@@ -164,7 +164,7 @@ let permission
   : Task<Option<Permission>> =
   let permFs : List<unit -> Task<Option<Permission>>> =
     [ (fun () -> task { return matchPermission username owner })
-      // FSTODO: remove specialCasePermission
+      // TODO CLEANUP: remove specialCasePermission
       (fun () -> task { return specialCasePermission username owner })
       (fun () -> task { return samplePermission owner })
       (fun () -> task { return! grantedPermission username owner })
