@@ -204,7 +204,9 @@ module Binary =
   let oplistBin2Json (bytes : byte []) : string =
     translateBin2Json Internal.oplistBin2Json bytes
 
-  let digest () = Internal.digest ()
+  let digest () =
+    registerThread ()
+    Internal.digest ()
 
   let init () =
     printfn "serialization_init"
