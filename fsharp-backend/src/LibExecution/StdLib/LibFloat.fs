@@ -32,22 +32,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-  // ; { name = fn "Float::floor"; "Float" "roundDown" 0
-
-  //   ; parameters = [Param.make "a" TFloat]
-  //   ; returnType = TInt
-  //   ; description =
-  //       "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
-  //   ; fn =
-
-  //         (function
-  //         | _, [DFloat a] ->
-  //             DInt (Float.round_down a |> Dint.of_float)
-  //         | args ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //     ; previewable = Pure
-  //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "floor" 0
+      parameters = [Param.make "a" TFloat ""]
+      returnType = TInt
+      description =
+        "Round down to an integer value. Consider Float::truncate if your goal is to discard the fractional part of a number: `Float::floor -1.9 == -2.0` but `Float::truncate -1.9 == -1.0`."
+      fn =
+        (function
+        | _, [DFloat a] -> bigint(Math.Floor a) |> DInt |> Value
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
   // ; { name = fn "Float" "round" 0
 
   //   ; parameters = [Param.make "a" TFloat]
