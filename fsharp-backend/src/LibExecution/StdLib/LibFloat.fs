@@ -24,8 +24,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [DFloat a] -> bigint(Math.Ceiling a) |> DInt |> Value
-        | args ->
-            incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -37,8 +36,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [DFloat a] -> bigint(Math.Floor a) |> DInt |> Value
-        | args ->
-            incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -49,8 +47,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [DFloat a] -> bigint(Math.Round a) |> DInt |> Value
-        | args ->
-            incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -62,23 +59,22 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [DFloat a] -> bigint(Math.Truncate a) |> DInt |> Value
-        | args ->
-            incorrectArgs ())
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-  // ; { name = fn "Float" "absoluteValue" 0
-
-  //   ; parameters = [Param.make "a" TFloat]
-  //   ; returnType = TFloat
-  //   ; description =
-  //       "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
-  //   ; fn =
-
-  //         (function _, [DFloat a] -> DFloat (Float.abs a) | args -> incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //     ; previewable = Pure
-  //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "absoluteValue" 0
+      parameters = [Param.make "a" TFloat ""]
+      returnType = TFloat
+      description =
+         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
+      fn =
+          (function
+          | _, [ DFloat a ] -> DFloat(Math.Abs a) |> Value
+          | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
   // ; { name = fn "Float" "negate" 0
 
   //   ; parameters = [Param.make "a" TFloat]
