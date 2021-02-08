@@ -42,21 +42,18 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-  // ; { name = fn "Float" "round" 0
-
-  //   ; parameters = [Param.make "a" TFloat]
-  //   ; returnType = TInt
-  //   ; description = "Round to the nearest integer value"
-  //   ; fn =
-
-  //         (function
-  //         | _, [DFloat a] ->
-  //             DInt (Float.round a |> Dint.of_float)
-  //         | args ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //     ; previewable = Pure
-  //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "round" 0
+      parameters = [Param.make "a" TFloat ""]
+      returnType = TInt
+      description = "Round to the nearest integer value"
+      fn =
+        (function
+        | _, [DFloat a] -> bigint(Math.Round a) |> DInt |> Value
+        | args ->
+            incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
   // ; { name = fn "Float::truncate"; "Float" "roundTowardsZero" 0
 
   //   ; parameters = [Param.make "a" TFloat]
