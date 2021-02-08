@@ -190,6 +190,8 @@ let fqFnName =
       (FQFnName.stdlibName "" "toString" 0), "toString_v0"
       (FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
+// TODO parsing function names from OCaml
+
 let backendFqFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
