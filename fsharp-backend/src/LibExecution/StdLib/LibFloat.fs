@@ -75,17 +75,15 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-  // ; { name = fn "Float" "negate" 0
-
-  //   ; parameters = [Param.make "a" TFloat]
-  //   ; returnType = TFloat
-  //   ; description = "Returns the negation of `a`, `-a`."
-  //   ; fn =
-
-  //         (function _, [DFloat a] -> DFloat (Float.neg a) | args -> incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //     ; previewable = Pure
-  //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "negate" 0
+      parameters = [Param.make "a" TFloat ""]
+      returnType = TFloat
+      description = "Returns the negation of `a`, `-a`."
+      fn =
+        (function _, [DFloat a] -> DFloat (a * -1.0) |> Value | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
   // ; { name = fn "Float" "sqrt" 0
 
   //   ; parameters = [Param.make "a" TFloat]
