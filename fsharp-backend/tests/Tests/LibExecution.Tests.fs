@@ -42,6 +42,7 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
       Expect.equal u1 u2 msg
       de b1 b2
+  | DFakeVal (DIncomplete _), DFakeVal (DIncomplete _) -> Expect.equal true true "two incompletes"
   // Keep for exhaustiveness checking
   | DHttpResponse _, _
   | DObj _, _

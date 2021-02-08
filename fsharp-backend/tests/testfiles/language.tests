@@ -165,6 +165,7 @@ Nothing = Nothing
 5 |> (+) blank |> (+) 3564 = 3569
 5 |> (+) blank = 5
 (let x = blank in (5 |> x)) = 5
+Just blank = Test.incomplete_v0
 
 [tests.errorrail]
 Dict.get_v1 {} "i" = Nothing

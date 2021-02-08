@@ -30,6 +30,18 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Test" "incomplete" 0
+      parameters = []
+      returnType = TInt
+      description = "Return an incomplete"
+      fn =
+        InProcess
+          (function
+          | state, [] -> Value(DFakeVal(DIncomplete SourceNone))
+          | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
