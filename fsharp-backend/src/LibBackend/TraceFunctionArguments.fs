@@ -53,7 +53,7 @@ let loadForAnalysis
        (fun read ->
          (read.string "arguments_json"
           |> DvalRepr.ofInternalRoundtrippableV0
-          |> fun dv -> dv.toPairs (), read.dateTime "timestamp"))
+          |> fun dv -> RT.Dval.toPairs dv, read.dateTime "timestamp"))
 
 
 let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =
@@ -69,7 +69,7 @@ let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID>> =
      ) AS q
      ORDER BY timestamp DESC
      LIMIT 10"
-  |> Sql.parameters ["canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
   |> Sql.executeAsync (fun read -> read.uuid "trace_id")
 
 // type trim_arguments_action = Stored_event.trim_events_action

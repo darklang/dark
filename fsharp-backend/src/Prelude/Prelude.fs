@@ -203,7 +203,7 @@ module TaskOrValue =
 
   // Create a new TaskOrValue that first runs 'vt' and then
   // continues with whatever TaskorValue is produced by 'f'.
-  let bind f vt =
+  let bind (f : 'a -> TaskOrValue<'b>) (vt : TaskOrValue<'a>) : TaskOrValue<'b> =
     match vt with
     | Value v ->
         // It was a value, so we return 'f v' directly

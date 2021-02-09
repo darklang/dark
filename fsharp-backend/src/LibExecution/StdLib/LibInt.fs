@@ -3,11 +3,18 @@ module LibExecution.StdLib.LibInt
 open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
-open LibExecution.RuntimeTypes
 open FSharpPlus
+
+open LibExecution.RuntimeTypes
 open Prelude
 
+module Errors = LibExecution.Errors
+
 let fn = FQFnName.stdlibName
+
+let err (str : string) = Value(Dval.errStr str)
+
+let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -22,20 +29,16 @@ let fns : List<BuiltInFn> =
       fn =
         InProcess
           (function
-          | state, [ DInt v; DInt m ] ->
+          | state, [ DInt v; DInt m as mdv ] ->
               (try
                 Value(DInt(v % m))
                with e ->
                  if m = bigint 0 then
-                   Value(
-                     errStr (
-                       $"Expected the argument `b` to be positive, but it was ({m})"
-                     )
-                   )
+                   err (Errors.argumentWasnt "positive" "b" mdv)
                  else
                    // FSTODO
                    // In case there's another failure mode, rollbar
-                   failwith "mpod error ")
+                   failwith "mod error")
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -89,7 +92,7 @@ let fns : List<BuiltInFn> =
                 BigInteger.Remainder(v, d) |> DInt |> Value
                with e ->
                  if d = bigint 0 then
-                   Value(errStr ($"`divisor` must be non-zero"))
+                   Value(Dval.errStr (Errors.dividingByZero "divisor"))
                  else (* In case there's another failure mode, rollbar *)
                    raise e)
           | args -> incorrectArgs ())
@@ -104,30 +107,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:add only works on Ints. Use Float::add to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ DStr a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a string, but Int:add only works on Ints."
-                )
-              )
-          | _, [ _; DStr b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a string, but Int:add only works on Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -140,18 +119,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:subtract only works on Ints. Use Float::subtract to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -164,18 +131,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:multiply only works on Ints. Use Float::multiply to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -187,22 +142,16 @@ let fns : List<BuiltInFn> =
       fn =
         InProcess
           (function
-          | state, [ DInt number; DInt exp ] ->
+          | state, [ DInt number; DInt exp as expdv ] ->
               (try
                 Value(DInt(number ** (int exp)))
                with e ->
                  if exp < bigint 0 then
-                   Value(
-                     errStr (
-                       $"Expected the argument `exponent` to be positive, but it was ({
-                                                                                         exp
-                       })"
-                     )
-                   )
+                   err (Errors.argumentWasnt "positive" "exponent" expdv)
                  else
                    // FSTODO
                    // In case there's another failure mode, rollbar
-                   failwith "mpod error ")
+                   failwith "mod error")
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -215,18 +164,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:divide only works on Ints. Use Float::divide to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -264,18 +201,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:greaterThan only works on Ints. Use Float::greaterThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -288,18 +213,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:greaterThanOrEqualTo only works on Ints. Use Float::greaterThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -312,18 +225,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:lessThan only works on Ints. Use Float::lessThan to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -336,18 +237,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a float, but Int:lessThanOrEqualTo only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:lessThanOrEqualTo but only works on Ints. Use Float::lessThanOrEqualTo to compare Floats or use Float::truncate to truncate Floats to Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -361,18 +250,6 @@ let fns : List<BuiltInFn> =
           (function
           | _, [ DInt a; DInt b ] ->
               a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
-          | _, [ DFloat a; _ ] ->
-              Value(
-                errStr (
-                  $"The first  argument ({a}) is a float, but Int:random only works on Ints."
-                )
-              )
-          | _, [ _; DFloat b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a float, but Int:random only works on Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -402,12 +279,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
-          | _, [ DFloat a ] ->
-              Value(
-                errStr (
-                  $"The argument ({a}) is a float, but Int:sqrt only works on Ints. Use Float::sqrt to take the square root of Floats or use Float::truncate to truncate the Float to an Int."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -420,18 +291,6 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DInt a ] -> Value(DFloat(float a))
-          | _, [ DStr a; _ ] ->
-              Value(
-                errStr (
-                  $"The first argument ({a}) is a string, but Int:toFloat only works on Ints."
-                )
-              )
-          | _, [ _; DStr b ] ->
-              Value(
-                errStr (
-                  $"The second argument ({b}) is a string, but Int:toFloat only works on Ints."
-                )
-              )
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -3,6 +3,8 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
+let incorrectArgs = LibExecution.Errors.incorrectArgs
+
 (* type coerces one list to another using a function *)
 let list_coerce ~(f : dval -> 'a option) (l : dval list) :
     ('a list, dval list * dval) Result.t =

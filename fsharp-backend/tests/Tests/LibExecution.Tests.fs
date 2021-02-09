@@ -5,16 +5,15 @@ module Tests.LibExecution
 open Expecto
 open Prelude
 
-module R = LibExecution.RuntimeTypes
-module P = LibBackend.ProgramSerialization.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module PT = LibBackend.ProgramSerialization.ProgramTypes
 
 // Remove random things like IDs to make the tests stable
-let normalizeDvalResult (dv : R.Dval) : R.Dval =
+let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | R.DFakeVal (R.DError (R.JustAString (source, str))) ->
-      R.DFakeVal(R.DError(R.JustAString(R.SourceNone, str)))
-  | R.DFakeVal (R.DError (errorVal)) ->
-      R.DFakeVal(R.DError(R.JustAString(R.SourceNone, errorVal.ToString())))
+  | RT.DFakeVal (RT.DError (source, str)) ->
+      RT.DFakeVal(RT.DError(RT.SourceNone, str))
+  | RT.DFakeVal (RT.DIncomplete source) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
   | dv -> dv
 
 open LibExecution.RuntimeTypes
@@ -42,7 +41,8 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
       Expect.equal u1 u2 msg
       de b1 b2
-  | DFakeVal (DIncomplete _), DFakeVal (DIncomplete _) -> Expect.equal true true "two incompletes"
+  | DFakeVal (DIncomplete _), DFakeVal (DIncomplete _) ->
+      Expect.equal true true "two incompletes"
   // Keep for exhaustiveness checking
   | DHttpResponse _, _
   | DObj _, _
@@ -196,12 +196,12 @@ let fqFnName =
 let backendFqFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
-    (fun (name : P.FQFnName.T) -> name.ToString())
-    [ (P.FQFnName.stdlibName "" "++" 0), "++_v0"
-      (P.FQFnName.stdlibName "" "!=" 0), "!=_v0"
-      (P.FQFnName.stdlibName "" "&&" 0), "&&_v0"
-      (P.FQFnName.stdlibName "" "toString" 0), "toString_v0"
-      (P.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+    (fun (name : PT.FQFnName.T) -> name.ToString())
+    [ (PT.FQFnName.stdlibName "" "++" 0), "++_v0"
+      (PT.FQFnName.stdlibName "" "!=" 0), "!=_v0"
+      (PT.FQFnName.stdlibName "" "&&" 0), "&&_v0"
+      (PT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
+      (PT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
 
 let tests = testList "LibExecution" [ fqFnName; backendFqFnName; fileTests () ]

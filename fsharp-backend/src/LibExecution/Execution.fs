@@ -233,6 +233,7 @@ let runHttp
     let result =
       Interpreter.applyFnVal
         state
+        (RT.Expr.toID e)
         (RT.FnName(RT.FQFnName.stdlibName "Http" "middleware" 0))
         [ RT.DStr url
           RT.DBytes body

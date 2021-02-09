@@ -5,11 +5,14 @@ module Tests.LibTest
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open LibExecution.RuntimeTypes
 open FSharpPlus
+
+open LibExecution.RuntimeTypes
 open Prelude
 
 let fn = FQFnName.stdlibName
+
+let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -50,7 +53,7 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | state, [ DStr errorString ] ->
-              Value(DFakeVal(DError(JustAString(SourceNone, errorString))))
+              Value(DFakeVal(DError(SourceNone, errorString)))
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

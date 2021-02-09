@@ -5,6 +5,8 @@ open LibExecution.RuntimeTypes
 
 module DvalRepr = LibExecution.DvalRepr
 
+let incorrectArgs = LibExecution.Errors.incorrectArgs
+
 let any =
   [ { name = FQFnName.stdlibName "" "equals" 0
       description = "Returns true if the two value are equal"

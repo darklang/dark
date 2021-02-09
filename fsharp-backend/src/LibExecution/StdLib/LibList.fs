@@ -5,8 +5,11 @@ open FSharpPlus
 open Prelude
 
 module Interpreter = LibExecution.Interpreter
+module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibName
+
+let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -336,7 +339,13 @@ let fns : List<BuiltInFn> =
                     let! accum = accum
 
                     return!
-                      Interpreter.applyFnVal state b [ accum; item ] NotInPipe NoRail
+                      Interpreter.applyFnVal
+                        state
+                        (id 0) // CLEANUP should use real id here
+                        b
+                        [ accum; item ]
+                        NotInPipe
+                        NoRail
                   }
 
                 return! List.fold f (Value init) l
@@ -582,13 +591,17 @@ let fns : List<BuiltInFn> =
 
                 let f (dv : Dval) : TaskOrValue<bool> =
                   taskv {
-                    match! Interpreter.applyFnVal state fn [ dv ] NotInPipe NoRail with
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                    match result with
                     | DBool b -> return b
                     | DFakeVal (DIncomplete _) ->
                         incomplete := true
                         return false
                     | v ->
-                        raise (RuntimeException(LambdaResultHasWrongType(dv, TBool)))
+                        Errors.throw (Errors.expectedLambdaType TBool v)
+
                         return false
                   }
 
@@ -621,18 +634,22 @@ let fns : List<BuiltInFn> =
 
                 let f (dv : Dval) : TaskOrValue<bool> =
                   taskv {
-                    match! LibExecution.Interpreter.applyFnVal
-                             state
-                             b
-                             [ dv ]
-                             NotInPipe
-                             NoRail with
+                    let! r =
+                      LibExecution.Interpreter.applyFnVal
+                        state
+                        (id 0)
+                        b
+                        [ dv ]
+                        NotInPipe
+                        NoRail
+
+                    match r with
                     | DBool b -> return b
                     | DFakeVal (DIncomplete _) ->
                         incomplete := true
                         return false
                     | v ->
-                        raise (RuntimeException(LambdaResultHasWrongType(dv, TBool)))
+                        Errors.throw (Errors.expectedLambdaType TBool dv)
                         return false
                   }
 
@@ -911,6 +928,7 @@ let fns : List<BuiltInFn> =
                     (fun dv ->
                       LibExecution.Interpreter.applyFnVal
                         state
+                        (id 0)
                         b
                         [ dv ]
                         NotInPipe
@@ -943,6 +961,7 @@ let fns : List<BuiltInFn> =
                     (fun dv ->
                       LibExecution.Interpreter.applyFnVal
                         state
+                        (id 0)
                         b
                         [ dv ]
                         NotInPipe

@@ -40,38 +40,6 @@ let t_feature_flags_work () =
   ()
 
 
-let t_incomplete_propagation () =
-  check_incomplete
-    "Fn with incomplete return incomplete"
-    (exec_ast (fn "List::head" [blank ()])) ;
-  check_incomplete
-    "incomplete if conds are incomplete"
-    (exec_ast (if' (blank ()) (int 5) (int 6))) ;
-  check_incomplete "empty thread is incomplete" (exec_ast (pipe (blank ()) [])) ;
-  check_incomplete
-    "incomplete obj in field access is incomplete"
-    (exec_ast (fieldAccess (fn "List::head" [blank ()]) "field")) ;
-  check_incomplete
-    "incomplete name in field access is incomplete"
-    (exec_ast (fieldAccess (record [("i", int 5)]) "")) ;
-  ()
-
-
-let t_derror_propagation () =
-  check_error
-    "Mapping error results in error"
-    (exec_ast
-       (fn
-          "List::map"
-          [list [int 1; int 2; int 3; int 4; int 5]; lambda ["x"; "y"] (var "x")]))
-    "Expected 2 arguments, got 1" ;
-  check_dval
-    "ErrorRail in Error results in ErrorRail"
-    (DErrorRail (DOption OptNothing))
-    (exec_ast (error (fn "List::last_v1" ~ster:Rail [list []]))) ;
-  ()
-
-
 (* ---------------- *)
 (* Errorrail *)
 (* ---------------- *)
