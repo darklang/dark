@@ -55,8 +55,8 @@ module Sql =
     }
 
   let executeExists (props : Sql.SqlProps) : bool =
-    match Sql.execute (fun read -> read.NpgsqlReader.GetInt32 0) props with
-    | [ 1 ] -> true
+    match Sql.execute (fun read -> read.NpgsqlReader.GetBoolean 0) props with
+    | [ true ] -> true
     | [] -> false
     | result -> failwith $"Too many results, expected 1, got {result}"
 
