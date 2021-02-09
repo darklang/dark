@@ -189,15 +189,13 @@ def backend_test():
 
 def fsharp_backend_test():
   start = time.time()
-  #FSTODO
-  #ci = "--verbose" if os.environ.get("CI") else "--quick"
-  #  if os.environ.get("CI"):
-  #    configuration = "Release"
-  #  else:
-  #    configuration = "Debug"
+  ci = "--verbosity detailed" if os.environ.get("CI") else "--verbosity normal"
+  if os.environ.get("CI"):
+    configuration = "Release"
+  else:
+    configuration = "Debug"
   build = f"scripts/run-fsharp-tests"
   return run_test(start, build)
-
 
 def fsharp_tool_restore():
   start = time.time()
