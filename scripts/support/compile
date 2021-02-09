@@ -196,9 +196,7 @@ def fsharp_backend_test():
   #  else:
   #    configuration = "Debug"
   build = f"scripts/run-fsharp-tests"
-  run_test(start, build)
-  # Don't break the build for F#, since the tests are not expected to succeed
-  return True
+  return run_test(start, build)
 
 
 def fsharp_tool_restore():
