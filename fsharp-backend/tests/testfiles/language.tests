@@ -158,6 +158,7 @@ Nothing = Nothing
 ((List.head_v1 []) == Nothing) = true
 
 [tests.incomplete_propagation]
+List.head_v0 blank = Test.incomplete_v0
 [ 5; 6; List.head_v0 blank ] = [ 5; 6 ]
 [ 5; 6; blank] = [ 5, 6 ]
 { i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }
@@ -168,6 +169,9 @@ Nothing = Nothing
 Just blank = Test.incomplete_v0
 Error blank = Test.incomplete_v0
 Ok blank = Test.incomplete_v0
+
+[tests.error]
+//{ col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key"
 
 [tests.errorrail]
 Dict.get_v1 {} "i" = Nothing

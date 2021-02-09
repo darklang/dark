@@ -4,14 +4,6 @@ open Libshared.FluidShortcuts
 open Types.RuntimeT
 open Utils
 
-let t_multiple_copies_of_same_name () =
-  check_error
-    "record field names"
-    (exec_ast (record [("col1", int 1); ("col1", int 2)]))
-    "Duplicate key: col1" ;
-  ()
-
-
 let t_feature_flags_work () =
   check_dval
     "flag shows new for true"
@@ -206,92 +198,6 @@ let t_dark_internal_fns_are_internal () =
 
 
 (* ---------------- *)
-(* Unicode *)
-(* ---------------- *)
-
-let t_ascii_string_literal_validates_as_utf8 () =
-  AT.check
-    AT.int
-    "ASCII string validates as UTF-8"
-    0
-    (match Dval.dstr_of_string "foobar" with Some _ -> 0 | _ -> 1)
-
-
-let t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 () =
-  AT.check
-    AT.int
-    "Replacement character utf8 multi-byte sequence validates"
-    0
-    (match Dval.dstr_of_string "\xef\xbf\xbd" with Some _ -> 0 | _ -> 1)
-
-
-let t_family_emoji_utf8_byte_seq_validates_as_utf8 () =
-  AT.check
-    AT.int
-    "Emoji utf8 multi-byte sequence validates"
-    0
-    (match Dval.dstr_of_string "\xf0\x9f\x91\xaa" with Some _ -> 0 | _ -> 1)
-
-
-let t_family_emoji_utf16_byte_seq_fails_validation () =
-  AT.check
-    AT.int
-    "UTF16 representation of family emoji does not validate"
-    0
-    (match Dval.dstr_of_string "\xd8\x3d\xdc\x6A" with Some _ -> 1 | _ -> 0)
-
-
-let t_mix_of_ascii_and_utf16_fails_validation () =
-  AT.check
-    AT.int
-    "Mix of valid ASCII followed by a UTF16 byte sequence fails validation"
-    0
-    ( match Dval.dstr_of_string "hello, \xd8\x3d\xdc\x6A" with
-    | Some _ ->
-        1
-    | _ ->
-        0 )
-
-
-let t_u0000_fails_validation () =
-  AT.check
-    AT.int
-    "String containing U+0000/0x00 fails to validate (due to Postgres quirks)"
-    0
-    (match Dval.dstr_of_string "hello, \x00" with Some _ -> 1 | _ -> 0)
-
-
-let unicode_string_tester = AT.testable Unicode_string.pp Unicode_string.equal
-
-let t_unicode_string_reverse_works_with_emojis () =
-  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
-  let expected = Unicode_string.of_string_exn "dlrow\xf0\x9f\x98\x84olleh" in
-  AT.check
-    unicode_string_tester
-    "emoji_reverse"
-    expected
-    (Unicode_string.rev s1)
-
-
-let t_unicode_string_length_works_with_emojis () =
-  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
-  let expected = 11 in
-  AT.check AT.int "emoji_length" expected (Unicode_string.length s1)
-
-
-let t_unicode_string_regex_replace_works_with_emojis () =
-  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
-  let pattern = "\xf0\x9f\x98\x84" in
-  let replacement = Unicode_string.of_string_exn "FOO" in
-  let expected = Unicode_string.of_string_exn "helloFOOworld" in
-  AT.check
-    unicode_string_tester
-    "emoji_regex_replace"
-    expected
-    (Unicode_string.regexp_replace ~pattern ~replacement s1)
-
-
-(* ---------------- *)
 (* Dval hashing *)
 (* ---------------- *)
 let t_dval_hash_differs_for_version_0_and_1 () =
@@ -304,67 +210,3 @@ let t_dval_hash_differs_for_version_0_and_1 () =
     "DVal.hash differs for version 0 and 1"
     false
     (Dval.hash 0 arglist = Dval.hash 1 arglist)
-
-
-let suite =
-  [ ("int_add_works", `Quick, t_int_add_works)
-  ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
-  ; ("match_works", `Quick, t_match_works)
-  ; ("pipe works", `Quick, t_pipe_works)
-  ; ( "Multiple copies of same name don't crash"
-    , `Quick
-    , t_multiple_copies_of_same_name )
-  ; ("Feature flags work", `Quick, t_feature_flags_work)
-  ; ("Handling nothing in code works", `Quick, t_nothing)
-  ; ("Incompletes propagate correctly", `Quick, t_incomplete_propagation)
-  ; ("Errorrail simple", `Quick, t_errorrail_simple)
-  ; ("Errorrail works in toplevel", `Quick, t_errorrail_toplevel)
-  ; ("Errorrail works in user_function", `Quick, t_errorrail_userfn)
-  ; ( "Basic typechecking works in happy case"
-    , `Quick
-    , t_basic_typecheck_works_happy )
-  ; ( "Basic typechecking works in unhappy case"
-    , `Quick
-    , t_basic_typecheck_works_unhappy )
-  ; ("Type checking supports `Any` in user functions", `Quick, t_typecheck_any)
-  ; ( "Type checking error isn't wrapped by error rail"
-    , `Quick
-    , t_typechecker_error_isnt_wrapped_by_errorail )
-  ; ("Type checkingfor return types", `Quick, t_typechecker_return_types)
-  ; ( "Error rail is propagated by functions"
-    , `Quick
-    , t_error_rail_is_propagated_by_functions )
-  ; ( "DarkInternal:: functions are internal"
-    , `Quick
-    , t_dark_internal_fns_are_internal )
-  ; ( "Dval.dstr_of_string validates ASCII as UTF8"
-    , `Quick
-    , t_ascii_string_literal_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string validates replacement character utf8 repr as UTF8"
-    , `Quick
-    , t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string validates utf8 emoji repr as UTF8"
-    , `Quick
-    , t_family_emoji_utf8_byte_seq_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string rejects UTF16 repr of emoji"
-    , `Quick
-    , t_family_emoji_utf16_byte_seq_fails_validation )
-  ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
-    , `Quick
-    , t_mix_of_ascii_and_utf16_fails_validation )
-  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
-  ; ( "Unicode_string.reverse works on strings with emoji + ascii"
-    , `Quick
-    , t_unicode_string_reverse_works_with_emojis )
-  ; ( "Unicode_string.length works for strings with emoji + ascii"
-    , `Quick
-    , t_unicode_string_length_works_with_emojis )
-  ; ( "Unicode_string.regex_replace_works_with_emojis"
-    , `Quick
-    , t_unicode_string_regex_replace_works_with_emojis )
-  ; ("DError propagation", `Quick, t_derror_propagation)
-  ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1)
-  ; ("t_int_functions_works", `Quick, t_int_functions_works)
-  ; ("lambda scopes correctly", `Quick, t_lambda_scopes_correctly)
-  ; ("pattern matches work", `Quick, t_pattern_matches_work)
-  ; ("shadowing all the way down", `Quick, t_shadowing_all_the_way_down) ]
