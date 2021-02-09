@@ -166,6 +166,8 @@ Nothing = Nothing
 5 |> (+) blank = 5
 (let x = blank in (5 |> x)) = 5
 Just blank = Test.incomplete_v0
+Error blank = Test.incomplete_v0
+Ok blank = Test.incomplete_v0
 
 [tests.errorrail]
 Dict.get_v1 {} "i" = Nothing
@@ -175,9 +177,10 @@ Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
 
 [tests.errorrailPropagation]
 List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
-//List.filter_v1 [1;2;3;4] (fun x -> List.head_v1_ster []) = ErrorRail Nothing
+// List.filter_v1 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 List.map_v0 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
-//List.fold_v0 [1;2;3;4] 1 (fun x y -> List.head_v1 []) = Test.errorRailNothing_v0_ster
+List.fold_v0 [1;2;3;4] 1 (fun x y -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
+List.map_v0 [1;2;3;4] (fun x -> blank) = Test.incomplete_v0
 ({ x = (List.head_v1_ster []) }) = Test.errorRailNothing_v0_ster
 Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 
