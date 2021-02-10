@@ -1239,34 +1239,32 @@ Don't rely on either the size or the algorithm."
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "trimStart" 0
-//      ; parameters = [Param.make "str" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//      ; fn =
-//         (function
-//         | _, [DStr to_trim] ->
-//             DStr (Unicode_string.trim_start to_trim)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
-//      { name = fn "String" "trimEnd" 0
-//      ; parameters = [Param.make "str" TStr]
-//      ; returnType = TStr
-//      ; description =
-//       "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
-//      ; fn =
-//         (function
-//         | _, [DStr to_trim] ->
-//             DStr (Unicode_string.trim_end to_trim)
-//         | args ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "trimStart" 0
+      parameters = [ Param.make "str" TStr "" ]
+      returnType = TStr
+      description =
+        "Returns a copy of `str` with all leading whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+      fn =
+        InProcess
+          (function
+          | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimStart()))
+          | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "String" "trimEnd" 0
+      parameters = [ Param.make "str" TStr "" ]
+      returnType = TStr
+      description =
+        "Returns a copy of `str` with all trailing whitespace removed. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
+      fn =
+        InProcess
+          (function
+          | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimEnd()))
+          | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "toBytes" 0
       parameters = [ Param.make "str" TStr "" ]
       returnType = TBytes

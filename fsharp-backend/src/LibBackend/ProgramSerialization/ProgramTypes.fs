@@ -780,7 +780,7 @@ module Handler =
       | Cron (name, interval, _ids) -> RT.Handler.Cron(name, interval)
       | REPL (name, _ids) -> RT.Handler.REPL(name)
 
-    member this.name () =
+    member this.name() =
       match this with
       | HTTP (route, method, _ids) -> route
       | Worker (name, _ids) -> name
@@ -788,7 +788,7 @@ module Handler =
       | Cron (name, interval, _ids) -> name
       | REPL (name, _ids) -> name
 
-    member this.modifier () =
+    member this.modifier() =
       match this with
       | HTTP (route, method, _ids) -> method
       | Worker (name, _ids) -> "_"
@@ -796,7 +796,7 @@ module Handler =
       | Cron (name, interval, _ids) -> interval
       | REPL (name, _ids) -> "_"
 
-    member this.module' () =
+    member this.module'() =
       match this with
       | HTTP (route, method, _ids) -> "HTTP"
       | Worker (name, _ids) -> "Worker"
@@ -818,7 +818,10 @@ module Handler =
 
     // Same as a TraceInput.EventDesc
     member this.toDesc() : Option<string * string * string> =
-      if this.complete() then Some (this.name(), this.name(), this.modifier()) else None
+      if this.complete () then
+        Some(this.name (), this.name (), this.modifier ())
+      else
+        None
 
   type T =
     { tlid : tlid

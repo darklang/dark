@@ -72,29 +72,55 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let! args = Prelude.map_s (eval state st) exprs
         return! (applyFn state id fnVal (Seq.toList args) inPipe ster)
     | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
-    | EFieldAccess (id, _, _) ->
-        failwith "todo"
-        return! incomplete id
+    | EFieldAccess (id, e, field) ->
+        let! obj = eval state st e
+
+        let result =
+          match obj with
+          | DObj o ->
+              if field = "" then
+                DFakeVal(DIncomplete(sourceID id))
+              else
+                Map.tryFind field o |> Option.defaultValue DNull
+          | DFakeVal (DIncomplete _) -> obj
+          | DFakeVal (DErrorRail _) -> obj
+          | x ->
+              let actualType =
+                match Dval.toType x with
+                | TDB ->
+                    "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
+                | tipe -> $"it's a {DvalRepr.typeToDeveloperReprV0 tipe}"
+
+              DFakeVal(
+                DError(
+                  sourceID id,
+                  "Attempting to access a field of something that isn't a record or dict, ("
+                  + actualType
+                  + ")."
+                )
+              )
+
+        return! Value result
     | EFeatureFlag (id, cond, oldcode, newcode) ->
-        (* True gives newexpr, unlike in If statements
-         *
-         * In If statements, we use a false/null as false, and anything else is
-         * true. But this won't work for feature flags. If statements are built
-         * as you build you code, with no existing users. But feature flags are
-         * created when you have users and don't want to break your code. As a
-         * result, anything that isn't an explicitly signalling to use the new
-         * code, should use the old code:
-         * - errors should be ignored: use old code
-         * - incompletes should be ignored: use old code
-         * - errorrail should not be propaged: use old code
-         * - values which are "truthy" in if statements are not truthy here:
-         * imagine you are writing the FF cond and you get a list or object,
-         * and you're about to do some other work on it. Should we immediately
-         * start serving the new code to all your traffic? No. So only `true`
-         * gets new code. *)
+        // True gives newexpr, unlike in If statements
+        //
+        // In If statements, we use a false/null as false, and anything else is
+        // true. But this won't work for feature flags. If statements are built
+        // as you build you code, with no existing users. But feature flags are
+        // created when you have users and don't want to break your code. As a
+        // result, anything that isn't an explicitly signalling to use the new
+        // code, should use the old code:
+        // - errors should be ignored: use old code
+        // - incompletes should be ignored: use old code
+        // - errorrail should not be propaged: use old code
+        // - values which are "truthy" in if statements are not truthy here:
+        // imagine you are writing the FF cond and you get a list or object,
+        // and you're about to do some other work on it. Should we immediately
+        // start serving the new code to all your traffic? No. So only `true`
+        // gets new code.
 
         let! cond =
-          (* under no circumstances should this cause code to fail *)
+          // under no circumstances should this cause code to fail
           try
             eval state st cond
           with e -> Value(DBool false)
