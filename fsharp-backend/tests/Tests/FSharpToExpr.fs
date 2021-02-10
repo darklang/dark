@@ -8,8 +8,7 @@ open FSharp.Compiler.SourceCodeServices
 
 open Prelude
 
-module DarkTypes = LibBackend.ProgramSerialization.ProgramTypes
-module D = DarkTypes
+module PT = LibBackend.ProgramSerialization.ProgramTypes
 
 open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
@@ -47,8 +46,15 @@ let parse (input) : SynExpr =
       expr
   | _ -> failwith $" - wrong shape tree: {results.ParseTree}"
 
+// A placeholder is used to indicate what still needs to be filled
+let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")
 
-let rec convertToExpr (ast : SynExpr) : D.Expr =
+// This is a "Partial active pattern" that you can use as a Pattern to match a Placeholder value
+let (|Placeholder|_|) (input : PT.Expr) =
+  if input = placeholder then Some() else None
+
+
+let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let c = convertToExpr
 
   let splitFloat (d : float) : Sign * bigint * bigint =
@@ -61,14 +67,14 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
     | Regex "([0-9]+)" [ whole ] -> (Positive, whole |> parseBigint, 0I)
     | str -> failwith $"Could not splitFloat {d}"
 
-  let rec convertPattern (pat : SynPat) : D.Pattern =
+  let rec convertPattern (pat : SynPat) : PT.Pattern =
     match pat with
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) when name.idText = "blank" ->
         pBlank ()
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
     | SynPat.Const (SynConst.Int32 n, _) -> pInt n
     | SynPat.Const (SynConst.UserNum (n, "I"), _) ->
-        D.PInteger(gid (), parseBigint n)
+        PT.PInteger(gid (), parseBigint n)
     | SynPat.Const (SynConst.Char c, _) -> pChar c
     | SynPat.Const (SynConst.Bool b, _) -> pBool b
     | SynPat.Null _ -> pNull ()
@@ -93,19 +99,20 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
     | _ -> failwith $"unsupported lambdaVar {var}"
 
   // Add a pipetarget after creating it
-  let cPlusPipeTarget (e : SynExpr) : D.Expr =
+  let cPlusPipeTarget (e : SynExpr) : PT.Expr =
     match c e with
-    | D.EFnCall (id, name, args, ster) ->
-        D.EFnCall(id, name, ePipeTarget () :: args, ster)
-    | D.EBinOp (id, name, D.EBlank _, arg2, ster) ->
-        D.EBinOp(id, name, ePipeTarget (), arg2, ster)
-    | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
-        D.EBinOp(id, name, ePipeTarget (), arg1, ster)
+    | PT.EFnCall (id, name, args, ster) ->
+        PT.EFnCall(id, name, ePipeTarget () :: args, ster)
+    | PT.EBinOp (id, name, Placeholder, arg2, ster) ->
+        PT.EBinOp(id, name, ePipeTarget (), arg2, ster)
+    | PT.EBinOp (id, name, arg1, Placeholder, ster) ->
+        PT.EBinOp(id, name, ePipeTarget (), arg1, ster)
     | other -> other
 
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
-  | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> D.EInteger(gid (), parseBigint n)
+  | SynExpr.Const (SynConst.UserNum (n, "I"), _) ->
+      PT.EInteger(gid (), parseBigint n)
   | SynExpr.Null _ -> eNull ()
   | SynExpr.Const (SynConst.Char c, _) -> eChar c
   | SynExpr.Const (SynConst.Bool b, _) -> eBool b
@@ -114,21 +121,25 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
       eFloat sign whole fraction
   | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
   | SynExpr.Ident ident when ident.idText = "op_Addition" ->
-      eBinOp "" "+" 0 (eBlank ()) (eBlank ())
+      eBinOp "" "+" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_Subtraction" ->
-      eBinOp "" "-" 0 (eBlank ()) (eBlank ())
+      eBinOp "" "-" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_PlusPlus" ->
-      eBinOp "" "++" 0 (eBlank ()) (eBlank ())
+      eBinOp "" "++" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_EqualsEquals" ->
-      eBinOp "" "==" 0 (eBlank ()) (eBlank ())
+      eBinOp "" "==" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_GreaterThan" ->
-      eBinOp "" ">" 0 (eBlank ()) (eBlank ())
+      eBinOp "" ">" 0 placeholder placeholder
+  | SynExpr.Ident ident when ident.idText = "op_GreaterThanOrEqual" ->
+      eBinOp "" ">=" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_LessThan" ->
-      eBinOp "" "<" 0 (eBlank ()) (eBlank ())
+      eBinOp "" "<" 0 placeholder placeholder
+  | SynExpr.Ident ident when ident.idText = "op_LessThanOrEqual" ->
+      eBinOp "" "<=" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_Modulus" ->
-      eBinOp "" "%" 0 (eBlank ()) (eBlank ())
+      eBinOp "" "%" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_Concatenate" ->
-      eBinOp "" "^" 0 (eBlank ()) (eBlank ())
+      eBinOp "" "^" 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
@@ -161,14 +172,14 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
                        _) ->
       let name, version, ster =
         match fnName.idText with
-        | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, D.Rail)
-        | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, D.NoRail)
+        | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, PT.Rail)
+        | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, PT.NoRail)
         | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
 
-      let desc = D.FQFnName.stdlibName modName.idText name version
-      D.EFnCall(gid (), desc, [], ster)
+      let desc = PT.FQFnName.stdlibName modName.idText name version
+      PT.EFnCall(gid (), desc, [], ster)
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
-      D.EFieldAccess(gid (), c expr, field.idText)
+      PT.EFieldAccess(gid (), c expr, field.idText)
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
       let rec extractVarsAndBody expr =
         match expr with
@@ -213,7 +224,7 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   | SynExpr.Match (_, cond, clauses, _) ->
       let convertClause
         (Clause (pat, _, expr, _, _) : SynMatchClause)
-        : D.Pattern * D.Expr =
+        : PT.Pattern * PT.Expr =
         (convertPattern pat, c expr)
 
       eMatch (c cond) (List.map convertClause clauses)
@@ -233,11 +244,11 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
   | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when
     pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
-      | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
+      | PT.EPipe (id, arg1, Placeholder, []) as pipe ->
           // when we just built the lowest, the second one goes here
-          D.EPipe(id, arg1, cPlusPipeTarget arg, [])
-      | D.EPipe (id, arg1, arg2, rest) as pipe ->
-          D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+          PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
+      | PT.EPipe (id, arg1, arg2, rest) as pipe ->
+          PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       | other ->
           // failwith $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
@@ -245,30 +256,45 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
           ePipe (other) (cPlusPipeTarget arg) []
   | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
-      ePipe (c expr) (eStr "SENTINEL EXPR FOR PIPES") []
+      ePipe (c expr) placeholder []
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
     List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ] ->
       eConstructor name.idText [ c arg ]
+  // Feature flag now or else it'll get recognized as a var
+  | SynExpr.App (_,
+                 _,
+                 SynExpr.Ident name,
+                 SynExpr.Const (SynConst.String (label, _), _),
+                 _) when name.idText = "flag" ->
+      eflag label placeholder placeholder placeholder
   // Most functions are LongIdents, toString isn't
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString" ->
-      let desc = D.FQFnName.stdlibName "" "toString" 0
-      D.EFnCall(gid (), desc, [ c arg ], D.NoRail)
-
+      let desc = PT.FQFnName.stdlibName "" "toString" 0
+      PT.EFnCall(gid (), desc, [ c arg ], PT.NoRail)
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
+
       match c funcExpr with
-      | D.EFnCall (id, name, args, ster) ->
-          D.EFnCall(id, name, args @ [ c arg ], ster)
-      | D.EBinOp (id, name, D.EBlank _, arg2, ster) ->
-          D.EBinOp(id, name, c arg, arg2, ster)
-      | D.EBinOp (id, name, arg1, D.EBlank _, ster) ->
-          D.EBinOp(id, name, arg1, c arg, ster)
+      | PT.EFnCall (id, name, args, ster) ->
+          PT.EFnCall(id, name, args @ [ c arg ], ster)
+      // FSTODO are these in the right order? might fail for non-commutative binops
+      | PT.EBinOp (id, name, Placeholder, arg2, ster) ->
+          PT.EBinOp(id, name, c arg, arg2, ster)
+      | PT.EBinOp (id, name, arg1, Placeholder, ster) ->
+          PT.EBinOp(id, name, arg1, c arg, ster)
+      // Fill in the feature flag fields (back to front)
+      | PT.EFeatureFlag (id, label, Placeholder, oldexpr, newexpr) ->
+          PT.EFeatureFlag(id, label, c arg, oldexpr, newexpr)
+      | PT.EFeatureFlag (id, label, condexpr, Placeholder, newexpr) ->
+          PT.EFeatureFlag(id, label, condexpr, c arg, newexpr)
+      | PT.EFeatureFlag (id, label, condexpr, oldexpr, Placeholder) ->
+          PT.EFeatureFlag(id, label, condexpr, oldexpr, c arg)
       // A pipe with one entry
-      | D.EPipe (id, arg1, D.EString (_, "SENTINEL EXPR FOR PIPES"), []) as pipe ->
-          D.EPipe(id, arg1, cPlusPipeTarget arg, [])
+      | PT.EPipe (id, arg1, Placeholder, []) as pipe ->
+          PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
       // A pipe with more than one entry
-      | D.EPipe (id, arg1, arg2, rest) as pipe ->
-          D.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+      | PT.EPipe (id, arg1, arg2, rest) as pipe ->
+          PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
   | SynExpr.FromParseError _ as expr ->
       failwith $"There was a parser error parsing: {expr}"
@@ -291,4 +317,4 @@ let convertToTest
       (convert actual, convert expected)
   | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true
 
-let parseDarkExpr (code : string) : D.Expr = code |> parse |> convertToExpr
+let parseDarkExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
