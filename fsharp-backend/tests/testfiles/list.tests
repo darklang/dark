@@ -38,10 +38,6 @@
 //List.map2_v0 [10;20] [1;2;3] (fun a b -> a - b) = Nothing
 //List.map2shortest_v0 [10;20;30] [1;2;3] (fun a b -> a - b) = [ 9, 18, 27 ]
 //List.map2shortest_v0 [10;20] [1;2;3] (fun a b -> a - b) = [ 9, 18 ]
-//List.map_v0 (List.range_v0 -5 5) (fun v -> Int.mod_v0 v 4) = [ 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1 ]
-//List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v -4) = [ Ok -1, Ok 0, Ok -3, Ok -2, Ok -1, Ok 0, Ok 1, Ok 2, Ok 3, Ok 0, Ok 1 ]
-//List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v 4) = [ Ok -1, Ok 0, Ok -3, Ok -2, Ok -1, Ok 0, Ok 1, Ok 2, Ok 3, Ok 0, Ok 1 ]
-//List.map_v0 (List.range_v0 -5 5) (fun v -> v % 4) = [ 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1 ]
 //List.member_v0 [] 1 = false
 //List.randomElement_v0 [1] = Just 1
 //List.randomElement_v0 [] = Nothing
