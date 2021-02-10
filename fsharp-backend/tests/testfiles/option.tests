@@ -11,6 +11,6 @@
 // Option.map_v0 Nothing (fun x -> Int.divide_v0 x 2) = Nothing
 // Option.map_v1 (Just 4) (fun x -> Int.divide_v0 x 2) = Just 2
 // Option.map_v1 Nothing (fun x -> Int.divide_v0 x 2) = Nothing
-// Option.map_v1 blank (fun x -> Int.divide_v0 x 2) = Test.incomplete_v0
+// Option.map_v1 blank (fun x -> Int.divide_v0 x 2) = blank
 // Option.withDefault_v0 (Just 6) 5 = 6
 // Option.withDefault_v0 Nothing 5 = 5
