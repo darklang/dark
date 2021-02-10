@@ -2,7 +2,7 @@
 // Dict.filterMap_v0 {} (fun (key, value) -> 0) = {}
 // Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then Nothing else (Just (key ++ value))) = { c = "cz"; a = "ax"}
 // Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then blank else (Just (key ++ value))) = blank
-// Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then false else (Just (key ++ value))) = Test.error_v0 "Expected the argument `f` passed to `Dict::filterMap` to return `Just` or `Nothing` for every entry in `dict`"
+// Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then false else (Just (key ++ value))) = Test.typeError_v0 "Expected the argument `f` passed to `Dict::filterMap` to return `Just` or `Nothing` for every entry in `dict`"
 // Dict.filter_v1 { key1 = "val1"; key2 = "val2" } (fun (k, v) -> k == "key1") = { key1 = "val1"}
 // Dict.filter_v1 { key1 = "val1"; key2 = "val2" } (fun (k, v) -> k == blank) = blank
 // Dict.filter_v1 { key1 = "val1"; key2 = "val2" } (fun (k, v) -> v == "val1") = { key1 = "val1"}
@@ -11,14 +11,14 @@
 // Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["a";3]] = { b = 2 ; a = 3 }
 // Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3]] = { c = 3 ; b = 2 ; a= 1 }
 // Dict.fromListOverwritingDuplicates_v0 [] = {}
-// Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3;3]] = Test.error_v0 "Todo: It has length 3 but must have length 2"
-// Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.error_v0 "Todo: Keys must be Strings"
-// Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.error_v0 "Todo: It is of type Int instead of List"
+// Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "Todo: It has length 3 but must have length 2"
+// Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Todo: Keys must be Strings"
+// Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "Todo: It is of type Int instead of List"
 // Dict.fromList_v0 [["a";1];["b";2];["a";3]] = Nothing // duplicate key
 // Dict.fromList_v0 [["a";1];["b";2];["c";3]] = Just { c = 3; b = 2; a = 1 }
-// Dict.fromList_v0 [["a";1];["b";2];["c";3;3]] = Test.error_v0 "Todo: It has length 3 but must have length 2"
-// Dict.fromList_v0 [[1;1]] = Test.error_v0 "Todo: Keys must be Strings"
-// Dict.fromList_v0 [["a";1];2;["c";3]] = Test.error_v0 "Todo: It is of type Int instead of List"
+// Dict.fromList_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "Todo: It has length 3 but must have length 2"
+// Dict.fromList_v0 [[1;1]] = Test.typeError_v0 "Todo: Keys must be Strings"
+// Dict.fromList_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "Todo: It is of type Int instead of List"
 // Dict.fromList_v0 [] = Just {}
 // Dict.get_v1 { key1 = "val1" } "key1" = Just "val1"
 // Dict.isEmpty_v0 { a = 1 } = false

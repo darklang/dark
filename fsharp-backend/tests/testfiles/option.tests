@@ -2,7 +2,7 @@
 // Option.andThen_v0 (Just 5) (fun x -> Nothing) = Nothing
 // Option.andThen_v0 Nothing (fun x -> Just 5) = Nothing
 // Option.andThen_v0 Nothing (fun x -> Nothing) = Nothing
-// Option.andThen_v0 (Just 8) (fun x -> Int.divide x 2) = Test.error_v0 "todo"
+// Option.andThen_v0 (Just 8) (fun x -> Int.divide x 2) = Test.typeError_v0 "todo"
 // Option.map2_v0 (Just 10) (Just 1) (fun (a, b) -> a - b) = Just 9
 // Option.map2_v0 (Just 10) Nothing (fun (a, b) -> a - b) = Nothing
 // Option.map2_v0 Nothing (Just 1) (fun (a, b) -> a - b) = Nothing
