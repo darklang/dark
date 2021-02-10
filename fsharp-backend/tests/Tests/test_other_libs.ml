@@ -190,17 +190,6 @@ let t_old_functions_deprecated () =
       AT.check AT.int (name ^ " only has one undeprecated fn") 1 count) ;
   ()
 
-
-let t_url_encode () =
-  let open Libshared.FluidShortcuts in
-  check_dval
-    "percent escaping works"
-    (Dval.dstr_of_string_exn
-       "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den")
-    (exec_ast
-       (fn "Twitter::urlencode" [str "https://google.com?q=left shark&l=en"]))
-
-
 let t_float_stdlibs () =
   let infinity' = binop "/" (float' 1 0) (float' 0 0) in
   let neg_infinity' = binop "/" (float' (-1) 0) (float' 0 0) in

@@ -424,8 +424,10 @@ String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 //String.sha256_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "DikVVJkkCXt8o0yzHG9-Lpiuk_x6ET6DYAtPCNWJgi0=" // this is a correct Ocalm expected result
 //String.replaceAll_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ä͖̭̈̇" "$" = "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 //String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 49
+//Twitter::urlencode "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den"
 
 [test.stringForeach]
 // Check that foreach executes the right number of times
 (let _ = String.foreach_v1 "a string" (fun x -> Test.incrementSideEffectCounter_v0 false) in
  Test.sideEffectCount_v0) = 8
+
