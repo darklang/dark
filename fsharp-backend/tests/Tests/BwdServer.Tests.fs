@@ -18,7 +18,6 @@ open LibExecution
 open LibBackend
 open LibBackend.Db
 open LibBackend.ProgramSerialization
-open BwdServer
 
 module RT = LibExecution.RuntimeTypes
 
@@ -99,8 +98,6 @@ let clearTestData (canvasName : string) : Task<unit> =
 
 let t name =
   testTask $"Httpfiles: {name}" {
-    // TODO: This test relies on the server running already. Run the server
-    // instead as part of the test suite.
     do! clearTestData (name)
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
     let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
@@ -321,4 +318,6 @@ let tests =
 
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
-let init () : Task = (BwdServer.webserver 10001).RunAsync()
+let init () : Task =
+  LibBackend.Init.init ()
+  (BwdServer.webserver 10001).RunAsync()

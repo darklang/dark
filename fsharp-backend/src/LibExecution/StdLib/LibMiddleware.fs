@@ -9,9 +9,13 @@ open LibExecution.RuntimeTypes
 open LibExecution.RuntimeTypes.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
-
+module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibName
+
+let err (str : string) = Value(Dval.errStr str)
+
+let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -235,7 +239,7 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | state, [ DFnVal _ as next ] ->
-              let st = Symtable.empty |> Symtable.add "next" next
+              let st = Map.empty |> Map.add "next" next
               Interpreter.eval state st code
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -301,7 +305,7 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | state, [ DFnVal _ as next ] ->
-              let st = Symtable.empty |> Symtable.add "next" next
+              let st = Map.empty |> Map.add "next" next
               Interpreter.eval state st code
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -337,7 +341,7 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | state, [ DFnVal _ as next ] ->
-              let st = Symtable.empty |> Symtable.add "next" next
+              let st = Map.empty |> Map.add "next" next
               Interpreter.eval state st code
           | _, args -> incorrectArgs ())
 
@@ -393,11 +397,11 @@ let fns : List<BuiltInFn> =
           (function
           | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
               let st =
-                Symtable.empty
-                |> Symtable.add "url" url
-                |> Symtable.add "body" body
-                |> Symtable.add "headers" headers
-                |> Symtable.add "handler" handler
+                Map.empty
+                |> Map.add "url" url
+                |> Map.add "body" body
+                |> Map.add "headers" headers
+                |> Map.add "handler" handler
 
               Interpreter.eval state st code
           | args -> incorrectArgs ())

@@ -15,6 +15,8 @@ open Prelude
 open Prelude.TableCloth
 open Tablecloth
 
+module RT = LibExecution.RuntimeTypes
+
 type transaction = id
 
 // type T =
@@ -42,8 +44,7 @@ type transaction = id
 //
 // let show_queue_action qa =
 //   match qa with Enqueue -> "enqueue" | Dequeue -> "dequeue" | None -> "none"
-//
-//
+
 module SchedulingRule =
   module RuleType =
     type T =
@@ -69,15 +70,13 @@ module SchedulingRule =
       eventSpace : string
       createdAt : System.DateTime }
 
-  type Dval = LibExecution.RuntimeTypes.Dval
-
-  let toDval (r : T) : Dval =
-    Dval.obj [ ("id", Dval.int r.id)
-               ("rule_type", r.ruleType |> RuleType.toString |> Dval.DStr)
-               ("canvas_id", Dval.DUuid r.canvasID)
-               ("handler_name", Dval.DStr r.handlerName)
-               ("event_space", Dval.DStr r.eventSpace)
-               ("created_at", Dval.DDate r.createdAt) ]
+  let toDval (r : T) : RT.Dval =
+    RT.Dval.obj [ ("id", RT.Dval.int r.id)
+                  ("rule_type", r.ruleType |> RuleType.toString |> RT.Dval.DStr)
+                  ("canvas_id", RT.Dval.DUuid r.canvasID)
+                  ("handler_name", RT.Dval.DStr r.handlerName)
+                  ("event_space", RT.Dval.DStr r.eventSpace)
+                  ("created_at", RT.Dval.DDate r.createdAt) ]
 
 module WorkerStates =
 
@@ -106,6 +105,7 @@ module WorkerStates =
   module JsonConverter =
     open System.Text.Json
     open System.Text.Json.Serialization
+
     type WorkerStateConverter() =
       inherit JsonConverter<State>()
 

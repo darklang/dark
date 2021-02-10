@@ -6,6 +6,8 @@ open System.Text
 
 let fn = FQFnName.stdlibName
 
+let incorrectArgs = LibExecution.Errors.incorrectArgs
+
 let fns : List<BuiltInFn> =
   [ { name = fn "Bytes" "base64Encode" 0
       parameters = [ Param.make "bytes" TBytes "" ]
@@ -16,7 +18,11 @@ let fns : List<BuiltInFn> =
         InProcess
           (function
           | _, [ DBytes bytes ] ->
-              System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
+              System
+                .Convert
+                .ToBase64String(bytes)
+                .Replace('+', '-')
+                .Replace('/', '_')
               |> DStr
               |> Value
           | args -> incorrectArgs ())
@@ -39,10 +45,11 @@ let fns : List<BuiltInFn> =
 
               for i = 0 to len - 1 do
                 let byte = bytes.[i] |> int
+
                 buf
                   .Append(hexUppercaseLookup.[((byte >>> 4) &&& 0xF)])
                   .Append(hexUppercaseLookup.[(byte &&& 0xF)])
-                  |> ignore
+                |> ignore
 
               buf.ToString() |> DStr |> Value
           | args -> incorrectArgs ())

@@ -9,7 +9,7 @@ open RuntimeTypes
 
 
 // fsharplint:disable FL0039
-let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
+let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = Value(DFakeVal(DIncomplete(SourceID(state.tlid, id))))
 
@@ -24,7 +24,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         return! (eval state st body)
     | EString (_id, s) -> return (DStr s)
     | EBool (_id, b) -> return DBool b
-    | EInteger (_id, i) -> return Dval.int i
+    | EInteger (_id, i) -> return Dval.bigint i
     | EFloat (_id, value) -> return DFloat value
     | ENull _id -> return DNull
     | ECharacter (_id, s) -> return DChar s
@@ -34,16 +34,17 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         // instead of ignoring, this is probably a mistake.
         let! results = Prelude.map_s (eval state st) exprs
 
-        let filtered = List.filter (fun (dv : Dval) -> not dv.isIncomplete) results
+        let filtered =
+          List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
         // TODO: why do we only find errorRail, and not errors. Seems like
         // a mistake
-        match List.tryFind (fun (dv : Dval) -> dv.isErrorRail) filtered with
+        match List.tryFind (fun (dv : Dval) -> Dval.isErrorRail dv) filtered with
         | Some er -> return er
         | None -> return (DList filtered)
 
     | EVariable (_id, name) ->
         // FSTODO: match ast.ml
-        return Symtable.get name st
+        return Map.find name st
     | ERecord (id, pairs) ->
         let skipEmptyKeys =
           pairs
@@ -64,12 +65,12 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         return
           (resolved
            // allow users to edit code safely
-           |> List.filter (fun (k, v : Dval) -> not v.isIncomplete)
+           |> List.filter (fun (k, v : Dval) -> not (Dval.isIncomplete v))
            |> Dval.obj)
     | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
         let! args = Prelude.map_s (eval state st) exprs
-        return! (applyFn state fnVal (Seq.toList args) inPipe ster)
+        return! (applyFn state id fnVal (Seq.toList args) inPipe ster)
     | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
     | EFieldAccess (id, _, _) ->
         failwith "todo"
@@ -180,7 +181,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
            * is ready to match. *)
           match pattern with
           | PInteger (pid, i) ->
-              let v = Dval.int i
+              let v = Dval.bigint i
 
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr
@@ -224,7 +225,7 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
                 traceNonMatch st expr builtUpTraces pid v
           | PVariable (pid, v) ->
               (* only matches allowed values *)
-              if dv.isFake then
+              if Dval.isFake dv then
                 traceNonMatch st expr builtUpTraces pid dv
               else
                 executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
@@ -270,9 +271,11 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         let! cond = eval state st cond
 
         match cond with
-        | DBool (true) -> return! eval state st thenbody
-        | DBool (false) -> return! eval state st elsebody
-        | cond -> return (err (CondWithNonBool cond))
+        | DBool (false)
+        | DNull -> return! eval state st elsebody
+        | DFakeVal (_) -> return cond
+        // CLEANUP: I dont know why I made these always true
+        | _ -> return! eval state st thenbody
     | EConstructor (id, name, args) ->
         match (name, args) with
         | "Nothing", [] -> return DOption None
@@ -285,41 +288,51 @@ let rec eval (state : ExecutionState) (st : Symtable.T) (e : Expr) : DvalTask =
         | "Error", [ arg ] ->
             let! dv = eval state st arg
             return Dval.resultError dv
-        | _ -> return DFakeVal(DError(UndefinedConstructor name))
+        | name, _ ->
+            return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
   }
 
 // Unwrap the dval, which we expect to be a function, and error if it's not
 and applyFn
   (state : ExecutionState)
+  (id : id)
   (fn : Dval)
   (args : List<Dval>)
   (isInPipe : IsInPipe)
   (ster : SendToRail)
   : DvalTask =
   taskv {
+    let sourceID = SourceID(state.tlid, id)
+
     match fn with
-    | DFnVal fnVal -> return! applyFnVal state fnVal args isInPipe ster
+    | DFnVal fnVal -> return! applyFnVal state id fnVal args isInPipe ster
     // Incompletes are allowed in pipes
     | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
         return Option.defaultValue fn (List.tryHead args)
     | other ->
-        return errStr $"Expected a function value, got something else: {other}"
+        return
+          Dval.errSStr
+            sourceID
+            $"Expected a function value, got something else: {other}"
   }
 
 and applyFnVal
   (state : ExecutionState)
+  (id : id)
   (fnVal : FnValImpl)
   (args : List<Dval>)
   (isInPipe : IsInPipe)
   (ster : SendToRail)
   : DvalTask =
   taskv {
+    let sourceID = SourceID(state.tlid, id)
+
     let isErrorAllowed =
       match fnVal with
       | FnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
       | _ -> false
 
-    match List.tryFind (fun (dv : Dval) -> dv.isFake) args with
+    match List.tryFind (fun (dv : Dval) -> Dval.isFake dv) args with
     // If one of the args is a fake value used as a marker, return it instead
     // of executing.
     | Some dv when not isErrorAllowed ->
@@ -341,7 +354,12 @@ and applyFnVal
             // other places, and the alternative is just to provide incompletes
             // with no context
             if List.length l.parameters <> List.length args then
-              return err (LambdaCalledWithWrongCount(args, parameters))
+              return
+                Dval.errStr
+                  $"Expected {List.length parameters} arguments, got {
+                                                                        List.length
+                                                                          args
+                  }"
             else
               // FSTODO
               // List.iter bindings (fun ((id, paramName), dv) ->
@@ -363,17 +381,28 @@ and applyFnVal
                     | InProcess fnval -> fnval (state, args)
                     | _ -> fstodo "support other function type"
                   with
-                  | RuntimeException rte -> Value(err rte)
-                  | FnCallException FnFunctionRemoved ->
-                      Value(err (FunctionRemoved fn.name))
-                  | FnCallException FnWrongTypes ->
-                      Value(
-                        err (FnCalledWithWrongTypes(fn.name, args, fn.parameters))
-                      )
-                  | FakeDvalException dval -> Value(dval)
+                  | Errors.StdlibException (Errors.StringError msg) ->
+                      Value(Dval.errSStr sourceID msg)
+                  | Errors.StdlibException Errors.IncorrectArgs ->
+                      let invalid =
+                        List.zip fn.parameters args
+                        |> List.filter
+                             (fun (p, a) -> Dval.toType a <> p.typ && p.typ <> TAny)
+
+                      match invalid with
+                      | [] ->
+                          Value(
+                            Dval.errSStr sourceID $"unknown error calling {fn.name}"
+                          )
+                      | (p, actual) :: _ ->
+                          let msg = Errors.incorrectArgsMsg (fn.name) p actual
+                          Value(Dval.errSStr sourceID msg)
+                  | Errors.StdlibException Errors.FunctionRemoved ->
+                      Value(Dval.errSStr sourceID $"{fn.name} was removed from Dark")
+                  | Errors.StdlibException (Errors.FakeDvalFound dv) -> Value(dv)
 
             if ster = Rail then
-              match result.unwrapFromErrorRail with
+              match Dval.unwrapFromErrorRail result with
               | DOption (Some v) -> return v
               | DResult (Ok v) -> return v
               | DFakeVal _ as f -> return f

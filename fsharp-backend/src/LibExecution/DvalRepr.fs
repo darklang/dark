@@ -70,7 +70,7 @@ let rec dtypeToString (t : DType) : string =
   | TBytes -> "Bytes"
 
 
-let rec tipeToDeveloperReprV0 (t : DType) : string =
+let rec typeToDeveloperReprV0 (t : DType) : string =
   match t with
   | TAny -> "Any"
   | TInt -> "Int"
@@ -184,7 +184,17 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
 
   inner 0 dv
 
+let httpResponseToRepr (h) : string =
+  match h with
+  | Redirect url -> $"302 {url}"
+  | Response (code, headers) ->
+      let headerString =
+        headers
+        |> List.map (fun (k, v) -> k + ": " + v)
+        |> String.concat ","
+        |> fun s -> "{ " + s + " }"
 
+      $"{code} {headerString}" + "\n"
 
 let toEnduserReadableTextV0 (dval : Dval) : string =
   let rec nestedreprfn dv =
@@ -501,8 +511,7 @@ let rec unsafeDvalOfJsonV1 (json : J.JsonValue) : Dval =
                           ("value", J.JsonValue.String v) |] ->
       DDate(System.DateTime.ofIsoString v)
   | J.JsonValue.Record [| ("type", J.JsonValue.String "error");
-                          ("value", J.JsonValue.String v) |] ->
-      DFakeVal(DError(JustAString(SourceNone, v)))
+                          ("value", J.JsonValue.String v) |] -> Dval.errStr v
   | J.JsonValue.Record [| ("type", J.JsonValue.String "password");
                           ("value", J.JsonValue.String v) |] ->
       fstodo "support password"
@@ -559,7 +568,7 @@ let rec unsafeDvalToJsonV0 (redact : bool) (dv : Dval) : J.JsonValue =
       wrapUserType J.nil
   | DFakeVal (DIncomplete _) -> wrapUserType J.nil
   | DChar c -> wrapUserStr (c.ToString())
-  | DFakeVal (DError msg) -> wrapUserStr (msg.ToString())
+  | DFakeVal (DError (msg, _)) -> wrapUserStr (msg.ToString())
   | DHttpResponse (h, hdv) ->
       let http =
         match h with
@@ -766,79 +775,63 @@ let ofInternalRoundtrippableV0 str : Dval = str |> J.parse |> unsafeDvalOfJsonV1
 //
 //
 // let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
-//
-// let rec to_developer_repr_v0 (dv : dval) : string =
-//   let rec to_repr_ (indent : int) (dv : dval) : string =
-//     let nl = "\n" ^ String.make indent ' ' in
-//     let inl = "\n" ^ String.make (indent + 2) ' ' in
-//     let indent = indent + 2 in
-//     let wrap str = "<" ^ pretty_tipename dv ^ ": " ^ str ^ ">" in
-//     let justtipe = "<" ^ pretty_tipename dv ^ ">" in
-//     match dv with
-//     | DPassword _ ->
-//         "<password>"
-//     | DStr s ->
-//         "\"" ^ Unicode_string.to_string s ^ "\""
-//     | DCharacter c ->
-//         "'" ^ Unicode_string.Character.to_string c ^ "'"
-//     | DInt i ->
-//         Dint.to_string i
-//     | DBool true ->
-//         "true"
-//     | DBool false ->
-//         "false"
-//     | DFloat f ->
-//         string_of_float f
-//     | DNull ->
-//         "null"
-//     | DBlock _ ->
-//         (* See docs/dblock-serialization.ml *)
-//         justtipe
-//     | DIncomplete _ ->
-//         justtipe
-//     | DError (_, msg) ->
-//         wrap msg
-//     | DDate d ->
-//         wrap (Util.isostring_of_date d)
-//     | DDB name ->
-//         wrap name
-//     | DUuid uuid ->
-//         wrap (Uuidm.to_string uuid)
-//     | DResp (h, hdv) ->
-//         dhttp_to_formatted_string h ^ nl ^ to_repr_ indent hdv
-//     | DList l ->
-//         if List.is_empty l
-//         then "[]"
-//         else
-//           "[ "
-//           ^ inl
-//           ^ String.concat ~sep:", " (List.map ~f:(to_repr_ indent) l)
-//           ^ nl
-//           ^ "]"
-//     | DObj o ->
-//         if DvalMap.is_empty o
-//         then "{}"
-//         else
-//           let strs =
-//             DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-//                 (key ^ ": " ^ to_repr_ indent value) :: l)
-//           in
-//           "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
-//     | DOption OptNothing ->
-//         "Nothing"
-//     | DOption (OptJust dv) ->
-//         "Just " ^ to_repr_ indent dv
-//     | DResult (ResOk dv) ->
-//         "Ok " ^ to_repr_ indent dv
-//     | DResult (ResError dv) ->
-//         "Error " ^ to_repr_ indent dv
-//     | DErrorRail dv ->
-//         "ErrorRail: " ^ to_repr_ indent dv
-//     | DBytes bytes ->
-//         bytes |> RawBytes.to_string |> B64.encode
-//   in
-//   to_repr_ 0 dv
-//
+
+let rec toDeveloperReprV0 (dv : Dval) : string =
+  let rec toRepr_ (indent : int) (dv : Dval) : string =
+    let makeSpaces len = "".PadRight(len, ' ')
+    let nl = "\n" + makeSpaces indent
+    let inl = "\n" + makeSpaces (indent + 2)
+    let indent = indent + 2
+    let typename = pretty_tipename dv
+    let wrap str = $"<{typename}: {str}>"
+    let justtipe = $"<{typename}>"
+
+    match dv with
+    // | DPassword _ ->
+    //     "<password>"
+    | DStr s -> $"\"{s}\""
+    | DChar c -> $"'{c}'"
+    | DInt i -> i.ToString()
+    | DBool true -> "true"
+    | DBool false -> "false"
+    | DFloat f -> f.ToString()
+    | DNull -> "null"
+    | DFnVal _ ->
+        (* See docs/dblock-serialization.ml *)
+        justtipe
+    | DFakeVal (DIncomplete _) -> justtipe
+    | DFakeVal (DError (_, msg)) -> wrap msg
+    | DDate d -> wrap (d.toIsoString ())
+    | DDB name -> wrap name
+    | DUuid uuid -> wrap (uuid.ToString())
+    | DHttpResponse (h, hdv) -> httpResponseToRepr h + nl + toRepr_ indent hdv
+    | DList l ->
+        if List.is_empty l then
+          "[]"
+        else
+          let elems = String.concat ", " (List.map (toRepr_ indent) l)
+          $"[{inl}{elems}{nl}]"
+    | DObj o ->
+        if Map.isEmpty o then
+          "{}"
+        else
+          let strs =
+            Map.fold
+              []
+              (fun key value l -> ($"{key}: {toRepr_ indent value}") :: l)
+              o
+
+          let elems = String.concat $",{inl}" strs
+          "{" + $"{inl}{elems}{nl}" + "}}"
+    | DOption None -> "Nothing"
+    | DOption (Some dv) -> "Just " + toRepr_ indent dv
+    | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
+    | DResult (Error dv) -> "Error " + toRepr_ indent dv
+    | DFakeVal (DErrorRail dv) -> "ErrorRail: " + toRepr_ indent dv
+    | DBytes bytes -> bytes |> System.Convert.ToBase64String
+
+  toRepr_ 0 dv
+
 //
 // let to_pretty_machine_yojson_v1 dval =
 //   let rec recurse dv =

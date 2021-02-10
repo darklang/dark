@@ -18,10 +18,12 @@ let tests =
 [<EntryPoint>]
 let main args =
   let (_ : Task) = Tests.BwdServer.init ()
-  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
   LibBackend.Migrations.init ()
   (LibBackend.Account.initTestAccounts ()).Wait()
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang
-  runTestsWithCLIArgs [] args tests
+  let result = runTestsWithCLIArgs [] args tests
+  if result <> 0
+  then failwith "Tests have non-zero exit code"
+  0

@@ -3,6 +3,8 @@ open Lib
 open Types.RuntimeT
 module RT = Runtime
 
+let incorrectArgs = LibExecution.Errors.incorrectArgs
+
 let pi =
   (* approximation of π, as a double-precision float, which is what DFloat stores *)
   3.141592653589793

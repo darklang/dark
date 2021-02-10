@@ -57,6 +57,7 @@ String.foreach_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x
 String.foreach_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 String.foreach_v1 "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟‍♂️"
 String.foreach_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+String.foreach_v1 "abcdef" (fun x -> blank) = Test.incomplete_v0
 String.fromChar_v1 'a' = "a"
 String.base64Encode_v0 "+" = "Kw"
 String.base64Encode_v0 "Ⱥ" = "yLo"
@@ -103,7 +104,7 @@ String.sha256_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 String.length_v0 (String.random_v0 10) = 10
 String.length_v0 (String.random_v0 5) = 5
 String.length_v0 (String.random_v0 0) = 0
-String.length_v0 (String.random_v0 -1) = (Test.typeError_v0 "l should be a positive integer")
+String.length_v0 (String.random_v0 -1) = (Test.typeError_v0 "Expected the argument `length` to be positive, but it was -1")
 (String.random_v0 5) == (String.random_v0 5) = false
 (String.random_v0 2) == (String.random_v0 2) = false
 String.length_v0 (String.random_v2 10) = 10
@@ -170,7 +171,7 @@ String.slugify_v2 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
 String.slugify_v2 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
 String.slugify_v2 "🧟‍♀️🧟‍♂️" = ""
 String.slugify_v2 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
-String.fromList_v0 ['a', 'b'] = (Test.typeError_v0 "This function no longer exists.")
+String.fromList_v0 ['a', 'b'] = (Test.typeError_v0 "String::fromList_v0 was removed from Dark")
 String.fromList_v1 ['a', 'b', '1'] = "ab1"
 String.fromList_v1 ['@', 'Ǣ', 'á', '1'] = "@Ǣá1"
 String.fromList_v1 ['@', 'Ǣ', 'á', '1'] = "@Ǣá1"

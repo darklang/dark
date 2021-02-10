@@ -161,83 +161,6 @@ and Dval =
   | DResult of Result<Dval, Dval>
   | DBytes of byte array
 
-  member this.isFake : bool =
-    match this with
-    | DFakeVal _ -> true
-    | _ -> false
-
-  member this.isIncomplete : bool =
-    match this with
-    | DFakeVal (DIncomplete _) -> true
-    | _ -> false
-
-  member this.isErrorRail : bool =
-    match this with
-    | DFakeVal (DErrorRail _) -> true
-    | _ -> false
-
-  member this.isDError : bool =
-    match this with
-    | DFakeVal (DError _) -> true
-    | _ -> false
-
-  member this.unwrapFromErrorRail : Dval =
-    match this with
-    | DFakeVal (DErrorRail dv) -> dv
-    | other -> other
-
-  member this.toPairs() : (string * Dval) list =
-    match this with
-    | DObj obj -> Map.toList obj
-    | _ -> failwith "expecting str"
-
-
-
-  static member int(i : int) = DInt(bigint i)
-  static member int(i : bigint) = DInt i
-  static member int(i : string) = DInt(parseBigint i)
-
-  static member float(value : double) : Dval = DFloat value
-
-  static member float(sign : Sign, whole : bigint, fraction : bigint) : Dval =
-    // FSTODO - add sourceID to errors
-    try
-      DFloat(makeFloat (sign = Positive) whole fraction)
-    with _ ->
-      DFakeVal(
-        DError(InvalidFloatExpression(sign, whole.ToString(), fraction.ToString()))
-      )
-
-  static member float(sign : Sign, whole : string, fraction : string) : Dval =
-    // FSTODO - add sourceID to errors
-    try
-      DFloat(parseFloat whole fraction)
-    with _ -> DFakeVal(DError((InvalidFloatExpression(sign, whole, fraction))))
-
-
-
-  // Dvals should never be constructed that contain fakevals - the fakeval
-  // should always propagate (though, there are specific cases in the
-  // interpreter where they are discarded instead of propagated; still they are
-  // never put into other dvals). These static members check before creating the values
-
-  static member list(list : List<Dval>) : Dval =
-    List.tryFind (fun (dv : Dval) -> dv.isFake) list
-    |> Option.defaultValue (DList list)
-
-  static member obj(fields : List<string * Dval>) : Dval =
-    List.tryFind (fun (k, dv : Dval) -> dv.isFake) fields
-    |> Option.map snd
-    |> Option.defaultValue (DObj(Map fields))
-
-  static member resultOk(dv : Dval) : Dval = if dv.isFake then dv else DResult(Ok dv)
-
-  static member resultError(dv : Dval) : Dval =
-    if dv.isFake then dv else DResult(Error dv)
-
-  static member optionJust(dv : Dval) : Dval =
-    if dv.isFake then dv else DOption(Some dv)
-
 and DvalTask = Prelude.TaskOrValue<Dval>
 
 and Symtable = Map<string, Dval>
@@ -251,7 +174,7 @@ and FakeDval =
   // that should have been reported elsewhere. It's usually a type error of
   // some kind, but occasionally we'll paint ourselves into a corner and need
   // to represent a runtime error using this.
-  | DError of RuntimeError
+  | DError of DvalSource * string
   // A DIncomplete represents incomplete computation, whose source is
   // always a Blank. When the code runs into a blank, it must return
   // incomplete because the code is not finished. An incomplete value
@@ -319,39 +242,6 @@ and DType =
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
 
-// Runtime errors can be things that happen relatively commonly (such as calling
-// a function with an incorrect type), or things that aren't supposed to happen
-// but technically can (such as accessing a variable which doesn't exist) *)
-and RuntimeError =
-  | NotAFunction of FQFnName.T
-  | FunctionRemoved of FQFnName.T
-  | CondWithNonBool of Dval
-  | FnCalledWithWrongTypes of FQFnName.T * List<Dval> * List<Param>
-  | FnCalledWhenNotSync of FQFnName.T * List<Dval> * List<Param>
-  | LambdaCalledWithWrongCount of List<Dval> * List<string>
-  | LambdaCalledWithWrongType of List<Dval> * List<string>
-  | LambdaResultHasWrongType of Dval * DType
-  | InvalidFloatExpression of Sign * string * string
-  | UndefinedVariable of string
-  | UndefinedConstructor of string
-  // We want to remove this and make it just a string. So let's start here. And
-  // include a DvalSource while we're at it
-  | JustAString of DvalSource * string
-
-// Within a function call, we don't have the data available to make good
-// RuntimeErrors, so instead return a signal and let the calling code fill in the
-// blanks.
-//
-// Note: Functions shouldn't have runtime errors - those kinds of functions
-// should use Results instead. But, we can't really change what a function
-// does, so sometimes we discover we made a mistake and need to paper around
-// it. In those cases, we return DErrors.
-and FnCallError =
-  | FnFunctionRemoved
-  | FnWrongTypes
-
-and HttpCallError = RequestRouteMismatch of route : string * requestPath : string
-
 // Record the source of an incomplete or error. Would be useful to add more
 // information later, such as the iteration count that let to this, or
 // something like a stack trace
@@ -368,43 +258,136 @@ and Param =
   static member make (name : string) (typ : DType) (description : string) : Param =
     { name = name; typ = typ; description = description; blockArgs = [] }
 
+module Expr =
+  let toID (expr : Expr) : id =
+    match expr with
+    | EInteger (id, _)
+    | EString (id, _)
+    | ECharacter (id, _)
+    | EBool (id, _)
+    | ENull id
+    | EFloat (id, _)
+    | EVariable (id, _)
+    | EFieldAccess (id, _, _)
+    | ELambda (id, _, _)
+    | EBlank id
+    | ELet (id, _, _, _)
+    | EIf (id, _, _, _)
+    | EPartial (id, _)
+    | EApply (id, _, _, _, _)
+    | EList (id, _)
+    | ERecord (id, _)
+    | EFQFnValue (id, _)
+    | EConstructor (id, _, _)
+    | EFeatureFlag (id, _, _, _)
+    | EMatch (id, _, _) -> id
+
+
+
+module Dval =
+  let isFake (dv : Dval) : bool =
+    match dv with
+    | DFakeVal _ -> true
+    | _ -> false
+
+  let isIncomplete (dv : Dval) : bool =
+    match dv with
+    | DFakeVal (DIncomplete _) -> true
+    | _ -> false
+
+  let isErrorRail (dv : Dval) : bool =
+    match dv with
+    | DFakeVal (DErrorRail _) -> true
+    | _ -> false
+
+  let isDError (dv : Dval) : bool =
+    match dv with
+    | DFakeVal (DError _) -> true
+    | _ -> false
+
+  let unwrapFromErrorRail (dv : Dval) : Dval =
+    match dv with
+    | DFakeVal (DErrorRail dv) -> dv
+    | other -> other
+
+  let toPairs (dv : Dval) : (string * Dval) list =
+    match dv with
+    | DObj obj -> Map.toList obj
+    | _ -> failwith "expecting str"
+
+  let toType (dv : Dval) : DType =
+    match dv with
+    | DInt _ -> TInt
+    | DFloat _ -> TFloat
+    | DBool _ -> TBool
+    | DNull -> TNull
+    | DChar _ -> TChar
+    | DStr _ -> TStr
+    | DList _ -> TList TAny
+    | DObj _ -> TRecord []
+    | DFnVal _ -> TLambda
+    | DFakeVal (DError _) -> TError
+    | DFakeVal (DIncomplete _) -> TIncomplete
+    | DHttpResponse _ -> THttpResponse TAny
+    | DDB _ -> TDB
+    | DDate _ -> TDate
+    // | DPassword _ -> TPassword
+    | DUuid _ -> TUuid
+    | DOption _ -> TOption TAny
+    | DFakeVal (DErrorRail _) -> TErrorRail
+    | DResult _ -> TResult(TAny, TAny)
+    | DBytes _ -> TBytes
+
+  let int (i : int) = DInt(bigint i)
+  let bigint (i : bigint) = DInt i
+  let parseInt (i : string) = DInt(parseBigint i)
+
+  let float (value : double) : Dval = DFloat value
+
+  let floatParts (sign : Sign, whole : bigint, fraction : bigint) : Dval =
+    // FSTODO - add sourceID to errors
+    try
+      DFloat(makeFloat (sign = Positive) whole fraction)
+    with _ ->
+      DFakeVal(DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}"))
+
+  let floatStringParts (sign : Sign, whole : string, fraction : string) : Dval =
+    // FSTODO - add sourceID to errors
+    try
+      DFloat(parseFloat whole fraction)
+    with _ ->
+      DFakeVal(DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}"))
+
+
+  // Dvals should never be constructed that contain fakevals - the fakeval
+  // should always propagate (though, there are specific cases in the
+  // interpreter where they are discarded instead of propagated; still they are
+  // never put into other dvals). These static members check before creating the values
+
+  let list (list : List<Dval>) : Dval =
+    List.find (fun (dv : Dval) -> isFake dv) list
+    |> Option.defaultValue (DList list)
+
+  let obj (fields : List<string * Dval>) : Dval =
+    List.find (fun (k, dv : Dval) -> isFake dv) fields
+    |> Option.map snd
+    |> Option.defaultValue (DObj(Map fields))
+
+  let resultOk (dv : Dval) : Dval = if isFake dv then dv else DResult(Ok dv)
+
+  let resultError (dv : Dval) : Dval = if isFake dv then dv else DResult(Error dv)
+
+  let optionJust (dv : Dval) : Dval = if isFake dv then dv else DOption(Some dv)
+
+  let errStr (s : string) : Dval = DFakeVal(DError(SourceNone, s))
+
+  let errSStr (source : DvalSource) (s : string) : Dval = DFakeVal(DError(source, s))
+
 
 
 // ------------
-// Exceptions
+// Functions
 // ------------
-
-// This creates an error which can be wrapped in a DError. All errors that
-// occur at runtime should be represented here
-exception RuntimeException of RuntimeError
-
-// Error made when calling a function. This allows us to call them when we don't have the information to
-// make a RuntimeException, and they are converted to runtimeExceptions at the call site.
-exception FnCallException of FnCallError
-
-// When we encounter a fakeDval, this exception allows us to jump out of the
-// computation immediately, and the caller can return the dval. This is useful
-// for jumping out of folds and other complicated constructs.
-exception FakeDvalException of Dval
-
-
-
-
-let err (e : RuntimeError) : Dval = (DFakeVal(DError(e)))
-let errStr (s : string) : Dval = (DFakeVal(DError(JustAString(SourceNone, s))))
-
-let errSStr (source : DvalSource) (s : string) : Dval =
-  (DFakeVal(DError(JustAString(source, s))))
-
-module Symtable =
-  type T = Symtable
-  let empty : T = Map []
-
-  let get (name : string) (st : T) : Dval =
-    st.TryFind(name) |> Option.defaultValue (err (UndefinedVariable name))
-
-  let add (name : string) (dv : Dval) (st : T) = st.Add(name, dv)
-
 
 // The runtime needs to know whether to save a function's results when it
 // runs. Pure functions that can be run on the client do not need to have
@@ -493,11 +476,6 @@ and ExecutionState = { functions : Map<FQFnName.T, BuiltInFn>; tlid : tlid }
 // ; executing_fnname : string
 // ; fail_fn : fail_fn_type
 
-
-let incorrectArgs () = raise (FnCallException FnWrongTypes)
-
-let removedFunction : BuiltInFnSig =
-  fun _ -> raise (FnCallException FnFunctionRemoved)
 
 module Shortcuts =
 

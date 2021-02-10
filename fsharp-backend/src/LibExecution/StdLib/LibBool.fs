@@ -8,6 +8,8 @@ open FSharpPlus
 
 let fn = FQFnName.stdlibName
 
+let incorrectArgs = LibExecution.Errors.incorrectArgs
+
 let fns : List<BuiltInFn> =
   [ { name = fn "Bool" "not" 0
       parameters = [ Param.make "b" TBool "" ]

@@ -5,6 +5,18 @@ open System.Security.Cryptography
 open System
 open System.Text
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
+open FSharpPlus
+open System.Text.RegularExpressions
+
+open Prelude
+open LibExecution.RuntimeTypes
+
+module DvalRepr = LibExecution.DvalRepr
+module Errors = LibExecution.Errors
+
 (* type coerces one list to another using a function *)
 
 // let list_coerce (f: Dval -> Option<'a>) (l: List<Dval>): Result<List<'a>, List<Dval> * Dval> =
@@ -17,14 +29,11 @@ open System.Text
 
 // let error_result msg =
 //   DResult(ResError(Dval.dstr_of_string_exn msg))
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-open LibExecution.RuntimeTypes
-open FSharpPlus
-open Prelude
-open System.Text.RegularExpressions
-
 let fn = FQFnName.stdlibName
+
+let err (str : string) = Value(Dval.errStr str)
+
+let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -52,7 +61,7 @@ let fns : List<BuiltInFn> =
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-      fn = InProcess removedFunction
+      fn = InProcess Errors.removedFunction
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "foreach" 1) }
@@ -72,27 +81,27 @@ let fns : List<BuiltInFn> =
                     (fun te ->
                       (LibExecution.Interpreter.applyFnVal
                         state
+                        (id 0)
                         b
                         [ DChar te ]
                         NotInPipe
                         NoRail))
                |> (fun dvals ->
                  (taskv {
-                   let! dvals = dvals
+                   let! (dvals : List<Dval>) = dvals
 
-                   let chars =
-                     List.map
-                       (function
-                       | DChar c -> c
-                       | dv ->
-                           raise (
-                             RuntimeException(LambdaResultHasWrongType(dv, TChar))
-                           ))
-                       dvals
+                   match List.tryFind (fun dv -> Dval.isIncomplete dv) dvals with
+                   | Some i -> return i
+                   | None ->
+                       let chars =
+                         List.map
+                           (function
+                           | DChar c -> c
+                           | dv -> Errors.throw (Errors.expectedLambdaType TChar dv))
+                           dvals
 
-                   let str = String.concat "" chars
-
-                   return DStr str
+                       let str = String.concat "" chars
+                       return DStr str
                   })))
 
           | _ -> incorrectArgs ())
@@ -115,7 +124,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TList TChar
       description = "Returns the list of characters (byte, not EGC) in the string"
-      fn = InProcess removedFunction
+      fn = InProcess Errors.removedFunction
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toList" 1) }
@@ -166,7 +175,7 @@ let fns : List<BuiltInFn> =
           | _, [ DStr s ] ->
               (try
                 s |> System.Numerics.BigInteger.Parse |> DInt |> Value
-               with e -> Value(errStr ("Expected a string with only numbers")))
+               with e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -204,11 +213,10 @@ let fns : List<BuiltInFn> =
       fn =
         InProcess
           (function
-          | _, [ DStr s ] ->
+          | _, [ DStr s as dv ] ->
               (try
                 float (s) |> DFloat |> Value
-               with e ->
-                 Value(errStr ("Expected a string representation of an IEEE float")))
+               with e -> err (Errors.argumentWasnt "a stringified float" "s" dv))
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -507,12 +515,7 @@ let fns : List<BuiltInFn> =
                   (fun s ->
                     match s with
                     | DStr st -> st
-                    | _ ->
-                        raise (
-                          RuntimeException(
-                            JustAString(SourceNone, "Expected String")
-                          )
-                        ))
+                    | _ -> Errors.throw (Errors.expectedLambdaType TStr s))
                   l
 
               Value(DStr((String.concat sep strs).Normalize()))
@@ -524,14 +527,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TStr
       description = "Returns the list of characters as a string"
-      fn =
-        InProcess
-          (fun _ ->
-            raise (
-              RuntimeException(
-                JustAString(SourceNone, "This function no longer exists.")
-              )
-            ))
+      fn = InProcess Errors.removedFunction
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromList" 1) }
@@ -548,10 +544,7 @@ let fns : List<BuiltInFn> =
                 |> List.map
                      (function
                      | DChar c -> c
-                     | dv ->
-                         raise (
-                           RuntimeException(LambdaResultHasWrongType(dv, TChar))
-                         ))
+                     | dv -> Errors.throw (Errors.expectedLambdaType TChar dv))
                 |> String.concat ""
               )
               |> Value
@@ -563,7 +556,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description = "Converts a char to a string"
-      fn = InProcess removedFunction
+      fn = InProcess Errors.removedFunction
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromChar" 1) }
@@ -702,13 +695,9 @@ Don't rely on either the size or the algorithm."
       fn =
         InProcess
           (function
-          | _, [ DInt l ] ->
+          | _, [ DInt l as dv ] ->
               if l < 0I then
-                raise (
-                  RuntimeException(
-                    JustAString(SourceNone, "l should be a positive integer")
-                  )
-                )
+                err (Errors.argumentWasnt "positive" "length" dv)
               else
                 let randomString length =
                   let gen () =
@@ -764,9 +753,9 @@ Don't rely on either the size or the algorithm."
       fn =
         InProcess
           (function
-          | _, [ DInt l ] ->
+          | _, [ DInt l as dv ] ->
               if l < 0I then
-                Value(errStr ("l should be a positive integer"))
+                err (Errors.argumentWasnt "positive" "length" dv)
               else
                 let randomString length =
                   let gen () =
@@ -829,11 +818,10 @@ Don't rely on either the size or the algorithm."
               match Guid.TryParse s with
               | true, x -> x |> DUuid |> Value
               | _ ->
-                  Value(
-                    errStr (
-                      "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                    )
+                  err (
+                    "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
                   )
+
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -895,7 +883,8 @@ Don't rely on either the size or the algorithm."
       fn =
         InProcess
           (function
-          | _, [ DStr haystack; DStr needle ] -> Value(DBool(haystack.Contains needle))
+          | _, [ DStr haystack; DStr needle ] ->
+              Value(DBool(haystack.Contains needle))
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1140,7 +1129,7 @@ Don't rely on either the size or the algorithm."
       fn =
         InProcess
           (function
-          | state, [ DStr s; DStr padWith; DInt l ] ->
+          | state, [ DStr s; DStr padWith as dv; DInt l ] ->
 
               let egcSeq = String.toEgcSeq s
 
@@ -1178,13 +1167,7 @@ Don't rely on either the size or the algorithm."
                 let l = int l in
                 Value(DStr(padStart s padWith l))
               else
-                Value(
-                  errStr (
-                    $"Expected the argument `padWith` passed to ` String:padStart ` to be one character long. However, `({
-                                                                                                                            padWith
-                    }).` is characters long."
-                  )
-                )
+                err (Errors.argumentWasnt "1 character long" "padWith" dv)
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1200,35 +1183,35 @@ Don't rely on either the size or the algorithm."
       fn =
         InProcess
           (function
-          | state, [ DStr s; DStr padWith; DInt l ] ->
+          | state, [ DStr s; DStr padWith as dv; DInt l ] ->
 
               let egcSeq = String.toEgcSeq s
 
               let padEnd s padWith targetEgcs =
                 let max a b = if a > b then a else b in
-                (* Compute the size in bytes and # of required EGCs for s and padWith: *)
+                // Compute the size in bytes and # of required EGCs for s and padWith:
                 let padSize = String.length padWith in
 
                 let padEgcs = length padWith in
                 let stringSize = String.length s in
                 let stringEgcs = length egcSeq in
-                (* Compute how many copies of padWith we require,
-               * accounting for the string longer than [targetEgcs]: *)
+                // Compute how many copies of padWith we require,
+                // accounting for the string longer than [targetEgcs]:
                 let requiredEgcs = targetEgcs - stringEgcs in
 
                 let requiredPads =
                   max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
-                (* Create a buffer large enough to hold the padded result: *)
+                // Create a buffer large enough to hold the padded result:
                 let requiredSize = stringSize + (requiredPads * padSize) in
 
                 let stringBuilder = new StringBuilder(requiredSize) in
-                (* Start the buffer with the string: *)
+                // Start the buffer with the string: *)
                 stringBuilder.Append s |> ignore
-                (* Finish by filling with the required number of pads: *)
+                // Finish by filling with the required number of pads:
                 for i = 1 to requiredPads do
                   stringBuilder.Append padWith |> ignore
-                (* Renormalize because concatenation may break normalization
-               * (see https://unicode.org/reports/tr15/#Concatenation): *)
+                // Renormalize because concatenation may break normalization
+                // (see https://unicode.org/reports/tr15/#Concatenation):
 
                 stringBuilder.ToString().Normalize()
 
@@ -1238,13 +1221,7 @@ Don't rely on either the size or the algorithm."
                 let l = int l in
                 Value(DStr(padEnd s padWith l))
               else
-                Value(
-                  errStr (
-                    $"Expected the argument `padWith` passed to ` String:padEnd ` to be one character long. However, `({
-                                                                                                                          padWith
-                    }).` is characters long."
-                  )
-                )
+                err (Errors.argumentWasnt "1 character long" "padWith" dv)
           | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -8,6 +8,8 @@ open Prelude
 
 let fn = FQFnName.stdlibName
 
+let incorrectArgs = LibExecution.Errors.incorrectArgs
+
 let varA = TVariable "a"
 let varB = TVariable "b"
 
