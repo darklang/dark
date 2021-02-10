@@ -369,9 +369,26 @@ module Dval =
     |> Option.defaultValue (DList list)
 
   let obj (fields : List<string * Dval>) : Dval =
-    List.find (fun (k, dv : Dval) -> isFake dv) fields
-    |> Option.map snd
-    |> Option.defaultValue (DObj(Map fields))
+    // Give a warning for duplicate keys
+    List.fold
+      (DObj Map.empty)
+      (fun m (k, v) ->
+        match m, k, v with
+        // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
+        | m, k, v when isFake m -> m
+        // Skip empty rows
+        | _, "", _ -> m
+        | _, _, DFakeVal (DIncomplete _) -> m
+        // Errors and Errorrail should propagate (but only if we're not already propagating an error)
+        | DObj _, _, v when isFake v -> v
+        // Error if the key appears twice
+        | DObj m, k, v when Map.containsKey k m ->
+            DFakeVal(DError(SourceNone, $"Duplicate key: {k}"))
+        // Otherwise add it
+        | DObj m, k, v -> DObj(Map.add k v m)
+        // If we haven't got a DObj we're propagating an error so let it go
+        | m, _, _ -> m)
+      fields
 
   let resultOk (dv : Dval) : Dval = if isFake dv then dv else DResult(Ok dv)
 
