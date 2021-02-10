@@ -150,15 +150,6 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
     (exec_ast (ast_v1 privatekey "invalid public key"))
 
 
-
-let t_libbytes () =
-  check_dval
-    "Length is right"
-    (Dval.dint 6)
-    (exec_ast (fn "Bytes::length" [fn "String::toBytes" [str "abcdef"]])) ;
-  ()
-
-
 let t_internal_functions () =
   Libbackend.Account.set_admin "test" true ;
   check_dval
