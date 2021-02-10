@@ -72,9 +72,35 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let! args = Prelude.map_s (eval state st) exprs
         return! (applyFn state id fnVal (Seq.toList args) inPipe ster)
     | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
-    | EFieldAccess (id, _, _) ->
-        failwith "todo"
-        return! incomplete id
+    | EFieldAccess (id, e, field) ->
+        let! obj = eval state st e
+
+        let result =
+          match obj with
+          | DObj o ->
+              if field = "" then
+                DFakeVal(DIncomplete(sourceID id))
+              else
+                Map.tryFind field o |> Option.defaultValue DNull
+          | DFakeVal (DIncomplete _) -> obj
+          | DFakeVal (DErrorRail _) -> obj
+          | x ->
+              let actualType =
+                match Dval.toType x with
+                | TDB ->
+                    "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
+                | tipe -> $"it's a {DvalRepr.typeToDeveloperReprV0 tipe}"
+
+              DFakeVal(
+                DError(
+                  sourceID id,
+                  "Attempting to access a field of something that isn't a record or dict, ("
+                  + actualType
+                  + ")."
+                )
+              )
+
+        return! Value result
     | EFeatureFlag (id, cond, oldcode, newcode) ->
         (* True gives newexpr, unlike in If statements
          *

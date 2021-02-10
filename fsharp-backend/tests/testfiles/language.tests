@@ -159,8 +159,8 @@ Nothing = Nothing
 
 [tests.incomplete_propagation]
 List.head_v0 blank = blank
-//(if blank then 5 else 6) = blank
-//(List.head_v0 blank).field = Test.incomplete
+(if blank then 5 else 6) = blank
+(List.head_v0 blank).field = blank
 [ 5; 6; List.head_v0 blank ] = [ 5; 6 ]
 [ 5; 6; blank] = [ 5, 6 ]
 { i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }

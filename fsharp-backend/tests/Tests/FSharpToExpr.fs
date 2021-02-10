@@ -167,6 +167,8 @@ let rec convertToExpr (ast : SynExpr) : D.Expr =
 
       let desc = D.FQFnName.stdlibName modName.idText name version
       D.EFnCall(gid (), desc, [], ster)
+  | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
+      D.EFieldAccess(gid (), c expr, field.idText)
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
       let rec extractVarsAndBody expr =
         match expr with
