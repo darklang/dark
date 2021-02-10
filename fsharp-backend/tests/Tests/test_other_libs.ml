@@ -1,233 +1,28 @@
-let t_string_stdlibs_work () =
-  let dstr = Dval.dstr_of_string_exn in
-  check_dval
-    "String::isEmpty works (empty)"
-    (DBool true)
-    (exec_ast (fn "String::isEmpty" [str ""])) ;
-  check_dval
-    "String::isEmpty works (full)"
-    (DBool false)
-    (exec_ast (fn "String::isEmpty" [str "a"])) ;
-  check_dval
-    "String::append_v1 works (multicharacter)"
-    (dstr "hello world")
-    (exec_ast (fn "String::append_v1" [str "hello"; str " world"])) ;
-  (* This is broken, hence String::append is deprecated *)
-  (* check_dval
-    "String::append works (normalizes)"
-    (dstr "\xC3\xA2") (* â *)
-    (exec_ast (fn "String::append" [str "\x61"; str "\xCC\x82"])) ; *)
-  check_dval
-    "String::append_v1 works (normalizes â)"
-    (dstr "\xC3\xA2") (* â *)
-    (exec_ast (fn "String::append_v1" [str "\x61"; str "\xCC\x82"])) ;
-  check_dval
-    "String::append_v1 works (normalizes hangul)"
-    (dstr "\xea\xb0\x81") (* 각 *)
-    (exec_ast (fn "String::append_v1" [str "\u{1100}"; str "\u{1161}\u{11A8}"])) ;
-  check_dval
-    "++ works (multicharacter)"
-    (dstr "hello world")
-    (exec_ast (binop "++" (str "hello") (str " world"))) ;
-  check_dval
-    "++ works (normalizes â)"
-    (dstr "\xC3\xA2") (* â *)
-    (exec_ast (binop "++" (str "\x61") (str "\xCC\x82"))) ;
-  check_dval
-    "++ works (normalizes hangul)"
-    (dstr "\xea\xb0\x81") (* 각 *)
-    (exec_ast (binop "++" (str "\u{1100}") (str "\u{1161}\u{11A8}"))) ;
-  check_error_contains
-    "String::base64decode errors on non-base64"
-    (exec_ast (fn "String::base64Decode" [str "random string"]))
-    "Not a valid base64 string" ;
-  check_dval
-    "String::slice works (pos, pos)"
-    (dstr "c")
-    (exec_ast (fn "String::slice" [str "abcd"; int 2; int 3])) ;
-  check_dval
-    "String::slice works (pos, > len)"
-    (dstr "cd")
-    (exec_ast (fn "String::slice" [str "abcd"; int 2; int 6])) ;
-  check_dval
-    "String::slice works (> len, > len)"
-    (dstr "")
-    (exec_ast (fn "String::slice" [str "abcd"; int 5; int 6])) ;
-  check_dval
-    "String::slice works (pos, neg)"
-    (dstr "abc")
-    (exec_ast (fn "String::slice" [str "abcd"; int 0; int (-1)])) ;
-  check_dval
-    "String::slice works (neg, neg)"
-    (dstr "cd")
-    (exec_ast (fn "String::slice" [str "abcd"; int (-2); int 4])) ;
-  check_dval
-    "String::slice works (<-len, pos)"
-    (dstr "a")
-    (exec_ast (fn "String::slice" [str "abcd"; int (-5); int 1])) ;
-  check_dval
-    "String::slice works (<-len, <-len)"
-    (dstr "")
-    (exec_ast (fn "String::slice" [str "abcd"; int (-5); int (-6)])) ;
-  check_dval
-    "String::slice works (swapped)"
-    (dstr "")
-    (exec_ast (fn "String::slice" [str "abcd"; int 3; int 2])) ;
-  check_dval
-    "String::first works (pos)"
-    (dstr "abc")
-    (exec_ast (fn "String::first" [str "abcd"; int 3])) ;
-  check_dval
-    "String::first works (0)"
-    (dstr "")
-    (exec_ast (fn "String::first" [str "abcd"; int 0])) ;
-  check_dval
-    "String::first works (neg)"
-    (dstr "")
-    (exec_ast (fn "String::first" [str "abcd"; int (-3)])) ;
-  check_dval
-    "String::last works (pos)"
-    (dstr "bcd")
-    (exec_ast (fn "String::last" [str "abcd"; int 3])) ;
-  check_dval
-    "String::last works (0)"
-    (dstr "")
-    (exec_ast (fn "String::last" [str "abcd"; int 0])) ;
-  check_dval
-    "String::last works (neg)"
-    (dstr "")
-    (exec_ast (fn "String::last" [str "abcd"; int (-3)])) ;
-  check_dval
-    "String::dropFirst works (pos)"
-    (dstr "d")
-    (exec_ast (fn "String::dropFirst" [str "abcd"; int 3])) ;
-  check_dval
-    "String::dropFirst works (0)"
-    (dstr "abcd")
-    (exec_ast (fn "String::dropFirst" [str "abcd"; int 0])) ;
-  check_dval
-    "String::dropFirst works (neg)"
-    (dstr "abcd")
-    (exec_ast (fn "String::dropFirst" [str "abcd"; int (-3)])) ;
-  check_dval
-    "String::dropLast works (pos)"
-    (dstr "a")
-    (exec_ast (fn "String::dropLast" [str "abcd"; int 3])) ;
-  check_dval
-    "String::dropLast works (0)"
-    (dstr "abcd")
-    (exec_ast (fn "String::dropLast" [str "abcd"; int 0])) ;
-  check_dval
-    "String::dropLast works (neg)"
-    (dstr "abcd")
-    (exec_ast (fn "String::dropLast" [str "abcd"; int (-3)])) ;
-  check_error_contains
-    "String::padStart works (errors on empty string)"
-    (exec_ast (fn "String::padStart" [str "123"; str ""; int 10]))
-    "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"\"` is 0 characters long." ;
-  check_error_contains
-    "String::padEnd works (errors on empty string)"
-    (exec_ast (fn "String::padEnd" [str "123"; str ""; int 10]))
-    "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"\"` is 0 characters long." ;
-  check_dval
-    "String::padStart works (1 EGC)"
-    (dstr "000123")
-    (exec_ast (fn "String::padStart" [str "123"; str "0"; int 6])) ;
-  check_dval
-    "String::padEnd works (1 EGC)"
-    (dstr "123000")
-    (exec_ast (fn "String::padEnd" [str "123"; str "0"; int 6])) ;
-  check_dval
-    "String::padStart works (1 EGC; length too short)"
-    (dstr "123")
-    (exec_ast (fn "String::padStart" [str "123"; str "0"; int 3])) ;
-  check_dval
-    "String::padEnd works (1 EGC; length too short)"
-    (dstr "123")
-    (exec_ast (fn "String::padEnd" [str "123"; str "0"; int 3])) ;
-  check_error_contains
-    "String::padStart works (> 1 EGC errors)"
-    (exec_ast (fn "String::padStart" [str "123"; str "_-"; int 4]))
-    "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"_-\"` is 2 characters long." ;
-  check_error_contains
-    "String::padEnd works (> 1 EGC errors)"
-    (exec_ast (fn "String::padEnd" [str "123"; str "_-"; int 4]))
-    "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"_-\"` is 2 characters long." ;
-  check_dval
-    "String::trimStart works (Noop)"
-    (exec_ast (fn "String::trimStart" [str "foo"]))
-    (dstr "foo") ;
-  check_dval
-    "String::trimEnd works (Noop)"
-    (exec_ast (fn "String::trimEnd" [str "foo"]))
-    (dstr "foo") ;
-  check_dval
-    "String::trimStart works (Start Trivial)"
-    (exec_ast (fn "String::trimStart" [str "  foo"]))
-    (dstr "foo") ;
-  check_dval
-    "String::trimEnd works (Start Trivial)"
-    (exec_ast (fn "String::trimEnd" [str "  foo"]))
-    (dstr "  foo") ;
-  check_dval
-    "String::trimStart works (End Trivial)"
-    (exec_ast (fn "String::trimStart" [str "foo  "]))
-    (dstr "foo  ") ;
-  check_dval
-    "String::trimEnd works (End Trivial)"
-    (exec_ast (fn "String::trimEnd" [str "foo  "]))
-    (dstr "foo") ;
-  check_dval
-    "String::trimStart works (Both Trivial)"
-    (exec_ast (fn "String::trimStart" [str "  foo  "]))
-    (dstr "foo  ") ;
-  check_dval
-    "String::trimEnd works (Both Trivial)"
-    (exec_ast (fn "String::trimEnd" [str "  foo  "]))
-    (dstr "  foo") ;
-  check_dval
-    "String::trimStart works (BothNotInner Trivial)"
-    (exec_ast (fn "String::trimStart" [str "  foo bar  "]))
-    (dstr "foo bar  ") ;
-  check_dval
-    "String::trimEnd works (BothNotInner Trivial)"
-    (exec_ast (fn "String::trimEnd" [str "  foo bar  "]))
-    (dstr "  foo bar") ;
-  check_dval
-    "String::trimStart works (Both Unicode)"
-    (* Leading em-space, inner thin space, trailing space *)
-    (exec_ast
-       (fn
-          "String::trimStart"
-          [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
-    (dstr "foo\xe2\x80\x83bar\xe2\x80\x83 ") ;
-  check_dval
-    "String::trimEnd works (Both Unicode)"
-    (* Leading em-space, inner thin space, trailing space *)
-    (exec_ast
-       (fn
-          "String::trimEnd"
-          [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
-    (dstr " \xe2\x80\x83foo\xe2\x80\x83bar") ;
-  check_dval
-    "String::trimStart works (All)"
-    (exec_ast (fn "String::trimStart" [str "      "]))
-    (dstr "") ;
-  check_dval
-    "String::trimEnd works (All)"
-    (exec_ast (fn "String::trimEnd" [str "      "]))
-    (dstr "") ;
-  check_dval
-    "String::trimStart works (PreservesEmoji)"
-    (exec_ast
-       (fn "String::trimStart" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
-    (dstr "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 ") ;
-  check_dval
-    "String::trimEnd works (PreservesEmoji)"
-    (exec_ast
-       (fn "String::trimEnd" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
-    (dstr " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84") ;
-  ()
+
+check_dval
+  "String::trimStart works (Both Unicode)"
+  (* Leading em-space, inner thin space, trailing space *)
+  (exec_ast
+     (fn
+        "String::trimStart"
+        [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
+  (dstr "foo\xe2\x80\x83bar\xe2\x80\x83 ") ;
+check_dval
+  "String::trimEnd works (Both Unicode)"
+  (* Leading em-space, inner thin space, trailing space *)
+  (exec_ast
+     (fn "String::trimEnd" [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
+  (dstr " \xe2\x80\x83foo\xe2\x80\x83bar") ;
+check_dval
+  "String::trimStart works (PreservesEmoji)"
+  (exec_ast
+     (fn "String::trimStart" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
+  (dstr "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 ") ;
+check_dval
+  "String::trimEnd works (PreservesEmoji)"
+  (exec_ast
+     (fn "String::trimEnd" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
+  (dstr " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84") ;
 
 
 let t_password_hashing_and_checking_works () =
