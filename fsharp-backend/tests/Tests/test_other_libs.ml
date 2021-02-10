@@ -1,30 +1,3 @@
-
-check_dval
-  "String::trimStart works (Both Unicode)"
-  (* Leading em-space, inner thin space, trailing space *)
-  (exec_ast
-     (fn
-        "String::trimStart"
-        [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
-  (dstr "foo\xe2\x80\x83bar\xe2\x80\x83 ") ;
-check_dval
-  "String::trimEnd works (Both Unicode)"
-  (* Leading em-space, inner thin space, trailing space *)
-  (exec_ast
-     (fn "String::trimEnd" [str " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "]))
-  (dstr " \xe2\x80\x83foo\xe2\x80\x83bar") ;
-check_dval
-  "String::trimStart works (PreservesEmoji)"
-  (exec_ast
-     (fn "String::trimStart" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
-  (dstr "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 ") ;
-check_dval
-  "String::trimEnd works (PreservesEmoji)"
-  (exec_ast
-     (fn "String::trimEnd" [str " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "]))
-  (dstr " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84") ;
-
-
 let t_internal_functions () =
   Libbackend.Account.set_admin "test" true ;
   check_dval
@@ -55,6 +28,7 @@ let t_old_functions_deprecated () =
   StrDict.iter !counts ~f:(fun name count ->
       AT.check AT.int (name ^ " only has one undeprecated fn") 1 count) ;
   ()
+
 
 let t_libhttpclient () =
   check_error_contains
