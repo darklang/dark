@@ -25,21 +25,6 @@ check_dval
   (dstr " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84") ;
 
 
-let t_password_hashing_and_checking_works () =
-  let ast =
-    let'
-      "password"
-      (str "password")
-      (fn
-         "Password::check"
-         [fn "Password::hash" [var "password"]; var "password"])
-  in
-  check_dval
-    "A `Password::hash'd string `Password::check's against itself."
-    (exec_ast ast)
-    (DBool true)
-
-
 let t_jwt_functions_work () =
   let privatekey =
     "-----BEGIN RSA PRIVATE KEY-----
