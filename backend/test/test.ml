@@ -14,7 +14,6 @@ let () =
     ; ("user_db", Test_user_db.suite)
     ; ("string-libs", Test_string_libs.suite)
     ; ("db-libs", Test_db_libs.suite)
-    ; ("api-libs", Test_api_libs.suite)
     ; ("framework", Test_framework.suite)
     ; ("other-libs", Test_other_libs.suite)
     ; ("analysis", Test_analysis.suite)

@@ -3,3 +3,13 @@
 // [test]
 // match Date.parse_v1 "2019-07-28T22:42:00Z" with
 // | Ok date -> Http.setCookie_v2 "myCookie" "myVal" { Expires = date; Max-Age = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" } = { Set-Cookie: "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
+
+//[tests.errors]
+//Http.setCookie_v2 "myCookie" "myVal" { Expires = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Expires` passed to `Http::setCookie_v2` to be a `Date`, but it had type `Int` instead."
+//Http.setCookie_v2 "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.typeError_v0 "Expected the Set-Cookie parameter `Max-Age` passed to `Http::setCookie_v2` to be an `Int` representing seconds, but it had type `String` instead."
+//Http.setCookie_v2 "myCookie" "myVal" { Domain = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Domain` passed to `Http::setCookie_v2` to be a `String`, but it had type `Int` instead."
+//Http.setCookie_v2 "myCookie" "myVal" { Path = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Path` passed to `Http::setCookie_v2` to be a `String`, but it had type `Int` instead."
+//Http.setCookie_v2 "myCookie" "myVal" { Secure = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `Secure` passed to `Http::setCookie_v2` to have the value `true` or `false`, but it had the value `5` instead."
+//Http.setCookie_v2 "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `HttpOnly` passed to `Http::setCookie_v2` to have the value `true` or `false`, but it had the value `5` instead."
+//Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0  "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `5` instead."
+//Http.setCookie_v2 "myCookie" "myVal" { SameSite = "allthesecures" } = Test.typeError_v0 "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `\"allthesecures\"` instead."

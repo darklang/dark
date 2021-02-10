@@ -37,7 +37,7 @@ let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string 
   let actual = DvalRepr.toDeveloperReprV0 dv
   $"Expected the argument `{paramName}` to be {expected}, but it was {actual}"
 
-let dividingByZero (paramName : string) : string = $"{paramName} cannot be zero"
+let dividingByZero (paramName : string) : string = $"`{paramName}` cannot be zero"
 
 // ------------------
 // Extremely common exceptions
