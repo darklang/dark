@@ -27,6 +27,8 @@ Bytes.length_v0 (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽�
 Bytes.length_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
 Bytes.length_v0 (String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
 Bytes.length_v0 (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
+String.startsWith_v0 "a string" "a s" = true
+String.startsWith_v0 "a string" " s" = false
 String.startsWith_v0 "żółw" "żó" = true
 String.startsWith_v0 "żółw" "r22" = false
 String.startsWith_v0 "👩🏻‍🚀🍇" "🍇" = false
