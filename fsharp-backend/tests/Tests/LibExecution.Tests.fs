@@ -151,8 +151,6 @@ let fileTests () : Test =
                     finish ()
                     singleTestMode := true
                     currentTestName := name
-                // Skip comment-only lines
-                | Regex "^\s*//.*" [] -> ()
                 // Append to the current test string
                 | _ when !singleTestMode ->
                     currentTestString := !currentTestString + line
@@ -161,7 +159,7 @@ let fileTests () : Test =
                 // 1-line test
                 | Regex "^(.*)\s*$" [ code ] ->
                     currentTests := !currentTests @ [ t $"line {i}" code ]
-                // 1-line test w/ comment
+                // 1-line test w/ comment or commented out lines
                 | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
                     currentTests
                     := !currentTests @ [ t $"{comment} (line {i})" code ]
