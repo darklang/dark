@@ -1,0 +1,4 @@
+[test.dbnullroundtrip] with DB MyDB { "x" : "str" }
+(let old = { x = null } in
+ let key = DB.add_v0 old MyDB in
+ DB.get_v1_ster key MyDB) = null

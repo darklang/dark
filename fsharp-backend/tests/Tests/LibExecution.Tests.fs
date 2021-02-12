@@ -74,7 +74,7 @@ let fns =
 
 
 
-let t (comment : string) (code : string) : Test =
+let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Test =
   let name = $"{comment} ({code})"
 
   if code.StartsWith "//" then
@@ -82,9 +82,19 @@ let t (comment : string) (code : string) : Test =
   else
     testTask name {
       try
-        let fns =
-          LibExecution.StdLib.StdLib.fns
-          @ LibBackend.StdLib.StdLib.fns @ Tests.LibTest.fns
+        let (dbs : List<RT.DB.T>) =
+          match dbInfo with
+          | Some (name, json) ->
+              let dict = Json.AutoSerialize.deserialize<Map<string, string>> json
+
+              [ { tlid = id 8
+                  name = name
+                  cols =
+                    dict
+                    |> Map.toList
+                    |> List.map
+                         (fun (k, v) -> (k, LibExecution.DvalRepr.dtypeOfString v)) } ]
+          | None -> []
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
@@ -126,6 +136,7 @@ let fileTests () : Test =
        (fun file ->
          let filename = System.IO.Path.GetFileName file
          let currentTestName = ref ""
+         let currentTestDB = ref None
          let currentTests = ref []
          let singleTestMode = ref false
          let currentTestString = ref "" // keep track of the current [test]
@@ -136,7 +147,7 @@ let fileTests () : Test =
            let newTestCase =
              if !singleTestMode then
                // Add a single test case
-               t !currentTestName !currentTestString
+               t !currentTestName !currentTestString !currentTestDB
              else
                // Put currentTests in a group and add them
                testList !currentTestName !currentTests
@@ -145,6 +156,7 @@ let fileTests () : Test =
 
            // Clear settings
            currentTestName := ""
+           currentTestDB := None
            singleTestMode := false
            currentTestString := ""
            currentTests := []
@@ -159,11 +171,20 @@ let fileTests () : Test =
                 // [tests] indicator
                 | Regex "^\[tests\.(.*)\]$" [ name ] ->
                     finish ()
+                    currentTestDB := None
                     currentTestName := name
-                // [test] indicator
-                | Regex "^\[test\.(.*)\]$" [ name ] ->
+                // [test] with DB indicator
+                | Regex @"^\[test\.(.*)\](?: with DB (\w+) (.*))$"
+                        [ name; dbName; dbJson ] ->
                     finish ()
                     singleTestMode := true
+                    currentTestDB := Some(dbName, dbJson)
+                    currentTestName := name
+                // [test] indicator (no DB)
+                | Regex @"^\[test\.(.*)\]$" [ name ] ->
+                    finish ()
+                    singleTestMode := true
+                    currentTestDB := None
                     currentTestName := name
                 // Append to the current test string
                 | _ when !singleTestMode ->
@@ -172,11 +193,11 @@ let fileTests () : Test =
                 | Regex "^\s*$" [] -> ()
                 // 1-line test
                 | Regex "^(.*)\s*$" [ code ] ->
-                    currentTests := !currentTests @ [ t $"line {i}" code ]
+                    currentTests := !currentTests @ [ t $"line {i}" code None ]
                 // 1-line test w/ comment or commented out lines
                 | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
                     currentTests
-                    := !currentTests @ [ t $"{comment} (line {i})" code ]
+                    := !currentTests @ [ t $"{comment} (line {i})" code None ]
                 | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()
