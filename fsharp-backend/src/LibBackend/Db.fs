@@ -83,6 +83,13 @@ module Sql =
     idParam.Value <- int64 id
     Sql.parameter idParam
 
+  let tlid (tlid : uint64) : SqlValue =
+    // In the DB, it's actually an int64
+    let typ = NpgsqlTypes.NpgsqlDbType.Bigint
+    let idParam = NpgsqlParameter("tlid", typ)
+    idParam.Value <- int64 tlid
+    Sql.parameter idParam
+
   let idArray (ids : List<uint64>) : SqlValue =
     // In the DB, it's actually an int64
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| NpgsqlTypes.NpgsqlDbType.Bigint

@@ -65,49 +65,40 @@ let rec query_exact_fields state (db : RT.DB.T) query_obj : (string * RT.Dval) l
 //              Exception.internal "bad format received in fetch_all")
 //
 //
-// and
-//     (* PG returns lists of strings. This converts them to types using the
-//  * row info provided *)
-//     to_obj db (db_strings : string list) : dval =
-//   match db_strings with
-//   | [obj] ->
-//       let p_obj =
-//         match Dval.of_internal_queryable_v1 obj with
-//         | DObj o ->
-//             (* <HACK>: some legacy objects were allowed to be saved with `id` keys _in_ the
-//          * data object itself. they got in the datastore on the `update` of
-//          * an already present object as `update` did not remove the magic `id` field
-//          * which had been injected on fetch. we need to remove magic `id` if we fetch them
-//          * otherwise they will not type check on the way out any more and will not work.
-//          * if they are re-saved with `update` they will have their ids removed.
-//          * we consider an `id` key on the map to be a "magic" one if it is present in the map
-//          * but not in the schema of the object. this is a deliberate weakening of our schema
-//          * checker to deal with this case. *)
-//             if not
-//                  (List.exists
-//                     ~f:(( = ) "id")
-//                     (db |> cols_for |> List.map ~f:Tuple.T2.get1))
-//             then Map.remove o "id"
-//             else o
-//         (* </HACK> *)
-//         | x ->
-//             Exception.internal ("failed format, expected DObj got: " ^ obj)
-//       in
-//       (* <HACK>: because it's hard to migrate at the moment, we need to
-//      * have default values when someone adds a col. We can remove this
-//      * when the migrations work properly. Structured like this so that
-//      * hopefully we only have to remove this small part. *)
-//       let default_keys =
-//         cols_for db
-//         |> List.map ~f:(fun (k, _) -> (k, DNull))
-//         |> DvalMap.from_list_exn
-//       in
-//       let merged = Util.merge_left p_obj default_keys in
-//       (* </HACK> *)
-//       let type_checked = type_check db merged in
-//       DObj type_checked
-//   | _ ->
-//       Exception.internal "Got bad format from db fetch"
+
+// PG returns lists of strings. This converts them to types using the row info
+// provided
+and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
+  let pObj =
+    match LibExecution.DvalRepr.ofInternalQueryableV1 obj with
+    | RT.DObj o ->
+        // <HACK 1>: some legacy objects were allowed to be saved with `id`
+        // keys _in_ the data object itself. they got in the datastore on
+        // the `update` of an already present object as `update` did not
+        // remove the magic `id` field which had been injected on fetch. we
+        // need to remove magic `id` if we fetch them otherwise they will
+        // not type check on the way out any more and will not work.  if
+        // they are re-saved with `update` they will have their ids
+        // removed.  we consider an `id` key on the map to be a "magic" one
+        // if it is present in the map but not in the schema of the object.
+        // this is a deliberate weakening of our schema checker to deal
+        // with this case.
+        if not (List.includes "id" (db.cols |> List.map Tuple2.first)) then
+          Map.remove "id" o
+        else
+          o
+    // </HACK 1>
+    | x -> failwith $"failed format, expected DObj got: {obj}"
+  // <HACK 2>: because it's hard to migrate at the moment, we need to have
+  // default values when someone adds a col. We can remove this when the
+  // migrations work properly. Structured like this so that hopefully we
+  // only have to remove this small part.
+  let defaultKeys = db.cols |> List.map (fun (k, _) -> (k, RT.DNull)) |> Map
+  // FSTODO: which is overwriting here?
+  let merged = FSharpPlus.Map.union pObj defaultKeys in
+  // </HACK 2>
+  let typeChecked = typeCheck db merged in
+  RT.DObj typeChecked
 
 
 // TODO: Unify with Type_checker.ml
@@ -199,26 +190,28 @@ and set
 
 
 
-// and get_option ~state (db : RT.DB.T) (key : string) : dval option =
-//   Db.fetch_one_option
-//     ~name:"get"
-//     "SELECT data
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5
-//      AND key = $6"
-//     ~params:
-//       [ ID db.tlid
-//       ; Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; Int db.version
-//       ; Int current_dark_version
-//       ; String key ]
-//   |> Option.map ~f:(to_obj db)
-//
+and getOption
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (key : string)
+  : Task<Option<RT.Dval>> =
+  Sql.query
+    "SELECT data
+       FROM user_data
+       WHERE table_tlid = @tlid
+         AND account_id = @accountID
+         AND canvas_id = @canvasID
+         AND user_version = @userVersion
+         AND dark_version = @darkVersion
+         AND key = @key"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion
+                      "key", Sql.string key ]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "data" |> toObj db)
+
 //
 // and get_many ~state (db : RT.DB.T) (keys : string list) : (string * dval) list =
 //   Db.fetch

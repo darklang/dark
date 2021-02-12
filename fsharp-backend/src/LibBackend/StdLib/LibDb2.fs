@@ -55,24 +55,24 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) } ]
-// ; { name = fn "DB" "get" 1
-//
-//   ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
-//   ; returnType = TOption
-//   ; description = "Finds a value in `table` by `key"
-//   ; fn =
-//
-//         (function
-//         | state, [DStr key; DDB dbname] ->
-//             let key = Unicode_string.to_string key in
-//             let db = find_db state.dbs dbname in
-//             UserDB.get_option state db key |> Dval.dopt_of_option
-//         | args ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//     ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DB" "set" 1) }
+    { name = fn "DB" "get" 1
+      parameters = [ keyParam; tableParam ]
+      returnType = TOption TAny
+      description = "Finds a value in `table` by `key"
+      fn =
+        InProcess
+          (function
+          | state, [ DStr key; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! result = UserDB.getOption state db key
+                return Dval.option result
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "get" 2) } ]
 // ; { name = fn "DB" "get" 2
 //
 //   ; parameters = [Param.make "key" TStr; Param.make "table" TDB]

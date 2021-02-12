@@ -396,6 +396,11 @@ module Dval =
 
   let optionJust (dv : Dval) : Dval = if isFake dv then dv else DOption(Some dv)
 
+  let option (dv : Option<Dval>) : Dval =
+    match dv with
+    | Some dv -> optionJust dv // checks isFake
+    | None -> DOption None
+
   let errStr (s : string) : Dval = DFakeVal(DError(SourceNone, s))
 
   let errSStr (source : DvalSource) (s : string) : Dval = DFakeVal(DError(source, s))
