@@ -627,36 +627,40 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam ]
       returnType = TList TAny
       description = "Fetch all the values in `table`. Returns a list of lists such that the inner
-        lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
+                     lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
         InProcess
           (function
-          | state, [ DDB dbname ] -> taskv {
-              let db = state.dbs.[dbname]
+          | state, [ DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! result = UserDB.getAll state db
 
-              UserDB.get_all state db
-              |> List.map (fun (k, v) -> DList [ Dval.dstr_of_string_exn k; v ])
-              |> DList
+                return
+                  result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+              }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) } ]
-// ; { name = fn "DB" "getAllWithKeys" 2
-//   ; parameters = [tableParam]
-//   ; returnType = TObj
-//   ; description =
-//       "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.get_all state db |> DvalMap.from_list |> DObj
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "DB" "getAllWithKeys" 2) }
+    { name = fn "DB" "getAllWithKeys" 2
+      parameters = [ tableParam ]
+      returnType = TDict(varA)
+      description =
+        "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
+      fn =
+        InProcess
+          (function
+          | state, [ DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! result = UserDB.getAll state db
+                return result |> Map.ofList |> DObj
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
 // ; { name = fn "DB" "count" 0
 //   ; parameters = [tableParam]
 //   ; returnType = TInt

@@ -1,59 +1,20 @@
-open Core_kernel
-open Libexecution
-open Libbackend
-open Types
-open Types.RuntimeT
-open Utils
-open Libshared.FluidShortcuts
-
-let t_db_set_does_upsert () =
-  clear_test_data () ;
-  let ops =
-    [ CreateDB (dbid, pos, "MyDB")
-    ; AddDBCol (dbid, colnameid, coltypeid)
-    ; SetDBColName (dbid, colnameid, "x")
-    ; SetDBColType (dbid, coltypeid, "Str") ]
-  in
-  let ast =
-    let'
-      "old"
-      (fn "DB::set_v1" [record [("x", str "foo")]; str "hello"; var "MyDB"])
-      (let'
-         "new"
-         (fn "DB::set_v1" [record [("x", str "bar")]; str "hello"; var "MyDB"])
-         (let'
-            "results"
-            (fn "DB::getAllWithKeys_v1" [var "MyDB"])
-            (binop "==" (list [list [str "hello"; var "new"]]) (var "results"))))
-  in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
-
-
-let t_db_get_all_with_keys_works () =
-  clear_test_data () ;
-  let ops =
-    [ CreateDB (dbid, pos, "MyDB")
-    ; AddDBCol (dbid, colnameid, coltypeid2)
-    ; SetDBColName (dbid, colnameid, "x")
-    ; SetDBColType (dbid, coltypeid2, "Str") ]
-  in
-  let ast =
-    let'
-      "one"
-      (fn "DB::set_v1" [record [("x", str "foo")]; str "one"; var "MyDB"])
-      (let'
-         "two"
-         (fn "DB::set_v1" [record [("x", str "bar")]; str "two"; var "MyDB"])
-         (let'
-            "results"
-            (fn "DB::getAllWithKeys_v1" [var "MyDB"])
-            (binop
-               "=="
-               (list [list [str "one"; var "one"]; list [str "two"; var "two"]])
-               (var "results"))))
-  in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
-
+;;
+let ast =
+  let'
+    "one"
+    (fn "DB::set_v1" [record [("x", str "foo")]; str "one"; var "MyDB"])
+    (let'
+       "two"
+       (fn "DB::set_v1" [record [("x", str "bar")]; str "two"; var "MyDB"])
+       (let'
+          "results"
+          (fn "DB::getAllWithKeys_v1" [var "MyDB"])
+          (binop
+             "=="
+             (list [list [str "one"; var "one"]; list [str "two"; var "two"]])
+             (var "results"))))
+in
+check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 let t_db_get_all_with_keys_v2_works () =
   clear_test_data () ;

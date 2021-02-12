@@ -259,33 +259,28 @@ and getOption
 //              (key, to_obj db [data])
 //          | _ ->
 //              Exception.internal "bad format received in get_many_with_keys")
-//
-//
-// let get_all ~state (db : RT.DB.T) : (string * dval) list =
-//   Db.fetch
-//     ~name:"get_all"
-//     "SELECT key, data
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5"
-//     ~params:
-//       [ ID db.tlid
-//       ; Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; Int db.version
-//       ; Int current_dark_version ]
-//   |> List.map ~f:(fun return_val ->
-//          match return_val with
-//          (* TODO(ian): change `to_obj` to just take a string *)
-//          | [key; data] ->
-//              (key, to_obj db [data])
-//          | _ ->
-//              Exception.internal "bad format received in get_all")
-//
-//
+
+
+let getAll
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  : Task<List<string * RT.Dval>> =
+  Sql.query
+    "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = @tlid
+     AND account_id = @accountID
+     AND canvas_id = @canvasID
+     AND user_version = @userVersion
+     AND dark_version = @darkVersion"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.executeAsync
+       (fun read -> (read.string "key", read.string "data" |> toObj db))
+
 // let get_db_fields (db : RT.DB.T) : (string * tipe) list =
 //   List.filter_map db.cols ~f:(function
 //       | Filled (_, field), Filled (_, tipe) ->
