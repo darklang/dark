@@ -113,8 +113,7 @@ let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx.Items.[id.ToString()] <- value
   ctx
 
-let load'<'a> (id : dataID) (ctx : HttpContext) : 'a =
-  ctx.Items.[$"{id}".ToString()] :?> 'a
+let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items.[$"{id}"] :?> 'a
 
 type CanvasInfo = { name : CanvasName.T; id : CanvasID; owner : UserID }
 
@@ -133,7 +132,9 @@ let loadPermission (ctx : HttpContext) : Option<Auth.Permission> =
 let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
 let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
 let saveCanvasInfo (c : CanvasInfo) (ctx : HttpContext) = save' CanvasInfo c ctx
-let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) = save' Permission p ctx
+
+let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
+  save' Permission p ctx
 
 
 
