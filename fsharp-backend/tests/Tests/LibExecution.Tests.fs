@@ -4,8 +4,12 @@ module Tests.LibExecution
 
 open Expecto
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Prelude
 open Prelude.Tablecloth
+open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramSerialization.ProgramTypes
@@ -89,6 +93,7 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
 
               [ { tlid = id 8
                   name = name
+                  version = 0
                   cols =
                     dict
                     |> Map.toList
@@ -99,9 +104,15 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let tlid = id 7
-        let uuid = System.Guid.NewGuid()
 
-        let state = Exe.createState uuid uuid tlid (fns.Force()) dbs [] [] []
+        let! owner = UserName.create "test" |> LibBackend.Account.getUser
+        let ownerInfo = Option.unwrapUnsafe owner
+        let ownerID : UserID = (ownerInfo : LibBackend.Account.UserInfo).id
+
+        let! canvasID =
+          CanvasName.create "test" |> LibBackend.Canvas.canvasIDForCanvasName ownerID
+
+        let state = Exe.createState ownerID canvasID tlid (fns.Force()) dbs [] [] []
 
         let! actual = Exe.run state Map.empty actualProg
         let! expected = Exe.run state Map.empty expectedResult
@@ -109,7 +120,6 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         //let str = $"{source} => {actualProg} = {expectedResult}"
         let str = $"{actualProg}\n = \n{expectedResult}"
         return (dvalEquals actual expected str)
-
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
         return (Expect.isTrue false "")

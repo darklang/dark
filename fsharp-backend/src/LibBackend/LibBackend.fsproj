@@ -37,6 +37,7 @@
     <Compile Include="Analysis.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="StdLib/LibDB.fs" />
+    <Compile Include="StdLib/LibDB2.fs" />
     <Compile Include="StdLib/StdLib.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>

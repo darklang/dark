@@ -44,7 +44,7 @@ let createState
     userFns = userFns
     userTypes = userTypes
     // packageFns = packageFns
-    dbs = dbs
+    dbs = dbs |> List.map (fun (db : RT.DB.T) -> (db.name, db)) |> Map.ofList
     secrets = secrets
     trace = (fun on_execution_path _ _ -> ())
     traceTLID = fun _ -> ()
@@ -59,12 +59,14 @@ let createState
 
 let globalsFor (state : RT.ExecutionState) : RT.Symtable =
   let secrets =
-    List.map
-      (fun (s : RT.Secret.T) -> (s.secretName, RT.DStr s.secretValue))
-      state.secrets
+    state.secrets
+    |> List.map (fun (s : RT.Secret.T) -> (s.secretName, RT.DStr s.secretValue))
+    |> Map.ofList
 
-  let dbs = List.map (fun (db : RT.DB.T) -> (db.name, RT.DDB db.name)) state.dbs
-  Map.ofList (secrets @ dbs)
+  let dbs = (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) state.dbs)
+
+  FSharpPlus.Map.union secrets dbs
+
 
 let withGlobals (state : RT.ExecutionState) (symtable : RT.Symtable) : RT.Symtable =
   let globals = globalsFor state

@@ -421,7 +421,7 @@ module Handler =
 
 module DB =
   type Col = string * DType
-  type T = { tlid : tlid; name : string; cols : List<Col> }
+  type T = { tlid : tlid; name : string; cols : List<Col>; version : int }
 
 module UserType =
   type RecordField = { name : string; typ : DType }
@@ -523,7 +523,7 @@ and ExecutionState =
     tlid : tlid
     canvasID : CanvasID
     accountID : UserID
-    dbs : List<DB.T>
+    dbs : Map<string, DB.T>
     userFns : List<UserFunction.T>
     userTypes : List<UserType.T>
     // packageFns : List<PackageFn.T>

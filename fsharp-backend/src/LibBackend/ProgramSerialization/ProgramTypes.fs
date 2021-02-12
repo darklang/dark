@@ -845,6 +845,7 @@ module DB =
     member this.toRuntimeType() : RT.DB.T =
       { tlid = this.tlid
         name = this.name
+        version = this.version
         cols =
           List.filterMap
             (fun c ->

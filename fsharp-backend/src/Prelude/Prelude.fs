@@ -562,6 +562,12 @@ module Task =
 
     loop (task { return [] }) list
 
+  let map (f : 'a -> 'b) (v : Task<'a>) : Task<'b> =
+    task {
+      let! v = v
+      return f v
+    }
+
 
 
 
