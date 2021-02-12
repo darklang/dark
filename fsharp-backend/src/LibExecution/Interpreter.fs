@@ -42,9 +42,18 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | Some er -> return er
         | None -> return (DList filtered)
 
-    | EVariable (_id, name) ->
+    | EVariable (id, name) ->
         // FSTODO: match ast.ml
-        return Map.find name st
+        match (st.TryFind name, state.context) with
+        | None, Preview ->
+            // The trace is wrong/we have a bug -- we guarantee to users that
+            // variables they can lookup have been bound. However, we
+            // shouldn't crash out here when running analysis because it gives
+            // a horrible user experience
+            return! incomplete id
+        | None, Real ->
+            return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
+        | Some other, _ -> return other
     | ERecord (id, pairs) ->
         let skipEmptyKeys =
           pairs
@@ -398,14 +407,14 @@ and applyFnVal
             let! result =
               // FSTODO: user functions
               match state.functions.TryFind desc with
-              | None -> fstodo "support other function types"
+              | None -> fstodo $"support builtin function {desc}"
               | Some fn ->
                   // FSTODO: if an argument is an error rail, return it
                   try
                     // FSTODO: all the behaviour in AST.exec_fn
                     match fn.fn with
                     | InProcess fnval -> fnval (state, args)
-                    | _ -> fstodo "support other function type"
+                    | _ -> fstodo $"support other function type {fn.fn}"
                   with
                   | Errors.StdlibException (Errors.StringError msg) ->
                       Value(Dval.errSStr sourceID msg)

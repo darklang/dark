@@ -110,7 +110,9 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         let str = $"{actualProg}\n = \n{expectedResult}"
         return (dvalEquals actual expected str)
 
-      with e -> return (Expect.equal "" e.Message "Error message")
+      with e ->
+        printfn "Exception thrown in test: %s" (e.ToString())
+        return (Expect.isTrue false "")
     }
 
 
