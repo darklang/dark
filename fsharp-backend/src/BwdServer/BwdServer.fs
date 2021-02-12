@@ -226,8 +226,9 @@ let webApp : HttpHandler =
 let configureApp (app : IApplicationBuilder) =
   app.UseDeveloperExceptionPage().UseMiddleware<BwdMiddleware>(webApp) |> ignore
 
-let configureLogging (builder : ILoggingBuilder) =
-  let filter (l : LogLevel) : bool = true
+let configureLogging (shouldLog : bool) (builder : ILoggingBuilder) =
+  // We want to disable this by default for tests because it clogs the output
+  let filter (l : LogLevel) : bool = shouldLog
 
   // Configure the logging factory
   builder
@@ -239,12 +240,12 @@ let configureLogging (builder : ILoggingBuilder) =
 
 let configureServices (services : IServiceCollection) = ()
 
-let webserver (port : int) =
+let webserver (shouldLog : bool) (port : int) =
   WebHost.CreateDefaultBuilder()
   |> fun wh -> wh.UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
-  |> fun wh -> wh.ConfigureLogging(configureLogging)
+  |> fun wh -> wh.ConfigureLogging(configureLogging shouldLog)
   |> fun wh -> wh.UseUrls($"http://*:{port}")
   |> fun wh -> wh.Build()
 
@@ -253,5 +254,5 @@ let webserver (port : int) =
 let main _ =
   printfn "Starting BwdServer"
   LibBackend.Init.init ()
-  (webserver 9001).Run()
+  (webserver true 9001).Run()
   0
