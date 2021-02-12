@@ -27,9 +27,8 @@ let fns : List<BuiltInFn> =
       description = "Upsert `val` into `table`, accessible by `key`"
       fn =
         InProcess
-          InProcess
           (function
-          | state, [ DObj value; DStr key; DDB dbname ] -> taskv {
+          | state, [ DObj value; DStr key; DDB dbname ] ->
               taskv {
                 let db = state.dbs.[dbname]
                 let! _id = UserDB.set state true db key value
@@ -46,9 +45,8 @@ let fns : List<BuiltInFn> =
         "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
       fn =
         InProcess
-          InProcess
           (function
-          | state, [ DObj value; DDB dbname ] -> taskv {
+          | state, [ DObj value; DDB dbname ] ->
               taskv {
                 let key = System.Guid.NewGuid() |> toString
                 let db = state.dbs.[dbname]
@@ -65,9 +63,8 @@ let fns : List<BuiltInFn> =
       description = "Finds a value in `table` by `key"
       fn =
         InProcess
-          InProcess
           (function
-          | state, [ DStr key; DDB dbname ] -> taskv {
+          | state, [ DStr key; DDB dbname ] ->
               taskv {
                 let db = state.dbs.[dbname]
                 let! result = UserDB.getOption state db key
@@ -114,7 +111,7 @@ let fns : List<BuiltInFn> =
 //             in
 //             UserDB.get_many state db skeys
 //             |> List.map (fun (k, v) ->
-//                    DList [Dval.dstr_of_string_exn k; v])
+//                    DList [ DStr k; v])
 //             |> DList
 //           }
 //         | _ ->
@@ -229,7 +226,7 @@ let fns : List<BuiltInFn> =
 //             in
 //             UserDB.get_many_with_keys state db skeys
 //             |> List.map (fun (k, v) ->
-//                    DList [Dval.dstr_of_string_exn k; v])
+//                    DList [ DStr k; v])
 //             |> DList
 //           }
 //         | _ ->
@@ -300,14 +297,13 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
     { name = fn "DB" "query" 1
       parameters = [ specParam; tableParam ]
-      returnType = TList TAny TAny // heterogenous list
+      returnType = TList TAny // heterogenous list
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a [[key, value]] list of lists"
       fn =
         InProcess
-          InProcess
           (function
-          | state, [ DObj fields; DDB dbname ] -> taskv {
+          | state, [ DObj fields; DDB dbname ] ->
               taskv {
                 let db = state.dbs.[dbname]
                 let! results = UserDB.queryExactFields state db fields
@@ -322,14 +318,13 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "query" 2
 
       parameters = [ specParam; tableParam ]
-      returnType = TList TAny varA
+      returnType = TList varA
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
       fn =
         InProcess
-          InProcess
           (function
-          | state, [ DObj fields; DDB dbname ] -> taskv {
+          | state, [ DObj fields; DDB dbname ] ->
               taskv {
                 let db = state.dbs.[dbname]
                 let! results = UserDB.queryExactFields state db fields
@@ -341,14 +336,13 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "DB" "query" 3) }
     { name = fn "DB" "query" 3
       parameters = [ specParam; tableParam ]
-      returnType = TList TAny varA
+      returnType = TList varA
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
       fn =
         InProcess
-          InProcess
           (function
-          | state, [ (DObj fields); DDB dbname ] -> taskv {
+          | state, [ (DObj fields); DDB dbname ] ->
               taskv {
                 let db = state.dbs.[dbname]
                 let! results = UserDB.queryExactFields state db fields
@@ -388,7 +382,7 @@ let fns : List<BuiltInFn> =
 //             let db = state.dbs.[dbname]
 //             UserDB.query_exact_fields state db obj
 //             |> List.map (fun (k, v) ->
-//                    DList [Dval.dstr_of_string_exn k; v])
+//                    DList [ DStr k; v])
 //             |> DList
 //           }
 //         | _ ->
@@ -519,7 +513,7 @@ let fns : List<BuiltInFn> =
 //             in
 //             ( match results with
 //             | [(k, v)] ->
-//                 DOption (OptJust (DList [Dval.dstr_of_string_exn k; v]))
+//                 DOption (OptJust (DList [ DStr k; v]))
 //             | _ ->
 //                 DOption OptNothing )
 //           }
@@ -587,7 +581,7 @@ let fns : List<BuiltInFn> =
 //             let db = state.dbs.[dbname]
 //             UserDB.get_all state db
 //             |> List.map (fun (k, v) ->
-//                    DList [Dval.dstr_of_string_exn k; v])
+//                    DList [ DStr k; v])
 //             |> DList
 //           }
 //         | _ ->
@@ -688,7 +682,7 @@ let fns : List<BuiltInFn> =
 //         | state, [DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.cols_for db
-//             |> List.map (fun (k, v) -> Dval.dstr_of_string_exn k)
+//             |> List.map (fun (k, v) ->  k)
 //             |> DList
 //           }
 //         | _ ->
@@ -707,7 +701,7 @@ let fns : List<BuiltInFn> =
 //             let db = state.dbs.[dbname]
 //             UserDB.cols_for db
 //             |> List.map (fun (k, v) ->
-//                    (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)))
+//                    (k,  (Dval.tipe_to_string v)))
 //             |> Dval.to_dobj_exn
 //           }
 //         | _ ->
@@ -722,7 +716,7 @@ let fns : List<BuiltInFn> =
 //   ; fn =
 //         InProcess (function
 //         | _, [] ->
-//             Uuidm.v `V4 |> Uuidm.to_string |> Dval.dstr_of_string_exn
+//             Uuidm.v `V4 |> Uuidm.to_string |> DStr
 //           }
 //         | _ ->
 //             incorrectArgs ())
@@ -739,7 +733,7 @@ let fns : List<BuiltInFn> =
 //         | state, [DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.get_all_keys state db
-//             |> List.map (fun k -> Dval.dstr_of_string_exn k)
+//             |> List.map (fun k -> DStr k)
 //             |> DList
 //           }
 //         | _ ->
