@@ -58,7 +58,7 @@ let rec dtypeToString (t : DType) : string =
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
-  | TDB -> "Datastore"
+  | TDB _ -> "Datastore"
   | TDate -> "Date"
   | TDict _ -> "Dict"
   | TPassword -> "Password"
@@ -88,7 +88,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
-  | TDB -> "Datastore"
+  | TDB _ -> "Datastore"
   | TDate -> "Date"
   | TPassword -> "Password"
   | TUuid -> "UUID"
@@ -118,7 +118,7 @@ let rec dtypeOfString (str : string) : DType =
   | "incomplete" -> TIncomplete
   | "error" -> TError
   | "response" -> THttpResponse TAny
-  | "datastore" -> TDB
+  | "datastore" -> TDB TAny
   | "date" -> TDate
   | "password" -> TPassword
   | "uuid" -> TUuid
@@ -129,35 +129,11 @@ let rec dtypeOfString (str : string) : DType =
   | _ -> failwith "unsupported runtime type"
 
 
-let rec dtypeOf (dv : Dval) : DType =
-  match dv with
-  | DInt _ -> TInt
-  | DFloat _ -> TFloat
-  | DBool _ -> TBool
-  | DNull -> TNull
-  | DChar _ -> TChar
-  | DStr _ -> TStr
-  | DList _ -> TList TAny
-  | DObj _ -> TDict TAny
-  | DFnVal _ -> TLambda
-  | DFakeVal (DError _) -> TError
-  | DFakeVal (DIncomplete _) -> TIncomplete
-  | DHttpResponse _ -> THttpResponse TAny
-  | DDB _ -> TDB
-  | DDate _ -> TDate
-  // | DPassword _ -> TPassword
-  | DUuid _ -> TUuid
-  | DOption _ -> TOption TAny
-  | DFakeVal (DErrorRail _) -> TErrorRail
-  | DResult _ -> TResult(TAny, TAny)
-  | DBytes _ -> TBytes
-
-
 (* Users should not be aware of this *)
 let dtypeName (dv : Dval) : string =
-  dv |> dtypeOf |> dtypeToString |> String.toLowercase
+  dv |> Dval.toType |> dtypeToString |> String.toLowercase
 
-let pretty_tipename (dv : Dval) : string = dv |> dtypeOf |> dtypeToString
+let pretty_tipename (dv : Dval) : string = dv |> Dval.toType |> dtypeToString
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =

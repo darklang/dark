@@ -96,7 +96,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           | x ->
               let actualType =
                 match Dval.toType x with
-                | TDB ->
+                | TDB _ ->
                     "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
                 | tipe -> $"it's a {DvalRepr.typeToDeveloperReprV0 tipe}"
 

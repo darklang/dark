@@ -227,7 +227,7 @@ and DType =
   | TError
   | TLambda
   | THttpResponse of DType
-  | TDB
+  | TDB of DType
   | TDate
   | TChar
   | TPassword
@@ -329,7 +329,7 @@ module Dval =
     | DFakeVal (DError _) -> TError
     | DFakeVal (DIncomplete _) -> TIncomplete
     | DHttpResponse _ -> THttpResponse TAny
-    | DDB _ -> TDB
+    | DDB _ -> TDB TAny
     | DDate _ -> TDate
     // | DPassword _ -> TPassword
     | DUuid _ -> TUuid

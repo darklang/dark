@@ -633,7 +633,7 @@ type DType =
   | TError
   | TLambda
   | THttpResponse of DType
-  | TDB
+  | TDB of DType
   | TDate
   | TChar
   | TPassword
@@ -667,7 +667,7 @@ type DType =
     | TError -> RT.TError
     | TLambda -> RT.TLambda
     | THttpResponse typ -> RT.THttpResponse(typ.toRuntimeType ())
-    | TDB -> RT.TDB
+    | TDB typ -> RT.TDB(typ.toRuntimeType ())
     | TDate -> RT.TDate
     | TChar -> RT.TChar
     | TPassword -> RT.TPassword
@@ -707,7 +707,7 @@ type DType =
     | "incomplete" -> TIncomplete
     | "error" -> TError
     | "response" -> THttpResponse TAny
-    | "datastore" -> TDB
+    | "datastore" -> TDB TAny
     | "date" -> TDate
     | "password" -> TPassword
     | "uuid" -> TUuid
@@ -737,9 +737,6 @@ type DType =
           str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
         else
           failwith $"Unhandled DType.parse: {str}"
-
-
-
 
 
 module Handler =
