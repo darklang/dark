@@ -88,9 +88,24 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
   else
     testTask name {
       try
-        let hash = sha1digest name |> System.Convert.ToBase64String
-        let canvasName = CanvasName.create $"test-{hash}"
-        do! TestUtils.clearCanvasData canvasName
+        let! owner = testOwner.Force()
+        let ownerID : UserID = (owner : UserInfo).id
+
+        // Performance optimization: don't touch the DB if you don't use the DB
+        let! canvasID =
+          match dbInfo with
+          | Some _ ->
+              task {
+                let hash = sha1digest name |> System.Convert.ToBase64String
+                let canvasName = CanvasName.create $"test-{hash}"
+                do! TestUtils.clearCanvasData canvasName
+
+                let! canvasID =
+                  LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+
+                return canvasID
+              }
+          | None -> task { return! testCanvasID.Force() }
 
         let (dbs : List<RT.DB.T>) =
           match dbInfo with
@@ -110,9 +125,6 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let tlid = id 7
-        let! owner = testOwner.Force()
-        let ownerID : UserID = (owner : UserInfo).id
-        let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
 
         let state = Exe.createState ownerID canvasID tlid (fns.Force()) dbs [] [] []
 
