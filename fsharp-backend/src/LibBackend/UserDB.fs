@@ -203,62 +203,53 @@ and getOption
                       "key", Sql.string key ]
   |> Sql.executeRowOptionAsync (fun read -> read.string "data" |> toObj db)
 
-//
-// and get_many ~state (db : RT.DB.T) (keys : string list) : (string * dval) list =
-//   Db.fetch
-//     ~name:"get_many"
-//     "SELECT key, data
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5
-//      AND key = ANY (string_to_array($6, $7)::text[])"
-//     ~params:
-//       [ ID db.tlid
-//       ; Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; Int db.version
-//       ; Int current_dark_version
-//       ; List (List.map ~f:(fun s -> String s) keys)
-//       ; String Db.array_separator ]
-//   |> List.map ~f:(fun return_val ->
-//          match return_val with
-//          (* TODO(ian): change `to_obj` to just take a string *)
-//          | [key; data] ->
-//              (key, to_obj db [data])
-//          | _ ->
-//              Exception.internal "bad format received in get_many")
-//
-//
-// and get_many_with_keys ~state (db : RT.DB.T) (keys : string list) :
-//     (string * dval) list =
-//   Db.fetch
-//     ~name:"get_many_with_keys"
-//     "SELECT key, data
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5
-//      AND key = ANY (string_to_array($6, $7)::text[])"
-//     ~params:
-//       [ ID db.tlid
-//       ; Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; Int db.version
-//       ; Int current_dark_version
-//       ; List (List.map ~f:(fun s -> String s) keys)
-//       ; String Db.array_separator ]
-//   |> List.map ~f:(fun return_val ->
-//          match return_val with
-//          (* TODO(ian): change `to_obj` to just take a string *)
-//          | [key; data] ->
-//              (key, to_obj db [data])
-//          | _ ->
-//              Exception.internal "bad format received in get_many_with_keys")
+// CLEANUP: this is identical to getManyWithKeys, remove the key
+and getMany
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (keys : string list)
+  : Task<List<string * RT.Dval>> =
+  Sql.query
+    "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = @tlid
+       AND account_id = @accountID
+       AND canvas_id = @canvasID
+       AND user_version = @userVersion
+       AND dark_version = @darkVersion
+       AND key = ANY (@keys)"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion
+                      "keys", Sql.stringArray (Array.ofList keys) ]
+  |> Sql.executeAsync
+       (fun read -> (read.string "key", read.string "data" |> toObj db))
+
+
+and getManyWithKeys
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (keys : string list)
+  : Task<List<string * RT.Dval>> =
+  Sql.query
+    "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = @tlid
+     AND account_id = @accountID
+     AND canvas_id = @canvasID
+     AND user_version = @userVersion
+     AND dark_version = @darkVersion
+     AND key = ANY (@keys)"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion
+                      "keys", Sql.stringArray (Array.ofList keys) ]
+  |> Sql.executeAsync
+       (fun read -> (read.string "key", read.string "data" |> toObj db))
 
 
 let getAll
@@ -281,14 +272,6 @@ let getAll
   |> Sql.executeAsync
        (fun read -> (read.string "key", read.string "data" |> toObj db))
 
-// let get_db_fields (db : RT.DB.T) : (string * tipe) list =
-//   List.filter_map db.cols ~f:(function
-//       | Filled (_, field), Filled (_, tipe) ->
-//           Some (field, tipe)
-//       | _ ->
-//           None)
-//
-//
 // let query ~state (db : RT.DB.T) (b : RT.DB.Tlock_args) : (string * dval) list =
 //   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
 //   let param_name =
@@ -372,90 +355,74 @@ let getAll
 //       raise (DBQueryException "A type error occurred at run-time")
 //   in
 //   result |> List.hd_exn |> List.hd_exn |> int_of_string
-//
-//
-// let get_all_keys ~state (db : RT.DB.T) : string list =
-//   Db.fetch
-//     ~name:"get_all_keys"
-//     "SELECT key
-//       FROM user_data
-//       WHERE table_tlid = $1
-//       AND account_id = $2
-//       AND canvas_id = $3
-//       AND user_version = $4
-//       AND dark_version = $5"
-//     ~params:
-//       [ ID db.tlid
-//       ; Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; Int db.version
-//       ; Int current_dark_version ]
-//   |> List.map ~f:(fun return_val ->
-//          match return_val with
-//          | [key] ->
-//              key
-//          | _ ->
-//              Exception.internal "bad format received in get_all_keys")
-//
-//
-// let count ~state (db : RT.DB.T) : int =
-//   Db.fetch
-//     ~name:"count"
-//     "SELECT count(*)
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5"
-//     ~params:
-//       [ ID db.tlid
-//       ; Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; Int db.version
-//       ; Int current_dark_version ]
-//   |> List.hd_exn
-//   |> List.hd_exn
-//   |> int_of_string
-//
-//
-// let delete ~state (db : RT.DB.T) (key : string) =
-//   (* covered by composite PK index *)
-//   Db.run
-//     ~name:"user_delete"
-//     "DELETE FROM user_data
-//      WHERE key = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND table_tlid = $4
-//      AND user_version = $5
-//      AND dark_version = $6"
-//     ~params:
-//       [ String key
-//       ; Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; ID db.tlid
-//       ; Int db.version
-//       ; Int current_dark_version ]
-//
-//
-// let delete_all ~state (db : RT.DB.T) =
-//   (* covered by idx_user_data_current_data_for_tlid *)
-//   Db.run
-//     ~name:"user_delete_all"
-//     "DELETE FROM user_data
-//      WHERE account_id = $1
-//      AND canvas_id = $2
-//      AND table_tlid = $3
-//      AND user_version = $4
-//      AND dark_version = $5"
-//     ~params:
-//       [ Uuid state.account_id
-//       ; Uuid state.canvas_id
-//       ; ID db.tlid
-//       ; Int db.version
-//       ; Int current_dark_version ]
 
+
+let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
+  Sql.query
+    "SELECT key
+     FROM user_data
+     WHERE table_tlid = @tlid
+     AND account_id = @accountID
+     AND canvas_id = @canvasID
+     AND user_version = @userVersion
+     AND dark_version = @darkVersion"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.executeAsync (fun read -> read.string "key")
+
+let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
+  Sql.query
+    "SELECT count(*)
+     FROM user_data
+     WHERE table_tlid = @tlid
+       AND account_id = @accountID
+       AND canvas_id = @canvasID
+       AND user_version = @userVersion
+       AND dark_version = @darkVersion"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.executeRowAsync (fun read -> read.int "count")
+
+let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit> =
+  Sql.query
+    "DELETE
+     FROM user_data
+     WHERE key = @key
+       AND table_tlid = @tlid
+       AND account_id = @accountID
+       AND canvas_id = @canvasID
+       AND user_version = @userVersion
+       AND dark_version = @darkVersion"
+  |> Sql.parameters [ "key", Sql.string key
+                      "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.executeStatementAsync
+
+let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
+  //   covered by idx_user_data_current_data_for_tlid
+  Sql.query
+    "DELETE FROM user_data
+     WHERE key = @key
+       AND account_id = @accountID
+       AND canvas_id = @canvasID
+       AND table_tlid = @tlid
+       AND user_version = @userVersion
+       AND dark_version = @darkVersion"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid state.accountID
+                      "canvasID", Sql.uuid state.canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.executeStatementAsync
 
 // -------------------------
 // stats/locked/unlocked (not _locking_)

@@ -6,28 +6,44 @@
 [test.query_v1_works] with DB MyDB { "x" : "Str", "y": "Str" }
 (let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
  let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" MyDB in
- let results = DB.query_v1 { x = "bar" } MyDB in
- results == [["findme"; hopetofind]]) = true
+ DB.query_v1 { x = "bar" } MyDB) = [["findme"; { x = "bar"; y = "foo" }]]
 
 [test.query_v2_works] with DB MyDB { "x" : "Str", "y": "Str" }
 (let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
  let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" MyDB in
- let results = DB.query_v2 { x = "bar" } MyDB in
- results == [hopetofind]) = true
+ DB.query_v2 { x = "bar" } MyDB) = [{ x = "bar"; y = "foo" }]
 
 [test.query_v3_works] with DB MyDB { "x" : "Str", "y": "Str" }
 (let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
  let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" MyDB in
- let results = DB.query_v3 { x = "bar" } MyDB in
- results == [hopetofind]) = true
+ DB.query_v3 { x = "bar" } MyDB) = [{ x = "bar"; y = "foo" }]
 
 [test.db set does upsert] with DB MyDB { "x" : "Str" }
 (let old = DB.set_v1 { x = "foo" } "hello" MyDB in
  let newval = DB.set_v1 { x = "bar" } "hello" MyDB in
- DB.getAllWithKeys_v1 MyDB == [["hello"; newval]]) = true
-
+ DB.getAllWithKeys_v1 MyDB) = [["hello"; { x = "bar"}]]
 
 [test.db.getAllWithKeys_v1 works] with DB MyDB { "x" : "Str" }
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in
  let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getAllWithKeys_v1 MyDB == [["one", one];["two"; two]]) = true
+ DB.getAllWithKeys_v1 MyDB) = [["one"; { x = "foo" }];["two"; {x = "bar"}]]
+
+[test.db.getAllWithKeys_v2 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getAllWithKeys_v2 MyDB) = { one = { x = "foo"} ; two = { x = "bar"} }
+
+[test.db.getManyWithKeys works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getManyWithKeys_v0 ["one"; "two"] MyDB) = [["one"; { x = "foo" }];["two"; { x = "bar" }]]
+
+[test.db.getManyWithKeys_v1 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getManyWithKeys_v1 ["one"; "two"] MyDB) = { one = { x = "foo"} ; two = { x = "bar"} }
+
+[test.db.getExisting_v0 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getExisting_v0 ["three"; "two"] MyDB) = [ { x = "bar" } ]
