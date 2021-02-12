@@ -76,7 +76,22 @@ let fns =
      @ LibBackend.StdLib.StdLib.fns @ Tests.LibTest.fns
      |> Map.fromListBy (fun fn -> fn.name))
 
+type UserInfo = LibBackend.Account.UserInfo
 
+let testOwner : Lazy<Task<UserInfo>> =
+  lazy
+    (UserName.create "test"
+     |> LibBackend.Account.getUser
+     |> Task.map Option.unwrapUnsafe)
+
+let testCanvasID : Lazy<Task<CanvasID>> =
+  lazy
+    (task {
+      let! owner = testOwner.Force()
+
+      return!
+        CanvasName.create "test" |> LibBackend.Canvas.canvasIDForCanvasName owner.id
+     })
 
 let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Test =
   let name = $"{comment} ({code})"
@@ -104,13 +119,9 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let tlid = id 7
-
-        let! owner = UserName.create "test" |> LibBackend.Account.getUser
-        let ownerInfo = Option.unwrapUnsafe owner
-        let ownerID : UserID = (ownerInfo : LibBackend.Account.UserInfo).id
-
-        let! canvasID =
-          CanvasName.create "test" |> LibBackend.Canvas.canvasIDForCanvasName ownerID
+        let! owner = testOwner.Force()
+        let ownerID : UserID = (owner : UserInfo).id
+        let! canvasID = testCanvasID.Force()
 
         let state = Exe.createState ownerID canvasID tlid (fns.Force()) dbs [] [] []
 
