@@ -10,6 +10,17 @@ folder within container" and it should work.
 Use Ionide for F#. It's important to use (at least) version 5, which solves a
 few bugs and has the latest version of fantomas (the code formatter).
 
+#### Troubleshooting VScode
+
+If you find that you are not getting language-server feedback (types appearing,
+"goto definition" working, errors shown, etc), bring up the terminal within
+VSCode and run `dotnet tool restore; dotnet build`. This needs to be done after
+adding a new file and in some other cases. It may help to run "Developer:
+reload window" as well.
+
+If that doesn't work, look in the "Output" tabs marked "msbuild" or "F#" for
+clues.
+
 ### Merlin
 
 Merlin is an OCaml language server that provides things like autocompletion,
@@ -46,7 +57,10 @@ this in an alias or something).
 
 ### Formatting
 
-You will also want to support formatting in your client. Dark uses Prettier for JS/HTML/CSS, and OCamlformat for OCaml and Bucklescript. The script `script/format` can be used to format or check formatting, and there is a pre-commit hook you can use to run it automatically.
+You will also want to support formatting in your client. Dark uses Prettier for
+JS/HTML/CSS, OCamlformat for OCaml and Bucklescript, and Fantomas for F#. The
+script `script/format` can be used to format or check formatting, and there is
+a pre-commit hook you can use to run it automatically.
 
 For emacs, see [the
 readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
