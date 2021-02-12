@@ -92,93 +92,91 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "getMany" 1
-//   ; parameters = [keysParam; tableParam]
-//   ; returnType = TList TAny
-//   ; description =
-//       "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
-//   ; fn =
-//         InProcess (function
-//         | state, [DList keys; DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             let skeys =
-//               List.map
-//                 InProcess (function
-//                   | DStr s ->
-//                       Unicode_string.to_string s
-//                   | t ->
-//                       Exception.code "Expected a string, got: "
-//                       ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
-//                 keys
-//             in
-//             UserDB.get_many state db skeys
-//             |> List.map (fun (k, v) ->
-//                    DList [ DStr k; v])
-//             |> DList
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "DB" "getMany" 2
-//   ; parameters = [keysParam; tableParam]
-//   ; returnType = TList TAny
-//   ; description =
-//       "Finds many values in `table` by `keys, returning a [value] list of values"
-//   ; fn =
-//         InProcess (function
-//         | state, [DList keys; DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             let skeys =
-//               List.map
-//                 InProcess (function
-//                   | DStr s ->
-//                       Unicode_string.to_string s
-//                   | t ->
-//                       Exception.code "Expected a string, got: "
-//                       ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
-//                 keys
-//             in
-//             UserDB.get_many state db skeys
-//             |> List.map (fun (_, v) -> v)
-//             |> DList
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "DB" "getMany" 3
-//   ; parameters = [keysParam; tableParam]
-//   ; returnType = TOption
-//   ; description =
-//       "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
-//   ; fn =
-//         InProcess (function
-//         | state, [DList keys; DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             let skeys =
-//               List.map
-//                 InProcess (function
-//                   | DStr s ->
-//                       Unicode_string.to_string s
-//                   | t ->
-//                       Exception.code "Expected a string, got: "
-//                       ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
-//                 keys
-//             in
-//             let items = UserDB.get_many state db skeys in
-//             if List.length items = List.length skeys
-//             then
-//               List.map items (fun (_, v) -> v) |> DList |> OptJust |> DOption
-//             else DOption OptNothing
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+    { name = fn "DB" "getMany" 1
+      parameters = [ keysParam; tableParam ]
+      returnType = TList TAny
+      description =
+        "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
+      fn =
+        InProcess
+          (function
+          | state, [ DList keys; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+
+                let skeys =
+                  List.map
+                    (function
+                    | DStr s -> s
+                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                    keys
+
+                let! result = UserDB.getMany state db skeys
+
+                return
+                  result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "DB" "getMany" 2
+      parameters = [ keysParam; tableParam ]
+      returnType = TList TAny
+      description =
+        "Finds many values in `table` by `keys, returning a [value] list of values"
+      fn =
+        InProcess
+          (function
+          | state, [ DList keys; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+
+                let skeys =
+                  List.map
+                    (function
+                    | DStr s -> s
+                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                    keys
+
+                let! result = UserDB.getMany state db skeys
+                return result |> List.map (fun (_, v) -> v) |> DList
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "getMany" 3) }
+    { name = fn "DB" "getMany" 3
+      parameters = [ keysParam; tableParam ]
+      returnType = TOption varA
+      description =
+        "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
+      fn =
+        InProcess
+          (function
+          | state, [ DList keys; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+
+                let skeys =
+                  List.map
+                    (function
+                    | DStr s -> s
+                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                    keys
+
+                let! items = UserDB.getMany state db skeys
+
+                if List.length items = List.length skeys then
+                  return
+                    items |> List.map (fun (_, v) -> v) |> DList |> Some |> DOption
+                else
+                  return DOption None
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "DB" "getExisting" 0
       parameters = [ keysParam; tableParam ]
       returnType = TList TAny

@@ -47,3 +47,23 @@
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in
  let two = DB.set_v1 { x = "bar" } "two" MyDB in
  DB.getExisting_v0 ["three"; "two"] MyDB) = [ { x = "bar" } ]
+
+[test.db.getMany_v1 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getMany_v1 ["one"; "two"] MyDB) =  [["one"; { x = "foo" }];["two"; { x = "bar" }]]
+
+[test.db.getMany_v2 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getMany_v2 ["one"; "two"] MyDB) = [ { x = "foo"}; { x = "bar"}]
+
+[test.db.getMany_v3 returns nothing] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getMany_v3 ["three"; "two"] MyDB) = Nothing
+
+[test.db.getMany_v3 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ DB.getMany_v3 ["one"; "two"] MyDB) = Just [ { x = "foo"}; { x = "bar"}]
