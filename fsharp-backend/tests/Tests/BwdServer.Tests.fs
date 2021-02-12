@@ -3,101 +3,22 @@ module Tests.BwdServer
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
-open System.IO
-open System.Threading
-open System.Net
 open System.Net.Sockets
 open System.Text.RegularExpressions
 open FSharpPlus
-open Npgsql.FSharp.Tasks
-open Npgsql
 
 open Prelude
-open LibExecution
-open LibBackend
-open LibBackend.Db
-open LibBackend.ProgramSerialization
 
 module RT = LibExecution.RuntimeTypes
+module PT = LibBackend.ProgramSerialization.ProgramTypes
+module Routing = LibBackend.Routing
 
-// delete test data for one canvas
-let clearTestData (canvasName : string) : Task<unit> =
-  task {
-    let! owner = Account.userIDForUserName (UserName.create "test")
-
-    let! canvasID =
-      try
-        Canvas.canvasIDForCanvasName owner (CanvasName.create $"test-{canvasName}")
-        |> Task.map Some
-      with _ -> task { return None }
-
-    match canvasID with
-    | None -> return ()
-    | Some canvasID ->
-        let events =
-          Sql.query "DELETE FROM events where canvas_id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-          :> Task
-
-        let storedEvents =
-          Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-          :> Task
-
-        let functionResults =
-          Sql.query "DELETE FROM function_results_v2 where canvas_id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-          :> Task
-
-        let functionArguments =
-          Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-          :> Task
-
-        let userData =
-          Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-          :> Task
-
-        let cronRecords =
-          Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-          :> Task
-
-        let toplevelOplists =
-          Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-          :> Task
-
-        do!
-          Task.WhenAll [| cronRecords
-                          toplevelOplists
-                          userData
-                          functionArguments
-                          functionResults
-                          storedEvents
-                          events |]
-
-        do!
-          Sql.query "DELETE FROM canvases where id = @id::uuid"
-          |> Sql.parameters [ "id", Sql.uuid canvasID ]
-          |> Sql.executeStatementAsync
-
-        return ()
-  }
-
+open TestUtils
 
 let t name =
   testTask $"Httpfiles: {name}" {
-    do! clearTestData (name)
+    let canvasName = CanvasName.create $"test-{name}"
+    do! TestUtils.clearCanvasData canvasName
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
     let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
@@ -152,24 +73,20 @@ let t name =
              let httpRoute = m.Groups.[2].Value
              let httpMethod = m.Groups.[1].Value
 
-             let (source : ProgramTypes.Expr) =
+             let (source : PT.Expr) =
                progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
              let gid = Prelude.gid
 
-             let ids : ProgramTypes.Handler.ids =
+             let ids : PT.Handler.ids =
                { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-             ProgramTypes.TLHandler
+             PT.TLHandler
                { tlid = gid ()
                  pos = { x = 0; y = 0 }
                  ast = source
                  spec =
-                   ProgramTypes.Handler.HTTP(
-                     route = httpRoute,
-                     method = httpMethod,
-                     ids = ids
-                   ) })
+                   PT.Handler.HTTP(route = httpRoute, method = httpMethod, ids = ids) })
 
     let! ownerID = LibBackend.Account.userIDForUserName (UserName.create "test")
 
@@ -226,37 +143,6 @@ let testsFromFiles =
   |> Array.map (System.IO.Path.GetFileName)
   |> Array.toList
   |> List.map t
-
-let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
-  testList
-    name
-    (List.mapi
-      (fun i (input, expected) ->
-        test $"{name}[{i}]: ({input}) -> {expected}" {
-          Expect.equal (fn input) expected "" })
-      values)
-
-let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>) =
-  testList
-    name
-    (List.mapi
-      (fun i (input1, input2, expected) ->
-        test $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
-          Expect.equal (fn input1 input2) expected "" })
-      values)
-
-
-
-let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) =
-  testList
-    name
-    (List.mapi
-      (fun i (input, expected) ->
-        testTask $"{name} - {i}" {
-          let! result = fn input
-          Expect.equal result expected ""
-        })
-      values)
 
 let unitTests =
   [ testMany

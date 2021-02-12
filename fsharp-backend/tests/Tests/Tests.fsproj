@@ -14,6 +14,7 @@
   <ItemGroup>
     <Compile Include="FSharpToExpr.fs" />
     <Compile Include="LibTest.fs" />
+    <Compile Include="TestUtils.fs" />
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="LibBackend.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />

@@ -15,6 +15,8 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 module Exe = LibExecution.Execution
 
+open TestUtils
+
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
@@ -78,21 +80,6 @@ let fns =
 
 type UserInfo = LibBackend.Account.UserInfo
 
-let testOwner : Lazy<Task<UserInfo>> =
-  lazy
-    (UserName.create "test"
-     |> LibBackend.Account.getUser
-     |> Task.map Option.unwrapUnsafe)
-
-let testCanvasID : Lazy<Task<CanvasID>> =
-  lazy
-    (task {
-      let! owner = testOwner.Force()
-
-      return!
-        CanvasName.create "test" |> LibBackend.Canvas.canvasIDForCanvasName owner.id
-     })
-
 let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Test =
   let name = $"{comment} ({code})"
 
@@ -101,6 +88,10 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
   else
     testTask name {
       try
+        let hash = sha1digest name |> System.Convert.ToBase64String
+        let canvasName = CanvasName.create $"test-{hash}"
+        do! TestUtils.clearCanvasData canvasName
+
         let (dbs : List<RT.DB.T>) =
           match dbInfo with
           | Some (name, json) ->
@@ -121,7 +112,7 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         let tlid = id 7
         let! owner = testOwner.Force()
         let ownerID : UserID = (owner : UserInfo).id
-        let! canvasID = testCanvasID.Force()
+        let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
 
         let state = Exe.createState ownerID canvasID tlid (fns.Force()) dbs [] [] []
 
@@ -133,7 +124,7 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         return (dvalEquals actual expected str)
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
-        return (Expect.isTrue false "")
+        return (Expect.equal "Test except caught" (e.ToString()) "")
     }
 
 
@@ -227,15 +218,6 @@ let fileTests () : Test =
          testList $"Tests from {filename}" !allTests)
   |> Array.toList
   |> testList "All files"
-
-let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
-  testList
-    name
-    (List.mapi
-      (fun i (input, expected) ->
-        test $"{name}[{i}]: ({input}) -> {expected}" {
-          Expect.equal (fn input) expected "" })
-      values)
 
 let fqFnName =
   testMany

@@ -112,9 +112,9 @@ let base64UrlEncode (str : string) : string =
 let base64Decode (encoded : string) : string =
   encoded |> System.Convert.FromBase64String |> ofBytes
 
-let sha1digest (input : string) : string =
+let sha1digest (input : string) : byte[] =
   use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
-  input |> toBytes |> sha1.ComputeHash |> ofBytes
+  input |> toBytes |> sha1.ComputeHash
 
 let toString (v : 'a) : string = v.ToString()
 
