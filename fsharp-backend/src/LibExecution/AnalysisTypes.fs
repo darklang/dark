@@ -13,16 +13,6 @@ module RT = LibExecution.RuntimeTypes
 // module PReq = Parsed_request
 
 // (* -------------------- *)
-// (* Symtable / input vars *)
-// (* -------------------- *)
-//
-// module Symtable = DvalMap
-//
-// type symtable = dval_map [@@deriving show]
-//
-// let input_vars2symtable vars = Symtable.from_list vars
-//
-// (* -------------------- *)
 // (* Dval store - save per-tl analysis results *)
 // (* -------------------- *)
 // let ht_to_json_dict ds ~f =

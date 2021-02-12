@@ -101,7 +101,7 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         let tlid = id 7
         let uuid = System.Guid.NewGuid()
 
-        let state = Exe.createExecutionState uuid uuid tlid (fns.Force()) [] [] [] []
+        let state = Exe.createState uuid uuid tlid (fns.Force()) dbs [] [] []
 
         let! actual = Exe.run state Map.empty actualProg
         let! expected = Exe.run state Map.empty expectedResult

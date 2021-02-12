@@ -23,7 +23,7 @@ module Program =
       let tlid = id 7
       let uuid = System.Guid.NewGuid()
 
-      let state = Exe.createExecutionState uuid uuid tlid (fns.Force()) [] [] [] []
+      let state = Exe.createState uuid uuid tlid (fns.Force()) [] [] [] []
 
       let! result = Exe.run state Map.empty prog
 

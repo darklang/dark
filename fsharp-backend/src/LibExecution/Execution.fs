@@ -57,10 +57,23 @@ let createExecutionState
   // storeFnArguments = ""
   }
 
+let globalsFor (state : RT.ExecutionState) : RT.Symtable =
+  let secrets =
+    List.map
+      (fun (s : RT.Secret.T) -> (s.secretName, RT.DStr s.secretValue))
+      state.secrets
+
+  let dbs = List.map (fun (db : RT.DB.T) -> (db.name, RT.DDB db.name)) state.dbs
+  Map.ofList (secrets @ dbs)
+
+let withGlobals (state : RT.ExecutionState) (symtable : RT.Symtable) : RT.Symtable =
+  let globals = globalsFor state
+  FSharpPlus.Map.union globals symtable
+
 
 let run
   (state : RT.ExecutionState)
-  (symtable : RT.Symtable)
+  (inputVars : RT.Symtable)
   (expr : RT.Expr)
   //     ?(parent = (None : Span.t option))
 //     ?(load_fn_result = load_no_results)
@@ -72,6 +85,7 @@ let run
   // let tlidStore = new System.Collections.Generic.HashSet<tlid>()
   // let traceTLID (tlid : tlid) = tlidStore.Add tlid |> ignore
   // let state = { state with traceTLID = traceTLID }
+  let symtable = withGlobals state inputVars
   Interpreter.eval state symtable expr |> TaskOrValue.toTask
 // loadFnResult = ""
 // loadFnArguments = ""
@@ -84,7 +98,7 @@ let runHttp
   (state : RT.ExecutionState)
   (url : string)
   (body : byte [])
-  (symtable : RT.Symtable)
+  (inputVars : RT.Symtable)
   (expr : RT.Expr)
   //     ?(parent = (None : Span.t option))
 //     ?(load_fn_result = load_no_results)
@@ -97,6 +111,7 @@ let runHttp
     // let tlidStore = new System.Collections.Generic.HashSet<tlid>()
     // let traceTLID (tlid : tlid) = tlidStore.Add tlid |> ignore
     // let state = { state with traceTLID = traceTLID }
+    let symtable = withGlobals state inputVars
 
     let! result =
       Interpreter.applyFnVal
