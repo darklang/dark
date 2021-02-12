@@ -27,11 +27,10 @@ let clearTestData (canvasName : string) : Task<unit> =
     let! owner = Account.userIDForUserName (UserName.create "test")
 
     let! canvasID =
-      Sql.query
-        "SELECT id FROM canvases WHERE account_id = @owner::uuid AND name = @name"
-      |> Sql.parameters [ "owner", Sql.uuid owner
-                          "name", Sql.string $"test-{canvasName}" ]
-      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+      try
+        Canvas.canvasIDForCanvasName owner (CanvasName.create $"test-{canvasName}")
+        |> Task.map Some
+      with _ -> task { return None }
 
     match canvasID with
     | None -> return ()
