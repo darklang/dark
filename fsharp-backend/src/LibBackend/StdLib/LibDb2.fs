@@ -18,6 +18,7 @@ let dbType = TDB varA
 let valParam = Param.make "val" varA ""
 let keyParam = Param.make "key" TStr ""
 let tableParam = Param.make "table" dbType ""
+let specParam = Param.make "spec" TAny ""
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DB" "set" 1
@@ -72,8 +73,8 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "get" 2) } ]
-// ; { name = fn "DB" "get" 2
+      deprecated = ReplacedBy(fn "DB" "get" 2) }
+    // ; { name = fn "DB" "get" 2
 //
 //   ; parameters = [Param.make "key" TStr; Param.make "table" TDB]
 //   ; returnType = TOption
@@ -303,27 +304,26 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //     ; previewable = Impure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "query" 1
-//
-//   ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-//   ; returnType = TList
-//   ; description =
-//       "Fetch all the values from `table` which have the same fields and values that `spec` has
-//       , returning a [[key, value]] list of lists"
-//   ; fn =
-//
-//         (function
-//         | state, [(DObj _ as obj); DDB dbname] ->
-//             let db = find_db state.dbs dbname in
-//             UserDB.query_exact_fields state db obj
-//             |> List.map (fun (k, v) ->
-//                    DList [Dval.dstr_of_string_exn k; v])
-//             |> DList
-//         | args ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//     ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) (* see query_v2 *) }
+    { name = fn "DB" "query" 1
+      parameters = [ specParam; tableParam ]
+      returnType = TList TAny // heterogenous list
+      description =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a [[key, value]] list of lists"
+      fn =
+        InProcess
+          (function
+          | state, [ DObj fields; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! results = UserDB.queryExactFields state db fields
+
+                return
+                  results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "query" 2) } ]
 // ; { name = fn "DB" "query" 2
 //
 //   ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]

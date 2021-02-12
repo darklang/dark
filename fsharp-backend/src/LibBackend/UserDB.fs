@@ -36,38 +36,29 @@ let typeErrorMsg
 
 
 
-let rec query_exact_fields state (db : RT.DB.T) query_obj : (string * RT.Dval) list =
-  fstodo "query_exact_fields"
-//   let sql =
-//     "SELECT key, data
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND user_version = $2
-//      AND dark_version = $3
-//      AND canvas_id = $4
-//      AND data @> $5"
-//   in
-//   Db.fetch
-//     ~name:"fetch_by"
-//     sql
-//     ~params:
-//       [ ID db.tlid
-//       ; Int db.version
-//       ; Int current_dark_version
-//       ; Uuid state.canvas_id
-//       ; QueryableDval query_obj ]
-//   |> List.map ~f:(fun return_val ->
-//          match return_val with
-//          (* TODO(ian): change `to_obj` to just take a string *)
-//          | [key; data] ->
-//              (key, to_obj db [data])
-//          | _ ->
-//              Exception.internal "bad format received in fetch_all")
-//
-//
+let rec queryExactFields
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (queryObj : RT.DvalMap)
+  : Task<List<string * RT.Dval>> =
+  Sql.query
+    "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = @tlid
+     AND user_version = @userVersion
+     AND dark_version = @darkVersion
+     AND canvas_id = @canvasID
+     AND data @> @fields"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion
+                      "canvasID", Sql.uuid state.canvasID
+                      "fields", Sql.queryableDvalMap queryObj ]
+  |> Sql.executeAsync
+       (fun read -> (read.string "key", read.string "data" |> toObj db))
 
-// PG returns lists of strings. This converts them to types using the row info
-// provided
+
+// Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
     match LibExecution.DvalRepr.ofInternalQueryableV1 obj with

@@ -6,64 +6,6 @@ open Types.RuntimeT
 open Utils
 open Libshared.FluidShortcuts
 
-let t_db_add_roundtrip () =
-  clear_test_data () ;
-  let ops =
-    [ CreateDB (dbid, pos, "MyDB")
-    ; AddDBCol (dbid, colnameid, coltypeid)
-    ; SetDBColName (dbid, colnameid, "x")
-    ; SetDBColType (dbid, coltypeid, "Str") ]
-  in
-  let ast =
-    let'
-      "old"
-      (record [("x", null)])
-      (let'
-         "key"
-         (fn "DB::add_v0" [var "old"; var "MyDB"])
-         (fn "DB::get_v1" ~ster:Rail [var "key"; var "MyDB"]))
-  in
-  check_dval
-    "equal_after_roundtrip"
-    (DObj (DvalMap.singleton "x" DNull))
-    (exec_handler ~ops ast)
-
-
-let t_db_new_query_v1_works () =
-  clear_test_data () ;
-  let ops =
-    [ CreateDB (dbid, pos, "MyDB")
-    ; AddDBCol (dbid, colnameid, coltypeid)
-    ; SetDBColName (dbid, colnameid, "x")
-    ; SetDBColType (dbid, coltypeid, "Str")
-    ; AddDBCol (dbid, colnameid2, coltypeid2)
-    ; SetDBColName (dbid, colnameid2, "y")
-    ; SetDBColType (dbid, coltypeid2, "Str") ]
-  in
-  let ast =
-    let'
-      "dontfind"
-      (fn
-         "DB::set_v1"
-         [record [("x", str "foo"); ("y", str "bar")]; str "hello"; var "MyDB"])
-      (let'
-         "hopetofind"
-         (fn
-            "DB::set_v1"
-            [ record [("x", str "bar"); ("y", str "foo")]
-            ; str "findme"
-            ; var "MyDB" ])
-         (let'
-            "results"
-            (fn "DB::query_v1" [record [("x", str "bar")]; var "MyDB"])
-            (binop
-               "=="
-               (list [list [str "findme"; var "hopetofind"]])
-               (var "results"))))
-  in
-  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
-
-
 let t_db_new_query_v2_works () =
   clear_test_data () ;
   let ops =
