@@ -10,7 +10,7 @@ open Npgsql
 open Db
 
 open Prelude
-open Prelude.TableCloth
+open Prelude.Tablecloth
 open Tablecloth
 
 // let pp_gcloud_err (err : Gcloud.Auth.error) : string =

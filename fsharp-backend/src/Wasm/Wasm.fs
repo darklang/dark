@@ -5,18 +5,27 @@ open Microsoft.AspNetCore.Components.WebAssembly.Hosting
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
+open Prelude.Tablecloth
+
+module Exe = LibExecution.Execution
+
 
 module Program =
+  let fns =
+    lazy (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
 
   // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
   // or DotNet.invokeMethodAsync('Wasm', 'run', 8)
   [<Microsoft.JSInterop.JSInvokable>]
   let run (arg : int) : Task<string> =
     task {
-      let prog = LibExecution.RuntimeTypes.Shortcuts.eInt arg
+      let prog = LibExecution.Shortcuts.eInt arg
+      let tlid = id 7
+      let uuid = System.Guid.NewGuid()
 
-      let! result =
-        LibExecution.Execution.run (id 7) [] LibExecution.StdLib.StdLib.fns prog
+      let state = Exe.createExecutionState uuid uuid tlid (fns.Force()) [] [] [] []
+
+      let! result = Exe.run state Map.empty prog
 
       return result.ToString()
     }

@@ -3,10 +3,13 @@ module Tests.LibExecution
 // Create test cases from .tests files in the tests/stdlib dir
 
 open Expecto
+
 open Prelude
+open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramSerialization.ProgramTypes
+module Exe = LibExecution.Execution
 
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
@@ -63,6 +66,13 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   | DUuid _, _
   | DBytes _, _ -> Expect.equal left right msg
 
+let fns =
+  lazy
+    (LibExecution.StdLib.StdLib.fns
+     @ LibBackend.StdLib.StdLib.fns @ Tests.LibTest.fns
+     |> Map.fromListBy (fun fn -> fn.name))
+
+
 
 let t (comment : string) (code : string) : Test =
   let name = $"{comment} ({code})"
@@ -79,8 +89,12 @@ let t (comment : string) (code : string) : Test =
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let tlid = id 7
-        let! actual = LibExecution.Execution.run tlid [] fns actualProg
-        let! expected = LibExecution.Execution.run tlid [] fns expectedResult
+        let uuid = System.Guid.NewGuid()
+
+        let state = Exe.createExecutionState uuid uuid tlid (fns.Force()) [] [] [] []
+
+        let! actual = Exe.run state Map.empty actualProg
+        let! expected = Exe.run state Map.empty expectedResult
         let actual = normalizeDvalResult actual
         //let str = $"{source} => {actualProg} = {expectedResult}"
         let str = $"{actualProg}\n = \n{expectedResult}"

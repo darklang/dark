@@ -25,6 +25,7 @@ open FSharpx
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Exe = LibExecution.Execution
 
 // This boilerplate is copied from Giraffe. I elected not to use Giraffe
 // because we don't need any of its feature, but the types it uses are very
@@ -103,6 +104,11 @@ let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
     | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
   }
 
+let fns =
+  lazy
+    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+     |> Map.fromListBy (fun fn -> fn.name))
+
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
@@ -125,96 +131,87 @@ let runDarkHandler : HttpHandler =
 
       let requestPath = ctx.Request.Path.Value
 
-      let exprs : Task<List<PT.Toplevel>> =
-        task {
-          let executionID = gid ()
-          let loggerFactory = ctx.RequestServices.GetService<ILoggerFactory>()
-          let logger = loggerFactory.CreateLogger("logger")
-          let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
+      let loggerFactory = ctx.RequestServices.GetService<ILoggerFactory>()
+      let logger = loggerFactory.CreateLogger("logger")
+      let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
 
-          match! canvasNameFromHost ctx.Request.Host.Host with
-          | Some canvasName ->
-              let ownerName = LibBackend.Account.ownerNameFromCanvasName canvasName
-              let ownerUsername = UserName.create (ownerName.ToString())
-              let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
+      match! canvasNameFromHost ctx.Request.Host.Host with
+      | Some canvasName ->
 
-              let! canvasID =
-                LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+          let ownerName = LibBackend.Account.ownerNameFromCanvasName canvasName
+          let ownerUsername = UserName.create (ownerName.ToString())
+          let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
+          let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+          let method = ctx.Request.Method
 
-              let method = ctx.Request.Method
+          let! c =
+            LibBackend.Canvas.loadHttpHandlersFromCache
+              canvasName
+              canvasID
+              ownerID
+              requestPath
+              method
+            |> Task.map Result.unwrapUnsafe
 
-              let! canvas =
-                LibBackend.Canvas.loadHttpHandlersFromCache
-                  canvasName
-                  canvasID
-                  ownerID
-                  requestPath
-                  method
+          match Map.values c.handlers with
+          | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
+              let ms = new IO.MemoryStream()
+              do! ctx.Request.Body.CopyToAsync(ms)
+              let body = ms.ToArray()
+              let url = ctx.Request.GetEncodedUrl()
+              let expr = expr.toRuntimeType ()
+              let vars = LibBackend.Routing.routeInputVars route requestPath
 
-              return
-                canvas
-                |> Result.unwrapUnsafe
-                |> LibBackend.Canvas.toplevels
-                |> Map.values
-          | None ->
-              log "no canvas found" []
-              return []
-        }
+              match vars with
+              | Some vars ->
+                  let symtable = Map.ofList vars
 
-      match! exprs with
-      | [ PT.TLHandler { spec = PT.Handler.HTTP (route = route)
-                         ast = expr
-                         tlid = tlid } ] ->
-          let ms = new IO.MemoryStream()
-          do! ctx.Request.Body.CopyToAsync(ms)
-          let url = ctx.Request.GetEncodedUrl()
-          let body = ms.ToArray()
-          let expr = expr.toRuntimeType ()
-          let fns = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-          let vars = LibBackend.Routing.routeInputVars route requestPath
+                  let state =
+                    Exe.createExecutionState
+                      ownerID
+                      canvasID
+                      tlid
+                      (fns.Force())
+                      (c.dbs |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
+                      (c.userFunctions
+                       |> Map.map (fun pt -> pt.toRuntimeType ())
+                       |> Map.values)
+                      (c.userTypes
+                       |> Map.map (fun pt -> pt.toRuntimeType ())
+                       |> Map.values)
+                      (c.secrets
+                       |> Map.map (fun pt -> pt.toRuntimeType ())
+                       |> Map.values)
 
-          match vars with
-          | None ->
-              return!
-                msg
-                  500
-                  $"The request ({requestPath}) does not match the route ({route})"
-          | Some vars ->
-              let symtable = Map.ofList vars
+                  let! result = Exe.runHttp state url body symtable expr
 
-              let! result =
-                LibExecution.Execution.runHttp tlid url symtable body fns expr
-
-              printfn $"result of runHttp is {result}"
-
-              match result with
-              | RT.DHttpResponse (RT.Redirect url, _) ->
-                  ctx.Response.Redirect(url, false)
-                  return! next ctx
-              | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
-                  ctx.Response.StatusCode <- status
-                  List.iter (fun (k, v) -> addHeader ctx k v) headers
-                  do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-                  return! next ctx
-              // TODO: maybe not the right thing, but this is what the OCaml does
-              // FSTODO: move this to LibExecution so it can be available in the client
-              | RT.DFakeVal (RT.DErrorRail (RT.DResult (Error _)))
-              | RT.DFakeVal (RT.DErrorRail (RT.DOption None)) ->
-                  ctx.Response.StatusCode <- 404
-                  addHeader ctx "server" "darklang"
-                  return Some ctx
-              | RT.DFakeVal (RT.DIncomplete _) ->
+                  match result with
+                  | RT.DHttpResponse (RT.Redirect url, _) ->
+                      ctx.Response.Redirect(url, false)
+                      return! next ctx
+                  | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
+                      ctx.Response.StatusCode <- status
+                      List.iter (fun (k, v) -> addHeader ctx k v) headers
+                      do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+                      return! next ctx
+                  | RT.DFakeVal (RT.DIncomplete _) ->
+                      return!
+                        msg
+                          500
+                          "Error calling server code: Handler returned an \
+                           incomplete result. Please inform the owner of this \
+                           site that their code is broken."
+                  | other ->
+                      printfn $"Not a HTTP response: {other}"
+                      return! msg 500 "body is not a HttpResponse"
+              | None -> // vars didnt parse
                   return!
                     msg
                       500
-                      "Error calling server code: Handler returned an \
-                       incomplete result. Please inform the owner of this \
-                       site that their code is broken."
-              | other ->
-                  printfn $"Not a HTTP response: {other}"
-                  return! msg 500 "body is not a HttpResponse"
-      | [] -> return! msg 404 "No handler was found for this URL"
-      | _ -> return! msg 500 "More than one handler found for this URL"
+                      $"The request ({requestPath}) does not match the route ({route})"
+          | [] -> return! msg 404 "No handler was found for this URL"
+          | _ -> return! msg 500 "More than one handler found for this URL"
+      | None -> return! msg 404 "No handler was found for this URL"
     }
 
 let webApp : HttpHandler =

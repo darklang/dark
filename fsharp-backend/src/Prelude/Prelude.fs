@@ -329,7 +329,7 @@ let filter_s
 // Lazy utilities
 // ----------------------
 module Lazy =
-  let inline force (l: Lazy<_>) = l.Force ()
+  let inline force (l : Lazy<_>) = l.Force()
   let map f l = lazy ((f << force) l)
   let bind f l = lazy ((force << f << force) l)
 
@@ -338,6 +338,7 @@ module Lazy =
 // Important types
 // ----------------------
 type tlid = uint64
+
 type id = uint64
 
 // ----------------------
@@ -377,11 +378,11 @@ module Json =
           _typ : System.Type,
           _options : JsonSerializerOptions
         ) =
-        if reader.TokenType = JsonTokenType.String
-        then
+        if reader.TokenType = JsonTokenType.String then
           let str = reader.GetString()
           parseUInt64 str
-        else reader.GetUInt64()
+        else
+          reader.GetUInt64()
 
       override this.Write
         (
@@ -394,7 +395,10 @@ module Json =
 
     let _options =
       (let fsharpConverter =
-        JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption))
+        JsonFSharpConverter(
+          unionEncoding =
+            (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
+        )
 
        let options = JsonSerializerOptions()
        options.Converters.Add(TLIDConverter())
@@ -407,8 +411,7 @@ module Json =
       // supports the type, not the best one
       _options.Converters.Insert(0, c)
 
-    let serialize (data : 'a) : string =
-      JsonSerializer.Serialize(data, _options)
+    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
 
     let deserialize<'a> (json : string) : 'a =
       JsonSerializer.Deserialize<'a>(json, _options)
@@ -416,15 +419,20 @@ module Json =
 // ----------------------
 // Functions we'll later add to Tablecloth
 // ----------------------
-module TableCloth =
+module Tablecloth =
   module String =
-    let take (count : int) (str : string) : string = if count >= str.Length then str else str.Substring(0, count)
+    let take (count : int) (str : string) : string =
+      if count >= str.Length then str else str.Substring(0, count)
 
     let removeSuffix (suffix : string) (str : string) : string =
       if str.EndsWith(suffix) then
         str.Substring(0, str.Length - suffix.Length)
       else
         str
+
+  module Map =
+    let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
+      List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
 
 // ----------------------
 // Task list processing
@@ -544,12 +552,14 @@ module Task =
     let rec loop (acc : Task<List<'a>>) (xs : List<Task<'a>>) =
       task {
         let! acc = acc
+
         match xs with
-        | [] ->
-            return List.rev acc
+        | [] -> return List.rev acc
         | x :: xs ->
             let! x = x
-            return! loop ( task { return (x::acc) }) xs }
+            return! loop (task { return (x :: acc) }) xs
+      }
+
     loop (task { return [] }) list
 
 

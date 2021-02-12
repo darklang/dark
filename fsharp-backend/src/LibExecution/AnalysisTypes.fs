@@ -6,7 +6,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-open Prelude.TableCloth
+open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes

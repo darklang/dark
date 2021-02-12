@@ -942,6 +942,15 @@ type Toplevel =
     | TLFunction f -> RT.TLFunction(f.toRuntimeType ())
     | TLType t -> RT.TLType(t.toRuntimeType ())
 
+module Secret =
+  type T =
+    { secretName : string
+      secretValue : string }
+
+    member this.toRuntimeType() : RT.Secret.T =
+      { secretName = this.secretName; secretValue = this.secretValue }
+
+
 type DeprecatedMigrationKind = | DeprecatedMigrationKind
 
 type Op =

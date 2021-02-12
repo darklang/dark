@@ -315,6 +315,6 @@ let convertToTest
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
       (convert actual, convert expected)
-  | _ -> convert ast, LibExecution.RuntimeTypes.Shortcuts.eBool true
+  | _ -> convert ast, LibExecution.Shortcuts.eBool true
 
 let parseDarkExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
