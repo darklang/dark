@@ -323,26 +323,26 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "query" 2) } ]
-// ; { name = fn "DB" "query" 2
-//
-//   ; parameters = [Param.make "spec" TObj; Param.make "table" TDB]
-//   ; returnType = TList
-//   ; description =
-//       "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
-//   ; fn =
-//
-//         (function
-//         | state, [(DObj _ as obj); DDB dbname] ->
-//             let db = find_db state.dbs dbname in
-//             UserDB.query_exact_fields state db obj
-//             |> List.map (fun (k, v) -> v)
-//             |> Dval.to_list
-//         | args ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//     ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DB" "query" 2) }
+    { name = fn "DB" "query" 2
+
+      parameters = [ specParam; tableParam ]
+      returnType = TList varA
+      description =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
+      fn =
+        InProcess
+          (function
+          | state, [ DObj fields; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! results = UserDB.queryExactFields state db fields
+                return results |> List.map (fun (k, v) -> v) |> Dval.list
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "query" 3) } ]
 //   (* see queryExactFields *)
 // ; { name = fn "DB" "query" 3
 //
