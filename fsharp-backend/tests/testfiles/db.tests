@@ -109,4 +109,4 @@
  let _ = Date.parse_v2_ster before |> (fun date -> DB.set_v1 { ts = date } "before" MyDB) in
  let _ = Date.parse_v2_ster after |> (fun date -> DB.set_v1 { ts = date } "after" MyDB) in
  let _ = Date.parse_v2_ster middle |> (fun date -> DB.set_v1 { ts = date } "middle" MyDB) in
- DB.queryOne_v4 MyDB (fun value -> middle < value)) = Just (Date.parse_v2_ster "2100-01-01T00:00:00Z")
+ DB.queryOne_v4 MyDB (fun value -> middle < value.ts)) = Just (Date.parse_v2_ster "2100-01-01T00:00:00Z")

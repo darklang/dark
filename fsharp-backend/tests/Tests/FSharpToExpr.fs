@@ -165,11 +165,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                                   _) -> exprs |> List.map c |> eList
   | SynExpr.ArrayOrListOfSeqExpr (_, SynExpr.CompExpr (_, _, expr, _), _) ->
       eList [ c expr ]
-  | SynExpr.LongIdent (_,
-                       // Note to self: LongIdent = Ident list
-                       LongIdentWithDots ([ modName; fnName ], _),
-                       _,
-                       _) ->
+
+  // Note to self: LongIdent = Ident list
+  | SynExpr.LongIdent (_, LongIdentWithDots ([ modName; fnName ], _), _, _) when
+    System.Char.IsUpper(modName.idText.[0]) ->
       let name, version, ster =
         match fnName.idText with
         | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, PT.Rail)
@@ -178,6 +177,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
       let desc = PT.FQFnName.stdlibName modName.idText name version
       PT.EFnCall(gid (), desc, [], ster)
+  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field ], _), _, _) ->
+      PT.EFieldAccess(gid (), eVar var.idText, field.idText)
+
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
       PT.EFieldAccess(gid (), c expr, field.idText)
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
