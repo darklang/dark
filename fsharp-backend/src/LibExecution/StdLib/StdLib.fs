@@ -7,35 +7,6 @@ module DvalRepr = LibExecution.DvalRepr
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let any =
-  [ { name = FQFnName.stdlibName "" "equals" 0
-      description = "Returns true if the two value are equal"
-      parameters =
-        [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "a") "" ]
-      returnType = TBool
-      fn =
-        InProcess
-          (function
-          | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
-          | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-    { name = FQFnName.stdlibName "" "toString" 0
-      description =
-        "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
-      parameters = [ Param.make "a" (TVariable "a") "" ]
-      returnType = TStr
-      fn =
-        InProcess
-          (function
-          | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Value
-          | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated } ]
-
-
 let prefixFns : List<BuiltInFn> =
   List.concat [ LibBool.fns
                 LibBytes.fns
@@ -44,23 +15,26 @@ let prefixFns : List<BuiltInFn> =
                 LibInt.fns
                 LibList.fns
                 LibMiddleware.fns
-                LibString.fns
-                any ]
+                LibNoModule.fns
+                LibString.fns ]
 
 // Map of prefix names to their infix versions
 let infixFnMapping =
-  [ ("Int", "add", 0), "+"
-    ("Int", "subtract", 0), "-"
-    ("Int", "greaterThan", 0), ">"
-    ("Int", "greaterThanOrEqualTo", 0), ">="
-    ("Int", "lessThanOrEqualTo", 0), "<="
-    ("Int", "lessThan", 0), "<"
-    ("Int", "power", 0), "^"
-    ("String", "append", 1), "++"
-    ("", "equals", 0), "==" ]
+  // FSTODO: there are 20 infix_names in the ocaml libs
+  [ ("Int", "add", 0), ("", "+")
+    ("Int", "subtract", 0), ("", "-")
+    ("Int", "greaterThan", 0), ("", ">")
+    ("Int", "greaterThanOrEqualTo", 0), ("", ">=")
+    ("Int", "lessThanOrEqualTo", 0), ("", "<=")
+    ("Int", "lessThan", 0), ("", "<")
+    ("Int", "power", 0), ("", "^")
+    ("Date", "lessThan", 0), ("Date", "<")
+    ("String", "append", 1), ("", "++")
+    ("", "equals", 0), ("", "==") ]
   |> List.map
-       (fun ((module_, name, version), opName) ->
-         FQFnName.stdlibName module_ name version, FQFnName.stdlibName "" opName 0)
+       (fun ((module_, name, version), (newMod, opName)) ->
+         FQFnName.stdlibName module_ name version,
+         FQFnName.stdlibName newMod opName 0)
   |> Map
 
 // set of infix names

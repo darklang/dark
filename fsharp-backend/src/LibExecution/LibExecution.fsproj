@@ -20,6 +20,7 @@
     <Compile Include="StdLib/LibInt.fs" />
     <Compile Include="StdLib/LibBool.fs" />
     <Compile Include="StdLib/LibMiddleware.fs" />
+    <Compile Include="StdLib/LibNoModule.fs" />
     <Compile Include="StdLib/StdLib.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="ParsedRequest.fs" />
