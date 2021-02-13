@@ -434,6 +434,9 @@ module Tablecloth =
     let fromListBy (f : 'v -> 'k) (l : List<'v>) : Map<'k, 'v> =
       List.fold (fun (m : Map<'k, 'v>) v -> m.Add(f v, v)) Map.empty l
 
+    let merge (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
+      FSharpPlus.Map.union m1 m2
+
 // ----------------------
 // Task list processing
 // ----------------------
