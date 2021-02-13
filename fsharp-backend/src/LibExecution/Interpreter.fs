@@ -410,45 +410,52 @@ and applyFnVal
               match state.functions.TryFind desc with
               | None -> fstodo $"support builtin function {desc}"
               | Some fn ->
-                  // FSTODO: if an argument is an error rail, return it
-                  try
-                    // FSTODO: all the behaviour in AST.exec_fn
-                    match fn.fn with
-                    | InProcess fnval -> fnval (state, args)
-                    | _ -> fstodo $"support other function type {fn.fn}"
-                  with
-                  | Errors.StdlibException (Errors.StringError msg) ->
-                      Value(Dval.errSStr sourceID msg)
-                  | Errors.StdlibException Errors.IncorrectArgs ->
-                      let paramLength = List.length fn.parameters
-                      let argLength = List.length args
+                  taskv {
+                    // FSTODO: if an argument is an error rail, return it
+                    try
+                      // FSTODO: all the behaviour in AST.exec_fn
+                      match fn.fn with
+                      | InProcess fnval ->
+                          // evaluate this here so that the exception gets caught here
+                          return! fnval (state, args)
+                      | _ ->
+                          fstodo $"support other function type {fn.fn}"
+                          return DFakeVal(DIncomplete SourceNone)
+                    with
+                    | Errors.StdlibException (Errors.StringError msg) ->
+                        return Dval.errSStr sourceID msg
+                    | Errors.StdlibException Errors.IncorrectArgs ->
+                        let paramLength = List.length fn.parameters
+                        let argLength = List.length args
 
-                      if paramLength <> argLength then
-                        Value(
-                          Dval.errSStr
-                            sourceID
-                            $"Expected {paramLength} arguments, got {argLength}"
-                        )
-                      else
-                        let invalid =
-                          List.zip fn.parameters args
-                          |> List.filter
-                               (fun (p, a) ->
-                                 Dval.toType a <> p.typ && p.typ <> TAny)
+                        if paramLength <> argLength then
+                          return
+                            Dval.errSStr
+                              sourceID
+                              $"Expected {paramLength} arguments, got {argLength}"
 
-                        match invalid with
-                        | [] ->
-                            Value(
-                              Dval.errSStr
-                                sourceID
-                                $"unknown error calling {fn.name}"
-                            )
-                        | (p, actual) :: _ ->
-                            let msg = Errors.incorrectArgsMsg (fn.name) p actual
-                            Value(Dval.errSStr sourceID msg)
-                  | Errors.StdlibException Errors.FunctionRemoved ->
-                      Value(Dval.errSStr sourceID $"{fn.name} was removed from Dark")
-                  | Errors.StdlibException (Errors.FakeDvalFound dv) -> Value(dv)
+                        else
+                          let invalid =
+                            List.zip fn.parameters args
+                            |> List.filter
+                                 (fun (p, a) ->
+                                   Dval.toType a <> p.typ && p.typ <> TAny)
+
+                          match invalid with
+                          | [] ->
+                              return
+                                Dval.errSStr
+                                  sourceID
+                                  $"unknown error calling {fn.name}"
+                          | (p, actual) :: _ ->
+                              let msg = Errors.incorrectArgsMsg (fn.name) p actual
+                              return Dval.errSStr sourceID msg
+                    | Errors.StdlibException Errors.FunctionRemoved ->
+                        return
+                          Dval.errSStr sourceID $"{fn.name} was removed from Dark"
+                    | Errors.StdlibException (Errors.FakeDvalFound dv) -> return dv
+
+                  }
 
             if ster = Rail then
               match Dval.unwrapFromErrorRail result with
@@ -460,4 +467,5 @@ and applyFnVal
               | other -> return DFakeVal(DErrorRail other)
             else
               return result
+
   }

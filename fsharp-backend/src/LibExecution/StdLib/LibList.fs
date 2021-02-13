@@ -620,7 +620,6 @@ let fns : List<BuiltInFn> =
                         return false
                     | v ->
                         Errors.throw (Errors.expectedLambdaType TBool v)
-
                         return false
                   }
 
@@ -630,7 +629,7 @@ let fns : List<BuiltInFn> =
                   let! result = filter_s f l
                   return DList(result)
               }
-          | args -> incorrectArgs ())
+          | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }
