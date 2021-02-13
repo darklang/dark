@@ -153,7 +153,7 @@ let randomString (length : int) : string =
   let bytes = Array.create length (byte 0)
   random.NextBytes(bytes)
   // this can be longer than length because of base64
-  (System.Convert.ToBase64String bytes).Substring(0, 40)
+  (System.Convert.ToBase64String bytes).Substring(0, length)
 
 
 
