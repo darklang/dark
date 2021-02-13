@@ -70,13 +70,12 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     //   { name = fn "Date" "toString" 0
-//
 //     parameters = [ Param.make "date" TDate ]
 //     returnType = TStr
 //     description =
 //       "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
 //     fn =
-//
+//         InProcess
 //       (function
 //       | _, [ DDate d ] -> Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date d)
 //       | args -> incorrectArgs ())
@@ -90,7 +89,7 @@ let fns : List<BuiltInFn> =
 //     description =
 //       "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
 //     fn =
-//
+//         InProcess
 //       (function
 //       | _, [ DDate d ] ->
 //           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_datetime d)
@@ -99,12 +98,11 @@ let fns : List<BuiltInFn> =
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "toStringISO8601BasicDate" 0
-//
 //     parameters = [ Param.make "date" TDate ]
 //     returnType = TStr
 //     description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
 //     fn =
-//
+//         InProcess
 //       (function
 //       | _, [ DDate d ] ->
 //           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_date d)
@@ -113,11 +111,11 @@ let fns : List<BuiltInFn> =
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "now" 0
-//
 //     parameters = []
 //     returnType = TDate
 //     description = "Returns the current time."
 //     fn =
+//         InProcess
 //       (function
 //       | _, [] -> DDate(Time.now ())
 //       | args -> incorrectArgs ())
@@ -125,12 +123,11 @@ let fns : List<BuiltInFn> =
 //     previewable = Impure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "today" 0
-//
 //     parameters = []
 //     returnType = TDate
 //     description = "Returns the Date with the time set to midnight"
 //     fn =
-//
+//         InProcess
 //       (function
 //       | _, [] ->
 //           Time.now ()
@@ -142,12 +139,11 @@ let fns : List<BuiltInFn> =
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "add" 0
-//
 //     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
 //     returnType = TDate
 //     description = "Returns a new Date `seconds` seconds after `d`"
 //     fn =
-//
+//         InProcess
 //       (function
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
@@ -156,12 +152,10 @@ let fns : List<BuiltInFn> =
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "sub" 0
-//
 //     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
 //     returnType = TDate
 //     description = "Returns a new Date `seconds` seconds before `d`"
 //     fn =
-//
 //       (function
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
@@ -170,12 +164,11 @@ let fns : List<BuiltInFn> =
 //     previewable = Pure
 //     deprecated = ReplacedBy(fn "" "" 0) }
 //   { name = fn "Date" "subtract" 0
-//
 //     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
 //     returnType = TDate
 //     description = "Returns a new Date `seconds` seconds before `d`"
 //     fn =
-//
+//         InProcess
 //       (function
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
@@ -183,21 +176,19 @@ let fns : List<BuiltInFn> =
 //     sqlSpec = NotYetImplementedTODO
 //     previewable = Pure
 //     deprecated = NotDeprecated }
-//   { name = fn "Date" "greaterThan" 0
-//     infix_names = [ "Date::>" ]
-//     parameters = [ Param.make "d1" TDate; Param.make "d2" TDate ]
-//     returnType = TBool
-//     description = "Returns whether `d1` > ` d2`"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d1; DDate d2 ] -> DBool(Time.op_GreaterThan d1 d2)
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
-//     previewable = Pure
-//     deprecated = NotDeprecated }
+    { name = fn "Date" "greaterThan" 0
+      parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
+      returnType = TBool
+      description = "Returns whether `d1` > ` d2`"
+      fn =
+        InProcess
+          (function
+          | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 > d2))
+          | _ -> incorrectArgs ())
+      sqlSpec = SqlFunction ">"
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Date" "lessThan" 0
-      // infix_names = [ "Date::<" ]
       parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
       returnType = TBool
       description = "Returns whether `d1` < ` d2`"
@@ -208,33 +199,31 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = SqlFunction("<")
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "greaterThanOrEqualTo" 0
+      parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
+      returnType = TBool
+      description = "Returns whether `d1` >= ` d2`"
+      fn =
+        InProcess
+          (function
+          | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 >= d2))
+          | _ -> incorrectArgs ())
+      sqlSpec = SqlFunction(">=")
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "lessThanOrEqualTo" 0
+      parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
+      returnType = TBool
+      description = "Returns whether `d1` <= ` d2`"
+      fn =
+        InProcess
+          (function
+          | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 <= d2))
+          | _ -> incorrectArgs ())
+      sqlSpec = SqlFunction("<=")
+      previewable = Pure
       deprecated = NotDeprecated } ]
-//   { name = fn "Date" "greaterThanOrEqualTo" 0
-//     infix_names = [ "Date::>=" ]
-//     parameters = [ Param.make "d1" TDate; Param.make "d2" TDate ]
-//     returnType = TBool
-//     description = "Returns whether `d1` >= ` d2`"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d1; DDate d2 ] -> DBool(Time.op_GreaterThanOrEqual d1 d2)
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "lessThanOrEqualTo" 0
-//     infix_names = [ "Date::<=" ]
-//     parameters = [ Param.make "d1" TDate; Param.make "d2" TDate ]
-//     returnType = TBool
-//     description = "Returns whether `d1` <= ` d2`"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d1; DDate d2 ] -> DBool(Time.op_LessThanOrEqual d1 d2)
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
-//     previewable = Pure
-//     deprecated = NotDeprecated }
 //   { name = fn "Date" "toSeconds" 0
 //
 //     parameters = [ Param.make "date" TDate ]

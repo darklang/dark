@@ -29,6 +29,9 @@ let infixFnMapping =
     ("Int", "lessThan", 0), ("", "<")
     ("Int", "power", 0), ("", "^")
     ("Date", "lessThan", 0), ("Date", "<")
+    ("Date", "greaterThan", 0), ("Date", ">")
+    ("Date", "lessThanOrEqualTo", 0), ("Date", "<=")
+    ("Date", "greaterThanOrEqualTo", 0), ("Date", ">=")
     ("String", "append", 1), ("", "++")
     ("", "equals", 0), ("", "==") ]
   |> List.map

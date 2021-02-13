@@ -109,4 +109,12 @@
  let _ = DB.set_v1 { ts = before } "before" MyDB in
  let _ = DB.set_v1 { ts = middle } "middle" MyDB in
  let _ = DB.set_v1 { ts = after  } "after"  MyDB in
- DB.queryOne_v4 MyDB (fun value -> (Date.(<)) middle value.ts)) = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z"})
+ { a = DB.queryOne_v4 MyDB (fun value -> Date.(<) middle value.ts)
+ ; b = DB.queryOne_v4 MyDB (fun value -> Date.(>) middle value.ts)
+ ; c = DB.queryOne_v4 MyDB (fun value -> Date.lessThan_v0 middle value.ts)
+ ; d = DB.queryOne_v4 MyDB (fun value -> Date.greaterThan_v0 middle value.ts)
+ }) = ({ a = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
+       ; b = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
+       ; c = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
+       ; d = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
+       })
