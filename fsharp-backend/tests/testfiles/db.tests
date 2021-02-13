@@ -103,10 +103,10 @@
  DB.queryOne_v1 { x = "foo" } MyDB) = Just { x = "foo" }
 
 [test.db.queryOne_v4 supports Dates] with DB MyDB { "ts" : "Date" }
-(let after = "2100-01-01T00:00:00Z" in
- let before = "1900-01-01T00:00:00Z" in
- let middle = "2000-01-01T00:00:00Z" in
- let _ = Date.parse_v2_ster before |> (fun date -> DB.set_v1 { ts = date } "before" MyDB) in
- let _ = Date.parse_v2_ster after |> (fun date -> DB.set_v1 { ts = date } "after" MyDB) in
- let _ = Date.parse_v2_ster middle |> (fun date -> DB.set_v1 { ts = date } "middle" MyDB) in
- DB.queryOne_v4 MyDB (fun value -> middle < value.ts)) = Just (Date.parse_v2_ster "2100-01-01T00:00:00Z")
+(let before = Date.parse_v2_ster "1900-01-01T00:00:00Z" in
+ let middle = Date.parse_v2_ster "2000-01-01T00:00:00Z" in
+ let after = Date.parse_v2_ster "2100-01-01T00:00:00Z" in
+ let _ = DB.set_v1 { ts = before } "before" MyDB in
+ let _ = DB.set_v1 { ts = middle } "middle" MyDB in
+ let _ = DB.set_v1 { ts = after  } "after"  MyDB in
+ DB.queryOne_v4 MyDB (fun value -> (Date.(<)) middle value.ts)) = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z"})
