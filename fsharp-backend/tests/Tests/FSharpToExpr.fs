@@ -7,6 +7,7 @@ open FSharp.Compiler.SyntaxTree
 open FSharp.Compiler.SourceCodeServices
 
 open Prelude
+open Tablecloth
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
 
@@ -109,6 +110,18 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
         PT.EBinOp(id, name, ePipeTarget (), arg1, ster)
     | other -> other
 
+  let ops =
+    Map.ofList [ ("op_Addition", "+")
+                 ("op_Subtraction", "-")
+                 ("op_PlusPlus", "++")
+                 ("op_EqualsEquals", "==")
+                 ("op_GreaterThan", ">")
+                 ("op_GreaterThanOrEqual", ">=")
+                 ("op_LessThan", "<")
+                 ("op_LessThanOrEqual", "<=")
+                 ("op_Modulus", "%")
+                 ("op_Concatenate", "^") ]
+
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
   | SynExpr.Const (SynConst.UserNum (n, "I"), _) ->
@@ -120,26 +133,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       let sign, whole, fraction = splitFloat d
       eFloat sign whole fraction
   | SynExpr.Const (SynConst.String (s, _), _) -> eStr s
-  | SynExpr.Ident ident when ident.idText = "op_Addition" ->
-      eBinOp "" "+" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_Subtraction" ->
-      eBinOp "" "-" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_PlusPlus" ->
-      eBinOp "" "++" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_EqualsEquals" ->
-      eBinOp "" "==" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_GreaterThan" ->
-      eBinOp "" ">" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_GreaterThanOrEqual" ->
-      eBinOp "" ">=" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_LessThan" ->
-      eBinOp "" "<" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_LessThanOrEqual" ->
-      eBinOp "" "<=" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_Modulus" ->
-      eBinOp "" "%" 0 placeholder placeholder
-  | SynExpr.Ident ident when ident.idText = "op_Concatenate" ->
-      eBinOp "" "^" 0 placeholder placeholder
+  | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
+      let op = Map.get ident.idText ops |> Option.unwrapUnsafe
+      eBinOp "" op 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
@@ -173,6 +169,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
         match fnName.idText with
         | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, PT.Rail)
         | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, PT.NoRail)
+        | Regex "(.*)" [ name ] when Map.containsKey name ops ->
+            // Things like `Date::<`, written `Date.(<)`
+            (Map.get name ops |> Option.unwrapUnsafe, 0, PT.NoRail)
         | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
 
       let desc = PT.FQFnName.stdlibName modName.idText name version
