@@ -150,12 +150,11 @@ let gid () : uint64 =
   with e -> raise (InternalException $"gid failed: {e}")
 
 let randomString (length : int) : string =
-  let bytes = Array.create length (byte 0)
-  random.NextBytes(bytes)
-  // this can be longer than length because of base64
-  (System.Convert.ToBase64String bytes).Substring(0, length)
+  let result =
+    Array.init length (fun _ -> char (random.Next(0x41, 0x5a))) |> System.String
 
-
+  assert (result.Length = length)
+  result
 
 // ----------------------
 // TODO move elsewhere
