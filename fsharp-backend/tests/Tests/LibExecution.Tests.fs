@@ -138,7 +138,7 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         return (dvalEquals actual expected str)
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
-        return (Expect.equal "Test except caught" (e.ToString()) "")
+        return (Expect.equal "Exception thrown in test" (e.ToString()) "")
     }
 
 
