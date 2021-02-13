@@ -37,10 +37,15 @@ let any =
 
 
 let prefixFns : List<BuiltInFn> =
-  (LibString.fns
-   @ LibList.fns
-     @ LibInt.fns
-       @ LibBool.fns @ LibDict.fns @ LibBytes.fns @ LibMiddleware.fns @ any)
+  List.concat [ LibBool.fns
+                LibBytes.fns
+                LibDate.fns
+                LibDict.fns
+                LibInt.fns
+                LibList.fns
+                LibMiddleware.fns
+                LibString.fns
+                any ]
 
 // Map of prefix names to their infix versions
 let infixFnMapping =

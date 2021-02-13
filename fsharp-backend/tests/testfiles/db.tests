@@ -26,6 +26,11 @@
  DB.getAllWithKeys_v1 MyDB) = [["hello"; { x = "bar"}]]
 
 
+// DB.get
+[test.db get returns nothing] with DB MyDB { "x" : "Str" }
+( DB.get_v1 "lol" MyDB) = Nothing
+
+
 // DB.getAllWithKeys
 [test.db.getAllWithKeys_v1 works] with DB MyDB { "x" : "Str" }
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in
@@ -55,6 +60,7 @@
  let two = DB.set_v1 { x = "bar" } "two" MyDB in
  DB.getExisting_v0 ["three"; "two"] MyDB) = [ { x = "bar" } ]
 
+
 // DB.getMany
 [test.db.getMany_v1 works] with DB MyDB { "x" : "Str" }
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in
@@ -83,3 +89,24 @@
  let three = DB.set_v1 { x = "bar"; sort_by = 2  } "three" MyDB in
  (DB.queryWithKey_v1 { x = "bar" } MyDB)
  |> List.sortBy_v0 (fun x -> (List.last_v0 x).sort_by)) = [ ["two" ; { x = "bar"; sort_by = 1}]; ["three"; { x = "bar"; sort_by = 2}]]
+
+[test.db.queryWithKey_v2 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
+(let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
+ let two = DB.set_v1 { x = "bar"; sort_by = 1  } "two" MyDB in
+ let three = DB.set_v1 { x = "bar"; sort_by = 2  } "three" MyDB in
+ DB.queryWithKey_v2 { x = "bar" } MyDB) = { two = { x = "bar"; sort_by = 1}; three = { x = "bar"; sort_by = 2} }
+
+
+// DB.queryOne
+[test.db.queryOne_v1 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ DB.queryOne_v1 { x = "foo" } MyDB) = Just { x = "foo" }
+
+//[test.db.queryOne_v4 supports Dates] with DB MyDB { "ts" : "Date" }
+//(let after = "2100-01-01T00:00:00Z" in
+// let before = "1900-01-01T00:00:00Z" in
+// let middle = "2000-01-01T00:00:00Z" in
+// let _ = Date.parse_v2_ster before |> (fun date -> DB.set_v1 { ts = date } "before" MyDB) in
+// let _ = Date.parse_v2_ster after |> (fun date -> DB.set_v1 { ts = date } "after" MyDB) in
+// let _ = Date.parse_v2_ster middle |> (fun date -> DB.set_v1 { ts = date } "middle" MyDB) in
+// DB.queryOne_v4 MyDB (fun value -> middle < value)) = Just (Date.parse_v2_ster "2100-01-01T00:00:00Z")
