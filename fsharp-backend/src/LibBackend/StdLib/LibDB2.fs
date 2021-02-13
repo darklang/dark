@@ -493,54 +493,49 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "queryOneWithKey" 1
-//   ; parameters = [Param.make "spec" TObj; tableParam]
-//   ; returnType = TOption
-//   ; description =
-//       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
-//   ; fn =
-//         InProcess (function
-//         | state, [(DObj _ as obj); DDB dbname] -> taskv {
-//             let results =
-//               let db = state.dbs.[dbname]
-//               UserDB.query_exact_fields state db obj
-//             in
-//             ( match results with
-//             | [(k, v)] ->
-//                 DOption (OptJust (DList [ DStr k; v]))
-//             | _ ->
-//                 DOption OptNothing )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "DB" "queryOneWithKey" 2
-//   ; parameters = [Param.make "spec" TObj; tableParam]
-//   ; returnType = TOption
-//   ; description =
-//       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
-//   ; fn =
-//         InProcess (function
-//         | state, [(DObj _ as obj); DDB dbname] -> taskv {
-//             let results =
-//               let db = state.dbs.[dbname]
-//               UserDB.query_exact_fields state db obj
-//             in
-//             ( match results with
-//             | [(k, v)] ->
-//                 DOption (OptJust (DObj (DvalMap.singleton k v)))
-//             | _ ->
-//                 DOption OptNothing )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-//   (* see queryOneExactFieldsWithKey *)
-// ; { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
+    { name = fn "DB" "queryOneWithKey" 1
+      parameters = [ specParam; tableParam ]
+      returnType = TOption varA
+      description =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
+      fn =
+        InProcess
+          (function
+          | state, [ DObj fields; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! results = UserDB.queryExactFields state db fields
+
+                match results with
+                | [ (k, v) ] -> return (DOption(Some(DList [ DStr k; v ])))
+                | _ -> return (DOption None)
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "queryOneWithKey" 2) }
+    { name = fn "DB" "queryOneWithKey" 2
+      parameters = [ specParam; tableParam ]
+      returnType = TOption varA
+      description =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
+      fn =
+        InProcess
+          (function
+          | state, [ DObj fields; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! results = UserDB.queryExactFields state db fields
+
+                match results with
+                | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
+                | _ -> return DOption None
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "queryOneExactFieldsWithKey" 0) }
+    // ; { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
 //   ; parameters = [Param.make "spec" TObj; tableParam]
 //   ; returnType = TOption
 //   ; description =
@@ -655,7 +650,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-// ; { name = fn "DB" "count" 0
+    // ; { name = fn "DB" "count" 0
 //   ; parameters = [tableParam]
 //   ; returnType = TInt
 //   ; description = "Return the number of items stored in `table`."

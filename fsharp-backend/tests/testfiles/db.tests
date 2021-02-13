@@ -3,6 +3,7 @@
  let key = DB.add_v0 old MyDB in
  DB.get_v1_ster key MyDB) = { x = null }
 
+
  // query
 [test.query_v1_works] with DB MyDB { "x" : "Str", "y": "Str" }
 (let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
@@ -18,6 +19,7 @@
 (let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
  let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" MyDB in
  DB.query_v3 { x = "bar" } MyDB) = [{ x = "bar"; y = "foo" }]
+
 
 // DB.set
 [test.db set does upsert] with DB MyDB { "x" : "Str" }
@@ -41,6 +43,7 @@
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in
  let two = DB.set_v1 { x = "bar" } "two" MyDB in
  DB.getAllWithKeys_v2 MyDB) = { one = { x = "foo"} ; two = { x = "bar"} }
+
 
 // DB.getManyWithKeys
 [test.db.getManyWithKeys works] with DB MyDB { "x" : "Str" }
@@ -82,6 +85,7 @@
  let two = DB.set_v1 { x = "bar" } "two" MyDB in
  DB.getMany_v3 ["one"; "two"] MyDB) = Just [ { x = "foo"}; { x = "bar"}]
 
+
 // DB.queryWithKey
 [test.db.queryWithKey_v1 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
 (let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
@@ -110,6 +114,36 @@
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in
  let two = DB.set_v1 { x = "foo" } "two" MyDB in
  DB.queryOne_v1 { x = "foo" } MyDB) = Nothing
+
+
+// DB.queryOneWithKey
+[test.db.queryOneWithKey_v1 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ DB.queryOneWithKey_v1 { x = "foo" } MyDB) = Just [ "one"; { x = "foo" }]
+
+[test.db.queryOneWithKey_v1 returns none on empty] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ DB.queryOneWithKey_v1 { x = "foo" } MyDB) = Just [ "one"; { x = "foo" }]
+
+[test.db.queryOneWithKey_v1 returns none if many] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "foo" } "two" MyDB in
+ DB.queryOneWithKey_v1 { x = "foo" } MyDB) = Nothing
+
+[test.db.queryOneWithKey_v2 works] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ DB.queryOneWithKey_v2 { x = "bar" } MyDB) = Nothing
+
+[test.db.queryOneWithKey_v2 returns none if none] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ DB.queryOneWithKey_v2 { x = "bar" } MyDB) = Nothing
+
+[test.db.queryOneWithKey_v2 returns none if many] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "foo" } "two" MyDB in
+ DB.queryOneWithKey_v2 { x = "foo" } MyDB) = Nothing
+
+
 
 // SqlCompiler queries
 [test.db.queryOne_v4 supports Dates] with DB MyDB { "ts" : "Date" }
