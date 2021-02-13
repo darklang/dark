@@ -112,7 +112,7 @@ let base64UrlEncode (str : string) : string =
 let base64Decode (encoded : string) : string =
   encoded |> System.Convert.FromBase64String |> ofBytes
 
-let sha1digest (input : string) : byte[] =
+let sha1digest (input : string) : byte [] =
   use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
   input |> toBytes |> sha1.ComputeHash
 
@@ -191,9 +191,6 @@ type TaskOrValue<'T> =
   | Value of 'T
 
 module TaskOrValue =
-  // Wraps a value in TaskOrValue
-  let unit v = Value v
-
   let toTask (v : TaskOrValue<'a>) : Task<'a> =
     task {
       match v with
@@ -201,28 +198,41 @@ module TaskOrValue =
       | Value v -> return v
     }
 
-  // Create a new TaskOrValue that first runs 'vt' and then
-  // continues with whatever TaskorValue is produced by 'f'.
-  let bind (f : 'a -> TaskOrValue<'b>) (vt : TaskOrValue<'a>) : TaskOrValue<'b> =
-    match vt with
-    | Value v ->
-        // It was a value, so we return 'f v' directly
-        f v
+  // Functions for a computation Expressions
+  let unit v = Value v
+
+  let tryWith (v : TaskOrValue<'a>) (f : exn -> TaskOrValue<'a>) : TaskOrValue<'a> =
+    match v with
+    | Value v -> Value v
     | Task t ->
-        // It was a task, so we need to unwrap that and create
-        // a new task - inside Task. If 'f v' returns a task, we
-        // still need to return this as task though.
         Task(
           task {
-            let! v = t
-
-            match f v with
-            | Value v -> return v
-            | Task t -> return! t
+            try
+              let! newt = t
+              return newt
+            with e -> return! toTask (f e)
           }
         )
 
+  let delay (f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
+    Task(task { return! toTask (f ()) })
+
+  // Create a new TaskOrValue that first runs 'vt' and then
+  // continues with whatever TaskOrValue is produced by 'f'.
+  let bind (f : 'a -> TaskOrValue<'b>) (vt : TaskOrValue<'a>) : TaskOrValue<'b> =
+    match vt with
+    | Value v -> f v
+    | Task t ->
+        Task(
+          task {
+            let! v = t
+            return! toTask (f v)
+          }
+        )
+
+
 type TaskOrValueBuilder() =
+  // https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
   // This lets us use let!, do! - These can be overloaded
   // so I define two overloads for 'let!' - one taking regular
   // Task and one our TaskOrValue. You can then call both using
@@ -234,6 +244,9 @@ type TaskOrValueBuilder() =
   // This lets us use return!
   member x.ReturnFrom(tv) = tv
   member x.Zero() = TaskOrValue.unit (())
+  // These lets us use try
+  member x.TryWith(tv, f) = TaskOrValue.tryWith tv f
+  member x.Delay(f) = TaskOrValue.delay f
 // To make this usable, this will need a few more
 // especially for reasonable exception handling..
 
