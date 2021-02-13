@@ -102,6 +102,16 @@
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in
  DB.queryOne_v1 { x = "foo" } MyDB) = Just { x = "foo" }
 
+[test.db.queryOne_v1 returns nothing if none] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ DB.queryOne_v1 { x = "bar" } MyDB) = Nothing
+
+[test.db.queryOne_v1 returns nothing if many] with DB MyDB { "x" : "Str" }
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "foo" } "two" MyDB in
+ DB.queryOne_v1 { x = "foo" } MyDB) = Nothing
+
+// SqlCompiler queries
 [test.db.queryOne_v4 supports Dates] with DB MyDB { "ts" : "Date" }
 (let before = Date.parse_v2_ster "1900-01-01T00:00:00Z" in
  let middle = Date.parse_v2_ster "2000-01-01T00:00:00Z" in
