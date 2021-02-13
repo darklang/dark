@@ -654,7 +654,7 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
 // ; { name = fn "DB" "count" 0
 //   ; parameters = [tableParam]
 //   ; returnType = TInt
