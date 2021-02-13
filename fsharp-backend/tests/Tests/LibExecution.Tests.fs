@@ -132,7 +132,9 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
         let! expected = Exe.run state Map.empty expectedResult
         let actual = normalizeDvalResult actual
         //let str = $"{source} => {actualProg} = {expectedResult}"
-        let str = $"{actualProg}\n = \n{expectedResult}"
+        let astMsg = $"{actualProg} = {expectedResult} ->"
+        let dataMsg = $"\n\nActual:\n{actual}\n = \n{expected}"
+        let str = astMsg + dataMsg
         return (dvalEquals actual expected str)
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())

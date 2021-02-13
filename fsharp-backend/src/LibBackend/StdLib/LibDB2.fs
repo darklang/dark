@@ -365,28 +365,28 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "queryWithKey" 1
-//   ; parameters = [Param.make "spec" TObj; tableParam]
-//   ; returnType = TList TAny
-//   ; description =
-//       "Fetch all the values from `table` which have the same fields and values that `spec` has
-//       , returning a [[key, value]] list of lists"
-//   ; fn =
-//         InProcess (function
-//         | state, [(DObj _ as obj); DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.query_exact_fields state db obj
-//             |> List.map (fun (k, v) ->
-//                    DList [ DStr k; v])
-//             |> DList
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-//   (* see queryExactFieldsWithKey *)
-// ; { name = fn "DB" "queryWithKey" 2
+    { name = fn "DB" "queryWithKey" 1
+      parameters = [ specParam; tableParam ]
+      returnType = TList TAny
+      description = "Fetch all the values from `table` which have the same fields and values that `spec` has
+          , returning a [[key, value]] list of lists"
+      fn =
+        InProcess
+          (function
+          | state, [ DObj fields; DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+
+                let! result = UserDB.queryExactFields state db fields
+
+                return
+                  result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "queryExactFieldsWithKey" 0) }
+    // ; { name = fn "DB" "queryWithKey" 2
 //   ; parameters = [Param.make "spec" TObj; tableParam]
 //   ; returnType = TObj
 //   ; description =

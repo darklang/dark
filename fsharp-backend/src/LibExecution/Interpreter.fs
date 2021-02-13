@@ -388,13 +388,14 @@ and applyFnVal
             // provide this error message here. We don't have this information in
             // other places, and the alternative is just to provide incompletes
             // with no context
-            if List.length l.parameters <> List.length args then
+            let paramLength = List.length l.parameters
+            let argLength = List.length args
+
+            if paramLength <> argLength then
               return
-                Dval.errStr
-                  $"Expected {List.length parameters} arguments, got {
-                                                                        List.length
-                                                                          args
-                  }"
+                Dval.errSStr
+                  sourceID
+                  $"Expected {paramLength} arguments, got {argLength}"
             else
               // FSTODO
               // List.iter bindings (fun ((id, paramName), dv) ->
@@ -419,19 +420,32 @@ and applyFnVal
                   | Errors.StdlibException (Errors.StringError msg) ->
                       Value(Dval.errSStr sourceID msg)
                   | Errors.StdlibException Errors.IncorrectArgs ->
-                      let invalid =
-                        List.zip fn.parameters args
-                        |> List.filter
-                             (fun (p, a) -> Dval.toType a <> p.typ && p.typ <> TAny)
+                      let paramLength = List.length fn.parameters
+                      let argLength = List.length args
 
-                      match invalid with
-                      | [] ->
-                          Value(
-                            Dval.errSStr sourceID $"unknown error calling {fn.name}"
-                          )
-                      | (p, actual) :: _ ->
-                          let msg = Errors.incorrectArgsMsg (fn.name) p actual
-                          Value(Dval.errSStr sourceID msg)
+                      if paramLength <> argLength then
+                        Value(
+                          Dval.errSStr
+                            sourceID
+                            $"Expected {paramLength} arguments, got {argLength}"
+                        )
+                      else
+                        let invalid =
+                          List.zip fn.parameters args
+                          |> List.filter
+                               (fun (p, a) ->
+                                 Dval.toType a <> p.typ && p.typ <> TAny)
+
+                        match invalid with
+                        | [] ->
+                            Value(
+                              Dval.errSStr
+                                sourceID
+                                $"unknown error calling {fn.name}"
+                            )
+                        | (p, actual) :: _ ->
+                            let msg = Errors.incorrectArgsMsg (fn.name) p actual
+                            Value(Dval.errSStr sourceID msg)
                   | Errors.StdlibException Errors.FunctionRemoved ->
                       Value(Dval.errSStr sourceID $"{fn.name} was removed from Dark")
                   | Errors.StdlibException (Errors.FakeDvalFound dv) -> Value(dv)
