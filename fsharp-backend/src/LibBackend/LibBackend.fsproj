@@ -22,6 +22,7 @@
     <Compile Include="ProgramSerialization/OCamlInterop.fs" />
     <Compile Include="Routing.fs" />
     <Compile Include="ProgramSerialization/SQL.fs" />
+    <Compile Include="SqlCompiler.fs" />
     <Compile Include="UserDB.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />

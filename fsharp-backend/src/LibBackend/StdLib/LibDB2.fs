@@ -5,6 +5,7 @@ open LibExecution.RuntimeTypes
 
 module UserDB = LibBackend.UserDB
 module Errors = LibExecution.Errors
+module Db = LibBackend.Db
 
 let fn = FQFnName.stdlibName
 
@@ -21,6 +22,7 @@ let keyParam = Param.make "key" TStr ""
 let keysParam = Param.make "keys" (TList TStr) ""
 let tableParam = Param.make "table" dbType ""
 let specParam = Param.make "spec" TAny ""
+let queryParam = Param.make "filter" (TFn([ varA ], TBool)) ""
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DB" "set" 1
@@ -801,30 +803,32 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "DB" "queryOne" 4
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TOption
-//   ; description =
-//       "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               let results = UserDB.query state db b in
-//               match results with
-//               | [(_, v)] ->
-//                   Dval.to_opt_just v
-//               | _ ->
-//                   DOption OptNothing
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+    { name = fn "DB" "queryOne" 4
+      parameters = [ tableParam; queryParam ]
+      returnType = TOption varA
+      description =
+        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        InProcess
+          (function
+          | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+              taskv {
+                try
+                  let db = state.dbs.[dbname]
+                  let! results = UserDB.query state db b
+
+                  match results with
+                  | [ (_, v) ] -> return Dval.optionJust v
+                  | _ -> return DOption None
+                with
+                | Db.FakeValFoundInQuery dv -> return dv
+                | Db.DBQueryException _ as e ->
+                    return (Dval.errStr (Db.dbQueryExceptionToString e))
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated } ]
 // ; { name = fn "DB" "queryOneWithKey" 3
 //   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
 //   ; returnType = TOption

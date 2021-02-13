@@ -272,52 +272,45 @@ let getAll
   |> Sql.executeAsync
        (fun read -> (read.string "key", read.string "data" |> toObj db))
 
-// let query ~state (db : RT.DB.T) (b : RT.DB.Tlock_args) : (string * dval) list =
-//   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
-//   let param_name =
-//     match b.params with
-//     | [(_, name)] ->
-//         name
-//     | _ ->
-//         Exception.internal "wrong number of args"
-//   in
-//   let sql =
-//     Sql_compiler.compile_lambda ~state b.symtable param_name db_fields b.body
-//   in
-//   let result =
-//     try
-//       Db.fetch
-//         ~name:"filter"
-//         ( "SELECT key, data
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5
-//      AND ("
-//         ^ sql
-//         ^ ")" )
-//         ~params:
-//           [ ID db.tlid
-//           ; Uuid state.account_id
-//           ; Uuid state.canvas_id
-//           ; Int db.version
-//           ; Int current_dark_version ]
-//     with e ->
-//       Libcommon.Log.erroR "error compiling sql" ~data:(Exception.to_string e) ;
-//       raise (DBQueryException "A type error occurred at run-time")
-//   in
-//   result
-//   |> List.map ~f:(fun return_val ->
-//          match return_val with
-//          (* TODO(ian): change `to_obj` to just take a string *)
-//          | [key; data] ->
-//              (key, to_obj db [data])
-//          | _ ->
-//              Exception.internal "bad format received in get_all")
-//
-//
+
+let query
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (b : RT.LambdaImpl)
+  : Task<List<string * RT.Dval>> =
+  task {
+    let dbFields = Map.ofList db.cols
+
+    let paramName =
+      match b.parameters with
+      | [ (_, name) ] -> name
+      | _ -> failwith "wrong number of args"
+
+    let! sql, vars =
+      SqlCompiler.compileLambda state b.symtable paramName dbFields b.body
+
+    return!
+      Sql.query
+        $"SELECT key, data
+          FROM user_data
+          WHERE table_tlid = @tlid
+            AND account_id = @accountID
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND {sql}"
+      |> Sql.parameters (
+        vars
+        @ [ "tlid", Sql.tlid db.tlid
+            "accountID", Sql.uuid state.accountID
+            "canvasID", Sql.uuid state.canvasID
+            "userVersion", Sql.int db.version
+            "darkVersion", Sql.int currentDarkVersion ]
+      )
+      |> Sql.executeAsync
+           (fun read -> (read.string "key", read.string "data" |> toObj db))
+  }
+
 // let query_count ~state (db : RT.DB.T) (b : RT.DB.Tlock_args) : int =
 //   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
 //   let param_name =
