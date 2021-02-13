@@ -162,23 +162,17 @@ let unaryOpToSql op : DType * DType * string * string list * position =
   | "Date::atStartOfDay" -> (TDate, TInt, "date_trunc", [ "'day'" ], Last)
   | _ -> error2 "This function is not yet implemented" op
 
-//
-// let tipe_to_sqlType (t : tipe) : string =
-//   match t with
-//   | TStr ->
-//       "text"
-//   | TInt ->
-//       "integer"
-//   | TFloat ->
-//       "double precision"
-//   | TBool ->
-//       "bool"
-//   | TDate ->
-//       "timestamp with time zone"
-//   | _ ->
-//       error2 "We do not support this type of DB field yet" (showType t)
-//
-//
+
+let typeToSqlType (t : DType) : string =
+  match t with
+  | TStr -> "text"
+  | TInt -> "integer"
+  | TFloat -> "double precision"
+  | TBool -> "bool"
+  | TDate -> "timestamp with time zone"
+  | _ -> error $"We do not support this type of DB field yet: {t}"
+
+
 // This canonicalizes an expression, meaning it removes multiple ways of
 // representing the same thing. For now, it removes threads and replaces
 // them with nested function calls.
@@ -192,7 +186,6 @@ let unaryOpToSql op : DType * DType * string * string list * position =
 // with
 //
 //   (function2 c d (function1 b a))
-
 let rec canonicalize (expr : Expr) : Expr = expr
 //FSTODO this seems no longer needed
 // Ast.postTraversal
@@ -255,6 +248,10 @@ let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
   if Dval.isFake dval then raise (Db.FakeValFoundInQuery dval)
   typecheck name (Dval.toType dval) expectedType
 
+let escapeFieldname (str : string) : string =
+  // Allow underscore, numbers, letters, only
+  // TODO: should allow hyphen?
+  System.Text.RegularExpressions.Regex.Replace(str, "[^a-zA-Z0-9_]", "")
 
 
 //  Inline `let` statements directly into where they are used. Replaces
@@ -329,13 +326,15 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (pattern : Expr) =
 // Generate SQL from an Expr. This expects that all the hard stuff has been
 // removed by previous passes, and should only be called as the final pass.
 let rec lambdaToSql
+  (fns : Map<FQFnName.T, BuiltInFn>)
   (symtable : DvalMap)
   (paramName : string)
   (dbFields : Map<string, DType>)
   (expectedType : DType)
   (expr : Expr)
   : string * List<string * SqlValue> =
-  let lts (typ : DType) (e : Expr) = lambdaToSql symtable paramName dbFields typ e in
+  let lts (typ : DType) (e : Expr) =
+    lambdaToSql fns symtable paramName dbFields typ e in
 
   // We don't have good string escaping facilities here, plus it was always a bit dangerous to have string escaoing as we night miss one.
   let vars = ref Map.empty
@@ -364,11 +363,24 @@ let rec lambdaToSql
       let vars = vars1 @ vars2 @ vars3
       $"(replace({lookingInSql}, {searchingForSql}, {replaceWithSql}))", vars
   | EApply (_, EFQFnValue (_, name), [ l; r ], _, NoRail) ->
-      let ltipe, rtipe, resultTipe, opname = binopToSql (toString name)
-      typecheck (toString name) resultTipe expectedType
-      let lSql, vars1 = lts ltipe l
-      let rSql, vars2 = lts rtipe r
-      $"({lSql} {opname} {rSql})", vars1 @ vars2
+      match Map.get name fns with
+      | Some fn ->
+          match fn with
+          | { parameters = [ lParam; rParam ]; sqlSpec = SqlFunction op } ->
+              typecheck (toString name) fn.returnType expectedType
+              let lSql, vars1 = lts lParam.typ l
+              let rSql, vars2 = lts rParam.typ r
+              $"({lSql} {op} {rSql})", vars1 @ vars2
+          | fn ->
+              let paramCount = List.length fn.parameters
+
+              if paramCount <> 2 then
+                error $"{name} has {paramCount} functions but we have 2 arguments"
+
+              error $"This function ({name}) is not yet implemented"
+      | None ->
+          error
+            $"Only builtin functions can be used in queries right now; {name} is not a builtin function"
   | EApply (_, EFQFnValue (_, name), [ e ], _, NoRail) ->
       let argType, resultType, opname, args, position = unaryOpToSql (toString name)
       typecheck (toString name) resultType expectedType
@@ -408,33 +420,29 @@ let rec lambdaToSql
   //     let dval = Dval.dstr_of_string_exn str in
   //     typecheckDval ("\"" + str + "\"") dval expectedType
   //     "(" + dvalToSql dval + ")"
-  // | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
-  //     let tipe =
-  //       match Map.get fieldname dbFields with
-  //       | Some v -> v
-  //       | None -> error2 "The datastore does not have a field named" fieldname
-  //
-  //     if expectedType <> TNull (* Fields are allowed be null *) then
-  //       typecheck fieldname tipe expectedType
-  //
-  //     (match expectedType with
-  //      | TDate ->
-  //          (* This match arm handles types that are serialized in
-  //          * unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, maning
-  //          * they are wrapped in {type:, value:}.  Right now, of the types sql
-  //          * compiler supports, that's just TDate.
-  //            Likely future candidates include DPassword and DUuid; at time of
-  //            writing, DCharacter and DBytes also serialize this way but are not
-  //            allowed as DB field types. *)
-  //          Printf.sprintf
-  //            "(CAST(data::jsonb->'%s'->>'value' as %s))"
-  //            (Db.escape_string fieldname)
-  //            (Db.escape_string (tipe_to_sqlType tipe))
-  //      | _ ->
-  //          Printf.sprintf
-  //            "(CAST(data::jsonb->>'%s' as %s))"
-  //            (Db.escape_string fieldname)
-  //            (Db.escape_string (tipe_to_sqlType tipe)))
+  | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
+      let typ =
+        match Map.get fieldname dbFields with
+        | Some v -> v
+        | None -> error2 "The datastore does not have a field named" fieldname
+
+      if expectedType <> TNull (* Fields are allowed be null *) then
+        typecheck fieldname typ expectedType
+
+      let fieldname = escapeFieldname fieldname
+      let typename = typeToSqlType typ
+
+      (match expectedType with
+       | TDate ->
+           // This match arm handles types that are serialized in
+           // unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, maning
+           // they are wrapped in {type:, value:}. Right now, of the types sql
+           // compiler supports, that's just TDate.
+           // Likely future candidates include DPassword and DUuid; at time of
+           // writing, DCharacter and DBytes also serialize this way but are not
+           // allowed as DB field types.
+           ($"(CAST(data::jsonb->'{fieldname}'->>'value' as {typename}))", [])
+       | _ -> ($"(CAST(data::jsonb->>'{fieldname}' as {typename}))", []))
   | _ -> error $"We do not yet support compiling this code: {expr}"
 
 
@@ -616,5 +624,5 @@ let compileLambda
 
     printfn $"AST being compiled: {body} with {dbFields} and {symtable}"
 
-    return lambdaToSql symtable paramName dbFields TBool body
+    return lambdaToSql state.functions symtable paramName dbFields TBool body
   }

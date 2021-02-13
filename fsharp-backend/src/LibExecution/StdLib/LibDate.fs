@@ -68,8 +68,8 @@ let fns : List<BuiltInFn> =
           | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated } ]
-//   { name = fn "Date" "toString" 0
+      deprecated = NotDeprecated }
+    //   { name = fn "Date" "toString" 0
 //
 //     parameters = [ Param.make "date" TDate ]
 //     returnType = TStr
@@ -196,19 +196,19 @@ let fns : List<BuiltInFn> =
 //     sqlSpec = NotYetImplementedTODO
 //     previewable = Pure
 //     deprecated = NotDeprecated }
-//   { name = fn "Date" "lessThan" 0
-//     infix_names = [ "Date::<" ]
-//     parameters = [ Param.make "d1" TDate; Param.make "d2" TDate ]
-//     returnType = TBool
-//     description = "Returns whether `d1` < ` d2`"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d1; DDate d2 ] -> DBool(Time.op_LessThan d1 d2)
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
-//     previewable = Pure
-//     deprecated = NotDeprecated }
+    { name = fn "Date" "lessThan" 0
+      // infix_names = [ "Date::<" ]
+      parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
+      returnType = TBool
+      description = "Returns whether `d1` < ` d2`"
+      fn =
+        InProcess
+          (function
+          | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 < d2))
+          | _ -> incorrectArgs ())
+      sqlSpec = SqlFunction("<")
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 //   { name = fn "Date" "greaterThanOrEqualTo" 0
 //     infix_names = [ "Date::>=" ]
 //     parameters = [ Param.make "d1" TDate; Param.make "d2" TDate ]

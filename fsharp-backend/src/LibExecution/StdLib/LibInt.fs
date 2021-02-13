@@ -226,7 +226,7 @@ let fns : List<BuiltInFn> =
           (function
           | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
           | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "<"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "lessThanOrEqualTo" 0
