@@ -269,7 +269,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                  _) when name.idText = "flag" ->
       eflag label placeholder placeholder placeholder
   // Most functions are LongIdents, toString isn't
-  | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString" ->
+  | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString_v0" ->
       let desc = PT.FQFnName.stdlibName "" "toString" 0
       PT.EFnCall(gid (), desc, [ c arg ], PT.NoRail)
   // Callers with multiple args are encoded as apps wrapping other apps.
