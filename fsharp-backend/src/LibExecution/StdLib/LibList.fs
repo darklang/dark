@@ -453,23 +453,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "sort" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
-//          Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
-//     ; fn =
-//
-//           (function
-//           | _, [DList list] ->
-//               list |> List.sort compare_dval |> DList
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "sort" 0
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TList varA
+      description = "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
+         Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
+      fn =
+        InProcess
+          (function
+          | _, [ DList list ] -> list |> List.sort |> DList |> Value
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "sortBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""

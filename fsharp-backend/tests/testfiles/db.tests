@@ -63,6 +63,15 @@
    ; { x = "bar"; sort_by = 1}
    ; { x = "baz"; sort_by = 2}])
 
+
+// DB.getAllKeys
+[test.db.keys_v1 works] with DB MyDB { "x" : "Str"}
+(let one = DB.set_v1 { x = "foo" } "one" MyDB in
+ let two = DB.set_v1 { x = "bar" } "two" MyDB in
+ (DB.keys_v1 MyDB) |> List.sort_v0) = (
+   [ "one"; "two" ])
+
+
 // DB.getAllWithKeys
 [test.db.getAllWithKeys_v1 works] with DB MyDB { "x" : "Str" }
 (let one = DB.set_v1 { x = "foo" } "one" MyDB in

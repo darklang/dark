@@ -1,29 +1,3 @@
-let t_db_getAllKeys_works () =
-  clear_test_data () ;
-  let ops =
-    [ CreateDB (dbid, pos, "MyDB")
-    ; AddDBCol (dbid, colnameid, coltypeid2)
-    ; SetDBColName (dbid, colnameid, "x")
-    ; SetDBColType (dbid, coltypeid2, "Str") ]
-  in
-  let ast =
-    let'
-      "one"
-      (fn "DB::set_v1" [record [("x", str "foo")]; str "first"; var "MyDB"])
-      (let'
-         "two"
-         (fn "DB::set_v1" [record [("x", str "bar")]; str "second"; var "MyDB"])
-         (let'
-            "results"
-            (fn "DB::keys_v1" [var "MyDB"])
-            (fn "List::sort" [var "results"])))
-  in
-  check_dval
-    "equal_after_roundtrip"
-    (DList [Dval.dstr_of_string_exn "first"; Dval.dstr_of_string_exn "second"])
-    (exec_handler ~ops ast)
-
-
 let t_sql_compiler_works () =
   let open Types in
   let open Prelude in

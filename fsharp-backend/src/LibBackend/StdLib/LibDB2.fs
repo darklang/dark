@@ -716,25 +716,25 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "keys" 1
-//   ; parameters = [tableParam]
-//   ; returnType = TList TAny
-//   ; description =
-//       "Fetch all the keys of entries in `table`. Returns an list with strings"
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.get_all_keys state db
-//             |> List.map (fun k -> DStr k)
-//             |> DList
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "query" 4
+    { name = fn "DB" "keys" 1
+      parameters = [ tableParam ]
+      returnType = TList TAny
+      description =
+        "Fetch all the keys of entries in `table`. Returns an list with strings"
+      fn =
+        InProcess
+          (function
+          | state, [ DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! results = UserDB.getAllKeys state db
+                return results |> List.map (fun k -> DStr k) |> DList
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+    // ; { name = fn "DB" "query" 4
 //   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
 //   ; returnType = TList TAny
 //   ; description =
