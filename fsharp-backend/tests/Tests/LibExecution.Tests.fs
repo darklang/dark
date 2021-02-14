@@ -20,18 +20,16 @@ open TestUtils
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DFakeVal (RT.DError (source, str)) ->
-      RT.DFakeVal(RT.DError(RT.SourceNone, str))
-  | RT.DFakeVal (RT.DIncomplete source) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
+  | RT.DFakeVal (RT.DError (_, str)) -> RT.DFakeVal(RT.DError(RT.SourceNone, str))
+  | RT.DFakeVal (RT.DIncomplete _) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
   | dv -> dv
 
 let fns =
   lazy
-    (LibExecution.StdLib.StdLib.fns
-     @ LibBackend.StdLib.StdLib.fns @ Tests.LibTest.fns
+    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
      |> Map.fromListBy (fun fn -> fn.name))
 
-let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Test =
+let t (comment : string) (code : string) (dbs : List<RT.DB.T>) : Test =
   let name = $"{comment} ({code})"
 
   if code.StartsWith "//" then
@@ -44,34 +42,19 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
 
         // Performance optimization: don't touch the DB if you don't use the DB
         let! canvasID =
-          match dbInfo with
-          | Some _ ->
-              task {
-                let hash = sha1digest name |> System.Convert.ToBase64String
-                let canvasName = CanvasName.create $"test-{hash}"
-                do! TestUtils.clearCanvasData canvasName
+          if List.length dbs > 0 then
+            task {
+              let hash = sha1digest name |> System.Convert.ToBase64String
+              let canvasName = CanvasName.create $"test-{hash}"
+              do! TestUtils.clearCanvasData canvasName
 
-                let! canvasID =
-                  LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+              let! canvasID =
+                LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
 
-                return canvasID
-              }
-          | None -> task { return! testCanvasID.Force() }
-
-        let (dbs : List<RT.DB.T>) =
-          match dbInfo with
-          | Some (name, json) ->
-              let dict = Json.AutoSerialize.deserialize<Map<string, string>> json
-
-              [ { tlid = id 8
-                  name = name
-                  version = 0
-                  cols =
-                    dict
-                    |> Map.toList
-                    |> List.map
-                         (fun (k, v) -> (k, LibExecution.DvalRepr.dtypeOfString v)) } ]
-          | None -> []
+              return canvasID
+            }
+          else
+            task { return! testCanvasID.Force() }
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
@@ -114,31 +97,33 @@ let fileTests () : Test =
   |> Array.map
        (fun file ->
          let filename = System.IO.Path.GetFileName file
-         let currentTestName = ref ""
-         let currentTestDB = ref None
-         let currentTests = ref []
-         let singleTestMode = ref false
-         let currentTestString = ref "" // keep track of the current [test]
-         let allTests = ref []
+         let mutable currentTestName = ""
+         let mutable currentTestDBs = []
+         let mutable currentTests = []
+         let mutable singleTestMode = false
+         let mutable currentTestString = "" // keep track of the current [test]
+         let mutable allTests = ref []
+         let mutable functions : Map<string, RT.UserFunction.T> = Map.empty
+         let mutable dbs : Map<string, RT.DB.T> = Map.empty
 
          let finish () =
            // Add the current work to allTests, and clear
            let newTestCase =
-             if !singleTestMode then
+             if singleTestMode then
                // Add a single test case
-               t !currentTestName !currentTestString !currentTestDB
+               t currentTestName currentTestString currentTestDBs
              else
                // Put currentTests in a group and add them
-               testList !currentTestName !currentTests
+               testList currentTestName currentTests
 
            allTests := !allTests @ [ newTestCase ]
 
            // Clear settings
-           currentTestName := ""
-           currentTestDB := None
-           singleTestMode := false
-           currentTestString := ""
-           currentTests := []
+           currentTestName <- ""
+           currentTestDBs <- []
+           singleTestMode <- false
+           currentTestString <- ""
+           currentTests <- []
 
          (dir + filename)
          |> System.IO.File.ReadLines
@@ -148,35 +133,64 @@ let fileTests () : Test =
 
                 match line with
                 // [tests] indicator
-                | Regex "^\[tests\.(.*)\]$" [ name ] ->
+                | Regex @"^\[tests\.(.*)\]$" [ name ] ->
                     finish ()
-                    currentTestDB := None
-                    currentTestName := name
+                    currentTestName <- name
+                // [db] declaration
+                | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
+                    let (db : RT.DB.T) =
+                      { tlid = id i
+                        name = name
+                        version = 0
+                        cols =
+                          definition
+                          |> Json.AutoSerialize.deserialize<Map<string, string>>
+                          |> Map.map LibExecution.DvalRepr.dtypeOfString
+                          |> Map.toList }
+
+                    dbs <- Map.add name db dbs
+                | Regex @"^\[fn.\s+(.*)\]$" [ name; definition ] ->
+                    let (db : RT.DB.T) =
+                      { tlid = id i
+                        name = name
+                        version = 0
+                        cols =
+                          definition
+                          |> Json.AutoSerialize.deserialize<Map<string, string>>
+                          |> Map.toList
+                          |> List.map
+                               (fun (k, v) ->
+                                 (k, LibExecution.DvalRepr.dtypeOfString v)) }
+
+                    dbs <- Map.add name db dbs
+                // [function] declaration
                 // [test] with DB indicator
-                | Regex @"^\[test\.(.*)\](?: with DB (\w+) (.*))$"
-                        [ name; dbName; dbJson ] ->
+                | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
                     finish ()
-                    singleTestMode := true
-                    currentTestDB := Some(dbName, dbJson)
-                    currentTestName := name
+
+                    match Map.get dbName dbs with
+                    | Some db -> currentTestDBs <- [ db ]
+                    | None -> failwith $"No DB named {dbName} found"
+
+                    singleTestMode <- true
+                    currentTestName <- name
                 // [test] indicator (no DB)
                 | Regex @"^\[test\.(.*)\]$" [ name ] ->
                     finish ()
-                    singleTestMode := true
-                    currentTestDB := None
-                    currentTestName := name
+                    singleTestMode <- true
+                    currentTestName <- name
                 // Append to the current test string
-                | _ when !singleTestMode ->
-                    currentTestString := !currentTestString + line
+                | _ when singleTestMode ->
+                    currentTestString <- currentTestString + line
                 // Skip whitespace lines
                 | Regex "^\s*$" [] -> ()
                 // 1-line test
                 | Regex "^(.*)\s*$" [ code ] ->
-                    currentTests := !currentTests @ [ t $"line {i}" code None ]
+                    currentTests <- currentTests @ [ t $"line {i}" code [] ]
                 // 1-line test w/ comment or commented out lines
                 | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                    currentTests
-                    := !currentTests @ [ t $"{comment} (line {i})" code None ]
+                    currentTests <-
+                      currentTests @ [ t $"{comment} (line {i})" code [] ]
                 | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()
@@ -207,4 +221,5 @@ let backendFqFnName =
       (PT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
 
-let tests = testList "LibExecution" [ fqFnName; backendFqFnName; fileTests () ]
+let tests =
+  lazy (testList "LibExecution" [ fqFnName; backendFqFnName; fileTests () ])
