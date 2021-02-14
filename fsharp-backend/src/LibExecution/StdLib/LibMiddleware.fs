@@ -6,7 +6,7 @@ open FSharpPlus
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.RuntimeTypes.Shortcuts
+open LibExecution.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors

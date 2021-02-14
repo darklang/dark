@@ -201,7 +201,7 @@ let typToApiString (typ : RT.DType) : string =
   | RT.TIncomplete -> "Incomplete"
   | RT.TError -> "Error"
   | RT.THttpResponse _ -> "Response"
-  | RT.TDB -> "Datastore"
+  | RT.TDB _ -> "Datastore"
   | RT.TDate -> "Date"
   // | TDbList tipe ->
   //     "[" ^ tipe_to_string tipe ^ "]"
@@ -246,10 +246,10 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
 let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)
 
 let userFunctions : Lazy<string> =
-  lazy (
-    allFunctions
-    |> List.filter (fun fn -> fn.name.module_ <> "DarkInternal")
-    |> functionsToString)
+  lazy
+    (allFunctions
+     |> List.filter (fun fn -> fn.name.module_ <> "DarkInternal")
+     |> functionsToString)
 
 
 let functions (includeAdminFns : bool) : Lazy<string> =
@@ -285,7 +285,7 @@ module InitialLoad =
 
   let toApiStaticDeploys (d : SA.StaticDeploy) : ApiStaticDeploy =
     { deploy_hash = d.deployHash
-      url  = d.url
+      url = d.url
       last_update = d.lastUpdate
       status = d.status }
 
@@ -390,7 +390,8 @@ module DB =
     }
 
 module F404 =
-  type T = { f404s : List<TI.F404>}
+  type T = { f404s : List<TI.F404> }
+
   let get404s (ctx : HttpContext) : Task<T> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
@@ -411,22 +412,21 @@ module Traces =
       let! args = ctx.BindModelAsync<Params>()
 
       let! (c : LibBackend.Canvas.T) =
-        Canvas.loadTLIDsFromCache [ args.tlid ] canvasInfo.name canvasInfo.id canvasInfo.owner
+        Canvas.loadTLIDsFromCache
+          [ args.tlid ]
+          canvasInfo.name
+          canvasInfo.id
+          canvasInfo.owner
         |> Task.map Result.unwrapUnsafe
 
       // TODO: we dont need the handlers or functions at all here, just for the sample
       // values which we can do on the client instead
-      let handler =
-        c.handlers
-        |> Map.get args.tlid
+      let handler = c.handlers |> Map.get args.tlid
 
       match handler with
       | Some h -> return! LibBackend.Analysis.handlerTrace c.id args.trace_id h
       | None ->
-          let userFn =
-            c.userFunctions
-          |> Map.get args.tlid
-          |> Option.unwrapUnsafe
+          let userFn = c.userFunctions |> Map.get args.tlid |> Option.unwrapUnsafe
           return! LibBackend.Analysis.userfnTrace c.id args.trace_id userFn
 
     }
@@ -434,27 +434,32 @@ module Traces =
   let fetchAllTraces (ctx : HttpContext) : Task<AllTraces> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
+
       let! (c : LibBackend.Canvas.T) =
         // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
         Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
         |> Task.map Result.unwrapUnsafe
+
       let! hTraces =
         c.handlers
         |> Map.values
-        |> List.map (fun h ->
-            LibBackend.Analysis.traceIDsForHandler c h
-            |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
+        |> List.map
+             (fun h ->
+               LibBackend.Analysis.traceIDsForHandler c h
+               |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
         |> Task.flatten
         |> Task.map List.concat
-      in
+
       let! ufTraces =
         c.userFunctions
         |> Map.values
-        |> List.map (fun uf ->
+        |> List.map
+             (fun uf ->
                LibBackend.Analysis.traceIDsForUserFn c.id uf.tlid
                |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
         |> Task.flatten
         |> Task.map List.concat
+
       return { traces = hTraces @ ufTraces }
     }
 

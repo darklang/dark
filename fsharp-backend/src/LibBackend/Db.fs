@@ -7,6 +7,10 @@ open FSharpPlus
 open Npgsql
 open Npgsql.FSharp.Tasks
 
+open Prelude
+
+module RT = LibExecution.RuntimeTypes
+
 let connectionString =
   Sql.host LibService.Config.pghost
   |> Sql.port 5432
@@ -72,7 +76,6 @@ module Sql =
     ()
 
 
-
   let id (id : uint64) : SqlValue =
     // In the DB, it's actually an int64
     let typ = NpgsqlTypes.NpgsqlDbType.Bigint
@@ -80,6 +83,12 @@ module Sql =
     idParam.Value <- int64 id
     Sql.parameter idParam
 
+  let tlid (tlid : uint64) : SqlValue =
+    // In the DB, it's actually an int64
+    let typ = NpgsqlTypes.NpgsqlDbType.Bigint
+    let idParam = NpgsqlParameter("tlid", typ)
+    idParam.Value <- int64 tlid
+    Sql.parameter idParam
 
   let idArray (ids : List<uint64>) : SqlValue =
     // In the DB, it's actually an int64
@@ -88,7 +97,49 @@ module Sql =
     idsParam.Value <- ids |> List.map int64 |> List.toArray
     Sql.parameter idsParam
 
+  let queryableDval (dval : RT.Dval) : SqlValue =
+    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
+    let param = NpgsqlParameter("dval", typ)
+    param.Value <- LibExecution.DvalRepr.toInternalQueryableFieldV1 dval
+    Sql.parameter param
+
+  let queryableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
+    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
+    let param = NpgsqlParameter("dvalmap", typ)
+    param.Value <- LibExecution.DvalRepr.toInternalQueryableV1 dvalmap
+    Sql.parameter param
+
+  let roundtrippableDval (dval : RT.Dval) : SqlValue =
+    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
+    let param = NpgsqlParameter("dval", typ)
+    param.Value <- LibExecution.DvalRepr.toInternalRoundtrippableV0 dval
+    Sql.parameter param
+
+  let roundtrippableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
+    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
+    let param = NpgsqlParameter("dvalmap", typ)
+    param.Value <- LibExecution.DvalRepr.toInternalRoundtrippableV0 (RT.DObj dvalmap)
+    Sql.parameter param
+
 // Extension methods
 type RowReader with
 
-  member this.tlid(name : string) = this.int64 name |> uint64
+  member this.tlid(name : string) : tlid = this.int64 name |> uint64
+  member this.id(name : string) : id = this.int64 name |> uint64
+
+// member this.queryableDval(name : string) =
+//   this.string name |> LibExecution.DvalRepr.ofInternalQueryableV0
+// member this.roundtrippableDval(name : string) =
+//   this.string name |> LibExecution.DvalRepr.ofInternalRoundtrippableV0
+
+
+exception DBQueryException of string
+
+exception FakeValFoundInQuery of RT.Dval
+
+let dbQueryExceptionToString =
+  function
+  | DBQueryException str ->
+      "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\n  Error: "
+      + str
+  | _ -> ""

@@ -581,7 +581,7 @@ module Convert =
     | OT.TError -> PT.TError
     | OT.TBlock -> PT.TFn([ PT.TAny ], PT.TAny)
     | OT.TResp -> PT.THttpResponse PT.TAny
-    | OT.TDB -> PT.TDB
+    | OT.TDB -> PT.TDB PT.TAny
     | OT.TDeprecated6 -> PT.TAny
     | OT.TDate -> PT.TDate
     | OT.TDeprecated2 -> PT.TAny
@@ -839,7 +839,7 @@ module Convert =
     | PT.TError -> OT.TError
     | PT.TFn _ -> OT.TBlock
     | PT.THttpResponse _ -> OT.TResp
-    | PT.TDB -> OT.TDB
+    | PT.TDB _ -> OT.TDB
     | PT.TDate -> OT.TDate
     | PT.TDict _ -> OT.TObj
     | PT.TDbList tipe -> OT.TDbList(pt2ocamlTipe tipe)
@@ -1062,7 +1062,9 @@ let toplevelOfCachedBinary
       with e3 ->
         try
           toplevelOfCachedUserTipe ()
-        with e4 -> failwith $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
+        with e4 ->
+          failwith
+            $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
 
 let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
   match toplevel with

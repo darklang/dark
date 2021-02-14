@@ -20,7 +20,7 @@ open Npgsql
 open Db
 
 open Prelude
-open Prelude.TableCloth
+open Prelude.Tablecloth
 open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
@@ -208,17 +208,19 @@ let mungePathForPostgres (module_ : string) (path : string) =
   //
   // `split_uri_path` inside `Routing.routeToPostgresPattern` doesn't like that background
   // events don't have leading slashes
-  if String.toLowercase module_ = "HTTP"
-  then Routing.routeToPostgresPattern path
+  if String.toLowercase module_ = "HTTP" then
+    Routing.routeToPostgresPattern path
   else
     (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
-    path.Replace("%","\\%").Replace("_", "\\_")
+    path.Replace("%", "\\%").Replace("_", "\\_")
 
 
 let loadEventIDs
-    (canvasID : CanvasID) ((module_, route, modifier) : EventDesc) :
-    Task<List<AT.TraceID * string>> =
+  (canvasID : CanvasID)
+  ((module_, route, modifier) : EventDesc)
+  : Task<List<AT.TraceID * string>> =
   let route = mungePathForPostgres module_ route
+
   Sql.query
     "SELECT trace_id, path FROM stored_events_v2
      WHERE canvas_id = @canvasID
@@ -227,7 +229,10 @@ let loadEventIDs
        AND modifier = @modifier
      ORDER BY timestamp DESC
      LIMIT 10"
-  |> Sql.parameters ["canvasID", Sql.uuid canvasID; "module", Sql.string module_; "path", Sql.string route; "modifier", Sql.string modifier]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "module", Sql.string module_
+                      "path", Sql.string route
+                      "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> (read.uuid "trace_id", read.string "path"))
 
 

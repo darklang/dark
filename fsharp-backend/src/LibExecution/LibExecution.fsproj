@@ -7,16 +7,20 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="Shortcuts.fs" />
     <Compile Include="DvalRepr.fs" />
     <Compile Include="Errors.fs" />
+    <Compile Include="Ast.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="StdLib/LibList.fs" />
     <Compile Include="StdLib/LibDict.fs" />
+    <Compile Include="StdLib/LibDate.fs" />
     <Compile Include="StdLib/LibString.fs" />
     <Compile Include="StdLib/LibBytes.fs" />
     <Compile Include="StdLib/LibInt.fs" />
     <Compile Include="StdLib/LibBool.fs" />
     <Compile Include="StdLib/LibMiddleware.fs" />
+    <Compile Include="StdLib/LibNoModule.fs" />
     <Compile Include="StdLib/StdLib.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="ParsedRequest.fs" />

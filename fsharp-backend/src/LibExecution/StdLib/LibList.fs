@@ -470,28 +470,42 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "sortBy" 0
-//
-//     ; parameters = [Param.make "list" TList; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         {|Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
-//           For example, `List::sortBy ["x","jkl","ab"] \val -> String::length val` returns `[ "x", "ab", "jkl" ]`.
-//           Consider `List::sort` if the list values can be directly compared, or `List::sortByComparator` if you want more control over the sorting process.|}
-//     ; fn =
-//
-//           (function
-//           | state, [DList list; DFnVal b] ->
-//               let fn dv = Ast.execute_dblock ~state b [dv] in
-//               list
-//               |> List.sort (fun a b -> compare_dval (fn a) (fn b))
-//               |> DList
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "sortByComparator" 0
+    { name = fn "List" "sortBy" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make "fn" (TFn([ varA ], varB)) "" ]
+      returnType = TList varA
+      description = "Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
+           For example, `List::sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String::length val` returns `[ \"x\", \"ab\", \"jkl\" ]`.
+           Consider `List::sort` if the list values can be directly compared, or `List::sortByComparator` if you want more control over the sorting process."
+      fn =
+        InProcess
+          (function
+          | state, [ DList list; DFnVal b ] ->
+              taskv {
+                let fn dv =
+                  Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe NoRail
+                // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
+                let! withKeys =
+                  list
+                  |> map_s
+                       (fun v ->
+                         taskv {
+                           let! key = fn v
+                           return (key, v)
+                         })
+
+                return
+                  withKeys
+                  |> List.sortBy (fun (k, _v) -> k)
+                  |> List.map (fun (_, v) -> v)
+                  |> DList
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   ; { name = fn "List" "sortByComparator" 0
 //
 //     ; parameters = [Param.make "list" TList; func ["a"; "b"]]
 //     ; returnType = TResult
@@ -601,7 +615,6 @@ let fns : List<BuiltInFn> =
                         return false
                     | v ->
                         Errors.throw (Errors.expectedLambdaType TBool v)
-
                         return false
                   }
 
@@ -611,7 +624,7 @@ let fns : List<BuiltInFn> =
                   let! result = filter_s f l
                   return DList(result)
               }
-          | args -> incorrectArgs ())
+          | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "" "" 0) }

@@ -12,7 +12,7 @@ open Npgsql
 open Db
 
 open Prelude
-open Prelude.TableCloth
+open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes

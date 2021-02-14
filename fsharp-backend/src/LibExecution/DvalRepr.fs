@@ -58,7 +58,7 @@ let rec dtypeToString (t : DType) : string =
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
-  | TDB -> "Datastore"
+  | TDB _ -> "Datastore"
   | TDate -> "Date"
   | TDict _ -> "Dict"
   | TPassword -> "Password"
@@ -88,7 +88,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
-  | TDB -> "Datastore"
+  | TDB _ -> "Datastore"
   | TDate -> "Date"
   | TPassword -> "Password"
   | TUuid -> "UUID"
@@ -118,7 +118,7 @@ let rec dtypeOfString (str : string) : DType =
   | "incomplete" -> TIncomplete
   | "error" -> TError
   | "response" -> THttpResponse TAny
-  | "datastore" -> TDB
+  | "datastore" -> TDB TAny
   | "date" -> TDate
   | "password" -> TPassword
   | "uuid" -> TUuid
@@ -129,35 +129,11 @@ let rec dtypeOfString (str : string) : DType =
   | _ -> failwith "unsupported runtime type"
 
 
-let rec dtypeOf (dv : Dval) : DType =
-  match dv with
-  | DInt _ -> TInt
-  | DFloat _ -> TFloat
-  | DBool _ -> TBool
-  | DNull -> TNull
-  | DChar _ -> TChar
-  | DStr _ -> TStr
-  | DList _ -> TList TAny
-  | DObj _ -> TDict TAny
-  | DFnVal _ -> TLambda
-  | DFakeVal (DError _) -> TError
-  | DFakeVal (DIncomplete _) -> TIncomplete
-  | DHttpResponse _ -> THttpResponse TAny
-  | DDB _ -> TDB
-  | DDate _ -> TDate
-  // | DPassword _ -> TPassword
-  | DUuid _ -> TUuid
-  | DOption _ -> TOption TAny
-  | DFakeVal (DErrorRail _) -> TErrorRail
-  | DResult _ -> TResult(TAny, TAny)
-  | DBytes _ -> TBytes
-
-
 (* Users should not be aware of this *)
 let dtypeName (dv : Dval) : string =
-  dv |> dtypeOf |> dtypeToString |> String.toLowercase
+  dv |> Dval.toType |> dtypeToString |> String.toLowercase
 
-let pretty_tipename (dv : Dval) : string = dv |> dtypeOf |> dtypeToString
+let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
@@ -454,7 +430,7 @@ let rec unsafeDvalOfJsonV1 (json : J.JsonValue) : Dval =
   | J.JsonValue.Null -> DNull
   | J.JsonValue.String s -> DStr s
   | J.JsonValue.Array l ->
-      (* We shouldnt have saved dlist that have incompletes or error rails but we might have *)
+      // We shouldnt have saved dlist that have incompletes or error rails but we might have
       l |> Array.map unsafeDvalOfJsonV1 |> Array.toList |> Dval.list
   | J.JsonValue.Record [| ("type", J.JsonValue.String "response");
                           ("value", J.JsonValue.Array [| a; b |]) |] ->
@@ -624,88 +600,77 @@ let ofInternalRoundtrippableJsonV0 (j : J.JsonValue) : Result<Dval, string> =
 let ofInternalRoundtrippableV0 str : Dval = str |> J.parse |> unsafeDvalOfJsonV1
 
 
-// (* ------------------------- *)
-// (* Queryable - for the DB *)
-// (* ------------------------- *)
+// -------------------------
+// Queryable - for the DB *)
+// -------------------------
 //
-// let to_internal_queryable_v0 dval : string =
-//   dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
-//
-//
-// let of_internal_queryable_v0 (str : string) : dval =
-//   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
-//
-//
-// let to_internal_queryable_field_json_v1 dval : Yojson.Safe.t =
-//   dval |> unsafe_dval_to_yojson_v0 ~redact:false
-//
-//
-// let to_internal_queryable_field_v1 dval : string =
-//   dval |> to_internal_queryable_field_json_v1 |> Yojson.Safe.to_string
-//
-//
-// let to_internal_queryable_v1 (dval_map : dval_map) : string =
-//   dval_map
-//   |> DvalMap.toList
-//   |> List.map ~f:(fun (k, dval) ->
-//          (k, dval |> to_internal_queryable_field_json_v1))
-//   |> fun l -> `Assoc l |> Yojson.Safe.to_string
-//
-//
-// let of_internal_queryable_v1 (str : string) : dval =
-//   (* The first level _must_ be an object at the moment *)
-//   let rec convert_top_level (json : Yojson.Safe.t) : dval =
-//     match json with
-//     | `Assoc alist ->
-//         DObj
-//           (List.fold_left
-//              alist
-//              ~f:(fun m (k, v) -> DvalMap.insert m ~key:k ~value:(convert v))
-//              ~init:DvalMap.empty)
-//     | _ ->
-//         Exception.internal "Value that isn't an object"
-//   and convert (json : Yojson.Safe.t) : dval =
-//     (* sort so this isn't key-order-dependent. *)
-//     let json = Yojson.Safe.sort json in
-//     match json with
-//     | `Int i ->
-//         DInt (Dint.of_int i)
-//     | `Intlit i ->
-//         DInt (Dint.of_string_exn i)
-//     | `Float f ->
-//         DFloat f
-//     | `Bool b ->
-//         DBool b
-//     | `Null ->
-//         DNull
-//     | `String s ->
-//         dstr_of_string_exn s
-//     | `List l ->
-//         (* We shouldnt have saved dlist that have incompletes or error rails but we might have *)
-//         to_list (List.map ~f:convert l)
-//     | `Variant v ->
-//         Exception.internal "We dont use variants"
-//     | `Tuple v ->
-//         Exception.internal "We dont use tuples"
-//     (* These are the only types that are allowed in the queryable
-//      * representation. We may allow more in the future, but the real thing to
-//      * do is to use the DB's type and version to encode/decode them correctly
-//      * *)
-//     | `Assoc [("type", `String "date"); ("value", `String v)] ->
-//         DDate (Util.date_of_isostring v)
-//     | `Assoc [("type", `String "password"); ("value", `String v)] ->
-//         v |> B64.decode |> Bytes.of_string |> DPassword
-//     | `Assoc [("type", `String "uuid"); ("value", `String v)] ->
-//         DUuid (Uuidm.of_string v |> Option.value_exn)
-//     | `Assoc alist ->
-//         DObj
-//           (List.fold_left
-//              alist
-//              ~f:(fun m (k, v) -> DvalMap.insert m ~key:k ~value:(convert v))
-//              ~init:DvalMap.empty)
-//   in
-//   str |> Yojson.Safe.from_string |> convert_top_level
-//
+let toInternalQueryableV0 (dval : Dval) : string =
+  dval |> unsafeDvalToJsonV0 false |> J.toString
+
+
+let ofInternalQueryableV0 (str : string) : Dval =
+  str |> J.parse |> unsafeDvalOfJsonV1
+
+
+let toInternalQueryableFieldJsonV1 (dval : Dval) : J.JsonValue =
+  dval |> unsafeDvalToJsonV0 false
+
+
+let toInternalQueryableFieldV1 (dval : Dval) : string =
+  dval |> toInternalQueryableFieldJsonV1 |> J.toString
+
+
+let toInternalQueryableV1 (dvalMap : DvalMap) : string =
+  dvalMap
+  |> Map.toList
+  |> List.map (fun (k, dval) -> (k, dval |> toInternalQueryableFieldJsonV1))
+  |> fun l -> J.object l |> J.toString
+
+
+let ofInternalQueryableV1 (str : string) : Dval =
+  // The first level _must_ be an object at the moment
+  let rec convertTopLevel (json : J.JsonValue) : Dval =
+    match json with
+    | J.JsonValue.Record rows ->
+        DObj(Array.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m) rows)
+    | _ -> failwith "Value that isn't an object"
+
+  and convert (json : J.JsonValue) : Dval =
+    // sort so this isn't key-order-dependent.
+    // FSTODO
+    // let json = Yojson.Safe.sort json in
+    match json with
+    | J.JsonValue.Number d ->
+        let str = d.ToString()
+
+        if String.includes "." str then
+          str |> System.Double.Parse |> DFloat
+        else
+          str |> parseBigint |> DInt
+    | J.JsonValue.Float b -> DFloat b
+    | J.JsonValue.Boolean b -> DBool b
+    | J.JsonValue.Null -> DNull
+    | J.JsonValue.String s -> DStr s
+    | J.JsonValue.Array l ->
+        // We shouldnt have saved dlist that have incompletes or error rails but we might have
+        l |> Array.map convert |> Array.toList |> Dval.list
+    // These are the only types that are allowed in the queryable
+    // representation. We may allow more in the future, but the real thing to
+    // do is to use the DB's type and version to encode/decode them correctly
+    | J.JsonValue.Record [| ("type", J.JsonValue.String "date");
+                            ("value", J.JsonValue.String v) |] ->
+        DDate(System.DateTime.ofIsoString v)
+    | J.JsonValue.Record [| ("type", J.JsonValue.String "password");
+                            ("value", J.JsonValue.String v) |] ->
+        fstodo "support password"
+    // v |> B64.decode |> Bytes.of_string |> DPassword
+    | J.JsonValue.Record [| ("type", J.JsonValue.String "uuid");
+                            ("value", J.JsonValue.String v) |] ->
+        DUuid(System.Guid v)
+    | J.JsonValue.Record _ as json -> convertTopLevel json
+
+  str |> J.parse |> convertTopLevel
+
 //
 // (* ------------------------- *)
 // (* Other formats *)
@@ -782,7 +747,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     let nl = "\n" + makeSpaces indent
     let inl = "\n" + makeSpaces (indent + 2)
     let indent = indent + 2
-    let typename = pretty_tipename dv
+    let typename = prettyTypename dv
     let wrap str = $"<{typename}: {str}>"
     let justtipe = $"<{typename}>"
 

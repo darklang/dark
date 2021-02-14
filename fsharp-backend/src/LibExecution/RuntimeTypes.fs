@@ -227,7 +227,7 @@ and DType =
   | TError
   | TLambda
   | THttpResponse of DType
-  | TDB
+  | TDB of DType
   | TDate
   | TChar
   | TPassword
@@ -329,7 +329,7 @@ module Dval =
     | DFakeVal (DError _) -> TError
     | DFakeVal (DIncomplete _) -> TIncomplete
     | DHttpResponse _ -> THttpResponse TAny
-    | DDB _ -> TDB
+    | DDB _ -> TDB TAny
     | DDate _ -> TDate
     // | DPassword _ -> TPassword
     | DUuid _ -> TUuid
@@ -396,10 +396,71 @@ module Dval =
 
   let optionJust (dv : Dval) : Dval = if isFake dv then dv else DOption(Some dv)
 
+  let option (dv : Option<Dval>) : Dval =
+    match dv with
+    | Some dv -> optionJust dv // checks isFake
+    | None -> DOption None
+
   let errStr (s : string) : Dval = DFakeVal(DError(SourceNone, s))
 
   let errSStr (source : DvalSource) (s : string) : Dval = DFakeVal(DError(source, s))
 
+module Handler =
+  type CronInterval =
+    | EveryDay
+    | EveryWeek
+    | EveryFortnight
+    | EveryHour
+    | Every12Hours
+    | EveryMinute
+
+  type Spec =
+    | HTTP of path : string * method : string
+    | Worker of name : string
+    // Deprecated but still supported form
+    | OldWorker of modulename : string * name : string
+    | Cron of name : string * interval : string
+    | REPL of name : string
+
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
+
+module DB =
+  type Col = string * DType
+  type T = { tlid : tlid; name : string; cols : List<Col>; version : int }
+
+module UserType =
+  type RecordField = { name : string; typ : DType }
+  type Definition = UTRecord of List<RecordField>
+
+  type T = { tlid : tlid; name : string; version : int; definition : Definition }
+
+module UserFunction =
+  type Parameter = { name : string; typ : DType; description : string }
+
+  type T =
+    { tlid : tlid
+      name : string
+      parameters : List<Parameter>
+      returnType : DType
+      description : string
+      infix : bool
+      ast : Expr }
+
+type Toplevel =
+  | TLHandler of Handler.T
+  | TLDB of DB.T
+  | TLFunction of UserFunction.T
+  | TLType of UserType.T
+
+  member this.toTLID() : tlid =
+    match this with
+    | TLHandler h -> h.tlid
+    | TLDB db -> db.tlid
+    | TLFunction f -> f.tlid
+    | TLType t -> t.tlid
+
+module Secret =
+  type T = { secretName : string; secretValue : string }
 
 
 // ------------
@@ -448,7 +509,7 @@ type BuiltInFn =
     // Functions can be run in JS if they have an implementation in this
     // LibExecution. Functions whose implementation is in LibBackend can only be
     // implemented on the server.
-    // May throw a
+    // May throw an exception, though we're trying to get them to never throw exceptions.
     fn : FnImpl }
 
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
@@ -458,28 +519,60 @@ and FnImpl =
   | UserCreated of tlid * Expr
   | PackageFunction of Expr
 
-and ExecutionState = { functions : Map<FQFnName.T, BuiltInFn>; tlid : tlid }
-//    tlid : tlid
-// ; canvas_id : Uuidm.t
-// ; account_id : Uuidm.t
-// ; user_fns : user_fn list
-// ; userTypes : user_tipe list
-// ; package_fns : fn list
-// ; dbs : DbT.db list
-// ; secrets : secret list
-// ; trace : on_execution_path:bool -> id -> dval -> unit
-// ; trace_tlid : tlid -> unit
-// ; callstack :
-//     (* Used for recursion detection in the editor. In the editor, we call all
-//      * paths to show live values, but with recursion that causes infinite
-//      * recursion. *)
-//     Tc.StrSet.t
-// ; context : context
-// ; execution_id : id
-// ; on_execution_path :
-//     (* Whether the currently executing code is really being executed (as
-//      * opposed to being executed for traces) *)
-//     bool
+and Context =
+  | Real
+  | Preview
+
+and ExecutionState =
+  { functions : Map<FQFnName.T, BuiltInFn>
+    tlid : tlid
+    canvasID : CanvasID
+    accountID : UserID
+    dbs : Map<string, DB.T>
+    userFns : List<UserFunction.T>
+    userTypes : List<UserType.T>
+    // packageFns : List<PackageFn.T>
+    secrets : List<Secret.T>
+    trace : bool -> id -> Dval -> unit
+    traceTLID : tlid -> unit
+    executingFnName : string
+    // Used for recursion detection in the editor. In the editor, we call all
+    // paths to show live values, but with recursion that causes infinite
+    // recursion.
+    callstack : Set<string>
+    context : Context
+    // Whether the currently executing code is really being executed (as
+    // opposed to being executed for traces)
+    onExecutionPath : bool }
+
+
+//
+// let paramToBuiltinParam (p : UserFunction.Parameter) : Option<Param> =
+//   if p.name = "" then
+//     None
+//   else
+//     Some
+//       { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+//
+// let toFn (uf : T) : Option<BuiltInFn> =
+//   let parameters = List.filterMap paramToBuiltinParam uf.parameters in
+//   let paramsAllFilled = List.length parameters = List.length uf.parameters
+//
+//   if uf.name = "" || (not paramsAllFilled) then
+//     None
+//   else
+//     Some
+//       { name = FQFnName.name "" "" "" uf.name 0
+//         parameters = parameters
+//         returnType = uf.returnType
+//         description = uf.description
+//         previewable = Impure
+//         deprecated = NotDeprecated
+//         sqlSpec = NotQueryable
+//         fn = UserCreated(uf.tlid, uf.ast) }
+//
+//
+//
 
 // Some parts of the execution need to call AST.exec, but cannot call
 // AST.exec without a cyclic dependency. This function enables that, and it
@@ -492,339 +585,3 @@ and ExecutionState = { functions : Map<FQFnName.T, BuiltInFn>; tlid : tlid }
 // ; store_fn_arguments : store_fn_arguments_type
 // ; executing_fnname : string
 // ; fail_fn : fail_fn_type
-
-
-module Shortcuts =
-
-  // Returns a string representation of an expr using shortcuts. This makes it
-  // useful for creating test cases and similar.
-  let rec toStringRepr (e : Expr) : string =
-    let r (v : Expr) = $"{toStringRepr v}"
-    let pr (v : Expr) = $"({toStringRepr v})" // parenthesized repr
-    let q (v : string) = $"\"{v}\""
-
-    match e with
-    | EBlank id -> "eBlank ()"
-    | ECharacter (_, char) -> $"eChar '{char}'"
-    | EInteger (_, num) -> $"eInt {num}"
-    | EString (_, str) -> $"eStr {q str}"
-    | EFloat (_, number) -> $"eFloat {number}"
-    | EBool (_, b) -> $"eBool {b}"
-    | ENull _ -> $"eNull ()"
-    | EVariable (_, var) -> $"eVar {q var}"
-    | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
-    | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when
-      name.owner = "dark" && name.package = "stdlib" ->
-        let fn, suffix =
-          match ster with
-          | NoRail -> "eFn", ""
-          | Rail -> "eFnRail", ""
-
-        let args = List.map r args |> String.concat "; "
-        $"{fn} {q name.module_} {q name.function_} {name.version} [{args}] {suffix}"
-
-    | EApply (_, expr, args, pipe, ster) ->
-        let fn, suffix =
-          match pipe, ster with
-          | InPipe, NoRail -> "ePipeApply", ""
-          | NotInPipe, Rail -> "eRailApply", ""
-          | InPipe, Rail -> "ePipeAndRailApply", ""
-          | _ -> "eApply'", "{rail} {ster}"
-
-        let args = List.map r args |> String.concat "; "
-        $"{fn} {pr expr} [{args}] {suffix}"
-    | EFQFnValue (_, name) ->
-        let fn, package =
-          if name.owner = "dark" && name.package = "stdlib" then
-            "eStdFnVal", ""
-          else
-            "eFnVal", " {q name.owner} {q name.package} "
-
-        $"{fn} {package} {q name.module_} {q name.function_} {name.version}"
-    | ELambda (_, vars, body) ->
-        let vars = List.map (fun (_, y) -> q y) vars |> String.concat "; "
-        $"eLambda [{vars}] {pr body}"
-    | ELet (_, lhs, rhs, body) -> $"eLet {q lhs} {pr rhs} {pr body}"
-    | EList (_, exprs) ->
-        let exprs = List.map r exprs |> String.concat "; "
-        $"eList [{exprs}]"
-    | _ -> $"Bored now: {e}"
-  // | EIf (_, cond, thenExpr, elseExpr) -> R.EIf(id, r cond, r thenExpr, r elseExpr)
-  // | EPartial (_, _, oldExpr)
-  // | ERightPartial (_, _, oldExpr)
-  // | ELeftPartial (_, _, oldExpr) -> R.EPartial(id, r oldExpr)
-  // | ERecord (_, pairs) -> R.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
-  // | EPipe (_, expr1, expr2, rest) ->
-  //     // Convert v |> fn1 a |> fn2 |> fn3 b c
-  //     // into fn3 (fn2 (fn1 v a)) b c
-  //     // This conversion should correspond to ast.ml:inject_param_and_execute
-  //     // from the OCaml interpreter
-  //     let inner = r expr1
-  //     List.fold (fun prev next ->
-  //       match next with
-  //       // TODO: support currying
-  //       | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
-  //           R.EApply
-  //             (id,
-  //              R.EFQFnValue(ptID, name.toRuntimeType ()),
-  //              prev :: List.map r exprs,
-  //              R.InPipe,
-  //              rail.toRuntimeType ())
-  //       // TODO: support currying
-  //       | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
-  //           R.EApply
-  //             (id,
-  //              R.EFQFnValue(ptID, name.toRuntimeType ()),
-  //              [ prev; r expr2 ],
-  //              R.InPipe,
-  //              rail.toRuntimeType ())
-  //       // If there's a hole, run the computation right through it as if it wasn't there
-  //       | EBlank _ -> prev
-  //       // Here, the expression evaluates to an FnValue. This is for eg variables containing values
-  //       | other ->
-  //           R.EApply(id, r other, [ prev ], R.InPipe, NoRail.toRuntimeType ()))
-  //
-  //       inner (expr2 :: rest)
-  //
-  // | EConstructor (_, name, exprs) -> R.EConstructor(id, name, List.map r exprs)
-  // | EMatch (_, mexpr, pairs) ->
-  //     R.EMatch
-  //       (id,
-  //        r mexpr,
-  //        List.map
-  //          ((Tuple2.mapItem1 (fun (p : Pattern) -> p.toRuntimeType ()))
-  //           << (Tuple2.mapItem2 r))
-  //          pairs)
-  // | EPipeTarget _ -> failwith "No EPipeTargets should remain"
-  // | EFeatureFlag (_, name, cond, caseA, caseB) ->
-  //     R.EFeatureFlag(id, r cond, r caseA, r caseB)
-  //
-  //
-
-  let eFnVal
-    (owner : string)
-    (package : string)
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    : Expr =
-    EFQFnValue(gid (), FQFnName.name owner package module_ function_ version)
-
-  let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
-    eFnVal "dark" "stdlib" module_ function_ version
-
-  let eFn'
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    (args : List<Expr>)
-    (ster : SendToRail)
-    : Expr =
-    EApply(gid (), (eStdFnVal module_ function_ version), args, NotInPipe, ster)
-
-  let eFn
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    (args : List<Expr>)
-    : Expr =
-    eFn' module_ function_ version args NoRail
-
-  let eFnRail
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    (args : List<Expr>)
-    : Expr =
-    eFn' module_ function_ version args Rail
-
-  let eApply'
-    (fnVal : Expr)
-    (args : List<Expr>)
-    (isInPipe : IsInPipe)
-    (ster : SendToRail)
-    : Expr =
-    EApply(gid (), fnVal, args, isInPipe, ster)
-
-  let eApply (fnVal : Expr) (args : List<Expr>) : Expr =
-    eApply' fnVal args NotInPipe NoRail
-
-  let ePipeApply (fnVal : Expr) (args : List<Expr>) : Expr =
-    eApply' fnVal args InPipe NoRail
-
-  let eRailApply (fnVal : Expr) (args : List<Expr>) : Expr =
-    eApply' fnVal args NotInPipe Rail
-
-  let ePipeAndRailApply (fnVal : Expr) (args : List<Expr>) : Expr =
-    eApply' fnVal args InPipe Rail
-
-  let eStr (str : string) : Expr = EString(gid (), str)
-
-  let eInt (i : int) : Expr = EInteger(gid (), bigint i)
-
-  let eIntStr (i : string) : Expr = EInteger(gid (), parseBigint i)
-
-  let eChar (c : char) : Expr = ECharacter(gid (), string c)
-  let eCharStr (c : string) : Expr = ECharacter(gid (), c)
-  let eBlank () : Expr = EBlank(gid ())
-
-  let eBool (b : bool) : Expr = EBool(gid (), b)
-
-  let eFloat (sign : Sign) (whole : bigint) (fraction : bigint) : Expr =
-    EFloat(gid (), makeFloat (sign = Positive) whole fraction)
-
-  let eFloatStr (whole : string) (fraction : string) : Expr =
-    EFloat(gid (), parseFloat whole fraction)
-
-  let eNull () : Expr = ENull(gid ())
-
-  let eRecord (rows : (string * Expr) list) : Expr = ERecord(gid (), rows)
-
-  let eList (elems : Expr list) : Expr = EList(gid (), elems)
-
-
-  let ePartial (e : Expr) : Expr = EPartial(gid (), e)
-
-  let eVar (name : string) : Expr = EVariable(gid (), name)
-
-  let fieldAccess (expr : Expr) (fieldName : string) : Expr =
-    EFieldAccess(gid (), expr, fieldName)
-
-  let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
-    EIf(gid (), cond, then', else')
-
-  let eLet (varName : string) (rhs : Expr) (body : Expr) : Expr =
-    ELet(gid (), varName, rhs, body)
-
-
-  let eLambda (varNames : string list) (body : Expr) : Expr =
-    ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
-
-  let eConstructor (name : string) (args : Expr list) : Expr =
-    EConstructor(gid (), name, args)
-
-  let eJust (arg : Expr) : Expr = EConstructor(gid (), "Just", [ arg ])
-
-  let eNothing () : Expr = EConstructor(gid (), "Nothing", [])
-
-  let eError (arg : Expr) : Expr = EConstructor(gid (), "Error", [ arg ])
-
-  let eOk (arg : Expr) : Expr = EConstructor(gid (), "Ok", [ arg ])
-
-  let eMatch (cond : Expr) (matches : List<Pattern * Expr>) : Expr =
-    EMatch(gid (), cond, matches)
-
-  let pInt (int : int) : Pattern = PInteger(gid (), bigint int)
-
-  let pIntStr (int : string) : Pattern = PInteger(gid (), parseBigint int)
-
-  let pVar (name : string) : Pattern = PVariable(gid (), name)
-
-  let pConstructor (name : string) (patterns : Pattern list) : Pattern =
-    PConstructor(gid (), name, patterns)
-
-  let pJust (arg : Pattern) : Pattern = PConstructor(gid (), "Just", [ arg ])
-
-  let pNothing () : Pattern = PConstructor(gid (), "Nothing", [])
-
-  let pError (arg : Pattern) : Pattern = PConstructor(gid (), "Error", [ arg ])
-
-  let pOk (arg : Pattern) : Pattern = PConstructor(gid (), "Ok", [ arg ])
-
-  let pBool (b : bool) : Pattern = PBool(gid (), b)
-
-  let pChar (c : char) : Pattern = PCharacter(gid (), string c)
-  let pCharStr (c : string) : Pattern = PCharacter(gid (), c)
-
-  let pString (str : string) : Pattern = PString(gid (), str)
-
-  let pFloatStr (whole : string) (fraction : string) : Pattern =
-    PFloat(gid (), float $"{whole}{fraction}")
-
-  let pFloat (whole : int) (fraction : int) : Pattern =
-    PFloat(gid (), float $"{whole}{fraction}")
-
-  let pNull () : Pattern = PNull(gid ())
-
-  let pBlank () : Pattern = PBlank(gid ())
-
-  let eflag cond oldCode newCode = EFeatureFlag(gid (), cond, oldCode, newCode)
-
-module Handler =
-  type CronInterval =
-    | EveryDay
-    | EveryWeek
-    | EveryFortnight
-    | EveryHour
-    | Every12Hours
-    | EveryMinute
-
-  type Spec =
-    | HTTP of path : string * method : string
-    | Worker of name : string
-    // Deprecated but still supported form
-    | OldWorker of modulename : string * name : string
-    | Cron of name : string * interval : string
-    | REPL of name : string
-
-  type T = { tlid : tlid; ast : Expr; spec : Spec }
-
-module DB =
-  type Col = string * DType
-  type T = { tlid : tlid; name : string; cols : List<Col> }
-
-module UserType =
-  type RecordField = { name : string; typ : DType }
-  type Definition = UTRecord of List<RecordField>
-
-  type T = { tlid : tlid; name : string; version : int; definition : Definition }
-
-module UserFunction =
-  type Parameter = { name : string; typ : DType; description : string }
-
-  type T =
-    { tlid : tlid
-      name : string
-      parameters : List<Parameter>
-      returnType : DType
-      description : string
-      infix : bool
-      ast : Expr }
-
-  let paramToBuiltinParam (p : Parameter) : Option<Param> =
-    if p.name = "" then
-      None
-    else
-      Some
-        { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
-
-  let toFn (uf : T) : Option<BuiltInFn> =
-    let parameters = List.filterMap paramToBuiltinParam uf.parameters in
-    let paramsAllFilled = List.length parameters = List.length uf.parameters
-
-    if uf.name = "" || (not paramsAllFilled) then
-      None
-    else
-      Some
-        { name = FQFnName.name "" "" "" uf.name 0
-          parameters = parameters
-          returnType = uf.returnType
-          description = uf.description
-          previewable = Impure
-          deprecated = NotDeprecated
-          sqlSpec = NotQueryable
-          fn = UserCreated(uf.tlid, uf.ast) }
-
-
-type Toplevel =
-  | TLHandler of Handler.T
-  | TLDB of DB.T
-  | TLFunction of UserFunction.T
-  | TLType of UserType.T
-
-  member this.toTLID() : tlid =
-    match this with
-    | TLHandler h -> h.tlid
-    | TLDB db -> db.tlid
-    | TLFunction f -> f.tlid
-    | TLType t -> t.tlid

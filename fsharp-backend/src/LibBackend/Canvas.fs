@@ -35,7 +35,8 @@ type T =
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
     deletedUserFunctions : Map<tlid, PT.UserFunction.T>
-    deletedUserTypes : Map<tlid, PT.UserType.T> }
+    deletedUserTypes : Map<tlid, PT.UserType.T>
+    secrets : Map<string, PT.Secret.T> }
 
 let addToplevel (tl : PT.Toplevel) (c : T) : T =
   let tlid = tl.toTLID ()
@@ -411,8 +412,8 @@ let loadEmpty
         deletedHandlers = Map.empty
         deletedDBs = Map.empty
         deletedUserFunctions = Map.empty
-        deletedUserTypes = Map.empty }
-
+        deletedUserTypes = Map.empty
+        secrets = Map.empty }
   }
 
 
@@ -558,6 +559,7 @@ let loadFrom
     let! uncachedOplists = loadOplists loadAmount canvasID notLoadedTLIDs
     let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
     let! c = loadEmpty canvasID canvasName owner
+
     return
       c
       |> addToplevels fastLoadedTLs
@@ -592,7 +594,12 @@ let loadHttpHandlersFromCache
     return! loadFrom LiveToplevels canvasName canvasID ownerID tlids
   }
 
-let loadTLIDsFromCache (tlids : tlid list) (canvasName : CanvasName.T) (canvasID : CanvasID) (ownerID : UserID) : Task<Result<T, List<string>>> =
+let loadTLIDsFromCache
+  (tlids : tlid list)
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (ownerID : UserID)
+  : Task<Result<T, List<string>>> =
   loadFrom LiveToplevels canvasName canvasID ownerID tlids
 
 
