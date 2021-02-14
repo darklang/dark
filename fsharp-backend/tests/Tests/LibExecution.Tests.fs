@@ -78,8 +78,6 @@ let fns =
      @ LibBackend.StdLib.StdLib.fns @ Tests.LibTest.fns
      |> Map.fromListBy (fun fn -> fn.name))
 
-type UserInfo = LibBackend.Account.UserInfo
-
 let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Test =
   let name = $"{comment} ({code})"
 
@@ -89,7 +87,7 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
     testTask name {
       try
         let! owner = testOwner.Force()
-        let ownerID : UserID = (owner : UserInfo).id
+        let ownerID : UserID = (owner : LibBackend.Account.UserInfo).id
 
         // Performance optimization: don't touch the DB if you don't use the DB
         let! canvasID =
