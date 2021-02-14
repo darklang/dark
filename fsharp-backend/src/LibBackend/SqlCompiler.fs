@@ -174,40 +174,8 @@ let typeToSqlType (t : DType) : string =
 
 
 // This canonicalizes an expression, meaning it removes multiple ways of
-// representing the same thing. For now, it removes threads and replaces
-// them with nested function calls.
-//
-// Replaces
-//
-//   a
-//   |> function1 b
-//   |> function2 c d
-//
-// with
-//
-//   (function2 c d (function1 b a))
+// representing the same thing. Currently nothing needs to be canonicalized.
 let rec canonicalize (expr : Expr) : Expr = expr
-//FSTODO this seems no longer needed
-// Ast.postTraversal
-//   (function
-//   | EPipe (id, []) -> EBlank id
-//   | EPipe (id, head :: tail) ->
-//       List.fold
-//         head
-//         (fun expr arg ->
-//           match expr with
-//           | EFnCall (id, name, EPipeTarget _ :: args, NoRail) ->
-//               EFnCall(id, name, arg :: args, NoRail)
-//           | EBinOp (id, name, EPipeTarget _, r, NoRail) ->
-//               EBinOp(id, name, arg, r, NoRail)
-//           | _ ->
-//               error2
-//                 "Currently, only function calls are supported in Pipes"
-//                 (show_fluid_expr expr))
-//         tail
-//   | e -> e)
-//   expr
-//
 
 let dvalToSql (dval : Dval) : SqlValue =
   match dval with
@@ -400,26 +368,26 @@ let rec lambdaToSql
            let name = $"{name}_{random}"
            $"(@{name})", [ name, dvalToSql dval ]
        | None -> error2 "This variable is not defined" name)
-  // | EInteger (_, str) ->
-  //     let dval = DInt(Dint.of_string_exn str) in
-  //     typecheckDval str dval expectedType
-  //     "(" + dvalToSql dval + ")"
-  // | EBool (id, bool) ->
-  //     let dval = DBool bool in
-  //     typecheckDval (if bool then "true" else "false") dval expectedType
-  //     "(" + dvalToSql dval + ")"
-  // | ENull _ ->
-  //     typecheckDval "null" DNull expectedType
-  //     "(" + dvalToSql DNull + ")"
-  // | EFloat (_, whole, fraction) ->
-  //     let str = whole + "." + fraction in
-  //     let dval = Dval.parse_literal str |> Option.value_exn in
-  //     typecheckDval str dval expectedType
-  //     "(" + dvalToSql dval + ")"
-  // | EString (_, str) ->
-  //     let dval = Dval.dstr_of_string_exn str in
-  //     typecheckDval ("\"" + str + "\"") dval expectedType
-  //     "(" + dvalToSql dval + ")"
+  | EInteger (_, v) ->
+      typecheck (toString v) TInt expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, v |> int64 |> Sql.int64 ]
+  | EBool (_, v) ->
+      typecheck (toString v) TBool expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.bool v ]
+  | ENull _ ->
+      typecheck "null" TNull expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.dbnull ]
+  | EFloat (_, v) ->
+      typecheck (toString v) TFloat expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.double v ]
+  | EString (_, v) ->
+      typecheck $"\"{v}\"" TStr expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.string v ]
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
       let typ =
         match Map.get fieldname dbFields with
