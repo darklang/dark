@@ -32,6 +32,18 @@
 [test.db get returns nothing] with DB MyDB { "x" : "Str" }
 ( DB.get_v1 "lol" MyDB) = Nothing
 
+// DB.getAll
+[test.db.getAll_v1 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
+(let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
+ let two = DB.set_v1 { x = "bar"; sort_by = 1  } "two" MyDB in
+ let three = DB.set_v1 { x = "baz"; sort_by = 2  } "three" MyDB in
+ (DB.getAll_v1 MyDB)
+ |> List.sortBy_v0 (fun x -> (List.last_v0 x).sort_by)) = (
+   [ ["one" ; { x = "foo"; sort_by = 0}]
+   ; ["two" ; { x = "bar"; sort_by = 1}]
+   ; ["three"; { x = "baz"; sort_by = 2}]])
+
+
 
 // DB.getAllWithKeys
 [test.db.getAllWithKeys_v1 works] with DB MyDB { "x" : "Str" }

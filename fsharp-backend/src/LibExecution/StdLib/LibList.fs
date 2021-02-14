@@ -485,7 +485,7 @@ let fns : List<BuiltInFn> =
               taskv {
                 let fn dv =
                   Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe NoRail
-                // This isn't exactly the same as the ocaml one. We get all the keys in one pass.
+                // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
                 let! withKeys =
                   list
                   |> map_s
@@ -497,12 +497,7 @@ let fns : List<BuiltInFn> =
 
                 return
                   withKeys
-                  |> List.sortWith
-                       (fun (ka, _va) (kb, _vb) ->
-                         // FSTODO: does the comparison work like we expect?
-                         if ka < kb then -1
-                         else if ka = kb then 0
-                         else 1)
+                  |> List.sortBy (fun (k, _v) -> k)
                   |> List.map (fun (_, v) -> v)
                   |> DList
               }
