@@ -43,7 +43,25 @@
    ; ["two" ; { x = "bar"; sort_by = 1}]
    ; ["three"; { x = "baz"; sort_by = 2}]])
 
+[test.db.getAll_v2 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
+(let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
+ let two = DB.set_v1 { x = "bar"; sort_by = 1  } "two" MyDB in
+ let three = DB.set_v1 { x = "baz"; sort_by = 2  } "three" MyDB in
+ (DB.getAll_v2 MyDB)
+ |> List.sortBy_v0 (fun x -> x.sort_by)) = (
+   [ { x = "foo"; sort_by = 0}
+   ; { x = "bar"; sort_by = 1}
+   ; { x = "baz"; sort_by = 2}])
 
+[test.db.getAll_v3 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
+(let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
+ let two = DB.set_v1 { x = "bar"; sort_by = 1  } "two" MyDB in
+ let three = DB.set_v1 { x = "baz"; sort_by = 2  } "three" MyDB in
+ (DB.getAll_v3 MyDB)
+ |> List.sortBy_v0 (fun x -> x.sort_by)) = (
+   [ { x = "foo"; sort_by = 0}
+   ; { x = "bar"; sort_by = 1}
+   ; { x = "baz"; sort_by = 2}])
 
 // DB.getAllWithKeys
 [test.db.getAllWithKeys_v1 works] with DB MyDB { "x" : "Str" }

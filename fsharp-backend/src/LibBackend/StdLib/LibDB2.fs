@@ -578,40 +578,40 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "getAll" 2) }
-    // ; { name = fn "DB" "getAll" 2
-//   ; parameters = [tableParam]
-//   ; returnType = TList TAny
-//   ; description = "Fetch all the values in `table`."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.get_all state db
-//             |> List.map (fun (k, v) -> v)
-//             |> DList
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "DB" "getAll" 3
-//   ; parameters = [tableParam]
-//   ; returnType = TList TAny
-//   ; description = "Fetch all the values in `table`."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.get_all state db
-//             |> List.map (fun (k, v) -> v)
-//             |> Dval.to_list
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+    { name = fn "DB" "getAll" 2
+      parameters = [ tableParam ]
+      returnType = TList TAny
+      description = "Fetch all the values in `table`."
+      fn =
+        InProcess
+          (function
+          | state, [ DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! results = UserDB.getAll state db
+                return results |> List.map (fun (_, v) -> v) |> DList
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "DB" "getAll" 3
+      parameters = [ tableParam ]
+      returnType = TList TAny
+      description = "Fetch all the values in `table`."
+      fn =
+        InProcess
+          (function
+          | state, [ DDB dbname ] ->
+              taskv {
+                let db = state.dbs.[dbname]
+                let! results = UserDB.getAll state db
+                return results |> List.map (fun (_, v) -> v) |> Dval.list
+              }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "DB" "getAllWithKeys" 1
       parameters = [ tableParam ]
       returnType = TList TAny
