@@ -25,53 +25,6 @@ let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   | RT.DFakeVal (RT.DIncomplete source) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
   | dv -> dv
 
-open LibExecution.RuntimeTypes
-
-let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
-  let de l r = dvalEquals l r msg
-
-  match left, right with
-  | DFloat l, DFloat r -> Expect.floatClose Accuracy.veryHigh l r msg
-  | DResult (Ok l), DResult (Ok r) -> de l r
-  | DResult (Error l), DResult (Error r) -> de l r
-  | DOption (Some l), DOption (Some r) -> de l r
-  | DList ls, DList rs -> List.iter2 de ls rs
-  | DObj ls, DObj rs ->
-      List.iter2
-        (fun (k1, v1) (k2, v2) ->
-          Expect.equal k1 k2 msg
-          de v1 v2)
-        (Map.toList ls)
-        (Map.toList rs)
-  | DHttpResponse (Response (sc1, h1), b1), DHttpResponse (Response (sc2, h2), b2) ->
-      Expect.equal sc1 sc2 msg
-      Expect.equal h1 h2 msg
-      de b1 b2
-  | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
-      Expect.equal u1 u2 msg
-      de b1 b2
-  | DFakeVal (DIncomplete _), DFakeVal (DIncomplete _) ->
-      Expect.equal true true "two incompletes"
-  // Keep for exhaustiveness checking
-  | DHttpResponse _, _
-  | DObj _, _
-  | DList _, _
-  | DResult _, _
-  | DOption _, _
-  // All others can be directly compared
-  | DInt _, _
-  | DDate _, _
-  | DBool _, _
-  | DFloat _, _
-  | DNull, _
-  | DStr _, _
-  | DChar _, _
-  | DFnVal _, _
-  | DFakeVal _, _
-  | DDB _, _
-  | DUuid _, _
-  | DBytes _, _ -> Expect.equal left right msg
-
 let fns =
   lazy
     (LibExecution.StdLib.StdLib.fns
@@ -234,12 +187,12 @@ let fileTests () : Test =
 let fqFnName =
   testMany
     "FQFnName.ToString"
-    (fun (name : FQFnName.T) -> name.ToString())
-    [ (FQFnName.stdlibName "" "++" 0), "++_v0"
-      (FQFnName.stdlibName "" "!=" 0), "!=_v0"
-      (FQFnName.stdlibName "" "&&" 0), "&&_v0"
-      (FQFnName.stdlibName "" "toString" 0), "toString_v0"
-      (FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+    (fun (name : RT.FQFnName.T) -> name.ToString())
+    [ (RT.FQFnName.stdlibName "" "++" 0), "++_v0"
+      (RT.FQFnName.stdlibName "" "!=" 0), "!=_v0"
+      (RT.FQFnName.stdlibName "" "&&" 0), "&&_v0"
+      (RT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
+      (RT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
 // TODO parsing function names from OCaml
 
