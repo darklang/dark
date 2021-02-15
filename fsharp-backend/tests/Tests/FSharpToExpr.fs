@@ -297,6 +297,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       // A pipe with more than one entry
       | PT.EPipe (id, arg1, arg2, rest) as pipe ->
           PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+      | PT.EVariable (id, name) ->
+          PT.EFnCall(id, PT.FQFnName.userFnName name, [ c arg ], PT.NoRail)
       | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
   | SynExpr.FromParseError _ as expr ->
       failwith $"There was a parser error parsing: {expr}"

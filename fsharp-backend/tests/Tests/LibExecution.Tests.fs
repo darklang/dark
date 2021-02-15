@@ -29,7 +29,12 @@ let fns =
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
      |> Map.fromListBy (fun fn -> fn.name))
 
-let t (comment : string) (code : string) (dbs : List<RT.DB.T>) : Test =
+let t
+  (comment : string)
+  (code : string)
+  (dbs : List<RT.DB.T>)
+  (functions : Map<string, RT.UserFunction.T>)
+  : Test =
   let name = $"{comment} ({code})"
 
   if code.StartsWith "//" then
@@ -60,7 +65,16 @@ let t (comment : string) (code : string) (dbs : List<RT.DB.T>) : Test =
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let tlid = id 7
 
-        let state = Exe.createState ownerID canvasID tlid (fns.Force()) dbs [] [] []
+        let state =
+          Exe.createState
+            ownerID
+            canvasID
+            tlid
+            (fns.Force())
+            dbs
+            (Map.values functions)
+            []
+            []
 
         let! actual = Exe.run state Map.empty actualProg
         let! expected = Exe.run state Map.empty expectedResult
@@ -131,7 +145,9 @@ let fileTests () : Test =
 
          let finish () =
            if currentTest.recording then
-             let newTestCase = t currentTest.name currentTest.code currentTest.dbs
+             let newTestCase =
+               t currentTest.name currentTest.code currentTest.dbs functions
+
              allTests <- allTests @ [ newTestCase ]
 
            if List.length currentGroup.tests > 0 then
@@ -182,7 +198,7 @@ let fileTests () : Test =
 
                     dbs <- Map.add name db dbs
                 // [function] declaration
-                | Regex @"^\[fn.\s+(.*)\]$" [ name; definition ] ->
+                | Regex @"^\[fn\.(.*) (.*)\]$" [ name; definition ] ->
                     finish ()
 
                     let parameters : List<RT.UserFunction.Parameter> =
@@ -211,22 +227,24 @@ let fileTests () : Test =
                 | Regex @"^\[test\.(.*)\]$" [ name ] ->
                     finish ()
                     currentTest <- { currentTest with name = name; recording = true }
+                // Skip whitespace lines
+                | Regex @"^\s*$" [] -> ()
+                // Skip whole-line comments
+                | Regex @"^\s+//.*$" [] -> ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
                     currentTest <-
                       { currentTest with code = currentTest.code + line }
                 | _ when currentFn.recording ->
                     currentFn <- { currentFn with code = currentFn.code + line }
-                // Skip whitespace lines
-                | Regex "^\s*$" [] -> ()
                 // 1-line test
                 | Regex "^(.*)\s*$" [ code ] ->
-                    let test = t $"line {i}" code []
+                    let test = t $"line {i}" code [] functions
 
                     currentGroup <-
                       { currentGroup with tests = currentGroup.tests @ [ test ] }
                 | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                    let test = t $"{comment} (line {i})" code []
+                    let test = t $"{comment} (line {i})" code [] functions
 
                     currentGroup <-
                       { currentGroup with tests = currentGroup.tests @ [ test ] }

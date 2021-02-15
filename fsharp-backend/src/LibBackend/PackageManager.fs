@@ -298,7 +298,7 @@ let allFunctions () : Task<List<PT.PackageManager.Fn>> =
   |> Sql.executeAsync
        (fun read ->
          { name =
-             PT.FQFnName.name
+             PT.FQFnName.packageName
                (read.string "username")
                (read.string "package")
                (read.string "module")

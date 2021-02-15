@@ -51,16 +51,17 @@ module FQFnName =
         function_ = this.function_
         version = this.version }
 
-  let name
+  let namePat = @"^[a-z][a-z0-9_]*$"
+  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+  let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
+
+  let packageName
     (owner : string)
     (package : string)
     (module_ : string)
     (function_ : string)
     (version : int)
     : T =
-    let namePat = @"^[a-z][a-z0-9_]*$"
-    let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
-    let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
@@ -72,6 +73,10 @@ module FQFnName =
       module_ = module_
       function_ = function_
       version = version }
+
+  let userFnName (fnName : string) : T =
+    assertRe "function name must match" fnnamePat fnName
+    { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
 
   let parse (fnName : string) : T =
     let owner, package, module_, function_, version =
@@ -94,10 +99,11 @@ module FQFnName =
       | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
       | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
-    name owner package module_ function_ version
+    packageName owner package module_ function_ version
 
   let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    name "dark" "stdlib" module_ function_ version
+    packageName "dark" "stdlib" module_ function_ version
+
 
 type Expr =
   | EInteger of id * bigint

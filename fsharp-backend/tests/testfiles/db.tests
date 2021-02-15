@@ -208,8 +208,8 @@
        ; d = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
        })
 
-//[fn friends lambda]
-//(let rossDOB = Date.parse_v2_ster "1967-05-12T00:00:00Z" in
+[fn.friends lambda]
+(let rossDOB = Date.parse_v2_ster "1967-05-12T00:00:00Z" in
 //let rachelDOB = Date.parse_v2_ster "1969-05-05T00:00:00Z" in
 //let chandlerDOB = Date.parse_v2_ster "1969-08-19T10:13:42Z" in
 //let catDob = Date.parse_v2_ster "2012-04-04T00:00:00Z" in
@@ -223,10 +223,10 @@
 //let _ = DB.set_v1 chandler "chandler" Person in
 //let _ = DB.set_v1 cat "cat" Person in
 //let _ = DB.set_v1 null "null" Person in
-//(DB.query_v4 Person lambda)
-//|> List.map (fun p -> p.name)
-//|> List.sort)
-//
-//
-//[test.db] with DB Person
-//(friends (fun p -> true)) = ["cat"; "chandler"; "null"; "rachel"; "ross" ]
+ ((DB.query_v4 Person lambda)
+ |> List.map_v1 (fun p -> p.name)
+ |> List.sort_v0))
+
+
+[test.db] with DB Person
+(friends (fun p -> true)) = ["cat"; "chandler"; "null"; "rachel"; "ross" ]
