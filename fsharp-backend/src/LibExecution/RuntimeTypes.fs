@@ -327,7 +327,7 @@ module Dval =
     | DObj obj -> Map.toList obj
     | _ -> failwith "expecting str"
 
-  let toType (dv : Dval) : DType =
+  let rec toType (dv : Dval) : DType =
     match dv with
     | DInt _ -> TInt
     | DFloat _ -> TFloat
@@ -335,19 +335,23 @@ module Dval =
     | DNull -> TNull
     | DChar _ -> TChar
     | DStr _ -> TStr
-    | DList _ -> TList TAny
-    | DObj _ -> TRecord []
+    | DList (head :: _) -> TList(toType head)
+    | DList [] -> TList TAny
+    | DObj map ->
+        map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TLambda
     | DFakeVal (DError _) -> TError
     | DFakeVal (DIncomplete _) -> TIncomplete
-    | DHttpResponse _ -> THttpResponse TAny
+    | DFakeVal (DErrorRail _) -> TErrorRail
+    | DHttpResponse (_, dv) -> THttpResponse(toType dv)
     | DDB _ -> TDB TAny
     | DDate _ -> TDate
     // | DPassword _ -> TPassword
     | DUuid _ -> TUuid
-    | DOption _ -> TOption TAny
-    | DFakeVal (DErrorRail _) -> TErrorRail
-    | DResult _ -> TResult(TAny, TAny)
+    | DOption None -> TOption TAny
+    | DOption (Some v) -> TOption(toType v)
+    | DResult (Ok v) -> TResult(toType v, TAny)
+    | DResult (Error v) -> TResult(TAny, toType v)
     | DBytes _ -> TBytes
 
   let int (i : int) = DInt(bigint i)
