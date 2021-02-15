@@ -50,7 +50,7 @@ let incorrectArgs () = raise (StdlibException IncorrectArgs)
 let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   let actualRepr = DvalRepr.toDeveloperReprV0 actual
   let actualType = Dval.toType actual
-  let actualTypeRepr = DvalRepr.typeToDeveloperReprV0
+  let actualTypeRepr = DvalRepr.typeToDeveloperReprV0 actualType
   let expectedTypeRepr = DvalRepr.typeToDeveloperReprV0 p.typ
   let fnname = name.ToString()
 
