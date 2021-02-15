@@ -48,8 +48,6 @@ let throw (str : string) : 'a = raise (StdlibException(StringError str))
 let incorrectArgs () = raise (StdlibException IncorrectArgs)
 
 let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
-  let repr = DvalRepr.toDeveloperReprV0 actual
-  let typ = DvalRepr.typeToDeveloperReprV0 p.typ
   let actualRepr = DvalRepr.toDeveloperReprV0 actual
   let actualType = Dval.toType actual
   let actualTypeRepr = DvalRepr.typeToDeveloperReprV0
@@ -66,8 +64,8 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
         " Use ++ to concatenate"
     | _ -> ""
 
-  $"{fnname} was called with a {actualTypeRepr} (actualRepr), but `{p.name}` expected "
-  + "an {expectedTypeRepr}.{conversionMsg}"
+  $"{fnname} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
+  + $"an {expectedTypeRepr}.{conversionMsg}"
 
 
 // When a function has been removed (rarely happens but does happen occasionally)
