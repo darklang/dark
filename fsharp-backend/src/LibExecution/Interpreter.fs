@@ -406,9 +406,11 @@ and applyFnVal
         | (FnName desc) ->
             let fn =
               match desc.owner, desc.package, desc.module_ with
-              | "dark", "stdlib", _ -> state.functions.TryFind desc
-              // | "", "", "" -> state.userFns.TryFind desc.function_
-              | _ -> fstodo "Support Packages functions"
+              | "dark", "stdlib", _ ->
+                  state.functions.TryFind desc |> Option.map builtInFnToFn
+              | "", "", "" ->
+                  state.userFns.TryFind desc.function_ |> Option.map userFnToFn
+              | _ -> state.packageFns.TryFind desc |> Option.map packageFnToFn
 
             let! result =
               // FSTODO: user functions
@@ -420,7 +422,7 @@ and applyFnVal
                     try
                       // FSTODO: all the behaviour in AST.exec_fn
                       match fn.fn with
-                      | InProcess fnval ->
+                      | StdLib fnval ->
                           // evaluate this here so that the exception gets caught here
                           return! fnval (state, args)
                       | _ ->

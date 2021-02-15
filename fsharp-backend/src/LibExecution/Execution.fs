@@ -30,7 +30,7 @@ let createState
   (canvasID : CanvasID)
   (tlid : tlid)
   (functions : Map<RT.FQFnName.T, RT.BuiltInFn>)
-  // (packageFns : List<RT.PackageFn.T>)
+  (packageFns : Map<RT.FQFnName.T, RT.Package.Fn>)
   (dbs : Map<string, RT.DB.T>)
   (userFns : Map<string, RT.UserFunction.T>)
   (userTypes : Map<string, RT.UserType.T>)
@@ -43,7 +43,7 @@ let createState
     canvasID = canvasID
     userFns = userFns
     userTypes = userTypes
-    // packageFns = packageFns
+    packageFns = packageFns
     dbs = dbs
     secrets = secrets
     trace = (fun on_execution_path _ _ -> ())

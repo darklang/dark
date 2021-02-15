@@ -71,6 +71,7 @@ let t
             canvasID
             tlid
             (fns.Force())
+            Map.empty
             (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
             functions
             Map.empty
@@ -161,7 +162,7 @@ let fileTests () : Test =
                  returnType = RT.TAny
                  description = "test function"
                  infix = false
-                 ast = (FSharpToExpr.parseRTExpr currentFn.code)
+                 body = (FSharpToExpr.parseRTExpr currentFn.code)
                  parameters = currentFn.parameters }
 
              functions <- Map.add currentFn.name fn functions

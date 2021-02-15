@@ -17,10 +17,9 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the inverse of `b`: true if `b` is false and false if `b` is true"
       fn =
-        InProcess
-          (function
-          | _, [ DBool b ] -> Value(DBool(not b))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DBool b ] -> Value(DBool(not b))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -29,10 +28,9 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if both a and b are true"
       fn =
-        InProcess
-          (function
-          | _, [ DBool a; DBool b ] -> Value(DBool(a && b))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DBool a; DBool b ] -> Value(DBool(a && b))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -41,10 +39,9 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if either a is true or b is true"
       fn =
-        InProcess
-          (function
-          | _, [ DBool a; DBool b ] -> Value(DBool(a || b))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DBool a; DBool b ] -> Value(DBool(a || b))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -54,10 +51,9 @@ let fns : List<BuiltInFn> =
       description =
         "Returns `true` if exactly one of `a` and `b` is `true`. Returns `false` if both are `true` or neither is `true`."
       fn =
-        InProcess
-          (function
-          | _, [ DBool a; DBool b ] -> Value(DBool(a <> b))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DBool a; DBool b ] -> Value(DBool(a <> b))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -66,15 +62,14 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if the `check` parameter is null"
       fn =
-        InProcess
-          (function
-          | _, [ value ] ->
-              Value(
-                match value with
-                | DNull -> DBool true
-                | _ -> DBool false
-              )
-          | args -> incorrectArgs ())
+        (function
+        | _, [ value ] ->
+            Value(
+              match value with
+              | DNull -> DBool true
+              | _ -> DBool false
+            )
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -83,15 +78,14 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns `true` if the `check` parameter is an error"
       fn =
-        InProcess
-          (function
-          | _, [ value ] ->
-              Value(
-                match value with
-                | DFakeVal (DError _) -> DBool true
-                | _ -> DBool false
-              )
-          | args -> incorrectArgs ())
+        (function
+        | _, [ value ] ->
+            Value(
+              match value with
+              | DFakeVal (DError _) -> DBool true
+              | _ -> DBool false
+            )
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated =

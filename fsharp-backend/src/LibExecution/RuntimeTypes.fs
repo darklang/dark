@@ -51,24 +51,37 @@ module FQFnName =
 
       if this.owner = "dark" && this.package = "stdlib" then fn
       else if this.owner = "" && this.package = "" then fn
-      else $"{this.owner}/{this.package}::{fn}"
+      else $"{this.owner}/{this.package}/{fn}"
 
-  let name
+  let namePat = @"^[a-z][a-z0-9_]*$"
+  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+  let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
+
+  let packageName
     (owner : string)
     (package : string)
     (module_ : string)
     (function_ : string)
     (version : int)
     : T =
+    assertRe "owner must match" namePat owner
+    assertRe "package must match" namePat package
+    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    assertRe "function name must match" fnnamePat function_
+    assert_ "version can't be negative" (version >= 0)
+
     { owner = owner
       package = package
       module_ = module_
       function_ = function_
       version = version }
 
+  let userFnName (fnName : string) : T =
+    assertRe "function name must match" fnnamePat fnName
+    { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
 
   let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    name "dark" "stdlib" module_ function_ version
+    packageName "dark" "stdlib" module_ function_ version
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
@@ -443,7 +456,7 @@ module UserFunction =
       returnType : DType
       description : string
       infix : bool
-      ast : Expr }
+      body : Expr }
 
 type Toplevel =
   | TLHandler of Handler.T
@@ -465,6 +478,20 @@ module Secret =
 // ------------
 // Functions
 // ------------
+
+module Package =
+  type Parameter = { name : string; typ : DType; description : string }
+
+  type Fn =
+    { name : FQFnName.T
+      body : Expr
+      parameters : List<Parameter>
+      returnType : DType
+      description : string
+      author : string
+      deprecated : bool
+      tlid : tlid }
+
 
 // The runtime needs to know whether to save a function's results when it
 // runs. Pure functions that can be run on the client do not need to have
@@ -509,14 +536,28 @@ type BuiltInFn =
     // LibExecution. Functions whose implementation is in LibBackend can only be
     // implemented on the server.
     // May throw an exception, though we're trying to get them to never throw exceptions.
+    fn : BuiltInFnSig }
+
+and Fn =
+  { name : FQFnName.T
+    parameters : List<Param>
+    returnType : DType
+    description : string
+    previewable : Previewable
+    deprecated : Deprecation
+    sqlSpec : SqlSpec
+    // Functions can be run in JS if they have an implementation in this
+    // LibExecution. Functions whose implementation is in LibBackend can only be
+    // implemented on the server.
+    // May throw an exception, though we're trying to get them to never throw exceptions.
     fn : FnImpl }
 
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
 
 and FnImpl =
-  | InProcess of BuiltInFnSig
-  | UserCreated of tlid * Expr
-  | PackageFunction of Expr
+  | StdLib of BuiltInFnSig
+  | UserFunction of tlid * Expr
+  | PackageFunction of tlid * Expr
 
 and Context =
   | Real
@@ -530,7 +571,7 @@ and ExecutionState =
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
     userTypes : Map<string, UserType.T>
-    // packageFns : List<PackageFn.T>
+    packageFns : Map<FQFnName.T, Package.Fn>
     secrets : List<Secret.T>
     trace : bool -> id -> Dval -> unit
     traceTLID : tlid -> unit
@@ -544,15 +585,44 @@ and ExecutionState =
     // opposed to being executed for traces)
     onExecutionPath : bool }
 
+let builtInFnToFn (fn : BuiltInFn) : Fn =
+  { name = fn.name
+    parameters = fn.parameters
+    returnType = fn.returnType
+    description = ""
+    previewable = Impure
+    deprecated = NotDeprecated
+    sqlSpec = NotQueryable
+    fn = StdLib fn.fn }
 
-//
-// let paramToBuiltinParam (p : UserFunction.Parameter) : Option<Param> =
-//   if p.name = "" then
-//     None
-//   else
-//     Some
-//       { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
-//
+let userFnToFn (fn : UserFunction.T) : Fn =
+  let toParam (p : UserFunction.Parameter) : Param =
+    { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+
+  { name = FQFnName.userFnName fn.name
+    parameters = fn.parameters |> List.map toParam
+    returnType = fn.returnType
+    description = ""
+    previewable = Impure
+    deprecated = NotDeprecated
+    sqlSpec = NotQueryable
+    fn = UserFunction(fn.tlid, fn.body) }
+
+let packageFnToFn (fn : Package.Fn) : Fn =
+  let toParam (p : Package.Parameter) : Param =
+    { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+
+  { name = fn.name
+    parameters = fn.parameters |> List.map toParam
+
+    returnType = fn.returnType
+    description = ""
+    previewable = Impure
+    deprecated = NotDeprecated
+    sqlSpec = NotQueryable
+    fn = PackageFunction(fn.tlid, fn.body) }
+
+
 // let toFn (uf : T) : Option<BuiltInFn> =
 //   let parameters = List.filterMap paramToBuiltinParam uf.parameters in
 //   let paramsAllFilled = List.length parameters = List.length uf.parameters
@@ -569,9 +639,6 @@ and ExecutionState =
 //         deprecated = NotDeprecated
 //         sqlSpec = NotQueryable
 //         fn = UserCreated(uf.tlid, uf.ast) }
-//
-//
-//
 
 // Some parts of the execution need to call AST.exec, but cannot call
 // AST.exec without a cyclic dependency. This function enables that, and it

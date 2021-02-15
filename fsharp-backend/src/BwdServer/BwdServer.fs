@@ -172,6 +172,7 @@ let runDarkHandler : HttpHandler =
                       canvasID
                       tlid
                       (fns.Force())
+                      Map.empty // FSTODO: packageFns
                       (c.dbs
                        |> Map.values
                        |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))

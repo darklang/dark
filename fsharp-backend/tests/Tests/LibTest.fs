@@ -26,10 +26,9 @@ let fns : List<BuiltInFn> =
       returnType = TOption varA
       description = "Return an errorRail wrapping nothing."
       fn =
-        InProcess
-          (function
-          | state, [] -> Value(DFakeVal(DErrorRail(DOption None)))
-          | args -> incorrectArgs ())
+        (function
+        | state, [] -> Value(DFakeVal(DErrorRail(DOption None)))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -38,11 +37,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Return a value representing a type error"
       fn =
-        InProcess
-          (function
-          | state, [ DStr errorString ] ->
-              Value(DFakeVal(DError(SourceNone, errorString)))
-          | args -> incorrectArgs ())
+        (function
+        | state, [ DStr errorString ] ->
+            Value(DFakeVal(DError(SourceNone, errorString)))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -53,12 +51,11 @@ let fns : List<BuiltInFn> =
       description =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
       fn =
-        InProcess
-          (function
-          | state, [ arg ] ->
-              sideEffectCount := !sideEffectCount + 1
-              Value(arg)
-          | args -> incorrectArgs ())
+        (function
+        | state, [ arg ] ->
+            sideEffectCount := !sideEffectCount + 1
+            Value(arg)
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -67,10 +64,9 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Return the value of the side-effect counter"
       fn =
-        InProcess
-          (function
-          | state, [] -> Value(Dval.int !sideEffectCount)
-          | args -> incorrectArgs ())
+        (function
+        | state, [] -> Value(Dval.int !sideEffectCount)
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

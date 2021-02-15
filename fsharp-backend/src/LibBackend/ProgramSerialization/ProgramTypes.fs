@@ -11,13 +11,7 @@ module LibBackend.ProgramSerialization.ProgramTypes
 // different format if you must, or track the other code along-side this and
 // use the ID to find it).
 
-open System.Runtime.InteropServices
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open FSharpPlus
-open Npgsql.FSharp
-open Npgsql
-open System.Text.RegularExpressions
 
 open Prelude
 open Tablecloth
@@ -39,10 +33,9 @@ module FQFnName =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
       let fn = $"{module_}{this.function_}_v{this.version}"
 
-      if this.owner = "dark" && this.package = "stdlib" then
-        fn
-      else
-        $"{this.owner}/{this.package}/{fn}"
+      if this.owner = "dark" && this.package = "stdlib" then fn
+      else if this.owner = "" && this.package = "" then fn
+      else $"{this.owner}/{this.package}/{fn}"
 
     member this.toRuntimeType() : RT.FQFnName.T =
       { owner = this.owner
@@ -78,6 +71,9 @@ module FQFnName =
     assertRe "function name must match" fnnamePat fnName
     { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
 
+  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
+    packageName "dark" "stdlib" module_ function_ version
+
   let parse (fnName : string) : T =
     let owner, package, module_, function_, version =
       match fnName with
@@ -101,8 +97,6 @@ module FQFnName =
 
     packageName owner package module_ function_ version
 
-  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    packageName "dark" "stdlib" module_ function_ version
 
 
 type Expr =
@@ -914,7 +908,7 @@ module UserFunction =
       returnTypeID : id
       description : string
       infix : bool
-      ast : Expr }
+      body : Expr }
 
     member this.toRuntimeType() : RT.UserFunction.T =
       { tlid = this.tlid
@@ -924,7 +918,7 @@ module UserFunction =
         returnType = this.returnType.toRuntimeType ()
         description = this.description
         infix = this.infix
-        ast = this.ast.toRuntimeType () }
+        body = this.body.toRuntimeType () }
 
 type Toplevel =
   | TLHandler of Handler.T

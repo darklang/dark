@@ -148,7 +148,7 @@ let tlidOplists2oplist (tos : PT.TLIDOplists) : PT.Oplist =
 
 let ast_of (op : PT.Op) : PT.Expr option =
   match op with
-  | PT.SetFunction f -> Some f.ast
+  | PT.SetFunction f -> Some f.body
   | PT.SetExpr (_, _, ast) -> Some ast
   | PT.SetHandler (_, _, h) -> Some h.ast
   | PT.CreateDB (_, _, _)
@@ -182,7 +182,7 @@ let ast_of (op : PT.Op) : PT.Expr option =
 
 let withAST (newAST : PT.Expr) (op : PT.Op) =
   match op with
-  | PT.SetFunction userfn -> PT.SetFunction { userfn with ast = newAST }
+  | PT.SetFunction userfn -> PT.SetFunction { userfn with body = newAST }
   | PT.SetExpr (tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
   | PT.SetHandler (tlid, id, handler) ->
       PT.SetHandler(tlid, id, { handler with ast = newAST })

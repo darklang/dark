@@ -47,10 +47,10 @@ let infixFnNames =
 // Is this the name of an infix function?
 let isInfixName (name : FQFnName.T) = infixFnNames.Contains name
 
-let infixFns =
+let infixFns : List<BuiltInFn> =
   let fns =
     List.choose
-      (fun builtin ->
+      (fun (builtin : BuiltInFn)->
         let opName = infixFnMapping.TryFind builtin.name
         Option.map (fun newName -> { builtin with name = newName }) opName)
       prefixFns

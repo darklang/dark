@@ -14,10 +14,9 @@ let fns : List<BuiltInFn> =
         [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "a") "" ]
       returnType = TBool
       fn =
-        InProcess
-          (function
-          | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -27,10 +26,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" (TVariable "a") "" ]
       returnType = TStr
       fn =
-        InProcess
-          (function
-          | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Value
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ a ] -> a |> DvalRepr.toEnduserReadableTextV0 |> DStr |> Value
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

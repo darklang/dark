@@ -115,7 +115,7 @@ let eFnVal
   (function_ : string)
   (version : int)
   : Expr =
-  EFQFnValue(gid (), FQFnName.name owner package module_ function_ version)
+  EFQFnValue(gid (), FQFnName.packageName owner package module_ function_ version)
 
 let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
   eFnVal "dark" "stdlib" module_ function_ version

@@ -58,7 +58,7 @@ let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
-  if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false
+  if m.Success then () else assert_ $"{msg} (\"{input}\" ~= /{pattern}/)" false
 
 // ----------------------
 // Standard conversion functions
