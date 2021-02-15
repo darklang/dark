@@ -10,6 +10,7 @@ open Prelude
 open Tablecloth
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
@@ -318,4 +319,5 @@ let convertToTest
       (convert actual, convert expected)
   | _ -> convert ast, LibExecution.Shortcuts.eBool true
 
-let parseDarkExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
+let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
+let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType()

@@ -90,6 +90,21 @@ let t (comment : string) (code : string) (dbs : List<RT.DB.T>) : Test =
 //   [test.name] indicates that the following lines, up until the next test
 //   indicator, are all a single test named "name", and should be parsed as
 //   one.
+type TestInfo =
+  { name : string
+    recording : bool
+    code : string
+    dbs : List<RT.DB.T> }
+
+type TestGroup = { name : string; tests : List<Test> }
+
+type FnInfo =
+  { name : string
+    recording : bool
+    code : string
+    tlid : tlid
+    parameters : List<RT.UserFunction.Parameter> }
+
 let fileTests () : Test =
   let dir = "tests/testfiles/"
 
@@ -97,33 +112,48 @@ let fileTests () : Test =
   |> Array.map
        (fun file ->
          let filename = System.IO.Path.GetFileName file
-         let mutable currentTestName = ""
-         let mutable currentTestDBs = []
-         let mutable currentTests = []
-         let mutable singleTestMode = false
-         let mutable currentTestString = "" // keep track of the current [test]
-         let mutable allTests = ref []
+         let emptyTest = { recording = false; name = ""; dbs = []; code = "" }
+
+         let emptyFn =
+           { recording = false; name = ""; parameters = []; code = ""; tlid = id 0 }
+
+         let emptyGroup = { name = ""; tests = [] }
+
+         // for recording a multiline test
+         let mutable currentTest = emptyTest
+         // for recording a multiline function
+         let mutable currentFn = emptyFn
+         // for recording a bunch if single-line tests grouped together
+         let mutable currentGroup = emptyGroup
+         let mutable allTests = []
          let mutable functions : Map<string, RT.UserFunction.T> = Map.empty
          let mutable dbs : Map<string, RT.DB.T> = Map.empty
 
          let finish () =
-           // Add the current work to allTests, and clear
-           let newTestCase =
-             if singleTestMode then
-               // Add a single test case
-               t currentTestName currentTestString currentTestDBs
-             else
-               // Put currentTests in a group and add them
-               testList currentTestName currentTests
+           if currentTest.recording then
+             let newTestCase = t currentTest.name currentTest.code currentTest.dbs
+             allTests <- allTests @ [ newTestCase ]
 
-           allTests := !allTests @ [ newTestCase ]
+           if List.length currentGroup.tests > 0 then
+             let newTestCase = testList currentGroup.name currentGroup.tests
+             allTests <- allTests @ [ newTestCase ]
+
+           if currentFn.recording then
+             let (fn : RT.UserFunction.T) =
+               { tlid = currentFn.tlid
+                 name = currentFn.name
+                 returnType = RT.TAny
+                 description = "test function"
+                 infix = false
+                 ast = (FSharpToExpr.parseRTExpr currentFn.code)
+                 parameters = currentFn.parameters }
+
+             functions <- Map.add currentFn.name fn functions
 
            // Clear settings
-           currentTestName <- ""
-           currentTestDBs <- []
-           singleTestMode <- false
-           currentTestString <- ""
-           currentTests <- []
+           currentTest <- emptyTest
+           currentFn <- emptyFn
+           currentGroup <- emptyGroup
 
          (dir + filename)
          |> System.IO.File.ReadLines
@@ -135,9 +165,11 @@ let fileTests () : Test =
                 // [tests] indicator
                 | Regex @"^\[tests\.(.*)\]$" [ name ] ->
                     finish ()
-                    currentTestName <- name
+                    currentGroup <- { currentGroup with name = name }
                 // [db] declaration
                 | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
+                    finish ()
+
                     let (db : RT.DB.T) =
                       { tlid = id i
                         name = name
@@ -149,52 +181,59 @@ let fileTests () : Test =
                           |> Map.toList }
 
                     dbs <- Map.add name db dbs
-                | Regex @"^\[fn.\s+(.*)\]$" [ name; definition ] ->
-                    let (db : RT.DB.T) =
-                      { tlid = id i
-                        name = name
-                        version = 0
-                        cols =
-                          definition
-                          |> Json.AutoSerialize.deserialize<Map<string, string>>
-                          |> Map.toList
-                          |> List.map
-                               (fun (k, v) ->
-                                 (k, LibExecution.DvalRepr.dtypeOfString v)) }
-
-                    dbs <- Map.add name db dbs
                 // [function] declaration
+                | Regex @"^\[fn.\s+(.*)\]$" [ name; definition ] ->
+                    finish ()
+
+                    let parameters : List<RT.UserFunction.Parameter> =
+                      definition
+                      |> String.split " "
+                      |> List.map
+                           (fun name ->
+                             { name = name; description = ""; typ = RT.TAny })
+
+                    currentFn <-
+                      { tlid = id i
+                        recording = true
+                        name = name
+                        parameters = parameters
+                        code = "" }
                 // [test] with DB indicator
                 | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
                     finish ()
 
                     match Map.get dbName dbs with
-                    | Some db -> currentTestDBs <- [ db ]
+                    | Some db -> currentTest <- { currentTest with dbs = [ db ] }
                     | None -> failwith $"No DB named {dbName} found"
 
-                    singleTestMode <- true
-                    currentTestName <- name
+                    currentTest <- { currentTest with name = name; recording = true }
                 // [test] indicator (no DB)
                 | Regex @"^\[test\.(.*)\]$" [ name ] ->
                     finish ()
-                    singleTestMode <- true
-                    currentTestName <- name
+                    currentTest <- { currentTest with name = name; recording = true }
                 // Append to the current test string
-                | _ when singleTestMode ->
-                    currentTestString <- currentTestString + line
+                | _ when currentTest.recording ->
+                    currentTest <-
+                      { currentTest with code = currentTest.code + line }
+                | _ when currentFn.recording ->
+                    currentFn <- { currentFn with code = currentFn.code + line }
                 // Skip whitespace lines
                 | Regex "^\s*$" [] -> ()
                 // 1-line test
                 | Regex "^(.*)\s*$" [ code ] ->
-                    currentTests <- currentTests @ [ t $"line {i}" code [] ]
-                // 1-line test w/ comment or commented out lines
+                    let test = t $"line {i}" code []
+
+                    currentGroup <-
+                      { currentGroup with tests = currentGroup.tests @ [ test ] }
                 | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                    currentTests <-
-                      currentTests @ [ t $"{comment} (line {i})" code [] ]
+                    let test = t $"{comment} (line {i})" code []
+
+                    currentGroup <-
+                      { currentGroup with tests = currentGroup.tests @ [ test ] }
                 | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()
-         testList $"Tests from {filename}" !allTests)
+         testList $"Tests from {filename}" allTests)
   |> Array.toList
   |> testList "All files"
 
