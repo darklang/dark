@@ -230,7 +230,7 @@ let fileTests () : Test =
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments
-                | Regex @"^\s+//.*$" [] -> ()
+                | Regex @"^\s*//.*$" [] -> ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
                     currentTest <-
