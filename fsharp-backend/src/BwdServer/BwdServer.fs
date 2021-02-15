@@ -172,13 +172,18 @@ let runDarkHandler : HttpHandler =
                       canvasID
                       tlid
                       (fns.Force())
-                      (c.dbs |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
+                      (c.dbs
+                       |> Map.values
+                       |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
+                       |> Map.ofList)
                       (c.userFunctions
-                       |> Map.map (fun pt -> pt.toRuntimeType ())
-                       |> Map.values)
+                       |> Map.values
+                       |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
+                       |> Map.ofList)
                       (c.userTypes
-                       |> Map.map (fun pt -> pt.toRuntimeType ())
-                       |> Map.values)
+                       |> Map.values
+                       |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
+                       |> Map.ofList)
                       (c.secrets
                        |> Map.map (fun pt -> pt.toRuntimeType ())
                        |> Map.values)

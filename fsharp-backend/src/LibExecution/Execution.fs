@@ -31,9 +31,9 @@ let createState
   (tlid : tlid)
   (functions : Map<RT.FQFnName.T, RT.BuiltInFn>)
   // (packageFns : List<RT.PackageFn.T>)
-  (dbs : List<RT.DB.T>)
-  (userFns : List<RT.UserFunction.T>)
-  (userTypes : List<RT.UserType.T>)
+  (dbs : Map<string, RT.DB.T>)
+  (userFns : Map<string, RT.UserFunction.T>)
+  (userTypes : Map<string, RT.UserType.T>)
   (secrets : List<RT.Secret.T>)
   : RT.ExecutionState =
   { tlid = tlid
@@ -44,7 +44,7 @@ let createState
     userFns = userFns
     userTypes = userTypes
     // packageFns = packageFns
-    dbs = dbs |> List.map (fun (db : RT.DB.T) -> (db.name, db)) |> Map.ofList
+    dbs = dbs
     secrets = secrets
     trace = (fun on_execution_path _ _ -> ())
     traceTLID = fun _ -> ()

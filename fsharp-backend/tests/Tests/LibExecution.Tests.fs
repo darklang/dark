@@ -71,9 +71,9 @@ let t
             canvasID
             tlid
             (fns.Force())
-            dbs
-            (Map.values functions)
-            []
+            (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
+            functions
+            Map.empty
             []
 
         let! actual = Exe.run state Map.empty actualProg

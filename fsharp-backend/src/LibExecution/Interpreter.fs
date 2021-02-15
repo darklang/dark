@@ -380,7 +380,6 @@ and applyFnVal
         | _ -> return dv
     | None
     | Some _ ->
-        // FSTODO: packages and user functions
         match fnVal with
         | Lambda l ->
             let parameters = List.map snd l.parameters
@@ -405,9 +404,15 @@ and applyFnVal
               let newSymtable = Map.union paramSyms l.symtable
               return! eval state newSymtable l.body
         | (FnName desc) ->
+            let fn =
+              match desc.owner, desc.package, desc.module_ with
+              | "dark", "stdlib", _ -> state.functions.TryFind desc
+              // | "", "", "" -> state.userFns.TryFind desc.function_
+              | _ -> fstodo "Support Packages functions"
+
             let! result =
               // FSTODO: user functions
-              match state.functions.TryFind desc with
+              match fn with
               | None -> fstodo $"support builtin function {desc}"
               | Some fn ->
                   taskv {

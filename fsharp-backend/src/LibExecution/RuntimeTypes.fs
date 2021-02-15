@@ -528,8 +528,8 @@ and ExecutionState =
     canvasID : CanvasID
     accountID : UserID
     dbs : Map<string, DB.T>
-    userFns : List<UserFunction.T>
-    userTypes : List<UserType.T>
+    userFns : Map<string, UserFunction.T>
+    userTypes : Map<string, UserType.T>
     // packageFns : List<PackageFn.T>
     secrets : List<Secret.T>
     trace : bool -> id -> Dval -> unit
