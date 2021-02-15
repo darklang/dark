@@ -137,6 +137,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
       let op = Map.get ident.idText ops |> Option.unwrapUnsafe
       eBinOp "" op 0 placeholder placeholder
+  | SynExpr.Ident ident when ident.idText = "toString_v0" -> eFn "" "toString" 0 []
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
@@ -179,7 +180,6 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       PT.EFnCall(gid (), desc, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field ], _), _, _) ->
       PT.EFieldAccess(gid (), eVar var.idText, field.idText)
-
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
       PT.EFieldAccess(gid (), c expr, field.idText)
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
@@ -275,7 +275,6 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       PT.EFnCall(gid (), desc, [ c arg ], PT.NoRail)
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
-
       match c funcExpr with
       | PT.EFnCall (id, name, args, ster) ->
           PT.EFnCall(id, name, args @ [ c arg ], ster)
