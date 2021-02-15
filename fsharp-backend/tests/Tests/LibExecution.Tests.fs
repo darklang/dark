@@ -37,7 +37,7 @@ let t
   : Test =
   let name = $"{comment} ({code})"
 
-  if code.StartsWith "//" then
+  if matches "^\s*//" code then
     ptestTask name { return (Expect.equal "skipped" "skipped" "") }
   else
     testTask name {
@@ -93,10 +93,11 @@ let t
 
 // Read all test files. Test file format is as follows:
 //
-// Lines with just comments or whitespace are ignored
-// Tests are made up of code and comments, comments are used as names
+// Lines with just comments or whitespace are ignored Tests are made up of code
+// and comments, comments are used as names
 //
 // Test indicators:
+//
 //   [tests.name] denotes that the following lines (until the next test
 //   indicator) are single line tests, that are all part of the test group
 //   named "name". Single line tests should evaluate to true, and may have a
@@ -105,6 +106,20 @@ let t
 //   [test.name] indicates that the following lines, up until the next test
 //   indicator, are all a single test named "name", and should be parsed as
 //   one.
+//
+//   [db.name json_desc_of_schema] creates a DB, which can be used by tests
+//   which say "with DB DBNAME". (Only give DBs to tests which need them, as
+//   that these tests need to be isolated and that's much slower)
+//
+//   "[test.name] with DB MyDB" indicates that the following lines, up until
+//   the next test indicator, are all a single test named "name", and should be
+//   parsed as one. The DB previously defined as MyDB is available to the test.
+//
+//   [fn.name argnames] creates a function which is available to all subsequent
+//   tests. The following lines are part of the function body (until we hit
+//   another test indicator)
+
+
 type TestInfo =
   { name : string
     recording : bool
@@ -231,7 +246,8 @@ let fileTests () : Test =
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments
-                | Regex @"^\s*//.*$" [] -> ()
+                | Regex @"^\s*//.*$" [] when
+                  currentTest.recording || currentFn.recording -> ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
                     currentTest <-
