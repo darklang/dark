@@ -125,7 +125,7 @@ let toString (v : 'a) : string = v.ToString()
 type System.DateTime with
 
   member this.toIsoString() : string =
-    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
   static member ofIsoString(str : string) : System.DateTime =
     System.DateTime.Parse(str, System.Globalization.CultureInfo.InvariantCulture)

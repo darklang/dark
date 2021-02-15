@@ -14,45 +14,37 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
-  [
-    // [ { name = fn "Date" "parse" 0
-//     parameters = [ Param.make "s" TStr ]
-//     returnType = TDate
-//     description =
-//       "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
-//     fn =
-//
-//       (function
-//       | _, [ DStr s ] ->
-//           (try
-//             DDate(Stdlib_util.date_of_isostring (Unicode_string.to_string s))
-//            with e -> RT.error "Invalid date format")
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
-//     previewable = Pure
-//     deprecated = ReplacedBy(fn "" "" 0) }
-//   { name = fn "Date" "parse" 1
-//
-//     parameters = [ Param.make "s" TStr ]
-//     returnType = TResult
-//     description =
-//       "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
-//     fn =
-//
-//       (function
-//       | _, [ DStr s ] ->
-//           (try
-//             DResult(
-//               ResOk(
-//                 DDate(Stdlib_util.date_of_isostring (Unicode_string.to_string s))
-//               )
-//             )
-//            with e ->
-//              DResult(ResError(Dval.dstr_of_string_exn "Invalid date format")))
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
-//     previewable = Pure
-//     deprecated = ReplacedBy(fn "" "" 0) }
+  [ { name = fn "Date" "parse" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TDate
+      description =
+        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
+      fn =
+
+        (function
+        | _, [ DStr s ] ->
+            (try
+              Value(DDate(System.DateTime.ofIsoString s))
+             with e -> failwith "Invalid date format")
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "parse" 1) }
+    { name = fn "Date" "parse" 1
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TResult(TDate, TStr)
+      description =
+        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the Date wrapped in a Result."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            (try
+              Value(DResult(Ok(DDate(System.DateTime.ofIsoString s))))
+             with e -> Value(DResult(Error(DStr "Invalid date format"))))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "parse" 2) }
     { name = fn "Date" "parse" 2
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TDate, TStr)
@@ -68,19 +60,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   { name = fn "Date" "toString" 0
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TStr
-//     description =
-//       "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
-//     fn =
-//         //       (function
-//       | _, [ DDate d ] -> Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date d)
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "toStringISO8601BasicDateTime" 0
+    { name = fn "Date" "toString" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TStr
+      description =
+        "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
+      fn =
+        (function
+        | _, [ DDate d ] -> d.toIsoString () |> DStr |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   { name = fn "Date" "toStringISO8601BasicDateTime" 0
 //
 //     parameters = [ Param.make "date" TDate ]
 //     returnType = TStr

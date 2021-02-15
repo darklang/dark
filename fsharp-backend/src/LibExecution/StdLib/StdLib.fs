@@ -16,6 +16,7 @@ let prefixFns : List<BuiltInFn> =
                 LibList.fns
                 LibMiddleware.fns
                 LibNoModule.fns
+                LibResult.fns
                 LibString.fns ]
 
 // Map of prefix names to their infix versions
@@ -50,7 +51,7 @@ let isInfixName (name : FQFnName.T) = infixFnNames.Contains name
 let infixFns : List<BuiltInFn> =
   let fns =
     List.choose
-      (fun (builtin : BuiltInFn)->
+      (fun (builtin : BuiltInFn) ->
         let opName = infixFnMapping.TryFind builtin.name
         Option.map (fun newName -> { builtin with name = newName }) opName)
       prefixFns
