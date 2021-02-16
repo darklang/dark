@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
                  // In case there's another failure mode, rollbar
                  failwith "mod error")
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "%"
+      sqlSpec = SqlBinOp "%"
       previewable = Pure
       (*
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "+"
+      sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "subtract" 0
@@ -116,7 +116,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "-"
+      sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "multiply" 0
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "*"
+      sqlSpec = SqlBinOp "*"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "power" 0
@@ -147,7 +147,7 @@ let fns : List<BuiltInFn> =
                  // In case there's another failure mode, rollbar
                  failwith "mod error")
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "^"
+      sqlSpec = SqlBinOp "^"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "divide" 0
@@ -158,7 +158,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "/"
+      sqlSpec = SqlBinOp "/"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "absoluteValue" 0
@@ -192,7 +192,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction ">"
+      sqlSpec = SqlBinOp ">"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "greaterThanOrEqualTo" 0
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction ">="
+      sqlSpec = SqlBinOp ">="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "lessThan" 0
@@ -214,7 +214,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "<"
+      sqlSpec = SqlBinOp "<"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "lessThanOrEqualTo" 0
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
         | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "<="
+      sqlSpec = SqlBinOp "<="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "random" 0

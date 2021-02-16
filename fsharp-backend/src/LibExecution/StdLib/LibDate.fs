@@ -133,7 +133,7 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
 //       | args -> incorrectArgs ())
-//     sqlSpec = SqlFunction "+"
+//     sqlSpec = SqlBinOp "+"
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "sub" 0
@@ -145,7 +145,7 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
 //       | args -> incorrectArgs ())
-//     sqlSpec = SqlFunction "-"
+//     sqlSpec = SqlBinOp "-"
 //     previewable = Pure
 //     deprecated = ReplacedBy(fn "Date" "subtract" 0) }
 //   { name = fn "Date" "subtract" 0
@@ -157,7 +157,7 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
 //       | args -> incorrectArgs ())
-//     sqlSpec = SqlFunction "-"
+//     sqlSpec = SqlBinOp "-"
 //     previewable = Pure
 //     deprecated = NotDeprecated }
     { name = fn "Date" "greaterThan" 0
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 > d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction ">"
+      sqlSpec = SqlBinOp ">"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "lessThan" 0
@@ -179,7 +179,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 < d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction("<")
+      sqlSpec = SqlBinOp("<")
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "greaterThanOrEqualTo" 0
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 >= d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction(">=")
+      sqlSpec = SqlBinOp(">=")
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "lessThanOrEqualTo" 0
@@ -201,7 +201,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d1; DDate d2 ] -> Value(DBool(d1 <= d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction("<=")
+      sqlSpec = SqlBinOp("<=")
       previewable = Pure
       deprecated = NotDeprecated } ]
 //   { name = fn "Date" "toSeconds" 0

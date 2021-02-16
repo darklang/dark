@@ -54,7 +54,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "="
+      sqlSpec = SqlBinOp "="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "" "notEquals" 0
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ a; b ] -> Value(DBool(not (a = b)))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "<>"
+      sqlSpec = SqlBinOp "<>"
       previewable = Pure
       deprecated = NotDeprecated } ]
 // ; { name = fn "" "assoc" 0
