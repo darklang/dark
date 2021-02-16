@@ -242,42 +242,42 @@
 
 [test.db && queries] with DB Person
 (friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
-//
-//[test.db inlining] with DB Person
-//(friends (fun p -> let x = 32 in p.height > x && true) = [" Chandler "; "Rachel"; "Ross" ]
-//
-//[test.db inlining field access] with DB Person
-//(friends (fun p -> let x = p.height in true && x > 32 )) = [" Chandler "; "Rachel"; "Ross" ]
-//
-//[test.db pipes] with DB Person
-//(friends (fun p -> p.height |> ( * ) 2 |> (<) 40)) = ["GrumpyCat" ]
-//
+
+[test.db inlining] with DB Person
+(friends (fun p -> let x = 32 in p.height > x && true)) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db inlining field access] with DB Person
+(friends (fun p -> let x = p.height in true && x > 32 )) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db pipes] with DB Person
+(friends (fun p -> p.height |> ( * ) 2 |> (<) 40)) = ["GrumpyCat" ]
+
 //[test.db query with external variable] with DB Person
-//// TODO pass an external var x
+// TODO pass an external var x
 //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
-//
-//[test.db fieldaccess] with DB Person
-//(friends (fun p -> let obj = { x = 42 } in v.height > myObj.x ))
-//= [" Chandler "; "Rachel"; "Ross" ]
-//
-//[test.db nested fieldaccess] with DB Person
-//(friends (fun p -> let obj = { field1 = { field2 = 42 } } in  v.height > myObj.field1.field2 ))
-//= [" Chandler "; "Rachel"; "Ross" ]
-//
+
+[test.db fieldaccess] with DB Person
+(friends (fun p -> let obj = { x = 42 } in p.height > obj.x ))
+= [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db nested fieldaccess] with DB Person
+(friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ))
+= [" Chandler "; "Rachel"; "Ross" ]
+
 //[test.db lambda doesnt return a bool] with DB Person
 //(friends (fun p -> "x"))
 //= Test.typeError_v0 "Incorrect type in `\"x\"`, expected Bool but got a Str in \"x\""
 //
 //[test.db bad variable name] with DB Person
-//(friends (fun p -> let x = 32 in true && v.height > y)) =
+//(friends (fun p -> let x = 32 in true && p.height > y)) =
 //= Test.typeError_v0 "This variable is not defined: y")
 //
-//[test.db sql injection] with DB Person
-//(friends (fun p -> "; select * from users;" == v.name )) = []
-//
-//[test.db null equality works] with DB Person
-//(friends (fun p -> p.name = null )) = [null]
-//
+[test.db sql injection] with DB Person
+(friends (fun p -> "; select * from users;" = p.name )) = []
+
+[test.db null equality works] with DB Person
+(friends (fun p -> p.name = null )) = [null]
+
 //[test.db null inequality works] with DB Person
 //(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 //
