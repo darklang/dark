@@ -103,31 +103,6 @@ let t_db_query_works () =
 
   (* Just check enough of the other functions to verify the signature - *)
   (* they all use they same function behind the scenes. *)
-
-  check_dval
-    "queryOneWithKey - multiple"
-    (DOption OptNothing)
-    ( fn
-        "DB::queryOneWithKey_v3"
-        [var "Person"; lambda ["v"] (field "v" "human")]
-    |> exec ) ;
-  check_dval
-    "queryOneWithKey - none"
-    (DOption OptNothing)
-    ( fn
-        "DB::queryOneWithKey_v3"
-        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
-    |> exec ) ;
-  check_dval
-    "queryOneWithKey - one"
-    (DOption (OptJust rachel))
-    ( pipe
-        (fn
-           "DB::queryOneWithKey_v3"
-           [ var "Person"
-           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [fn "Option::map_v1" [pipeTarget; lambda ["r"] (field "r" "rachel")]]
-    |> exec ) ;
   check_dval
     "queryOneWithKey - empty"
     (DObj DvalMap.empty)

@@ -476,16 +476,17 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "empty" 0
-    //
-    //   ; parameters = []
-    //   ; returnType = TObj
-    //   ; description = "Returns an empty dictionary."
-    //   ; fn =
-    //        (function _, [] -> DObj DvalMap.empty | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "empty" 0
+      parameters = []
+      returnType = TDict varA
+      description = "Returns an empty dictionary."
+      fn =
+        (function
+        | _, [] -> Value(DObj Map.empty)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Dict" "isEmpty" 0
     //
     //   ; parameters = [Param.make "dict" TObj]
