@@ -44,6 +44,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Test" "sqlError" 0
+      parameters = [ Param.make "errorString" TStr "" ]
+      returnType = TInt
+      description = "Return a value that matches errors thrown by the SqlCompiler"
+      fn =
+        (function
+        | state, [ DStr errorString ] ->
+            let msg = LibBackend.Db.queryCompilerErrorTemplate ++ errorString
+            Value(DFakeVal(DError(SourceNone, msg)))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
         [ Param.make "passThru" (TVariable "a") "Value which will be returned" ]

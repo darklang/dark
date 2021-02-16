@@ -137,9 +137,10 @@ exception DBQueryException of string
 
 exception FakeValFoundInQuery of RT.Dval
 
+let queryCompilerErrorTemplate =
+  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\nError: "
+
 let dbQueryExceptionToString =
   function
-  | DBQueryException str ->
-      "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\n  Error: "
-      + str
+  | DBQueryException str -> queryCompilerErrorTemplate ++ str
   | _ -> ""

@@ -146,7 +146,7 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
   | _ ->
       let actual = DvalRepr.typeToDeveloperReprV0 actualType
       let expected = DvalRepr.typeToDeveloperReprV0 expectedType
-      error $"Incorrect type in `{name}`, expected {expected}, but got a {actual}"
+      error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
 // (* TODO: support character. And maybe lists and
 //  * bytes. Probably something can be done with options and results. *)
@@ -298,32 +298,32 @@ let rec lambdaToSql
         | Last -> String.concat ", " (List.append args [ argSql ])
 
       $"({opname} ({args}))", vars
-  | EVariable (_, name) ->
-      (match Map.get name symtable with
-       | Some dval ->
-           typecheckDval name dval expectedType
-           let random = randomString 8
-           let name = $"{name}_{random}"
-           $"(@{name})", [ name, dvalToSql dval ]
-       | None -> error2 "This variable is not defined" name)
+  | EVariable (_, varname) ->
+      match Map.get varname symtable with
+      | Some dval ->
+          typecheckDval $"variable {varname}" dval expectedType
+          let random = randomString 8
+          let newname = $"{varname}_{random}"
+          $"(@{newname})", [ newname, dvalToSql dval ]
+      | None -> error $"This variable is not defined: {varname}"
   | EInteger (_, v) ->
-      typecheck (toString v) TInt expectedType
+      typecheck $"integer {v}" TInt expectedType
       let name = randomString 10
       $"(@{name})", [ name, v |> int64 |> Sql.int64 ]
   | EBool (_, v) ->
-      typecheck (toString v) TBool expectedType
+      typecheck $"bool {v}" TBool expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.bool v ]
   | ENull _ ->
-      typecheck "null" TNull expectedType
+      typecheck "value null" TNull expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.dbnull ]
   | EFloat (_, v) ->
-      typecheck (toString v) TFloat expectedType
+      typecheck $"float {v}" TFloat expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.double v ]
   | EString (_, v) ->
-      typecheck $"\"{v}\"" TStr expectedType
+      typecheck $"string \"{v}\"" TStr expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.string v ]
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
@@ -341,7 +341,7 @@ let rec lambdaToSql
       (match expectedType with
        | TDate ->
            // This match arm handles types that are serialized in
-           // unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, maning
+           // unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, meaning
            // they are wrapped in {type:, value:}. Right now, of the types sql
            // compiler supports, that's just TDate.
            // Likely future candidates include DPassword and DUuid; at time of
