@@ -523,10 +523,22 @@ type SqlSpec =
   | NotYetImplementedTODO
   // This is not a function which can be queried
   | NotQueryable
-  // This can be implemented by a builtin postgres 9.6 function.
-  | SqlFunction of string
   // This is a query function (it can't be called inside a query, but it's argument can be a query)
   | QueryFunction
+  // This can be implemented by a builtin postgres 9.6 operator with 1 arg (eg `@ x`)
+  | SqlUnaryOp of string
+  // This can be implemented by a builtin postgres 9.6 operator with 2 args (eg `x + y`)
+  | SqlBinOp of string
+  // This can be implemented by a builtin postgres 9.6 function
+  | SqlFunction of string
+  // This can be implemented by a builtin postgres 9.6 function with extra arguments that go first
+  | SqlFunctionWithPrefixArgs of string * List<string>
+  // This can be implemented by a builtin postgres 9.6 function with extra arguments that go last
+  | SqlFunctionWithSuffixArgs of string * List<string>
+// This can be implemented by this callback that receives 1 SQLified-string argument
+// | SqlCallback of (string -> string)
+// This can be implemented by this callback that receives 2 SQLified-string argument
+// | SqlCallback2 of (string -> string -> string)
 
 type BuiltInFn =
   { name : FQFnName.T

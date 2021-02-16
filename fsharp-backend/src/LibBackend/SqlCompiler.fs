@@ -268,36 +268,41 @@ let rec lambdaToSql
       let replaceWithSql, vars3 = lts TStr replaceWith
       let vars = vars1 @ vars2 @ vars3
       $"(replace({lookingInSql}, {searchingForSql}, {replaceWithSql}))", vars
-  | EApply (_, EFQFnValue (_, name), [ l; r ], _, NoRail) ->
+  | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
       match Map.get name fns with
       | Some fn ->
-          match fn with
-          | { parameters = [ lParam; rParam ]; sqlSpec = SqlFunction op } ->
-              typecheck (toString name) fn.returnType expectedType
-              let lSql, vars1 = lts lParam.typ l
-              let rSql, vars2 = lts rParam.typ r
-              $"({lSql} {op} {rSql})", vars1 @ vars2
-          | fn ->
-              let paramCount = List.length fn.parameters
+          typecheck (toString name) fn.returnType expectedType
 
-              if paramCount <> 2 then
-                error $"{name} has {paramCount} functions but we have 2 arguments"
+          let argSqls, sqlVars =
+            let paramCount = List.length fn.parameters
+            let argCount = List.length args
 
-              error $"This function ({name}) is not yet implemented"
+            if argCount = paramCount then
+              List.map2 (fun arg param -> lts param.typ arg) args fn.parameters
+              |> List.unzip
+              |> (fun (sqls, vars) -> (sqls, List.concat vars))
+            else
+              error
+                $"{fn.name} has {paramCount} functions but we have {argCount} arguments"
+
+          match fn, argSqls with
+          | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
+              $"({argL} {op} {argR})", sqlVars
+          | { sqlSpec = SqlUnaryOp op }, [ argSql ] -> $"({op} {argSql})", sqlVars
+          | { sqlSpec = SqlFunction fnname }, _ ->
+              let argSql = String.concat ", " argSqls
+              $"({fnname}({argSql}))", sqlVars
+          | { sqlSpec = SqlFunctionWithPrefixArgs (fnName, fnArgs) }, _ ->
+              let argSql = fnArgs @ argSqls |> String.concat ", "
+              $"({fnName} ({argSql}))", sqlVars
+          | { sqlSpec = SqlFunctionWithSuffixArgs (fnName, fnArgs) }, _ ->
+              let argSql = argSqls @ fnArgs |> String.concat ", "
+              $"({fnName} ({argSql}))", sqlVars
+
+          | fn, args -> error $"This function ({name}) is not yet implemented"
       | None ->
           error
             $"Only builtin functions can be used in queries right now; {name} is not a builtin function"
-  | EApply (_, EFQFnValue (_, name), [ e ], _, NoRail) ->
-      let argType, resultType, opname, args, position = unaryOpToSql (toString name)
-      typecheck (toString name) resultType expectedType
-      let argSql, vars = lts argType e
-
-      let args =
-        match position with
-        | First -> String.concat ", " (argSql :: args)
-        | Last -> String.concat ", " (List.append args [ argSql ])
-
-      $"({opname} ({args}))", vars
   | EVariable (_, varname) ->
       match Map.get varname symtable with
       | Some dval ->
