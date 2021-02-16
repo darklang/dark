@@ -59,7 +59,7 @@ let infixFns : List<BuiltInFn> =
         Option.map (fun newName -> { builtin with name = newName }) opName)
       prefixFns
 
-  assert (fns.Length = infixFnMapping.Count) // make sure we got them all
+  assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns

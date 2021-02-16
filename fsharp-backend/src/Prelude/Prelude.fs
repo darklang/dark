@@ -157,7 +157,7 @@ let randomString (length : int) : string =
   let result =
     Array.init length (fun _ -> char (random.Next(0x41, 0x5a))) |> System.String
 
-  assert (result.Length = length)
+  assertEq "randomString length is correct" result.Length length
   result
 
 // ----------------------
