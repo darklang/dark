@@ -139,8 +139,16 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   | DResult (Ok l), DResult (Ok r) -> de l r
   | DResult (Error l), DResult (Error r) -> de l r
   | DOption (Some l), DOption (Some r) -> de l r
-  | DList ls, DList rs -> List.iter2 de ls rs
+  | DList ls, DList rs ->
+      let lLength = List.length ls
+      let rLength = List.length rs
+      Expect.equal lLength rLength $"{ls} <> {rs}"
+      List.iter2 de ls rs
   | DObj ls, DObj rs ->
+      let lLength = Map.count ls
+      let rLength = Map.count rs
+      Expect.equal lLength rLength $"{ls} <> {rs}"
+
       List.iter2
         (fun (k1, v1) (k2, v2) ->
           Expect.equal k1 k2 msg
