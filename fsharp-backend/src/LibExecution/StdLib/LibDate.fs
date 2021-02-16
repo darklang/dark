@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
               Value(DDate(System.DateTime.ofIsoString s))
              with e -> failwith "Invalid date format")
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "parse" 1) }
     { name = fn "Date" "parse" 1
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
               Value(DResult(Ok(DDate(System.DateTime.ofIsoString s))))
              with e -> Value(DResult(Error(DStr "Invalid date format"))))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "parse" 2) }
     { name = fn "Date" "parse" 2
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
               Value(Dval.resultOk (DDate(System.DateTime.ofIsoString s)))
              with e -> Value(Dval.resultError (DStr "Invalid date format")))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "toString" 0
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d ] -> d.toIsoString () |> DStr |> Value
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     //   { name = fn "Date" "toStringISO8601BasicDateTime" 0
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d ] ->
 //           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_datetime d)
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "toStringISO8601BasicDate" 0
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d ] ->
 //           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_date d)
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "now" 0
@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
 //         //       (function
 //       | _, [] -> DDate(Time.now ())
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Impure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "today" 0
@@ -121,7 +121,7 @@ let fns : List<BuiltInFn> =
 //           |> (fun x -> Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
 //           |> DDate
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "add" 0
@@ -133,7 +133,7 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = SqlFunction "+"
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "sub" 0
@@ -145,9 +145,9 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = SqlFunction "-"
 //     previewable = Pure
-//     deprecated = ReplacedBy(fn "" "" 0) }
+//     deprecated = ReplacedBy(fn "Date" "subtract" 0) }
 //   { name = fn "Date" "subtract" 0
 //     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
 //     returnType = TDate
@@ -157,7 +157,7 @@ let fns : List<BuiltInFn> =
 //       | _, [ DDate d; DInt s ] ->
 //           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = SqlFunction "-"
 //     previewable = Pure
 //     deprecated = NotDeprecated }
     { name = fn "Date" "greaterThan" 0
@@ -220,7 +220,7 @@ let fns : List<BuiltInFn> =
 //           |> Float.iround_exn
 //           |> Dval.dint
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "fromSeconds" 0
@@ -239,7 +239,7 @@ let fns : List<BuiltInFn> =
 //           |> Time.of_span_since_epoch
 //           |> DDate
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "toHumanReadable" 0
@@ -297,7 +297,7 @@ let fns : List<BuiltInFn> =
 //           let diff = if diff = "" then "less than a minute" else diff in
 //           Dval.dstr_of_string_exn diff
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = ReplacedBy(fn "" "" 0) (* This doesn't mean anything *)  }
 //   { name = fn "Date" "year" 0
@@ -310,7 +310,7 @@ let fns : List<BuiltInFn> =
 //       (function
 //       | _, [ DDate d ] -> d |> Time.to_date Time.Zone.utc |> Date.year |> Dval.dint
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "month" 0
@@ -329,7 +329,7 @@ let fns : List<BuiltInFn> =
 //           |> Month.to_int
 //           |> Dval.dint
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "day" 0
@@ -342,7 +342,7 @@ let fns : List<BuiltInFn> =
 //       (function
 //       | _, [ DDate d ] -> d |> Time.to_date Time.Zone.utc |> Date.day |> Dval.dint
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "weekday" 0
@@ -361,7 +361,7 @@ let fns : List<BuiltInFn> =
 //           |> Day_of_week.iso_8601_weekday_number
 //           |> Dval.dint
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "hour" 0
@@ -380,7 +380,7 @@ let fns : List<BuiltInFn> =
 //           |> Dint.of_float
 //           |> DInt
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = ReplacedBy(fn "" "" 0) }
 //   { name = fn "Date" "hour" 1
@@ -399,7 +399,7 @@ let fns : List<BuiltInFn> =
 //           |> Dint.of_float
 //           |> DInt
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "minute" 0
@@ -418,7 +418,7 @@ let fns : List<BuiltInFn> =
 //           |> Dint.of_float
 //           |> DInt
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "second" 0
@@ -437,7 +437,7 @@ let fns : List<BuiltInFn> =
 //           |> Dint.of_float
 //           |> DInt
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
 //   { name = fn "Date" "atStartOfDay" 0
@@ -454,7 +454,6 @@ let fns : List<BuiltInFn> =
 //           |> (fun x -> Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
 //           |> DDate
 //       | args -> incorrectArgs ())
-//     sqlSpec = NotYetImplementedTODO
+//     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated } ]
-//

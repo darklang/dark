@@ -27,22 +27,6 @@ type position =
   | Last
 
 // let compilerSupportedFns =
-//   [ "Date::lessThan"
-//   ; "Date::greaterThan"
-//   ; "Date::lessThanOrEqualTo"
-//   ; "Date::greaterThanOrEqualTo"
-//   ; "Date::subtract"
-//   ; "Date::add"
-//   ; "Int::mod"
-//   ; "Int::add"
-//   ; "Int::substract"
-//   ; "Int::multiply"
-//   ; "Int::power"
-//   ; "Int::divide"
-//   ; "Int::greaterThan"
-//   ; "Int::greaterThanOrEqualTo"
-//   ; "Int::lessThan"
-//   ; "Int::lessThanOrEqualTo"
 //   ; "Float::mod"
 //   ; "Float::add"
 //   ; "Float::subtract"
@@ -54,8 +38,6 @@ type position =
 //   ; "Float::lessThan"
 //   ; "Float::lessThanOrEqualTo"
 //   ; "Bool::not"
-//   ; "Bool::and"
-//   ; "Bool::or"
 //   ; "String::toLowercase"
 //   ; "String::toLowercase_v1"
 //   ; "String::toUppercase"
@@ -75,65 +57,19 @@ type position =
 //   ; "String::isSubstring_v1"
 //   ; "String::contains"
 //   ; "String::replaceAll"
-//   ; "equals"
-//   ; "notEquals" ]
-//   |> Tc.StrSet.fromList
 //
 //
-let binopToSql (op : string) : DType * DType * DType * string =
-  let allInts str = (TInt, TInt, TInt, str) in
-  let allFloats str = (TFloat, TFloat, TFloat, str) in
-  let boolOp tipe str = (tipe, tipe, TBool, str) in
-  let dateOp str = (TDate, TDate, TDate, str) in
-
-  match op with
-  | ">"
-  | "<"
-  | "<="
-  | ">=" -> boolOp TInt op
-  | "+"
-  | "-"
-  | "*"
-  | "/"
-  | "%"
-  | "^" -> allInts op
-  | "Date::<"
-  | "Date::lessThan" -> boolOp TDate "<"
-  | "Date::>"
-  | "Date::greaterThan" -> boolOp TDate ">"
-  | "Date::<="
-  | "Date::lessThanOrEqualTo" -> boolOp TDate "<="
-  | "Date::>="
-  | "Date::greaterThanOrEqualTo" -> boolOp TDate ">="
-  | "Date::subtract" -> dateOp "-"
-  | "Date::add" -> dateOp "+"
-  | "Int::mod" -> allInts "%"
-  | "Int::add" -> allInts "+"
-  | "Int::subtract" -> allInts "-"
-  | "Int::multiply" -> allInts "*"
-  | "Int::power" -> allInts "^"
-  | "Int::divide" -> allInts "/"
-  | "Int::greaterThan" -> boolOp TInt ">"
-  | "Int::greaterThanOrEqualTo" -> boolOp TInt ">="
-  | "Int::lessThan" -> boolOp TInt "<"
-  | "Int::lessThanOrEqualTo" -> boolOp TInt "<="
-  | "Float::mod" -> allFloats "%"
-  | "Float::add" -> allFloats "+"
-  | "Float::subtract" -> allFloats "-"
-  | "Float::multiply" -> allFloats "*"
-  | "Float::power" -> allFloats "^"
-  | "Float::divide" -> allFloats "/"
-  | "Float::greaterThan" -> boolOp TFloat ">"
-  | "Float::greaterThanOrEqualTo" -> boolOp TFloat ">="
-  | "Float::lessThan" -> boolOp TFloat "<"
-  | "Float::lessThanOrEqualTo" -> boolOp TFloat "<="
-  | "=="
-  | "equals" -> boolOp TAny "="
-  | "!="
-  | "notEquals" -> boolOp TAny "<>"
-  | "&&" -> boolOp TBool "AND"
-  | "||" -> boolOp TBool "OR"
-  | _ -> error2 "This function is not yet implemented" op
+// match op with
+// | "Float::mod" -> allFloats "%"
+// | "Float::add" -> allFloats "+"
+// | "Float::subtract" -> allFloats "-"
+// | "Float::multiply" -> allFloats "*"
+// | "Float::power" -> allFloats "^"
+// | "Float::divide" -> allFloats "/"
+// | "Float::greaterThan" -> boolOp TFloat ">"
+// | "Float::greaterThanOrEqualTo" -> boolOp TFloat ">="
+// | "Float::lessThan" -> boolOp TFloat "<"
+// | "Float::lessThanOrEqualTo" -> boolOp TFloat "<="
 
 
 let unaryOpToSql op : DType * DType * string * string list * position =

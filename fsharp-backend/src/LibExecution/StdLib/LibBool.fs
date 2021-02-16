@@ -31,7 +31,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a && b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "AND"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "or" 0
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a || b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "OR"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "xor" 0

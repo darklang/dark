@@ -34,7 +34,10 @@ let infixFnMapping =
     ("Date", "lessThanOrEqualTo", 0), ("Date", "<=")
     ("Date", "greaterThanOrEqualTo", 0), ("Date", ">=")
     ("String", "append", 1), ("", "++")
-    ("", "equals", 0), ("", "==") ]
+    ("", "equals", 0), ("", "==")
+    ("", "notEquals", 0), ("", "!=")
+    ("Bool", "and", 0), ("", "&&")
+    ("Bool", "or", 0), ("", "||") ]
   |> List.map
        (fun ((module_, name, version), (newMod, opName)) ->
          FQFnName.stdlibName module_ name version,

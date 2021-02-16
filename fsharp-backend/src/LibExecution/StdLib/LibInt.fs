@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
                  // In case there's another failure mode, rollbar
                  failwith "mod error")
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "%"
       previewable = Pure
       (*
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "+"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "subtract" 0
@@ -116,7 +116,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "-"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "multiply" 0
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "*"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "power" 0
@@ -147,7 +147,7 @@ let fns : List<BuiltInFn> =
                  // In case there's another failure mode, rollbar
                  failwith "mod error")
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "^"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "divide" 0
@@ -158,7 +158,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "/"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "absoluteValue" 0
@@ -170,7 +170,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a ] -> Value(DInt(abs a))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "negate" 0
@@ -181,7 +181,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a ] -> Value(DInt(-a))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "greaterThan" 0
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction ">="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "lessThan" 0
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "<="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "random" 0
@@ -237,7 +237,7 @@ let fns : List<BuiltInFn> =
         | _, [ DInt a; DInt b ] ->
             a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "Int" "random" 1) }
     { name = fn "Int" "random" 1
@@ -253,7 +253,7 @@ let fns : List<BuiltInFn> =
             |> DInt
             |> Value
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
     { name = fn "Int" "sqrt" 0
@@ -264,7 +264,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "toFloat" 0
@@ -275,7 +275,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a ] -> Value(DFloat(float a))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "Int" "sum" 0
@@ -305,7 +305,7 @@ let fns : List<BuiltInFn> =
     //             |> Result.ok_exn
     //         | args ->
     //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
+    //   ; sqlSpec = NotQueryable
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Int" "max" 0
@@ -316,7 +316,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(max a b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "min" 0
@@ -327,7 +327,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(min a b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "clamp" 0
@@ -348,6 +348,6 @@ let fns : List<BuiltInFn> =
             else if v > max then Value(DInt max)
             else Value(DInt v)
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]

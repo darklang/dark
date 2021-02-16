@@ -5,7 +5,16 @@ open Prelude
 module DvalRepr = LibExecution.DvalRepr
 open LibExecution.RuntimeTypes
 
+let fn = FQFnName.stdlibName
+
+let err (str : string) = Value(Dval.errStr str)
+
 let incorrectArgs = LibExecution.Errors.incorrectArgs
+
+let varA = TVariable "a"
+let varB = TVariable "b"
+
+
 
 let fns : List<BuiltInFn> =
   [ { name = FQFnName.stdlibName "" "equals" 0
@@ -17,7 +26,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = FQFnName.stdlibName "" "toString" 0
@@ -31,10 +40,8 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated } ]
-
-
-// ; { name = fn "" "toRepr" 0
+      deprecated = NotDeprecated }
+    // ; { name = fn "" "toRepr" 0
 //
 //   ; parameters = [Param.make "v" TAny]
 //   ; returnType = TStr
@@ -50,29 +57,29 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "" "equals" 0
-//   ; infix_names = ["=="]
-//   ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
-//   ; returnType = TBool
-//   ; description = "Returns true if the two value are equal"
-//   ; fn =
-//
-//         (function _, [a; b] -> DBool (equal_dval a b) | args -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "" "notEquals" 0
-//   ; infix_names = ["!="]
-//   ; parameters = [Param.make "a" TAny; Param.make "b" TAny]
-//   ; returnType = TBool
-//   ; description = "Returns true if the two value are not equal"
-//   ; fn =
-//
-//         (function
-//         | _, [a; b] -> DBool (not (equal_dval a b)) | args -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "" "equals" 0
+      parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
+      returnType = TBool
+      description = "Returns true if the two value are equal"
+      fn =
+
+        (function
+        | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunction "="
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "" "notEquals" 0
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
+      returnType = TBool
+      description = "Returns true if the two value are not equal"
+      fn =
+        (function
+        | _, [ a; b ] -> Value(DBool(not (a = b)))
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlFunction "<>"
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 // ; { name = fn "" "assoc" 0
 //
 //   ; parameters = [Param.make "obj" TObj; Param.make "key" TStr; Param.make "val" TAny]
