@@ -209,28 +209,82 @@
 
 [db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 
+[fn.addFriend key name height human dob income]
+(let dob = Date.parse_v2_ster dob in
+ let obj = { height = height; name = name; human = human; dob = dob; income = income } in
+ DB.set_v1 obj key Person)
+
+[fn.prepFriends v]
+(let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
+ let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
+ // Note spaces around Chandler, that's to test trim functions
+ let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 in
+ let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
+ DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
+
 [fn.friends lambda]
-(let rossDOB = Date.parse_v2_ster "1967-05-12T00:00:00Z" in
- let rachelDOB = Date.parse_v2_ster "1969-05-05T00:00:00Z" in
- let chandlerDOB = Date.parse_v2_ster "1969-08-19T10:13:42Z" in
- let catDOB = Date.parse_v2_ster "2012-04-04T00:00:00Z" in
- let ross = { height = 73; name = "Ross"; human = true; dob = rossDOB; income = 100.00 } in
- let rachel = { height = 65; name = "Rachel"; human = true; dob = rachelDOB; income = 82.00 } in
- let chandler = { height = 72; name = " Chandler "; human = true; dob = chandlerDOB; income = 83.00 } in
- let cat = { height = 10; name = "GrumpyCat"; human = false; dob = catDOB; income = 0.00 } in
- let nil = { height = null; name = null; human = null; dob = null; income = null } in
- let _ = DB.set_v1 ross "ross" Person in
- let _ = DB.set_v1 rachel "rachel" Person in
- let _ = DB.set_v1 chandler "chandler" Person in
- let _ = DB.set_v1 cat "cat" Person in
- let _ = DB.set_v1 nil "null" Person in
+(let _ = prepFriends null in
  ((DB.query_v4 Person lambda)
  |> List.map_v0 (fun p -> p.name)
  |> List.sort_v0))
-
 
 [test.db findall] with DB Person
 (friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 [test.db find all with condition] with DB Person
 (friends (fun p -> p.height > 3)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+[test.db boolean queries] with DB Person
+(friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db different param name] with DB Person
+(friends (fun value -> value.human )) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db && queries] with DB Person
+(friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
+//
+//[test.db inlining] with DB Person
+//(friends (fun p -> let x = 32 in p.height > x && true) = [" Chandler "; "Rachel"; "Ross" ]
+//
+//[test.db inlining field access] with DB Person
+//(friends (fun p -> let x = p.height in true && x > 32 )) = [" Chandler "; "Rachel"; "Ross" ]
+//
+//[test.db pipes] with DB Person
+//(friends (fun p -> p.height |> ( * ) 2 |> (<) 40)) = ["GrumpyCat" ]
+//
+//[test.db query with external variable] with DB Person
+//// TODO pass an external var x
+//(friends (fun p -> p.height < x)) = ["GrumpyCat"]
+//
+//[test.db fieldaccess] with DB Person
+//(friends (fun p -> let obj = { x = 42 } in v.height > myObj.x ))
+//= [" Chandler "; "Rachel"; "Ross" ]
+//
+//[test.db nested fieldaccess] with DB Person
+//(friends (fun p -> let obj = { field1 = { field2 = 42 } } in  v.height > myObj.field1.field2 ))
+//= [" Chandler "; "Rachel"; "Ross" ]
+//
+//[test.db lambda doesnt return a bool] with DB Person
+//(friends (fun p -> "x"))
+//= Test.typeError_v0 "Incorrect type in `\"x\"`, expected Bool but got a Str in \"x\""
+//
+//[test.db bad variable name] with DB Person
+//(friends (fun p -> let x = 32 in true && v.height > y)) =
+//= Test.typeError_v0 "This variable is not defined: y")
+//
+//[test.db sql injection] with DB Person
+//(friends (fun p -> "; select * from users;" == v.name )) = []
+//
+//[test.db null equality works] with DB Person
+//(friends (fun p -> p.name = null )) = [null]
+//
+//[test.db null inequality works] with DB Person
+//(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+//
+//// weird behaviour here - the ocaml version doesnt match null
+//[test.db null is not 'null'] with DB Person
+//(friends (fun p -> p.name != "null" )) = [DNull; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+//
+//[test.db null equality works] with DB Person
+//(friends (fun p -> p.name = null )) = [null]
+//

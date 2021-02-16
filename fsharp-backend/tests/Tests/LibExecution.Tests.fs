@@ -214,7 +214,7 @@ let fileTests () : Test =
 
                     dbs <- Map.add name db dbs
                 // [function] declaration
-                | Regex @"^\[fn\.(.*) (.*)\]$" [ name; definition ] ->
+                | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
                     finish ()
 
                     let parameters : List<RT.UserFunction.Parameter> =
