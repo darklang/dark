@@ -310,7 +310,6 @@ let doQuery
       )
   }
 
-
 let query
   (state : RT.ExecutionState)
   (db : RT.DB.T)
@@ -325,6 +324,18 @@ let query
            (fun read -> (read.string "key", read.string "data" |> toObj db))
   }
 
+let queryValues
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (b : RT.LambdaImpl)
+  : Task<List<RT.Dval>> =
+  task {
+    let! results = doQuery state db b "data"
+
+    return!
+      results |> Sql.executeAsync (fun read -> (read.string "data" |> toObj db))
+  }
+
 let queryCount
   (state : RT.ExecutionState)
   (db : RT.DB.T)
@@ -332,7 +343,7 @@ let queryCount
   : Task<int> =
   task {
     let! results = doQuery state db b "COUNT(*)"
-    return! results |> Sql.executeRowAsync (fun read -> (read.int "count"))
+    return! results |> Sql.executeRowAsync (fun read -> read.int "count")
   }
 
 let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =

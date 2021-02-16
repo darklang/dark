@@ -715,8 +715,8 @@ let fns : List<BuiltInFn> =
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
             taskv {
               let db = state.dbs.[dbname]
-              let! results = UserDB.query state db b
-              return results |> List.map (fun (_, v) -> v) |> Dval.list
+              let! results = UserDB.queryValues state db b
+              return results |> Dval.list
             }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
