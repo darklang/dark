@@ -284,3 +284,18 @@
 // TODO weird behaviour here - shouldn't the null object be returned here.
 [test.db null is not 'null' (string)] with DB Person
 (friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+// queryOne
+[test.queryOne works - multiple] with DB Person
+(let _ = prepFriends null in
+ DB.queryOne_v4 Person (fun p -> p.human)) = Nothing
+
+[test.queryOne works - none] with DB Person
+(let _ = prepFriends null in
+ DB.queryOne_v4 Person (fun p -> p.name = "bob")) = Nothing
+
+[test.queryOne works - none] with DB Person
+(let _ = prepFriends null in
+ (DB.queryOne_v4 Person (fun p -> p.name = "Rachel"))
+ |> Option.map_v0 (fun v -> v.name)) = Just "Rachel"
+

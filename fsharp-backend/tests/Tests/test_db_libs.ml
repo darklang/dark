@@ -103,26 +103,7 @@ let t_db_query_works () =
 
   (* Just check enough of the other functions to verify the signature - *)
   (* they all use they same function behind the scenes. *)
-  check_dval
-    "queryOne - multiple"
-    (DOption OptNothing)
-    ( fn "DB::queryOne_v4" [var "Person"; lambda ["v"] (field "v" "human")]
-    |> exec ) ;
-  check_dval
-    "queryOne - none"
-    (DOption OptNothing)
-    ( fn
-        "DB::queryOne_v4"
-        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
-    |> exec ) ;
-  check_dval
-    "queryOne - one"
-    (DOption (OptJust rachel))
-    ( fn
-        "DB::queryOne_v4"
-        [ var "Person"
-        ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ]
-    |> exec ) ;
+
   check_dval
     "queryOneWithKey - multiple"
     (DOption OptNothing)
