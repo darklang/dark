@@ -794,31 +794,32 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "DB" "queryOneWithKey" 3
+      parameters = [ tableParam; queryParam ]
+      returnType = TOption varA
+      description =
+        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              try
+                let db = state.dbs.[dbname]
+                let! results = UserDB.query state db b
+
+                match results with
+                | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
+                | _ -> return DOption None
+              with
+              | Db.FakeValFoundInQuery dv -> return dv
+              | Db.DBQueryException _ as e ->
+                  return Dval.errStr (Db.dbQueryExceptionToString e)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
-// ; { name = fn "DB" "queryOneWithKey" 3
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TOption
-//   ; description =
-//       "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//          (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               let results = UserDB.query state db b in
-//               match results with
-//               | [(k, v)] ->
-//                   DOption (OptJust (DObj (DvalMap.singleton k v)))
-//               | _ ->
-//                   DOption OptNothing
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
 // ; { name = fn "DB" "queryCount" 0
 //   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
 //   ; returnType = TInt
