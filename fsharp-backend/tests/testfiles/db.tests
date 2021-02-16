@@ -228,6 +228,7 @@
  |> List.map_v0 (fun p -> p.name)
  |> List.sort_v0))
 
+// Test standard language features
 [test.db findall] with DB Person
 (friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
@@ -322,4 +323,13 @@
 (let _ = prepFriends null in
  (DB.queryWithKey_v3 Person (fun p -> p.name = "Rachel"))
  |> (fun v -> v.rachel.name)) = "Rachel"
+
+// queryCount
+[test.queryCount works - none] with DB Person
+(let _ = prepFriends null in
+ DB.queryCount_v0 Person (fun p -> p.name = "bob")) = 0
+
+[test.queryCount works - one] with DB Person
+(let _ = prepFriends null in
+ DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
 

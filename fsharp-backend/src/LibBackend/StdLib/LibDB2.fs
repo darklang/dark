@@ -822,24 +822,27 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "DB" "queryCount" 0
+      parameters = [ tableParam; queryParam ]
+      returnType = TInt
+      description =
+        "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              try
+                let db = state.dbs.[dbname]
+                let! result = UserDB.queryCount state db b
+                return Dval.int result
+
+              with
+              | Db.FakeValFoundInQuery dv -> return dv
+              | Db.DBQueryException _ as e ->
+                  return Dval.errStr (Db.dbQueryExceptionToString e)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
-// ; { name = fn "DB" "queryCount" 0
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TInt
-//   ; description =
-//       "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//          (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               UserDB.query_count state db b |> Dval.dint
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-// ; previewable = Impure
-//   ; deprecated = NotDeprecated } ]
-//

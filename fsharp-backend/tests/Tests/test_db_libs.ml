@@ -98,43 +98,6 @@ let t_sql_compiler_works () =
 
 
 let t_db_query_works () =
-  let field name field = fieldAccess (var name) field in
-  let withvar (name : string) value ast = let' name value ast in
-
-  (* Just check enough of the other functions to verify the signature - *)
-  (* they all use they same function behind the scenes. *)
-  check_dval
-    "queryOneWithKey - empty"
-    (DObj DvalMap.empty)
-    ( fn
-        "DB::queryWithKey_v3"
-        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
-    |> exec ) ;
-  check_dval
-    "queryWithKey - more than one"
-    rachel
-    ( pipe
-        (fn
-           "DB::queryWithKey_v3"
-           [ var "Person"
-           ; lambda ["v"] (binop "==" (str "Rachel") (field "v" "name")) ])
-        [lambda ["r"] (field "r" "rachel")]
-    |> exec ) ;
-  check_dval
-    "queryCount - empty"
-    (Dval.dint 0)
-    ( fn
-        "DB::queryCount"
-        [var "Person"; lambda ["v"] (binop "==" (str "bob") (field "v" "name"))]
-    |> exec ) ;
-  check_dval
-    "queryCount"
-    (Dval.dint 4)
-    ( fn
-        "DB::queryCount"
-        [var "Person"; lambda ["v"] (binop ">" (field "v" "height") (int 3))]
-    |> exec ) ;
-
   (* -------------- *)
   (* Test functions *)
   (* -------------- *)
