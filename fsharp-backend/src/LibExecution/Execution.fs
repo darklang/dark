@@ -57,22 +57,6 @@ let createState
   // storeFnArguments = ""
   }
 
-let globalsFor (state : RT.ExecutionState) : RT.Symtable =
-  let secrets =
-    state.secrets
-    |> List.map (fun (s : RT.Secret.T) -> (s.secretName, RT.DStr s.secretValue))
-    |> Map.ofList
-
-  let dbs = (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) state.dbs)
-
-  FSharpPlus.Map.union secrets dbs
-
-
-let withGlobals (state : RT.ExecutionState) (symtable : RT.Symtable) : RT.Symtable =
-  let globals = globalsFor state
-  FSharpPlus.Map.union globals symtable
-
-
 let run
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
@@ -87,7 +71,7 @@ let run
   // let tlidStore = new System.Collections.Generic.HashSet<tlid>()
   // let traceTLID (tlid : tlid) = tlidStore.Add tlid |> ignore
   // let state = { state with traceTLID = traceTLID }
-  let symtable = withGlobals state inputVars
+  let symtable = Interpreter.withGlobals state inputVars
   Interpreter.eval state symtable expr |> TaskOrValue.toTask
 // loadFnResult = ""
 // loadFnArguments = ""
@@ -113,7 +97,7 @@ let runHttp
     // let tlidStore = new System.Collections.Generic.HashSet<tlid>()
     // let traceTLID (tlid : tlid) = tlidStore.Add tlid |> ignore
     // let state = { state with traceTLID = traceTLID }
-    let symtable = withGlobals state inputVars
+    let symtable = Interpreter.withGlobals state inputVars
 
     let! result =
       Interpreter.applyFnVal
