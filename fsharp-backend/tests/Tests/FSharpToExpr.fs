@@ -116,13 +116,14 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                  ("op_Subtraction", "-")
                  ("op_Multiply", "*")
                  ("op_PlusPlus", "++")
-                 ("op_EqualsEquals", "==")
                  ("op_GreaterThan", ">")
                  ("op_GreaterThanOrEqual", ">=")
                  ("op_LessThan", "<")
                  ("op_LessThanOrEqual", "<=")
                  ("op_Modulus", "%")
                  ("op_Concatenate", "^")
+                 ("op_EqualsEquals", "==")
+                 ("op_Equality", "==")
                  ("op_BooleanAnd", "&&")
                  ("op_BooleanOr", "||") ]
 
