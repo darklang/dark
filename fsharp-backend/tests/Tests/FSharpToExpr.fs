@@ -180,8 +180,15 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
       let desc = PT.FQFnName.stdlibName modName.idText name version
       PT.EFnCall(gid (), desc, [], ster)
+  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
+      let obj1 = eFieldAccess (eVar var.idText) f1.idText
+      let obj2 = eFieldAccess obj1 f2.idText
+      eFieldAccess obj2 f3.idText
+  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field1; field2 ], _), _, _) ->
+      let obj1 = eFieldAccess (eVar var.idText) field1.idText
+      eFieldAccess obj1 field2.idText
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field ], _), _, _) ->
-      PT.EFieldAccess(gid (), eVar var.idText, field.idText)
+      eFieldAccess (eVar var.idText) field.idText
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
       PT.EFieldAccess(gid (), c expr, field.idText)
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->

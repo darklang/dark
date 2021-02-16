@@ -194,7 +194,7 @@ let ePartial (e : Expr) : Expr = EPartial(gid (), e)
 
 let eVar (name : string) : Expr = EVariable(gid (), name)
 
-let fieldAccess (expr : Expr) (fieldName : string) : Expr =
+let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
   EFieldAccess(gid (), expr, fieldName)
 
 let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =

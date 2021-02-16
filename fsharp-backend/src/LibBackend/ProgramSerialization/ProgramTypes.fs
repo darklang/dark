@@ -536,19 +536,16 @@ module Shortcuts =
   let eList (elems : Expr list) : Expr = EList(gid (), elems)
   let ePipeTarget () = EPipeTarget(gid ())
 
-
   let ePartial (str : string) (e : Expr) : Expr = EPartial(gid (), str, e)
 
   let eRightPartial (str : string) (e : Expr) : Expr = ERightPartial(gid (), str, e)
 
-
   let eLeftPartial (str : string) (e : Expr) : Expr = ELeftPartial(gid (), str, e)
-
 
   let eVar (name : string) : Expr = EVariable(gid (), name)
 
-  (* let fieldAccess (expr : Expr) (fieldName : string) : Expr = *)
-  (*   EFieldAccess (gid () ,expr, fieldName) *)
+  let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
+    EFieldAccess(gid (), expr, fieldName)
 
   let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
     EIf(gid (), cond, then', else')
