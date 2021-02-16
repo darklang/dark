@@ -272,12 +272,13 @@ let getAll
   |> Sql.executeAsync
        (fun read -> (read.string "key", read.string "data" |> toObj db))
 
-
-let query
+// Reusable function that provides the template for the SqlCompiler query functions
+let doQuery
   (state : RT.ExecutionState)
   (db : RT.DB.T)
   (b : RT.LambdaImpl)
-  : Task<List<string * RT.Dval>> =
+  (queryFor : string)
+  : Task<Sql.SqlProps> =
   task {
     let dbFields = Map.ofList db.cols
 
@@ -289,47 +290,9 @@ let query
     let! sql, vars =
       SqlCompiler.compileLambda state b.symtable paramName dbFields b.body
 
-    return!
+    return
       Sql.query
-        $"SELECT key, data
-          FROM user_data
-          WHERE table_tlid = @tlid
-            AND account_id = @accountID
-            AND canvas_id = @canvasID
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion
-            AND {sql}"
-      |> Sql.parameters (
-        vars
-        @ [ "tlid", Sql.tlid db.tlid
-            "accountID", Sql.uuid state.accountID
-            "canvasID", Sql.uuid state.canvasID
-            "userVersion", Sql.int db.version
-            "darkVersion", Sql.int currentDarkVersion ]
-      )
-      |> Sql.executeAsync
-           (fun read -> (read.string "key", read.string "data" |> toObj db))
-  }
-
-let queryCount
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (b : RT.LambdaImpl)
-  : Task<int> =
-  task {
-    let dbFields = Map.ofList db.cols
-
-    let paramName =
-      match b.parameters with
-      | [ (_, name) ] -> name
-      | _ -> failwith "wrong number of args"
-
-    let! sql, vars =
-      SqlCompiler.compileLambda state b.symtable paramName dbFields b.body
-
-    return!
-      Sql.query
-        $"SELECT COUNT(*)
+        $"SELECT {queryFor}
             FROM user_data
             WHERE table_tlid = @tlid
               AND account_id = @accountID
@@ -345,7 +308,31 @@ let queryCount
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion ]
       )
-      |> Sql.executeRowAsync (fun read -> (read.int "count"))
+  }
+
+
+let query
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (b : RT.LambdaImpl)
+  : Task<List<string * RT.Dval>> =
+  task {
+    let! results = doQuery state db b "key, data"
+
+    return!
+      results
+      |> Sql.executeAsync
+           (fun read -> (read.string "key", read.string "data" |> toObj db))
+  }
+
+let queryCount
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (b : RT.LambdaImpl)
+  : Task<int> =
+  task {
+    let! results = doQuery state db b "COUNT(*)"
+    return! results |> Sql.executeRowAsync (fun read -> (read.int "count"))
   }
 
 let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
