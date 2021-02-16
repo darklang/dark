@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr errorString ] ->
-            let msg = LibBackend.Db.queryCompilerErrorTemplate ++ errorString
+            let msg = LibExecution.Errors.queryCompilerErrorTemplate ++ errorString
             Value(DFakeVal(DError(SourceNone, msg)))
         | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

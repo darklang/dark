@@ -23,6 +23,14 @@ type StdlibError =
 // converted to runtimeExceptions at the call site.
 exception StdlibException of StdlibError
 
+// Error in DB::query when we don't support something yet
+exception DBQueryException of string
+
+// Error in DB::query when there's a fakeval in the query
+exception FakeValFoundInQuery of Dval
+
+
+
 // ------------------
 // Messages
 // ------------------
@@ -38,6 +46,9 @@ let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string 
   $"Expected the argument `{paramName}` to be {expected}, but it was {actual}"
 
 let dividingByZero (paramName : string) : string = $"`{paramName}` cannot be zero"
+
+let queryCompilerErrorTemplate =
+  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\nError: "
 
 // ------------------
 // Extremely common exceptions

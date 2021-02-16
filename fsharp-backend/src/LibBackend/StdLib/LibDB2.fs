@@ -714,14 +714,9 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
             taskv {
-              try
-                let db = state.dbs.[dbname]
-                let! results = UserDB.query state db b
-                return results |> List.map (fun (_, v) -> v) |> Dval.list
-              with
-              | Db.FakeValFoundInQuery dv -> return dv
-              | Db.DBQueryException _ as e ->
-                  return Dval.errStr (Db.dbQueryExceptionToString e)
+              let db = state.dbs.[dbname]
+              let! results = UserDB.query state db b
+              return results |> List.map (fun (_, v) -> v) |> Dval.list
             }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -736,14 +731,9 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
             taskv {
-              try
-                let db = state.dbs.[dbname]
-                let! results = UserDB.query state db b
-                return results |> Map.ofList |> DObj
-              with
-              | Db.FakeValFoundInQuery dv -> return dv
-              | Db.DBQueryException _ as e ->
-                  return Dval.errStr (Db.dbQueryExceptionToString e)
+              let db = state.dbs.[dbname]
+              let! results = UserDB.query state db b
+              return results |> Map.ofList |> DObj
             }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -782,17 +772,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
             taskv {
-              try
-                let db = state.dbs.[dbname]
-                let! results = UserDB.query state db b
+              let db = state.dbs.[dbname]
+              let! results = UserDB.query state db b
 
-                match results with
-                | [ (_, v) ] -> return Dval.optionJust v
-                | _ -> return DOption None
-              with
-              | Db.FakeValFoundInQuery dv -> return dv
-              | Db.DBQueryException _ as e ->
-                  return Dval.errStr (Db.dbQueryExceptionToString e)
+              match results with
+              | [ (_, v) ] -> return Dval.optionJust v
+              | _ -> return DOption None
             }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -807,17 +792,12 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
             taskv {
-              try
-                let db = state.dbs.[dbname]
-                let! results = UserDB.query state db b
+              let db = state.dbs.[dbname]
+              let! results = UserDB.query state db b
 
-                match results with
-                | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
-                | _ -> return DOption None
-              with
-              | Db.FakeValFoundInQuery dv -> return dv
-              | Db.DBQueryException _ as e ->
-                  return Dval.errStr (Db.dbQueryExceptionToString e)
+              match results with
+              | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
+              | _ -> return DOption None
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -832,15 +812,9 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DDB dbname; DFnVal (Lambda b) ] ->
             taskv {
-              try
-                let db = state.dbs.[dbname]
-                let! result = UserDB.queryCount state db b
-                return Dval.int result
-
-              with
-              | Db.FakeValFoundInQuery dv -> return dv
-              | Db.DBQueryException _ as e ->
-                  return Dval.errStr (Db.dbQueryExceptionToString e)
+              let db = state.dbs.[dbname]
+              let! result = UserDB.queryCount state db b
+              return Dval.int result
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

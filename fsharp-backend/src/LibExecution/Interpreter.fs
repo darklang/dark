@@ -491,6 +491,9 @@ and applyFnVal
                           fstodo $"support other function type {fn.fn}"
                           return DFakeVal(DIncomplete SourceNone)
                     with
+                    | Errors.FakeValFoundInQuery dv -> return dv
+                    | Errors.DBQueryException e ->
+                        return Dval.errStr (Errors.queryCompilerErrorTemplate + e)
                     | Errors.StdlibException (Errors.StringError msg) ->
                         return Dval.errSStr sourceID msg
                     | Errors.StdlibException Errors.IncorrectArgs ->

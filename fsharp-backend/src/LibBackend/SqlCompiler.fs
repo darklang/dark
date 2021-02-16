@@ -15,10 +15,11 @@ open LibExecution.RuntimeTypes
 module DvalRepr = LibExecution.DvalRepr
 
 module Ast = LibExecution.Ast
+module Errors = LibExecution.Errors
 
 let error (str : string) : 'a =
   printfn $"DB Exception: {str}"
-  raise (DBQueryException str)
+  raise (Errors.DBQueryException str)
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 
@@ -115,7 +116,7 @@ let rec canonicalize (expr : Expr) : Expr = expr
 
 let dvalToSql (dval : Dval) : SqlValue =
   match dval with
-  | DFakeVal _ -> raise (Db.FakeValFoundInQuery dval)
+  | DFakeVal _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
   | DObj _
   | DList _
   | DHttpResponse _
@@ -151,7 +152,7 @@ let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit
 // (* TODO: support character. And maybe lists and
 //  * bytes. Probably something can be done with options and results. *)
 let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
-  if Dval.isFake dval then raise (Db.FakeValFoundInQuery dval)
+  if Dval.isFake dval then raise (Errors.FakeValFoundInQuery dval)
   typecheck name (Dval.toType dval) expectedType
 
 let escapeFieldname (str : string) : string =
