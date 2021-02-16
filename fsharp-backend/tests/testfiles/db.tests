@@ -1,7 +1,6 @@
 [db.X { "x" : "Str" }]
 [db.XY { "x" : "Str", "y": "Str" }]
 [db.SortedX { "x" : "Str", "sortBy": "Int" }]
-[db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 [db.Timestamp { "ts" : "Date"}]
 
 [test.dbnullroundtrip] with DB X
@@ -208,6 +207,8 @@
        ; d = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
        })
 
+[db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
+
 [fn.friends lambda]
 (let rossDOB = Date.parse_v2_ster "1967-05-12T00:00:00Z" in
  let rachelDOB = Date.parse_v2_ster "1969-05-05T00:00:00Z" in
@@ -228,5 +229,8 @@
  |> List.sort_v0))
 
 
-[test.db queries] with DB Person
+[test.db findall] with DB Person
 (friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+[test.db find all with condition] with DB Person
+(friends (fun p -> p.height > 3)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
