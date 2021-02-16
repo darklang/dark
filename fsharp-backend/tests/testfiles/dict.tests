@@ -1,4 +1,4 @@
-// Dict.empty_v0 = {}
+Dict.empty_v0 = {}
 // Dict.filterMap_v0 {} (fun (key, value) -> 0) = {}
 // Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then Nothing else (Just (key ++ value))) = { c = "cz"; a = "ax"}
 // Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then blank else (Just (key ++ value))) = blank
