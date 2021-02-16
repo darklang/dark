@@ -176,7 +176,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TRecord _ -> "Dict"
   | TLambda -> "Block"
   | TFn _ -> "Block"
-  | TVariable _ -> fstodo "tipetodeveloperrepr of TVariable"
+  | TVariable varname -> varname
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
