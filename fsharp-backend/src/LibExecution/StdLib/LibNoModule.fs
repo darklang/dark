@@ -17,19 +17,7 @@ let varB = TVariable "b"
 
 
 let fns : List<BuiltInFn> =
-  [ { name = FQFnName.stdlibName "" "equals" 0
-      description = "Returns true if the two value are equal"
-      parameters =
-        [ Param.make "a" (TVariable "a") ""; Param.make "b" (TVariable "a") "" ]
-      returnType = TBool
-      fn =
-        (function
-        | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "="
-      previewable = Pure
-      deprecated = NotDeprecated }
-    { name = FQFnName.stdlibName "" "toString" 0
+  [ { name = FQFnName.stdlibName "" "toString" 0
       description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
       parameters = [ Param.make "a" (TVariable "a") "" ]
