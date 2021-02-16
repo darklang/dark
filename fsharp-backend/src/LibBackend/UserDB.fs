@@ -86,9 +86,9 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   // only have to remove this small part.
   let defaultKeys = db.cols |> List.map (fun (k, _) -> (k, RT.DNull)) |> Map
   // FSTODO: which is overwriting here?
-  let merged = FSharpPlus.Map.union pObj defaultKeys in
+  let merged = FSharpPlus.Map.union pObj defaultKeys
   // </HACK 2>
-  let typeChecked = typeCheck db merged in
+  let typeChecked = typeCheck db merged
   RT.DObj typeChecked
 
 
