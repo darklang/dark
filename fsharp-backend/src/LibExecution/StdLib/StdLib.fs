@@ -24,6 +24,7 @@ let infixFnMapping =
   // FSTODO: there are 20 infix_names in the ocaml libs
   [ ("Int", "add", 0), ("", "+")
     ("Int", "subtract", 0), ("", "-")
+    ("Int", "multiply", 0), ("", "*")
     ("Int", "greaterThan", 0), ("", ">")
     ("Int", "greaterThanOrEqualTo", 0), ("", ">=")
     ("Int", "lessThanOrEqualTo", 0), ("", "<=")

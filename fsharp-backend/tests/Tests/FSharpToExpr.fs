@@ -114,6 +114,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let ops =
     Map.ofList [ ("op_Addition", "+")
                  ("op_Subtraction", "-")
+                 ("op_Multiply", "*")
                  ("op_PlusPlus", "++")
                  ("op_EqualsEquals", "==")
                  ("op_GreaterThan", ">")
