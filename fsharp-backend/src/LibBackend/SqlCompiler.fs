@@ -139,12 +139,14 @@ let dvalToSql (dval : Dval) : SqlValue =
 
 
 let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit =
-  if actualType = expectedType || expectedType = TAny then
-    ()
-  else
-    let actual = DvalRepr.typeToDeveloperReprV0 actualType
-    let expected = DvalRepr.typeToDeveloperReprV0 expectedType
-    error $"Incorrect type in `{name}`, expected {expected}, but got a {actual}"
+  match expectedType with
+  | TVariable _ -> ()
+  | TAny -> ()
+  | other when actualType = other -> ()
+  | _ ->
+      let actual = DvalRepr.typeToDeveloperReprV0 actualType
+      let expected = DvalRepr.typeToDeveloperReprV0 expectedType
+      error $"Incorrect type in `{name}`, expected {expected}, but got a {actual}"
 
 // (* TODO: support character. And maybe lists and
 //  * bytes. Probably something can be done with options and results. *)
