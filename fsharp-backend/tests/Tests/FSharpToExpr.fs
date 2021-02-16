@@ -124,6 +124,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                  ("op_Concatenate", "^")
                  ("op_EqualsEquals", "==")
                  ("op_Equality", "==")
+                 ("op_BangEquals", "!=")
                  ("op_BooleanAnd", "&&")
                  ("op_BooleanOr", "||") ]
 

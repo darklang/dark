@@ -278,13 +278,9 @@
 [test.db null equality works] with DB Person
 (friends (fun p -> p.name = null )) = [null]
 
-//[test.db null inequality works] with DB Person
-//(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-//
-//// weird behaviour here - the ocaml version doesnt match null
-//[test.db null is not 'null'] with DB Person
-//(friends (fun p -> p.name != "null" )) = [DNull; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-//
-//[test.db null equality works] with DB Person
-//(friends (fun p -> p.name = null )) = [null]
-//
+[test.db null inequality works] with DB Person
+(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+// TODO weird behaviour here - shouldn't the null object be returned here.
+[test.db null is not 'null' (string)] with DB Person
+(friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
