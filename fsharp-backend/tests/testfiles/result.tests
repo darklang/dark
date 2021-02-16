@@ -21,8 +21,8 @@
 // Result.mapError_v0 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 4
 // Result.mapError_v1 (Error "test") (fun x -> String.append_v0 x "-appended") = Error "test-appended"
 // Result.mapError_v1 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 4
-// Result.map_v0 (Error "test") (fun x -> Int.divide_v0 x 2) = Error "test"
-// Result.map_v0 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 2
+Result.map_v0 (Error "test") (fun x -> Int.divide_v0 x 2) = Error "test"
+Result.map_v0 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 2
 // Result.map_v1 (Error "test") (fun x -> Int.divide_v0 x 2) = Error "test"
 // Result.map_v1 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 2
 // Result.map_v1 blank (fun x -> Int.divide_v0 x 2) = <Incomplete>
