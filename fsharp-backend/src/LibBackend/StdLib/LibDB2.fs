@@ -705,28 +705,29 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-    // ; { name = fn "DB" "query" 4
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TList TAny
-//   ; description =
-//       "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//          (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               UserDB.query state db b
-//               |> List.map (fun (k, v) -> v)
-//               |> Dval.to_list
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "queryWithKey" 3
+    { name = fn "DB" "query" 4
+      parameters = [ tableParam; queryParam ]
+      returnType = TList varA
+      description =
+        "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              try
+                let db = state.dbs.[dbname]
+                let! results = UserDB.query state db b
+                return results |> List.map (fun (_, v) -> v) |> Dval.list
+              with
+              | Db.FakeValFoundInQuery dv -> return dv
+              | Db.DBQueryException _ as e ->
+                  return Dval.errStr (Db.dbQueryExceptionToString e)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated }
+    // ; { name = fn "DB" "queryWithKey" 3
 //   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
 //   ; returnType = TObj
 //   ; description =
@@ -788,7 +789,7 @@ let fns : List<BuiltInFn> =
               with
               | Db.FakeValFoundInQuery dv -> return dv
               | Db.DBQueryException _ as e ->
-                  return (Dval.errStr (Db.dbQueryExceptionToString e))
+                  return Dval.errStr (Db.dbQueryExceptionToString e)
             }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
