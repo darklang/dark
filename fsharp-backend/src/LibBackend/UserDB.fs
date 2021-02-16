@@ -404,8 +404,7 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data
-     WHERE key = @key
-       AND account_id = @accountID
+     WHERE account_id = @accountID
        AND canvas_id = @canvasID
        AND table_tlid = @tlid
        AND user_version = @userVersion
