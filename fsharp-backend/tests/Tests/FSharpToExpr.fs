@@ -121,7 +121,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                  ("op_LessThan", "<")
                  ("op_LessThanOrEqual", "<=")
                  ("op_Modulus", "%")
-                 ("op_Concatenate", "^") ]
+                 ("op_Concatenate", "^")
+                 ("op_BooleanAnd", "&&")
+                 ("op_BooleanOr", "||") ]
 
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
