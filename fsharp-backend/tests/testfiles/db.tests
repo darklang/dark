@@ -210,23 +210,23 @@
 
 [fn.friends lambda]
 (let rossDOB = Date.parse_v2_ster "1967-05-12T00:00:00Z" in
-//let rachelDOB = Date.parse_v2_ster "1969-05-05T00:00:00Z" in
-//let chandlerDOB = Date.parse_v2_ster "1969-08-19T10:13:42Z" in
-//let catDob = Date.parse_v2_ster "2012-04-04T00:00:00Z" in
-//let ross = { height = 73; name = "Ross"; human = true; dob = rossDOB; income = 100.00 } in
-//let rachel = { height = 65; name = "Rachel"; human = true; dob = rachelDOB; income = 82.00 } in
-//let chandler = { height = 72; name = " Chandler "; human = true; dob = chandlerDOB; income = 83.00 } in
-//let cat = { height = 10; name = "GrumpyCat"; human = false; dob = catDOB; income = 0.00 } in
-//let null = { height = null; name = null; human = null; dob = null; income = null } in
-//let _ = DB.set_v1 ross "ross" Person in
-//let _ = DB.set_v1 rachel "rachel" Person in
-//let _ = DB.set_v1 chandler "chandler" Person in
-//let _ = DB.set_v1 cat "cat" Person in
-//let _ = DB.set_v1 null "null" Person in
+ let rachelDOB = Date.parse_v2_ster "1969-05-05T00:00:00Z" in
+ let chandlerDOB = Date.parse_v2_ster "1969-08-19T10:13:42Z" in
+ let catDOB = Date.parse_v2_ster "2012-04-04T00:00:00Z" in
+ let ross = { height = 73; name = "Ross"; human = true; dob = rossDOB; income = 100.00 } in
+ let rachel = { height = 65; name = "Rachel"; human = true; dob = rachelDOB; income = 82.00 } in
+ let chandler = { height = 72; name = " Chandler "; human = true; dob = chandlerDOB; income = 83.00 } in
+ let cat = { height = 10; name = "GrumpyCat"; human = false; dob = catDOB; income = 0.00 } in
+ let nil = { height = null; name = null; human = null; dob = null; income = null } in
+ let _ = DB.set_v1 ross "ross" Person in
+ let _ = DB.set_v1 rachel "rachel" Person in
+ let _ = DB.set_v1 chandler "chandler" Person in
+ let _ = DB.set_v1 cat "cat" Person in
+ let _ = DB.set_v1 nil "null" Person in
  ((DB.query_v4 Person lambda)
- |> List.map_v1 (fun p -> p.name)
+ |> List.map_v0 (fun p -> p.name)
  |> List.sort_v0))
 
 
-[test.db] with DB Person
-(friends (fun p -> true)) = ["cat"; "chandler"; "null"; "rachel"; "ross" ]
+[test.db queries] with DB Person
+(friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
