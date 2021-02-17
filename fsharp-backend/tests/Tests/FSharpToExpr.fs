@@ -313,7 +313,12 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
           PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
           PT.EFnCall(id, PT.FQFnName.userFnName name, [ c arg ], PT.NoRail)
-      | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
+      | e ->
+          failwith (
+            $"Unsupported expression in app: full ast:\n{ast}\n\n"
+            + $"specific fncall expr:\n({funcExpr}),"
+            + $"\nconverted specific fncall expr:\n{e},\nargument: {arg})"
+          )
   | SynExpr.FromParseError _ as expr ->
       failwith $"There was a parser error parsing: {expr}"
   | expr -> failwith $"Unsupported expression: {ast}"
