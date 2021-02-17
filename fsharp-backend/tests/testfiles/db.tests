@@ -300,6 +300,9 @@
 (friends (fun p -> String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [" Chandler " ]
 (friends (fun p -> String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [" Chandler " ]
 (friends (fun p -> String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [" Chandler " ]
+(friends (fun p -> String.trim_v0 p.name == "Chandler")) = [" Chandler " ]
+(friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [" Chandler " ]
+(friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [" Chandler " ]
 
 
 

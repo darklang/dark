@@ -1155,7 +1155,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr toTrim ] -> Value(DStr(toTrim.Trim()))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "trim"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "trimStart" 0
@@ -1167,7 +1167,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimStart()))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "ltrim"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "trimEnd" 0
@@ -1179,7 +1179,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimEnd()))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "rtrim"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "toBytes" 0

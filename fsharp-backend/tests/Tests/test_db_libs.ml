@@ -155,26 +155,6 @@ let t_db_query_works () =
            (fn "Date::subtract" [fn "Date::now" []; int 1]))
     |> execs ) ;
   check_dval
-    "string::trim"
-    (DList [chandler])
-    ( queryv (binop "==" (fn "String::trim" [field "v" "name"]) (str "Chandler"))
-    |> execs ) ;
-  check_dval
-    "string::trimStart"
-    (DList [chandler])
-    ( queryv
-        (binop
-           "=="
-           (fn "String::trimStart" [field "v" "name"])
-           (str "Chandler "))
-    |> execs ) ;
-  check_dval
-    "string::trimEnd"
-    (DList [chandler])
-    ( queryv
-        (binop "==" (fn "String::trimEnd" [field "v" "name"]) (str " Chandler"))
-    |> execs ) ;
-  check_dval
     "date::hour"
     (DList [chandler])
     ( queryv (binop "==" (fn "Date::hour_v1" [field "v" "dob"]) (int 10))

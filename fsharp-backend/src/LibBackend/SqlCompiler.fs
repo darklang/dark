@@ -35,9 +35,6 @@ type position =
 //   ; "Float::power"
 //   ; "Float::divide"
 //   ; "Bool::not"
-//   ; "String::trim"
-//   ; "String::trimStart"
-//   ; "String::trimEnd"
 //   ; "Date::hour_v1"
 //   ; "Date::day"
 //   ; "Date::minute"
@@ -62,9 +59,6 @@ let unaryOpToSql op : DType * DType * string * string list * position =
   match op.ToString() with
   | "Bool::not" -> (TBool, TBool, "not", [], First)
   (* Not sure if any of the string functions are strictly correct for unicode *)
-  | "String::trim" -> (TStr, TStr, "trim", [], First)
-  | "String::trimStart" -> (TStr, TStr, "ltrim", [], First)
-  | "String::trimEnd" -> (TStr, TStr, "rtrim", [], First)
   | "Date::hour_v1" -> (TDate, TInt, "date_part", [ "'hour'" ], Last)
   | "Date::day" -> (TDate, TInt, "date_part", [ "'day'" ], Last)
   | "Date::minute" -> (TDate, TInt, "date_part", [ "'minute'" ], Last)
