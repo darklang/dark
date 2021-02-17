@@ -275,12 +275,14 @@
 // Test compiled functions
 // ------------
 [tests.db compiled functions] with DB Person
-//(friends (fun p -> Float.greaterThan p.income 90.0)) = [ "Ross" ]
 (friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
 (friends (fun p -> Float.lessThanOrEqualTo_v0 p.income 82.10)) = ["GrumpyCat"; "Rachel"]
 (friends (fun p -> Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
 (friends (fun p -> Float.greaterThanOrEqualTo_v0 82.10 p.income )) = ["GrumpyCat"; "Rachel"]
-//(friends (fun p -> Int.lessThanOrEqualTo p.height 65)) = ["GrumpyCat"; "Rachel"]
+(friends (fun p -> Int.lessThanOrEqualTo_v0 p.height 65)) = ["GrumpyCat"; "Rachel"]
+(friends (fun p -> Int.lessThan_v0 p.height 65)) = ["GrumpyCat"]
+(friends (fun p -> Int.greaterThanOrEqualTo_v0 p.height 65)) =  [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> Int.greaterThan_v0 p.height 65)) =  [" Chandler "; "Ross" ]
 //(friends (fun p -> String.toLowercase_v1 p.name = "Rachel")) = ["Rachel"]
 //(friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
 //(friends (fun p -> String.length_v0 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
