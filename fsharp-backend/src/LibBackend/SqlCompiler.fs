@@ -28,12 +28,6 @@ type position =
   | Last
 
 // let compilerSupportedFns =
-//   ; "Float::mod"
-//   ; "Float::add"
-//   ; "Float::subtract"
-//   ; "Float::multiply"
-//   ; "Float::power"
-//   ; "Float::divide"
 //   ; "Date::hour_v1"
 //   ; "Date::day"
 //   ; "Date::minute"
@@ -41,14 +35,6 @@ type position =
 //   ; "Date::second"
 //   ; "Date::year"
 //   ; "Date::atStartOfDay"
-//
-// match op with
-// | "Float::mod" -> allFloats "%"
-// | "Float::add" -> allFloats "+"
-// | "Float::subtract" -> allFloats "-"
-// | "Float::multiply" -> allFloats "*"
-// | "Float::power" -> allFloats "^"
-// | "Float::divide" -> allFloats "/"
 
 
 let unaryOpToSql op : DType * DType * string * string list * position =
