@@ -16,6 +16,7 @@
     <Compile Include="StdLib/LibBytes.fs" />
     <Compile Include="StdLib/LibDate.fs" />
     <Compile Include="StdLib/LibDict.fs" />
+    <Compile Include="StdLib/LibFloat.fs" />
     <Compile Include="StdLib/LibInt.fs" />
     <Compile Include="StdLib/LibList.fs" />
     <Compile Include="StdLib/LibMiddleware.fs" />

@@ -12,6 +12,7 @@ let prefixFns : List<BuiltInFn> =
                 LibBytes.fns
                 LibDate.fns
                 LibDict.fns
+                LibFloat.fns
                 LibInt.fns
                 LibList.fns
                 LibMiddleware.fns
