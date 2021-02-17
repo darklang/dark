@@ -34,17 +34,7 @@ type position =
 //   ; "Float::multiply"
 //   ; "Float::power"
 //   ; "Float::divide"
-//   ; "Float::greaterThan"
-//   ; "Float::greaterThanOrEqualTo"
-//   ; "Float::lessThan"
-//   ; "Float::lessThanOrEqualTo"
 //   ; "Bool::not"
-//   ; "String::toLowercase"
-//   ; "String::toLowercase_v1"
-//   ; "String::toUppercase"
-//   ; "String::toUppercase_v1"
-//   ; "String::length"
-//   ; "String::reverse"
 //   ; "String::trim"
 //   ; "String::trimStart"
 //   ; "String::trimEnd"
@@ -55,10 +45,7 @@ type position =
 //   ; "Date::second"
 //   ; "Date::year"
 //   ; "Date::atStartOfDay"
-//   ; "String::isSubstring_v1"
-//   ; "String::contains"
 //   ; "String::replaceAll"
-//
 //
 // match op with
 // | "Float::mod" -> allFloats "%"
@@ -67,10 +54,6 @@ type position =
 // | "Float::multiply" -> allFloats "*"
 // | "Float::power" -> allFloats "^"
 // | "Float::divide" -> allFloats "/"
-// | "Float::greaterThan" -> boolOp TFloat ">"
-// | "Float::greaterThanOrEqualTo" -> boolOp TFloat ">="
-// | "Float::lessThan" -> boolOp TFloat "<"
-// | "Float::lessThanOrEqualTo" -> boolOp TFloat "<="
 
 
 let unaryOpToSql op : DType * DType * string * string list * position =
@@ -79,14 +62,6 @@ let unaryOpToSql op : DType * DType * string * string list * position =
   match op.ToString() with
   | "Bool::not" -> (TBool, TBool, "not", [], First)
   (* Not sure if any of the string functions are strictly correct for unicode *)
-  | "String::toLowercase"
-  | "String::toLowercase_v1" -> (TStr, TStr, "lower", [], First)
-  | "String::toUppercase"
-  | "String::toUppercase_v1" -> (TStr, TStr, "upper", [], First)
-  | "String::length" ->
-      (* There is a unicode version of length but it only works on bytea data *)
-      (TStr, TInt, "length", [], First)
-  | "String::reverse" -> (TStr, TStr, "reverse", [], First)
   | "String::trim" -> (TStr, TStr, "trim", [], First)
   | "String::trimStart" -> (TStr, TStr, "ltrim", [], First)
   | "String::trimEnd" -> (TStr, TStr, "rtrim", [], First)
@@ -263,12 +238,6 @@ let rec lambdaToSql
       let searchingForSql, vars2 = lts TStr searchingFor
       // strpos returns indexed from 1; 0 means missing
       $"(strpos({lookingInSql}, {searchingForSql}) > 0)", vars1 @ vars2
-  | Fn "String" "replaceAll" 0 [ lookingIn; searchingFor; replaceWith ] ->
-      let lookingInSql, vars1 = lts TStr lookingIn
-      let searchingForSql, vars2 = lts TStr searchingFor
-      let replaceWithSql, vars3 = lts TStr replaceWith
-      let vars = vars1 @ vars2 @ vars3
-      $"(replace({lookingInSql}, {searchingForSql}, {replaceWithSql}))", vars
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
       match Map.get name fns with
       | Some fn ->

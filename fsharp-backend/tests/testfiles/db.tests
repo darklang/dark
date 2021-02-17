@@ -283,9 +283,12 @@
 (friends (fun p -> Int.lessThan_v0 p.height 65)) = ["GrumpyCat"]
 (friends (fun p -> Int.greaterThanOrEqualTo_v0 p.height 65)) =  [" Chandler "; "Rachel"; "Ross" ]
 (friends (fun p -> Int.greaterThan_v0 p.height 65)) =  [" Chandler "; "Ross" ]
-//(friends (fun p -> String.toLowercase_v1 p.name = "Rachel")) = ["Rachel"]
-//(friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
-//(friends (fun p -> String.length_v0 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+(friends (fun p -> String.toLowercase_v0 p.name = "rachel")) = ["Rachel"]
+(friends (fun p -> String.toLowercase_v1 p.name = "rachel")) = ["Rachel"]
+(friends (fun p -> String.toUppercase_v0 p.name = "RACHEL")) = ["Rachel"]
+(friends (fun p -> String.toUppercase_v1 p.name = "RACHEL")) = ["Rachel"]
+(friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
+(friends (fun p -> String.length_v0 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
 //(friends (fun p -> String.isSubstring_v1 p.name "ROSS")) = []
 //(friends (fun p -> String.isSubstring_v1 p.name "R")) = ["Rachel"; "Ross" ]
 //(friends (fun p -> String.isSubstring_v1 p.name "ZZZ")) = []
@@ -294,6 +297,9 @@
 //(friends (fun p -> String.contains_v0 p.name "R")) = ["Rachel"; "Ross" ]
 //(friends (fun p -> String.contains_v0 p.name "ZZZ")) = []
 //(friends (fun p -> String.contains_v0 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel";"Ross" ]
+(friends (fun p -> String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [" Chandler " ]
+(friends (fun p -> String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [" Chandler " ]
+(friends (fun p -> String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [" Chandler " ]
 
 
 

@@ -157,7 +157,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DStr search; DStr replace ] ->
             Value(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "replace"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "toInt" 0
@@ -235,7 +235,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toUpper s))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "upper"
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
     { name = fn "String" "toUppercase" 1
@@ -246,7 +246,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toUpper s))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "upper"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "toLowercase" 0
@@ -257,7 +257,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toLower s))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "lower"
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toLowercase" 1) }
     { name = fn "String" "toLowercase" 1
@@ -268,7 +268,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toLower s))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "lower"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "length" 0
@@ -280,7 +280,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s ] ->
             s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Value
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "length"
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "length" 1) }
     { name = fn "String" "length" 1
@@ -291,7 +291,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Value
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = NotYetImplementedTODO // there isn't a unicode version of length
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "append" 0
@@ -442,7 +442,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s ] ->
             String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Value
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "reverse"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "split" 0
