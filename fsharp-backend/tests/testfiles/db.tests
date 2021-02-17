@@ -277,12 +277,26 @@
 [tests.db compiled functions] with DB Person
 //(friends (fun p -> Float.greaterThan p.income 90.0)) = [ "Ross" ]
 (friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
+(friends (fun p -> Float.lessThanOrEqualTo_v0 p.income 82.10)) = ["GrumpyCat"; "Rachel"]
+(friends (fun p -> Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
+(friends (fun p -> Float.greaterThanOrEqualTo_v0 82.10 p.income )) = ["GrumpyCat"; "Rachel"]
 //(friends (fun p -> Int.lessThanOrEqualTo p.height 65)) = ["GrumpyCat"; "Rachel"]
-//(friends (fun p -> Float.lessThanOrEqualTo p.income 82.10)) = ["GrumpyCat"; "Rachel"]
 //(friends (fun p -> String.toLowercase_v1 p.name = "Rachel")) = ["Rachel"]
+//(friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
+//(friends (fun p -> String.length_v0 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+//(friends (fun p -> String.isSubstring_v1 p.name "ROSS")) = []
+//(friends (fun p -> String.isSubstring_v1 p.name "R")) = ["Rachel"; "Ross" ]
+//(friends (fun p -> String.isSubstring_v1 p.name "ZZZ")) = []
+//(friends (fun p -> String.isSubstring_v1 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel";"Ross" ]
+//(friends (fun p -> String.contains_v0 p.name "ROSS")) = []
+//(friends (fun p -> String.contains_v0 p.name "R")) = ["Rachel"; "Ross" ]
+//(friends (fun p -> String.contains_v0 p.name "ZZZ")) = []
+//(friends (fun p -> String.contains_v0 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel";"Ross" ]
 
 
 
+
+//[" Chandler "; "GrumpyCat"; "Rachel";"Ross" ]
 
 
 

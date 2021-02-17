@@ -99,52 +99,6 @@ let t_sql_compiler_works () =
 
 let t_db_query_works () =
   check_dval
-    "string::reverse"
-    (DList [rachel])
-    ( queryv
-        (binop "==" (fn "String::reverse" [field "v" "name"]) (str "lehcaR"))
-    |> execs ) ;
-  check_dval
-    "string::length"
-    (DList [cat; rachel; chandler])
-    ( queryv (binop ">" (fn "String::length" [field "v" "name"]) (int 5))
-    |> execs ) ;
-  check_dval
-    "string::isSubstring_v1"
-    (DList [rachel; ross])
-    (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "R"]) |> execs) ;
-  check_dval
-    "string::isSubstring_v1 case-sensitive"
-    (DList [])
-    ( queryv (fn "String::isSubstring_v1" [field "v" "name"; str "ROSS"])
-    |> execs ) ;
-  check_dval
-    "string::isSubstring_v1 when empty"
-    (DList [])
-    (queryv (fn "String::isSubstring_v1" [field "v" "name"; str "ZZZ"]) |> execs) ;
-  check_dval
-    "string::isSubstring_v1 empty arg"
-    (DList [cat; rachel; chandler; ross])
-    (* matches the ocaml version: "" is a substring of all strings *)
-    (queryv (fn "String::isSubstring_v1" [field "v" "name"; str ""]) |> execs) ;
-  check_dval
-    "string::contains"
-    (DList [rachel; ross])
-    (queryv (fn "String::contains" [field "v" "name"; str "R"]) |> execs) ;
-  check_dval
-    "string::contains case-sensitive"
-    (DList [])
-    (queryv (fn "String::contains" [field "v" "name"; str "ROSS"]) |> execs) ;
-  check_dval
-    "string::contains when empty"
-    (DList [])
-    (queryv (fn "String::contains" [field "v" "name"; str "ZZZ"]) |> execs) ;
-  check_dval
-    "string::contains empty arg"
-    (DList [cat; rachel; chandler; ross])
-    (* matches the ocaml version: "" is a substring of all strings *)
-    (queryv (fn "String::contains" [field "v" "name"; str ""]) |> execs) ;
-  check_dval
     "date::lessThanOrEquals"
     (DList [rachel; chandler; ross])
     ( queryv

@@ -185,30 +185,28 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Float" "greaterThan" 0
-
-    //   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is greater than b"
-    //   ; fn =
-
-    //         (function
-    //         | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Float" "greaterThanOrEqualTo" 0
-
-    //   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    //   ; returnType = TBool
-    //   ; description = "Returns true if a is greater than b"
-    //   ; fn =
-
-    //         (function
-    //         | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "greaterThan" 0
+      parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
+      returnType = TBool
+      description = "Returns true if a is greater than b"
+      fn =
+        (function
+        | _, [ DFloat a; DFloat b ] -> Value(DBool(a > b))
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlBinOp ">"
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Float" "greaterThanOrEqualTo" 0
+      parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
+      returnType = TBool
+      description = "Returns true if a is greater than b"
+      fn =
+        (function
+        | _, [ DFloat a; DFloat b ] -> Value(DBool(a >= b))
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlBinOp ">="
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Float" "lessThan" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -216,22 +214,21 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Value(DBool(a < b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Float" "lessThanOrEqualTo" 0
+      parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
+      returnType = TBool
+      description = "Returns true if a is less than b"
+      fn =
+        (function
+        | _, [ DFloat a; DFloat b ] -> Value(DBool(a <= b))
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlBinOp "<="
+      previewable = Pure
       deprecated = NotDeprecated } ]
-// ; { name = fn "Float" "lessThanOrEqualTo" 0
-
-//   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-//   ; returnType = TBool
-//   ; description = "Returns true if a is less than b"
-//   ; fn =
-
-//         (function
-//         | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "sum" 0
 
 //   ; parameters = [Param.make "a" TList]
