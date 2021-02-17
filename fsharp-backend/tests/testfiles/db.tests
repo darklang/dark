@@ -189,24 +189,9 @@
  DB.queryOneWithKey_v2 { x = "foo" } X) = Nothing
 
 
+// ------------
 // SqlCompiler queries
-[test.db.queryOne_v4 supports Dates] with DB Timestamp
-(let before = Date.parse_v2_ster "1900-01-01T00:00:00Z" in
- let middle = Date.parse_v2_ster "2000-01-01T00:00:00Z" in
- let after = Date.parse_v2_ster "2100-01-01T00:00:00Z" in
- let _ = DB.set_v1 { ts = before } "before" Timestamp in
- let _ = DB.set_v1 { ts = middle } "middle" Timestamp in
- let _ = DB.set_v1 { ts = after  } "after"  Timestamp in
- { a = DB.queryOne_v4 Timestamp (fun value -> Date.(<) middle value.ts)
- ; b = DB.queryOne_v4 Timestamp (fun value -> Date.(>) middle value.ts)
- ; c = DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 middle value.ts)
- ; d = DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 middle value.ts)
- }) = ({ a = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
-       ; b = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
-       ; c = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
-       ; d = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
-       })
-
+// ------------
 [db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 
 [fn.addFriend key name height human dob income]
@@ -335,4 +320,40 @@
 [test.queryCount works - one] with DB Person
 (let _ = prepFriends null in
  DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
+
+// ------------
+// Functions
+// ------------
+
+[fn.beforeDate null]
+Date.parse_v2_ster "1900-01-01T00:00:00Z"
+[fn.middleDate null]
+Date.parse_v2_ster "2000-01-01T00:00:00Z"
+[fn.afterDate null]
+Date.parse_v2_ster "2100-01-01T00:00:00Z"
+
+[fn.prepDates null]
+(let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
+ let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
+ DB.set_v1 { ts = afterDate null } "after"  Timestamp)
+
+[test.query with Date::<] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.(<) (middleDate null) value.ts))
+= Just { ts = afterDate null }
+
+[test.query with Date::>] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.(>) (middleDate null) value.ts))
+= Just { ts = beforeDate null }
+
+[test.query with Date::lessThan] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 (middleDate null) value.ts))
+= Just ({ ts = afterDate null })
+
+[test.query with Date::greaterThan] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts))
+= Just { ts = beforeDate null }
 
