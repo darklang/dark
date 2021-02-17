@@ -27,20 +27,19 @@ let fns : List<BuiltInFn> =
          The modulus `b` must be 0 or negative.
          Use `Int::remainder` if you want the remainder after division, which has a different behavior for negative numbers."
       fn =
-        InProcess
-          (function
-          | state, [ DInt v; DInt m as mdv ] ->
-              (try
-                Value(DInt(v % m))
-               with e ->
-                 if m = bigint 0 then
-                   err (Errors.argumentWasnt "positive" "b" mdv)
-                 else
-                   // FSTODO
-                   // In case there's another failure mode, rollbar
-                   failwith "mod error")
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | state, [ DInt v; DInt m as mdv ] ->
+            (try
+              Value(DInt(v % m))
+             with e ->
+               if m = bigint 0 then
+                 err (Errors.argumentWasnt "positive" "b" mdv)
+               else
+                 // FSTODO
+                 // In case there's another failure mode, rollbar
+                 failwith "mod error")
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "%"
       previewable = Pure
       (*
          * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
@@ -85,17 +84,16 @@ let fns : List<BuiltInFn> =
           The sign of `divisor` doesn't influence the outcome.
           Returns an `Error` if `divisor` is 0."
       fn =
-        InProcess
-          (function
-          | _, [ DInt v; DInt d ] ->
-              (try
-                BigInteger.Remainder(v, d) |> DInt |> Value
-               with e ->
-                 if d = bigint 0 then
-                   Value(Dval.errStr (Errors.dividingByZero "divisor"))
-                 else (* In case there's another failure mode, rollbar *)
-                   raise e)
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DInt v; DInt d ] ->
+            (try
+              BigInteger.Remainder(v, d) |> DInt |> Value
+             with e ->
+               if d = bigint 0 then
+                 Value(Dval.errStr (Errors.dividingByZero "divisor"))
+               else (* In case there's another failure mode, rollbar *)
+                 raise e)
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -104,11 +102,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Adds two integers together"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "subtract" 0
@@ -116,11 +113,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Subtracts two integers"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "multiply" 0
@@ -128,11 +124,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Multiplies two integers"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "*"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "power" 0
@@ -140,20 +135,19 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Raise `base` to the power of `exponent`"
       fn =
-        InProcess
-          (function
-          | state, [ DInt number; DInt exp as expdv ] ->
-              (try
-                Value(DInt(number ** (int exp)))
-               with e ->
-                 if exp < bigint 0 then
-                   err (Errors.argumentWasnt "positive" "exponent" expdv)
-                 else
-                   // FSTODO
-                   // In case there's another failure mode, rollbar
-                   failwith "mod error")
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | state, [ DInt number; DInt exp as expdv ] ->
+            (try
+              Value(DInt(number ** (int exp)))
+             with e ->
+               if exp < bigint 0 then
+                 err (Errors.argumentWasnt "positive" "exponent" expdv)
+               else
+                 // FSTODO
+                 // In case there's another failure mode, rollbar
+                 failwith "mod error")
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "^"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "divide" 0
@@ -161,11 +155,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Divides two integers"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "/"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "absoluteValue" 0
@@ -174,11 +167,10 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the absolute value of `a` (turning negative inputs into positive outputs)."
       fn =
-        InProcess
-          (function
-          | _, [ DInt a ] -> Value(DInt(abs a))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a ] -> Value(DInt(abs a))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "negate" 0
@@ -186,11 +178,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Returns the negation of `a`, `-a`."
       fn =
-        InProcess
-          (function
-          | _, [ DInt a ] -> Value(DInt(-a))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a ] -> Value(DInt(-a))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "greaterThan" 0
@@ -198,11 +189,10 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is greater than b"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp ">"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "greaterThanOrEqualTo" 0
@@ -210,11 +200,10 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is greater than or equal to b"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp ">="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "lessThan" 0
@@ -222,11 +211,10 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is less than b"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
-          | args -> incorrectArgs ())
-      sqlSpec = SqlFunction "<"
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "<"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "lessThanOrEqualTo" 0
@@ -234,11 +222,10 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if a is less than or equal to b"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "<="
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "random" 0
@@ -246,12 +233,11 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Returns a random integer between a and b (inclusive)"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] ->
-              a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] ->
+            a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "Int" "random" 1) }
     { name = fn "Int" "random" 1
@@ -259,16 +245,15 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Returns a random integer between `start` and `end` (inclusive)."
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] ->
-              let lower, upper = if a > b then (b, a) else (a, b)
+        (function
+        | _, [ DInt a; DInt b ] ->
+            let lower, upper = if a > b then (b, a) else (a, b)
 
-              lower + (Prelude.random.Next((upper - lower) |> int) |> bigint)
-              |> DInt
-              |> Value
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+            lower + (Prelude.random.Next((upper - lower) |> int) |> bigint)
+            |> DInt
+            |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
     { name = fn "Int" "sqrt" 0
@@ -276,11 +261,10 @@ let fns : List<BuiltInFn> =
       returnType = TFloat
       description = "Get the square root of an Int"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "toFloat" 0
@@ -288,11 +272,10 @@ let fns : List<BuiltInFn> =
       returnType = TFloat
       description = "Converts an Int to a Float"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a ] -> Value(DFloat(float a))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a ] -> Value(DFloat(float a))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "Int" "sum" 0
@@ -322,7 +305,7 @@ let fns : List<BuiltInFn> =
     //             |> Result.ok_exn
     //         | args ->
     //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
+    //   ; sqlSpec = NotQueryable
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Int" "max" 0
@@ -330,11 +313,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Returns the higher of a and b"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DInt(max a b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(max a b))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "min" 0
@@ -342,11 +324,10 @@ let fns : List<BuiltInFn> =
       returnType = TInt
       description = "Returns the lower of `a` and `b`"
       fn =
-        InProcess
-          (function
-          | _, [ DInt a; DInt b ] -> Value(DInt(min a b))
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+        (function
+        | _, [ DInt a; DInt b ] -> Value(DInt(min a b))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "clamp" 0
@@ -359,15 +340,14 @@ let fns : List<BuiltInFn> =
    If `value` is outside the range, returns `limitA` or `limitB`, whichever is closer to `value`.
    `limitA` and `limitB` can be provided in any order."
       fn =
-        InProcess
-          (function
-          | _, [ DInt v; DInt a; DInt b ] ->
-              let min, max = if a < b then (a, b) else (b, a)
+        (function
+        | _, [ DInt v; DInt a; DInt b ] ->
+            let min, max = if a < b then (a, b) else (b, a)
 
-              if v < min then Value(DInt min)
-              else if v > max then Value(DInt max)
-              else Value(DInt v)
-          | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+            if v < min then Value(DInt min)
+            else if v > max then Value(DInt max)
+            else Value(DInt v)
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]

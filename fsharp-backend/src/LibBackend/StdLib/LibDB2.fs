@@ -30,15 +30,14 @@ let fns : List<BuiltInFn> =
       returnType = varA
       description = "Upsert `val` into `table`, accessible by `key`"
       fn =
-        InProcess
-          (function
-          | state, [ DObj value; DStr key; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! _id = UserDB.set state true db key value
-                return DObj value
-              }
-          | _ -> incorrectArgs ())
+        (function
+        | state, [ DObj value; DStr key; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! _id = UserDB.set state true db key value
+              return DObj value
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -48,16 +47,15 @@ let fns : List<BuiltInFn> =
       description =
         "Add `val` as a new entry into `table`, using a newly generated key. Returns the generated key."
       fn =
-        InProcess
-          (function
-          | state, [ DObj value; DDB dbname ] ->
-              taskv {
-                let key = System.Guid.NewGuid() |> toString
-                let db = state.dbs.[dbname]
-                let! _id = UserDB.set state true db key value
-                return DStr(key)
-              }
-          | _ -> incorrectArgs ())
+        (function
+        | state, [ DObj value; DDB dbname ] ->
+            taskv {
+              let key = System.Guid.NewGuid() |> toString
+              let db = state.dbs.[dbname]
+              let! _id = UserDB.set state true db key value
+              return DStr(key)
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "set" 1) }
@@ -66,15 +64,14 @@ let fns : List<BuiltInFn> =
       returnType = TOption TAny
       description = "Finds a value in `table` by `key"
       fn =
-        InProcess
-          (function
-          | state, [ DStr key; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! result = UserDB.getOption state db key
-                return Dval.option result
-              }
-          | _ -> incorrectArgs ())
+        (function
+        | state, [ DStr key; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! result = UserDB.getOption state db key
+              return Dval.option result
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "get" 2) }
@@ -83,7 +80,7 @@ let fns : List<BuiltInFn> =
 //   ; returnType = TOption
 //   ; description = "Finds a value in `table` by `key"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [DStr key; DDB dbname] -> taskv {
 //             let key = Unicode_string.to_string key in
 //             let db = state.dbs.[dbname]
@@ -100,51 +97,48 @@ let fns : List<BuiltInFn> =
       description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
       fn =
-        InProcess
-          (function
-          | state, [ DList keys; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
+        (function
+        | state, [ DList keys; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
 
-                let skeys =
-                  List.map
-                    (function
-                    | DStr s -> s
-                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                    keys
+              let skeys =
+                List.map
+                  (function
+                  | DStr s -> s
+                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                  keys
 
-                let! result = UserDB.getMany state db skeys
+              let! result = UserDB.getMany state db skeys
 
-                return
-                  result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-              }
-          | _ -> incorrectArgs ())
+              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "DB" "getMany" 2) }
     { name = fn "DB" "getMany" 2
       parameters = [ keysParam; tableParam ]
       returnType = TList TAny
       description =
         "Finds many values in `table` by `keys, returning a [value] list of values"
       fn =
-        InProcess
-          (function
-          | state, [ DList keys; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
+        (function
+        | state, [ DList keys; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
 
-                let skeys =
-                  List.map
-                    (function
-                    | DStr s -> s
-                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                    keys
+              let skeys =
+                List.map
+                  (function
+                  | DStr s -> s
+                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                  keys
 
-                let! result = UserDB.getMany state db skeys
-                return result |> List.map (fun (_, v) -> v) |> DList
-              }
-          | _ -> incorrectArgs ())
+              let! result = UserDB.getMany state db skeys
+              return result |> List.map (fun (_, v) -> v) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "getMany" 3) }
@@ -154,28 +148,27 @@ let fns : List<BuiltInFn> =
       description =
         "Finds many values in `table` by `keys`. If all `keys` are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
       fn =
-        InProcess
-          (function
-          | state, [ DList keys; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
+        (function
+        | state, [ DList keys; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
 
-                let skeys =
-                  List.map
-                    (function
-                    | DStr s -> s
-                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                    keys
+              let skeys =
+                List.map
+                  (function
+                  | DStr s -> s
+                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                  keys
 
-                let! items = UserDB.getMany state db skeys
+              let! items = UserDB.getMany state db skeys
 
-                if List.length items = List.length skeys then
-                  return
-                    items |> List.map (fun (_, v) -> v) |> DList |> Some |> DOption
-                else
-                  return DOption None
-              }
-          | _ -> incorrectArgs ())
+              if List.length items = List.length skeys then
+                return
+                  items |> List.map (fun (_, v) -> v) |> DList |> Some |> DOption
+              else
+                return DOption None
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -185,23 +178,22 @@ let fns : List<BuiltInFn> =
       description =
         "Finds many values in `table` by `keys` (ignoring any missing items), returning a [value] list of values"
       fn =
-        InProcess
-          (function
-          | state, [ DList keys; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
+        (function
+        | state, [ DList keys; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
 
-                let skeys =
-                  List.map
-                    (function
-                    | DStr s -> s
-                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                    keys
+              let skeys =
+                List.map
+                  (function
+                  | DStr s -> s
+                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                  keys
 
-                let! result = UserDB.getMany state db skeys
-                return result |> List.map (fun (_, v) -> v) |> DList
-              }
-          | _ -> incorrectArgs ())
+              let! result = UserDB.getMany state db skeys
+              return result |> List.map (fun (_, v) -> v) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -211,25 +203,23 @@ let fns : List<BuiltInFn> =
       description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
       fn =
-        InProcess
-          (function
-          | state, [ DList keys; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
+        (function
+        | state, [ DList keys; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
 
-                let skeys =
-                  List.map
-                    (function
-                    | DStr s -> s
-                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                    keys
+              let skeys =
+                List.map
+                  (function
+                  | DStr s -> s
+                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                  keys
 
-                let! result = UserDB.getManyWithKeys state db skeys
+              let! result = UserDB.getManyWithKeys state db skeys
 
-                return
-                  result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-              }
-          | _ -> incorrectArgs ())
+              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "getManyWithKeys" 1) }
@@ -239,23 +229,22 @@ let fns : List<BuiltInFn> =
       description =
         "Finds many values in `table` by `keys, returning a {key:{value}, key2: {value2}} object of keys and values"
       fn =
-        InProcess
-          (function
-          | state, [ DList keys; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
+        (function
+        | state, [ DList keys; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
 
-                let skeys =
-                  List.map
-                    (function
-                    | DStr s -> s
-                    | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                    keys
+              let skeys =
+                List.map
+                  (function
+                  | DStr s -> s
+                  | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                  keys
 
-                let! result = UserDB.getManyWithKeys state db skeys
-                return result |> Map.ofList |> DObj
-              }
-          | _ -> incorrectArgs ())
+              let! result = UserDB.getManyWithKeys state db skeys
+              return result |> Map.ofList |> DObj
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -264,7 +253,7 @@ let fns : List<BuiltInFn> =
 //   ; returnType = TNull
 //   ; description = "Delete `key` from `table`"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [DStr key; DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             let key = Unicode_string.to_string key in
@@ -281,7 +270,7 @@ let fns : List<BuiltInFn> =
 //   ; returnType = TNull
 //   ; description = "Delete everything from `table`"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.delete_all state db ;
@@ -298,17 +287,15 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a [[key, value]] list of lists"
       fn =
-        InProcess
-          (function
-          | state, [ DObj fields; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! results = UserDB.queryExactFields state db fields
+        (function
+        | state, [ DObj fields; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryExactFields state db fields
 
-                return
-                  results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-              }
-          | _ -> incorrectArgs ())
+              return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "query" 2) }
@@ -319,15 +306,14 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
       fn =
-        InProcess
-          (function
-          | state, [ DObj fields; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! results = UserDB.queryExactFields state db fields
-                return results |> List.map (fun (k, v) -> v) |> Dval.list
-              }
-          | _ -> incorrectArgs ())
+        (function
+        | state, [ DObj fields; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryExactFields state db fields
+              return results |> List.map (fun (k, v) -> v) |> Dval.list
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "query" 3) }
@@ -337,15 +323,14 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values"
       fn =
-        InProcess
-          (function
-          | state, [ (DObj fields); DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! results = UserDB.queryExactFields state db fields
-                return results |> List.map (fun (k, v) -> v) |> Dval.list
-              }
-          | _ -> incorrectArgs ())
+        (function
+        | state, [ (DObj fields); DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryExactFields state db fields
+              return results |> List.map (fun (k, v) -> v) |> Dval.list
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryExactFields" 0) }
@@ -355,7 +340,7 @@ let fns : List<BuiltInFn> =
 //   ; description =
 //       "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [(DObj _ as obj); DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.query_exact_fields state db obj
@@ -373,18 +358,16 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the values from `table` which have the same fields and values that `spec` has
           , returning a [[key, value]] list of lists"
       fn =
-        InProcess
-          (function
-          | state, [ DObj fields; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
+        (function
+        | state, [ DObj fields; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
 
-                let! result = UserDB.queryExactFields state db fields
+              let! result = UserDB.queryExactFields state db fields
 
-                return
-                  result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-              }
-          | _ -> incorrectArgs ())
+              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryExactFieldsWithKey" 0) }
@@ -394,15 +377,14 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the values from `table` which have the same fields and values that `spec` has
           , returning {key : value} as an object"
       fn =
-        InProcess
-          (function
-          | state, [ DObj fields; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! result = UserDB.queryExactFields state db fields
-                return result |> Map.ofList |> DObj
-              }
-          | _ -> incorrectArgs ())
+        (function
+        | state, [ DObj fields; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! result = UserDB.queryExactFields state db fields
+              return result |> Map.ofList |> DObj
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryExactFieldsWithKey" 0) }
@@ -413,7 +395,7 @@ let fns : List<BuiltInFn> =
 //       "Fetch all the values from `table` which have the same fields and values that `spec` has
 //       , returning {key : value} as an object. Previous called DB::queryWithKey_v2"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [(DObj _ as obj); DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.query_exact_fields state db obj
@@ -431,18 +413,17 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
       fn =
-        InProcess
-          (function
-          | state, [ DObj fields; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! results = UserDB.queryExactFields state db fields
+        (function
+        | state, [ DObj fields; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryExactFields state db fields
 
-                match results with
-                | [ (_, v) ] -> return DOption(Some v)
-                | _ -> return DOption None
-              }
-          | _ -> incorrectArgs ())
+              match results with
+              | [ (_, v) ] -> return DOption(Some v)
+              | _ -> return DOption None
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOne" 2) }
@@ -452,7 +433,7 @@ let fns : List<BuiltInFn> =
 //   ; description =
 //       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [(DObj _ as obj); DDB dbname] -> taskv {
 //             let results =
 //               let db = state.dbs.[dbname]
@@ -476,7 +457,7 @@ let fns : List<BuiltInFn> =
 //   ; description =
 //       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [(DObj _ as obj); DDB dbname] -> taskv {
 //             let results =
 //               let db = state.dbs.[dbname]
@@ -499,18 +480,17 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
       fn =
-        InProcess
-          (function
-          | state, [ DObj fields; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! results = UserDB.queryExactFields state db fields
+        (function
+        | state, [ DObj fields; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryExactFields state db fields
 
-                match results with
-                | [ (k, v) ] -> return (DOption(Some(DList [ DStr k; v ])))
-                | _ -> return (DOption None)
-              }
-          | _ -> incorrectArgs ())
+              match results with
+              | [ (k, v) ] -> return (DOption(Some(DList [ DStr k; v ])))
+              | _ -> return (DOption None)
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOneWithKey" 2) }
@@ -520,18 +500,17 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
       fn =
-        InProcess
-          (function
-          | state, [ DObj fields; DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! results = UserDB.queryExactFields state db fields
+        (function
+        | state, [ DObj fields; DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryExactFields state db fields
 
-                match results with
-                | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
-                | _ -> return DOption None
-              }
-          | _ -> incorrectArgs ())
+              match results with
+              | [ (k, v) ] -> return DOption(Some(DObj(Map.ofList [ (k, v) ])))
+              | _ -> return DOption None
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOneExactFieldsWithKey" 0) }
@@ -541,7 +520,7 @@ let fns : List<BuiltInFn> =
 //   ; description =
 //       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [(DObj _ as obj); DDB dbname] -> taskv {
 //             let results =
 //               let db = state.dbs.[dbname]
@@ -564,71 +543,65 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the values in `table`. Returns a list of lists such that the inner
           lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
-        InProcess
-          (function
-          | state, [ DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! results = UserDB.getAll state db
+        (function
+        | state, [ DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.getAll state db
 
-                return
-                  results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-              }
-          | _ -> incorrectArgs ())
+              return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "getAll" 2) }
-    // ; { name = fn "DB" "getAll" 2
-//   ; parameters = [tableParam]
-//   ; returnType = TList TAny
-//   ; description = "Fetch all the values in `table`."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.get_all state db
-//             |> List.map (fun (k, v) -> v)
-//             |> DList
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "DB" "getAll" 3
-//   ; parameters = [tableParam]
-//   ; returnType = TList TAny
-//   ; description = "Fetch all the values in `table`."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.get_all state db
-//             |> List.map (fun (k, v) -> v)
-//             |> Dval.to_list
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+    { name = fn "DB" "getAll" 2
+      parameters = [ tableParam ]
+      returnType = TList TAny
+      description = "Fetch all the values in `table`."
+      fn =
+        (function
+        | state, [ DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.getAll state db
+              return results |> List.map (fun (_, v) -> v) |> DList
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = ReplacedBy(fn "DB" "getAll" 3) }
+    { name = fn "DB" "getAll" 3
+      parameters = [ tableParam ]
+      returnType = TList TAny
+      description = "Fetch all the values in `table`."
+      fn =
+        (function
+        | state, [ DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.getAll state db
+              return results |> List.map (fun (_, v) -> v) |> Dval.list
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "DB" "getAllWithKeys" 1
       parameters = [ tableParam ]
       returnType = TList TAny
       description = "Fetch all the values in `table`. Returns a list of lists such that the inner
                      lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
-        InProcess
-          (function
-          | state, [ DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! result = UserDB.getAll state db
+        (function
+        | state, [ DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! result = UserDB.getAll state db
 
-                return
-                  result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-              }
-          | _ -> incorrectArgs ())
+              return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "getAllWithKeys" 2) }
@@ -638,15 +611,14 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
       fn =
-        InProcess
-          (function
-          | state, [ DDB dbname ] ->
-              taskv {
-                let db = state.dbs.[dbname]
-                let! result = UserDB.getAll state db
-                return result |> Map.ofList |> DObj
-              }
-          | _ -> incorrectArgs ())
+        (function
+        | state, [ DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! result = UserDB.getAll state db
+              return result |> Map.ofList |> DObj
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -655,7 +627,7 @@ let fns : List<BuiltInFn> =
 //   ; returnType = TInt
 //   ; description = "Return the number of items stored in `table`."
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.count state db |> Dval.dint
@@ -671,7 +643,7 @@ let fns : List<BuiltInFn> =
 //   ; returnType = TList TAny
 //   ; description = "Fetch all the fieldNames in `table`"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.cols_for db
@@ -689,7 +661,7 @@ let fns : List<BuiltInFn> =
 //   ; description =
 //       "Returns an `Obj` representing { fieldName: fieldType } in `table`"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [DDB dbname] -> taskv {
 //             let db = state.dbs.[dbname]
 //             UserDB.cols_for db
@@ -707,7 +679,7 @@ let fns : List<BuiltInFn> =
 //   ; returnType = TStr
 //   ; description = "Returns a random key suitable for use as a DB key"
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | _, [] ->
 //             Uuidm.v `V4 |> Uuidm.to_string |> DStr
 //           }
@@ -716,71 +688,64 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "keys" 1
-//   ; parameters = [tableParam]
-//   ; returnType = TList TAny
-//   ; description =
-//       "Fetch all the keys of entries in `table`. Returns an list with strings"
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.dbs.[dbname]
-//             UserDB.get_all_keys state db
-//             |> List.map (fun k -> DStr k)
-//             |> DList
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "query" 4
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TList TAny
-//   ; description =
-//       "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               UserDB.query state db b
-//               |> List.map (fun (k, v) -> v)
-//               |> Dval.to_list
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "queryWithKey" 3
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TObj
-//   ; description =
-//       "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               UserDB.query state db b |> DvalMap.from_list |> DObj
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "queryOne" 3
+    { name = fn "DB" "keys" 1
+      parameters = [ tableParam ]
+      returnType = TList TAny
+      description =
+        "Fetch all the keys of entries in `table`. Returns an list with strings"
+      fn =
+        (function
+        | state, [ DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.getAllKeys state db
+              return results |> List.map (fun k -> DStr k) |> DList
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "DB" "query" 4
+      parameters = [ tableParam; queryParam ]
+      returnType = TList varA
+      description =
+        "Fetch all the values from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryValues state db b
+              return results |> Dval.list
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "DB" "queryWithKey" 3
+      parameters = [ tableParam; queryParam ]
+      returnType = TDict(varA)
+      description =
+        "Fetch all the values from `table` for which filter returns true, returning {key : value} as an object. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.query state db b
+              return results |> Map.ofList |> DObj
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = QueryFunction
+      previewable = Impure
+      deprecated = NotDeprecated }
+    // ; { name = fn "DB" "queryOne" 3
 //   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
 //   ; returnType = TList TAny
 //   ; description =
 //       "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
 //   ; fn =
-//         InProcess (function
+//          (function
 //         | state, [DDB dbname; DFnVal b] -> taskv {
 //           ( try
 //               let db = state.dbs.[dbname]
@@ -804,67 +769,54 @@ let fns : List<BuiltInFn> =
       description =
         "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
-        InProcess
-          (function
-          | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-              taskv {
-                try
-                  let db = state.dbs.[dbname]
-                  let! results = UserDB.query state db b
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.query state db b
 
-                  match results with
-                  | [ (_, v) ] -> return Dval.optionJust v
-                  | _ -> return DOption None
-                with
-                | Db.FakeValFoundInQuery dv -> return dv
-                | Db.DBQueryException _ as e ->
-                    return (Dval.errStr (Db.dbQueryExceptionToString e))
-              }
-          | _ -> incorrectArgs ())
+              match results with
+              | [ (_, v) ] -> return Dval.optionJust v
+              | _ -> return DOption None
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "DB" "queryOneWithKey" 3
+      parameters = [ tableParam; queryParam ]
+      returnType = TOption varA
+      description =
+        "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.query state db b
+
+              match results with
+              | [ _ ] -> return Dval.optionJust (DObj(Map.ofList results))
+              | _ -> return DOption None
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "DB" "queryCount" 0
+      parameters = [ tableParam; queryParam ]
+      returnType = TInt
+      description =
+        "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+      fn =
+        (function
+        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! result = UserDB.queryCount state db b
+              return Dval.int result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
-// ; { name = fn "DB" "queryOneWithKey" 3
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TOption
-//   ; description =
-//       "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               let results = UserDB.query state db b in
-//               match results with
-//               | [(k, v)] ->
-//                   DOption (OptJust (DObj (DvalMap.singleton k v)))
-//               | _ ->
-//                   DOption OptNothing
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "queryCount" 0
-//   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TInt
-//   ; description =
-//       "Return the number of items from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-//   ; fn =
-//         InProcess (function
-//         | state, [DDB dbname; DFnVal b] -> taskv {
-//           ( try
-//               let db = state.dbs.[dbname]
-//               UserDB.query_count state db b |> Dval.dint
-//             with Db.DBQueryException _ as e ->
-//               DError (SourceNone, Db.dbQueryExceptionToString e) )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-// ; previewable = Impure
-//   ; deprecated = NotDeprecated } ]
-//

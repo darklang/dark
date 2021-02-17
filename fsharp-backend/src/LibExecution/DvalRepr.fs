@@ -15,9 +15,97 @@ open Tablecloth
 
 open RuntimeTypes
 
+module WriteJson =
+  open FSharp.Data
+  // This code is copied from
+  // https://github.com/fsprojects/FSharp.Data/blob/4697bfdf4e5ee9d761695f8432a944ae92947143/src/Json/JsonValue.fs
+
+  // The default FSharp.Data.Json serializer prints doubles as ints when they
+  // have a 0 fractional. this breaks our roundtripping as we'll then read
+  // those as ints. Since it feels like this is a bug in FSharp.Data.Json, the
+  // code is copied and hacked (seee "HACK" below).
+
+  let writeJson (x : JsonValue, w : System.IO.TextWriter, saveOptions) =
+
+    let newLine =
+      if saveOptions = JsonSaveOptions.None then
+        fun indentation plus ->
+          w.WriteLine()
+          System.String(' ', indentation + plus) |> w.Write
+      else
+        fun _ _ -> ()
+
+    let propSep = if saveOptions = JsonSaveOptions.None then "\": " else "\":"
+
+
+    // Encode characters that are not valid in JS string. The implementation is based
+    // on https://github.com/mono/mono/blob/master/mcs/class/System.Web/System.Web/HttpUtility.cs
+    let JsonStringEncodeTo (w : System.IO.TextWriter) (value : string) =
+      if not (System.String.IsNullOrEmpty value) then
+        for i = 0 to value.Length - 1 do
+          let c = value.[i]
+          let ci = int c
+
+          if ci >= 0 && ci <= 7 || ci = 11 || ci >= 14 && ci <= 31 then
+            w.Write("\\u{0:x4}", ci) |> ignore
+          else
+            match c with
+            | '\b' -> w.Write "\\b"
+            | '\t' -> w.Write "\\t"
+            | '\n' -> w.Write "\\n"
+            | '\f' -> w.Write "\\f"
+            | '\r' -> w.Write "\\r"
+            | '"' -> w.Write "\\\""
+            | '\\' -> w.Write "\\\\"
+            | _ -> w.Write c
+
+    let rec serialize indentation : JsonValue -> unit =
+      function
+      | JsonValue.Null -> w.Write "null"
+      | JsonValue.Boolean b -> w.Write((if b then "true" else "false"))
+      | JsonValue.Number number -> w.Write number
+      | JsonValue.Float v when System.Double.IsInfinity v || System.Double.IsNaN v ->
+          w.Write "null"
+
+      // HACK This is the only thing that differs from the default HACK
+      | JsonValue.Float number ->
+          w.Write(number.ToString("0.0#####################"))
+      | JsonValue.String s ->
+          w.Write "\""
+          JsonStringEncodeTo w s
+          w.Write "\""
+      | JsonValue.Record properties ->
+          w.Write "{"
+
+          for i = 0 to properties.Length - 1 do
+            let k, v = properties.[i]
+            if i > 0 then w.Write ","
+            newLine indentation 2
+            w.Write "\""
+            JsonStringEncodeTo w k
+            w.Write propSep
+            serialize (indentation + 2) v
+
+          newLine indentation 0
+          w.Write "}"
+      | JsonValue.Array elements ->
+          w.Write "["
+
+          for i = 0 to elements.Length - 1 do
+            if i > 0 then w.Write ","
+            newLine indentation 2
+            serialize (indentation + 2) elements.[i]
+
+          if elements.Length > 0 then newLine indentation 0
+          w.Write "]"
+
+    serialize 0 x
+
+
 module J =
   open FSharp.Data
   type JsonValue = FSharp.Data.JsonValue
+
   let bigint (i : bigint) : JsonValue = JsonValue.Number(decimal i)
   let string (s : string) : JsonValue = JsonValue.String s
   let int (i : int) : JsonValue = JsonValue.Number(decimal i)
@@ -32,7 +120,11 @@ module J =
   let object (r : (string * JsonValue) list) : JsonValue =
     r |> List.toArray |> JsonValue.Record
 
-  let toString (j : JsonValue) = j.ToString(JsonSaveOptions.DisableFormatting)
+  let toString (j : JsonValue) : string =
+    let w = new System.IO.StringWriter()
+    WriteJson.writeJson (j, w, JsonSaveOptions.DisableFormatting)
+    w.ToString()
+
   let toPrettyString (j : JsonValue) = j.ToString(JsonSaveOptions.None)
   let parse (str : string) : JsonValue = JsonValue.Parse str
 
@@ -84,7 +176,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TRecord _ -> "Dict"
   | TLambda -> "Block"
   | TFn _ -> "Block"
-  | TVariable _ -> fstodo "tipetodeveloperrepr of TVariable"
+  | TVariable varname -> varname
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
@@ -411,7 +503,6 @@ let toPrettyMachineJsonV1 dval : string =
 //         ~init:DvalMap.empty
 //   | _ ->
 //       Exception.internal "Not a json object"
-//
 
 let rec unsafeDvalOfJsonV1 (json : J.JsonValue) : Dval =
   (* sort so this isn't key-order-dependent. *)
@@ -514,8 +605,6 @@ and unsafeDvalmapOfJsonV1 (j : J.JsonValue) : DvalMap =
         (fun m (k, v) -> Map.add k (unsafeDvalOfJsonV1 v) m)
         records
   | _ -> failwith "Not a json object"
-
-type Json = System.Text.Json.JsonDocument
 
 let rec unsafeDvalToJsonV0 (redact : bool) (dv : Dval) : J.JsonValue =
   let tipe = dv |> dtypeName |> J.string in

@@ -15,10 +15,11 @@ open LibExecution.RuntimeTypes
 module DvalRepr = LibExecution.DvalRepr
 
 module Ast = LibExecution.Ast
+module Errors = LibExecution.Errors
 
 let error (str : string) : 'a =
   printfn $"DB Exception: {str}"
-  raise (DBQueryException str)
+  raise (Errors.DBQueryException str)
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 
@@ -27,22 +28,6 @@ type position =
   | Last
 
 // let compilerSupportedFns =
-//   [ "Date::lessThan"
-//   ; "Date::greaterThan"
-//   ; "Date::lessThanOrEqualTo"
-//   ; "Date::greaterThanOrEqualTo"
-//   ; "Date::subtract"
-//   ; "Date::add"
-//   ; "Int::mod"
-//   ; "Int::add"
-//   ; "Int::substract"
-//   ; "Int::multiply"
-//   ; "Int::power"
-//   ; "Int::divide"
-//   ; "Int::greaterThan"
-//   ; "Int::greaterThanOrEqualTo"
-//   ; "Int::lessThan"
-//   ; "Int::lessThanOrEqualTo"
 //   ; "Float::mod"
 //   ; "Float::add"
 //   ; "Float::subtract"
@@ -54,8 +39,6 @@ type position =
 //   ; "Float::lessThan"
 //   ; "Float::lessThanOrEqualTo"
 //   ; "Bool::not"
-//   ; "Bool::and"
-//   ; "Bool::or"
 //   ; "String::toLowercase"
 //   ; "String::toLowercase_v1"
 //   ; "String::toUppercase"
@@ -75,65 +58,19 @@ type position =
 //   ; "String::isSubstring_v1"
 //   ; "String::contains"
 //   ; "String::replaceAll"
-//   ; "equals"
-//   ; "notEquals" ]
-//   |> Tc.StrSet.fromList
 //
 //
-let binopToSql (op : string) : DType * DType * DType * string =
-  let allInts str = (TInt, TInt, TInt, str) in
-  let allFloats str = (TFloat, TFloat, TFloat, str) in
-  let boolOp tipe str = (tipe, tipe, TBool, str) in
-  let dateOp str = (TDate, TDate, TDate, str) in
-
-  match op with
-  | ">"
-  | "<"
-  | "<="
-  | ">=" -> boolOp TInt op
-  | "+"
-  | "-"
-  | "*"
-  | "/"
-  | "%"
-  | "^" -> allInts op
-  | "Date::<"
-  | "Date::lessThan" -> boolOp TDate "<"
-  | "Date::>"
-  | "Date::greaterThan" -> boolOp TDate ">"
-  | "Date::<="
-  | "Date::lessThanOrEqualTo" -> boolOp TDate "<="
-  | "Date::>="
-  | "Date::greaterThanOrEqualTo" -> boolOp TDate ">="
-  | "Date::subtract" -> dateOp "-"
-  | "Date::add" -> dateOp "+"
-  | "Int::mod" -> allInts "%"
-  | "Int::add" -> allInts "+"
-  | "Int::subtract" -> allInts "-"
-  | "Int::multiply" -> allInts "*"
-  | "Int::power" -> allInts "^"
-  | "Int::divide" -> allInts "/"
-  | "Int::greaterThan" -> boolOp TInt ">"
-  | "Int::greaterThanOrEqualTo" -> boolOp TInt ">="
-  | "Int::lessThan" -> boolOp TInt "<"
-  | "Int::lessThanOrEqualTo" -> boolOp TInt "<="
-  | "Float::mod" -> allFloats "%"
-  | "Float::add" -> allFloats "+"
-  | "Float::subtract" -> allFloats "-"
-  | "Float::multiply" -> allFloats "*"
-  | "Float::power" -> allFloats "^"
-  | "Float::divide" -> allFloats "/"
-  | "Float::greaterThan" -> boolOp TFloat ">"
-  | "Float::greaterThanOrEqualTo" -> boolOp TFloat ">="
-  | "Float::lessThan" -> boolOp TFloat "<"
-  | "Float::lessThanOrEqualTo" -> boolOp TFloat "<="
-  | "=="
-  | "equals" -> boolOp TAny "="
-  | "!="
-  | "notEquals" -> boolOp TAny "<>"
-  | "&&" -> boolOp TBool "AND"
-  | "||" -> boolOp TBool "OR"
-  | _ -> error2 "This function is not yet implemented" op
+// match op with
+// | "Float::mod" -> allFloats "%"
+// | "Float::add" -> allFloats "+"
+// | "Float::subtract" -> allFloats "-"
+// | "Float::multiply" -> allFloats "*"
+// | "Float::power" -> allFloats "^"
+// | "Float::divide" -> allFloats "/"
+// | "Float::greaterThan" -> boolOp TFloat ">"
+// | "Float::greaterThanOrEqualTo" -> boolOp TFloat ">="
+// | "Float::lessThan" -> boolOp TFloat "<"
+// | "Float::lessThanOrEqualTo" -> boolOp TFloat "<="
 
 
 let unaryOpToSql op : DType * DType * string * string list * position =
@@ -174,44 +111,12 @@ let typeToSqlType (t : DType) : string =
 
 
 // This canonicalizes an expression, meaning it removes multiple ways of
-// representing the same thing. For now, it removes threads and replaces
-// them with nested function calls.
-//
-// Replaces
-//
-//   a
-//   |> function1 b
-//   |> function2 c d
-//
-// with
-//
-//   (function2 c d (function1 b a))
+// representing the same thing. Currently nothing needs to be canonicalized.
 let rec canonicalize (expr : Expr) : Expr = expr
-//FSTODO this seems no longer needed
-// Ast.postTraversal
-//   (function
-//   | EPipe (id, []) -> EBlank id
-//   | EPipe (id, head :: tail) ->
-//       List.fold
-//         head
-//         (fun expr arg ->
-//           match expr with
-//           | EFnCall (id, name, EPipeTarget _ :: args, NoRail) ->
-//               EFnCall(id, name, arg :: args, NoRail)
-//           | EBinOp (id, name, EPipeTarget _, r, NoRail) ->
-//               EBinOp(id, name, arg, r, NoRail)
-//           | _ ->
-//               error2
-//                 "Currently, only function calls are supported in Pipes"
-//                 (show_fluid_expr expr))
-//         tail
-//   | e -> e)
-//   expr
-//
 
 let dvalToSql (dval : Dval) : SqlValue =
   match dval with
-  | DFakeVal _ -> raise (Db.FakeValFoundInQuery dval)
+  | DFakeVal _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
   | DObj _
   | DList _
   | DHttpResponse _
@@ -235,17 +140,19 @@ let dvalToSql (dval : Dval) : SqlValue =
 
 
 let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit =
-  if actualType = expectedType || expectedType = TAny then
-    ()
-  else
-    let actual = DvalRepr.typeToDeveloperReprV0 actualType
-    let expected = DvalRepr.typeToDeveloperReprV0 expectedType
-    error $"Incorrect type in `{name}`, expected {expected}, but got a {actual}"
+  match expectedType with
+  | TVariable _ -> ()
+  | TAny -> ()
+  | other when actualType = other -> ()
+  | _ ->
+      let actual = DvalRepr.typeToDeveloperReprV0 actualType
+      let expected = DvalRepr.typeToDeveloperReprV0 expectedType
+      error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
 // (* TODO: support character. And maybe lists and
 //  * bytes. Probably something can be done with options and results. *)
 let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
-  if Dval.isFake dval then raise (Db.FakeValFoundInQuery dval)
+  if Dval.isFake dval then raise (Errors.FakeValFoundInQuery dval)
   typecheck name (Dval.toType dval) expectedType
 
 let escapeFieldname (str : string) : string =
@@ -362,64 +269,69 @@ let rec lambdaToSql
       let replaceWithSql, vars3 = lts TStr replaceWith
       let vars = vars1 @ vars2 @ vars3
       $"(replace({lookingInSql}, {searchingForSql}, {replaceWithSql}))", vars
-  | EApply (_, EFQFnValue (_, name), [ l; r ], _, NoRail) ->
+  | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
       match Map.get name fns with
       | Some fn ->
-          match fn with
-          | { parameters = [ lParam; rParam ]; sqlSpec = SqlFunction op } ->
-              typecheck (toString name) fn.returnType expectedType
-              let lSql, vars1 = lts lParam.typ l
-              let rSql, vars2 = lts rParam.typ r
-              $"({lSql} {op} {rSql})", vars1 @ vars2
-          | fn ->
-              let paramCount = List.length fn.parameters
+          typecheck (toString name) fn.returnType expectedType
 
-              if paramCount <> 2 then
-                error $"{name} has {paramCount} functions but we have 2 arguments"
+          let argSqls, sqlVars =
+            let paramCount = List.length fn.parameters
+            let argCount = List.length args
 
-              error $"This function ({name}) is not yet implemented"
+            if argCount = paramCount then
+              List.map2 (fun arg param -> lts param.typ arg) args fn.parameters
+              |> List.unzip
+              |> (fun (sqls, vars) -> (sqls, List.concat vars))
+            else
+              error
+                $"{fn.name} has {paramCount} functions but we have {argCount} arguments"
+
+          match fn, argSqls with
+          | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
+              $"({argL} {op} {argR})", sqlVars
+          | { sqlSpec = SqlUnaryOp op }, [ argSql ] -> $"({op} {argSql})", sqlVars
+          | { sqlSpec = SqlFunction fnname }, _ ->
+              let argSql = String.concat ", " argSqls
+              $"({fnname}({argSql}))", sqlVars
+          | { sqlSpec = SqlFunctionWithPrefixArgs (fnName, fnArgs) }, _ ->
+              let argSql = fnArgs @ argSqls |> String.concat ", "
+              $"({fnName} ({argSql}))", sqlVars
+          | { sqlSpec = SqlFunctionWithSuffixArgs (fnName, fnArgs) }, _ ->
+              let argSql = argSqls @ fnArgs |> String.concat ", "
+              $"({fnName} ({argSql}))", sqlVars
+
+          | fn, args -> error $"This function ({name}) is not yet implemented"
       | None ->
           error
             $"Only builtin functions can be used in queries right now; {name} is not a builtin function"
-  | EApply (_, EFQFnValue (_, name), [ e ], _, NoRail) ->
-      let argType, resultType, opname, args, position = unaryOpToSql (toString name)
-      typecheck (toString name) resultType expectedType
-      let argSql, vars = lts argType e
-
-      let args =
-        match position with
-        | First -> String.concat ", " (argSql :: args)
-        | Last -> String.concat ", " (List.append args [ argSql ])
-
-      $"({opname} ({args}))", vars
-  | EVariable (_, name) ->
-      (match Map.get name symtable with
-       | Some dval ->
-           typecheckDval name dval expectedType
-           let random = randomString 8
-           let name = $"{name}_{random}"
-           $"(@{name})", [ name, dvalToSql dval ]
-       | None -> error2 "This variable is not defined" name)
-  // | EInteger (_, str) ->
-  //     let dval = DInt(Dint.of_string_exn str) in
-  //     typecheckDval str dval expectedType
-  //     "(" + dvalToSql dval + ")"
-  // | EBool (id, bool) ->
-  //     let dval = DBool bool in
-  //     typecheckDval (if bool then "true" else "false") dval expectedType
-  //     "(" + dvalToSql dval + ")"
-  // | ENull _ ->
-  //     typecheckDval "null" DNull expectedType
-  //     "(" + dvalToSql DNull + ")"
-  // | EFloat (_, whole, fraction) ->
-  //     let str = whole + "." + fraction in
-  //     let dval = Dval.parse_literal str |> Option.value_exn in
-  //     typecheckDval str dval expectedType
-  //     "(" + dvalToSql dval + ")"
-  // | EString (_, str) ->
-  //     let dval = Dval.dstr_of_string_exn str in
-  //     typecheckDval ("\"" + str + "\"") dval expectedType
-  //     "(" + dvalToSql dval + ")"
+  | EVariable (_, varname) ->
+      match Map.get varname symtable with
+      | Some dval ->
+          typecheckDval $"variable {varname}" dval expectedType
+          let random = randomString 8
+          let newname = $"{varname}_{random}"
+          $"(@{newname})", [ newname, dvalToSql dval ]
+      | None -> error $"This variable is not defined: {varname}"
+  | EInteger (_, v) ->
+      typecheck $"integer {v}" TInt expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, v |> int64 |> Sql.int64 ]
+  | EBool (_, v) ->
+      typecheck $"bool {v}" TBool expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.bool v ]
+  | ENull _ ->
+      typecheck "value null" TNull expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.dbnull ]
+  | EFloat (_, v) ->
+      typecheck $"float {v}" TFloat expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.double v ]
+  | EString (_, v) ->
+      typecheck $"string \"{v}\"" TStr expectedType
+      let name = randomString 10
+      $"(@{name})", [ name, Sql.string v ]
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
       let typ =
         match Map.get fieldname dbFields with
@@ -435,7 +347,7 @@ let rec lambdaToSql
       (match expectedType with
        | TDate ->
            // This match arm handles types that are serialized in
-           // unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, maning
+           // unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, meaning
            // they are wrapped in {type:, value:}. Right now, of the types sql
            // compiler supports, that's just TDate.
            // Likely future candidates include DPassword and DUuid; at time of
@@ -622,7 +534,7 @@ let compileLambda
       |> partiallyEvaluate state paramName symtable
       |> TaskOrValue.toTask
 
-    printfn $"AST being compiled: {body} with {dbFields} and {symtable}"
+    // printfn $"AST being compiled: {body} with {dbFields} and {symtable}"
 
     return lambdaToSql state.functions symtable paramName dbFields TBool body
   }

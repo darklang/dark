@@ -7,6 +7,21 @@ open FSharpPlus
 open Prelude
 open RuntimeTypes
 
+let globalsFor (state : ExecutionState) : Symtable =
+  let secrets =
+    state.secrets
+    |> List.map (fun (s : Secret.T) -> (s.secretName, DStr s.secretValue))
+    |> Map.ofList
+
+  let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.dbs
+  Map.union secrets dbs
+
+
+let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
+  let globals = globalsFor state
+  Map.union globals symtable
+
+
 
 // fsharplint:disable FL0039
 let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
@@ -355,7 +370,7 @@ and applyFnVal
   (state : ExecutionState)
   (id : id)
   (fnVal : FnValImpl)
-  (args : List<Dval>)
+  (argList : List<Dval>)
   (isInPipe : IsInPipe)
   (ster : SendToRail)
   : DvalTask =
@@ -367,8 +382,8 @@ and applyFnVal
       | FnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
       | _ -> false
 
-    match List.tryFind (fun (dv : Dval) -> Dval.isFake dv) args with
-    // If one of the args is a fake value used as a marker, return it instead
+    match List.tryFind (fun (dv : Dval) -> Dval.isFake dv) argList with
+    // If one of the arglist is a fake value used as a marker, return it instead
     // of executing.
     | Some dv when not isErrorAllowed ->
         match dv with
@@ -376,11 +391,10 @@ and applyFnVal
         // the entire expression as a blank, and skip it, returning the input
         // (first) value to be piped into the next statement instead. *)
         | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
-            return Option.defaultValue dv (List.tryHead args)
+            return Option.defaultValue dv (List.tryHead argList)
         | _ -> return dv
     | None
     | Some _ ->
-        // FSTODO: packages and user functions
         match fnVal with
         | Lambda l ->
             let parameters = List.map snd l.parameters
@@ -389,7 +403,7 @@ and applyFnVal
             // other places, and the alternative is just to provide incompletes
             // with no context
             let paramLength = List.length l.parameters
-            let argLength = List.length args
+            let argLength = List.length argList
 
             if paramLength <> argLength then
               return
@@ -400,33 +414,91 @@ and applyFnVal
               // FSTODO
               // List.iter bindings (fun ((id, paramName), dv) ->
               //     state.trace state.on_execution_path id dv) ;
-              let paramSyms = List.zip parameters args |> Map
+              let paramSyms = List.zip parameters argList |> Map
               // paramSyms is higher priority
               let newSymtable = Map.union paramSyms l.symtable
               return! eval state newSymtable l.body
         | (FnName desc) ->
-            let! result =
-              // FSTODO: user functions
-              match state.functions.TryFind desc with
+            let fn =
+              match desc.owner, desc.package, desc.module_ with
+              | "dark", "stdlib", _ ->
+                  state.functions.TryFind desc |> Option.map builtInFnToFn
+              | "", "", "" ->
+                  state.userFns.TryFind desc.function_ |> Option.map userFnToFn
+              | _ -> state.packageFns.TryFind desc |> Option.map packageFnToFn
+
+            let! (result : Dval) =
+              match fn with
               | None -> fstodo $"support builtin function {desc}"
               | Some fn ->
                   taskv {
                     // FSTODO: if an argument is an error rail, return it
                     try
+
                       // FSTODO: all the behaviour in AST.exec_fn
                       match fn.fn with
-                      | InProcess fnval ->
+                      | StdLib fnval ->
                           // evaluate this here so that the exception gets caught here
-                          return! fnval (state, args)
+                          return! fnval (state, argList)
+                      | UserFunction (tlid, body) ->
+                          // FSTODO: check arg length
+                          let argsWithGlobals =
+                            let args =
+                              fn.parameters
+                              |> List.map (fun p -> p.name)
+                              |> fun ps -> List.zip ps argList
+                              |> Map.ofList
+
+                            Map.union (globalsFor state) args in
+
+                          // FSTODO
+                          // let checkedVals =
+                          //   TypeChecker.checkFunctionCall state.userTypes fn args
+                          match Ok() with
+                          | Ok () ->
+                              // FSTODO
+                              state.traceTLID tlid
+                              // Don't execute user functions if it's preview mode and we have a result
+                              match 1 with
+                              // FSTODO
+                              // (state.context,
+                              //         state.loadFnResult sfrDesc arglist) with
+                              // FSTODO
+                              // | Preview, Some (result, _ts) ->
+                              //     return Dval.unwrapFromErrorrail result
+                              | _ ->
+                                  // It's okay to execute user functions in both Preview and Real contexts,
+                                  // But in Preview we might not have all the data we need
+                                  // FSTODO
+                                  // state.store_fn_arguments tlid args
+
+                                  let state = { state with tlid = tlid }
+                                  let! result = eval state argsWithGlobals body
+                                  // FSTODO
+                                  // state.store_fn_result sfr_desc arglist result
+
+                                  return result |> Dval.unwrapFromErrorRail
+                          // |> typeErrorOrValue state.userTypes
+                          | Error errs ->
+                              return
+                                Dval.errSStr
+                                  sourceID
+                                  "Type error(s) in function parameters: "
+                      // FSTODO
+                      // ^ Type_checker.Error.list_to_string errs
+
                       | _ ->
                           fstodo $"support other function type {fn.fn}"
                           return DFakeVal(DIncomplete SourceNone)
                     with
+                    | Errors.FakeValFoundInQuery dv -> return dv
+                    | Errors.DBQueryException e ->
+                        return Dval.errStr (Errors.queryCompilerErrorTemplate + e)
                     | Errors.StdlibException (Errors.StringError msg) ->
                         return Dval.errSStr sourceID msg
                     | Errors.StdlibException Errors.IncorrectArgs ->
                         let paramLength = List.length fn.parameters
-                        let argLength = List.length args
+                        let argLength = List.length argList
 
                         if paramLength <> argLength then
                           return
@@ -436,7 +508,7 @@ and applyFnVal
 
                         else
                           let invalid =
-                            List.zip fn.parameters args
+                            List.zip fn.parameters argList
                             |> List.filter
                                  (fun (p, a) ->
                                    Dval.toType a <> p.typ && p.typ <> TAny)

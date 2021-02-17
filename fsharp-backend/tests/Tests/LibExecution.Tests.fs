@@ -20,113 +20,62 @@ open TestUtils
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DFakeVal (RT.DError (source, str)) ->
-      RT.DFakeVal(RT.DError(RT.SourceNone, str))
-  | RT.DFakeVal (RT.DIncomplete source) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
+  | RT.DFakeVal (RT.DError (_, str)) -> RT.DFakeVal(RT.DError(RT.SourceNone, str))
+  | RT.DFakeVal (RT.DIncomplete _) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
   | dv -> dv
-
-open LibExecution.RuntimeTypes
-
-let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
-  let de l r = dvalEquals l r msg
-
-  match left, right with
-  | DFloat l, DFloat r -> Expect.floatClose Accuracy.veryHigh l r msg
-  | DResult (Ok l), DResult (Ok r) -> de l r
-  | DResult (Error l), DResult (Error r) -> de l r
-  | DOption (Some l), DOption (Some r) -> de l r
-  | DList ls, DList rs -> List.iter2 de ls rs
-  | DObj ls, DObj rs ->
-      List.iter2
-        (fun (k1, v1) (k2, v2) ->
-          Expect.equal k1 k2 msg
-          de v1 v2)
-        (Map.toList ls)
-        (Map.toList rs)
-  | DHttpResponse (Response (sc1, h1), b1), DHttpResponse (Response (sc2, h2), b2) ->
-      Expect.equal sc1 sc2 msg
-      Expect.equal h1 h2 msg
-      de b1 b2
-  | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
-      Expect.equal u1 u2 msg
-      de b1 b2
-  | DFakeVal (DIncomplete _), DFakeVal (DIncomplete _) ->
-      Expect.equal true true "two incompletes"
-  // Keep for exhaustiveness checking
-  | DHttpResponse _, _
-  | DObj _, _
-  | DList _, _
-  | DResult _, _
-  | DOption _, _
-  // All others can be directly compared
-  | DInt _, _
-  | DDate _, _
-  | DBool _, _
-  | DFloat _, _
-  | DNull, _
-  | DStr _, _
-  | DChar _, _
-  | DFnVal _, _
-  | DFakeVal _, _
-  | DDB _, _
-  | DUuid _, _
-  | DBytes _, _ -> Expect.equal left right msg
 
 let fns =
   lazy
-    (LibExecution.StdLib.StdLib.fns
-     @ LibBackend.StdLib.StdLib.fns @ Tests.LibTest.fns
+    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
      |> Map.fromListBy (fun fn -> fn.name))
 
-type UserInfo = LibBackend.Account.UserInfo
-
-let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Test =
+let t
+  (comment : string)
+  (code : string)
+  (dbs : List<RT.DB.T>)
+  (functions : Map<string, RT.UserFunction.T>)
+  : Test =
   let name = $"{comment} ({code})"
 
-  if code.StartsWith "//" then
+  if matches "^\s*//" code then
     ptestTask name { return (Expect.equal "skipped" "skipped" "") }
   else
     testTask name {
       try
         let! owner = testOwner.Force()
-        let ownerID : UserID = (owner : UserInfo).id
+        let ownerID : UserID = (owner : LibBackend.Account.UserInfo).id
 
         // Performance optimization: don't touch the DB if you don't use the DB
         let! canvasID =
-          match dbInfo with
-          | Some _ ->
-              task {
-                let hash = sha1digest name |> System.Convert.ToBase64String
-                let canvasName = CanvasName.create $"test-{hash}"
-                do! TestUtils.clearCanvasData canvasName
+          if List.length dbs > 0 then
+            task {
+              let hash = sha1digest name |> System.Convert.ToBase64String
+              let canvasName = CanvasName.create $"test-{hash}"
+              do! TestUtils.clearCanvasData canvasName
 
-                let! canvasID =
-                  LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+              let! canvasID =
+                LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
 
-                return canvasID
-              }
-          | None -> task { return! testCanvasID.Force() }
-
-        let (dbs : List<RT.DB.T>) =
-          match dbInfo with
-          | Some (name, json) ->
-              let dict = Json.AutoSerialize.deserialize<Map<string, string>> json
-
-              [ { tlid = id 8
-                  name = name
-                  version = 0
-                  cols =
-                    dict
-                    |> Map.toList
-                    |> List.map
-                         (fun (k, v) -> (k, LibExecution.DvalRepr.dtypeOfString v)) } ]
-          | None -> []
+              return canvasID
+            }
+          else
+            task { return! testCanvasID.Force() }
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let tlid = id 7
 
-        let state = Exe.createState ownerID canvasID tlid (fns.Force()) dbs [] [] []
+        let state =
+          Exe.createState
+            ownerID
+            canvasID
+            tlid
+            (fns.Force())
+            Map.empty
+            (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
+            functions
+            Map.empty
+            []
 
         let! actual = Exe.run state Map.empty actualProg
         let! expected = Exe.run state Map.empty expectedResult
@@ -144,10 +93,11 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
 
 // Read all test files. Test file format is as follows:
 //
-// Lines with just comments or whitespace are ignored
-// Tests are made up of code and comments, comments are used as names
+// Lines with just comments or whitespace are ignored Tests are made up of code
+// and comments, comments are used as names
 //
 // Test indicators:
+//
 //   [tests.name] denotes that the following lines (until the next test
 //   indicator) are single line tests, that are all part of the test group
 //   named "name". Single line tests should evaluate to true, and may have a
@@ -156,6 +106,35 @@ let t (comment : string) (code : string) (dbInfo : Option<string * string>) : Te
 //   [test.name] indicates that the following lines, up until the next test
 //   indicator, are all a single test named "name", and should be parsed as
 //   one.
+//
+//   [db.name json_desc_of_schema] creates a DB, which can be used by tests
+//   which say "with DB DBNAME". (Only give DBs to tests which need them, as
+//   that these tests need to be isolated and that's much slower)
+//
+//   "[test.name] with DB MyDB" indicates that the following lines, up until
+//   the next test indicator, are all a single test named "name", and should be
+//   parsed as one. The DB previously defined as MyDB is available to the test.
+//
+//   [fn.name argnames] creates a function which is available to all subsequent
+//   tests. The following lines are part of the function body (until we hit
+//   another test indicator)
+
+
+type TestInfo =
+  { name : string
+    recording : bool
+    code : string
+    dbs : List<RT.DB.T> }
+
+type TestGroup = { name : string; tests : List<Test> }
+
+type FnInfo =
+  { name : string
+    recording : bool
+    code : string
+    tlid : tlid
+    parameters : List<RT.UserFunction.Parameter> }
+
 let fileTests () : Test =
   let dir = "tests/testfiles/"
 
@@ -163,31 +142,50 @@ let fileTests () : Test =
   |> Array.map
        (fun file ->
          let filename = System.IO.Path.GetFileName file
-         let currentTestName = ref ""
-         let currentTestDB = ref None
-         let currentTests = ref []
-         let singleTestMode = ref false
-         let currentTestString = ref "" // keep track of the current [test]
-         let allTests = ref []
+         let emptyTest = { recording = false; name = ""; dbs = []; code = "" }
+
+         let emptyFn =
+           { recording = false; name = ""; parameters = []; code = ""; tlid = id 0 }
+
+         let emptyGroup = { name = ""; tests = [] }
+
+         // for recording a multiline test
+         let mutable currentTest = emptyTest
+         // for recording a multiline function
+         let mutable currentFn = emptyFn
+         // for recording a bunch if single-line tests grouped together
+         let mutable currentGroup = emptyGroup
+         let mutable allTests = []
+         let mutable functions : Map<string, RT.UserFunction.T> = Map.empty
+         let mutable dbs : Map<string, RT.DB.T> = Map.empty
 
          let finish () =
-           // Add the current work to allTests, and clear
-           let newTestCase =
-             if !singleTestMode then
-               // Add a single test case
-               t !currentTestName !currentTestString !currentTestDB
-             else
-               // Put currentTests in a group and add them
-               testList !currentTestName !currentTests
+           if currentTest.recording then
+             let newTestCase =
+               t currentTest.name currentTest.code currentTest.dbs functions
 
-           allTests := !allTests @ [ newTestCase ]
+             allTests <- allTests @ [ newTestCase ]
+
+           if List.length currentGroup.tests > 0 then
+             let newTestCase = testList currentGroup.name currentGroup.tests
+             allTests <- allTests @ [ newTestCase ]
+
+           if currentFn.recording then
+             let (fn : RT.UserFunction.T) =
+               { tlid = currentFn.tlid
+                 name = currentFn.name
+                 returnType = RT.TAny
+                 description = "test function"
+                 infix = false
+                 body = (FSharpToExpr.parseRTExpr currentFn.code)
+                 parameters = currentFn.parameters }
+
+             functions <- Map.add currentFn.name fn functions
 
            // Clear settings
-           currentTestName := ""
-           currentTestDB := None
-           singleTestMode := false
-           currentTestString := ""
-           currentTests := []
+           currentTest <- emptyTest
+           currentFn <- emptyFn
+           currentGroup <- emptyGroup
 
          (dir + filename)
          |> System.IO.File.ReadLines
@@ -197,51 +195,92 @@ let fileTests () : Test =
 
                 match line with
                 // [tests] indicator
-                | Regex "^\[tests\.(.*)\]$" [ name ] ->
+                | Regex @"^\[tests\.(.*)\]$" [ name ] ->
                     finish ()
-                    currentTestDB := None
-                    currentTestName := name
+                    currentGroup <- { currentGroup with name = name }
+                // [db] declaration
+                | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
+                    finish ()
+
+                    let (db : RT.DB.T) =
+                      { tlid = id i
+                        name = name
+                        version = 0
+                        cols =
+                          definition
+                          |> Json.AutoSerialize.deserialize<Map<string, string>>
+                          |> Map.map LibExecution.DvalRepr.dtypeOfString
+                          |> Map.toList }
+
+                    dbs <- Map.add name db dbs
+                // [function] declaration
+                | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
+                    finish ()
+
+                    let parameters : List<RT.UserFunction.Parameter> =
+                      definition
+                      |> String.split " "
+                      |> List.map
+                           (fun name ->
+                             { name = name; description = ""; typ = RT.TAny })
+
+                    currentFn <-
+                      { tlid = id i
+                        recording = true
+                        name = name
+                        parameters = parameters
+                        code = "" }
                 // [test] with DB indicator
-                | Regex @"^\[test\.(.*)\](?: with DB (\w+) (.*))$"
-                        [ name; dbName; dbJson ] ->
+                | Regex @"^\[test\.(.*)\] with DB (.*)$" [ name; dbName ] ->
                     finish ()
-                    singleTestMode := true
-                    currentTestDB := Some(dbName, dbJson)
-                    currentTestName := name
+
+                    match Map.get dbName dbs with
+                    | Some db -> currentTest <- { currentTest with dbs = [ db ] }
+                    | None -> failwith $"No DB named {dbName} found"
+
+                    currentTest <- { currentTest with name = name; recording = true }
                 // [test] indicator (no DB)
                 | Regex @"^\[test\.(.*)\]$" [ name ] ->
                     finish ()
-                    singleTestMode := true
-                    currentTestDB := None
-                    currentTestName := name
-                // Append to the current test string
-                | _ when !singleTestMode ->
-                    currentTestString := !currentTestString + line
+                    currentTest <- { currentTest with name = name; recording = true }
                 // Skip whitespace lines
-                | Regex "^\s*$" [] -> ()
+                | Regex @"^\s*$" [] -> ()
+                // Skip whole-line comments
+                | Regex @"^\s*//.*$" [] when
+                  currentTest.recording || currentFn.recording -> ()
+                // Append to the current test string
+                | _ when currentTest.recording ->
+                    currentTest <-
+                      { currentTest with code = currentTest.code + line }
+                | _ when currentFn.recording ->
+                    currentFn <- { currentFn with code = currentFn.code + line }
                 // 1-line test
                 | Regex "^(.*)\s*$" [ code ] ->
-                    currentTests := !currentTests @ [ t $"line {i}" code None ]
-                // 1-line test w/ comment or commented out lines
+                    let test = t $"line {i}" code [] functions
+
+                    currentGroup <-
+                      { currentGroup with tests = currentGroup.tests @ [ test ] }
                 | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                    currentTests
-                    := !currentTests @ [ t $"{comment} (line {i})" code None ]
+                    let test = t $"{comment} (line {i})" code [] functions
+
+                    currentGroup <-
+                      { currentGroup with tests = currentGroup.tests @ [ test ] }
                 | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()
-         testList $"Tests from {filename}" !allTests)
+         testList $"Tests from {filename}" allTests)
   |> Array.toList
   |> testList "All files"
 
 let fqFnName =
   testMany
     "FQFnName.ToString"
-    (fun (name : FQFnName.T) -> name.ToString())
-    [ (FQFnName.stdlibName "" "++" 0), "++_v0"
-      (FQFnName.stdlibName "" "!=" 0), "!=_v0"
-      (FQFnName.stdlibName "" "&&" 0), "&&_v0"
-      (FQFnName.stdlibName "" "toString" 0), "toString_v0"
-      (FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+    (fun (name : RT.FQFnName.T) -> name.ToString())
+    [ (RT.FQFnName.stdlibName "" "++" 0), "++_v0"
+      (RT.FQFnName.stdlibName "" "!=" 0), "!=_v0"
+      (RT.FQFnName.stdlibName "" "&&" 0), "&&_v0"
+      (RT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
+      (RT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
 // TODO parsing function names from OCaml
 
@@ -256,4 +295,5 @@ let backendFqFnName =
       (PT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
 
-let tests = testList "LibExecution" [ fqFnName; backendFqFnName; fileTests () ]
+let tests =
+  lazy (testList "LibExecution" [ fqFnName; backendFqFnName; fileTests () ])

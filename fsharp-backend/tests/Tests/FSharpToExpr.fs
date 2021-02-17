@@ -10,6 +10,7 @@ open Prelude
 open Tablecloth
 
 module PT = LibBackend.ProgramSerialization.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
 
@@ -113,14 +114,19 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let ops =
     Map.ofList [ ("op_Addition", "+")
                  ("op_Subtraction", "-")
+                 ("op_Multiply", "*")
                  ("op_PlusPlus", "++")
-                 ("op_EqualsEquals", "==")
                  ("op_GreaterThan", ">")
                  ("op_GreaterThanOrEqual", ">=")
                  ("op_LessThan", "<")
                  ("op_LessThanOrEqual", "<=")
                  ("op_Modulus", "%")
-                 ("op_Concatenate", "^") ]
+                 ("op_Concatenate", "^")
+                 ("op_EqualsEquals", "==")
+                 ("op_Equality", "==")
+                 ("op_BangEquals", "!=")
+                 ("op_BooleanAnd", "&&")
+                 ("op_BooleanOr", "||") ]
 
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
@@ -136,6 +142,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
       let op = Map.get ident.idText ops |> Option.unwrapUnsafe
       eBinOp "" op 0 placeholder placeholder
+  | SynExpr.Ident ident when ident.idText = "toString_v0" -> eFn "" "toString" 0 []
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
@@ -176,9 +183,15 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
       let desc = PT.FQFnName.stdlibName modName.idText name version
       PT.EFnCall(gid (), desc, [], ster)
+  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
+      let obj1 = eFieldAccess (eVar var.idText) f1.idText
+      let obj2 = eFieldAccess obj1 f2.idText
+      eFieldAccess obj2 f3.idText
+  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field1; field2 ], _), _, _) ->
+      let obj1 = eFieldAccess (eVar var.idText) field1.idText
+      eFieldAccess obj1 field2.idText
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field ], _), _, _) ->
-      PT.EFieldAccess(gid (), eVar var.idText, field.idText)
-
+      eFieldAccess (eVar var.idText) field.idText
   | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
       PT.EFieldAccess(gid (), c expr, field.idText)
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _) ->
@@ -274,7 +287,6 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       PT.EFnCall(gid (), desc, [ c arg ], PT.NoRail)
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
-
       match c funcExpr with
       | PT.EFnCall (id, name, args, ster) ->
           PT.EFnCall(id, name, args @ [ c arg ], ster)
@@ -296,6 +308,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       // A pipe with more than one entry
       | PT.EPipe (id, arg1, arg2, rest) as pipe ->
           PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+      | PT.EVariable (id, name) ->
+          PT.EFnCall(id, PT.FQFnName.userFnName name, [ c arg ], PT.NoRail)
       | e -> failwith $"Unsupported expression in app: {ast},\n\n{e},\n\n{arg})"
   | SynExpr.FromParseError _ as expr ->
       failwith $"There was a parser error parsing: {expr}"
@@ -318,4 +332,5 @@ let convertToTest
       (convert actual, convert expected)
   | _ -> convert ast, LibExecution.Shortcuts.eBool true
 
-let parseDarkExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
+let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
+let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType()

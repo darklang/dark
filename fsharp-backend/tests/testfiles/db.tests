@@ -1,176 +1,335 @@
-[test.dbnullroundtrip] with DB MyDB { "x" : "Str" }
+[db.X { "x" : "Str" }]
+[db.XY { "x" : "Str", "y": "Str" }]
+[db.SortedX { "x" : "Str", "sortBy": "Int" }]
+[db.Timestamp { "ts" : "Date"}]
+
+[test.dbnullroundtrip] with DB X
 (let old = { x = null } in
- let key = DB.add_v0 old MyDB in
- DB.get_v1_ster key MyDB) = { x = null }
+ let key = DB.add_v0 old X in
+ DB.get_v1_ster key X) = { x = null }
 
 
  // query
-[test.query_v1_works] with DB MyDB { "x" : "Str", "y": "Str" }
-(let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
- let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" MyDB in
- DB.query_v1 { x = "bar" } MyDB) = [["findme"; { x = "bar"; y = "foo" }]]
+[test.query_v1_works] with DB XY
+(let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" XY in
+ let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" XY  in
+ DB.query_v1 { x = "bar" } XY) = [["findme"; { x = "bar"; y = "foo" }]]
 
-[test.query_v2_works] with DB MyDB { "x" : "Str", "y": "Str" }
-(let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
- let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" MyDB in
- DB.query_v2 { x = "bar" } MyDB) = [{ x = "bar"; y = "foo" }]
+[test.query_v2_works] with DB XY
+(let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" XY in
+ let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" XY in
+ DB.query_v2 { x = "bar" } XY) = [{ x = "bar"; y = "foo" }]
 
-[test.query_v3_works] with DB MyDB { "x" : "Str", "y": "Str" }
-(let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" MyDB in
- let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" MyDB in
- DB.query_v3 { x = "bar" } MyDB) = [{ x = "bar"; y = "foo" }]
+[test.query_v3_works] with DB XY
+(let dontfind = DB.set_v1 {x = "foo"; y = "bar" } "hello" XY in
+ let hopetofind = DB.set_v1 { x = "bar"; y = "foo" } "findme" XY in
+ DB.query_v3 { x = "bar" } XY) = [{ x = "bar"; y = "foo" }]
 
 
 // DB.set
-[test.db set does upsert] with DB MyDB { "x" : "Str" }
-(let old = DB.set_v1 { x = "foo" } "hello" MyDB in
- let newval = DB.set_v1 { x = "bar" } "hello" MyDB in
- DB.getAllWithKeys_v1 MyDB) = [["hello"; { x = "bar"}]]
+[test.db set does upsert] with DB X
+(let old = DB.set_v1 { x = "foo" } "hello" X in
+ let newval = DB.set_v1 { x = "bar" } "hello" X in
+ DB.getAllWithKeys_v1 X) = [["hello"; { x = "bar"}]]
 
 
 // DB.get
-[test.db get returns nothing] with DB MyDB { "x" : "Str" }
-( DB.get_v1 "lol" MyDB) = Nothing
+[test.db get returns nothing] with DB X
+( DB.get_v1 "lol" X) = Nothing
+
 
 // DB.getAll
-[test.db.getAll_v1 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
-(let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
- let two = DB.set_v1 { x = "bar"; sort_by = 1  } "two" MyDB in
- let three = DB.set_v1 { x = "baz"; sort_by = 2  } "three" MyDB in
- (DB.getAll_v1 MyDB)
- |> List.sortBy_v0 (fun x -> (List.last_v0 x).sort_by)) = (
-   [ ["one" ; { x = "foo"; sort_by = 0}]
-   ; ["two" ; { x = "bar"; sort_by = 1}]
-   ; ["three"; { x = "baz"; sort_by = 2}]])
+[test.db.getAll_v1 works] with DB SortedX
+(let one = DB.set_v1 { x = "foo"; sortBy = 0 } "one" SortedX in
+ let two = DB.set_v1 { x = "bar"; sortBy = 1  } "two" SortedX in
+ let three = DB.set_v1 { x = "baz"; sortBy = 2  } "three" SortedX in
+ (DB.getAll_v1 SortedX)
+ |> List.sortBy_v0 (fun x -> (List.last_v0 x).sortBy)) = (
+   [ ["one" ; { x = "foo"; sortBy = 0}]
+   ; ["two" ; { x = "bar"; sortBy = 1}]
+   ; ["three"; { x = "baz"; sortBy = 2}]])
 
+[test.db.getAll_v2 works] with DB SortedX
+(let one = DB.set_v1 { x = "foo"; sortBy = 0 } "one" SortedX in
+ let two = DB.set_v1 { x = "bar"; sortBy = 1  } "two" SortedX in
+ let three = DB.set_v1 { x = "baz"; sortBy = 2  } "three" SortedX in
+ (DB.getAll_v2 SortedX)
+ |> List.sortBy_v0 (fun x -> x.sortBy)) = (
+   [ { x = "foo"; sortBy = 0}
+   ; { x = "bar"; sortBy = 1}
+   ; { x = "baz"; sortBy = 2}])
+
+[test.db.getAll_v3 works] with DB SortedX
+(let one = DB.set_v1 { x = "foo"; sortBy = 0 } "one" SortedX in
+ let two = DB.set_v1 { x = "bar"; sortBy = 1  } "two" SortedX in
+ let three = DB.set_v1 { x = "baz"; sortBy = 2  } "three" SortedX in
+ (DB.getAll_v3 SortedX)
+ |> List.sortBy_v0 (fun x -> x.sortBy)) = (
+   [ { x = "foo"; sortBy = 0}
+   ; { x = "bar"; sortBy = 1}
+   ; { x = "baz"; sortBy = 2}])
+
+
+// DB.getAllKeys
+[test.db.keys_v1 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ (DB.keys_v1 X) |> List.sort_v0) = (
+   [ "one"; "two" ])
 
 
 // DB.getAllWithKeys
-[test.db.getAllWithKeys_v1 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getAllWithKeys_v1 MyDB) = [["one"; { x = "foo" }];["two"; {x = "bar"}]]
+[test.db.getAllWithKeys_v1 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getAllWithKeys_v1 X) = [["one"; { x = "foo" }];["two"; {x = "bar"}]]
 
-[test.db.getAllWithKeys_v2 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getAllWithKeys_v2 MyDB) = { one = { x = "foo"} ; two = { x = "bar"} }
+[test.db.getAllWithKeys_v2 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getAllWithKeys_v2 X) = { one = { x = "foo"} ; two = { x = "bar"} }
 
 
 // DB.getManyWithKeys
-[test.db.getManyWithKeys works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getManyWithKeys_v0 ["one"; "two"] MyDB) = [["one"; { x = "foo" }];["two"; { x = "bar" }]]
+[test.db.getManyWithKeys works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getManyWithKeys_v0 ["one"; "two"] X) = [["one"; { x = "foo" }];["two"; { x = "bar" }]]
 
-[test.db.getManyWithKeys_v1 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getManyWithKeys_v1 ["one"; "two"] MyDB) = { one = { x = "foo"} ; two = { x = "bar"} }
+[test.db.getManyWithKeys_v1 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getManyWithKeys_v1 ["one"; "two"] X) = { one = { x = "foo"} ; two = { x = "bar"} }
 
 
 // DB.getExisting
-[test.db.getExisting_v0 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getExisting_v0 ["three"; "two"] MyDB) = [ { x = "bar" } ]
+[test.db.getExisting_v0 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getExisting_v0 ["three"; "two"] X) = [ { x = "bar" } ]
 
 
 // DB.getMany
-[test.db.getMany_v1 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getMany_v1 ["one"; "two"] MyDB) =  [["one"; { x = "foo" }];["two"; { x = "bar" }]]
+[test.db.getMany_v1 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getMany_v1 ["one"; "two"] X) = [["one"; { x = "foo" }];["two"; { x = "bar" }]]
 
-[test.db.getMany_v2 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getMany_v2 ["one"; "two"] MyDB) = [ { x = "foo"}; { x = "bar"}]
+[test.db.getMany_v2 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getMany_v2 ["one"; "two"] X) = [ { x = "foo"}; { x = "bar"}]
 
-[test.db.getMany_v3 returns nothing] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getMany_v3 ["three"; "two"] MyDB) = Nothing
+[test.db.getMany_v3 returns nothing] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getMany_v3 ["three"; "two"] X) = Nothing
 
-[test.db.getMany_v3 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "bar" } "two" MyDB in
- DB.getMany_v3 ["one"; "two"] MyDB) = Just [ { x = "foo"}; { x = "bar"}]
+[test.db.getMany_v3 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ DB.getMany_v3 ["one"; "two"] X) = Just [ { x = "foo"}; { x = "bar"}]
 
 
 // DB.queryWithKey
-[test.db.queryWithKey_v1 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
-(let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
- let two = DB.set_v1 { x = "bar"; sort_by = 1  } "two" MyDB in
- let three = DB.set_v1 { x = "bar"; sort_by = 2  } "three" MyDB in
- (DB.queryWithKey_v1 { x = "bar" } MyDB)
- |> List.sortBy_v0 (fun x -> (List.last_v0 x).sort_by)) = [ ["two" ; { x = "bar"; sort_by = 1}]; ["three"; { x = "bar"; sort_by = 2}]]
+[test.db.queryWithKey_v1 works] with DB SortedX
+(let one = DB.set_v1 { x = "foo"; sortBy = 0 } "one" SortedX in
+ let two = DB.set_v1 { x = "bar"; sortBy = 1  } "two" SortedX in
+ let three = DB.set_v1 { x = "bar"; sortBy = 2  } "three" SortedX in
+ (DB.queryWithKey_v1 { x = "bar" } SortedX)
+ |> List.sortBy_v0 (fun x -> (List.last_v0 x).sortBy)) = [ ["two" ; { x = "bar"; sortBy = 1}]; ["three"; { x = "bar"; sortBy = 2}]]
 
-[test.db.queryWithKey_v2 works] with DB MyDB { "x" : "Str", "sort_by" : "Int" }
-(let one = DB.set_v1 { x = "foo"; sort_by = 0 } "one" MyDB in
- let two = DB.set_v1 { x = "bar"; sort_by = 1  } "two" MyDB in
- let three = DB.set_v1 { x = "bar"; sort_by = 2  } "three" MyDB in
- DB.queryWithKey_v2 { x = "bar" } MyDB) = { two = { x = "bar"; sort_by = 1}; three = { x = "bar"; sort_by = 2} }
+[test.db.queryWithKey_v2 works] with DB SortedX
+(let one = DB.set_v1 { x = "foo"; sortBy = 0 } "one" SortedX in
+ let two = DB.set_v1 { x = "bar"; sortBy = 1  } "two" SortedX in
+ let three = DB.set_v1 { x = "bar"; sortBy = 2  } "three" SortedX in
+ DB.queryWithKey_v2 { x = "bar" } SortedX) = { two = { x = "bar"; sortBy = 1}; three = { x = "bar"; sortBy = 2} }
 
 
 // DB.queryOne
-[test.db.queryOne_v1 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- DB.queryOne_v1 { x = "foo" } MyDB) = Just { x = "foo" }
+[test.db.queryOne_v1 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOne_v1 { x = "foo" } X) = Just { x = "foo" }
 
-[test.db.queryOne_v1 returns nothing if none] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- DB.queryOne_v1 { x = "bar" } MyDB) = Nothing
+[test.db.queryOne_v1 returns nothing if none] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOne_v1 { x = "bar" } X) = Nothing
 
-[test.db.queryOne_v1 returns nothing if many] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "foo" } "two" MyDB in
- DB.queryOne_v1 { x = "foo" } MyDB) = Nothing
+[test.db.queryOne_v1 returns nothing if many] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "foo" } "two" X in
+ DB.queryOne_v1 { x = "foo" } X) = Nothing
 
 
 // DB.queryOneWithKey
-[test.db.queryOneWithKey_v1 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- DB.queryOneWithKey_v1 { x = "foo" } MyDB) = Just [ "one"; { x = "foo" }]
+[test.db.queryOneWithKey_v1 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOneWithKey_v1 { x = "foo" } X) = Just [ "one"; { x = "foo" }]
 
-[test.db.queryOneWithKey_v1 returns none on empty] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- DB.queryOneWithKey_v1 { x = "foo" } MyDB) = Just [ "one"; { x = "foo" }]
+[test.db.queryOneWithKey_v1 returns none on empty] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOneWithKey_v1 { x = "foo" } X) = Just [ "one"; { x = "foo" }]
 
-[test.db.queryOneWithKey_v1 returns none if many] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "foo" } "two" MyDB in
- DB.queryOneWithKey_v1 { x = "foo" } MyDB) = Nothing
+[test.db.queryOneWithKey_v1 returns none if many] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "foo" } "two" X in
+ DB.queryOneWithKey_v1 { x = "foo" } X) = Nothing
 
-[test.db.queryOneWithKey_v2 works] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- DB.queryOneWithKey_v2 { x = "bar" } MyDB) = Nothing
+[test.db.queryOneWithKey_v2 works] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOneWithKey_v2 { x = "bar" } X) = Nothing
 
-[test.db.queryOneWithKey_v2 returns none if none] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- DB.queryOneWithKey_v2 { x = "bar" } MyDB) = Nothing
+[test.db.queryOneWithKey_v2 returns none if none] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ DB.queryOneWithKey_v2 { x = "bar" } X) = Nothing
 
-[test.db.queryOneWithKey_v2 returns none if many] with DB MyDB { "x" : "Str" }
-(let one = DB.set_v1 { x = "foo" } "one" MyDB in
- let two = DB.set_v1 { x = "foo" } "two" MyDB in
- DB.queryOneWithKey_v2 { x = "foo" } MyDB) = Nothing
-
+[test.db.queryOneWithKey_v2 returns none if many] with DB X
+(let one = DB.set_v1 { x = "foo" } "one" X in
+ let two = DB.set_v1 { x = "foo" } "two" X in
+ DB.queryOneWithKey_v2 { x = "foo" } X) = Nothing
 
 
 // SqlCompiler queries
-[test.db.queryOne_v4 supports Dates] with DB MyDB { "ts" : "Date" }
+[test.db.queryOne_v4 supports Dates] with DB Timestamp
 (let before = Date.parse_v2_ster "1900-01-01T00:00:00Z" in
  let middle = Date.parse_v2_ster "2000-01-01T00:00:00Z" in
  let after = Date.parse_v2_ster "2100-01-01T00:00:00Z" in
- let _ = DB.set_v1 { ts = before } "before" MyDB in
- let _ = DB.set_v1 { ts = middle } "middle" MyDB in
- let _ = DB.set_v1 { ts = after  } "after"  MyDB in
- { a = DB.queryOne_v4 MyDB (fun value -> Date.(<) middle value.ts)
- ; b = DB.queryOne_v4 MyDB (fun value -> Date.(>) middle value.ts)
- ; c = DB.queryOne_v4 MyDB (fun value -> Date.lessThan_v0 middle value.ts)
- ; d = DB.queryOne_v4 MyDB (fun value -> Date.greaterThan_v0 middle value.ts)
+ let _ = DB.set_v1 { ts = before } "before" Timestamp in
+ let _ = DB.set_v1 { ts = middle } "middle" Timestamp in
+ let _ = DB.set_v1 { ts = after  } "after"  Timestamp in
+ { a = DB.queryOne_v4 Timestamp (fun value -> Date.(<) middle value.ts)
+ ; b = DB.queryOne_v4 Timestamp (fun value -> Date.(>) middle value.ts)
+ ; c = DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 middle value.ts)
+ ; d = DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 middle value.ts)
  }) = ({ a = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
        ; b = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
        ; c = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
        ; d = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
        })
+
+[db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
+
+[fn.addFriend key name height human dob income]
+(let dob = Date.parse_v2_ster dob in
+ let obj = { height = height; name = name; human = human; dob = dob; income = income } in
+ DB.set_v1 obj key Person)
+
+[fn.prepFriends v]
+(let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
+ let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
+ // Note spaces around Chandler, that's to test trim functions
+ let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 in
+ let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
+ DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
+
+[fn.friends lambda]
+(let _ = prepFriends null in
+ ((DB.query_v4 Person lambda)
+ |> List.map_v0 (fun p -> p.name)
+ |> List.sort_v0))
+
+// Test standard language features
+[test.db findall] with DB Person
+(friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+[test.db find all with condition] with DB Person
+(friends (fun p -> p.height > 3)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+[test.db boolean queries] with DB Person
+(friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db different param name] with DB Person
+(friends (fun value -> value.human )) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db && queries] with DB Person
+(friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
+
+[test.db inlining] with DB Person
+(friends (fun p -> let x = 32 in p.height > x && true)) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db inlining field access] with DB Person
+(friends (fun p -> let x = p.height in true && x > 32 )) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db pipes] with DB Person
+(friends (fun p -> p.height |> ( * ) 2 |> (<) 40)) = ["GrumpyCat" ]
+
+//[test.db query with external variable] with DB Person
+// TODO pass an external var x
+//(friends (fun p -> p.height < x)) = ["GrumpyCat"]
+
+[test.db fieldaccess] with DB Person
+(friends (fun p -> let obj = { x = 42 } in p.height > obj.x ))
+= [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db nested fieldaccess] with DB Person
+(friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ))
+= [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db lambda doesnt return a bool] with DB Person
+(friends (fun p -> "x"))
+= Test.sqlError_v0 "Incorrect type in string \"x\", expected Bool, but got a String"
+
+[test.db bad variable name] with DB Person
+(friends (fun p -> let x = 32 in true && p.height > y))
+= Test.sqlError_v0 "This variable is not defined: y"
+
+[test.db sql injection] with DB Person
+(friends (fun p -> "; select * from users;" = p.name )) = []
+
+[test.db null equality works] with DB Person
+(friends (fun p -> p.name = null )) = [null]
+
+[test.db null inequality works] with DB Person
+(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+// TODO weird behaviour here - shouldn't the null object be returned here.
+[test.db null is not 'null' (string)] with DB Person
+(friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+// queryOne
+[test.queryOne works - multiple] with DB Person
+(let _ = prepFriends null in
+ DB.queryOne_v4 Person (fun p -> p.human)) = Nothing
+
+[test.queryOne works - none] with DB Person
+(let _ = prepFriends null in
+ DB.queryOne_v4 Person (fun p -> p.name = "bob")) = Nothing
+
+[test.queryOne works - one] with DB Person
+(let _ = prepFriends null in
+ (DB.queryOne_v4 Person (fun p -> p.name = "Rachel"))
+ |> Option.map_v0 (fun v -> v.name)) = Just "Rachel"
+
+// queryOneWithKey
+[test.queryOneWithKey works - multiple] with DB Person
+(let _ = prepFriends null in
+ DB.queryOneWithKey_v3 Person (fun p -> p.human)) = Nothing
+
+[test.queryOneWith works - none] with DB Person
+(let _ = prepFriends null in
+ DB.queryOneWithKey_v3 Person (fun p -> p.name = "bob")) = Nothing
+
+[test.queryOne works - one] with DB Person
+(let _ = prepFriends null in
+ (DB.queryOneWithKey_v3 Person (fun p -> p.name = "Rachel"))
+ |> Option.map_v0 (fun v -> v.rachel.name)) = Just "Rachel"
+
+// queryWithKey
+[test.queryWithKey works - none] with DB Person
+(let _ = prepFriends null in
+ DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = Dict.empty_v0
+
+[test.queryWithKey works - one] with DB Person
+(let _ = prepFriends null in
+ (DB.queryWithKey_v3 Person (fun p -> p.name = "Rachel"))
+ |> (fun v -> v.rachel.name)) = "Rachel"
+
+// queryCount
+[test.queryCount works - none] with DB Person
+(let _ = prepFriends null in
+ DB.queryCount_v0 Person (fun p -> p.name = "bob")) = 0
+
+[test.queryCount works - one] with DB Person
+(let _ = prepFriends null in
+ DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
+

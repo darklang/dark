@@ -11,13 +11,7 @@ module LibBackend.ProgramSerialization.ProgramTypes
 // different format if you must, or track the other code along-side this and
 // use the ID to find it).
 
-open System.Runtime.InteropServices
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open FSharpPlus
-open Npgsql.FSharp
-open Npgsql
-open System.Text.RegularExpressions
 
 open Prelude
 open Tablecloth
@@ -39,10 +33,9 @@ module FQFnName =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
       let fn = $"{module_}{this.function_}_v{this.version}"
 
-      if this.owner = "dark" && this.package = "stdlib" then
-        fn
-      else
-        $"{this.owner}/{this.package}/{fn}"
+      if this.owner = "dark" && this.package = "stdlib" then fn
+      else if this.owner = "" && this.package = "" then fn
+      else $"{this.owner}/{this.package}/{fn}"
 
     member this.toRuntimeType() : RT.FQFnName.T =
       { owner = this.owner
@@ -51,16 +44,17 @@ module FQFnName =
         function_ = this.function_
         version = this.version }
 
-  let name
+  let namePat = @"^[a-z][a-z0-9_]*$"
+  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+  let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
+
+  let packageName
     (owner : string)
     (package : string)
     (module_ : string)
     (function_ : string)
     (version : int)
     : T =
-    let namePat = @"^[a-z][a-z0-9_]*$"
-    let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
-    let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
@@ -72,6 +66,13 @@ module FQFnName =
       module_ = module_
       function_ = function_
       version = version }
+
+  let userFnName (fnName : string) : T =
+    assertRe "function name must match" fnnamePat fnName
+    { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
+
+  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
+    packageName "dark" "stdlib" module_ function_ version
 
   let parse (fnName : string) : T =
     let owner, package, module_, function_, version =
@@ -94,10 +95,9 @@ module FQFnName =
       | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
       | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
-    name owner package module_ function_ version
+    packageName owner package module_ function_ version
 
-  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    name "dark" "stdlib" module_ function_ version
+
 
 type Expr =
   | EInteger of id * bigint
@@ -536,19 +536,16 @@ module Shortcuts =
   let eList (elems : Expr list) : Expr = EList(gid (), elems)
   let ePipeTarget () = EPipeTarget(gid ())
 
-
   let ePartial (str : string) (e : Expr) : Expr = EPartial(gid (), str, e)
 
   let eRightPartial (str : string) (e : Expr) : Expr = ERightPartial(gid (), str, e)
 
-
   let eLeftPartial (str : string) (e : Expr) : Expr = ELeftPartial(gid (), str, e)
-
 
   let eVar (name : string) : Expr = EVariable(gid (), name)
 
-  (* let fieldAccess (expr : Expr) (fieldName : string) : Expr = *)
-  (*   EFieldAccess (gid () ,expr, fieldName) *)
+  let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
+    EFieldAccess(gid (), expr, fieldName)
 
   let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =
     EIf(gid (), cond, then', else')
@@ -908,7 +905,7 @@ module UserFunction =
       returnTypeID : id
       description : string
       infix : bool
-      ast : Expr }
+      body : Expr }
 
     member this.toRuntimeType() : RT.UserFunction.T =
       { tlid = this.tlid
@@ -918,7 +915,7 @@ module UserFunction =
         returnType = this.returnType.toRuntimeType ()
         description = this.description
         infix = this.infix
-        ast = this.ast.toRuntimeType () }
+        body = this.body.toRuntimeType () }
 
 type Toplevel =
   | TLHandler of Handler.T

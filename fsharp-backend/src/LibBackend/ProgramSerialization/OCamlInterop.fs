@@ -644,7 +644,7 @@ module Convert =
       returnTypeID = o.metadata.return_type |> bo2ID
       description = o.metadata.description
       infix = o.metadata.infix
-      ast = ocamlExpr2PT o.ast }
+      body = ocamlExpr2PT o.ast }
 
   let ocamlOp2PT (o : OT.op<RT.fluidExpr>) : PT.Op =
     match o with
@@ -888,7 +888,7 @@ module Convert =
             p.returnType |> pt2ocamlTipe |> Some |> option2bo p.returnTypeID
           description = p.description
           infix = p.infix }
-      ast = pt2ocamlExpr p.ast }
+      ast = pt2ocamlExpr p.body }
 
   let pt2ocamlOp (p : PT.Op) : OT.op<RT.fluidExpr> =
     match p with

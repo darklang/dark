@@ -85,10 +85,9 @@ let fns : List<BuiltInFn> =
       returnType = TAny
       description = "An empty HTTP request, with no fields"
       fn =
-        InProcess
-          (function
-          | state, [] -> Value(DObj(Map []))
-          | args -> incorrectArgs ())
+        (function
+        | state, [] -> Value(DObj(Map []))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -98,22 +97,21 @@ let fns : List<BuiltInFn> =
       description =
         "Parse the query string into a dict. If there are copies of the same query param, the last one wins"
       fn =
-        InProcess
-          (function
-          | state, [ DStr url ] ->
-              let queryString = System.Uri(url).Query
-              let nvc = System.Web.HttpUtility.ParseQueryString(queryString)
+        (function
+        | state, [ DStr url ] ->
+            let queryString = System.Uri(url).Query
+            let nvc = System.Web.HttpUtility.ParseQueryString(queryString)
 
-              nvc.AllKeys
-              |> Seq.map
-                   (fun key ->
-                     let values = nvc.GetValues(key)
-                     (key, DStr(values.[values.Length - 1])))
-              |> Seq.toList
-              |> Map
-              |> DObj
-              |> Value
-          | args -> incorrectArgs ())
+            nvc.AllKeys
+            |> Seq.map
+                 (fun key ->
+                   let values = nvc.GetValues(key)
+                   (key, DStr(values.[values.Length - 1])))
+            |> Seq.toList
+            |> Map
+            |> DObj
+            |> Value
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -125,11 +123,10 @@ let fns : List<BuiltInFn> =
       returnType = middlewareReturnType
       description = ""
       fn =
-        InProcess
-          (function
-          // FSTODO
-          | state, [] -> Value(DObj(Map []))
-          | args -> incorrectArgs ())
+        (function
+        // FSTODO
+        | state, [] -> Value(DObj(Map []))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -139,11 +136,10 @@ let fns : List<BuiltInFn> =
       description =
         "Parse the headers string into a dict. If multiple headers of the same key exist, the latest one wins."
       fn =
-        InProcess
-          (function
-          // FSTODO
-          | state, [] -> Value(DObj(Map []))
-          | args -> incorrectArgs ())
+        (function
+        // FSTODO
+        | state, [] -> Value(DObj(Map []))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -156,11 +152,10 @@ let fns : List<BuiltInFn> =
       description =
         "Parse the headers string into a dict. If multiple headers of the same key exist, the latest one wins."
       fn =
-        InProcess
-          (function
-          // FSTODO
-          | state, [] -> Value(DObj(Map []))
-          | args -> incorrectArgs ())
+        (function
+        // FSTODO
+        | state, [] -> Value(DObj(Map []))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -173,11 +168,10 @@ let fns : List<BuiltInFn> =
       description =
         "Parse the headers string into a dict. If multiple headers of the same key exist, the latest one wins."
       fn =
-        InProcess
-          (function
-          // FSTODO
-          | state, [] -> Value(DObj(Map []))
-          | args -> incorrectArgs ())
+        (function
+        // FSTODO
+        | state, [] -> Value(DObj(Map []))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -189,18 +183,14 @@ let fns : List<BuiltInFn> =
       returnType = THttpResponse varA
       description = "Set a header in the HTTP response"
       fn =
-        InProcess
-          (function
-          | state,
-            [ DHttpResponse (Response (code, headers), responseVal); DStr name;
-              DStr value ] ->
-              Value(
-                DHttpResponse(
-                  Response(code, headers ++ [ name, value ]),
-                  responseVal
-                )
-              )
-          | args -> incorrectArgs ())
+        (function
+        | state,
+          [ DHttpResponse (Response (code, headers), responseVal); DStr name;
+            DStr value ] ->
+            Value(
+              DHttpResponse(Response(code, headers ++ [ name, value ]), responseVal)
+            )
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -209,10 +199,9 @@ let fns : List<BuiltInFn> =
       returnType = varA
       description = "Return the body of a HTTP response"
       fn =
-        InProcess
-          (function
-          | state, [ DHttpResponse (_, responseVal) ] -> Value responseVal
-          | args -> incorrectArgs ())
+        (function
+        | state, [ DHttpResponse (_, responseVal) ] -> Value responseVal
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -236,12 +225,11 @@ let fns : List<BuiltInFn> =
                 0
                 [ eVar "response"; eStr "server"; eStr "darklang" ]))
 
-        InProcess
-          (function
-          | state, [ DFnVal _ as next ] ->
-              let st = Map.empty |> Map.add "next" next
-              Interpreter.eval state st code
-          | args -> incorrectArgs ())
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -254,31 +242,30 @@ let fns : List<BuiltInFn> =
       returnType = THttpResponse varA
       description = "Return a HTTPResponse based on the input."
       fn =
-        InProcess
-          (function
-          | state, [ response ] ->
-              match response with
-              | DHttpResponse _ -> Value response
-              | _ ->
-                  let contentType =
-                    match response with
-                    | DObj _
-                    | DList _ -> "application/json; charset-utf-8"
-                    | _ -> "text/plain; charset=utf-8"
+        (function
+        | state, [ response ] ->
+            match response with
+            | DHttpResponse _ -> Value response
+            | _ ->
+                let contentType =
+                  match response with
+                  | DObj _
+                  | DList _ -> "application/json; charset-utf-8"
+                  | _ -> "text/plain; charset=utf-8"
 
-                  let bytified =
-                    response
-                    |> LibExecution.DvalRepr.toPrettyMachineJsonV1
-                    |> toBytes
-                    |> DBytes
+                let bytified =
+                  response
+                  |> LibExecution.DvalRepr.toPrettyMachineJsonV1
+                  |> toBytes
+                  |> DBytes
 
-                  Value(
-                    DHttpResponse(
-                      Response(200, [ "content-type", contentType ]),
-                      bytified
-                    )
+                Value(
+                  DHttpResponse(
+                    Response(200, [ "content-type", contentType ]),
+                    bytified
                   )
-          | args -> incorrectArgs ())
+                )
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -302,12 +289,11 @@ let fns : List<BuiltInFn> =
               0
               [ (ePipeApply (eVar "next") [ eVar "req" ]) ])
 
-        InProcess
-          (function
-          | state, [ DFnVal _ as next ] ->
-              let st = Map.empty |> Map.add "next" next
-              Interpreter.eval state st code
-          | args -> incorrectArgs ())
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -338,12 +324,11 @@ let fns : List<BuiltInFn> =
                     eStr "content-length"
                     eFn "" "toString" 0 [ eFn "Bytes" "length" 0 [ eVar "body" ] ] ])))
 
-        InProcess
-          (function
-          | state, [ DFnVal _ as next ] ->
-              let st = Map.empty |> Map.add "next" next
-              Interpreter.eval state st code
-          | _, args -> incorrectArgs ())
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | _, args -> incorrectArgs ())
 
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -393,18 +378,17 @@ let fns : List<BuiltInFn> =
               (ePipeApply (eVar "app") [ eVar "handler" ]))
 
 
-        InProcess
-          (function
-          | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
-              let st =
-                Map.empty
-                |> Map.add "url" url
-                |> Map.add "body" body
-                |> Map.add "headers" headers
-                |> Map.add "handler" handler
+        (function
+        | state, [ DStr _ as url; DBytes _ as body; headers; DFnVal _ as handler ] ->
+            let st =
+              Map.empty
+              |> Map.add "url" url
+              |> Map.add "body" body
+              |> Map.add "headers" headers
+              |> Map.add "handler" handler
 
-              Interpreter.eval state st code
-          | args -> incorrectArgs ())
+            Interpreter.eval state st code
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

@@ -115,7 +115,7 @@ let eFnVal
   (function_ : string)
   (version : int)
   : Expr =
-  EFQFnValue(gid (), FQFnName.name owner package module_ function_ version)
+  EFQFnValue(gid (), FQFnName.packageName owner package module_ function_ version)
 
 let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
   eFnVal "dark" "stdlib" module_ function_ version
@@ -194,7 +194,7 @@ let ePartial (e : Expr) : Expr = EPartial(gid (), e)
 
 let eVar (name : string) : Expr = EVariable(gid (), name)
 
-let fieldAccess (expr : Expr) (fieldName : string) : Expr =
+let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
   EFieldAccess(gid (), expr, fieldName)
 
 let eIf (cond : Expr) (then' : Expr) (else' : Expr) : Expr =

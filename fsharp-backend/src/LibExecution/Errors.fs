@@ -23,6 +23,14 @@ type StdlibError =
 // converted to runtimeExceptions at the call site.
 exception StdlibException of StdlibError
 
+// Error in DB::query when we don't support something yet
+exception DBQueryException of string
+
+// Error in DB::query when there's a fakeval in the query
+exception FakeValFoundInQuery of Dval
+
+
+
 // ------------------
 // Messages
 // ------------------
@@ -39,6 +47,9 @@ let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string 
 
 let dividingByZero (paramName : string) : string = $"`{paramName}` cannot be zero"
 
+let queryCompilerErrorTemplate =
+  "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\nError: "
+
 // ------------------
 // Extremely common exceptions
 // ------------------
@@ -48,11 +59,9 @@ let throw (str : string) : 'a = raise (StdlibException(StringError str))
 let incorrectArgs () = raise (StdlibException IncorrectArgs)
 
 let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
-  let repr = DvalRepr.toDeveloperReprV0 actual
-  let typ = DvalRepr.typeToDeveloperReprV0 p.typ
   let actualRepr = DvalRepr.toDeveloperReprV0 actual
   let actualType = Dval.toType actual
-  let actualTypeRepr = DvalRepr.typeToDeveloperReprV0
+  let actualTypeRepr = DvalRepr.typeToDeveloperReprV0 actualType
   let expectedTypeRepr = DvalRepr.typeToDeveloperReprV0 p.typ
   let fnname = name.ToString()
 
@@ -66,8 +75,8 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
         " Use ++ to concatenate"
     | _ -> ""
 
-  $"{fnname} was called with a {actualTypeRepr} (actualRepr), but `{p.name}` expected "
-  + "an {expectedTypeRepr}.{conversionMsg}"
+  $"{fnname} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
+  + $"an {expectedTypeRepr}.{conversionMsg}"
 
 
 // When a function has been removed (rarely happens but does happen occasionally)

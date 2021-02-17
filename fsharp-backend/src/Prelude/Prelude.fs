@@ -23,6 +23,10 @@ let (|Regex|_|) (pattern : string) (input : string) =
   let m = Regex.Match(input, pattern)
   if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
 
+let matches (pattern : string) (input : string) : bool =
+  let m = Regex.Match(input, pattern)
+  m.Success
+
 // ----------------------
 // Debugging
 // ----------------------
@@ -58,7 +62,7 @@ let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
-  if m.Success then () else assert_ $"{msg} ({input} ~= /{pattern}/)" false
+  if m.Success then () else assert_ $"{msg} (\"{input}\" ~= /{pattern}/)" false
 
 // ----------------------
 // Standard conversion functions
@@ -121,7 +125,7 @@ let toString (v : 'a) : string = v.ToString()
 type System.DateTime with
 
   member this.toIsoString() : string =
-    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture)
+    this.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
 
   static member ofIsoString(str : string) : System.DateTime =
     System.DateTime.Parse(str, System.Globalization.CultureInfo.InvariantCulture)
@@ -153,7 +157,7 @@ let randomString (length : int) : string =
   let result =
     Array.init length (fun _ -> char (random.Next(0x41, 0x5a))) |> System.String
 
-  assert (result.Length = length)
+  assertEq "randomString length is correct" result.Length length
   result
 
 // ----------------------

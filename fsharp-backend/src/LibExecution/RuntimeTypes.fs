@@ -49,27 +49,39 @@ module FQFnName =
       let module_ = if this.module_ = "" then "" else $"{this.module_}::"
       let fn = $"{module_}{this.function_}_v{this.version}"
 
-      if this.owner = "dark" && this.package = "stdlib" then
-        fn
-      else
-        $"{this.owner}/{this.package}::{fn}"
+      if this.owner = "dark" && this.package = "stdlib" then fn
+      else if this.owner = "" && this.package = "" then fn
+      else $"{this.owner}/{this.package}/{fn}"
 
-  let name
+  let namePat = @"^[a-z][a-z0-9_]*$"
+  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+  let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
+
+  let packageName
     (owner : string)
     (package : string)
     (module_ : string)
     (function_ : string)
     (version : int)
     : T =
+    assertRe "owner must match" namePat owner
+    assertRe "package must match" namePat package
+    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    assertRe "function name must match" fnnamePat function_
+    assert_ "version can't be negative" (version >= 0)
+
     { owner = owner
       package = package
       module_ = module_
       function_ = function_
       version = version }
 
+  let userFnName (fnName : string) : T =
+    assertRe "function name must match" fnnamePat fnName
+    { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
 
   let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    name "dark" "stdlib" module_ function_ version
+    packageName "dark" "stdlib" module_ function_ version
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
@@ -315,7 +327,7 @@ module Dval =
     | DObj obj -> Map.toList obj
     | _ -> failwith "expecting str"
 
-  let toType (dv : Dval) : DType =
+  let rec toType (dv : Dval) : DType =
     match dv with
     | DInt _ -> TInt
     | DFloat _ -> TFloat
@@ -323,19 +335,23 @@ module Dval =
     | DNull -> TNull
     | DChar _ -> TChar
     | DStr _ -> TStr
-    | DList _ -> TList TAny
-    | DObj _ -> TRecord []
+    | DList (head :: _) -> TList(toType head)
+    | DList [] -> TList TAny
+    | DObj map ->
+        map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TLambda
     | DFakeVal (DError _) -> TError
     | DFakeVal (DIncomplete _) -> TIncomplete
-    | DHttpResponse _ -> THttpResponse TAny
+    | DFakeVal (DErrorRail _) -> TErrorRail
+    | DHttpResponse (_, dv) -> THttpResponse(toType dv)
     | DDB _ -> TDB TAny
     | DDate _ -> TDate
     // | DPassword _ -> TPassword
     | DUuid _ -> TUuid
-    | DOption _ -> TOption TAny
-    | DFakeVal (DErrorRail _) -> TErrorRail
-    | DResult _ -> TResult(TAny, TAny)
+    | DOption None -> TOption TAny
+    | DOption (Some v) -> TOption(toType v)
+    | DResult (Ok v) -> TResult(toType v, TAny)
+    | DResult (Error v) -> TResult(TAny, toType v)
     | DBytes _ -> TBytes
 
   let int (i : int) = DInt(bigint i)
@@ -444,7 +460,7 @@ module UserFunction =
       returnType : DType
       description : string
       infix : bool
-      ast : Expr }
+      body : Expr }
 
 type Toplevel =
   | TLHandler of Handler.T
@@ -466,6 +482,20 @@ module Secret =
 // ------------
 // Functions
 // ------------
+
+module Package =
+  type Parameter = { name : string; typ : DType; description : string }
+
+  type Fn =
+    { name : FQFnName.T
+      body : Expr
+      parameters : List<Parameter>
+      returnType : DType
+      description : string
+      author : string
+      deprecated : bool
+      tlid : tlid }
+
 
 // The runtime needs to know whether to save a function's results when it
 // runs. Pure functions that can be run on the client do not need to have
@@ -493,12 +523,38 @@ type SqlSpec =
   | NotYetImplementedTODO
   // This is not a function which can be queried
   | NotQueryable
-  // This can be implemented by a builtin postgres 9.6 function.
-  | SqlFunction of string
   // This is a query function (it can't be called inside a query, but it's argument can be a query)
   | QueryFunction
+  // This can be implemented by a builtin postgres 9.6 operator with 1 arg (eg `@ x`)
+  | SqlUnaryOp of string
+  // This can be implemented by a builtin postgres 9.6 operator with 2 args (eg `x + y`)
+  | SqlBinOp of string
+  // This can be implemented by a builtin postgres 9.6 function
+  | SqlFunction of string
+  // This can be implemented by a builtin postgres 9.6 function with extra arguments that go first
+  | SqlFunctionWithPrefixArgs of string * List<string>
+  // This can be implemented by a builtin postgres 9.6 function with extra arguments that go last
+  | SqlFunctionWithSuffixArgs of string * List<string>
+// This can be implemented by this callback that receives 1 SQLified-string argument
+// | SqlCallback of (string -> string)
+// This can be implemented by this callback that receives 2 SQLified-string argument
+// | SqlCallback2 of (string -> string -> string)
 
 type BuiltInFn =
+  { name : FQFnName.T
+    parameters : List<Param>
+    returnType : DType
+    description : string
+    previewable : Previewable
+    deprecated : Deprecation
+    sqlSpec : SqlSpec
+    // Functions can be run in JS if they have an implementation in this
+    // LibExecution. Functions whose implementation is in LibBackend can only be
+    // implemented on the server.
+    // May throw an exception, though we're trying to get them to never throw exceptions.
+    fn : BuiltInFnSig }
+
+and Fn =
   { name : FQFnName.T
     parameters : List<Param>
     returnType : DType
@@ -515,9 +571,9 @@ type BuiltInFn =
 and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
 
 and FnImpl =
-  | InProcess of BuiltInFnSig
-  | UserCreated of tlid * Expr
-  | PackageFunction of Expr
+  | StdLib of BuiltInFnSig
+  | UserFunction of tlid * Expr
+  | PackageFunction of tlid * Expr
 
 and Context =
   | Real
@@ -529,9 +585,9 @@ and ExecutionState =
     canvasID : CanvasID
     accountID : UserID
     dbs : Map<string, DB.T>
-    userFns : List<UserFunction.T>
-    userTypes : List<UserType.T>
-    // packageFns : List<PackageFn.T>
+    userFns : Map<string, UserFunction.T>
+    userTypes : Map<string, UserType.T>
+    packageFns : Map<FQFnName.T, Package.Fn>
     secrets : List<Secret.T>
     trace : bool -> id -> Dval -> unit
     traceTLID : tlid -> unit
@@ -545,15 +601,44 @@ and ExecutionState =
     // opposed to being executed for traces)
     onExecutionPath : bool }
 
+let builtInFnToFn (fn : BuiltInFn) : Fn =
+  { name = fn.name
+    parameters = fn.parameters
+    returnType = fn.returnType
+    description = ""
+    previewable = Impure
+    deprecated = NotDeprecated
+    sqlSpec = NotQueryable
+    fn = StdLib fn.fn }
 
-//
-// let paramToBuiltinParam (p : UserFunction.Parameter) : Option<Param> =
-//   if p.name = "" then
-//     None
-//   else
-//     Some
-//       { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
-//
+let userFnToFn (fn : UserFunction.T) : Fn =
+  let toParam (p : UserFunction.Parameter) : Param =
+    { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+
+  { name = FQFnName.userFnName fn.name
+    parameters = fn.parameters |> List.map toParam
+    returnType = fn.returnType
+    description = ""
+    previewable = Impure
+    deprecated = NotDeprecated
+    sqlSpec = NotQueryable
+    fn = UserFunction(fn.tlid, fn.body) }
+
+let packageFnToFn (fn : Package.Fn) : Fn =
+  let toParam (p : Package.Parameter) : Param =
+    { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+
+  { name = fn.name
+    parameters = fn.parameters |> List.map toParam
+
+    returnType = fn.returnType
+    description = ""
+    previewable = Impure
+    deprecated = NotDeprecated
+    sqlSpec = NotQueryable
+    fn = PackageFunction(fn.tlid, fn.body) }
+
+
 // let toFn (uf : T) : Option<BuiltInFn> =
 //   let parameters = List.filterMap paramToBuiltinParam uf.parameters in
 //   let paramsAllFilled = List.length parameters = List.length uf.parameters
@@ -570,9 +655,6 @@ and ExecutionState =
 //         deprecated = NotDeprecated
 //         sqlSpec = NotQueryable
 //         fn = UserCreated(uf.tlid, uf.ast) }
-//
-//
-//
 
 // Some parts of the execution need to call AST.exec, but cannot call
 // AST.exec without a cyclic dependency. This function enables that, and it

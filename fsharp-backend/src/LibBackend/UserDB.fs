@@ -86,9 +86,9 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   // only have to remove this small part.
   let defaultKeys = db.cols |> List.map (fun (k, _) -> (k, RT.DNull)) |> Map
   // FSTODO: which is overwriting here?
-  let merged = FSharpPlus.Map.union pObj defaultKeys in
+  let merged = FSharpPlus.Map.union pObj defaultKeys
   // </HACK 2>
-  let typeChecked = typeCheck db merged in
+  let typeChecked = typeCheck db merged
   RT.DObj typeChecked
 
 
@@ -272,12 +272,13 @@ let getAll
   |> Sql.executeAsync
        (fun read -> (read.string "key", read.string "data" |> toObj db))
 
-
-let query
+// Reusable function that provides the template for the SqlCompiler query functions
+let doQuery
   (state : RT.ExecutionState)
   (db : RT.DB.T)
   (b : RT.LambdaImpl)
-  : Task<List<string * RT.Dval>> =
+  (queryFor : string)
+  : Task<Sql.SqlProps> =
   task {
     let dbFields = Map.ofList db.cols
 
@@ -289,16 +290,16 @@ let query
     let! sql, vars =
       SqlCompiler.compileLambda state b.symtable paramName dbFields b.body
 
-    return!
+    return
       Sql.query
-        $"SELECT key, data
-          FROM user_data
-          WHERE table_tlid = @tlid
-            AND account_id = @accountID
-            AND canvas_id = @canvasID
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion
-            AND {sql}"
+        $"SELECT {queryFor}
+            FROM user_data
+            WHERE table_tlid = @tlid
+              AND account_id = @accountID
+              AND canvas_id = @canvasID
+              AND user_version = @userVersion
+              AND dark_version = @darkVersion
+              AND {sql}"
       |> Sql.parameters (
         vars
         @ [ "tlid", Sql.tlid db.tlid
@@ -307,48 +308,43 @@ let query
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion ]
       )
+  }
+
+let query
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (b : RT.LambdaImpl)
+  : Task<List<string * RT.Dval>> =
+  task {
+    let! results = doQuery state db b "key, data"
+
+    return!
+      results
       |> Sql.executeAsync
            (fun read -> (read.string "key", read.string "data" |> toObj db))
   }
 
-// let query_count ~state (db : RT.DB.T) (b : RT.DB.Tlock_args) : int =
-//   let db_fields = Tablecloth.StrDict.from_list (get_db_fields db) in
-//   let param_name =
-//     match b.params with
-//     | [(_, name)] ->
-//         name
-//     | _ ->
-//         Exception.internal "wrong number of args"
-//   in
-//   let sql =
-//     Sql_compiler.compile_lambda ~state b.symtable param_name db_fields b.body
-//   in
-//   let result =
-//     try
-//       Db.fetch
-//         ~name:"filter"
-//         ( "SELECT COUNT(*)
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5
-//      AND ("
-//         ^ sql
-//         ^ ")" )
-//         ~params:
-//           [ ID db.tlid
-//           ; Uuid state.account_id
-//           ; Uuid state.canvas_id
-//           ; Int db.version
-//           ; Int current_dark_version ]
-//     with e ->
-//       Libcommon.Log.erroR "error compiling sql" ~data:(Exception.to_string e) ;
-//       raise (DBQueryException "A type error occurred at run-time")
-//   in
-//   result |> List.hd_exn |> List.hd_exn |> int_of_string
+let queryValues
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (b : RT.LambdaImpl)
+  : Task<List<RT.Dval>> =
+  task {
+    let! results = doQuery state db b "data"
 
+    return!
+      results |> Sql.executeAsync (fun read -> (read.string "data" |> toObj db))
+  }
+
+let queryCount
+  (state : RT.ExecutionState)
+  (db : RT.DB.T)
+  (b : RT.LambdaImpl)
+  : Task<int> =
+  task {
+    let! results = doQuery state db b "COUNT(*)"
+    return! results |> Sql.executeRowAsync (fun read -> read.int "count")
+  }
 
 let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
   Sql.query
@@ -404,8 +400,7 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data
-     WHERE key = @key
-       AND account_id = @accountID
+     WHERE account_id = @accountID
        AND canvas_id = @canvasID
        AND table_tlid = @tlid
        AND user_version = @userVersion

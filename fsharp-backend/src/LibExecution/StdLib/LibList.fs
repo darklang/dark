@@ -20,10 +20,9 @@ let fns : List<BuiltInFn> =
       returnType = TList(TVariable "a")
       description = "Returns a one-element list containing the given `val`."
       fn =
-        InProcess
-          (function
-          | _, [ v ] -> Value(DList [ v ])
-          | args -> incorrectArgs ())
+        (function
+        | _, [ v ] -> Value(DList [ v ])
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -33,22 +32,20 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the head of a list. Returns null if the empty list is passed."
       fn =
-        InProcess
-          (function
-          | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Value
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Value
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "List" "head" 1) }
     { name = fn "List" "head" 1
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
       description = "Fetches the head of the list and returns an option"
       fn =
-        InProcess
-          (function
-          | _, [ DList l ] -> Value(DOption(List.tryHead l))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l ] -> Value(DOption(List.tryHead l))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "head" 2) }
@@ -58,13 +55,12 @@ let fns : List<BuiltInFn> =
       description =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
       fn =
-        InProcess
-          (function
-          | _, [ DList l ] ->
-              (match List.tryHead l with
-               | Some dv -> Value(l.Head)
-               | None -> Value(DOption None))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l ] ->
+            (match List.tryHead l with
+             | Some dv -> Value(l.Head)
+             | None -> Value(DOption None))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -74,14 +70,13 @@ let fns : List<BuiltInFn> =
       description =
         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
       fn =
-        InProcess
-          // This matches Elm's implementation, with the added benefit that the error rail
-          // means you don't need to handle unwrapping the option
-          // unless the passed list is truly empty (which shouldn't happen in most practical uses).
-          (function
-          | _, [ DList l ] ->
-              (if List.length l > 0 then DList l.Tail else DOption None) |> Value
-          | args -> incorrectArgs ())
+        // This matches Elm's implementation, with the added benefit that the error rail
+        // means you don't need to handle unwrapping the option
+        // unless the passed list is truly empty (which shouldn't happen in most practical uses).
+        (function
+        | _, [ DList l ] ->
+            (if List.length l > 0 then DList l.Tail else DOption None) |> Value
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -90,10 +85,9 @@ let fns : List<BuiltInFn> =
       returnType = TList varA
       description = "Returns an empty list."
       fn =
-        InProcess
-          (function
-          | _, [] -> Value(DList [])
-          | args -> incorrectArgs ())
+        (function
+        | _, [] -> Value(DList [])
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -102,11 +96,10 @@ let fns : List<BuiltInFn> =
       returnType = TList varA
       description = "Add element {{val}} to front of list {{list}}"
       fn =
-        InProcess
-          // fakeval handled by call *)
-          (function
-          | _, [ DList l; i ] -> Value(DList(i :: l))
-          | args -> incorrectArgs ())
+        // fakeval handled by call *)
+        (function
+        | _, [ DList l; i ] -> Value(DList(i :: l))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -115,10 +108,9 @@ let fns : List<BuiltInFn> =
       returnType = TList varA
       description = "Add element `val` to back of list `list`"
       fn =
-        InProcess
-          (function
-          | _, [ DList l; i ] -> Value(DList(l @ [ i ]))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l; i ] -> Value(DList(l @ [ i ]))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -128,10 +120,9 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the last value in `list`. Returns null if the list is empty."
       fn =
-        InProcess
-          (function
-          | _, [ DList l ] -> (if l.Length > 0 then List.last l else DNull) |> Value
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l ] -> (if l.Length > 0 then List.last l else DNull) |> Value
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "last" 1) }
@@ -141,13 +132,12 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
       fn =
-        InProcess
-          (function
-          | _, [ DList l ] -> Value(DOption(List.tryLast l))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l ] -> Value(DOption(List.tryLast l))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "List" "last" 2) }
     //   ; { name = fn "List" "last" 2
 //     ; parameters = [Param.make "list" TList]
 //     ; returnType = TOption
@@ -309,11 +299,10 @@ let fns : List<BuiltInFn> =
       description =
         "Returns a list of numbers where each element is 1 larger than the previous. You provide the `lowest` and `highest` numbers in the list. If `lowest` is greater than `highest`, returns the empty list."
       fn =
-        InProcess
-          (function
-          | _, [ DInt start; DInt stop ] ->
-              [ start .. stop ] |> List.map DInt |> DList |> Value
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DInt start; DInt stop ] ->
+            [ start .. stop ] |> List.map DInt |> DList |> Value
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -329,28 +318,27 @@ let fns : List<BuiltInFn> =
       description =
         "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
       fn =
-        InProcess
-          (function
-          | state, [ DList l; init; DFnVal b ] ->
-              (* Fake cf should be propagated by the blocks so we dont need to check *)
-              taskv {
-                let f (accum : DvalTask) (item : Dval) : DvalTask =
-                  taskv {
-                    let! accum = accum
+        (function
+        | state, [ DList l; init; DFnVal b ] ->
+            (* Fake cf should be propagated by the blocks so we dont need to check *)
+            taskv {
+              let f (accum : DvalTask) (item : Dval) : DvalTask =
+                taskv {
+                  let! accum = accum
 
-                    return!
-                      Interpreter.applyFnVal
-                        state
-                        (id 0) // CLEANUP should use real id here
-                        b
-                        [ accum; item ]
-                        NotInPipe
-                        NoRail
-                  }
+                  return!
+                    Interpreter.applyFnVal
+                      state
+                      (id 0) // CLEANUP should use real id here
+                      b
+                      [ accum; item ]
+                      NotInPipe
+                      NoRail
+                }
 
-                return! List.fold f (Value init) l
-              }
-          | args -> incorrectArgs ())
+              return! List.fold f (Value init) l
+            }
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -446,30 +434,24 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if `list` has no values."
       fn =
-        InProcess
-          (function
-          | _, [ DList l ] -> Value(DBool(List.isEmpty l))
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l ] -> Value(DBool(List.isEmpty l))
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "sort" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
-//          Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
-//     ; fn =
-//
-//           (function
-//           | _, [DList list] ->
-//               list |> List.sort compare_dval |> DList
-//           | args ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "sort" 0
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TList varA
+      description = "Returns a copy of `list` with every value sorted in ascending order. Use this if the values have types Dark knows how to sort.
+         Consider `List::sortBy` or `List::sortByComparator` if you need more control over the sorting process."
+      fn =
+        (function
+        | _, [ DList list ] -> list |> List.sort |> DList |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "sortBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -479,29 +461,27 @@ let fns : List<BuiltInFn> =
            For example, `List::sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String::length val` returns `[ \"x\", \"ab\", \"jkl\" ]`.
            Consider `List::sort` if the list values can be directly compared, or `List::sortByComparator` if you want more control over the sorting process."
       fn =
-        InProcess
-          (function
-          | state, [ DList list; DFnVal b ] ->
-              taskv {
-                let fn dv =
-                  Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe NoRail
-                // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
-                let! withKeys =
-                  list
-                  |> map_s
-                       (fun v ->
-                         taskv {
-                           let! key = fn v
-                           return (key, v)
-                         })
+        (function
+        | state, [ DList list; DFnVal b ] ->
+            taskv {
+              let fn dv = Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe NoRail
+              // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
+              let! withKeys =
+                list
+                |> map_s
+                     (fun v ->
+                       taskv {
+                         let! key = fn v
+                         return (key, v)
+                       })
 
-                return
-                  withKeys
-                  |> List.sortBy (fun (k, _v) -> k)
-                  |> List.map (fun (_, v) -> v)
-                  |> DList
-              }
-          | _ -> incorrectArgs ())
+              return
+                withKeys
+                |> List.sortBy (fun (k, _v) -> k)
+                |> List.map (fun (_, v) -> v)
+                |> DList
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -578,11 +558,10 @@ let fns : List<BuiltInFn> =
       description =
         "Returns a new list with all values in `as` followed by all values in `bs`, preserving the order."
       fn =
-        InProcess
-          (function
-          | _, [ DList l1; DList l2 ] ->
-              Value(DList(List.append l1 l2)) (* no checking for fake cf required *)
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList l1; DList l2 ] ->
+            Value(DList(List.append l1 l2)) (* no checking for fake cf required *)
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -597,37 +576,36 @@ let fns : List<BuiltInFn> =
       description =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
       fn =
-        InProcess
-          (function
-          | state, [ DList l; DFnVal fn ] ->
-              taskv {
-                let incomplete = ref false
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+              let incomplete = ref false
 
-                let f (dv : Dval) : TaskOrValue<bool> =
-                  taskv {
-                    let! result =
-                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
-                    match result with
-                    | DBool b -> return b
-                    | DFakeVal (DIncomplete _) ->
-                        incomplete := true
-                        return false
-                    | v ->
-                        Errors.throw (Errors.expectedLambdaType TBool v)
-                        return false
-                  }
+                  match result with
+                  | DBool b -> return b
+                  | DFakeVal (DIncomplete _) ->
+                      incomplete := true
+                      return false
+                  | v ->
+                      Errors.throw (Errors.expectedLambdaType TBool v)
+                      return false
+                }
 
-                if !incomplete then
-                  return DFakeVal(DIncomplete SourceNone)
-                else
-                  let! result = filter_s f l
-                  return DList(result)
-              }
-          | _ -> incorrectArgs ())
+              if !incomplete then
+                return DFakeVal(DIncomplete SourceNone)
+              else
+                let! result = filter_s f l
+                return DList(result)
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "List" "filter" 1) }
     { name = fn "List" "all" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -639,40 +617,39 @@ let fns : List<BuiltInFn> =
       description =
         "Return true if all elements in the list meet the function's criteria, else false."
       fn =
-        InProcess
-          (function
-          | state, [ DList l; DFnVal b ] ->
-              taskv {
-                let incomplete = ref false
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let incomplete = ref false
 
-                let f (dv : Dval) : TaskOrValue<bool> =
-                  taskv {
-                    let! r =
-                      LibExecution.Interpreter.applyFnVal
-                        state
-                        (id 0)
-                        b
-                        [ dv ]
-                        NotInPipe
-                        NoRail
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! r =
+                    LibExecution.Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ dv ]
+                      NotInPipe
+                      NoRail
 
-                    match r with
-                    | DBool b -> return b
-                    | DFakeVal (DIncomplete _) ->
-                        incomplete := true
-                        return false
-                    | v ->
-                        Errors.throw (Errors.expectedLambdaType TBool dv)
-                        return false
-                  }
+                  match r with
+                  | DBool b -> return b
+                  | DFakeVal (DIncomplete _) ->
+                      incomplete := true
+                      return false
+                  | v ->
+                      Errors.throw (Errors.expectedLambdaType TBool dv)
+                      return false
+                }
 
-                if !incomplete then
-                  return DFakeVal(DIncomplete SourceNone)
-                else
-                  let! result = filter_s f l
-                  return DBool((result.Length) = (l.Length))
-              }
-          | args -> incorrectArgs ())
+              if !incomplete then
+                return DFakeVal(DIncomplete SourceNone)
+              else
+                let! result = filter_s f l
+                return DBool((result.Length) = (l.Length))
+            }
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -932,25 +909,24 @@ let fns : List<BuiltInFn> =
       description =
         "Call `f` on every `val` in the list, returning a list of the results of those calls"
       fn =
-        InProcess
-          (function
-          | state, [ DList l; DFnVal b ] ->
-              taskv {
-                let! result =
-                  map_s
-                    (fun dv ->
-                      LibExecution.Interpreter.applyFnVal
-                        state
-                        (id 0)
-                        b
-                        [ dv ]
-                        NotInPipe
-                        NoRail)
-                    l
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let! result =
+                map_s
+                  (fun dv ->
+                    LibExecution.Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ dv ]
+                      NotInPipe
+                      NoRail)
+                  l
 
-                return Dval.list result
-              }
-          | args -> incorrectArgs ())
+              return Dval.list result
+            }
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "map" 0) }
@@ -965,25 +941,24 @@ let fns : List<BuiltInFn> =
         "Returns a list created by the elements of `list` with `fn` called on each of them in order"
       returnType = TList varB
       fn =
-        InProcess
-          (function
-          | state, [ DList l; DFnVal b ] ->
-              taskv {
-                let! result =
-                  map_s
-                    (fun dv ->
-                      LibExecution.Interpreter.applyFnVal
-                        state
-                        (id 0)
-                        b
-                        [ dv ]
-                        NotInPipe
-                        NoRail)
-                    l
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let! result =
+                map_s
+                  (fun dv ->
+                    LibExecution.Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ dv ]
+                      NotInPipe
+                      NoRail)
+                  l
 
-                return Dval.list result
-              }
-          | _ -> incorrectArgs ())
+              return Dval.list result
+            }
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1224,12 +1199,11 @@ let fns : List<BuiltInFn> =
       description =
         "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly selected value in <param list>. Returns {{Nothing}} if <param list> is empty."
       fn =
-        InProcess
 
-          (function
-          | _, [ DList [] ] -> Value(DOption None)
-          | _, [ DList l ] -> Value(l.[Prelude.random.Next l.Length])
-          | args -> incorrectArgs ())
+        (function
+        | _, [ DList [] ] -> Value(DOption None)
+        | _, [ DList l ] -> Value(l.[Prelude.random.Next l.Length])
+        | args -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated } ]

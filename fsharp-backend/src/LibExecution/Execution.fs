@@ -30,10 +30,10 @@ let createState
   (canvasID : CanvasID)
   (tlid : tlid)
   (functions : Map<RT.FQFnName.T, RT.BuiltInFn>)
-  // (packageFns : List<RT.PackageFn.T>)
-  (dbs : List<RT.DB.T>)
-  (userFns : List<RT.UserFunction.T>)
-  (userTypes : List<RT.UserType.T>)
+  (packageFns : Map<RT.FQFnName.T, RT.Package.Fn>)
+  (dbs : Map<string, RT.DB.T>)
+  (userFns : Map<string, RT.UserFunction.T>)
+  (userTypes : Map<string, RT.UserType.T>)
   (secrets : List<RT.Secret.T>)
   : RT.ExecutionState =
   { tlid = tlid
@@ -43,8 +43,8 @@ let createState
     canvasID = canvasID
     userFns = userFns
     userTypes = userTypes
-    // packageFns = packageFns
-    dbs = dbs |> List.map (fun (db : RT.DB.T) -> (db.name, db)) |> Map.ofList
+    packageFns = packageFns
+    dbs = dbs
     secrets = secrets
     trace = (fun on_execution_path _ _ -> ())
     traceTLID = fun _ -> ()
@@ -56,22 +56,6 @@ let createState
   // storeFnResult = ""
   // storeFnArguments = ""
   }
-
-let globalsFor (state : RT.ExecutionState) : RT.Symtable =
-  let secrets =
-    state.secrets
-    |> List.map (fun (s : RT.Secret.T) -> (s.secretName, RT.DStr s.secretValue))
-    |> Map.ofList
-
-  let dbs = (Map.map (fun (db : RT.DB.T) -> RT.DDB db.name) state.dbs)
-
-  FSharpPlus.Map.union secrets dbs
-
-
-let withGlobals (state : RT.ExecutionState) (symtable : RT.Symtable) : RT.Symtable =
-  let globals = globalsFor state
-  FSharpPlus.Map.union globals symtable
-
 
 let run
   (state : RT.ExecutionState)
@@ -87,7 +71,7 @@ let run
   // let tlidStore = new System.Collections.Generic.HashSet<tlid>()
   // let traceTLID (tlid : tlid) = tlidStore.Add tlid |> ignore
   // let state = { state with traceTLID = traceTLID }
-  let symtable = withGlobals state inputVars
+  let symtable = Interpreter.withGlobals state inputVars
   Interpreter.eval state symtable expr |> TaskOrValue.toTask
 // loadFnResult = ""
 // loadFnArguments = ""
@@ -113,7 +97,7 @@ let runHttp
     // let tlidStore = new System.Collections.Generic.HashSet<tlid>()
     // let traceTLID (tlid : tlid) = tlidStore.Add tlid |> ignore
     // let state = { state with traceTLID = traceTLID }
-    let symtable = withGlobals state inputVars
+    let symtable = Interpreter.withGlobals state inputVars
 
     let! result =
       Interpreter.applyFnVal

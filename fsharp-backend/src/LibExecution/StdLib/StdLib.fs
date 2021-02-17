@@ -16,6 +16,8 @@ let prefixFns : List<BuiltInFn> =
                 LibList.fns
                 LibMiddleware.fns
                 LibNoModule.fns
+                LibOption.fns
+                LibResult.fns
                 LibString.fns ]
 
 // Map of prefix names to their infix versions
@@ -23,6 +25,7 @@ let infixFnMapping =
   // FSTODO: there are 20 infix_names in the ocaml libs
   [ ("Int", "add", 0), ("", "+")
     ("Int", "subtract", 0), ("", "-")
+    ("Int", "multiply", 0), ("", "*")
     ("Int", "greaterThan", 0), ("", ">")
     ("Int", "greaterThanOrEqualTo", 0), ("", ">=")
     ("Int", "lessThanOrEqualTo", 0), ("", "<=")
@@ -33,7 +36,10 @@ let infixFnMapping =
     ("Date", "lessThanOrEqualTo", 0), ("Date", "<=")
     ("Date", "greaterThanOrEqualTo", 0), ("Date", ">=")
     ("String", "append", 1), ("", "++")
-    ("", "equals", 0), ("", "==") ]
+    ("", "equals", 0), ("", "==")
+    ("", "notEquals", 0), ("", "!=")
+    ("Bool", "and", 0), ("", "&&")
+    ("Bool", "or", 0), ("", "||") ]
   |> List.map
        (fun ((module_, name, version), (newMod, opName)) ->
          FQFnName.stdlibName module_ name version,
@@ -47,15 +53,15 @@ let infixFnNames =
 // Is this the name of an infix function?
 let isInfixName (name : FQFnName.T) = infixFnNames.Contains name
 
-let infixFns =
+let infixFns : List<BuiltInFn> =
   let fns =
     List.choose
-      (fun builtin ->
+      (fun (builtin : BuiltInFn) ->
         let opName = infixFnMapping.TryFind builtin.name
         Option.map (fun newName -> { builtin with name = newName }) opName)
       prefixFns
 
-  assert (fns.Length = infixFnMapping.Count) // make sure we got them all
+  assertEq "All infixes are parsed" fns.Length infixFnMapping.Count // make sure we got them all
   fns
 
 let fns = infixFns @ prefixFns
