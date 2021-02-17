@@ -27,29 +27,7 @@ type position =
   | First
   | Last
 
-// let compilerSupportedFns =
-//   ; "Date::hour_v1"
-//   ; "Date::day"
-//   ; "Date::minute"
-//   ; "Date::month"
-//   ; "Date::second"
-//   ; "Date::year"
-//   ; "Date::atStartOfDay"
-
-
-let unaryOpToSql op : DType * DType * string * string list * position =
-  // Returns a postgres function name, and arguments to the function. The
-  // argument the user provides will be inserted as the First or Last argument. *)
-  match op.ToString() with
-  (* Not sure if any of the string functions are strictly correct for unicode *)
-  | "Date::hour_v1" -> (TDate, TInt, "date_part", [ "'hour'" ], Last)
-  | "Date::day" -> (TDate, TInt, "date_part", [ "'day'" ], Last)
-  | "Date::minute" -> (TDate, TInt, "date_part", [ "'minute'" ], Last)
-  | "Date::month" -> (TDate, TInt, "date_part", [ "'month'" ], Last)
-  | "Date::second" -> (TDate, TInt, "date_part", [ "'second'" ], Last)
-  | "Date::year" -> (TDate, TInt, "date_part", [ "'year'" ], Last)
-  | "Date::atStartOfDay" -> (TDate, TInt, "date_trunc", [ "'day'" ], Last)
-  | _ -> error2 "This function is not yet implemented" op
+// | "Date::atStartOfDay" -> (TDate, TInt, "date_trunc", [ "'day'" ], Last)
 
 
 let typeToSqlType (t : DType) : string =
