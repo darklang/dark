@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DBool b ] -> Value(DBool(not b))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlFunction "not"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "and" 0

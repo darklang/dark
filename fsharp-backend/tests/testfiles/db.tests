@@ -303,6 +303,7 @@
 (friends (fun p -> String.trim_v0 p.name == "Chandler")) = [" Chandler " ]
 (friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [" Chandler " ]
 (friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [" Chandler " ]
+(friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
 
 
 

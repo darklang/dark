@@ -34,7 +34,6 @@ type position =
 //   ; "Float::multiply"
 //   ; "Float::power"
 //   ; "Float::divide"
-//   ; "Bool::not"
 //   ; "Date::hour_v1"
 //   ; "Date::day"
 //   ; "Date::minute"
@@ -42,7 +41,6 @@ type position =
 //   ; "Date::second"
 //   ; "Date::year"
 //   ; "Date::atStartOfDay"
-//   ; "String::replaceAll"
 //
 // match op with
 // | "Float::mod" -> allFloats "%"
@@ -57,7 +55,6 @@ let unaryOpToSql op : DType * DType * string * string list * position =
   // Returns a postgres function name, and arguments to the function. The
   // argument the user provides will be inserted as the First or Last argument. *)
   match op.ToString() with
-  | "Bool::not" -> (TBool, TBool, "not", [], First)
   (* Not sure if any of the string functions are strictly correct for unicode *)
   | "Date::hour_v1" -> (TDate, TInt, "date_part", [ "'hour'" ], Last)
   | "Date::day" -> (TDate, TInt, "date_part", [ "'day'" ], Last)
