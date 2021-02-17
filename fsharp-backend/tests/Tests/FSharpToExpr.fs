@@ -115,6 +115,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     Map.ofList [ ("op_Addition", "+")
                  ("op_Subtraction", "-")
                  ("op_Multiply", "*")
+                 ("op_Division", "/")
                  ("op_PlusPlus", "++")
                  ("op_GreaterThan", ">")
                  ("op_GreaterThanOrEqual", ">=")
@@ -142,6 +143,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
       let op = Map.get ident.idText ops |> Option.unwrapUnsafe
       eBinOp "" op 0 placeholder placeholder
+  | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
+      eFn "Int" "negate" 0 []
   | SynExpr.Ident ident when ident.idText = "toString_v0" -> eFn "" "toString" 0 []
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()

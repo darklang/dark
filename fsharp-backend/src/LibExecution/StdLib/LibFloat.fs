@@ -138,18 +138,17 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Float" "divide" 0
-    //   ; infix_names = ["/"]
-    //   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
-    //   ; returnType = TFloat
-    //   ; description = "Divide float `a` by float `b`"
-    //   ; fn =
-
-    //         (function
-    //         | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "divide" 0
+      parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
+      returnType = TFloat
+      description = "Divide float `a` by float `b`"
+      fn =
+        (function
+        | _, [ DFloat a; DFloat b ] -> Value(DFloat(a / b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Float" "add" 0
 
     //   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]

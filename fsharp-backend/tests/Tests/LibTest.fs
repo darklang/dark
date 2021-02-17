@@ -57,6 +57,40 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Test" "nan" 0
+      parameters = []
+      returnType = TFloat
+      description = "Return a NaN"
+      fn =
+        (function
+        | _, [] -> Value(DFloat(System.Double.NaN))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "infinity" 0
+      parameters = []
+      returnType = TFloat
+      description = "Returns positive infitity"
+      fn =
+        (function
+        | _, [] -> Value(DFloat(System.Double.PositiveInfinity))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "negativeInfinity" 0
+      parameters = []
+      returnType = TFloat
+      description = "Returns negative infitity"
+      fn =
+        (function
+        | _, [] -> Value(DFloat(System.Double.NegativeInfinity))
+        | args -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
     { name = fn "Test" "incrementSideEffectCounter" 0
       parameters =
         [ Param.make "passThru" (TVariable "a") "Value which will be returned" ]

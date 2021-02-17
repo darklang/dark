@@ -279,7 +279,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
-    | DFloat f -> f.ToString()
+    | DFloat f -> f.ToString(".0##################")
     | DChar c -> c
     | DNull -> "null"
     | DDate d -> d.toIsoString ()

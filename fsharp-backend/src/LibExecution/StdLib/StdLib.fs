@@ -32,6 +32,7 @@ let infixFnMapping =
     ("Int", "lessThanOrEqualTo", 0), ("", "<=")
     ("Int", "lessThan", 0), ("", "<")
     ("Int", "power", 0), ("", "^")
+    ("Float", "divide", 0), ("", "/")
     ("Date", "lessThan", 0), ("Date", "<")
     ("Date", "greaterThan", 0), ("Date", ">")
     ("Date", "lessThanOrEqualTo", 0), ("Date", "<=")
