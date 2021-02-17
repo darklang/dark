@@ -223,8 +223,15 @@
 [test.db boolean queries] with DB Person
 (friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db float queries] with DB Person
-(friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
+[test.db null equality works] with DB Person
+(friends (fun p -> p.name = null )) = [null]
+
+[test.db null inequality works] with DB Person
+(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+// TODO weird behaviour here - shouldn't the null object be returned here.
+[test.db null is not 'null' (string)] with DB Person
+(friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 [test.db different param name] with DB Person
 (friends (fun value -> value.human )) = [" Chandler "; "Rachel"; "Ross" ]
@@ -264,16 +271,26 @@
 [test.db sql injection] with DB Person
 (friends (fun p -> "; select * from users;" = p.name )) = []
 
-[test.db null equality works] with DB Person
-(friends (fun p -> p.name = null )) = [null]
+// ------------
+// Test compiled functions
+// ------------
+[tests.db compiled functions] with DB Person
+//(friends (fun p -> Float.greaterThan p.income 90.0)) = [ "Ross" ]
+(friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
+//(friends (fun p -> Int.lessThanOrEqualTo p.height 65)) = ["GrumpyCat"; "Rachel"]
+//(friends (fun p -> Float.lessThanOrEqualTo p.income 82.10)) = ["GrumpyCat"; "Rachel"]
+//(friends (fun p -> String.toLowercase_v1 p.name = "Rachel")) = ["Rachel"]
 
-[test.db null inequality works] with DB Person
-(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-// TODO weird behaviour here - shouldn't the null object be returned here.
-[test.db null is not 'null' (string)] with DB Person
-(friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
+
+
+
+
+
+// ------------
+// Test other query functions
+// ------------
 // queryOne
 [test.queryOne works - multiple] with DB Person
 (let _ = prepFriends null in
@@ -322,7 +339,7 @@
  DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
 
 // ------------
-// Functions
+// Date Functions
 // ------------
 
 [fn.beforeDate null]
@@ -356,4 +373,3 @@ Date.parse_v2_ster "2100-01-01T00:00:00Z"
 (let _ = prepDates null in
  DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts))
 = Just { ts = beforeDate null }
-

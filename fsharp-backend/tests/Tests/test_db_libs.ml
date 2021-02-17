@@ -98,34 +98,6 @@ let t_sql_compiler_works () =
 
 
 let t_db_query_works () =
-  (* -------------- *)
-  (* Test functions *)
-  (* -------------- *)
-  check_dval
-    "float"
-    (DList [ross])
-    ( queryv (binop "Float::greaterThan" (field "v" "income") (float' 90 0))
-    |> execs ) ;
-  check_dval
-    "int <="
-    (DList [cat; rachel])
-    ( queryv (binop "Int::lessThanOrEqualTo" (field "v" "height") (int 65))
-    |> execs ) ;
-  check_dval
-    "float"
-    (DList [cat; rachel])
-    ( queryv
-        (binop "Float::lessThanOrEqualTo" (field "v" "income") (float' 82 1))
-    |> execs ) ;
-  check_dval
-    "string::tolower"
-    (DList [rachel])
-    ( queryv
-        (binop
-           "=="
-           (fn "String::toLowercase_v1" [field "v" "name"])
-           (str "rachel"))
-    |> execs ) ;
   check_dval
     "string::reverse"
     (DList [rachel])
