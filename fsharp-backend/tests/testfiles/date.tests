@@ -11,14 +11,14 @@ Date.parse_v2 "asd" = Error "Invalid date format"
 
 
 [tests.date inequality]
-Date.lessThan_v0 (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-Date.lessThan_v0 (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
-Date.lessThanOrEqualTo_v0 (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = true
-Date.lessThanOrEqualTo_v0 (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
-Date.greaterThan_v0 (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-Date.greaterThan_v0 (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
-Date.greaterThanOrEqualTo_v0 (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
-Date.greaterThanOrEqualTo_v0 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
+Date.(<) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
+Date.(<) (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
+Date.(<=) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = true
+Date.(<=) (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
+Date.(>) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
+Date.(>) (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
+Date.(>=) (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
+Date.(>=) (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
 
 [tests.date field]
 Date.year_v0 (d "2019-07-28T22:42:36Z") = 2019

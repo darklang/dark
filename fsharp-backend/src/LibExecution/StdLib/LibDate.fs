@@ -98,68 +98,63 @@ let fns : List<BuiltInFn> =
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
-//   { name = fn "Date" "now" 0
-//     parameters = []
-//     returnType = TDate
-//     description = "Returns the current time."
-//     fn =
-//         //       (function
-//       | _, [] -> DDate(Time.now ())
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Impure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "today" 0
-//     parameters = []
-//     returnType = TDate
-//     description = "Returns the Date with the time set to midnight"
-//     fn =
-//         //       (function
-//       | _, [] ->
-//           Time.now ()
-//           |> Time.to_date Time.Zone.utc
-//           |> (fun x -> Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
-//           |> DDate
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "add" 0
-//     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
-//     returnType = TDate
-//     description = "Returns a new Date `seconds` seconds after `d`"
-//     fn =
-//         //       (function
-//       | _, [ DDate d; DInt s ] ->
-//           DDate(Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
-//       | args -> incorrectArgs ())
-//     sqlSpec = SqlBinOp "+"
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "sub" 0
-//     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
-//     returnType = TDate
-//     description = "Returns a new Date `seconds` seconds before `d`"
-//     fn =
-//       (function
-//       | _, [ DDate d; DInt s ] ->
-//           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
-//       | args -> incorrectArgs ())
-//     sqlSpec = SqlBinOp "-"
-//     previewable = Pure
-//     deprecated = ReplacedBy(fn "Date" "subtract" 0) }
-//   { name = fn "Date" "subtract" 0
-//     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
-//     returnType = TDate
-//     description = "Returns a new Date `seconds` seconds before `d`"
-//     fn =
-//         //       (function
-//       | _, [ DDate d; DInt s ] ->
-//           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
-//       | args -> incorrectArgs ())
-//     sqlSpec = SqlBinOp "-"
-//     previewable = Pure
-//     deprecated = NotDeprecated }
+    { name = fn "Date" "now" 0
+      parameters = []
+      returnType = TDate
+      description = "Returns the current time."
+      fn =
+        (function
+        | _, [] -> Value(DDate(System.DateTime.Now))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "today" 0
+      parameters = []
+      returnType = TDate
+      description = "Returns the Date with the time set to midnight"
+      fn =
+        (function
+        | _, [] ->
+            let now = System.DateTime.Now
+            Value(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "add" 0
+      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
+      returnType = TDate
+      description = "Returns a new Date `seconds` seconds after `d`"
+      fn =
+        (function
+        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float s))))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "+"
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "sub" 0
+      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
+      returnType = TDate
+      description = "Returns a new Date `seconds` seconds before `d`"
+      fn =
+        (function
+        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "-"
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "subtract" 0) }
+    { name = fn "Date" "subtract" 0
+      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
+      returnType = TDate
+      description = "Returns a new Date `seconds` seconds before `d`"
+      fn =
+        (function
+        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "-"
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Date" "greaterThan" 0
       parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
       returnType = TBool

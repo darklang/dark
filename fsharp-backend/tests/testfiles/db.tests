@@ -207,6 +207,11 @@
  let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
 
+[fn.d datestr]
+(Date.parse_v1_ster datestr)
+[fn.rossDOB x]
+(Date.parse_v1_ster  "1967-05-12T00:00:00Z")
+
 [fn.friends lambda]
 (let _ = prepFriends null in
  ((DB.query_v4 Person lambda)
@@ -292,11 +297,11 @@
 //(friends (fun p -> String.isSubstring_v1 p.name "ROSS")) = []
 //(friends (fun p -> String.isSubstring_v1 p.name "R")) = ["Rachel"; "Ross" ]
 //(friends (fun p -> String.isSubstring_v1 p.name "ZZZ")) = []
-//(friends (fun p -> String.isSubstring_v1 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel";"Ross" ]
+//(friends (fun p -> String.isSubstring_v1 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 //(friends (fun p -> String.contains_v0 p.name "ROSS")) = []
 //(friends (fun p -> String.contains_v0 p.name "R")) = ["Rachel"; "Ross" ]
 //(friends (fun p -> String.contains_v0 p.name "ZZZ")) = []
-//(friends (fun p -> String.contains_v0 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel";"Ross" ]
+//(friends (fun p -> String.contains_v0 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 (friends (fun p -> String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [" Chandler " ]
 (friends (fun p -> String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [" Chandler " ]
 (friends (fun p -> String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [" Chandler " ]
@@ -304,11 +309,38 @@
 (friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [" Chandler " ]
 (friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [" Chandler " ]
 (friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
+(friends (fun p -> Date.(<=) p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> Date.(<=) p.dob (rossDOB null))) = ["Ross" ]
+(friends (fun p -> Date.(<) p.dob (rossDOB null))) = []
+(friends (fun p -> Date.(>=) p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
+(friends (fun p -> Date.(>=) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+(friends (fun p -> Date.(>) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+(friends (fun p -> Date.(<=) p.dob (Date.add_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> Date.(<=) p.dob (Date.subtract_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> Date.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
+(friends (fun p -> Date.hour_v1 p.dob == 10)) = [" Chandler "]
+(friends (fun p -> Date.day_v0 p.dob == 19)) = [" Chandler "]
+(friends (fun p -> Date.minute_v0 p.dob == 13)) = [" Chandler "]
+(friends (fun p -> Date.month_v0 p.dob == 8)) = [" Chandler "]
+(friends (fun p -> Date.second_v0 p.dob == 42)) = [" Chandler "]
+(friends (fun p -> Date.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
+
+[test.db partial evaluation fieldAccesses outside query] with DB Person
+(let _ = prepFriends null in
+ let x = { y = { z = { a = 5 }}} in
+ ((DB.query_v4 Person (fun p -> x.y.z.a < (String.length_v0 p.name)))
+ |> List.map_v0 (fun p -> p.name)
+ |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"]
+
+[test.db partial evaluation fieldAccesses inside query] with DB Person
+(friends (fun p -> let x = { y = { z = { a = 5 }}} in x.y.z.a < (String.length_v0 p.name))) = [" Chandler "; "GrumpyCat"; "Rachel"]
+
+[test.db partial evaluation fieldAccesses inside query] with DB Person
+(friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}} in (x.y.z.a |> List.length_v0) < (String.length_v0 p.name))) = [" Chandler "; "GrumpyCat"; "Rachel"]
 
 
 
 
-//[" Chandler "; "GrumpyCat"; "Rachel";"Ross" ]
 
 
 
