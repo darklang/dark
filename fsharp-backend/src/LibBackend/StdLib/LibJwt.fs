@@ -140,7 +140,7 @@ let varB = TVariable "b"
 //     let msg =
 //       if msg = "No RSA keys" then "Invalid private key: not an RSA key" else msg
 //     in
-//     DResult (ResError (Dval.dstr_of_string_exn msg))
+//     DResult (ResError (DStr msg))
 //
 //
 let fns : List<BuiltInFn> = []
@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> = []
   //             in
   //             let payload = Dval.to_pretty_machine_yojson_v1 payload in
   //             sign_and_encode ~key ~extra_headers:[] ~payload
-  //             |> Dval.dstr_of_string_exn
+  //             |> DStr
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -189,7 +189,7 @@ let fns : List<BuiltInFn> = []
   //             in
   //             let payload = Dval.to_pretty_machine_yojson_v1 payload in
   //             sign_and_encode ~key ~extra_headers:json_hdrs ~payload
-  //             |> Dval.dstr_of_string_exn
+  //             |> DStr
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -212,7 +212,7 @@ let fns : List<BuiltInFn> = []
   //                 in
   //                 let payload = Dval.to_pretty_machine_yojson_v1 payload in
   //                 sign_and_encode ~key ~extra_headers:[] ~payload
-  //                 |> Dval.dstr_of_string_exn)
+  //                 |> DStr)
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -241,7 +241,7 @@ let fns : List<BuiltInFn> = []
   //                 in
   //                 let payload = Dval.to_pretty_machine_yojson_v1 payload in
   //                 sign_and_encode ~key ~extra_headers:json_hdrs ~payload
-  //                 |> Dval.dstr_of_string_exn)
+  //                 |> DStr)
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -314,12 +314,12 @@ let fns : List<BuiltInFn> = []
   //                     |> ResOk
   //                     |> DResult
   //                 | Error msg ->
-  //                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
+  //                     DResult (ResError (DStr msg)) )
   //             with Invalid_argument msg ->
   //               let msg =
   //                 if msg = "No public keys" then "Invalid public key" else msg
   //               in
-  //               DResult (ResError (Dval.dstr_of_string_exn msg)) )
+  //               DResult (ResError (DStr msg)) )
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO

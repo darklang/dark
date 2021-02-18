@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
     //         | _, [DObj o] ->
     //             o
     //             |> DvalMap.keys
-    //             |> List.map (fun k -> Dval.dstr_of_string_exn k)
+    //             |> List.map (fun k -> DStr k)
     //             |> fun l -> DList l
     //         | _ -> args
     //             incorrectArgs ())
@@ -73,7 +73,7 @@ let fns : List<BuiltInFn> =
     //         | _, [DObj o] ->
     //             DvalMap.to_list o
     //             |> List.map (fun (k, v) ->
-    //                    DList [Dval.dstr_of_string_exn k; v])
+    //                    DList [DStr k; v])
     //             |> Dval.to_list
     //         | _ -> args
     //             incorrectArgs ())
@@ -312,7 +312,7 @@ let fns : List<BuiltInFn> =
     //         (function
     //         | state, [DObj o; DFnVal b] ->
     //             let f ~key ~(data : dval) =
-    //               Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
+    //               Ast.execute_dblock ~state b [DStr key; data]
     //             in
     //             DObj (Map.mapi ~f o)
     //         | _ -> args
@@ -332,7 +332,7 @@ let fns : List<BuiltInFn> =
     //             let incomplete = ref false in
     //             let f ~(key : string) ~(data : dval) : bool =
     //               let result =
-    //                 Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
+    //                 Ast.execute_dblock ~state b [DStr key; data]
     //               in
     //               match result with
     //               | DBool b ->
@@ -371,7 +371,7 @@ let fns : List<BuiltInFn> =
     //                     Ast.execute_dblock
     //                       ~state
     //                       b
-    //                       [Dval.dstr_of_string_exn key; data]
+    //                       [DStr key; data]
     //                   in
     //                   ( match result with
     //                   | DBool true ->
@@ -417,7 +417,7 @@ let fns : List<BuiltInFn> =
     //                   Ast.execute_dblock
     //                     ~state
     //                     b
-    //                     [Dval.dstr_of_string_exn key; data]
+    //                     [DStr key; data]
     //                 with
     //                 | DOption (OptJust o) ->
     //                     Some o
@@ -494,7 +494,7 @@ let fns : List<BuiltInFn> =
     //         | _, [DObj o] ->
     //             DObj o
     //             |> Dval.to_pretty_machine_json_v1
-    //             |> Dval.dstr_of_string_exn
+    //             |> DStr
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO

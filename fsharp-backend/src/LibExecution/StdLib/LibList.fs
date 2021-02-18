@@ -520,7 +520,7 @@ let fns : List<BuiltInFn> =
 //                   |> ResOk
 //                   |> DResult
 //                 with Exception.DarkException e ->
-//                   DResult (ResError (Dval.dstr_of_string_exn e.short)) )
+//                   DResult (ResError (DStr e.short)) )
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO

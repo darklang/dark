@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> = []
 //           (function
 //           | state, [DStr deploy_hash] ->
 //               url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
-//               |> Dval.dstr_of_string_exn
+//               |> DStr
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> = []
 //           (function
 //           | state, [] ->
 //               url state.canvas_id (latest_deploy_hash state.canvas_id) `Short
-//               |> Dval.dstr_of_string_exn
+//               |> DStr
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> = []
 //                 (Unicode_string.to_string deploy_hash)
 //                 `Short
 //                 (Unicode_string.to_string file)
-//               |> Dval.dstr_of_string_exn
+//               |> DStr
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> = []
 //                 (latest_deploy_hash state.canvas_id)
 //                 `Short
 //                 (Unicode_string.to_string file)
-//               |> Dval.dstr_of_string_exn
+//               |> DStr
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -114,7 +114,7 @@ let fns : List<BuiltInFn> = []
 //               | None ->
 //                   DResult
 //                     (ResError
-//                        (Dval.dstr_of_string_exn "Response was not
+//                        (DStr "Response was not
 // UTF-8 safe"))
 //               )
 //           | _ ->
@@ -147,7 +147,7 @@ let fns : List<BuiltInFn> = []
 //                   Dval.to_res_ok dv
 //               | None ->
 //                   Dval.to_res_err
-//                     (Dval.dstr_of_string_exn "Response was not UTF-8 safe") )
+//                     (DStr "Response was not UTF-8 safe") )
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -209,7 +209,7 @@ let fns : List<BuiltInFn> = []
 //               | None ->
 //                   DResult
 //                     (ResError
-//                        (Dval.dstr_of_string_exn "Response was not
+//                        (DStr "Response was not
 // UTF-8 safe"))
 //               )
 //           | _ ->
@@ -242,7 +242,7 @@ let fns : List<BuiltInFn> = []
 //                   Dval.to_res_ok dv
 //               | None ->
 //                   Dval.to_res_err
-//                     (Dval.dstr_of_string_exn "Response was not
+//                     (DStr "Response was not
 // UTF-8 safe") )
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())
@@ -331,7 +331,7 @@ let fns : List<BuiltInFn> = []
 //               | None ->
 //                   DResult
 //                     (ResError
-//                        (Dval.dstr_of_string_exn "Response was not UTF-8 safe"))
+//                        (DStr "Response was not UTF-8 safe"))
 //               )
 //           | _ ->
 //               Libexecution.Lib.incorrectArgs ())

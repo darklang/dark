@@ -135,19 +135,19 @@ let varB = TVariable "b"
 //         if has_form_header res.headers
 //         then
 //           try Dval.of_form_encoding res.body
-//           with _ -> Dval.dstr_of_string_exn "form decoding error"
+//           with _ -> DStr "form decoding error"
 //         else if has_json_header res.headers
 //         then
 //           try Dval.of_unknown_json_v0 res.body
-//           with _ -> Dval.dstr_of_string_exn "json decoding error"
+//           with _ -> DStr "json decoding error"
 //         else
-//           try Dval.dstr_of_string_exn res.body
-//           with _ -> Dval.dstr_of_string_exn "utf-8 decoding error"
+//           try DStr res.body
+//           with _ -> DStr "utf-8 decoding error"
 //       in
 //       let parsed_response_headers =
 //         res.headers
 //         |> List.map (fun (k, v) ->
-//                (String.strip k, Dval.dstr_of_string_exn (String.strip v)))
+//                (String.strip k, DStr (String.strip v)))
 //         |> List.filter (fun (k, _) -> String.length k > 0)
 //         |> DvalMap.from_list
 //         |> fun dm -> DObj dm
@@ -160,15 +160,15 @@ let varB = TVariable "b"
 //             , res.body
 //               |> Dval.dstr_of_string
 //               |> Option.value
-//                    (Dval.dstr_of_string_exn "utf-8 decoding error") )
+//                    (DStr "utf-8 decoding error") )
 //           ; ("code", DInt (Dint.of_int res.code))
-//           ; ("error", Dval.dstr_of_string_exn res.error) ]
+//           ; ("error", DStr res.error) ]
 //       in
 //       if res.code >= 200 && res.code <= 299
 //       then DResult (ResOk obj)
 //       else DResult (ResError obj)
 //   | Error err ->
-//       DResult (ResError (Dval.dstr_of_string_exn err.error))
+//       DResult (ResError (DStr err.error))
 //
 //
 // (* This is deprecated in favor of [encode_basic_auth u p]
@@ -745,7 +745,7 @@ let fns : List<BuiltInFn> = []
   //         (function
   //         | _, [DStr u; DStr p] ->
   //             DObj
-  //               (DvalMap.singleton
+  //               (Map.singleton
   //                  "Authorization"
   //                  (DStr (encode_basic_auth_broken u p)))
   //         | _ ->
@@ -763,7 +763,7 @@ let fns : List<BuiltInFn> = []
   //         (function
   //         | _, [DStr u; DStr p] ->
   //             DObj
-  //               (DvalMap.singleton
+  //               (Map.singleton
   //                  "Authorization"
   //                  (DStr (encode_basic_auth u p)))
   //         | _ ->

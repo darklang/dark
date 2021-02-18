@@ -37,11 +37,11 @@ let fns : List<BuiltInFn> = []
   //               |> X509.public_key
   //               |> X509.Encoding.Pem.Public_key.to_pem_cstruct1
   //               |> Cstruct.to_string
-  //               |> Dval.dstr_of_string_exn
+  //               |> DStr
   //               |> ResOk
   //               |> DResult
   //             with Invalid_argument msg ->
-  //               DResult (ResError (Dval.dstr_of_string_exn msg)) )
+  //               DResult (ResError (DStr msg)) )
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO

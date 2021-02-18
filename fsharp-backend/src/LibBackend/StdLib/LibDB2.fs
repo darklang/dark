@@ -528,7 +528,7 @@ let fns : List<BuiltInFn> =
 //             in
 //             ( match results with
 //             | [(k, v)] ->
-//                 DOption (OptJust (DObj (DvalMap.singleton k v)))
+//                 DOption (OptJust (DObj (Map.singleton k v)))
 //             | _ ->
 //                 DOption OptNothing )
 //           }

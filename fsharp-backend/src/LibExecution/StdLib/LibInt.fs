@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
                 then
                   DResult
                     (ResError
-                       (Dval.dstr_of_string_exn
+                       (DStr
                           ( "`modulus` must be positive but was "
                           ^ Dval.to_developer_repr_v0 (DInt m) )))
                 else (* In case there's another failure mode, rollbar *)

@@ -20,8 +20,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let fns : List<BuiltInFn> = []
-   // [ { name = fn "HttpClient" "formContentType" 0
-  //
+  // [ { name = fn "HttpClient" "formContentType" 0
   //   ; parameters = []
   //   ; returnType = TObj
   //   ; description =
@@ -30,9 +29,9 @@ let fns : List<BuiltInFn> = []
   //         (function
   //         | _, [] ->
   //             DObj
-  //               (DvalMap.singleton
+  //               (Map.singleton
   //                  "Content-Type"
-  //                  (Dval.dstr_of_string_exn "application/x-www-form-urlencoded"))
+  //                  (DStr "application/x-www-form-urlencoded"))
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -46,9 +45,9 @@ let fns : List<BuiltInFn> = []
   //         (function
   //         | _, [] ->
   //             DObj
-  //               (DvalMap.singleton
+  //               (Map.singleton
   //                  "Content-Type"
-  //                  (Dval.dstr_of_string_exn "application/json; charset=utf-8"))
+  //                  (DStr "application/json; charset=utf-8"))
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -62,9 +61,9 @@ let fns : List<BuiltInFn> = []
   //         (function
   //         | _, [] ->
   //             DObj
-  //               (DvalMap.singleton
+  //               (Map.singleton
   //                  "Content-Type"
-  //                  (Dval.dstr_of_string_exn "text/plain; charset=utf-8"))
+  //                  (DStr "text/plain; charset=utf-8"))
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -78,9 +77,9 @@ let fns : List<BuiltInFn> = []
   //         (function
   //         | _, [] ->
   //             DObj
-  //               (DvalMap.singleton
+  //               (Map.singleton
   //                  "Content-Type"
-  //                  (Dval.dstr_of_string_exn "text/html; charset=utf-8"))
+  //                  (DStr "text/html; charset=utf-8"))
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -99,7 +98,7 @@ let fns : List<BuiltInFn> = []
   //                 (Unicode_string.of_string_exn "Bearer ")
   //                 token
   //             in
-  //             DObj (DvalMap.singleton "Authorization" (DStr auth_string))
+  //             DObj (Map.singleton "Authorization" (DStr auth_string))
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO
@@ -119,7 +118,7 @@ let fns : List<BuiltInFn> = []
   //                 (Unicode_string.of_string_exn "Bearer ")
   //                 token
   //             in
-  //             DObj (DvalMap.singleton "Authorization" (DStr auth_string))
+  //             DObj (Map.singleton "Authorization" (DStr auth_string))
   //         | _ ->
   //             incorrectArgs ())
   //   ; sqlSpec = NotYetImplementedTODO

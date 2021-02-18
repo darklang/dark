@@ -296,7 +296,7 @@ let fns : List<BuiltInFn> = []
   //                  "%s=%s; %s"
   //                  (Uri.pct_encode (Unicode_string.to_string name))
   //                  (Uri.pct_encode (Unicode_string.to_string value))
-  //             |> Dval.dstr_of_string_exn
+  //             |> DStr
   //             |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
   //         | _ ->
   //             incorrectArgs ())
@@ -351,7 +351,7 @@ let fns : List<BuiltInFn> = []
   //                   * cookie-name/cookie-value strings, go read RFC6265 first. *)
   //                  (Unicode_string.to_string name)
   //                  (Unicode_string.to_string value)
-  //             |> Dval.dstr_of_string_exn
+  //             |> DStr
   //             |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
   //         | _ ->
   //             incorrectArgs ())
@@ -507,7 +507,7 @@ let fns : List<BuiltInFn> = []
   //             | Ok kvs ->
   //                 nameValue :: kvs
   //                 |> String.concat "; "
-  //                 |> Dval.dstr_of_string_exn
+  //                 |> DStr
   //                 |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
   //             | Error dv ->
   //                 dv )

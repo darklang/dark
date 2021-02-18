@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> = []
  //          | _, [DObj o] ->
  //              DObj o
  //              |> Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
- //              |> Dval.dstr_of_string_exn
+ //              |> DStr
  //          | _ ->
  //              incorrectArgs ())
  //    ; sqlSpec = NotYetImplementedTODO
@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> = []
  //          | _, [DObj o] ->
  //              DObj o
  //              |> Dval.to_pretty_machine_json_v1
- //              |> Dval.dstr_of_string_exn
+ //              |> DStr
  //          | _ ->
  //              incorrectArgs ())
  //    ; sqlSpec = NotYetImplementedTODO

@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
 //                   []
 //                 |> List.map (function
 //                        | [email] ->
-//                            Dval.dstr_of_string_exn email
+//                            DStr email
 //                        | _ ->
 //                            Exception.internal
 //                              "Wrong number of fields from db query")
@@ -182,7 +182,7 @@ let fns : List<BuiltInFn> =
 //                 | Ok () ->
 //                     DResult (ResOk DNull)
 //                 | Error msg ->
-//                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
+//                     DResult (ResError (DStr msg)) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
 //                 let result = Account.upsert_user ~username ~email ~name () in
 //                 ( match result with
 //                 | Ok () ->
-//                     Dval.dstr_of_string_exn ""
+//                     DStr ""
 //                 | Error msg ->
 //                     Exception.code msg )
 //             | _ ->
@@ -233,9 +233,9 @@ let fns : List<BuiltInFn> =
 //                 in
 //                 ( match result with
 //                 | Ok () ->
-//                     DResult (ResOk (Dval.dstr_of_string_exn ""))
+//                     DResult (ResOk (DStr ""))
 //                 | Error msg ->
-//                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
+//                     DResult (ResError (DStr msg)) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -290,9 +290,9 @@ let fns : List<BuiltInFn> =
 //                 in
 //                 ( match result with
 //                 | Ok () ->
-//                     DResult (ResOk (Dval.dstr_of_string_exn ""))
+//                     DResult (ResOk (DStr ""))
 //                 | Error msg ->
-//                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
+//                     DResult (ResError (DStr msg)) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -318,9 +318,9 @@ let fns : List<BuiltInFn> =
 //                 in
 //                 ( match result with
 //                 | Ok () ->
-//                     DResult (ResOk (Dval.dstr_of_string_exn ""))
+//                     DResult (ResOk (DStr ""))
 //                 | Error msg ->
-//                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
+//                     DResult (ResError (DStr msg)) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -345,9 +345,9 @@ let fns : List<BuiltInFn> =
 //                     DOption
 //                       (OptJust
 //                          (Dval.to_dobj_exn
-//                             [ ("username", Dval.dstr_of_string_exn username)
-//                             ; ("name", Dval.dstr_of_string_exn name)
-//                             ; ("email", Dval.dstr_of_string_exn email) ])) )
+//                             [ ("username", DStr username)
+//                             ; ("name", DStr name)
+//                             ; ("email", DStr email) ])) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -372,9 +372,9 @@ let fns : List<BuiltInFn> =
 //                     DOption
 //                       (OptJust
 //                          (Dval.to_dobj_exn
-//                             [ ("username", Dval.dstr_of_string_exn username)
-//                             ; ("name", Dval.dstr_of_string_exn name)
-//                             ; ("email", Dval.dstr_of_string_exn email)
+//                             [ ("username", DStr username)
+//                             ; ("name", DStr name)
+//                             ; ("email", DStr email)
 //                             ; ("admin", DBool admin) ])) )
 //             | _ ->
 //                 incorrectArgs ())
@@ -399,9 +399,9 @@ let fns : List<BuiltInFn> =
 //                     DOption
 //                       (OptJust
 //                          (Dval.to_dobj_exn
-//                             [ ("username", Dval.dstr_of_string_exn username)
-//                             ; ("name", Dval.dstr_of_string_exn name)
-//                             ; ("email", Dval.dstr_of_string_exn email)
+//                             [ ("username", DStr username)
+//                             ; ("name", DStr name)
+//                             ; ("email", DStr email)
 //                             ; ("admin", DBool admin) ])) )
 //             | _ ->
 //                 incorrectArgs ())
@@ -434,7 +434,7 @@ let fns : List<BuiltInFn> =
 //         internal_fn (function
 //             | _, [] ->
 //                 Account.get_users ()
-//                 |> List.map Dval.dstr_of_string_exn
+//                 |> List.map DStr
 //                 |> DList
 //             | _ ->
 //                 incorrectArgs ())
@@ -449,7 +449,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //         internal_fn (fun _ ->
 //             Serialize.current_hosts ()
-//             |> List.map Dval.dstr_of_string_exn
+//             |> List.map DStr
 //             |> DList)
 //     ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Impure
@@ -464,7 +464,7 @@ let fns : List<BuiltInFn> =
 //         internal_fn (function
 //             | _, [DStr account] ->
 //                 Serialize.hosts_for (Unicode_string.to_string account)
-//                 |> List.map Dval.dstr_of_string_exn
+//                 |> List.map DStr
 //                 |> DList
 //             | _ ->
 //                 incorrectArgs ())
@@ -505,7 +505,7 @@ let fns : List<BuiltInFn> =
 //                              ^ Ast.blank_to_string db.name
 //                              ^ "-"
 //                              ^ k
-//                            , Dval.dstr_of_string_exn (Dval.tipe_to_string v) ))
+//                            , DStr (Dval.tipe_to_string v) ))
 //                     |> Dval.to_dobj_exn
 //                 | None ->
 //                     Dval.to_dobj_exn [] )
@@ -523,7 +523,7 @@ let fns : List<BuiltInFn> =
 //         internal_fn (function
 //             | _, [DStr host] ->
 //                 (* Removed, no longer useful now that you can copy from Fluid *)
-//                 Dval.dstr_of_string_exn ""
+//                 DStr ""
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -546,7 +546,7 @@ let fns : List<BuiltInFn> =
 //                 |> IDMap.data
 //                 |> List.filter_map Libexecution.Toplevel.as_handler
 //                 |> List.map (fun h ->
-//                        Dval.dstr_of_string_exn
+//                        DStr
 //                          (Libexecution.Types.string_of_id h.tlid))
 //                 |> fun l -> DList l
 //             | _ ->
@@ -570,7 +570,7 @@ let fns : List<BuiltInFn> =
 //                 !c.user_functions
 //                 |> IDMap.data
 //                 |> List.map (fun fn ->
-//                        Dval.dstr_of_string_exn
+//                        DStr
 //                          (Libexecution.Types.string_of_id fn.tlid))
 //                 |> fun l -> DList l
 //             | _ ->
@@ -632,10 +632,10 @@ let fns : List<BuiltInFn> =
 //                   | None ->
 //                       DOption OptNothing
 //                   | Some AllOrigins ->
-//                       "*" |> Dval.dstr_of_string_exn |> OptJust |> DOption
+//                       "*" |> DStr |> OptJust |> DOption
 //                   | Some (Origins os) ->
 //                       os
-//                       |> List.map Dval.dstr_of_string_exn
+//                       |> List.map DStr
 //                       |> DList
 //                       |> OptJust
 //                       |> DOption
@@ -685,7 +685,7 @@ let fns : List<BuiltInFn> =
 //                 in
 //                 ( match cors_setting s with
 //                 | Error e ->
-//                     e |> Dval.dstr_of_string_exn |> ResError |> DResult
+//                     e |> DStr |> ResError |> DResult
 //                 | Ok settings ->
 //                     let canvas =
 //                       Canvas.load_without_tls (Unicode.to_string host)
@@ -757,7 +757,7 @@ let fns : List<BuiltInFn> =
 //                 let zipped =
 //                   strings
 //                   |> List.hd_exn
-//                   |> List.map Dval.dstr_of_string_exn
+//                   |> List.map DStr
 //                   |> List.zip_exn
 //                        [ "canvas_id"
 //                        ; "account_id"
@@ -826,7 +826,7 @@ let fns : List<BuiltInFn> =
 //                     let event_list =
 //                       events
 //                       |> List.map (fun (path, traceid, time, data) ->
-//                              [ ("path", Dval.dstr_of_string_exn path)
+//                              [ ("path", DStr path)
 //                              ; ("traceid", DUuid traceid)
 //                              ; ("time", DDate time)
 //                              ; ("event", data) ]
@@ -862,7 +862,7 @@ let fns : List<BuiltInFn> =
 //                 with e ->
 //                   DResult
 //                     (ResError
-//                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
+//                        (e |> Exception.to_string |> DStr)) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -890,7 +890,7 @@ let fns : List<BuiltInFn> =
 //                 with e ->
 //                   DResult
 //                     (ResError
-//                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
+//                        (e |> Exception.to_string |> DStr)) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -909,9 +909,9 @@ let fns : List<BuiltInFn> =
 //                 | None ->
 //                     DResult
 //                       (ResError
-//                          (Dval.dstr_of_string_exn "No session for cookie"))
+//                          (DStr "No session for cookie"))
 //                 | Some username ->
-//                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
+//                     DResult (ResOk (DStr username)) )
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -932,7 +932,7 @@ let fns : List<BuiltInFn> =
 //                   [Db.String host]
 //                 |> (function
 //                 | Some [s] ->
-//                     DOption (OptJust (Dval.dstr_of_string_exn s))
+//                     DOption (OptJust (DStr s))
 //                 | None | _ ->
 //                     DOption OptNothing)
 //             | _ ->
@@ -955,9 +955,9 @@ let fns : List<BuiltInFn> =
 //                     DOption OptNothing
 //                 | Some user_info ->
 //                     DvalMap.from_list
-//                       [ ("username", Dval.dstr_of_string_exn user_info.username)
-//                       ; ("email", Dval.dstr_of_string_exn user_info.email)
-//                       ; ("name", Dval.dstr_of_string_exn user_info.name)
+//                       [ ("username", DStr user_info.username)
+//                       ; ("email", DStr user_info.email)
+//                       ; ("name", DStr user_info.name)
 //                       ; ("admin", DBool user_info.admin) ]
 //                     |> DObj
 //                     |> OptJust
@@ -980,7 +980,7 @@ let fns : List<BuiltInFn> =
 //                   | Ok x ->
 //                       DResult (ResOk x)
 //                   | Error x ->
-//                       DResult (ResError (Dval.dstr_of_string_exn x))
+//                       DResult (ResError (DStr x))
 //                 in
 //                 let user_id =
 //                   username
@@ -1008,7 +1008,7 @@ let fns : List<BuiltInFn> =
 //                 ( match (user_id, org_id, permission) with
 //                 | Ok user_id, Ok org_id, Ok permission ->
 //                     Authorization.set_user_access user_id org_id permission ;
-//                     Ok (Dval.dstr_of_string_exn "success!")
+//                     Ok (DStr "success!")
 //                 | Error e, _, _ | _, Error e, _ | _, _, Error e ->
 //                     Error e )
 //                 |> result_to_dval
@@ -1037,7 +1037,7 @@ let fns : List<BuiltInFn> =
 //
 //                            ( perm
 //                            |> Authorization.permission_to_string
-//                            |> Dval.dstr_of_string_exn )
+//                            |> DStr )
 //                          map)
 //                 |> fun obj -> DObj obj
 //             | _ ->
@@ -1065,7 +1065,7 @@ let fns : List<BuiltInFn> =
 //
 //                            ( perm
 //                            |> Authorization.permission_to_string
-//                            |> Dval.dstr_of_string_exn )
+//                            |> DStr )
 //                          map)
 //                 |> fun obj -> DObj obj
 //             | _ ->
@@ -1090,7 +1090,7 @@ let fns : List<BuiltInFn> =
 //                     Authorization.permission_to_string perm
 //                 | None ->
 //                     "" )
-//                 |> Dval.dstr_of_string_exn
+//                 |> DStr
 //             | _ ->
 //                 incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
@@ -1143,10 +1143,10 @@ let fns : List<BuiltInFn> =
 //
 //                          ( level
 //                          |> Log.level_to_string
-//                          |> Dval.dstr_of_string_exn )
+//                          |> DStr )
 //                   |> DvalMap.insert_no_override
 //                        "name"
-//                        (name |> Dval.dstr_of_string_exn)
+//                        (name |> DStr)
 //                 in
 //                 Log.pP ~level name ~jsonparams ;
 //                 DObj log
@@ -1178,7 +1178,7 @@ let fns : List<BuiltInFn> =
 //                 |> List.filter_map (fun ast ->
 //                        ast
 //                        |> Internal_analysis.find_functions
-//                        |> List.map Dval.dstr_of_string_exn
+//                        |> List.map DStr
 //                        |> DList
 //                        |> Some)
 //                 |> DList
@@ -1210,7 +1210,7 @@ let fns : List<BuiltInFn> =
 //                 |> List.filter_map (fun ast ->
 //                        ast
 //                        |> Internal_analysis.find_fields
-//                        |> List.map Dval.dstr_of_string_exn
+//                        |> List.map DStr
 //                        |> DList
 //                        |> Some)
 //                 |> DList
@@ -1234,7 +1234,7 @@ let fns : List<BuiltInFn> =
 //                 in
 //                 ( match fn with
 //                 | Some fn ->
-//                     [ ("name", Dval.dstr_of_string_exn fnname)
+//                     [ ("name", DStr fnname)
 //                     ; ("deprecated", DBool fn.deprecated) ]
 //                     |> DvalMap.from_list
 //                     |> DObj
@@ -1242,7 +1242,7 @@ let fns : List<BuiltInFn> =
 //                     |> DResult
 //                 | None ->
 //                     DResult
-//                       (ResError (Dval.dstr_of_string_exn "function not found"))
+//                       (ResError (DStr "function not found"))
 //                 )
 //             | _ ->
 //                 incorrectArgs ())
@@ -1274,16 +1274,16 @@ let fns : List<BuiltInFn> =
 //                             data.parameters
 //                             |> List.map (fun p ->
 //                                    Dval.to_dobj_exn
-//                                      [ ("name", Dval.dstr_of_string_exn p.name)
+//                                      [ ("name", DStr p.name)
 //                                      ; ( "type"
-//                                        , Dval.dstr_of_string_exn
+//                                        , DStr
 //                                            (Dval.tipe_to_string p.tipe) ) ])
 //                           in
-//                           [ ("name", Dval.dstr_of_string_exn key)
+//                           [ ("name", DStr key)
 //                           ; ( "documentation"
-//                             , Dval.dstr_of_string_exn data.description )
+//                             , DStr data.description )
 //                           ; ("parameters", DList parameters)
-//                           ; ("returnType", Dval.dstr_of_string_exn returnType)
+//                           ; ("returnType", DStr returnType)
 //                           ]
 //                         in
 //                         Dval.to_dobj_exn alist :: acc)
@@ -1381,7 +1381,7 @@ let fns : List<BuiltInFn> =
 //                 | None ->
 //                     DResult
 //                       (ResError
-//                          (Dval.dstr_of_string_exn
+//                          (DStr
 //                             ("No user '" ^ username ^ "'")))
 //                 | Some _user_id ->
 //                     let session_key =
@@ -1392,7 +1392,7 @@ let fns : List<BuiltInFn> =
 //                     in
 //                     ( match session_key with
 //                     | Ok session_key ->
-//                         DResult (ResOk (Dval.dstr_of_string_exn session_key))
+//                         DResult (ResOk (DStr session_key))
 //                     | Error e ->
 //                         (* If session creation fails, log and rollbar *)
 //                         let err = Libexecution.Exception.exn_to_string e in
@@ -1415,7 +1415,7 @@ let fns : List<BuiltInFn> =
 //                         ) ;
 //                         DResult
 //                           (ResError
-//                              (Dval.dstr_of_string_exn
+//                              (DStr
 //                                 "Failed to create session")) ) )
 //             | _ ->
 //                 incorrectArgs ())
@@ -1437,7 +1437,7 @@ let fns : List<BuiltInFn> =
 //                 | None ->
 //                     DResult
 //                       (ResError
-//                          (Dval.dstr_of_string_exn
+//                          (DStr
 //                             ("No user '" ^ username ^ "'")))
 //                 | Some _user_id ->
 //                     let session_key_and_csrf_token =
@@ -1454,9 +1454,9 @@ let fns : List<BuiltInFn> =
 //                              (DObj
 //                                 (DvalMap.from_list
 //                                    [ ( "sessionKey"
-//                                      , Dval.dstr_of_string_exn sessionKey )
+//                                      , DStr sessionKey )
 //                                    ; ( "csrfToken"
-//                                      , Dval.dstr_of_string_exn csrfToken ) ])))
+//                                      , DStr csrfToken ) ])))
 //                     | Error e ->
 //                         (* If session creation fails, log and rollbar *)
 //                         let err = Libexecution.Exception.exn_to_string e in
@@ -1479,7 +1479,7 @@ let fns : List<BuiltInFn> =
 //                         ) ;
 //                         DResult
 //                           (ResError
-//                              (Dval.dstr_of_string_exn
+//                              (DStr
 //                                 "Failed to create session")) ) )
 //             | _ ->
 //                 incorrectArgs ())
@@ -1562,9 +1562,9 @@ let fns : List<BuiltInFn> =
 //                          , [ ("disk_bytes", DInt (Dint.of_int ts.disk_bytes))
 //                            ; ("rows", DInt (Dint.of_int ts.rows))
 //                            ; ( "disk_human"
-//                              , Dval.dstr_of_string_exn ts.disk_human )
+//                              , DStr ts.disk_human )
 //                            ; ( "rows_human"
-//                              , Dval.dstr_of_string_exn ts.rows_human ) ]
+//                              , DStr ts.rows_human ) ]
 //                            |> DvalMap.from_list
 //                            |> DObj ))
 //                 in

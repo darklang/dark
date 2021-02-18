@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> = []
   //             with e ->
   //               DResult
   //                 (ResError
-  //                    (e |> Exception.exn_to_string |> Dval.dstr_of_string_exn))
+  //                    (e |> Exception.exn_to_string |> DStr))
   //           )
   //         | _ ->
   //             incorrectArgs ())

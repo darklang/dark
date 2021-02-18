@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
 //     fn =
 //         //       (function
 //       | _, [ DDate d ] ->
-//           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_datetime d)
+//           DStr (Stdlib_util.isostring_of_date_basic_datetime d)
 //       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
 //     fn =
 //         //       (function
 //       | _, [ DDate d ] ->
-//           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_date d)
+//           DStr (Stdlib_util.isostring_of_date_basic_date d)
 //       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure
@@ -290,7 +290,7 @@ let fns : List<BuiltInFn> =
 //
 //           let diff = f time in
 //           let diff = if diff = "" then "less than a minute" else diff in
-//           Dval.dstr_of_string_exn diff
+//           DStr diff
 //       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure

@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> = []
   //             let encoding = "application/x-www-form-urlencoded" in
   //             let headers =
   //               [ ("Authorization", DStr basic_auth_string)
-  //               ; ("Content-Type", Libexecution.Dval.dstr_of_string_exn encoding)
+  //               ; ("Content-Type", Libexecution.DStr encoding)
   //               ]
   //               |> DvalMap.from_list
   //               |> DObj
@@ -55,9 +55,9 @@ let fns : List<BuiltInFn> = []
   //               [ ("From", DStr fromNumber)
   //               ; ("To", DStr toNumber)
   //               ; ("Body", DStr body)
-  //               ; ("ValidityPeriod", Libexecution.Dval.dstr_of_string_exn "900")
+  //               ; ("ValidityPeriod", Libexecution.DStr "900")
   //               ; ( "StatusCallback"
-  //                 , Libexecution.Dval.dstr_of_string_exn
+  //                 , Libexecution.DStr
   //                     (host_url ^ "/twilioCallback") ) ]
   //               |> DvalMap.fromList
   //               |> DObj
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> = []
   //             let encoding = "application/x-www-form-urlencoded" in
   //             let headers =
   //               [ ("Authorization", DStr basic_auth_string)
-  //               ; ("Content-Type", Libexecution.Dval.dstr_of_string_exn encoding)
+  //               ; ("Content-Type", Libexecution.DStr encoding)
   //               ]
   //               |> DvalMap.from_list
   //               |> DObj
@@ -115,9 +115,9 @@ let fns : List<BuiltInFn> = []
   //               [ ("From", DStr fromNumber)
   //               ; ("To", DStr toNumber)
   //               ; ("Body", DStr body)
-  //               ; ("ValidityPeriod", Libexecution.Dval.dstr_of_string_exn "900")
+  //               ; ("ValidityPeriod", Libexecution.DStr "900")
   //               ; ( "StatusCallback"
-  //                 , Libexecution.Dval.dstr_of_string_exn
+  //                 , Libexecution.DStr
   //                     (host_url ^ "/twilioCallback") ) ]
   //               |> DvalMap.fromList
   //               |> DObj
