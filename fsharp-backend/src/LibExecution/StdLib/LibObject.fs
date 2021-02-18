@@ -12,7 +12,7 @@ let fns : fn list =
     ; fn =
          (function _, [] -> DObj DvalMap.empty | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "merge" 0
 
@@ -28,7 +28,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 0
 
@@ -45,7 +45,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 1
 
@@ -62,5 +62,5 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

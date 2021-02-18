@@ -55,7 +55,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Password" "check" 0
 
@@ -77,7 +77,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256" 0
 
@@ -95,7 +95,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha384" 0
 
@@ -113,7 +113,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "md5" 0
 
@@ -132,7 +132,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256hmac" 0
 
@@ -150,7 +150,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha1hmac" 0
 
@@ -168,5 +168,5 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

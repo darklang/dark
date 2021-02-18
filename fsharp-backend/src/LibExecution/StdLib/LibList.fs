@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "reverse" 0
 //     ; parameters = [Param.make "list" TList]
@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> =
 //     ; fn =
 //           (function _, [DList l] -> DList (List.rev l) | _ -> incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "findFirst" 0
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -178,7 +178,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "findFirst" 1
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -199,7 +199,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "findFirst" 2
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -220,7 +220,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "contains" 0
 //     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
@@ -233,7 +233,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable =
+//     ; previewable =
 //         Pure
 //         (* Deprecated in favor of List::member for consistency with Elm's naming *)
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -248,7 +248,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "repeat" 0
 //     ; parameters = [Param.make "times" TInt; Param.make "val" TAny]
@@ -262,7 +262,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "length" 0
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -345,7 +345,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "interpose" 0
 //     ; parameters = [Param.make "list" TList; Param.make "sep" TAny]
@@ -366,7 +366,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "interleave" 0
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
@@ -387,7 +387,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "uniqueBy" 0
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -404,7 +404,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "isEmpty" 0
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -524,7 +524,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "append" 0
       parameters =
@@ -657,7 +657,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "filter" 2
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -698,7 +698,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "filterMap" 0
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -744,7 +744,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "drop" 0
 //     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
@@ -757,7 +757,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "dropWhile" 0
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -802,7 +802,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "take" 0
 //     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
@@ -815,7 +815,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "takeWhile" 0
 //     ; parameters = [Param.make "list" TList; func ["val"]]
@@ -860,7 +860,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "foreach" 0
       parameters =
@@ -939,7 +939,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "map2shortest" 0
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
@@ -963,7 +963,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "map2" 0
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
@@ -988,7 +988,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "zipShortest" 0
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
@@ -1013,7 +1013,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "zip" 0
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
@@ -1038,7 +1038,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "unzip" 0
 //     ; parameters = [Param.make "pairs" TList]
@@ -1105,7 +1105,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "getAt" 0
 //     ; parameters = [Param.make "list" TList; Param.make "index" TInt]
@@ -1121,7 +1121,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "getAt" 1
 //     ; parameters = [Param.make "list" TList; Param.make "index" TInt]
@@ -1137,7 +1137,7 @@ let fns : List<BuiltInFn> =
 //           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
+//     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "randomElement" 0
       parameters = [ Param.make "list" (TList varA) "" ]

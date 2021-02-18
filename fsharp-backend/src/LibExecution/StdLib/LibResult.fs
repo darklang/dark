@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "mapError" 0
 //   ; parameters = [Param.make "result" TResult; func ["val"]]
@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "mapError" 1
 //   ; parameters = [Param.make "result" TResult; func ["val"]]
@@ -101,7 +101,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "withDefault" 0
 //   ; parameters = [Param.make "result" TResult; Param.make "default" TAny]
@@ -115,7 +115,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "fromOption" 0
 //   ; parameters = [Param.make "option" TOption; Param.make "error" TStr]
@@ -133,7 +133,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "fromOption" 1
 //   ; parameters = [Param.make "option" TOption; Param.make "error" TStr]
@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "toOption" 0
 //   ; parameters = [Param.make "result" TResult]
@@ -173,7 +173,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "toOption" 1
 //   ; parameters = [Param.make "result" TResult]
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "map2" 0
 //   ; parameters =
@@ -212,7 +212,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "andThen" 0
 //   ; parameters = [Param.make "result" TResult; func ["val"]]
@@ -238,7 +238,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "andThen" 1
 //   ; parameters = [Param.make "result" TResult; func ["val"]]
@@ -266,6 +266,6 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated } ]
 //

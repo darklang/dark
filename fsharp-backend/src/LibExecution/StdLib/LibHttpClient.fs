@@ -21,7 +21,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "jsonContentType" 0
 
@@ -39,7 +39,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "plainTextContentType" 0
 
@@ -57,7 +57,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "htmlContentType" 0
 
@@ -75,7 +75,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "bearerToken" 0
 
@@ -96,7 +96,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated =
         true (* Deprecated due to using Unicode_string.append_broken *) }
   ; { name = fn "HttpClient" "bearerToken" 1
@@ -118,5 +118,5 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

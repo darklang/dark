@@ -14,5 +14,5 @@ let fns =
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

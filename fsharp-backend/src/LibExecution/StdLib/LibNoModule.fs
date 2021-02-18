@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
     { name = fn "" "equals" 0
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
@@ -77,7 +77,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
+// ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "" "dissoc" 0
 //   ; parameters = [Param.make "obj" TObj; Param.make "key" TStr]
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
+// ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "" "toForm" 0
 //   ; parameters = [Param.make "obj" TObj; Param.make "submit" TStr]
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
+// ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Error" "toString" 0
 //   ; parameters = [Param.make "err" TError]
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
+// ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "AWS" "urlencode" 0
 //   ; parameters = [Param.make "str" TStr]
@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
+// ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Twitter" "urlencode" 0
 //   ; parameters = [Param.make "s" TStr]
@@ -172,5 +172,5 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
+// ; previewable = Pure
 //   ; deprecated = NotDeprecated }

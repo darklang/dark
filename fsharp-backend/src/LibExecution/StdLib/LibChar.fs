@@ -12,7 +12,7 @@ let fns : fn list =
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toASCIIChar" 0
 
@@ -22,7 +22,7 @@ let fns : fn list =
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toLowercase" 0
 
@@ -32,7 +32,7 @@ let fns : fn list =
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Char" "toUppercase" 0
 
@@ -42,5 +42,5 @@ let fns : fn list =
     ; fn =
          (fun _ -> Exception.code "This function no longer exists.")
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) } ]

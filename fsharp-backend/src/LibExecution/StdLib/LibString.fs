@@ -567,7 +567,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //      ; sqlSpec = NotYetImplementedTODO
-//      ; previewable = Pure
+//    ; previewable = Pure
 //      ; deprecated = NotDeprecated }
     { name = fn "String" "digest" 0
       parameters = [ Param.make "s" TStr "" ]

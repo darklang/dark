@@ -23,7 +23,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "" "emit" "1"
 
@@ -41,5 +41,5 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

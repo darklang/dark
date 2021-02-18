@@ -21,7 +21,7 @@ let fns : fn list =
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "baseUrlForLatest" 0
 
@@ -37,7 +37,7 @@ let fns : fn list =
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlFor" 0
 
@@ -57,7 +57,7 @@ let fns : fn list =
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlForLatest" 0
 
@@ -77,7 +77,7 @@ let fns : fn list =
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetch" 0
 
@@ -112,7 +112,7 @@ UTF-8 safe"))
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetch" 1
 
@@ -144,7 +144,7 @@ UTF-8 safe"))
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchBytes" 0
 
@@ -175,7 +175,7 @@ UTF-8 safe"))
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatest" 0
 
@@ -210,7 +210,7 @@ UTF-8 safe"))
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetchLatest" 1
 
@@ -243,7 +243,7 @@ UTF-8 safe") )
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatestBytes" 0
 
@@ -274,7 +274,7 @@ UTF-8 safe") )
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serve" 0
 
@@ -334,7 +334,7 @@ UTF-8 safe") )
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serve" 1
 
@@ -390,7 +390,7 @@ UTF-8 safe") )
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serveLatest" 0
 
@@ -447,7 +447,7 @@ UTF-8 safe") )
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serveLatest" 1
 
@@ -503,5 +503,5 @@ UTF-8 safe") )
           | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated } *)
     { name = fn "Int" "remainder" 0
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
@@ -304,7 +304,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotQueryable
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Int" "max" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]

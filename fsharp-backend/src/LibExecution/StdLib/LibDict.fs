@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
     //         (function
     //         | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     //   { name = fn "Dict" "keys" 0
     //
@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "values" 0
     //   ; parameters = [Param.make "dict" TObj]
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
     //         (function
     //         | _, [DObj o] -> DList (DvalMap.values o) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "toList" 0
     //   ; parameters = [Param.make "dict" TObj]
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
     //   ; parameters = [Param.make "entries" TList]
@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromList" 0
     //   ; parameters = [Param.make "entries" TList]
@@ -228,7 +228,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Dict" "get" 0
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
@@ -272,7 +272,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "member" 0
     //   ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
@@ -287,7 +287,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "foreach" 0
     //   ; parameters = [Param.make "dict" TObj; func ["val"]]
@@ -302,7 +302,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = ReplacedBy(fn "" "" 0) }
     // ; { name = fn "Dict" "map" 0
     //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
@@ -320,7 +320,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "filter" 0
     //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
@@ -354,7 +354,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = ReplacedBy(fn "" "" 0) }
     // ; { name = fn "Dict" "filter" 1
     //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
@@ -398,7 +398,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "filterMap" 0
     //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
@@ -450,7 +450,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Dict" "empty" 0
       parameters = []
@@ -471,7 +471,7 @@ let fns : List<BuiltInFn> =
     //         (function
     //         | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "merge" 0
     //   ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
@@ -485,7 +485,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "toJSON" 0
     //   ; parameters = [Param.make "dict" TObj]
@@ -500,7 +500,7 @@ let fns : List<BuiltInFn> =
     //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Dict" "set" 0
       parameters =

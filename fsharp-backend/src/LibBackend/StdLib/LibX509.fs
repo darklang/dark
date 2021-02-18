@@ -30,5 +30,5 @@ let fns : Types.RuntimeT.fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

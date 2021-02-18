@@ -64,7 +64,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Option" "map2" 0
 
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Option" "andThen" 0
 
@@ -114,7 +114,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Option" "withDefault" 0
 
@@ -130,5 +130,5 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated } ]

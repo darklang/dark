@@ -121,7 +121,7 @@ let fns : List<BuiltInFn> =
 
     //         (function _, [DFloat a] -> DFloat (sqrt a) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Float" "power" 0
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
@@ -250,7 +250,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "min" 0
 
@@ -265,7 +265,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "max" 0
 
@@ -280,7 +280,7 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "clamp" 0
 
@@ -313,5 +313,5 @@ let fns : List<BuiltInFn> =
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }

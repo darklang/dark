@@ -19,7 +19,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "read" 1
 
@@ -35,7 +35,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 0
 
@@ -51,7 +51,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JSON" "parse" 1
 
@@ -76,5 +76,5 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

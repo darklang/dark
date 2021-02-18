@@ -152,7 +152,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
 
@@ -182,7 +182,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncode" 1
 
@@ -207,7 +207,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
 
@@ -238,7 +238,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "verifyAndExtract" 0
 
@@ -276,7 +276,7 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "verifyAndExtract" 1
 
@@ -320,5 +320,5 @@ let fns : fn list =
           | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]
