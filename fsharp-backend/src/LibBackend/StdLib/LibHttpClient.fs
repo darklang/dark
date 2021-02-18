@@ -9,10 +9,10 @@ module Dint = Libexecution.Dint
 module Unicode_string = Libexecution.Unicode_string
 
 let params =
-  [Param.make "uri" TStr; Param.make "body" TAny; Param.make "query" TObj; Param.make "headers" TObj]
+  [Param.make "uri" TStr ""; Param.make "body" TAny ""; Param.make "query" TObj ""; Param.make "headers" TObj ""]
 
 
-let params_no_body = [Param.make "uri" TStr; Param.make "query" TObj; Param.make "headers" TObj]
+let params_no_body = [Param.make "uri" TStr ""; Param.make "query" TObj ""; Param.make "headers" TObj ""]
 
 type headers = (string * string) list
 
@@ -215,7 +215,7 @@ let call verb =
           (Some body)
           query
           headers
-    | args ->
+    | _ ->
         incorrectArgs ())
 
 
@@ -224,7 +224,7 @@ let call_no_body verb =
     (function
     | _, [DStr uri; query; headers] ->
         send_request (Unicode_string.to_string uri) verb None query headers
-    | args ->
+    | _ ->
         incorrectArgs ())
 
 
@@ -240,7 +240,7 @@ let fns : fn list =
           Httpclient.POST
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 0
 
@@ -253,7 +253,7 @@ let fns : fn list =
           Httpclient.PUT
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 0
 
@@ -266,7 +266,7 @@ let fns : fn list =
           Httpclient.GET
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 0
 
@@ -279,7 +279,7 @@ let fns : fn list =
           Httpclient.DELETE
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 0
 
@@ -292,7 +292,7 @@ let fns : fn list =
           Httpclient.OPTIONS
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 0
 
@@ -305,7 +305,7 @@ let fns : fn list =
           Httpclient.HEAD
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 0
 
@@ -318,7 +318,7 @@ let fns : fn list =
           Httpclient.PATCH
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 1
 
@@ -330,7 +330,7 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 1
 
@@ -342,7 +342,7 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 1
 
@@ -354,7 +354,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 1
     ; infix_names =
@@ -369,7 +369,7 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 1
 
@@ -381,7 +381,7 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 1
 
@@ -393,7 +393,7 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 1
 
@@ -405,7 +405,7 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 2
 
@@ -418,7 +418,7 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 2
 
@@ -431,7 +431,7 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 2
 
@@ -444,7 +444,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 2
     ; infix_names =
@@ -460,7 +460,7 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 2
 
@@ -473,7 +473,7 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 2
 
@@ -486,7 +486,7 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 2
 
@@ -499,7 +499,7 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 3
 
@@ -512,7 +512,7 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 3
 
@@ -525,7 +525,7 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 3
 
@@ -538,7 +538,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 3
     ; infix_names =
@@ -554,7 +554,7 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 3
 
@@ -567,7 +567,7 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 3
 
@@ -580,7 +580,7 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 3
 
@@ -593,7 +593,7 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 4
 
@@ -606,7 +606,7 @@ let fns : fn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "put" 4
 
@@ -619,7 +619,7 @@ let fns : fn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "get" 4
 
@@ -632,7 +632,7 @@ let fns : fn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "delete" 4
     ; infix_names =
@@ -648,7 +648,7 @@ let fns : fn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "options" 4
 
@@ -661,7 +661,7 @@ let fns : fn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "head" 4
 
@@ -674,7 +674,7 @@ let fns : fn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "patch" 4
 
@@ -687,7 +687,7 @@ let fns : fn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "HttpClient" "post" 5
 
@@ -697,7 +697,7 @@ let fns : fn list =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call Httpclient.POST
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "put" 5
 
@@ -707,7 +707,7 @@ let fns : fn list =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call Httpclient.PUT
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "get" 5
 
@@ -717,7 +717,7 @@ let fns : fn list =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.GET
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "delete" 5
     ; infix_names =
@@ -730,7 +730,7 @@ let fns : fn list =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.DELETE
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "options" 5
 
@@ -740,7 +740,7 @@ let fns : fn list =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.OPTIONS
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "head" 5
 
@@ -750,7 +750,7 @@ let fns : fn list =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call_no_body Httpclient.HEAD
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "patch" 5
 
@@ -760,11 +760,11 @@ let fns : fn list =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; fn = call Httpclient.PATCH
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "basicAuth" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
@@ -776,15 +776,15 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Authorization"
                    (DStr (encode_basic_auth_broken u p)))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) (* Deprecated due to using encode_basic_auth_broken *)
     }
   ; { name = fn "HttpClient" "basicAuth" 1
 
-    ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
@@ -796,8 +796,8 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Authorization"
                    (DStr (encode_basic_auth u p)))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

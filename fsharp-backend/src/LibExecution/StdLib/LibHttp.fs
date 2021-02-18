@@ -6,7 +6,7 @@ open Lib
 let fns : fn list =
   [ { name = fn "Http" "respond" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
@@ -15,14 +15,14 @@ let fns : fn list =
           (function
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "response" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
@@ -31,10 +31,10 @@ let fns : fn list =
           (function
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
     (* TODO(ian): merge Http::respond with Http::respond_with_headers
    * -- need to figure out how to deprecate functions w/o breaking
@@ -42,7 +42,7 @@ let fns : fn list =
    *)
   ; { name = fn "Http" "respondWithHeaders" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "headers" TObj; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "headers" TObj ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
@@ -52,14 +52,14 @@ let fns : fn list =
           | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHeaders" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "headers" TObj; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "headers" TObj ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
@@ -69,27 +69,27 @@ let fns : fn list =
           | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "success" 0
 
-    ; parameters = [Param.make "response" TAny]
+    ; parameters = [Param.make "response" TAny ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
     ; fn =
 
           (function
-          | _, [dv] -> DResp (Response (200, []), dv) | args -> incorrectArgs ())
+          | _, [dv] -> DResp (Response (200, []), dv) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithHtml" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
@@ -101,14 +101,14 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithHtml" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
@@ -120,14 +120,14 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithText" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
@@ -139,14 +139,14 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithText" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
@@ -158,14 +158,14 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "respondWithJson" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
@@ -178,14 +178,14 @@ let fns : fn list =
                     ( Dint.to_int_exn code
                     , [("Content-Type", "application/json")] )
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "responseWithJson" 0
 
-    ; parameters = [Param.make "response" TAny; Param.make "code" TInt]
+    ; parameters = [Param.make "response" TAny ""; Param.make "code" TInt ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
@@ -198,14 +198,14 @@ let fns : fn list =
                     ( Dint.to_int_exn code
                     , [("Content-Type", "application/json")] )
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "redirectTo" 0
 
-    ; parameters = [Param.make "url" TStr]
+    ; parameters = [Param.make "url" TStr ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
@@ -214,14 +214,14 @@ let fns : fn list =
           (function
           | _, [DStr url] ->
               DResp (Redirect (Unicode_string.to_string url), DNull)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "badRequest" 0
 
-    ; parameters = [Param.make "error" TStr]
+    ; parameters = [Param.make "error" TStr ""]
     ; returnType = TResp
     ; description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
@@ -230,10 +230,10 @@ let fns : fn list =
           (function
           | _, [DStr msg] ->
               DResp (Response (400, []), DStr msg)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "notFound" 0
 
@@ -244,9 +244,9 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (404, []), DNull) | args -> incorrectArgs ())
+          | _, [] -> DResp (Response (404, []), DNull) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "unauthorized" 0
 
@@ -257,9 +257,9 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (401, []), DNull) | args -> incorrectArgs ())
+          | _, [] -> DResp (Response (401, []), DNull) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "forbidden" 0
 
@@ -270,13 +270,13 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (403, []), DNull) | args -> incorrectArgs ())
+          | _, [] -> DResp (Response (403, []), DNull) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "Http" "setCookie" 0
 
-    ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
+    ; parameters = [Param.make "name" TStr ""; Param.make "value" TStr ""; Param.make "params" TObj ""]
     ; returnType = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
@@ -316,14 +316,14 @@ let fns : fn list =
                    (Uri.pct_encode (Unicode_string.to_string value))
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 1
 
-    ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
+    ; parameters = [Param.make "name" TStr ""; Param.make "value" TStr ""; Param.make "params" TObj ""]
     ; returnType = TObj
     ; description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
@@ -373,14 +373,14 @@ let fns : fn list =
                    (Unicode_string.to_string value)
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Http" "setCookie" 2
 
-    ; parameters = [Param.make "name" TStr; Param.make "value" TStr; Param.make "params" TObj]
+    ; parameters = [Param.make "name" TStr ""; Param.make "value" TStr ""; Param.make "params" TObj ""]
     ; returnType = TObj
     ; description =
         "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
@@ -533,8 +533,8 @@ let fns : fn list =
                   |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
               | Error dv ->
                   dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

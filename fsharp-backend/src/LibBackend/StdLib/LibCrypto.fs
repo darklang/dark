@@ -19,7 +19,7 @@ let fns : fn list =
     (* ====================================== *)
     { name = fn "Password" "hash" 0
 
-    ; parameters = [Param.make "pw" TStr]
+    ; parameters = [Param.make "pw" TStr ""]
     ; returnType = TPassword
     ; description =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
@@ -52,14 +52,14 @@ let fns : fn list =
                                 https://github.com/jedisct1/libsodium/blob/d49d7e8d4f4dd8df593beb9e715e7bc87bc74108/src/libsodium/crypto_pwhash/argon2/pwhash_argon2i.c#L187 *)
               |> Hash.hash_password Sodium.Password_hash.interactive
               |> DPassword
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Password" "check" 0
 
-    ; parameters = [Param.make "existingpwr" TPassword; Param.make "rawpw" TStr]
+    ; parameters = [Param.make "existingpwr" TPassword ""; Param.make "rawpw" TStr ""]
     ; returnType = TBool
     ; description =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
@@ -74,14 +74,14 @@ let fns : fn list =
               |> Hash.wipe_to_password
               |> Hash.verify_password_hash existingpw
               |> DBool
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256" 0
 
-    ; parameters = [Param.make "data" TBytes]
+    ; parameters = [Param.make "data" TBytes ""]
     ; returnType = TBytes
     ; description = "Computes the SHA-256 digest of the given `data`."
     ; fn =
@@ -92,14 +92,14 @@ let fns : fn list =
               |> Nocrypto.Hash.SHA256.digest
               |> digest_to_bytes
               |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha384" 0
 
-    ; parameters = [Param.make "data" TBytes]
+    ; parameters = [Param.make "data" TBytes ""]
     ; returnType = TBytes
     ; description = "Computes the SHA-384 digest of the given `data`."
     ; fn =
@@ -110,14 +110,14 @@ let fns : fn list =
               |> Nocrypto.Hash.SHA384.digest
               |> digest_to_bytes
               |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "md5" 0
 
-    ; parameters = [Param.make "data" TBytes]
+    ; parameters = [Param.make "data" TBytes ""]
     ; returnType = TBytes
     ; description =
         "Computes the md5 digest of the given `data`. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
@@ -129,14 +129,14 @@ let fns : fn list =
               |> Nocrypto.Hash.MD5.digest
               |> digest_to_bytes
               |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha256hmac" 0
 
-    ; parameters = [Param.make "key" TBytes; Param.make "data" TBytes]
+    ; parameters = [Param.make "key" TBytes ""; Param.make "data" TBytes ""]
     ; returnType = TBytes
     ; description =
         "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
@@ -147,14 +147,14 @@ let fns : fn list =
               let key = Cstruct.of_bytes key in
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "Crypto" "sha1hmac" 0
 
-    ; parameters = [Param.make "key" TBytes; Param.make "data" TBytes]
+    ; parameters = [Param.make "key" TBytes ""; Param.make "data" TBytes ""]
     ; returnType = TBytes
     ; description =
         "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given `key` and `data`."
@@ -165,8 +165,8 @@ let fns : fn list =
               let key = Cstruct.of_bytes key in
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

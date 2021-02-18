@@ -46,7 +46,7 @@ let modify_schedule fn =
             ~canvas_id
             s ;
           DNull
-      | args ->
+      | _ ->
           incorrectArgs ())
 
 
@@ -58,7 +58,7 @@ let fns : fn list =
     ; description = "TODO"
     ; fn = internal_fn (fun _ -> DNull)
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "endUsers" 0
 
@@ -81,10 +81,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                            Exception.internal
                              "Wrong number of fields from db query")
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkAllCanvases" 0
 
@@ -93,7 +93,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; description = "TODO"
     ; fn = internal_fn (fun _ -> DNull)
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "migrateAllCanvases" 0
 
@@ -102,7 +102,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; description = "REMOVED"
     ; fn = internal_fn (fun _ -> DNull)
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 0
 
@@ -111,7 +111,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; description = "Deprecated, use v1"
     ; fn = internal_fn (fun _ -> DNull)
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTraces" 1
 
@@ -119,13 +119,13 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; returnType = TFloat
     ; description = "Cleanup the old traces from a canvas"
     ; fn =
-        internal_fn (function state, [] -> DFloat 0.0 | args -> incorrectArgs ())
+        internal_fn (function state, [] -> DFloat 0.0 | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
 
-    ; parameters = [Param.make "canvas_id" TUuid]
+    ; parameters = [Param.make "canvas_id" TUuid ""]
     ; returnType = TFloat
     ; description =
         "Cleanup the old traces for a specific canvas. Returns elapsed time in ms."
@@ -133,14 +133,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         internal_fn (function
             | state, [DUuid canvas_id] ->
                 DFloat 0.0
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "checkCanvas" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TBool
     ; description = "Validate the canvas' opcodes"
     ; fn =
@@ -152,14 +152,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DBool true
                 | Error _ ->
                     DBool false )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "migrateCanvas" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TResult
     ; description = "Migrate a canvas' opcodes"
     ; fn =
@@ -171,14 +171,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DResult (ResOk DNull)
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
     ; returnType = TStr
     ; description =
         "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
@@ -194,14 +194,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     Dval.dstr_of_string_exn ""
                 | Error msg ->
                     Exception.code msg )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 1
 
-    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
     ; returnType = TResult
     ; description =
         "Add a user. Returns a result containing the password for the user,
@@ -224,10 +224,10 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 2
 
@@ -281,14 +281,14 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 1
 
-    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
     ; returnType = TResult
     ; description =
         "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
@@ -309,14 +309,14 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUser" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
@@ -336,14 +336,14 @@ that's already taken, returns an error."
                             [ ("username", Dval.dstr_of_string_exn username)
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "getUser" 1
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
@@ -364,14 +364,14 @@ that's already taken, returns an error."
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUserByEmail" 0
 
-    ; parameters = [Param.make "email" TStr]
+    ; parameters = [Param.make "email" TStr ""]
     ; returnType = TOption
     ; description = "Return a user for the email. Does not include passwords."
     ; fn =
@@ -391,14 +391,14 @@ that's already taken, returns an error."
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setAdmin" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "admin" TBool]
+    ; parameters = [Param.make "username" TStr ""; Param.make "admin" TBool ""]
     ; returnType = TNull
     ; description = "Set whether a user is an admin. Returns null."
     ; fn =
@@ -408,10 +408,10 @@ that's already taken, returns an error."
                 Account.set_admin username admin ;
                 Stroller.heapio_identify_user username ;
                 DNull
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUsers" 0
 
@@ -424,10 +424,10 @@ that's already taken, returns an error."
                 Account.get_users ()
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllCanvases" 0
 
@@ -440,11 +440,11 @@ that's already taken, returns an error."
             |> List.map Dval.dstr_of_string_exn
             |> DList)
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasesFor" 0
 
-    ; parameters = [Param.make "account" TStr]
+    ; parameters = [Param.make "account" TStr ""]
     ; returnType = TList
     ; description =
         "Returns a list of all canvases owned by a particular account (user OR org)"
@@ -454,14 +454,14 @@ that's already taken, returns an error."
                 Serialize.hosts_for (Unicode_string.to_string account)
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "schema" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "dbid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "dbid" TStr ""]
     ; returnType = TObj
     ; description = "Return a schema for the db"
     ; fn =
@@ -497,14 +497,14 @@ that's already taken, returns an error."
                     |> Dval.to_dobj_exn
                 | None ->
                     Dval.to_dobj_exn [] )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasAsText" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TStr
     ; description = "TODO"
     ; fn =
@@ -512,14 +512,14 @@ that's already taken, returns an error."
             | _, [DStr host] ->
                 (* Removed, no longer useful now that you can copy from Fluid *)
                 Dval.dstr_of_string_exn ""
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "handlers" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TList
     ; description = "Returns a list of toplevel ids of handlers in `host`"
     ; fn =
@@ -537,14 +537,14 @@ that's already taken, returns an error."
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id h.tlid))
                 |> fun l -> DList l
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "functions" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TList
     ; description = "Returns a list of toplevel ids of the functions in `host`"
     ; fn =
@@ -561,14 +561,14 @@ that's already taken, returns an error."
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id fn.tlid))
                 |> fun l -> DList l
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canLoadTraces" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TBool
     ; description =
         "Takes a <var host> and a <var tlid> and returns {{true}} iff we can load and parse traces for the handler identified by <var tlid>, and {{false}} otherwise."
@@ -600,14 +600,14 @@ that's already taken, returns an error."
                   |> ignore ;
                   DBool true
                 with _ -> DBool false )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getCORSSetting" 0
 
-    ; parameters = [Param.make "canvas" TStr]
+    ; parameters = [Param.make "canvas" TStr ""]
     ; returnType = TOption
     ; description =
         "Given the full canvas name (including the username), get that canvas' global CORS setting."
@@ -634,14 +634,14 @@ that's already taken, returns an error."
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !canvas.cors_setting |> cors_setting_to_dval
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setCORSSetting" 0
 
-    ; parameters = [Param.make "canvas" TStr; Param.make "origins" TOption]
+    ; parameters = [Param.make "canvas" TStr ""; Param.make "origins" TOption ""]
     ; returnType = TResult
     ; description =
         "Given the full canvas name (including the username) and an Option of either \"*\" or a list of string origins, set that value to that canvas' global CORS setting, so that it will be used in Access-Control-Allow-Origin response headers. Returns true if it worked and false if it didn't (likely meaning: the Dark value you passed in was invalid)."
@@ -683,14 +683,14 @@ that's already taken, returns an error."
                     in
                     Canvas.update_cors_setting canvas settings ;
                     s |> DOption |> ResOk |> DResult )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "dbs" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TList
     ; description = "Returns a list of toplevel ids of dbs in `host`"
     ; fn =
@@ -709,14 +709,14 @@ that's already taken, returns an error."
                 db_tlids
                 |> List.map (fun s -> DStr (Unicode_string.of_string_exn s))
                 |> fun l -> DList l
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "oplistInfo" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns the information from the toplevel_oplists table for the (host, tlid)"
@@ -773,14 +773,14 @@ that's already taken, returns an error."
                 |> convert_to_date "created_at"
                 |> convert_to_date "updated_at"
                 |> fun o -> DObj o
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "storedEvents" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TOption
     ; description =
         "Returns {{Just <var events>}}, where <var events> is the most recent stored events for the <param tlid> if it is a handler or {{Nothing}} if it is not."
@@ -823,14 +823,14 @@ that's already taken, returns an error."
                       |> fun l -> DList l
                     in
                     DOption (OptJust event_list) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 0
 
-    ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TObj]
+    ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" TObj ""]
     ; returnType = TResult
     ; description = "Pushes an event to Stroller"
     ; fn =
@@ -851,14 +851,14 @@ that's already taken, returns an error."
                   DResult
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 1
 
-    ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TAny]
+    ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" TAny ""]
     ; returnType = TResult
     ; description = "Pushes an event to Stroller"
     ; fn =
@@ -879,14 +879,14 @@ that's already taken, returns an error."
                   DResult
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "sessionKeyToUsername" 0
 
-    ; parameters = [Param.make "sessionKey" TStr]
+    ; parameters = [Param.make "sessionKey" TStr ""]
     ; returnType = TOption
     ; description = "Looks up the username for a session_key"
     ; fn =
@@ -900,14 +900,14 @@ that's already taken, returns an error."
                          (Dval.dstr_of_string_exn "No session for cookie"))
                 | Some username ->
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TOption
     ; description = "Gives canvasId for a canvasName/host"
     ; fn =
@@ -923,14 +923,14 @@ that's already taken, returns an error."
                     DOption (OptJust (Dval.dstr_of_string_exn s))
                 | None | _ ->
                     DOption OptNothing)
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "usernameToUserInfo" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TOption
     ; description =
         "Gives userinfo {username, name, admin, email} for a username"
@@ -950,14 +950,14 @@ that's already taken, returns an error."
                     |> DObj
                     |> OptJust
                     |> DOption )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grant" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "org" TStr; Param.make "permission" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "org" TStr ""; Param.make "permission" TStr ""]
     ; returnType = TResult
     ; description = "Set a user's permissions for a particular auth_domain."
     ; fn =
@@ -1000,14 +1000,14 @@ that's already taken, returns an error."
                 | Error e, _, _ | _, Error e, _ | _, _, Error e ->
                     Error e )
                 |> result_to_dval
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grantsFor" 0
 
-    ; parameters = [Param.make "org" TStr]
+    ; parameters = [Param.make "org" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
@@ -1028,14 +1028,14 @@ that's already taken, returns an error."
                            |> Dval.dstr_of_string_exn )
                          map)
                 |> fun obj -> DObj obj
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "orgsFor" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
@@ -1056,14 +1056,14 @@ that's already taken, returns an error."
                            |> Dval.dstr_of_string_exn )
                          map)
                 |> fun obj -> DObj obj
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkPermission" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "canvas" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "canvas" TStr ""]
     ; returnType = TBool
     ; description = "Check a user's permissions for a particular canvas."
     ; fn =
@@ -1079,14 +1079,14 @@ that's already taken, returns an error."
                 | None ->
                     "" )
                 |> Dval.dstr_of_string_exn
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "log" 0
 
-    ; parameters = [Param.make "level" TStr; Param.make "name" TStr; Param.make "log" TObj]
+    ; parameters = [Param.make "level" TStr ""; Param.make "name" TStr ""; Param.make "log" TObj ""]
     ; returnType = TObj
     ; description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
@@ -1138,14 +1138,14 @@ that's already taken, returns an error."
                 in
                 Log.pP ~level name ~jsonparams ;
                 DObj log
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnsUsed" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
@@ -1170,14 +1170,14 @@ that's already taken, returns an error."
                        |> DList
                        |> Some)
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fieldNamesUsed" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
@@ -1202,14 +1202,14 @@ that's already taken, returns an error."
                        |> DList
                        |> Some)
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnMetadata" 0
 
-    ; parameters = [Param.make "name" TStr]
+    ; parameters = [Param.make "name" TStr ""]
     ; returnType = TResult
     ; description =
         "Returns an object with the metadata of the built-in function name"
@@ -1232,10 +1232,10 @@ that's already taken, returns an error."
                     DResult
                       (ResError (Dval.dstr_of_string_exn "function not found"))
                 )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "allFunctions" 0
 
@@ -1278,14 +1278,14 @@ that's already taken, returns an error."
                     !Libexecution.Libs.static_fns
                 in
                 DList fns
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "clearStaticAssets" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TNull
     ; description =
         "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
@@ -1297,10 +1297,10 @@ that's already taken, returns an error."
                 let canvas_id = Serialize.fetch_canvas_id owner host in
                 Static_assets.delete_assets_for_ellens_demo canvas_id ;
                 DNull
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAllSchedulingRules" 0
 
@@ -1313,14 +1313,14 @@ that's already taken, returns an error."
                 Event_queue.get_all_scheduling_rules ()
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
 
-    ; parameters = [Param.make "canvas_id" TUuid]
+    ; parameters = [Param.make "canvas_id" TUuid ""]
     ; returnType = TList
     ; description =
         "Returns a list of all queue scheduling rules for the specified canvas_id"
@@ -1330,34 +1330,34 @@ that's already taken, returns an error."
                 Event_queue.get_scheduling_rules_for_canvas canvas_id
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
 
-    ; parameters = [Param.make "canvas_id" TUuid; Param.make "handler_name" TStr]
+    ; parameters = [Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr ""]
     ; returnType = TNull
     ; description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
     ; fn = modify_schedule Event_queue.block_worker
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
 
-    ; parameters = [Param.make "canvas_id" TUuid; Param.make "handler_name" TStr]
+    ; parameters = [Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr ""]
     ; returnType = TNull
     ; description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
     ; fn = modify_schedule Event_queue.unblock_worker
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "newSessionForUsername" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TResult
     ; description =
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
@@ -1405,14 +1405,14 @@ that's already taken, returns an error."
                           (ResError
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "newSessionForUsername" 1
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TResult
     ; description =
         (* We need the csrf token for dark-cli to use *)
@@ -1469,14 +1469,14 @@ that's already taken, returns an error."
                           (ResError
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "deleteSession" 0
 
-    ; parameters = [Param.make "session_key" TStr]
+    ; parameters = [Param.make "session_key" TStr ""]
     ; returnType = TInt
     ; description =
         "Delete session by session_key; return number of sessions deleted."
@@ -1490,10 +1490,10 @@ that's already taken, returns an error."
                   "DELETE FROM session WHERE session_key = $1"
                   [String session_key]
                 |> Dval.dint
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getAndLogTableSizes" 0
 
@@ -1557,8 +1557,8 @@ human-readable data."
                            |> DObj ))
                 in
                 table_stats_for_dobj |> DvalMap.from_list |> DObj
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

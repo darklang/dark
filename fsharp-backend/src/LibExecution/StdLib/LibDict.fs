@@ -22,82 +22,72 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr k; v ] -> Value(DObj(Map.ofList [ (k, v) ]))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     //   { name = fn "Dict" "size" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TInt
     //   ; description =
     //       "Returns the number of entries in `dict` (the number of key-value pairs)."
     //   ; fn =
-    //
     //         (function
-    //         | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> incorrectArgs ())
+    //         | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     //   { name = fn "Dict" "keys" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
     //   ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
     //   ; fn =
-    //
     //         (function
     //         | _, [DObj o] ->
     //             o
     //             |> DvalMap.keys
     //             |> List.map (fun k -> Dval.dstr_of_string_exn k)
     //             |> fun l -> DList l
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "values" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
     //   ; description = "Returns `dict`'s values in a list, in an arbitrary order."
     //   ; fn =
-    //
     //         (function
-    //         | _, [DObj o] -> DList (DvalMap.values o) | args -> incorrectArgs ())
+    //         | _, [DObj o] -> DList (DvalMap.values o) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "toList" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
     //   ; description =
     //       "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
     //   ; fn =
-    //
     //         (function
     //         | _, [DObj o] ->
     //             DvalMap.to_list o
     //             |> List.map (fun (k, v) ->
     //                    DList [Dval.dstr_of_string_exn k; v])
     //             |> Dval.to_list
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
-    //
-    //   ; parameters = [Param.make "entries" TList]
+    //   ; parameters = [Param.make "entries" TList ""]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
     //       If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
     //       This function is the opposite of `Dict::toList`."
     //   ; fn =
-    //
     //         (function
     //         | state, [DList l] ->
     //             let fold_fn
@@ -155,21 +145,19 @@ let fns : List<BuiltInFn> =
     //               l |> List.foldi (Ok DvalMap.empty) fold_fn
     //             in
     //             (match result with Ok res -> DObj res | Error v -> v)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromList" 0
-    //
-    //   ; parameters = [Param.make "entries" TList]
+    //   ; parameters = [Param.make "entries" TList ""]
     //   ; returnType = TOption
     //   ; description =
     //       "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
     //       If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
     //       Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
     //   ; fn =
-    //
     //         (function
     //         | state, [DList l] ->
     //             let fold_fn
@@ -235,10 +223,10 @@ let fns : List<BuiltInFn> =
     //               |> Result.map (fun o -> DOption (OptJust (DObj o)))
     //             in
     //             (match result with Ok res -> res | Error v -> v)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Dict" "get" 0
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
@@ -251,7 +239,7 @@ let fns : List<BuiltInFn> =
             (match Map.tryFind s o with
              | Some d -> Value(d)
              | None -> Value(DNull))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
@@ -262,18 +250,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o; DStr s ] -> Value(DOption(Map.tryFind s o))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
     // ; { name = fn "Dict" "get" 2
-    //
-    //   ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
+    //   ; parameters = [Param.make "dict" TObj ""; Param.make "key" TStr ""]
     //   ; returnType = TOption
     //   ; description =
     //       "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
     //   ; fn =
-    //
     //         (function
     //         | _, [DObj o; DStr s] ->
     //           ( match DvalMap.get o (Unicode_string.to_string s) with
@@ -281,74 +267,66 @@ let fns : List<BuiltInFn> =
     //               Dval.to_opt_just d
     //           | None ->
     //               DOption OptNothing )
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "member" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
+    //   ; parameters = [Param.make "dict" TObj ""; Param.make "key" TStr ""]
     //   ; returnType = TBool
     //   ; description =
     //       "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
     //   ; fn =
-    //
     //         (function
     //         | _, [DObj o; DStr s] ->
     //             let key = Unicode_string.to_string s in
     //             DBool (DvalMap.contains_key o ~key)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "foreach" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj; func ["val"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["val"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
     //   ; fn =
-    //
     //         (function
     //         | state, [DObj o; DFnVal b] ->
     //             let f dv = Ast.execute_dblock ~state b [dv] in
     //             DObj (Map.map ~f o)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = ReplacedBy(fn "" "" 0) }
     // ; { name = fn "Dict" "map" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
     //       Consider `Dict::filterMap` if you also want to drop some of the entries."
     //   ; fn =
-    //
     //         (function
     //         | state, [DObj o; DFnVal b] ->
     //             let f ~key ~(data : dval) =
     //               Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
     //             in
     //             DObj (Map.mapi ~f o)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "filter" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
     //       Consider `Dict::filterMap` if you also want to transform the entries."
     //   ; fn =
-    //
     //         (function
     //         | state, [DObj o; DFnVal b] ->
     //             let incomplete = ref false in
@@ -371,19 +349,17 @@ let fns : List<BuiltInFn> =
     //             if !incomplete
     //             then DIncomplete SourceNone (*TODO(ds) source info *)
     //             else DObj (Base.Map.filteri ~f o)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = ReplacedBy(fn "" "" 0) }
     // ; { name = fn "Dict" "filter" 1
-    //
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
     //   ; fn =
-    //
     //         (function
     //         | state, [DObj o; DFnVal b] ->
     //             let filter_propagating_errors ~key ~data acc =
@@ -417,14 +393,13 @@ let fns : List<BuiltInFn> =
     //                 filter_propagating_errors
     //             in
     //             (match filtered_result with Ok o -> DObj o | Error dv -> dv)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "filterMap" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
@@ -432,7 +407,6 @@ let fns : List<BuiltInFn> =
     //       If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
     //       This function combines `Dict::filter` and `Dict::map`.|}
     //   ; fn =
-    //
     //         (function
     //         | state, [DObj o; DFnVal b] ->
     //             let abortReason = ref None in
@@ -471,10 +445,10 @@ let fns : List<BuiltInFn> =
     //             in
     //             let result = Map.filter_mapi ~f o in
     //             (match !abortReason with None -> DObj result | Some v -> v)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Dict" "empty" 0
       parameters = []
@@ -488,49 +462,43 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "Dict" "isEmpty" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TBool
     //   ; description = "Returns `true` if the `dict` contains no entries."
     //   ; fn =
-    //
     //         (function
-    //         | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> incorrectArgs ())
+    //         | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "merge" 0
-    //
-    //   ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
+    //   ; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
     //   ; fn =
-    //
     //         (function
     //         | _, [DObj l; DObj r] ->
     //             DObj (Stdlib_util.merge_right l r)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "toJSON" 0
-    //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TStr
     //   ; description = "Returns `dict` as a JSON string."
     //   ; fn =
-    //
     //         (function
     //         | _, [DObj o] ->
     //             DObj o
     //             |> Dval.to_pretty_machine_json_v1
     //             |> Dval.dstr_of_string_exn
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Dict" "set" 0
       parameters =
@@ -542,7 +510,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -554,7 +522,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

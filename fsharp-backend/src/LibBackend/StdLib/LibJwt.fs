@@ -132,7 +132,7 @@ let handle_error (fn : unit -> dval) =
 let fns : fn list =
   [ { name = fn "JWT" "signAndEncode" 0
 
-    ; parameters = [Param.make "pemPrivKey" TStr; Param.make "payload" TAny]
+    ; parameters = [Param.make "pemPrivKey" TStr ""; Param.make "payload" TAny ""]
     ; returnType = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
@@ -149,15 +149,15 @@ let fns : fn list =
               let payload = Dval.to_pretty_machine_yojson_v1 payload in
               sign_and_encode ~key ~extra_headers:[] ~payload
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
 
     ; parameters =
-        [Param.make "pemPrivKey" TStr; Param.make "headers" TObj; Param.make "payload" TAny]
+        [Param.make "pemPrivKey" TStr ""; Param.make "headers" TObj ""; Param.make "payload" TAny ""]
     ; returnType = TStr
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
@@ -179,14 +179,14 @@ let fns : fn list =
               let payload = Dval.to_pretty_machine_yojson_v1 payload in
               sign_and_encode ~key ~extra_headers:json_hdrs ~payload
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "signAndEncode" 1
 
-    ; parameters = [Param.make "pemPrivKey" TStr; Param.make "payload" TAny]
+    ; parameters = [Param.make "pemPrivKey" TStr ""; Param.make "payload" TAny ""]
     ; returnType = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
@@ -204,15 +204,15 @@ let fns : fn list =
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:[] ~payload
                   |> Dval.dstr_of_string_exn)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
 
     ; parameters =
-        [Param.make "pemPrivKey" TStr; Param.make "headers" TObj; Param.make "payload" TAny]
+        [Param.make "pemPrivKey" TStr ""; Param.make "headers" TObj ""; Param.make "payload" TAny ""]
     ; returnType = TResult
     ; description =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
@@ -235,14 +235,14 @@ let fns : fn list =
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:json_hdrs ~payload
                   |> Dval.dstr_of_string_exn)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated }
   ; { name = fn "JWT" "verifyAndExtract" 0
 
-    ; parameters = [Param.make "pemPubKey" TStr; Param.make "token" TStr]
+    ; parameters = [Param.make "pemPubKey" TStr ""; Param.make "token" TStr ""]
     ; returnType = TOption
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
@@ -273,14 +273,14 @@ let fns : fn list =
                   |> DOption
               | None ->
                   DOption OptNothing ) )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "JWT" "verifyAndExtract" 1
 
-    ; parameters = [Param.make "pemPubKey" TStr; Param.make "token" TStr]
+    ; parameters = [Param.make "pemPubKey" TStr ""; Param.make "token" TStr ""]
     ; returnType = TResult
     ; description =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
@@ -317,8 +317,8 @@ let fns : fn list =
                   if msg = "No public keys" then "Invalid public key" else msg
                 in
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

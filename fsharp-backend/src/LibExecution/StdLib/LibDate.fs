@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
             (try
               Value(DDate(System.DateTime.ofIsoString s))
              with e -> failwith "Invalid date format")
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "parse" 1) }
@@ -68,7 +68,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> d.toIsoString () |> DStr |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
 //         //       (function
 //       | _, [ DDate d ] ->
 //           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_datetime d)
-//       | args -> incorrectArgs ())
+//       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
 //         //       (function
 //       | _, [ DDate d ] ->
 //           Dval.dstr_of_string_exn (Stdlib_util.isostring_of_date_basic_date d)
-//       | args -> incorrectArgs ())
+//       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] -> Value(DDate(System.DateTime.Now))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -118,7 +118,7 @@ let fns : List<BuiltInFn> =
         | _, [] ->
             let now = System.DateTime.Now
             Value(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -129,7 +129,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float s))))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "subtract" 0) }
@@ -151,7 +151,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -214,7 +214,7 @@ let fns : List<BuiltInFn> =
 //           |> Time.Span.to_sec
 //           |> Float.iround_exn
 //           |> Dval.dint
-//       | args -> incorrectArgs ())
+//       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
@@ -233,7 +233,7 @@ let fns : List<BuiltInFn> =
 //           |> Time.Span.of_int63_seconds
 //           |> Time.of_span_since_epoch
 //           |> DDate
-//       | args -> incorrectArgs ())
+//       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
@@ -291,7 +291,7 @@ let fns : List<BuiltInFn> =
 //           let diff = f time in
 //           let diff = if diff = "" then "less than a minute" else diff in
 //           Dval.dstr_of_string_exn diff
-//       | args -> incorrectArgs ())
+//       | _ -> incorrectArgs ())
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = ReplacedBy(fn "" "" 0) (* This doesn't mean anything *)  }
@@ -302,7 +302,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> d.Year |> Dval.int |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
       deprecated = NotDeprecated }
@@ -314,7 +314,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> d.Month |> Dval.int |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
       deprecated = NotDeprecated }
@@ -325,7 +325,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> d.Day |> Dval.int |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
       deprecated = NotDeprecated }
@@ -340,7 +340,7 @@ let fns : List<BuiltInFn> =
             let day = d.DayOfWeek
             let day = if day = System.DayOfWeek.Sunday then 7 else int day
             day |> Dval.int |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -353,7 +353,7 @@ let fns : List<BuiltInFn> =
         | _, [ DDate d ] ->
             // This is wrong, hence being replaced
             Value(Dval.int ((d - System.DateTime.UnixEpoch).Hours % 60))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "hour" 1) }
@@ -364,7 +364,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> Value(Dval.int d.Hour)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
       deprecated = NotDeprecated }
@@ -375,7 +375,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> Value(Dval.int (d.Minute))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
       deprecated = NotDeprecated }
@@ -386,7 +386,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> Value(Dval.int (d.Second))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
       deprecated = NotDeprecated }
@@ -398,7 +398,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d ] ->
             System.DateTime(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
       previewable = Pure
       deprecated = NotDeprecated } ]

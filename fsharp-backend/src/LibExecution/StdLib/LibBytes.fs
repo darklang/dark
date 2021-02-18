@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
             System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
             |> DStr
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
               |> ignore
 
             buf.ToString() |> DStr |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

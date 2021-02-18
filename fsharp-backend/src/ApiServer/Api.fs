@@ -240,7 +240,7 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
            preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
            infix = LibExecution.StdLib.StdLib.isInfixName fn.name
            deprecated = fn.deprecated <> RT.NotDeprecated
-           is_supported_in_query = fn.sqlSpec <> RT.NotQueryable })
+           is_supported_in_query = fn.sqlSpec.isQueryable () })
   |> Prelude.Json.AutoSerialize.serialize
 
 let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)

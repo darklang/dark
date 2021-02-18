@@ -6,7 +6,7 @@ module U = Libexecution.Unicode_string
 let fns : Types.RuntimeT.fn list =
   [ { name = fn "X509" "pemCertificatePublicKey" 0
 
-    ; parameters = [Param.make "pemCert" TStr]
+    ; parameters = [Param.make "pemCert" TStr ""]
     ; returnType = TResult
     ; description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
@@ -27,8 +27,8 @@ let fns : Types.RuntimeT.fn list =
                 |> DResult
               with Invalid_argument msg ->
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Impure
+    ; previewable = Impure
     ; deprecated = NotDeprecated } ]

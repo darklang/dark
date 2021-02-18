@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBool b ] -> Value(DBool(not b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "not"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a && b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "AND"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a || b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "OR"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DBool a; DBool b ] -> Value(DBool(a <> b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
               | DNull -> DBool true
               | _ -> DBool false
             )
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
               | DFakeVal (DError _) -> DBool true
               | _ -> DBool false
             )
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated =

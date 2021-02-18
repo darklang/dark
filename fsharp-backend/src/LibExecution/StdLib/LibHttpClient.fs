@@ -18,10 +18,10 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "application/x-www-form-urlencoded"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "jsonContentType" 0
 
@@ -36,10 +36,10 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "application/json; charset=utf-8"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "plainTextContentType" 0
 
@@ -54,10 +54,10 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "text/plain; charset=utf-8"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "htmlContentType" 0
 
@@ -72,14 +72,14 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "text/html; charset=utf-8"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "bearerToken" 0
 
-    ; parameters = [Param.make "token" TStr]
+    ; parameters = [Param.make "token" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
@@ -93,15 +93,15 @@ let fns : fn list =
                   token
               in
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated =
         true (* Deprecated due to using Unicode_string.append_broken *) }
   ; { name = fn "HttpClient" "bearerToken" 1
 
-    ; parameters = [Param.make "token" TStr]
+    ; parameters = [Param.make "token" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
@@ -115,8 +115,8 @@ let fns : fn list =
                   token
               in
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
-      ; previewable = Pure
+    ; previewable = Pure
     ; deprecated = NotDeprecated } ]

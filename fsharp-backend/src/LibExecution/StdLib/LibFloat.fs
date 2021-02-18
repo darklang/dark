@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> bigint (Math.Ceiling a) |> DInt |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -62,7 +62,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> bigint (Math.Floor a) |> DInt |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -73,7 +73,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> bigint (Math.Round a) |> DInt |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -97,7 +97,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> DFloat(Math.Abs a) |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -108,20 +108,20 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a ] -> DFloat(a * -1.0) |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "Float" "sqrt" 0
 
-    //   ; parameters = [Param.make "a" TFloat]
+    //   ; parameters = [Param.make "a" TFloat ""]
     //   ; returnType = TFloat
     //   ; description = "Get the square root of a float"
     //   ; fn =
 
-    //         (function _, [DFloat a] -> DFloat (sqrt a) | args -> incorrectArgs ())
+    //         (function _, [DFloat a] -> DFloat (sqrt a) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
-    //     ; previewable = Pure
+    //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     { name = fn "Float" "power" 0
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Value(DFloat(a + b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -163,7 +163,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Value(DFloat(a * b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -174,7 +174,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat a; DFloat b ] -> Value(DFloat(a - b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -224,7 +224,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 // ; { name = fn "Float" "sum" 0
 
-//   ; parameters = [Param.make "a" TList]
+//   ; parameters = [Param.make "a" TList ""]
 //   ; returnType = TFloat
 //   ; description = "Returns the sum of all the floats in the list"
 //   ; fn =
@@ -247,14 +247,14 @@ let fns : List<BuiltInFn> =
 //                      "every list item to be an float "
 //                      "Sum expects you to pass a list of floats")
 //             |> Result.ok_exn
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "min" 0
 
-//   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
+//   ; parameters = [Param.make "a" TFloat ""; Param.make "b" TFloat ""]
 //   ; returnType = TFloat
 //   ; description = "Returns the lesser of float `a` and float `b`"
 //   ; fn =
@@ -262,14 +262,14 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DFloat a; DFloat b] ->
 //             DFloat (Float.min a b)
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "max" 0
 
-//   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
+//   ; parameters = [Param.make "a" TFloat ""; Param.make "b" TFloat ""]
 //   ; returnType = TFloat
 //   ; description = "Returns the greater of float `a` and float `b`"
 //   ; fn =
@@ -277,14 +277,14 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DFloat a; DFloat b] ->
 //             DFloat (Float.max a b)
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "clamp" 0
 
-//   ; parameters = [Param.make "value" TFloat; Param.make "limitA" TFloat; Param.make "limitB" TFloat]
+//   ; parameters = [Param.make "value" TFloat ""; Param.make "limitA" TFloat ""; Param.make "limitB" TFloat ""]
 //   ; returnType = TFloat
 //   ; description =
 //       "If `value` is within the range given by `limitA` and `limitB`, returns `value`.
@@ -310,8 +310,8 @@ let fns : List<BuiltInFn> =
 //                   ~info
 //                   ("Internal Float.clamp exception: " ^ Error.to_string_hum e)
 //             )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
+//   ; previewable = Pure
 //   ; deprecated = NotDeprecated }

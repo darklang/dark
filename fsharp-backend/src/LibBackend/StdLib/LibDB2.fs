@@ -335,7 +335,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryExactFields" 0) }
     // ; { name = fn "DB" "queryExactFields" 0
-//   ; parameters = [Param.make "spec" TObj; tableParam]
+//   ; parameters = [Param.make "spec" TObj ""; tableParam]
 //   ; returnType = TList TAny
 //   ; description =
 //       "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
@@ -389,7 +389,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryExactFieldsWithKey" 0) }
     // ; { name = fn "DB" "queryExactFieldsWithKey" 0
-//   ; parameters = [Param.make "spec" TObj; tableParam]
+//   ; parameters = [Param.make "spec" TObj ""; tableParam]
 //   ; returnType = TObj
 //   ; description =
 //       "Fetch all the values from `table` which have the same fields and values that `spec` has
@@ -428,7 +428,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOne" 2) }
     // ; { name = fn "DB" "queryOne" 2
-//   ; parameters = [Param.make "spec" TObj; tableParam]
+//   ; parameters = [Param.make "spec" TObj ""; tableParam]
 //   ; returnType = TOption
 //   ; description =
 //       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
@@ -452,7 +452,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 //   (* see queryOneExactFields *)
 // ; { name = fn "DB" "queryOneWithExactFields" 0
-//   ; parameters = [Param.make "spec" TObj; tableParam]
+//   ; parameters = [Param.make "spec" TObj ""; tableParam]
 //   ; returnType = TOption
 //   ; description =
 //       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
@@ -515,7 +515,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = ReplacedBy(fn "DB" "queryOneExactFieldsWithKey" 0) }
     // ; { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
-//   ; parameters = [Param.make "spec" TObj; tableParam]
+//   ; parameters = [Param.make "spec" TObj ""; tableParam]
 //   ; returnType = TOption
 //   ; description =
 //       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOnewithKey_v2"

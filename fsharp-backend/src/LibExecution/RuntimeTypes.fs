@@ -535,10 +535,22 @@ type SqlSpec =
   | SqlFunctionWithPrefixArgs of string * List<string>
   // This can be implemented by a builtin postgres 9.6 function with extra arguments that go last
   | SqlFunctionWithSuffixArgs of string * List<string>
-// This can be implemented by this callback that receives 1 SQLified-string argument
+  // This can be implemented by this callback that receives 1 SQLified-string argument
 // | SqlCallback of (string -> string)
-// This can be implemented by this callback that receives 2 SQLified-string argument
-// | SqlCallback2 of (string -> string -> string)
+  // This can be implemented by this callback that receives 2 SQLified-string argument
+  | SqlCallback2 of (string -> string -> string)
+
+  member this.isQueryable() : bool =
+    match this with
+    | NotYetImplementedTODO
+    | NotQueryable
+    | QueryFunction -> false
+    | SqlUnaryOp _
+    | SqlBinOp _
+    | SqlFunction _
+    | SqlFunctionWithPrefixArgs _
+    | SqlFunctionWithSuffixArgs _
+    | SqlCallback2 _ -> true
 
 type BuiltInFn =
   { name : FQFnName.T
