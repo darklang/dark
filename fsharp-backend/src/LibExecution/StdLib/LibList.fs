@@ -144,7 +144,6 @@ let fns : List<BuiltInFn> =
 //     ; description =
 //         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
 //     ; fn =
-//
 //           (function
 //           | _, [DList []] ->
 //               DOption OptNothing
@@ -156,24 +155,20 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "reverse" 0
-//
 //     ; parameters = [Param.make "list" TList]
 //     ; returnType = TList
 //     ; description = "Returns a reversed copy of `list`."
 //     ; fn =
-//
 //           (function _, [DList l] -> DList (List.rev l) | _ -> incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "findFirst" 0
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TAny
 //     ; description =
 //         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let f (dv : dval) : bool =
@@ -186,13 +181,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "findFirst" 1
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TOption
 //     ; description =
 //         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let f (dv : dval) : bool =
@@ -209,13 +202,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "findFirst" 2
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TOption
 //     ; description =
 //         "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let f (dv : Types.RuntimeT.dval) : bool =
@@ -232,12 +223,10 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "contains" 0
-//
 //     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
 //     ; returnType = TBool
 //     ; description = "Returns `true` if `val` is in the list."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l; i] ->
 //               DBool (List.mem equal_dval l i)
@@ -249,12 +238,10 @@ let fns : List<BuiltInFn> =
 //         (* Deprecated in favor of List::member for consistency with Elm's naming *)
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "member" 0
-//
 //     ; parameters = [Param.make "list" TList; Param.make "val" TAny]
 //     ; returnType = TBool
 //     ; description = "Returns `true` if `val` is in the list."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l; i] ->
 //               DBool (List.mem equal_dval l i)
@@ -264,13 +251,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "repeat" 0
-//
 //     ; parameters = [Param.make "times" TInt; Param.make "val" TAny]
 //     ; returnType = TList
 //     ; description =
 //         "Returns a new list containing `val` repeated `times` times."
 //     ; fn =
-//
 //           (function
 //           | _, [DInt t; dv] ->
 //               DList (List.init (Dint.to_int_exn t) (fun _ -> dv))
@@ -347,7 +332,6 @@ let fns : List<BuiltInFn> =
 //     ; description =
 //         "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l] ->
 //               let f a b =
@@ -364,13 +348,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "interpose" 0
-//
 //     ; parameters = [Param.make "list" TList; Param.make "sep" TAny]
 //     ; returnType = TList
 //     ; description =
 //         "Returns a single list containing the values of `list` separated by `sep`."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l; i] ->
 //               let rec join ls =
@@ -387,13 +369,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "interleave" 0
-//
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
 //     ; returnType = TList
 //     ; description =
 //         "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l1; DList l2] ->
 //               let rec f l1 l2 =
@@ -410,13 +390,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "uniqueBy" 0
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList
 //     ; description =
 //         "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let fn dv = Ast.execute_dblock ~state b [dv] in
@@ -485,7 +463,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     //   ; { name = fn "List" "sortByComparator" 0
-//
 //     ; parameters = [Param.make "list" TList; func ["a"; "b"]]
 //     ; returnType = TResult
 //     ; description =
@@ -493,7 +470,6 @@ let fns : List<BuiltInFn> =
 //         `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
 //         Consider `List::sort` or `List::sortBy` if you don't need this level of control."
 //     ; fn =
-//
 //           (function
 //           | state, [DList list; DFnVal b] ->
 //               let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
@@ -653,7 +629,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     //   ; { name = fn "List" "filter" 1
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -661,7 +636,6 @@ let fns : List<BuiltInFn> =
 //         Preserves the order of values that were not dropped.
 //         Consider `List::filterMap` if you also want to transform the values."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let fakecf = ref None in
@@ -686,7 +660,6 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "filter" 2
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -694,7 +667,6 @@ let fns : List<BuiltInFn> =
 //         Preserves the order of values that were not dropped.
 //         Consider `List::filterMap` if you also want to transform the values."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
@@ -729,7 +701,6 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "filterMap" 0
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -739,7 +710,6 @@ let fns : List<BuiltInFn> =
 //         Preserves the order of values that were not dropped.
 //         This function combines `List::filter` and `List::map`."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
@@ -777,12 +747,10 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "drop" 0
-//
 //     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
 //     ; returnType = TList
 //     ; description = "Drops the first `count` values from `list`."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l; DInt c] ->
 //               DList (List.drop l (Dint.to_int_exn c))
@@ -792,13 +760,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "dropWhile" 0
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList
 //     ; description =
 //         "Drops the longest prefix of `list` which satisfies the predicate `val`"
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
@@ -839,12 +805,10 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "take" 0
-//
 //     ; parameters = [Param.make "list" TList; Param.make "count" TInt]
 //     ; returnType = TList
 //     ; description = "Drops all but the first `count` values from `list`."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l; DInt c] ->
 //               DList (List.take l (Dint.to_int_exn c))
@@ -854,13 +818,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "takeWhile" 0
-//
 //     ; parameters = [Param.make "list" TList; func ["val"]]
 //     ; returnType = TList
 //     ; description =
 //         "Return the longest prefix of `list` which satisfies the predicate `val`"
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let abortReason = ref None in
@@ -962,14 +924,12 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     //   ; { name = fn "List" "indexedMap" 0
-//
 //     ; parameters = [Param.make "list" TList; func ["index"; "val"]]
 //     ; returnType = TList
 //     ; description =
 //         "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
 //         Consider `List::map` if you don't need the index."
 //     ; fn =
-//
 //           (function
 //           | state, [DList l; DFnVal b] ->
 //               let f (idx : int) (dv : dval) : dval =
@@ -982,7 +942,6 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "map2shortest" 0
-//
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
 //     ; returnType = TList
 //     ; description =
@@ -991,7 +950,6 @@ let fns : List<BuiltInFn> =
 //         For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y")]`.
 //         Use `List::map2` if you want to enforce equivalent lengths for `as` and `bs`.|}
 //     ; fn =
-//
 //           (function
 //           | state, [DList l1; DList l2; DFnVal b] ->
 //               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
@@ -1008,7 +966,6 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "map2" 0
-//
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList; func ["a"; "b"]]
 //     ; returnType = TOption
 //     ; description =
@@ -1017,7 +974,6 @@ let fns : List<BuiltInFn> =
 //          For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y"), (f 3 "z")]`.
 //          If the lists differ in length, returns `Nothing` (consider `List::map2shortest` if you want to drop values from the longer list instead).|}
 //     ; fn =
-//
 //           (function
 //           | state, [DList l1; DList l2; DFnVal b] ->
 //               let f (l1Item : dval) (l2Item : dval) : dval =
@@ -1035,7 +991,6 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "zipShortest" 0
-//
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
 //     ; returnType = TList
 //     ; description =
@@ -1045,7 +1000,6 @@ let fns : List<BuiltInFn> =
 //         Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.
 //         See `List::unzip` if you want to deconstruct the result into `as` and `bs` again.|}
 //     ; fn =
-//
 //           (function
 //           | state, [DList l1; DList l2] ->
 //               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
@@ -1062,7 +1016,6 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "zip" 0
-//
 //     ; parameters = [Param.make "as" TList; Param.make "bs" TList]
 //     ; returnType = TOption
 //     ; description =
@@ -1071,7 +1024,6 @@ let fns : List<BuiltInFn> =
 //         See `List::unzip` if you want to deconstruct `list` into `as` and `bs` again.
 //         If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop values from the longer list instead).|}
 //     ; fn =
-//
 //           (function
 //           | state, [DList l1; DList l2] ->
 //               let f (l1Item : dval) (l2Item : dval) : dval =
@@ -1089,7 +1041,6 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "unzip" 0
-//
 //     ; parameters = [Param.make "pairs" TList]
 //     ; returnType = TList
 //     ; description =
@@ -1157,13 +1108,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "getAt" 0
-//
 //     ; parameters = [Param.make "list" TList; Param.make "index" TInt]
 //     ; returnType = TOption
 //     ; description =
 //         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l; DInt index] ->
 //               List.nth l (Dint.to_int_exn index)
@@ -1175,13 +1124,11 @@ let fns : List<BuiltInFn> =
 //       ; previewable = Pure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "List" "getAt" 1
-//
 //     ; parameters = [Param.make "list" TList; Param.make "index" TInt]
 //     ; returnType = TOption
 //     ; description =
 //         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list otherwise returns `Nothing`."
 //     ; fn =
-//
 //           (function
 //           | _, [DList l; DInt index] ->
 //               List.nth l (Dint.to_int_exn index)

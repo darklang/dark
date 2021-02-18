@@ -30,13 +30,11 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "" "toRepr" 0
-//
 //   ; parameters = [Param.make "v" TAny]
 //   ; returnType = TStr
 //   ; description =
 //       "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
 //   ; fn =
-//
 //         (function
 //         | _, [a] ->
 //             Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
@@ -69,12 +67,10 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 // ; { name = fn "" "assoc" 0
-//
 //   ; parameters = [Param.make "obj" TObj; Param.make "key" TStr; Param.make "val" TAny]
 //   ; returnType = TObj
 //   ; description = "Return a copy of `obj` with the `key` set to `val`."
 //   ; fn =
-//
 //         (function
 //         | _, [DObj o; DStr k; v] ->
 //             DObj (Map.set o (Unicode_string.to_string k) v)
@@ -84,12 +80,10 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "" "dissoc" 0
-//
 //   ; parameters = [Param.make "obj" TObj; Param.make "key" TStr]
 //   ; returnType = TObj
 //   ; description = "Return a copy of `obj` with `key` unset."
 //   ; fn =
-//
 //         (function
 //         | _, [DObj o; DStr k] ->
 //             DObj (Map.remove o (Unicode_string.to_string k))
@@ -99,13 +93,11 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "" "toForm" 0
-//
 //   ; parameters = [Param.make "obj" TObj; Param.make "submit" TStr]
 //   ; returnType = TStr
 //   ; description =
 //       "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
 //   ; fn =
-//
 //         (function
 //         | _, [DObj o; DStr uri] ->
 //             let fmt =
@@ -138,12 +130,10 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Error" "toString" 0
-//
 //   ; parameters = [Param.make "err" TError]
 //   ; returnType = TStr
 //   ; description = "Return a string representing the error"
 //   ; fn =
-//
 //         (function
 //         | _, [DError (_, err)] ->
 //             Dval.dstr_of_string_exn err
@@ -153,12 +143,10 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "AWS" "urlencode" 0
-//
 //   ; parameters = [Param.make "str" TStr]
 //   ; returnType = TStr
 //   ; description = "Url encode a string per AWS' requirements"
 //   ; fn =
-//
 //         (function
 //         | _, [DStr str] ->
 //             str
@@ -171,12 +159,10 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Twitter" "urlencode" 0
-//
 //   ; parameters = [Param.make "s" TStr]
 //   ; returnType = TStr
 //   ; description = "Url encode a string per Twitter's requirements"
 //   ; fn =
-//
 //         (function
 //         | _, [DStr s] ->
 //             s

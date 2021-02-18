@@ -279,12 +279,10 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "Int" "sum" 0
-    //
     //   ; parameters = [Param.make "a" TList]
     //   ; returnType = TInt
     //   ; description = "Returns the sum of all the ints in the list"
     //   ; fn =
-    //
     //         (function
     //         | _, [DList l] ->
     //             l
