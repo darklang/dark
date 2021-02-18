@@ -48,7 +48,6 @@ let fns : List<BuiltInFn> =
       returnType = TBool
       description = "Returns true if the two value are equal"
       fn =
-
         (function
         | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
         | _ -> incorrectArgs ())

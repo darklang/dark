@@ -27,7 +27,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     //   { name = fn "Dict" "size" 0
-    //
     //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TInt
     //   ; description =
@@ -39,7 +38,6 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     //   { name = fn "Dict" "keys" 0
-    //
     //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
     //   ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
