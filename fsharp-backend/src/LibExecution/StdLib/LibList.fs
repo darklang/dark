@@ -891,7 +891,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "map" 0) }
-    { name = FQFnName.stdlibName "List" "map" 0
+    { name = fn "List" "map" 0
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
           Param.make

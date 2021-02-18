@@ -17,7 +17,7 @@ let varB = TVariable "b"
 
 
 let fns : List<BuiltInFn> =
-  [ { name = FQFnName.stdlibName "" "toString" 0
+  [ { name = fn "" "toString" 0
       description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
       parameters = [ Param.make "a" (TVariable "a") "" ]
