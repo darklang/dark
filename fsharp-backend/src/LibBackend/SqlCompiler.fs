@@ -27,9 +27,6 @@ type position =
   | First
   | Last
 
-// | "Date::atStartOfDay" -> (TDate, TInt, "date_trunc", [ "'day'" ], Last)
-
-
 let typeToSqlType (t : DType) : string =
   match t with
   | TStr -> "text"
@@ -38,7 +35,6 @@ let typeToSqlType (t : DType) : string =
   | TBool -> "bool"
   | TDate -> "timestamp with time zone"
   | _ -> error $"We do not support this type of DB field yet: {t}"
-
 
 // This canonicalizes an expression, meaning it removes multiple ways of
 // representing the same thing. Currently nothing needs to be canonicalized.
@@ -187,12 +183,6 @@ let rec lambdaToSql
   | Fn "" "!=" 0 [ e; ENull _ ] ->
       let sql, vars = lts TNull e
       $"({sql} is not null)", vars
-  | Fn "String" "isSubString" 1 [ lookingIn; searchingFor ]
-  | Fn "String" "contains" 0 [ lookingIn; searchingFor ] ->
-      let lookingInSql, vars1 = lts TStr lookingIn
-      let searchingForSql, vars2 = lts TStr searchingFor
-      // strpos returns indexed from 1; 0 means missing
-      $"(strpos({lookingInSql}, {searchingForSql}) > 0)", vars1 @ vars2
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
       match Map.get name fns with
       | Some fn ->
@@ -223,7 +213,8 @@ let rec lambdaToSql
           | { sqlSpec = SqlFunctionWithSuffixArgs (fnName, fnArgs) }, _ ->
               let argSql = argSqls @ fnArgs |> String.concat ", "
               $"({fnName} ({argSql}))", sqlVars
-
+          | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
+              $"({fn arg1 arg2})", sqlVars
           | fn, args -> error $"This function ({name}) is not yet implemented"
       | None ->
           error

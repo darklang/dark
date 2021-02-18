@@ -805,7 +805,11 @@ Don't rely on either the size or the algorithm."
         | _, [ DStr haystack; DStr needle ] ->
             DBool(haystack.Contains needle) |> Value
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec =
+        SqlCallback2
+          (fun lookingIn searchingFor ->
+            // strpos returns indexed from 1; 0 means missing
+            $"(strpos({lookingIn}, {searchingFor}) > 0)")
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "contains" 0) }
     { name = fn "String" "contains" 0
@@ -817,7 +821,11 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr haystack; DStr needle ] -> Value(DBool(haystack.Contains needle))
         | args -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec =
+        SqlCallback2
+          (fun lookingIn searchingFor ->
+            // strpos returns indexed from 1; 0 means missing
+            $"strpos({lookingIn}, {searchingFor}) > 0")
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "String" "slice" 0
