@@ -31,7 +31,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Pure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "Char" "toASCIIChar" 0
-  //
   //   ; parameters = [Param.make "i" TInt ""]
   //   ; returnType = TCharacter
   //   ; description = "convert an int to an ASCII character"
@@ -41,7 +40,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Pure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "Char" "toLowercase" 0
-  //
   //   ; parameters = [Param.make "c" TCharacter ""]
   //   ; returnType = TCharacter
   //   ; description = "Return the lowercase value of `c`"
@@ -51,7 +49,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Pure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "Char" "toUppercase" 0
-  //
   //   ; parameters = [Param.make "c" TCharacter ""]
   //   ; returnType = TCharacter
   //   ; description = "Return the uppercase value of `c`"

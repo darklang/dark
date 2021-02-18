@@ -253,7 +253,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "put" 0
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description =
@@ -266,7 +265,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "get" 0
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description =
@@ -279,7 +277,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "delete" 0
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description =
@@ -292,7 +289,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "options" 0
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description =
@@ -305,7 +301,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "head" 0
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description =
@@ -318,7 +313,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "patch" 0
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description =
@@ -331,7 +325,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "post" 1
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description = "Make blocking HTTP POST call to `uri`"
@@ -343,7 +336,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "put" 1
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description = "Make blocking HTTP PUT call to `uri`"
@@ -355,7 +347,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "get" 1
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TObj
   //   ; description = "Make blocking HTTP GET call to `uri`"
@@ -382,7 +373,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "options" 1
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TObj
   //   ; description = "Make blocking HTTP OPTIONS call to `uri`"
@@ -394,7 +384,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "head" 1
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TObj
   //   ; description = "Make blocking HTTP HEAD call to `uri`"
@@ -406,7 +395,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "patch" 1
-  //
   //   ; parameters = params
   //   ; returnType = TObj
   //   ; description = "Make blocking HTTP PATCH call to `uri`"
@@ -418,7 +406,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "post" 2
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -431,7 +418,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "put" 2
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -444,7 +430,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "get" 2
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -473,7 +458,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "options" 2
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -486,7 +470,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "head" 2
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -499,7 +482,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "patch" 2
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -512,7 +494,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "post" 3
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -525,7 +506,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "put" 3
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -538,7 +518,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "get" 3
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -567,7 +546,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "options" 3
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -580,7 +558,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "head" 3
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -593,7 +570,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "patch" 3
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -606,7 +582,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "post" 4
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -619,7 +594,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "put" 4
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -632,7 +606,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "get" 4
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -661,7 +634,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "options" 4
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -674,7 +646,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "head" 4
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -687,7 +658,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "patch" 4
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -700,7 +670,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "HttpClient" "post" 5
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -710,7 +679,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "put" 5
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -720,7 +688,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "get" 5
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -743,7 +710,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "options" 5
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -753,7 +719,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "head" 5
-  //
   //   ; parameters = params_no_body
   //   ; returnType = TResult
   //   ; description =
@@ -763,7 +728,6 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "patch" 5
-  //
   //   ; parameters = params
   //   ; returnType = TResult
   //   ; description =
@@ -773,13 +737,11 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "basicAuth" 0
-  //
   //   ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
   //   ; returnType = TObj
   //   ; description =
   //       "Returns an object with 'Authorization' created using HTTP basic auth"
   //   ; fn =
-  //
   //         (function
   //         | _, [DStr u; DStr p] ->
   //             DObj
@@ -793,13 +755,11 @@ let fns : List<BuiltInFn> = []
   //   ; deprecated = ReplacedBy(fn "" "" 0) (* Deprecated due to using encode_basic_auth_broken *)
   //   }
   // ; { name = fn "HttpClient" "basicAuth" 1
-  //
   //   ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
   //   ; returnType = TObj
   //   ; description =
   //       "Returns an object with 'Authorization' created using HTTP basic auth"
   //   ; fn =
-  //
   //         (function
   //         | _, [DStr u; DStr p] ->
   //             DObj

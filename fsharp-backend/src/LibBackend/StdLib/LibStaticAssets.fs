@@ -26,7 +26,6 @@ let fns : List<BuiltInFn> = []
 //     ; returnType = TStr
 //     ; description = "Return the baseUrl for the specified deploy hash"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr deploy_hash] ->
 //               url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
@@ -42,7 +41,6 @@ let fns : List<BuiltInFn> = []
 //     ; returnType = TStr
 //     ; description = "Return the baseUrl for the latest deploy"
 //     ; fn =
-//
 //           (function
 //           | state, [] ->
 //               url state.canvas_id (latest_deploy_hash state.canvas_id) `Short
@@ -58,7 +56,6 @@ let fns : List<BuiltInFn> = []
 //     ; returnType = TStr
 //     ; description = "Return a url for the specified file and deploy hash"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr deploy_hash; DStr file] ->
 //               url_for
@@ -78,7 +75,6 @@ let fns : List<BuiltInFn> = []
 //     ; returnType = TStr
 //     ; description = "Return a url for the specified file and latest deploy"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr file] ->
 //               url_for
@@ -99,7 +95,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr deploy_hash; DStr file] ->
 //               let url =
@@ -134,7 +129,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr deploy_hash; DStr file] ->
 //               let url =
@@ -166,7 +160,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the bytes of the specified file from the deploy_hash"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr deploy_hash; DStr file] ->
 //               let url =
@@ -197,7 +190,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr file] ->
 //               let url =
@@ -232,7 +224,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr file] ->
 //               let url =
@@ -265,7 +256,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the bytes of the specified file from the latest deploy"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr file] ->
 //               let url =
@@ -296,7 +286,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr deploy_hash; DStr file] ->
 //               let url =
@@ -355,7 +344,6 @@ let fns : List<BuiltInFn> = []
 //     ; returnType = TResult
 //     ; description = "Return the specified file from the latest deploy"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr deploy_hash; DStr file] ->
 //               let url =
@@ -412,7 +400,6 @@ let fns : List<BuiltInFn> = []
 //     ; description =
 //         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr file] ->
 //               let url =
@@ -468,7 +455,6 @@ let fns : List<BuiltInFn> = []
 //     ; returnType = TResult
 //     ; description = "Return the specified file from the latest deploy"
 //     ; fn =
-//
 //           (function
 //           | state, [DStr file] ->
 //               let url =

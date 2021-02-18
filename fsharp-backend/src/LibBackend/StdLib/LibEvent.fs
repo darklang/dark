@@ -27,7 +27,6 @@ let fns : List<BuiltInFn> = []
   //   ; description =
   //       "Emit event `name` in `space`, passing along `data` as a parameter"
   //   ; fn =
-  //
   //         (function
   //         | {canvas_id; account_id; _}, [data; DStr space; DStr name] ->
   //             (* See client/src/Entry.ml for the "_" *)
@@ -41,12 +40,10 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Impure
   //   ; deprecated = ReplacedBy(fn "" "" 0) }
   // ; { name = fn "" "emit" "1"
-  //
   //   ; parameters = [Param.make "event" TAny ""; Param.make "Name" TStr ""]
   //   ; returnType = TAny
   //   ; description = "Emit a `event` to the `name` worker"
   //   ; fn =
-  //
   //         (function
   //         | {canvas_id; account_id; _}, [data; DStr name] ->
   //             (* See client/src/Entry.ml for the "_" *)

@@ -27,7 +27,6 @@ let fns : List<BuiltInFn> = []
   //   ; description =
   //       "Returns an object with 'Content-Type' for url-encoded HTML forms"
   //   ; fn =
-  //
   //         (function
   //         | _, [] ->
   //             DObj
@@ -40,12 +39,10 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Pure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "jsonContentType" 0
-  //
   //   ; parameters = []
   //   ; returnType = TObj
   //   ; description = "Returns an object with 'Content-Type' for JSON"
   //   ; fn =
-  //
   //         (function
   //         | _, [] ->
   //             DObj
@@ -58,12 +55,10 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Pure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "plainTextContentType" 0
-  //
   //   ; parameters = []
   //   ; returnType = TObj
   //   ; description = "Returns an object with 'Content-Type' for plain text"
   //   ; fn =
-  //
   //         (function
   //         | _, [] ->
   //             DObj
@@ -76,12 +71,10 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Pure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "htmlContentType" 0
-  //
   //   ; parameters = []
   //   ; returnType = TObj
   //   ; description = "Returns an object with 'Content-Type' for html"
   //   ; fn =
-  //
   //         (function
   //         | _, [] ->
   //             DObj
@@ -94,13 +87,11 @@ let fns : List<BuiltInFn> = []
   //   ; previewable = Pure
   //   ; deprecated = NotDeprecated }
   // ; { name = fn "HttpClient" "bearerToken" 0
-  //
   //   ; parameters = [Param.make "token" TStr ""]
   //   ; returnType = TObj
   //   ; description =
   //       "Returns an object with 'Authorization' set to the passed token"
   //   ; fn =
-  //
   //         (function
   //         | _, [DStr token] ->
   //             let auth_string =
@@ -116,13 +107,11 @@ let fns : List<BuiltInFn> = []
   //   ; deprecated =
   //       true (* Deprecated due to using Unicode_string.append_broken *) }
   // ; { name = fn "HttpClient" "bearerToken" 1
-  //
   //   ; parameters = [Param.make "token" TStr ""]
   //   ; returnType = TObj
   //   ; description =
   //       "Returns an object with 'Authorization' set to the passed token"
   //   ; fn =
-  //
   //         (function
   //         | _, [DStr token] ->
   //             let auth_string =

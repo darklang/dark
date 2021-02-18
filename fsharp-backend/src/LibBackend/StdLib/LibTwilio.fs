@@ -32,7 +32,6 @@ let fns : List<BuiltInFn> = []
   //   ; description =
   //       "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
   //   ; fn =
-  //
   //         (function
   //         | ( s
   //           , [ DStr accountSID
@@ -83,7 +82,6 @@ let fns : List<BuiltInFn> = []
   //       true
   //       (* Deprecated due to using Libhttpclient.encode_basic_auth_broken *) }
   // ; { name = fn "Twilio" "sendText" 1
-  //
   //   ; parameters =
   //       [ Param.make "accountSID" TStr
   //       ; Param.make "authToken" TStr
@@ -94,7 +92,6 @@ let fns : List<BuiltInFn> = []
   //   ; description =
   //       "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
   //   ; fn =
-  //
   //         (function
   //         | ( s
   //           , [ DStr accountSID

@@ -27,7 +27,6 @@ let fns : List<BuiltInFn> = []
   //   ; description =
   //       "Extract the public key from a PEM encoded certificate and return the key in PEM format."
   //   ; fn =
-  //
   //         (function
   //         | _, [DStr cert] ->
   //           ( try
