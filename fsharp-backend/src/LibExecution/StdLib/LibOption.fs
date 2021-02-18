@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
 //               Dval.to_opt_just result
 //           | OptNothing ->
 //               DOption OptNothing )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
 //           | OptJust dv1, OptJust dv2 ->
 //               let result = Ast.execute_dblock ~state b [dv1; dv2] in
 //               Dval.to_opt_just result )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -111,7 +111,7 @@ let fns : List<BuiltInFn> =
 //                     "Expected `f` to return an option" )
 //           | OptNothing ->
 //               DOption OptNothing )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DOption o; default] ->
 //           (match o with OptJust dv -> dv | OptNothing -> default)
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure

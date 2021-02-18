@@ -16,7 +16,7 @@ let fns : fn list =
           | _, [DStr json] ->
             ( try json |> Unicode_string.to_string |> Dval.of_unknown_json_v0
               with _ -> DNull )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -32,7 +32,7 @@ let fns : fn list =
           (function
           | _, [DStr json] ->
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -48,7 +48,7 @@ let fns : fn list =
           (function
           | _, [DStr json] ->
               json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -73,7 +73,7 @@ let fns : fn list =
                   (ResError
                      (e |> Exception.exn_to_string |> Dval.dstr_of_string_exn))
             )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure

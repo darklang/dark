@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr k; v ] -> Value(DObj(Map.ofList [ (k, v) ]))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -35,7 +35,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | args -> incorrectArgs ())
+    //         | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
     //             |> DvalMap.keys
     //             |> List.map (fun k -> Dval.dstr_of_string_exn k)
     //             |> fun l -> DList l
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | _, [DObj o] -> DList (DvalMap.values o) | args -> incorrectArgs ())
+    //         | _, [DObj o] -> DList (DvalMap.values o) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
     //             |> List.map (fun (k, v) ->
     //                    DList [Dval.dstr_of_string_exn k; v])
     //             |> Dval.to_list
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
     //               l |> List.foldi (Ok DvalMap.empty) fold_fn
     //             in
     //             (match result with Ok res -> DObj res | Error v -> v)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -235,7 +235,7 @@ let fns : List<BuiltInFn> =
     //               |> Result.map (fun o -> DOption (OptJust (DObj o)))
     //             in
     //             (match result with Ok res -> res | Error v -> v)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -251,7 +251,7 @@ let fns : List<BuiltInFn> =
             (match Map.tryFind s o with
              | Some d -> Value(d)
              | None -> Value(DNull))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
@@ -262,7 +262,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o; DStr s ] -> Value(DOption(Map.tryFind s o))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
@@ -281,7 +281,7 @@ let fns : List<BuiltInFn> =
     //               Dval.to_opt_just d
     //           | None ->
     //               DOption OptNothing )
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -298,7 +298,7 @@ let fns : List<BuiltInFn> =
     //         | _, [DObj o; DStr s] ->
     //             let key = Unicode_string.to_string s in
     //             DBool (DvalMap.contains_key o ~key)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -315,7 +315,7 @@ let fns : List<BuiltInFn> =
     //         | state, [DObj o; DFnVal b] ->
     //             let f dv = Ast.execute_dblock ~state b [dv] in
     //             DObj (Map.map ~f o)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -335,7 +335,7 @@ let fns : List<BuiltInFn> =
     //               Ast.execute_dblock ~state b [Dval.dstr_of_string_exn key; data]
     //             in
     //             DObj (Map.mapi ~f o)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -371,7 +371,7 @@ let fns : List<BuiltInFn> =
     //             if !incomplete
     //             then DIncomplete SourceNone (*TODO(ds) source info *)
     //             else DObj (Base.Map.filteri ~f o)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -417,7 +417,7 @@ let fns : List<BuiltInFn> =
     //                 filter_propagating_errors
     //             in
     //             (match filtered_result with Ok o -> DObj o | Error dv -> dv)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -471,7 +471,7 @@ let fns : List<BuiltInFn> =
     //             in
     //             let result = Map.filter_mapi ~f o in
     //             (match !abortReason with None -> DObj result | Some v -> v)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -495,7 +495,7 @@ let fns : List<BuiltInFn> =
     //   ; fn =
     //
     //         (function
-    //         | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | args -> incorrectArgs ())
+    //         | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | _ -> incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
     //   ; deprecated = NotDeprecated }
@@ -510,7 +510,7 @@ let fns : List<BuiltInFn> =
     //         (function
     //         | _, [DObj l; DObj r] ->
     //             DObj (Stdlib_util.merge_right l r)
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -527,7 +527,7 @@ let fns : List<BuiltInFn> =
     //             DObj o
     //             |> Dval.to_pretty_machine_json_v1
     //             |> Dval.dstr_of_string_exn
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotYetImplementedTODO
     //     ; previewable = Pure
@@ -542,7 +542,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -554,7 +554,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
                  // FSTODO
                  // In case there's another failure mode, rollbar
                  failwith "mod error")
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
       (*
@@ -71,7 +71,7 @@ let fns : List<BuiltInFn> =
                           ^ Dval.to_developer_repr_v0 (DInt m) )))
                 else (* In case there's another failure mode, rollbar *)
                   raise e )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
                  Value(Dval.errStr (Errors.dividingByZero "divisor"))
                else (* In case there's another failure mode, rollbar *)
                  raise e)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a + b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -115,7 +115,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a * b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -146,7 +146,7 @@ let fns : List<BuiltInFn> =
                  // FSTODO
                  // In case there's another failure mode, rollbar
                  failwith "mod error")
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -157,7 +157,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -169,7 +169,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a ] -> Value(DInt(abs a))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -180,7 +180,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a ] -> Value(DInt(-a))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -191,7 +191,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a > b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -202,7 +202,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a >= b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
       deprecated = NotDeprecated }
@@ -213,7 +213,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a < b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -224,7 +224,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DBool(a <= b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
       deprecated = NotDeprecated }
@@ -236,7 +236,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] ->
             a + bigint (Prelude.random.Next((b - a) |> int)) |> DInt |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = ReplacedBy(fn "Int" "random" 1) }
@@ -252,7 +252,7 @@ let fns : List<BuiltInFn> =
             lower + (Prelude.random.Next((upper - lower) |> int) |> bigint)
             |> DInt
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -263,7 +263,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a ] -> Value(DFloat(sqrt (float a)))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -274,7 +274,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a ] -> Value(DFloat(float a))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -303,7 +303,7 @@ let fns : List<BuiltInFn> =
     //                      "every list item to be an int "
     //                      "Sum expects you to pass a list of ints")
     //             |> Result.ok_exn
-    //         | args ->
+    //         | _ -> args
     //             incorrectArgs ())
     //   ; sqlSpec = NotQueryable
     //     ; previewable = Pure
@@ -315,7 +315,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(max a b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -326,7 +326,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(min a b))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -347,7 +347,7 @@ let fns : List<BuiltInFn> =
             if v < min then Value(DInt min)
             else if v > max then Value(DInt max)
             else Value(DInt v)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]

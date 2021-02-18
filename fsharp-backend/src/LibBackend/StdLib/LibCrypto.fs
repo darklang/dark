@@ -52,7 +52,7 @@ let fns : fn list =
                                 https://github.com/jedisct1/libsodium/blob/d49d7e8d4f4dd8df593beb9e715e7bc87bc74108/src/libsodium/crypto_pwhash/argon2/pwhash_argon2i.c#L187 *)
               |> Hash.hash_password Sodium.Password_hash.interactive
               |> DPassword
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -74,7 +74,7 @@ let fns : fn list =
               |> Hash.wipe_to_password
               |> Hash.verify_password_hash existingpw
               |> DBool
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -92,7 +92,7 @@ let fns : fn list =
               |> Nocrypto.Hash.SHA256.digest
               |> digest_to_bytes
               |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -110,7 +110,7 @@ let fns : fn list =
               |> Nocrypto.Hash.SHA384.digest
               |> digest_to_bytes
               |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -129,7 +129,7 @@ let fns : fn list =
               |> Nocrypto.Hash.MD5.digest
               |> digest_to_bytes
               |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -147,7 +147,7 @@ let fns : fn list =
               let key = Cstruct.of_bytes key in
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -165,7 +165,7 @@ let fns : fn list =
               let key = Cstruct.of_bytes key in
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA1.hmac ~key data |> digest_to_bytes |> DBytes
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure

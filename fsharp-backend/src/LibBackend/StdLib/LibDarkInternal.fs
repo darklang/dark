@@ -46,7 +46,7 @@ let modify_schedule fn =
             ~canvas_id
             s ;
           DNull
-      | args ->
+      | _ ->
           incorrectArgs ())
 
 
@@ -81,7 +81,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                            Exception.internal
                              "Wrong number of fields from db query")
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -119,7 +119,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; returnType = TFloat
     ; description = "Cleanup the old traces from a canvas"
     ; fn =
-        internal_fn (function state, [] -> DFloat 0.0 | args -> incorrectArgs ())
+        internal_fn (function state, [] -> DFloat 0.0 | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
     ; deprecated = ReplacedBy(fn "" "" 0) }
@@ -133,7 +133,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         internal_fn (function
             | state, [DUuid canvas_id] ->
                 DFloat 0.0
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -152,7 +152,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DBool true
                 | Error _ ->
                     DBool false )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -171,7 +171,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     DResult (ResOk DNull)
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -194,7 +194,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     Dval.dstr_of_string_exn ""
                 | Error msg ->
                     Exception.code msg )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -224,7 +224,7 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -281,7 +281,7 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -309,7 +309,7 @@ that's already taken, returns an error."
                     DResult (ResOk (Dval.dstr_of_string_exn ""))
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -336,7 +336,7 @@ that's already taken, returns an error."
                             [ ("username", Dval.dstr_of_string_exn username)
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -364,7 +364,7 @@ that's already taken, returns an error."
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -391,7 +391,7 @@ that's already taken, returns an error."
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -408,7 +408,7 @@ that's already taken, returns an error."
                 Account.set_admin username admin ;
                 Stroller.heapio_identify_user username ;
                 DNull
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -424,7 +424,7 @@ that's already taken, returns an error."
                 Account.get_users ()
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -454,7 +454,7 @@ that's already taken, returns an error."
                 Serialize.hosts_for (Unicode_string.to_string account)
                 |> List.map Dval.dstr_of_string_exn
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -497,7 +497,7 @@ that's already taken, returns an error."
                     |> Dval.to_dobj_exn
                 | None ->
                     Dval.to_dobj_exn [] )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -512,7 +512,7 @@ that's already taken, returns an error."
             | _, [DStr host] ->
                 (* Removed, no longer useful now that you can copy from Fluid *)
                 Dval.dstr_of_string_exn ""
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -537,7 +537,7 @@ that's already taken, returns an error."
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id h.tlid))
                 |> fun l -> DList l
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -561,7 +561,7 @@ that's already taken, returns an error."
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id fn.tlid))
                 |> fun l -> DList l
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -600,7 +600,7 @@ that's already taken, returns an error."
                   |> ignore ;
                   DBool true
                 with _ -> DBool false )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -634,7 +634,7 @@ that's already taken, returns an error."
                   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !canvas.cors_setting |> cors_setting_to_dval
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -683,7 +683,7 @@ that's already taken, returns an error."
                     in
                     Canvas.update_cors_setting canvas settings ;
                     s |> DOption |> ResOk |> DResult )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -709,7 +709,7 @@ that's already taken, returns an error."
                 db_tlids
                 |> List.map (fun s -> DStr (Unicode_string.of_string_exn s))
                 |> fun l -> DList l
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -773,7 +773,7 @@ that's already taken, returns an error."
                 |> convert_to_date "created_at"
                 |> convert_to_date "updated_at"
                 |> fun o -> DObj o
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -823,7 +823,7 @@ that's already taken, returns an error."
                       |> fun l -> DList l
                     in
                     DOption (OptJust event_list) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -851,7 +851,7 @@ that's already taken, returns an error."
                   DResult
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -879,7 +879,7 @@ that's already taken, returns an error."
                   DResult
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -900,7 +900,7 @@ that's already taken, returns an error."
                          (Dval.dstr_of_string_exn "No session for cookie"))
                 | Some username ->
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -923,7 +923,7 @@ that's already taken, returns an error."
                     DOption (OptJust (Dval.dstr_of_string_exn s))
                 | None | _ ->
                     DOption OptNothing)
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -950,7 +950,7 @@ that's already taken, returns an error."
                     |> DObj
                     |> OptJust
                     |> DOption )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1000,7 +1000,7 @@ that's already taken, returns an error."
                 | Error e, _, _ | _, Error e, _ | _, _, Error e ->
                     Error e )
                 |> result_to_dval
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1028,7 +1028,7 @@ that's already taken, returns an error."
                            |> Dval.dstr_of_string_exn )
                          map)
                 |> fun obj -> DObj obj
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1056,7 +1056,7 @@ that's already taken, returns an error."
                            |> Dval.dstr_of_string_exn )
                          map)
                 |> fun obj -> DObj obj
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1079,7 +1079,7 @@ that's already taken, returns an error."
                 | None ->
                     "" )
                 |> Dval.dstr_of_string_exn
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1138,7 +1138,7 @@ that's already taken, returns an error."
                 in
                 Log.pP ~level name ~jsonparams ;
                 DObj log
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1170,7 +1170,7 @@ that's already taken, returns an error."
                        |> DList
                        |> Some)
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1202,7 +1202,7 @@ that's already taken, returns an error."
                        |> DList
                        |> Some)
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1232,7 +1232,7 @@ that's already taken, returns an error."
                     DResult
                       (ResError (Dval.dstr_of_string_exn "function not found"))
                 )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1278,7 +1278,7 @@ that's already taken, returns an error."
                     !Libexecution.Libs.static_fns
                 in
                 DList fns
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1297,7 +1297,7 @@ that's already taken, returns an error."
                 let canvas_id = Serialize.fetch_canvas_id owner host in
                 Static_assets.delete_assets_for_ellens_demo canvas_id ;
                 DNull
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1313,7 +1313,7 @@ that's already taken, returns an error."
                 Event_queue.get_all_scheduling_rules ()
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1330,7 +1330,7 @@ that's already taken, returns an error."
                 Event_queue.get_scheduling_rules_for_canvas canvas_id
                 |> List.map Event_queue.Scheduling_rule.to_dval
                 |> DList
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1405,7 +1405,7 @@ that's already taken, returns an error."
                           (ResError
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1469,7 +1469,7 @@ that's already taken, returns an error."
                           (ResError
                              (Dval.dstr_of_string_exn
                                 "Failed to create session")) ) )
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1490,7 +1490,7 @@ that's already taken, returns an error."
                   "DELETE FROM session WHERE session_key = $1"
                   [String session_key]
                 |> Dval.dint
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -1557,7 +1557,7 @@ human-readable data."
                            |> DObj ))
                 in
                 table_stats_for_dobj |> DvalMap.from_list |> DObj
-            | args ->
+            | _ ->
                 incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure

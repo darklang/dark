@@ -215,7 +215,7 @@ let call verb =
           (Some body)
           query
           headers
-    | args ->
+    | _ ->
         incorrectArgs ())
 
 
@@ -224,7 +224,7 @@ let call_no_body verb =
     (function
     | _, [DStr uri; query; headers] ->
         send_request (Unicode_string.to_string uri) verb None query headers
-    | args ->
+    | _ ->
         incorrectArgs ())
 
 
@@ -776,7 +776,7 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Authorization"
                    (DStr (encode_basic_auth_broken u p)))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -796,7 +796,7 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Authorization"
                    (DStr (encode_basic_auth u p)))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure

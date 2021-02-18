@@ -149,7 +149,7 @@ let fns : fn list =
               let payload = Dval.to_pretty_machine_yojson_v1 payload in
               sign_and_encode ~key ~extra_headers:[] ~payload
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -179,7 +179,7 @@ let fns : fn list =
               let payload = Dval.to_pretty_machine_yojson_v1 payload in
               sign_and_encode ~key ~extra_headers:json_hdrs ~payload
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -204,7 +204,7 @@ let fns : fn list =
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:[] ~payload
                   |> Dval.dstr_of_string_exn)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -235,7 +235,7 @@ let fns : fn list =
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:json_hdrs ~payload
                   |> Dval.dstr_of_string_exn)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -273,7 +273,7 @@ let fns : fn list =
                   |> DOption
               | None ->
                   DOption OptNothing ) )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -317,7 +317,7 @@ let fns : fn list =
                   if msg = "No public keys" then "Invalid public key" else msg
                 in
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure

@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [a] ->
 //             Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DObj o; DStr k; v] ->
 //             DObj (Map.set o (Unicode_string.to_string k) v)
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DObj o; DStr k] ->
 //             DObj (Map.remove o (Unicode_string.to_string k))
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
@@ -132,7 +132,7 @@ let fns : List<BuiltInFn> =
 //             in
 //             Dval.dstr_of_string_exn
 //               (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
@@ -147,7 +147,7 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DError (_, err)] ->
 //             Dval.dstr_of_string_exn err
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
@@ -165,7 +165,7 @@ let fns : List<BuiltInFn> =
 //             |> Unicode_string.to_string
 //             |> Stdlib_util.AWS.url_encode
 //             |> Dval.dstr_of_string_exn
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
@@ -183,7 +183,7 @@ let fns : List<BuiltInFn> =
 //             |> Unicode_string.to_string
 //             |> Uri.pct_encode `Userinfo
 //             |> Dval.dstr_of_string_exn
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure

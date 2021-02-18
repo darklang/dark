@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [] -> Value(DObj(Map []))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -111,7 +111,7 @@ let fns : List<BuiltInFn> =
             |> Map
             |> DObj
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
         (function
         // FSTODO
         | state, [] -> Value(DObj(Map []))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -139,7 +139,7 @@ let fns : List<BuiltInFn> =
         (function
         // FSTODO
         | state, [] -> Value(DObj(Map []))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
         (function
         // FSTODO
         | state, [] -> Value(DObj(Map []))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -171,7 +171,7 @@ let fns : List<BuiltInFn> =
         (function
         // FSTODO
         | state, [] -> Value(DObj(Map []))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
             Value(
               DHttpResponse(Response(code, headers ++ [ name, value ]), responseVal)
             )
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -201,7 +201,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DHttpResponse (_, responseVal) ] -> Value responseVal
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -229,7 +229,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal _ as next ] ->
             let st = Map.empty |> Map.add "next" next
             Interpreter.eval state st code
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -265,7 +265,7 @@ let fns : List<BuiltInFn> =
                     bytified
                   )
                 )
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal _ as next ] ->
             let st = Map.empty |> Map.add "next" next
             Interpreter.eval state st code
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -328,7 +328,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal _ as next ] ->
             let st = Map.empty |> Map.add "next" next
             Interpreter.eval state st code
-        | _, args -> incorrectArgs ())
+        | _, _ -> incorrectArgs ())
 
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -388,7 +388,7 @@ let fns : List<BuiltInFn> =
               |> Map.add "handler" handler
 
             Interpreter.eval state st code
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

@@ -138,7 +138,7 @@ let fns : List<BuiltInFn> =
              |> Seq.toList
              |> DList
              |> Value)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -170,7 +170,7 @@ let fns : List<BuiltInFn> =
             (try
               s |> System.Numerics.BigInteger.Parse |> DInt |> Value
              with e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toInt" 1) }
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
               |> Error
               |> DResult
               |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -204,7 +204,7 @@ let fns : List<BuiltInFn> =
             (try
               float (s) |> DFloat |> Value
              with e -> err (Errors.argumentWasnt "a stringified float" "s" dv))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toFloat" 1) }
@@ -223,7 +223,7 @@ let fns : List<BuiltInFn> =
                |> Error
                |> DResult
                |> Value)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -234,7 +234,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toUpper s))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toUpper s))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -256,7 +256,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toLower s))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toLowercase" 1) }
@@ -267,7 +267,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] -> Value(DStr(String.toLower s))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -279,7 +279,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "length"
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "length" 1) }
@@ -290,7 +290,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO // there isn't a unicode version of length
       previewable = Pure
       deprecated = NotDeprecated }
@@ -319,7 +319,7 @@ let fns : List<BuiltInFn> =
                 )
               )
             )
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "append" 1) }
@@ -332,7 +332,7 @@ let fns : List<BuiltInFn> =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
         | _, [ DStr s1; DStr s2 ] -> Value(DStr((s1 + s2).Normalize()))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -344,7 +344,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s1; DStr s2 ] -> Value(DStr(s2 + s1))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -372,7 +372,7 @@ let fns : List<BuiltInFn> =
             |> DStr
             |> Value
 
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "slugify" 1) }
@@ -399,7 +399,7 @@ let fns : List<BuiltInFn> =
             |> String.toLower
             |> DStr
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "slugify" 2) }
@@ -429,7 +429,7 @@ let fns : List<BuiltInFn> =
             |> String.toLower
             |> DStr
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -441,7 +441,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "reverse"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -458,7 +458,7 @@ let fns : List<BuiltInFn> =
             |> List.map (fun str -> DStr str)
             |> DList
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -478,7 +478,7 @@ let fns : List<BuiltInFn> =
                 l
 
             Value(DStr((String.concat sep strs).Normalize()))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -506,7 +506,7 @@ let fns : List<BuiltInFn> =
               |> String.concat ""
             )
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -525,7 +525,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DChar c ] -> Value(DStr(c))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -537,7 +537,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] -> Prelude.base64UrlEncode s |> DStr |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -564,7 +564,7 @@ let fns : List<BuiltInFn> =
 //                   RT.error
 //                       (Dval.dstr_of_string_exn (Unicode_string.to_string s))
 //                     "Not a valid base64 string" ) )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //      ; sqlSpec = NotYetImplementedTODO
 //      ; previewable = Pure
@@ -585,7 +585,7 @@ Don't rely on either the size or the algorithm."
             System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
             |> DStr
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -605,7 +605,7 @@ Don't rely on either the size or the algorithm."
             System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
             |> DStr
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Crypto" "sha384" 0) }
@@ -625,7 +625,7 @@ Don't rely on either the size or the algorithm."
             System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
             |> DStr
             |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Crypto" "sha256" 0) }
@@ -653,7 +653,7 @@ Don't rely on either the size or the algorithm."
                 |> String.concat ""
 
               randomString (int l) |> DStr |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "String" "random" 1) }
@@ -681,7 +681,7 @@ Don't rely on either the size or the algorithm."
                 |> String.concat ""
 
               randomString (int l) |> DStr |> Ok |> DResult |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = ReplacedBy(fn "String" "random" 1) }
@@ -709,7 +709,7 @@ Don't rely on either the size or the algorithm."
                 |> String.concat ""
 
               randomString (int l) |> DStr |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
@@ -739,7 +739,7 @@ Don't rely on either the size or the algorithm."
               |> String.concat ""
 
             Value(DStr(htmlEscape s))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated }
@@ -758,7 +758,7 @@ Don't rely on either the size or the algorithm."
                   "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
                 )
 
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toUUID" 1) }
@@ -778,7 +778,7 @@ Don't rely on either the size or the algorithm."
                 |> Error
                 |> DResult
                 |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -791,7 +791,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr needle; DStr haystack ] ->
             DBool(haystack.Contains needle) |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "isSubstring" 1) }
@@ -804,7 +804,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DStr haystack; DStr needle ] ->
             DBool(haystack.Contains needle) |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec =
         SqlCallback2
           (fun lookingIn searchingFor ->
@@ -820,7 +820,7 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr haystack; DStr needle ] -> Value(DBool(haystack.Contains needle))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec =
         SqlCallback2
           (fun lookingIn searchingFor ->
@@ -884,7 +884,7 @@ Don't rely on either the size or the algorithm."
 
             let first, last = (f, l) in
             Value(DStr(slice s first last))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -921,7 +921,7 @@ Don't rely on either the size or the algorithm."
               stringBuilder.ToString()
 
             Value(DStr(firstN s n))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -966,7 +966,7 @@ Don't rely on either the size or the algorithm."
               stringBuilder.ToString()
 
             Value(DStr(lastN s n))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1009,7 +1009,7 @@ Don't rely on either the size or the algorithm."
               stringBuilder.ToString()
 
             Value(DStr(dropLastN s n))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1045,7 +1045,7 @@ Don't rely on either the size or the algorithm."
               stringBuilder.ToString()
 
             Value(DStr(dropFirstN s n))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1097,7 +1097,7 @@ Don't rely on either the size or the algorithm."
               Value(DStr(padStart s padWith l))
             else
               err (Errors.argumentWasnt "1 character long" "padWith" dv)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1150,7 +1150,7 @@ Don't rely on either the size or the algorithm."
               Value(DStr(padEnd s padWith l))
             else
               err (Errors.argumentWasnt "1 character long" "padWith" dv)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1162,7 +1162,7 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr toTrim ] -> Value(DStr(toTrim.Trim()))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1174,7 +1174,7 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimStart()))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "ltrim"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1186,7 +1186,7 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr toTrim ] -> Value(DStr(toTrim.TrimEnd()))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "rtrim"
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1200,7 +1200,7 @@ Don't rely on either the size or the algorithm."
         | _, [ DStr str ] ->
             let theBytes = System.Text.Encoding.UTF8.GetBytes str in
             Value(DBytes theBytes)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1211,7 +1211,7 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr subject; DStr prefix ] -> Value(DBool(subject.StartsWith prefix))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -1224,7 +1224,7 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr subject; DStr suffix ] -> Value(DBool(subject.EndsWith suffix))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

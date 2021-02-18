@@ -20,7 +20,7 @@ let fns : fn list =
               let name = Unicode_string.to_string name in
               Event_queue.enqueue ~canvas_id ~account_id space name "_" data ;
               data
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -38,7 +38,7 @@ let fns : fn list =
               let name = Unicode_string.to_string name in
               Event_queue.enqueue ~canvas_id ~account_id "WORKER" name "_" data ;
               data
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure

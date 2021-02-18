@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ v ] -> Value(DList [ v ])
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "head" 1) }
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] -> Value(DOption(List.tryHead l))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "head" 2) }
@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
             (match List.tryHead l with
              | Some dv -> Value(l.Head)
              | None -> Value(DOption None))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList l ] ->
             (if List.length l > 0 then DList l.Tail else DOption None) |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] -> Value(DList [])
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
         // fakeval handled by call *)
         (function
         | _, [ DList l; i ] -> Value(DList(i :: l))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -110,7 +110,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l; i ] -> Value(DList(l @ [ i ]))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -122,7 +122,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] -> (if l.Length > 0 then List.last l else DNull) |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "last" 1) }
@@ -134,7 +134,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] -> Value(DOption(List.tryLast l))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "last" 2) }
@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
 //               DOption OptNothing
 //           | _, [DList l] ->
 //               Dval.to_opt_just (List.last_exn l)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -162,7 +162,7 @@ let fns : List<BuiltInFn> =
 //     ; description = "Returns a reversed copy of `list`."
 //     ; fn =
 //
-//           (function _, [DList l] -> DList (List.rev l) | args -> incorrectArgs ())
+//           (function _, [DList l] -> DList (List.rev l) | _ -> incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
@@ -180,7 +180,7 @@ let fns : List<BuiltInFn> =
 //                 DBool true = Ast.execute_dblock ~state b [dv]
 //               in
 //               (match List.find ~f l with None -> DNull | Some dv -> dv)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
 //                   DOption OptNothing
 //               | Some dv ->
 //                   DOption (OptJust dv) )
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -226,7 +226,7 @@ let fns : List<BuiltInFn> =
 //                   DOption OptNothing
 //               | Some dv ->
 //                   Dval.to_opt_just dv )
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -241,7 +241,7 @@ let fns : List<BuiltInFn> =
 //           (function
 //           | _, [DList l; i] ->
 //               DBool (List.mem equal_dval l i)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable =
@@ -258,7 +258,7 @@ let fns : List<BuiltInFn> =
 //           (function
 //           | _, [DList l; i] ->
 //               DBool (List.mem equal_dval l i)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -274,7 +274,7 @@ let fns : List<BuiltInFn> =
 //           (function
 //           | _, [DInt t; dv] ->
 //               DList (List.init (Dint.to_int_exn t) (fun _ -> dv))
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -286,7 +286,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] -> Value(Dval.int (l.Length))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
@@ -301,7 +301,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt start; DInt stop ] ->
             [ start .. stop ] |> List.map DInt |> DList |> Value
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -337,7 +337,7 @@ let fns : List<BuiltInFn> =
 
               return! List.fold f (Value init) l
             }
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -358,7 +358,7 @@ let fns : List<BuiltInFn> =
 //                     RT.error (DList [a; b]) "Flattening non-lists"
 //               in
 //               List.fold (DList []) ~f l
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -381,7 +381,7 @@ let fns : List<BuiltInFn> =
 //                   (match t with [] -> [h] | t -> [h] @ [i] @ join t)
 //               in
 //               DList (join l)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -404,7 +404,7 @@ let fns : List<BuiltInFn> =
 //                   (match l2 with [] -> l1 | y :: ys -> x :: y :: f xs ys)
 //               in
 //               DList (f l1 l2)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -423,7 +423,7 @@ let fns : List<BuiltInFn> =
 //               DList
 //                 (List.dedup_and_sort l (fun a b ->
 //                      compare_dval (fn a) (fn b)))
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -435,7 +435,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] -> Value(DBool(List.isEmpty l))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -545,7 +545,7 @@ let fns : List<BuiltInFn> =
 //                   |> DResult
 //                 with Exception.DarkException e ->
 //                   DResult (ResError (Dval.dstr_of_string_exn e.short)) )
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -560,7 +560,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList l1; DList l2 ] ->
             Value(DList(List.append l1 l2)) (* no checking for fake cf required *)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -648,7 +648,7 @@ let fns : List<BuiltInFn> =
                 let! result = filter_s f l
                 return DBool((result.Length) = (l.Length))
             }
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -680,7 +680,7 @@ let fns : List<BuiltInFn> =
 //               in
 //               let result = List.filter ~f l in
 //               (match !fakecf with None -> DList result | Some v -> v)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -723,7 +723,7 @@ let fns : List<BuiltInFn> =
 //               in
 //               let result = List.filter ~f l in
 //               (match !abortReason with None -> DList result | Some v -> v)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -771,7 +771,7 @@ let fns : List<BuiltInFn> =
 //               in
 //               let result = List.filter_map ~f l in
 //               (match !abortReason with None -> DList result | Some v -> v)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -786,7 +786,7 @@ let fns : List<BuiltInFn> =
 //           (function
 //           | _, [DList l; DInt c] ->
 //               DList (List.drop l (Dint.to_int_exn c))
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -833,7 +833,7 @@ let fns : List<BuiltInFn> =
 //               in
 //               let result = f l in
 //               (match !abortReason with None -> DList result | Some v -> v)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -848,7 +848,7 @@ let fns : List<BuiltInFn> =
 //           (function
 //           | _, [DList l; DInt c] ->
 //               DList (List.take l (Dint.to_int_exn c))
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -895,7 +895,7 @@ let fns : List<BuiltInFn> =
 //               in
 //               let result = f l in
 //               (match !abortReason with None -> DList result | Some v -> v)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -925,7 +925,7 @@ let fns : List<BuiltInFn> =
 
               return Dval.list result
             }
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "map" 0) }
@@ -976,7 +976,7 @@ let fns : List<BuiltInFn> =
 //                 Ast.execute_dblock ~state b [Dval.dint idx; dv]
 //               in
 //               Dval.to_list (List.mapi ~f l)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1002,7 +1002,7 @@ let fns : List<BuiltInFn> =
 //                 Ast.execute_dblock ~state b [l1Item; l2Item]
 //               in
 //               Dval.to_list (List.map2_exn ~f l1 l2)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1029,7 +1029,7 @@ let fns : List<BuiltInFn> =
 //                     OptJust (Dval.to_list res)
 //                 | Unequal_lengths ->
 //                     OptNothing )
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1056,7 +1056,7 @@ let fns : List<BuiltInFn> =
 //                 Dval.to_list [l1Item; l2Item]
 //               in
 //               Dval.to_list (List.map2_exn ~f l1 l2)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1083,7 +1083,7 @@ let fns : List<BuiltInFn> =
 //                     OptJust (Dval.to_list res)
 //                 | Unequal_lengths ->
 //                     OptNothing )
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1151,7 +1151,7 @@ let fns : List<BuiltInFn> =
 //                   DList [DList res_a; DList res_b]
 //               | Error v ->
 //                   v )
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1169,7 +1169,7 @@ let fns : List<BuiltInFn> =
 //               List.nth l (Dint.to_int_exn index)
 //               |> Option.map (fun a -> DOption (OptJust a))
 //               |> Option.value (DOption OptNothing)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1187,7 +1187,7 @@ let fns : List<BuiltInFn> =
 //               List.nth l (Dint.to_int_exn index)
 //               |> Option.map (fun a -> Dval.to_opt_just a)
 //               |> Option.value (DOption OptNothing)
-//           | args ->
+//           | _ ->
 //               incorrectArgs ())
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
@@ -1202,7 +1202,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DList [] ] -> Value(DOption None)
         | _, [ DList l ] -> Value(l.[Prelude.random.Next l.Length])
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
       deprecated = NotDeprecated } ]

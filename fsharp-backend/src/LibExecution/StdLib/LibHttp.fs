@@ -15,7 +15,7 @@ let fns : fn list =
           (function
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -31,7 +31,7 @@ let fns : fn list =
           (function
           | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -52,7 +52,7 @@ let fns : fn list =
           | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -69,7 +69,7 @@ let fns : fn list =
           | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -83,7 +83,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [dv] -> DResp (Response (200, []), dv) | args -> incorrectArgs ())
+          | _, [dv] -> DResp (Response (200, []), dv) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -101,7 +101,7 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -120,7 +120,7 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -139,7 +139,7 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -158,7 +158,7 @@ let fns : fn list =
                 ( Response
                     (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -178,7 +178,7 @@ let fns : fn list =
                     ( Dint.to_int_exn code
                     , [("Content-Type", "application/json")] )
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -198,7 +198,7 @@ let fns : fn list =
                     ( Dint.to_int_exn code
                     , [("Content-Type", "application/json")] )
                 , dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -214,7 +214,7 @@ let fns : fn list =
           (function
           | _, [DStr url] ->
               DResp (Redirect (Unicode_string.to_string url), DNull)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -230,7 +230,7 @@ let fns : fn list =
           (function
           | _, [DStr msg] ->
               DResp (Response (400, []), DStr msg)
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -244,7 +244,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (404, []), DNull) | args -> incorrectArgs ())
+          | _, [] -> DResp (Response (404, []), DNull) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -257,7 +257,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (401, []), DNull) | args -> incorrectArgs ())
+          | _, [] -> DResp (Response (401, []), DNull) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -270,7 +270,7 @@ let fns : fn list =
     ; fn =
 
           (function
-          | _, [] -> DResp (Response (403, []), DNull) | args -> incorrectArgs ())
+          | _, [] -> DResp (Response (403, []), DNull) | _ -> incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
     ; deprecated = NotDeprecated }
@@ -316,7 +316,7 @@ let fns : fn list =
                    (Uri.pct_encode (Unicode_string.to_string value))
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -373,7 +373,7 @@ let fns : fn list =
                    (Unicode_string.to_string value)
               |> Dval.dstr_of_string_exn
               |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -533,7 +533,7 @@ let fns : fn list =
                   |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
               | Error dv ->
                   dv )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure

@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
                   return DResult(Ok result)
               | Error _ -> return DResult r
             }
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Result" "map" 1) } ]
@@ -62,7 +62,7 @@ let fns : List<BuiltInFn> =
 //               Dval.to_res_ok result
 //           | ResError _ ->
 //               DResult r )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
 //           | ResError err ->
 //               let result = Ast.execute_dblock ~state b [err] in
 //               DResult (ResError result) )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
 //           | ResError err ->
 //               let result = Ast.execute_dblock ~state b [err] in
 //               Dval.to_res_err result )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -120,7 +120,7 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DResult o; default] ->
 //           (match o with ResOk dv -> dv | ResError _ -> default)
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
 //               DResult (ResOk dv)
 //           | OptNothing ->
 //               DResult (ResError (DStr error)) )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -165,7 +165,7 @@ let fns : List<BuiltInFn> =
 //               *)
 //           | OptNothing ->
 //               Dval.to_res_err (DStr error) )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -184,7 +184,7 @@ let fns : List<BuiltInFn> =
 //               DOption (OptJust dv)
 //           | ResError _ ->
 //               DOption OptNothing )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
 //               Dval.to_opt_just dv
 //           | ResError _ ->
 //               DOption OptNothing )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -227,7 +227,7 @@ let fns : List<BuiltInFn> =
 //           | ResOk dv1, ResOk dv2 ->
 //               let result = Ast.execute_dblock ~state b [dv1; dv2] in
 //               Dval.to_res_ok result )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -255,7 +255,7 @@ let fns : List<BuiltInFn> =
 //                     "Expected `f` to return a result" )
 //           | ResError msg ->
 //               DResult (ResError msg) )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
@@ -285,7 +285,7 @@ let fns : List<BuiltInFn> =
 //                     "Expected `f` to return a result" )
 //           | ResError msg ->
 //               DResult (ResError msg) )
-//         | args ->
+//         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure

@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [] -> Value(DFakeVal(DErrorRail(DOption None)))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr errorString ] ->
             Value(DFakeVal(DError(SourceNone, errorString)))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
         | state, [ DStr errorString ] ->
             let msg = LibExecution.Errors.queryCompilerErrorTemplate ++ errorString
             Value(DFakeVal(DError(SourceNone, msg)))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -64,7 +64,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] -> Value(DFloat(System.Double.NaN))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -75,7 +75,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] -> Value(DFloat(System.Double.PositiveInfinity))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [] -> Value(DFloat(System.Double.NegativeInfinity))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
         | state, [ arg ] ->
             sideEffectCount := !sideEffectCount + 1
             Value(arg)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [] -> Value(Dval.int !sideEffectCount)
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated } ]

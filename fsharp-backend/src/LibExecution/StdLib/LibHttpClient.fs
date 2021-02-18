@@ -18,7 +18,7 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "application/x-www-form-urlencoded"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -36,7 +36,7 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "application/json; charset=utf-8"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -54,7 +54,7 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "text/plain; charset=utf-8"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -72,7 +72,7 @@ let fns : fn list =
                 (DvalMap.singleton
                    "Content-Type"
                    (Dval.dstr_of_string_exn "text/html; charset=utf-8"))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -93,7 +93,7 @@ let fns : fn list =
                   token
               in
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure
@@ -115,7 +115,7 @@ let fns : fn list =
                   token
               in
               DObj (DvalMap.singleton "Authorization" (DStr auth_string))
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Pure

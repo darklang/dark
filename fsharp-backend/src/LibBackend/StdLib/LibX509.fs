@@ -27,7 +27,7 @@ let fns : Types.RuntimeT.fn list =
                 |> DResult
               with Invalid_argument msg ->
                 DResult (ResError (Dval.dstr_of_string_exn msg)) )
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure

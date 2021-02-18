@@ -59,7 +59,7 @@ let fns : fn list =
                 body
                 (DObj DvalMap.empty)
                 headers
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -121,7 +121,7 @@ let fns : fn list =
                 body
                 (DObj DvalMap.empty)
                 headers
-          | args ->
+          | _ ->
               incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure

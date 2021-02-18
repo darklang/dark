@@ -18,7 +18,7 @@ let fns : fn list =
           | state, [DStr deploy_hash] ->
               url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -34,7 +34,7 @@ let fns : fn list =
           | state, [] ->
               url state.canvas_id (latest_deploy_hash state.canvas_id) `Short
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -54,7 +54,7 @@ let fns : fn list =
                 `Short
                 (Unicode_string.to_string file)
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -74,7 +74,7 @@ let fns : fn list =
                 `Short
                 (Unicode_string.to_string file)
               |> Dval.dstr_of_string_exn
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -109,7 +109,7 @@ let fns : fn list =
                        (Dval.dstr_of_string_exn "Response was not
 UTF-8 safe"))
               )
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -141,7 +141,7 @@ UTF-8 safe"))
               | None ->
                   Dval.to_res_err
                     (Dval.dstr_of_string_exn "Response was not UTF-8 safe") )
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -172,7 +172,7 @@ UTF-8 safe"))
                   ""
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -207,7 +207,7 @@ UTF-8 safe"))
                        (Dval.dstr_of_string_exn "Response was not
 UTF-8 safe"))
               )
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -240,7 +240,7 @@ UTF-8 safe"))
                   Dval.to_res_err
                     (Dval.dstr_of_string_exn "Response was not
 UTF-8 safe") )
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -271,7 +271,7 @@ UTF-8 safe") )
                   ""
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -331,7 +331,7 @@ UTF-8 safe") )
                     (ResError
                        (Dval.dstr_of_string_exn "Response was not UTF-8 safe"))
               )
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -387,7 +387,7 @@ UTF-8 safe") )
                    (DResp
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -444,7 +444,7 @@ UTF-8 safe") )
                    (DResp
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
@@ -500,7 +500,7 @@ UTF-8 safe") )
                    (DResp
                       ( Response (code, headers)
                       , DBytes (body |> RawBytes.of_string) )))
-          | args ->
+          | _ ->
               Libexecution.Lib.incorrectArgs ())
     ; sqlSpec = NotYetImplementedTODO
       ; previewable = Impure
