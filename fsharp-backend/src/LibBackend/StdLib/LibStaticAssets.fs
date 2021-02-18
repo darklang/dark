@@ -36,7 +36,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "baseUrlForLatest" 0
-//
 //     ; parameters = []
 //     ; returnType = TStr
 //     ; description = "Return the baseUrl for the latest deploy"
@@ -51,7 +50,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "urlFor" 0
-//
 //     ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
 //     ; returnType = TStr
 //     ; description = "Return a url for the specified file and deploy hash"
@@ -70,7 +68,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "urlForLatest" 0
-//
 //     ; parameters = [Param.make "file" TStr ""]
 //     ; returnType = TStr
 //     ; description = "Return a url for the specified file and latest deploy"
@@ -89,7 +86,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "fetch" 0
-//
 //     ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -123,7 +119,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "StaticAssets" "fetch" 1
-//
 //     ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -154,7 +149,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "fetchBytes" 0
-//
 //     ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -184,7 +178,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "fetchLatest" 0
-//
 //     ; parameters = [Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -218,7 +211,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "StaticAssets" "fetchLatest" 1
-//
 //     ; parameters = [Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -250,7 +242,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "fetchLatestBytes" 0
-//
 //     ; parameters = [Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -280,7 +271,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "serve" 0
-//
 //     ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -339,7 +329,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "StaticAssets" "serve" 1
-//
 //     ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description = "Return the specified file from the latest deploy"
@@ -394,7 +383,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "StaticAssets" "serveLatest" 0
-//
 //     ; parameters = [Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -450,7 +438,6 @@ let fns : List<BuiltInFn> = []
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "StaticAssets" "serveLatest" 1
-//
 //     ; parameters = [Param.make "file" TStr ""]
 //     ; returnType = TResult
 //     ; description = "Return the specified file from the latest deploy"

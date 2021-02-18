@@ -73,7 +73,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "endUsers" 0
-//
 //     ; parameters = []
 //     ; returnType = TList
 //     ; description =
@@ -99,7 +98,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "checkAllCanvases" 0
-//
 //     ; parameters = []
 //     ; returnType = TNull
 //     ; description = "TODO"
@@ -108,7 +106,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "migrateAllCanvases" 0
-//
 //     ; parameters = []
 //     ; returnType = TNull
 //     ; description = "REMOVED"
@@ -117,7 +114,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "cleanupOldTraces" 0
-//
 //     ; parameters = []
 //     ; returnType = TNull
 //     ; description = "Deprecated, use v1"
@@ -126,7 +122,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "cleanupOldTraces" 1
-//
 //     ; parameters = []
 //     ; returnType = TFloat
 //     ; description = "Cleanup the old traces from a canvas"
@@ -136,7 +131,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
-//
 //     ; parameters = [Param.make "canvas_id" TUuid ""]
 //     ; returnType = TFloat
 //     ; description =
@@ -151,7 +145,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "checkCanvas" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TBool
 //     ; description = "Validate the canvas' opcodes"
@@ -170,7 +163,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "migrateCanvas" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TResult
 //     ; description = "Migrate a canvas' opcodes"
@@ -189,7 +181,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "upsertUser" 0
-//
 //     ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
 //     ; returnType = TStr
 //     ; description =
@@ -212,7 +203,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "insertUser" 1
-//
 //     ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -242,7 +232,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "insertUser" 2
-//
 //     ; parameters =
 //         [ Param.make "username" TStr
 //         ; Param.make "email" TStr
@@ -299,7 +288,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "upsertUser" 1
-//
 //     ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -327,7 +315,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getUser" 0
-//
 //     ; parameters = [Param.make "username" TStr ""]
 //     ; returnType = TOption
 //     ; description =
@@ -354,7 +341,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "getUser" 1
-//
 //     ; parameters = [Param.make "username" TStr ""]
 //     ; returnType = TOption
 //     ; description =
@@ -382,7 +368,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getUserByEmail" 0
-//
 //     ; parameters = [Param.make "email" TStr ""]
 //     ; returnType = TOption
 //     ; description = "Return a user for the email. Does not include passwords."
@@ -409,7 +394,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "setAdmin" 0
-//
 //     ; parameters = [Param.make "username" TStr ""; Param.make "admin" TBool ""]
 //     ; returnType = TNull
 //     ; description = "Set whether a user is an admin. Returns null."
@@ -426,7 +410,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getUsers" 0
-//
 //     ; parameters = []
 //     ; returnType = TList
 //     ; description = "Return a list of username of all the accounts in Dark."
@@ -442,7 +425,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getAllCanvases" 0
-//
 //     ; parameters = []
 //     ; returnType = TList
 //     ; description = "TODO"
@@ -455,7 +437,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "canvasesFor" 0
-//
 //     ; parameters = [Param.make "account" TStr ""]
 //     ; returnType = TList
 //     ; description =
@@ -472,7 +453,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "schema" 0
-//
 //     ; parameters = [Param.make "host" TStr ""; Param.make "dbid" TStr ""]
 //     ; returnType = TObj
 //     ; description = "Return a schema for the db"
@@ -515,7 +495,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "canvasAsText" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TStr
 //     ; description = "TODO"
@@ -530,7 +509,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "handlers" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TList
 //     ; description = "Returns a list of toplevel ids of handlers in `host`"
@@ -555,7 +533,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "functions" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TList
 //     ; description = "Returns a list of toplevel ids of the functions in `host`"
@@ -579,7 +556,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "canLoadTraces" 0
-//
 //     ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
 //     ; returnType = TBool
 //     ; description =
@@ -618,7 +594,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getCORSSetting" 0
-//
 //     ; parameters = [Param.make "canvas" TStr ""]
 //     ; returnType = TOption
 //     ; description =
@@ -652,7 +627,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "setCORSSetting" 0
-//
 //     ; parameters = [Param.make "canvas" TStr ""; Param.make "origins" TOption ""]
 //     ; returnType = TResult
 //     ; description =
@@ -701,7 +675,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "dbs" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TList
 //     ; description = "Returns a list of toplevel ids of dbs in `host`"
@@ -727,7 +700,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "oplistInfo" 0
-//
 //     ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
 //     ; returnType = TObj
 //     ; description =
@@ -791,7 +763,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "storedEvents" 0
-//
 //     ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
 //     ; returnType = TOption
 //     ; description =
@@ -841,7 +812,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "pushStrollerEvent" 0
-//
 //     ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" TObj ""]
 //     ; returnType = TResult
 //     ; description = "Pushes an event to Stroller"
@@ -869,7 +839,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "pushStrollerEvent" 1
-//
 //     ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" TAny ""]
 //     ; returnType = TResult
 //     ; description = "Pushes an event to Stroller"
@@ -897,7 +866,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "sessionKeyToUsername" 0
-//
 //     ; parameters = [Param.make "sessionKey" TStr ""]
 //     ; returnType = TOption
 //     ; description = "Looks up the username for a session_key"
@@ -918,7 +886,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TOption
 //     ; description = "Gives canvasId for a canvasName/host"
@@ -941,7 +908,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "usernameToUserInfo" 0
-//
 //     ; parameters = [Param.make "username" TStr ""]
 //     ; returnType = TOption
 //     ; description =
@@ -968,7 +934,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "grant" 0
-//
 //     ; parameters = [Param.make "username" TStr ""; Param.make "org" TStr ""; Param.make "permission" TStr ""]
 //     ; returnType = TResult
 //     ; description = "Set a user's permissions for a particular auth_domain."
@@ -1018,7 +983,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "grantsFor" 0
-//
 //     ; parameters = [Param.make "org" TStr ""]
 //     ; returnType = TObj
 //     ; description =
@@ -1046,7 +1010,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "orgsFor" 0
-//
 //     ; parameters = [Param.make "username" TStr ""]
 //     ; returnType = TObj
 //     ; description =
@@ -1074,7 +1037,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "checkPermission" 0
-//
 //     ; parameters = [Param.make "username" TStr ""; Param.make "canvas" TStr ""]
 //     ; returnType = TBool
 //     ; description = "Check a user's permissions for a particular canvas."
@@ -1097,7 +1059,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "log" 0
-//
 //     ; parameters = [Param.make "level" TStr ""; Param.make "name" TStr ""; Param.make "log" TObj ""]
 //     ; returnType = TObj
 //     ; description =
@@ -1156,7 +1117,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "fnsUsed" 0
-//
 //     ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
 //     ; returnType = TList
 //     ; description =
@@ -1188,7 +1148,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "fieldNamesUsed" 0
-//
 //     ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
 //     ; returnType = TList
 //     ; description =
@@ -1220,7 +1179,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "fnMetadata" 0
-//
 //     ; parameters = [Param.make "name" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -1250,7 +1208,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "allFunctions" 0
-//
 //     ; parameters = []
 //     ; returnType = TList
 //     ; description =
@@ -1296,7 +1253,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "clearStaticAssets" 0
-//
 //     ; parameters = [Param.make "host" TStr ""]
 //     ; returnType = TNull
 //     ; description =
@@ -1315,7 +1271,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getAllSchedulingRules" 0
-//
 //     ; parameters = []
 //     ; returnType = TList
 //     ; description = "Returns a list of all queue scheduling rules."
@@ -1331,7 +1286,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
-//
 //     ; parameters = [Param.make "canvas_id" TUuid ""]
 //     ; returnType = TList
 //     ; description =
@@ -1348,7 +1302,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
-//
 //     ; parameters = [Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr ""]
 //     ; returnType = TNull
 //     ; description =
@@ -1358,7 +1311,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
-//
 //     ; parameters = [Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr ""]
 //     ; returnType = TNull
 //     ; description =
@@ -1368,7 +1320,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "newSessionForUsername" 0
-//
 //     ; parameters = [Param.make "username" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -1423,7 +1374,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "newSessionForUsername" 1
-//
 //     ; parameters = [Param.make "username" TStr ""]
 //     ; returnType = TResult
 //     ; description =
@@ -1487,7 +1437,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "deleteSession" 0
-//
 //     ; parameters = [Param.make "session_key" TStr ""]
 //     ; returnType = TInt
 //     ; description =
@@ -1508,7 +1457,6 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "DarkInternal" "getAndLogTableSizes" 0
-//
 //     ; parameters = []
 //     ; returnType = TObj
 //     ; description =
