@@ -126,7 +126,7 @@ type TestInfo =
     code : string
     dbs : List<RT.DB.T> }
 
-type TestGroup = { name : string; tests : List<Test> }
+type TestGroup = { name : string; tests : List<Test>; dbs : List<RT.DB.T> }
 
 type FnInfo =
   { name : string
@@ -147,7 +147,7 @@ let fileTests () : Test =
          let emptyFn =
            { recording = false; name = ""; parameters = []; code = ""; tlid = id 0 }
 
-         let emptyGroup = { name = ""; tests = [] }
+         let emptyGroup = { name = ""; tests = []; dbs = [] }
 
          // for recording a multiline test
          let mutable currentTest = emptyTest
@@ -195,6 +195,14 @@ let fileTests () : Test =
 
                 match line with
                 // [tests] indicator
+                | Regex @"^\[tests\.(.*)\] with DB (.*)$" [ name; dbName ] ->
+                    finish ()
+
+                    match Map.get dbName dbs with
+                    | Some db -> currentGroup <- { currentGroup with dbs = [ db ] }
+                    | None -> failwith $"No DB named {dbName} found"
+
+                    currentGroup <- { currentGroup with name = name }
                 | Regex @"^\[tests\.(.*)\]$" [ name ] ->
                     finish ()
                     currentGroup <- { currentGroup with name = name }
@@ -256,12 +264,13 @@ let fileTests () : Test =
                     currentFn <- { currentFn with code = currentFn.code + line }
                 // 1-line test
                 | Regex "^(.*)\s*$" [ code ] ->
-                    let test = t $"line {i}" code [] functions
+                    let test = t $"line {i}" code currentGroup.dbs functions
 
                     currentGroup <-
                       { currentGroup with tests = currentGroup.tests @ [ test ] }
                 | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
-                    let test = t $"{comment} (line {i})" code [] functions
+                    let test =
+                      t $"{comment} (line {i})" code currentGroup.dbs functions
 
                     currentGroup <-
                       { currentGroup with tests = currentGroup.tests @ [ test ] }

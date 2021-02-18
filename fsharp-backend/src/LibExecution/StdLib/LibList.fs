@@ -279,18 +279,17 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //       ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "length" 0
-//
-//     ; parameters = [Param.make "list" TList]
-//     ; returnType = TInt
-//     ; description = "Returns the number of values in `list`."
-//     ; fn =
-//
-//           (function
-//           | _, [DList l] -> Dval.dint (List.length l) | args -> incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//       ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "length" 0
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TInt
+      description = "Returns the number of values in `list`."
+      fn =
+        (function
+        | _, [ DList l ] -> Value(Dval.int (l.Length))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "range" 0
       parameters =
         [ Param.make "lowest" TInt "First, smallest number in the list"

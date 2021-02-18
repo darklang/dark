@@ -135,7 +135,17 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   let de l r = dvalEquals l r msg
 
   match left, right with
-  | DFloat l, DFloat r -> Expect.floatClose Accuracy.veryHigh l r msg
+  | DFloat l, DFloat r ->
+      if System.Double.IsNaN l && System.Double.IsNaN r then
+        ()
+      else if System.Double.IsPositiveInfinity l
+              && System.Double.IsPositiveInfinity r then
+        ()
+      else if System.Double.IsNegativeInfinity l
+              && System.Double.IsNegativeInfinity r then
+        ()
+      else
+        Expect.floatClose Accuracy.veryHigh l r msg
   | DResult (Ok l), DResult (Ok r) -> de l r
   | DResult (Error l), DResult (Error r) -> de l r
   | DOption (Some l), DOption (Some r) -> de l r

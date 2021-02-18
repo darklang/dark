@@ -27,77 +27,7 @@ type position =
   | First
   | Last
 
-// let compilerSupportedFns =
-//   ; "Float::mod"
-//   ; "Float::add"
-//   ; "Float::subtract"
-//   ; "Float::multiply"
-//   ; "Float::power"
-//   ; "Float::divide"
-//   ; "Float::greaterThan"
-//   ; "Float::greaterThanOrEqualTo"
-//   ; "Float::lessThan"
-//   ; "Float::lessThanOrEqualTo"
-//   ; "Bool::not"
-//   ; "String::toLowercase"
-//   ; "String::toLowercase_v1"
-//   ; "String::toUppercase"
-//   ; "String::toUppercase_v1"
-//   ; "String::length"
-//   ; "String::reverse"
-//   ; "String::trim"
-//   ; "String::trimStart"
-//   ; "String::trimEnd"
-//   ; "Date::hour_v1"
-//   ; "Date::day"
-//   ; "Date::minute"
-//   ; "Date::month"
-//   ; "Date::second"
-//   ; "Date::year"
-//   ; "Date::atStartOfDay"
-//   ; "String::isSubstring_v1"
-//   ; "String::contains"
-//   ; "String::replaceAll"
-//
-//
-// match op with
-// | "Float::mod" -> allFloats "%"
-// | "Float::add" -> allFloats "+"
-// | "Float::subtract" -> allFloats "-"
-// | "Float::multiply" -> allFloats "*"
-// | "Float::power" -> allFloats "^"
-// | "Float::divide" -> allFloats "/"
-// | "Float::greaterThan" -> boolOp TFloat ">"
-// | "Float::greaterThanOrEqualTo" -> boolOp TFloat ">="
-// | "Float::lessThan" -> boolOp TFloat "<"
-// | "Float::lessThanOrEqualTo" -> boolOp TFloat "<="
-
-
-let unaryOpToSql op : DType * DType * string * string list * position =
-  // Returns a postgres function name, and arguments to the function. The
-  // argument the user provides will be inserted as the First or Last argument. *)
-  match op.ToString() with
-  | "Bool::not" -> (TBool, TBool, "not", [], First)
-  (* Not sure if any of the string functions are strictly correct for unicode *)
-  | "String::toLowercase"
-  | "String::toLowercase_v1" -> (TStr, TStr, "lower", [], First)
-  | "String::toUppercase"
-  | "String::toUppercase_v1" -> (TStr, TStr, "upper", [], First)
-  | "String::length" ->
-      (* There is a unicode version of length but it only works on bytea data *)
-      (TStr, TInt, "length", [], First)
-  | "String::reverse" -> (TStr, TStr, "reverse", [], First)
-  | "String::trim" -> (TStr, TStr, "trim", [], First)
-  | "String::trimStart" -> (TStr, TStr, "ltrim", [], First)
-  | "String::trimEnd" -> (TStr, TStr, "rtrim", [], First)
-  | "Date::hour_v1" -> (TDate, TInt, "date_part", [ "'hour'" ], Last)
-  | "Date::day" -> (TDate, TInt, "date_part", [ "'day'" ], Last)
-  | "Date::minute" -> (TDate, TInt, "date_part", [ "'minute'" ], Last)
-  | "Date::month" -> (TDate, TInt, "date_part", [ "'month'" ], Last)
-  | "Date::second" -> (TDate, TInt, "date_part", [ "'second'" ], Last)
-  | "Date::year" -> (TDate, TInt, "date_part", [ "'year'" ], Last)
-  | "Date::atStartOfDay" -> (TDate, TInt, "date_trunc", [ "'day'" ], Last)
-  | _ -> error2 "This function is not yet implemented" op
+// | "Date::atStartOfDay" -> (TDate, TInt, "date_trunc", [ "'day'" ], Last)
 
 
 let typeToSqlType (t : DType) : string =
@@ -263,12 +193,6 @@ let rec lambdaToSql
       let searchingForSql, vars2 = lts TStr searchingFor
       // strpos returns indexed from 1; 0 means missing
       $"(strpos({lookingInSql}, {searchingForSql}) > 0)", vars1 @ vars2
-  | Fn "String" "replaceAll" 0 [ lookingIn; searchingFor; replaceWith ] ->
-      let lookingInSql, vars1 = lts TStr lookingIn
-      let searchingForSql, vars2 = lts TStr searchingFor
-      let replaceWithSql, vars3 = lts TStr replaceWith
-      let vars = vars1 @ vars2 @ vars3
-      $"(replace({lookingInSql}, {searchingForSql}, {replaceWithSql}))", vars
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
       match Map.get name fns with
       | Some fn ->

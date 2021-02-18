@@ -189,24 +189,9 @@
  DB.queryOneWithKey_v2 { x = "foo" } X) = Nothing
 
 
+// ------------
 // SqlCompiler queries
-[test.db.queryOne_v4 supports Dates] with DB Timestamp
-(let before = Date.parse_v2_ster "1900-01-01T00:00:00Z" in
- let middle = Date.parse_v2_ster "2000-01-01T00:00:00Z" in
- let after = Date.parse_v2_ster "2100-01-01T00:00:00Z" in
- let _ = DB.set_v1 { ts = before } "before" Timestamp in
- let _ = DB.set_v1 { ts = middle } "middle" Timestamp in
- let _ = DB.set_v1 { ts = after  } "after"  Timestamp in
- { a = DB.queryOne_v4 Timestamp (fun value -> Date.(<) middle value.ts)
- ; b = DB.queryOne_v4 Timestamp (fun value -> Date.(>) middle value.ts)
- ; c = DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 middle value.ts)
- ; d = DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 middle value.ts)
- }) = ({ a = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
-       ; b = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
-       ; c = Just ({ ts = Date.parse_v2_ster "2100-01-01T00:00:00Z" })
-       ; d = Just ({ ts = Date.parse_v2_ster "1900-01-01T00:00:00Z" })
-       })
-
+// ------------
 [db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 
 [fn.addFriend key name height human dob income]
@@ -221,6 +206,11 @@
  let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 in
  let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
+
+[fn.d datestr]
+(Date.parse_v1_ster datestr)
+[fn.rossDOB x]
+(Date.parse_v1_ster  "1967-05-12T00:00:00Z")
 
 [fn.friends lambda]
 (let _ = prepFriends null in
@@ -237,6 +227,16 @@
 
 [test.db boolean queries] with DB Person
 (friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
+
+[test.db null equality works] with DB Person
+(friends (fun p -> p.name = null )) = [null]
+
+[test.db null inequality works] with DB Person
+(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
+// TODO weird behaviour here - shouldn't the null object be returned here.
+[test.db null is not 'null' (string)] with DB Person
+(friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 [test.db different param name] with DB Person
 (friends (fun value -> value.human )) = [" Chandler "; "Rachel"; "Ross" ]
@@ -276,16 +276,79 @@
 [test.db sql injection] with DB Person
 (friends (fun p -> "; select * from users;" = p.name )) = []
 
-[test.db null equality works] with DB Person
-(friends (fun p -> p.name = null )) = [null]
+// ------------
+// Test compiled functions
+// ------------
+[tests.db compiled functions] with DB Person
+(friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
+(friends (fun p -> Float.lessThanOrEqualTo_v0 p.income 82.10)) = ["GrumpyCat"; "Rachel"]
+(friends (fun p -> Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
+(friends (fun p -> Float.greaterThanOrEqualTo_v0 82.10 p.income )) = ["GrumpyCat"; "Rachel"]
+(friends (fun p -> Int.lessThanOrEqualTo_v0 p.height 65)) = ["GrumpyCat"; "Rachel"]
+(friends (fun p -> Int.lessThan_v0 p.height 65)) = ["GrumpyCat"]
+(friends (fun p -> Int.greaterThanOrEqualTo_v0 p.height 65)) =  [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> Int.greaterThan_v0 p.height 65)) =  [" Chandler "; "Ross" ]
+(friends (fun p -> String.toLowercase_v0 p.name = "rachel")) = ["Rachel"]
+(friends (fun p -> String.toLowercase_v1 p.name = "rachel")) = ["Rachel"]
+(friends (fun p -> String.toUppercase_v0 p.name = "RACHEL")) = ["Rachel"]
+(friends (fun p -> String.toUppercase_v1 p.name = "RACHEL")) = ["Rachel"]
+(friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
+(friends (fun p -> String.length_v0 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+//(friends (fun p -> String.isSubstring_v1 p.name "ROSS")) = []
+//(friends (fun p -> String.isSubstring_v1 p.name "R")) = ["Rachel"; "Ross" ]
+//(friends (fun p -> String.isSubstring_v1 p.name "ZZZ")) = []
+//(friends (fun p -> String.isSubstring_v1 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+//(friends (fun p -> String.contains_v0 p.name "ROSS")) = []
+//(friends (fun p -> String.contains_v0 p.name "R")) = ["Rachel"; "Ross" ]
+//(friends (fun p -> String.contains_v0 p.name "ZZZ")) = []
+//(friends (fun p -> String.contains_v0 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+(friends (fun p -> String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [" Chandler " ]
+(friends (fun p -> String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [" Chandler " ]
+(friends (fun p -> String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [" Chandler " ]
+(friends (fun p -> String.trim_v0 p.name == "Chandler")) = [" Chandler " ]
+(friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [" Chandler " ]
+(friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [" Chandler " ]
+(friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
+(friends (fun p -> Date.(<=) p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> Date.(<=) p.dob (rossDOB null))) = ["Ross" ]
+(friends (fun p -> Date.(<) p.dob (rossDOB null))) = []
+(friends (fun p -> Date.(>=) p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
+(friends (fun p -> Date.(>=) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+(friends (fun p -> Date.(>) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+(friends (fun p -> Date.(<=) p.dob (Date.add_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> Date.(<=) p.dob (Date.subtract_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> Date.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
+(friends (fun p -> Date.hour_v1 p.dob == 10)) = [" Chandler "]
+(friends (fun p -> Date.day_v0 p.dob == 19)) = [" Chandler "]
+(friends (fun p -> Date.minute_v0 p.dob == 13)) = [" Chandler "]
+(friends (fun p -> Date.month_v0 p.dob == 8)) = [" Chandler "]
+(friends (fun p -> Date.second_v0 p.dob == 42)) = [" Chandler "]
+(friends (fun p -> Date.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
 
-[test.db null inequality works] with DB Person
-(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+[test.db partial evaluation fieldAccesses outside query] with DB Person
+(let _ = prepFriends null in
+ let x = { y = { z = { a = 5 }}} in
+ ((DB.query_v4 Person (fun p -> x.y.z.a < (String.length_v0 p.name)))
+ |> List.map_v0 (fun p -> p.name)
+ |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"]
 
-// TODO weird behaviour here - shouldn't the null object be returned here.
-[test.db null is not 'null' (string)] with DB Person
-(friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+[test.db partial evaluation fieldAccesses inside query] with DB Person
+(friends (fun p -> let x = { y = { z = { a = 5 }}} in x.y.z.a < (String.length_v0 p.name))) = [" Chandler "; "GrumpyCat"; "Rachel"]
 
+[test.db partial evaluation fieldAccesses inside query] with DB Person
+(friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}} in (x.y.z.a |> List.length_v0) < (String.length_v0 p.name))) = [" Chandler "; "GrumpyCat"; "Rachel"]
+
+
+
+
+
+
+
+
+
+// ------------
+// Test other query functions
+// ------------
 // queryOne
 [test.queryOne works - multiple] with DB Person
 (let _ = prepFriends null in
@@ -333,3 +396,38 @@
 (let _ = prepFriends null in
  DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
 
+// ------------
+// Date Functions
+// ------------
+
+[fn.beforeDate null]
+Date.parse_v2_ster "1900-01-01T00:00:00Z"
+[fn.middleDate null]
+Date.parse_v2_ster "2000-01-01T00:00:00Z"
+[fn.afterDate null]
+Date.parse_v2_ster "2100-01-01T00:00:00Z"
+
+[fn.prepDates null]
+(let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
+ let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
+ DB.set_v1 { ts = afterDate null } "after"  Timestamp)
+
+[test.query with Date::<] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.(<) (middleDate null) value.ts))
+= Just { ts = afterDate null }
+
+[test.query with Date::>] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.(>) (middleDate null) value.ts))
+= Just { ts = beforeDate null }
+
+[test.query with Date::lessThan] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 (middleDate null) value.ts))
+= Just ({ ts = afterDate null })
+
+[test.query with Date::greaterThan] with DB Timestamp
+(let _ = prepDates null in
+ DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts))
+= Just { ts = beforeDate null }

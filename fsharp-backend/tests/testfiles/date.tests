@@ -1,27 +1,39 @@
-Date.(<) (Date.parse_v1_ster_ster "2019-07-28T22:42:36Z") (Date.parse_v1_ster_ster "2019-07-28T22:42:36Z") = false
-Date.(<) (Date.parse_v1_ster "2019-07-28T22:42:36Z") (Date.parse_v1_ster "2020-11-26T04:37:46Z") = true
-Date.(<=) (Date.parse_v1_ster "2019-07-28T22:42:36Z") (Date.parse_v1_ster "2019-07-28T22:42:36Z") = true
-Date.(<=) (Date.parse_v1_ster "2019-07-28T22:42:36Z") (Date.parse_v1_ster "2020-11-26T04:37:46Z") = true
-Date.(>) (Date.parse_v1_ster "2019-07-28T22:42:36Z") (Date.parse_v1_ster "2019-07-28T22:42:36Z") = false
-Date.(>) (Date.parse_v1_ster "2020-11-26T04:37:46Z") (Date.parse_v1_ster "2019-07-28T22:42:36Z") = true
-Date.(>=) (Date.parse_v1_ster "2020-11-26T04:37:46Z") (Date.parse_v1_ster "2019-07-28T22:42:36Z") = true
-Date.(>=) (Date.parse_v1_ster "2020-11-26T04:37:46Z") (Date.parse_v1_ster "2020-11-26T04:37:46Z") = true
-// 1095379198 |> Date.fromSeconds_v0 |> Date.toSeconds_v0 = 1095379198
-// Date.day_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = 28
-// Date.hour_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = 22
-// Date.minute_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = 42
-// Date.month_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = 7
-((Date.parse_v0 "2019-07-28T22:42:36Z") |> Date.toString_v0) = "2019-07-28T22:42:36Z"
+[fn.d datestr]
+(Date.parse_v1_ster datestr)
+
+[tests.date parsing]
+(Date.parse_v0 "2019-07-28T22:42:36Z") |> Date.toString_v0 = "2019-07-28T22:42:36Z"
 //Date.parse_v0 "asd" = Test.typeError_v0 "Invalid date format"
-((Date.parse_v1 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x)) = Ok "2019-07-28T22:42:36Z"
+(Date.parse_v1 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
 Date.parse_v1 "asd" = Error "Invalid date format"
-((Date.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x)) = Ok "2019-07-28T22:42:36Z"
+(Date.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
 Date.parse_v2 "asd" = Error "Invalid date format"
-// Date.parse_v1_ster "2019-07-28T22:42:36Z" |> Date.atStartOfDay_v0 |> toString_v0 = "2019-07-28T00:00:00Z"
-// Date.parse_v1_ster "2019-07-28T22:42:36Z" |> Date.toSeconds_v0 |> Date.fromSeconds_v0 |> toString_v0 = "2019-07-28T22:42:36Z"
-// Date.parse_v1_ster "2019-12-27T03:27:36Z" |> Date.hour_v1  = 3 // Leif's test case
-// Date.second_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = 36
-Date.toString_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
+
+
+[tests.date inequality]
+Date.(<) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
+Date.(<) (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
+Date.(<=) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = true
+Date.(<=) (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
+Date.(>) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
+Date.(>) (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
+Date.(>=) (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
+Date.(>=) (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
+
+[tests.date field]
+Date.year_v0 (d "2019-07-28T22:42:36Z") = 2019
+Date.month_v0 (d "2019-07-28T22:42:36Z") = 7
+Date.day_v0 (d "2019-07-28T22:42:36Z") = 28
+Date.weekday_v0 (d "2019-07-28T22:42:36Z") = 7
+Date.hour_v0 (d "2019-07-28T22:42:36Z") = 22
+Date.hour_v1 (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
+Date.minute_v0 (d "2019-07-28T22:42:36Z") = 42
+Date.second_v0 (d "2019-07-28T22:42:36Z") = 36
+
+[tests.date conversion]
+Date.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
+Date.atStartOfDay_v0 (d "2019-07-28T22:42:36Z") = (d "2019-07-28T00:00:00Z")
+
+// 1095379198 |> Date.fromSeconds_v0 |> Date.toSeconds_v0 = 1095379198
+// d "2019-07-28T22:42:36Z" |> Date.toSeconds_v0 |> Date.fromSeconds_v0 |> toString_v0 = "2019-07-28T22:42:36Z"
 // Date.today_v0 |> toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
-// Date.weekday_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = 7
-// Date.year_v0 (Date.parse_v1_ster "2019-07-28T22:42:36Z") = 2019

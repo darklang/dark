@@ -98,68 +98,63 @@ let fns : List<BuiltInFn> =
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = NotDeprecated }
-//   { name = fn "Date" "now" 0
-//     parameters = []
-//     returnType = TDate
-//     description = "Returns the current time."
-//     fn =
-//         //       (function
-//       | _, [] -> DDate(Time.now ())
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Impure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "today" 0
-//     parameters = []
-//     returnType = TDate
-//     description = "Returns the Date with the time set to midnight"
-//     fn =
-//         //       (function
-//       | _, [] ->
-//           Time.now ()
-//           |> Time.to_date Time.Zone.utc
-//           |> (fun x -> Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
-//           |> DDate
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "add" 0
-//     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
-//     returnType = TDate
-//     description = "Returns a new Date `seconds` seconds after `d`"
-//     fn =
-//         //       (function
-//       | _, [ DDate d; DInt s ] ->
-//           DDate(Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
-//       | args -> incorrectArgs ())
-//     sqlSpec = SqlBinOp "+"
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "sub" 0
-//     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
-//     returnType = TDate
-//     description = "Returns a new Date `seconds` seconds before `d`"
-//     fn =
-//       (function
-//       | _, [ DDate d; DInt s ] ->
-//           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
-//       | args -> incorrectArgs ())
-//     sqlSpec = SqlBinOp "-"
-//     previewable = Pure
-//     deprecated = ReplacedBy(fn "Date" "subtract" 0) }
-//   { name = fn "Date" "subtract" 0
-//     parameters = [ Param.make "d" TDate; Param.make "seconds" TInt ]
-//     returnType = TDate
-//     description = "Returns a new Date `seconds` seconds before `d`"
-//     fn =
-//         //       (function
-//       | _, [ DDate d; DInt s ] ->
-//           DDate(Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
-//       | args -> incorrectArgs ())
-//     sqlSpec = SqlBinOp "-"
-//     previewable = Pure
-//     deprecated = NotDeprecated }
+    { name = fn "Date" "now" 0
+      parameters = []
+      returnType = TDate
+      description = "Returns the current time."
+      fn =
+        (function
+        | _, [] -> Value(DDate(System.DateTime.Now))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "today" 0
+      parameters = []
+      returnType = TDate
+      description = "Returns the Date with the time set to midnight"
+      fn =
+        (function
+        | _, [] ->
+            let now = System.DateTime.Now
+            Value(DDate(System.DateTime(now.Year, now.Month, now.Day, 0, 0, 0)))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "add" 0
+      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
+      returnType = TDate
+      description = "Returns a new Date `seconds` seconds after `d`"
+      fn =
+        (function
+        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float s))))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "+"
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "sub" 0
+      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
+      returnType = TDate
+      description = "Returns a new Date `seconds` seconds before `d`"
+      fn =
+        (function
+        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "-"
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "subtract" 0) }
+    { name = fn "Date" "subtract" 0
+      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
+      returnType = TDate
+      description = "Returns a new Date `seconds` seconds before `d`"
+      fn =
+        (function
+        | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlBinOp "-"
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Date" "greaterThan" 0
       parameters = [ Param.make "d1" TDate ""; Param.make "d2" TDate "" ]
       returnType = TBool
@@ -203,8 +198,8 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp("<=")
       previewable = Pure
-      deprecated = NotDeprecated } ]
-//   { name = fn "Date" "toSeconds" 0
+      deprecated = NotDeprecated }
+    //   { name = fn "Date" "toSeconds" 0
 //
 //     parameters = [ Param.make "date" TDate ]
 //     returnType = TInt
@@ -300,160 +295,110 @@ let fns : List<BuiltInFn> =
 //     sqlSpec = NotQueryable
 //     previewable = Pure
 //     deprecated = ReplacedBy(fn "" "" 0) (* This doesn't mean anything *)  }
-//   { name = fn "Date" "year" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description = "Returns the year portion of the Date as an int"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] -> d |> Time.to_date Time.Zone.utc |> Date.year |> Dval.dint
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "month" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description =
-//       "Returns the month portion of the Date as an int between 1 and 12"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_date Time.Zone.utc
-//           |> Date.month
-//           |> Month.to_int
-//           |> Dval.dint
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "day" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description = "Returns the day portion of the Date as an int"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] -> d |> Time.to_date Time.Zone.utc |> Date.day |> Dval.dint
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "weekday" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description =
-//       "Returns the weekday of `date` as an int. Monday = 1, Tuesday = 2, ... Sunday = 7 (in accordance with ISO 8601)."
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_date Time.Zone.utc
-//           |> Date.day_of_week
-//           |> Day_of_week.iso_8601_weekday_number
-//           |> Dval.dint
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "hour" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description = "Returns the hour portion of the Date as an int"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_span_since_epoch
-//           |> Time.Span.to_hr
-//           |> (fun x -> Float.mod_float x 60.0)
-//           |> Dint.of_float
-//           |> DInt
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = ReplacedBy(fn "" "" 0) }
-//   { name = fn "Date" "hour" 1
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description = "Returns the hour portion of the Date as an int"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_span_since_epoch
-//           |> Time.Span.to_hr
-//           |> (fun x -> Float.mod_float x 24.0)
-//           |> Dint.of_float
-//           |> DInt
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "minute" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description = "Returns the minute portion of the Date as an int"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_span_since_epoch
-//           |> Time.Span.to_min
-//           |> (fun x -> Float.mod_float x 60.0)
-//           |> Dint.of_float
-//           |> DInt
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "second" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description = "Returns the second portion of the Date as an int"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_span_since_epoch
-//           |> Time.Span.to_sec
-//           |> (fun x -> Float.mod_float x 60.0)
-//           |> Dint.of_float
-//           |> DInt
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "atStartOfDay" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TDate
-//     description = "Returns the Date with the time set to midnight"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_date Time.Zone.utc
-//           |> (fun x -> Time.of_date_ofday Time.Zone.utc x Time.Ofday.start_of_day)
-//           |> DDate
-//       | args -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated } ]
+    { name = fn "Date" "year" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the year portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> d.Year |> Dval.int |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "month" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description =
+        "Returns the month portion of the Date as an int between 1 and 12"
+      fn =
+        (function
+        | _, [ DDate d ] -> d.Month |> Dval.int |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "day" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the day portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> d.Day |> Dval.int |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "weekday" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description =
+        "Returns the weekday of `date` as an int. Monday = 1, Tuesday = 2, ... Sunday = 7 (in accordance with ISO 8601)."
+      fn =
+        (function
+        | _, [ DDate d ] ->
+            let day = d.DayOfWeek
+            let day = if day = System.DayOfWeek.Sunday then 7 else int day
+            day |> Dval.int |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "hour" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the hour portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] ->
+            // This is wrong, hence being replaced
+            Value(Dval.int ((d - System.DateTime.UnixEpoch).Hours % 60))
+        | args -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Date" "hour" 1) }
+    { name = fn "Date" "hour" 1
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the hour portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Value(Dval.int d.Hour)
+        | args -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "minute" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the minute portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Value(Dval.int (d.Minute))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "second" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TInt
+      description = "Returns the second portion of the Date as an int"
+      fn =
+        (function
+        | _, [ DDate d ] -> Value(Dval.int (d.Second))
+        | args -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "atStartOfDay" 0
+      parameters = [ Param.make "date" TDate "" ]
+      returnType = TDate
+      description = "Returns the Date with the time set to midnight"
+      fn =
+        (function
+        | _, [ DDate d ] ->
+            System.DateTime(d.Year, d.Month, d.Day, 0, 0, 0) |> DDate |> Value
+        | args -> incorrectArgs ())
+      sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
+      previewable = Pure
+      deprecated = NotDeprecated } ]
