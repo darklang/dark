@@ -37,8 +37,16 @@
     <Compile Include="Canvas.fs" />
     <Compile Include="Analysis.fs" />
     <Compile Include="Migrations.fs" />
+    <Compile Include="StdLib/LibCrypto.fs" />
     <Compile Include="StdLib/LibDB.fs" />
     <Compile Include="StdLib/LibDB2.fs" />
+    <Compile Include="StdLib/LibDarkInternal.fs" />
+    <Compile Include="StdLib/LibEvent.fs" />
+    <Compile Include="StdLib/LibHttpClient.fs" />
+    <Compile Include="StdLib/LibJwt.fs" />
+    <Compile Include="StdLib/LibStaticAssets.fs" />
+    <Compile Include="StdLib/LibTwilio.fs" />
+    <Compile Include="StdLib/LibX509.fs" />
     <Compile Include="StdLib/StdLib.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>
