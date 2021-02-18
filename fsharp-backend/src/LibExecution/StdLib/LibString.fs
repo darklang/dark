@@ -542,7 +542,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     //      { name = fn "String" "base64Decode" 0
-//      ; parameters = [Param.make "s" TStr]
+//      ; parameters = [Param.make "s" TStr ""]
 //      ; returnType = TStr
 //      ; description =
 //       "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."

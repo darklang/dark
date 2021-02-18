@@ -79,7 +79,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "bearerToken" 0
 
-    ; parameters = [Param.make "token" TStr]
+    ; parameters = [Param.make "token" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"
@@ -101,7 +101,7 @@ let fns : fn list =
         true (* Deprecated due to using Unicode_string.append_broken *) }
   ; { name = fn "HttpClient" "bearerToken" 1
 
-    ; parameters = [Param.make "token" TStr]
+    ; parameters = [Param.make "token" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' set to the passed token"

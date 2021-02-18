@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
     (*  (* See above for when to uncomment this *)
   ; { name = fn "Int" "mod" 1
     ; infix_names = ["%_v1"]
-    ; parameters = [Param.make "value" TInt; Param.make "modulus" TInt]
+    ; parameters = [Param.make "value" TInt ""; Param.make "modulus" TInt ""]
     ; returnType = TResult
     ; description =
         "Returns the result of wrapping `value` around so that `0 <= res < modulus`, as a Result.
@@ -279,7 +279,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "Int" "sum" 0
-    //   ; parameters = [Param.make "a" TList]
+    //   ; parameters = [Param.make "a" TList ""]
     //   ; returnType = TInt
     //   ; description = "Returns the sum of all the ints in the list"
     //   ; fn =

@@ -125,7 +125,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "cleanupOldTracesForCanvas" 1
 
-    ; parameters = [Param.make "canvas_id" TUuid]
+    ; parameters = [Param.make "canvas_id" TUuid ""]
     ; returnType = TFloat
     ; description =
         "Cleanup the old traces for a specific canvas. Returns elapsed time in ms."
@@ -140,7 +140,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "checkCanvas" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TBool
     ; description = "Validate the canvas' opcodes"
     ; fn =
@@ -159,7 +159,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "migrateCanvas" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TResult
     ; description = "Migrate a canvas' opcodes"
     ; fn =
@@ -178,7 +178,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
     ; returnType = TStr
     ; description =
         "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
@@ -201,7 +201,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "insertUser" 1
 
-    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
     ; returnType = TResult
     ; description =
         "Add a user. Returns a result containing the password for the user,
@@ -288,7 +288,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "upsertUser" 1
 
-    ; parameters = [Param.make "username" TStr; Param.make "email" TStr; Param.make "name" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "email" TStr ""; Param.make "name" TStr ""]
     ; returnType = TResult
     ; description =
         "Update a username's email or (human) name. WARNING: email must be kept in sync (manually, for now) with auth0!"
@@ -316,7 +316,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUser" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
@@ -343,7 +343,7 @@ that's already taken, returns an error."
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "getUser" 1
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TOption
     ; description =
         "Return a user for the username. Does not include passwords."
@@ -371,7 +371,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getUserByEmail" 0
 
-    ; parameters = [Param.make "email" TStr]
+    ; parameters = [Param.make "email" TStr ""]
     ; returnType = TOption
     ; description = "Return a user for the email. Does not include passwords."
     ; fn =
@@ -398,7 +398,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setAdmin" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "admin" TBool]
+    ; parameters = [Param.make "username" TStr ""; Param.make "admin" TBool ""]
     ; returnType = TNull
     ; description = "Set whether a user is an admin. Returns null."
     ; fn =
@@ -444,7 +444,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasesFor" 0
 
-    ; parameters = [Param.make "account" TStr]
+    ; parameters = [Param.make "account" TStr ""]
     ; returnType = TList
     ; description =
         "Returns a list of all canvases owned by a particular account (user OR org)"
@@ -461,7 +461,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "schema" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "dbid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "dbid" TStr ""]
     ; returnType = TObj
     ; description = "Return a schema for the db"
     ; fn =
@@ -504,7 +504,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasAsText" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TStr
     ; description = "TODO"
     ; fn =
@@ -519,7 +519,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "handlers" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TList
     ; description = "Returns a list of toplevel ids of handlers in `host`"
     ; fn =
@@ -544,7 +544,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "functions" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TList
     ; description = "Returns a list of toplevel ids of the functions in `host`"
     ; fn =
@@ -568,7 +568,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canLoadTraces" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TBool
     ; description =
         "Takes a <var host> and a <var tlid> and returns {{true}} iff we can load and parse traces for the handler identified by <var tlid>, and {{false}} otherwise."
@@ -607,7 +607,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getCORSSetting" 0
 
-    ; parameters = [Param.make "canvas" TStr]
+    ; parameters = [Param.make "canvas" TStr ""]
     ; returnType = TOption
     ; description =
         "Given the full canvas name (including the username), get that canvas' global CORS setting."
@@ -641,7 +641,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "setCORSSetting" 0
 
-    ; parameters = [Param.make "canvas" TStr; Param.make "origins" TOption]
+    ; parameters = [Param.make "canvas" TStr ""; Param.make "origins" TOption ""]
     ; returnType = TResult
     ; description =
         "Given the full canvas name (including the username) and an Option of either \"*\" or a list of string origins, set that value to that canvas' global CORS setting, so that it will be used in Access-Control-Allow-Origin response headers. Returns true if it worked and false if it didn't (likely meaning: the Dark value you passed in was invalid)."
@@ -690,7 +690,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "dbs" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TList
     ; description = "Returns a list of toplevel ids of dbs in `host`"
     ; fn =
@@ -716,7 +716,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "oplistInfo" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns the information from the toplevel_oplists table for the (host, tlid)"
@@ -780,7 +780,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "storedEvents" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TOption
     ; description =
         "Returns {{Just <var events>}}, where <var events> is the most recent stored events for the <param tlid> if it is a handler or {{Nothing}} if it is not."
@@ -830,7 +830,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 0
 
-    ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TObj]
+    ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" TObj ""]
     ; returnType = TResult
     ; description = "Pushes an event to Stroller"
     ; fn =
@@ -858,7 +858,7 @@ that's already taken, returns an error."
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "pushStrollerEvent" 1
 
-    ; parameters = [Param.make "canvas_id" TStr; Param.make "event" TStr; Param.make "payload" TAny]
+    ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" TAny ""]
     ; returnType = TResult
     ; description = "Pushes an event to Stroller"
     ; fn =
@@ -886,7 +886,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "sessionKeyToUsername" 0
 
-    ; parameters = [Param.make "sessionKey" TStr]
+    ; parameters = [Param.make "sessionKey" TStr ""]
     ; returnType = TOption
     ; description = "Looks up the username for a session_key"
     ; fn =
@@ -907,7 +907,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TOption
     ; description = "Gives canvasId for a canvasName/host"
     ; fn =
@@ -930,7 +930,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "usernameToUserInfo" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TOption
     ; description =
         "Gives userinfo {username, name, admin, email} for a username"
@@ -957,7 +957,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grant" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "org" TStr; Param.make "permission" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "org" TStr ""; Param.make "permission" TStr ""]
     ; returnType = TResult
     ; description = "Set a user's permissions for a particular auth_domain."
     ; fn =
@@ -1007,7 +1007,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "grantsFor" 0
 
-    ; parameters = [Param.make "org" TStr]
+    ; parameters = [Param.make "org" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
@@ -1035,7 +1035,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "orgsFor" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
@@ -1063,7 +1063,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "checkPermission" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "canvas" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "canvas" TStr ""]
     ; returnType = TBool
     ; description = "Check a user's permissions for a particular canvas."
     ; fn =
@@ -1086,7 +1086,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "log" 0
 
-    ; parameters = [Param.make "level" TStr; Param.make "name" TStr; Param.make "log" TObj]
+    ; parameters = [Param.make "level" TStr ""; Param.make "name" TStr ""; Param.make "log" TObj ""]
     ; returnType = TObj
     ; description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides."
@@ -1145,7 +1145,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnsUsed" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
@@ -1177,7 +1177,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fieldNamesUsed" 0
 
-    ; parameters = [Param.make "host" TStr; Param.make "tlid" TStr]
+    ; parameters = [Param.make "host" TStr ""; Param.make "tlid" TStr ""]
     ; returnType = TList
     ; description =
         "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
@@ -1209,7 +1209,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "fnMetadata" 0
 
-    ; parameters = [Param.make "name" TStr]
+    ; parameters = [Param.make "name" TStr ""]
     ; returnType = TResult
     ; description =
         "Returns an object with the metadata of the built-in function name"
@@ -1285,7 +1285,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "clearStaticAssets" 0
 
-    ; parameters = [Param.make "host" TStr]
+    ; parameters = [Param.make "host" TStr ""]
     ; returnType = TNull
     ; description =
         "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
@@ -1320,7 +1320,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
 
-    ; parameters = [Param.make "canvas_id" TUuid]
+    ; parameters = [Param.make "canvas_id" TUuid ""]
     ; returnType = TList
     ; description =
         "Returns a list of all queue scheduling rules for the specified canvas_id"
@@ -1337,7 +1337,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
 
-    ; parameters = [Param.make "canvas_id" TUuid; Param.make "handler_name" TStr]
+    ; parameters = [Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr ""]
     ; returnType = TNull
     ; description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
@@ -1347,7 +1347,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
 
-    ; parameters = [Param.make "canvas_id" TUuid; Param.make "handler_name" TStr]
+    ; parameters = [Param.make "canvas_id" TUuid ""; Param.make "handler_name" TStr ""]
     ; returnType = TNull
     ; description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
@@ -1357,7 +1357,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "newSessionForUsername" 0
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TResult
     ; description =
         "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
@@ -1412,7 +1412,7 @@ that's already taken, returns an error."
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "DarkInternal" "newSessionForUsername" 1
 
-    ; parameters = [Param.make "username" TStr]
+    ; parameters = [Param.make "username" TStr ""]
     ; returnType = TResult
     ; description =
         (* We need the csrf token for dark-cli to use *)
@@ -1476,7 +1476,7 @@ that's already taken, returns an error."
     ; deprecated = NotDeprecated }
   ; { name = fn "DarkInternal" "deleteSession" 0
 
-    ; parameters = [Param.make "session_key" TStr]
+    ; parameters = [Param.make "session_key" TStr ""]
     ; returnType = TInt
     ; description =
         "Delete session by session_key; return number of sessions deleted."

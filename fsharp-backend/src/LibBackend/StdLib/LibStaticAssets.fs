@@ -9,7 +9,7 @@ module Dval = Libexecution.Dval
 let fns : fn list =
   [ { name = fn "StaticAssets" "baseUrlFor" 0
 
-    ; parameters = [Param.make "deploy_hash" TStr]
+    ; parameters = [Param.make "deploy_hash" TStr ""]
     ; returnType = TStr
     ; description = "Return the baseUrl for the specified deploy hash"
     ; fn =
@@ -41,7 +41,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlFor" 0
 
-    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
+    ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
     ; returnType = TStr
     ; description = "Return a url for the specified file and deploy hash"
     ; fn =
@@ -61,7 +61,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "urlForLatest" 0
 
-    ; parameters = [Param.make "file" TStr]
+    ; parameters = [Param.make "file" TStr ""]
     ; returnType = TStr
     ; description = "Return a url for the specified file and latest deploy"
     ; fn =
@@ -81,7 +81,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetch" 0
 
-    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
+    ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
@@ -116,7 +116,7 @@ UTF-8 safe"))
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetch" 1
 
-    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
+    ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
@@ -148,7 +148,7 @@ UTF-8 safe"))
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchBytes" 0
 
-    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
+    ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the bytes of the specified file from the deploy_hash"
@@ -179,7 +179,7 @@ UTF-8 safe"))
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatest" 0
 
-    ; parameters = [Param.make "file" TStr]
+    ; parameters = [Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -214,7 +214,7 @@ UTF-8 safe"))
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "fetchLatest" 1
 
-    ; parameters = [Param.make "file" TStr]
+    ; parameters = [Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -247,7 +247,7 @@ UTF-8 safe") )
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "fetchLatestBytes" 0
 
-    ; parameters = [Param.make "file" TStr]
+    ; parameters = [Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the bytes of the specified file from the latest deploy"
@@ -278,7 +278,7 @@ UTF-8 safe") )
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serve" 0
 
-    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
+    ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -338,7 +338,7 @@ UTF-8 safe") )
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serve" 1
 
-    ; parameters = [Param.make "deploy_hash" TStr; Param.make "file" TStr]
+    ; parameters = [Param.make "deploy_hash" TStr ""; Param.make "file" TStr ""]
     ; returnType = TResult
     ; description = "Return the specified file from the latest deploy"
     ; fn =
@@ -394,7 +394,7 @@ UTF-8 safe") )
     ; deprecated = NotDeprecated }
   ; { name = fn "StaticAssets" "serveLatest" 0
 
-    ; parameters = [Param.make "file" TStr]
+    ; parameters = [Param.make "file" TStr ""]
     ; returnType = TResult
     ; description =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
@@ -451,7 +451,7 @@ UTF-8 safe") )
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "StaticAssets" "serveLatest" 1
 
-    ; parameters = [Param.make "file" TStr]
+    ; parameters = [Param.make "file" TStr ""]
     ; returnType = TResult
     ; description = "Return the specified file from the latest deploy"
     ; fn =

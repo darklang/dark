@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     //   { name = fn "Dict" "size" 0
     //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TInt
     //   ; description =
     //       "Returns the number of entries in `dict` (the number of key-value pairs)."
@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
     //   ; deprecated = NotDeprecated }
     //   { name = fn "Dict" "keys" 0
     //
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
     //   ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
     //   ; fn =
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "values" 0
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
     //   ; description = "Returns `dict`'s values in a list, in an arbitrary order."
     //   ; fn =
@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "toList" 0
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
     //   ; description =
     //       "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
-    //   ; parameters = [Param.make "entries" TList]
+    //   ; parameters = [Param.make "entries" TList ""]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
@@ -153,7 +153,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromList" 0
-    //   ; parameters = [Param.make "entries" TList]
+    //   ; parameters = [Param.make "entries" TList ""]
     //   ; returnType = TOption
     //   ; description =
     //       "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
@@ -257,7 +257,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "Dict" "get" 1) }
     // ; { name = fn "Dict" "get" 2
-    //   ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
+    //   ; parameters = [Param.make "dict" TObj ""; Param.make "key" TStr ""]
     //   ; returnType = TOption
     //   ; description =
     //       "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
@@ -275,7 +275,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "member" 0
-    //   ; parameters = [Param.make "dict" TObj; Param.make "key" TStr]
+    //   ; parameters = [Param.make "dict" TObj ""; Param.make "key" TStr ""]
     //   ; returnType = TBool
     //   ; description =
     //       "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
@@ -290,7 +290,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "foreach" 0
-    //   ; parameters = [Param.make "dict" TObj; func ["val"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["val"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
@@ -305,7 +305,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = ReplacedBy(fn "" "" 0) }
     // ; { name = fn "Dict" "map" 0
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
@@ -323,7 +323,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "filter" 0
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
@@ -357,7 +357,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = ReplacedBy(fn "" "" 0) }
     // ; { name = fn "Dict" "filter" 1
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
@@ -401,7 +401,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "filterMap" 0
-    //   ; parameters = [Param.make "dict" TObj; func ["key"; "value"]]
+    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
     //   ; returnType = TObj
     //   ; description =
     //       {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
@@ -464,7 +464,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "Dict" "isEmpty" 0
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TBool
     //   ; description = "Returns `true` if the `dict` contains no entries."
     //   ; fn =
@@ -474,7 +474,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "merge" 0
-    //   ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
+    //   ; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
     //   ; returnType = TObj
     //   ; description =
     //       "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
@@ -488,7 +488,7 @@ let fns : List<BuiltInFn> =
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
     // ; { name = fn "Dict" "toJSON" 0
-    //   ; parameters = [Param.make "dict" TObj]
+    //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TStr
     //   ; description = "Returns `dict` as a JSON string."
     //   ; fn =

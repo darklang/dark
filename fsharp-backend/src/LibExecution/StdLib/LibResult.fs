@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "Result" "map" 1) } ]
 // ; { name = fn "Result" "map" 1
-//   ; parameters = [Param.make "result" TResult; func ["val"]]
+//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
 //   ; returnType = TResult
 //   ; description =
 //       "If <param result> is {{Ok <var value>}}, returns {{Ok (f <var value>)}}. The lambda <param f> is applied to <var value> and the result is wrapped in {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "mapError" 0
-//   ; parameters = [Param.make "result" TResult; func ["val"]]
+//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
 //   ; returnType = TResult
 //   ; description =
 //       "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "mapError" 1
-//   ; parameters = [Param.make "result" TResult; func ["val"]]
+//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
 //   ; returnType = TResult
 //   ; description =
 //       "If <param result> is {{Error <var msg>}}, returns {{Error (f <var msg>)}}. The lambda <var f> is applied to <var msg> and the result is wrapped in {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result> unchanged."
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "withDefault" 0
-//   ; parameters = [Param.make "result" TResult; Param.make "default" TAny]
+//   ; parameters = [Param.make "result" TResult ""; Param.make "default" TAny ""]
 //   ; returnType = TAny
 //   ; description =
 //       "If <param result> is {{Ok <var value>}}, returns <var value>. Returns <param default> otherwise."
@@ -118,7 +118,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "fromOption" 0
-//   ; parameters = [Param.make "option" TOption; Param.make "error" TStr]
+//   ; parameters = [Param.make "option" TOption ""; Param.make "error" TStr ""]
 //   ; returnType = TResult
 //   ; description =
 //       "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "fromOption" 1
-//   ; parameters = [Param.make "option" TOption; Param.make "error" TStr]
+//   ; parameters = [Param.make "option" TOption ""; Param.make "error" TStr ""]
 //   ; returnType = TResult
 //   ; description =
 //       "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
@@ -159,7 +159,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "toOption" 0
-//   ; parameters = [Param.make "result" TResult]
+//   ; parameters = [Param.make "result" TResult ""]
 //   ; returnType = TOption
 //   ; description = "Turn a result into an option."
 //   ; fn =
@@ -176,7 +176,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "toOption" 1
-//   ; parameters = [Param.make "result" TResult]
+//   ; parameters = [Param.make "result" TResult ""]
 //   ; returnType = TOption
 //   ; description = "Turn a result into an option."
 //   ; fn =
@@ -194,7 +194,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "map2" 0
 //   ; parameters =
-//       [Param.make "result1" TResult; Param.make "result2" TResult; func ["v1"; "v2"]]
+//       [Param.make "result1" TResult ""; Param.make "result2" TResult ""; func ["v1"; "v2"]]
 //   ; returnType = TResult
 //   ; description =
 //       "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var v2>}}, returns {{Ok (f <var v1> <var v2>)}} -- the lambda <var f> is applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param result1> and <param result2> that is an error."
@@ -215,7 +215,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "andThen" 0
-//   ; parameters = [Param.make "result" TResult; func ["val"]]
+//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
 //   ; returnType = TResult
 //   ; description =
 //       "If `result` is `Ok value`, returns `f value` (the lambda `f` is applied to `value` and must return `Error msg` or `Ok newValue`). If `result` is `Error msg`, returns `result` unchanged."
@@ -241,7 +241,7 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 // ; { name = fn "Result" "andThen" 1
-//   ; parameters = [Param.make "result" TResult; func ["val"]]
+//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
 //   ; returnType = TResult
 //   ; description =
 //       "If <param result> is {{Ok <var value>}}, returns {{f <var value>}}. The lambda <param f> is applied to <var value> and must return {{Error <var msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."

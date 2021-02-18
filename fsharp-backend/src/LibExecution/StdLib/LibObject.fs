@@ -16,7 +16,7 @@ let fns : fn list =
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "merge" 0
 
-    ; parameters = [Param.make "left" TObj; Param.make "right" TObj]
+    ; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
     ; returnType = TObj
     ; description =
         "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
@@ -32,7 +32,7 @@ let fns : fn list =
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 0
 
-    ; parameters = [Param.make "obj" TObj]
+    ; parameters = [Param.make "obj" TObj ""]
     ; returnType = TStr
     ; description = "Dumps `obj` to a JSON string"
     ; fn =
@@ -49,7 +49,7 @@ let fns : fn list =
     ; deprecated = ReplacedBy(fn "" "" 0) }
   ; { name = fn "Object" "toJSON" 1
 
-    ; parameters = [Param.make "obj" TObj]
+    ; parameters = [Param.make "obj" TObj ""]
     ; returnType = TStr
     ; description = "Dumps `obj` to a JSON string"
     ; fn =

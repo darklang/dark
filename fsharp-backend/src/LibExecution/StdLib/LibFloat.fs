@@ -114,7 +114,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     // ; { name = fn "Float" "sqrt" 0
 
-    //   ; parameters = [Param.make "a" TFloat]
+    //   ; parameters = [Param.make "a" TFloat ""]
     //   ; returnType = TFloat
     //   ; description = "Get the square root of a float"
     //   ; fn =
@@ -224,7 +224,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 // ; { name = fn "Float" "sum" 0
 
-//   ; parameters = [Param.make "a" TList]
+//   ; parameters = [Param.make "a" TList ""]
 //   ; returnType = TFloat
 //   ; description = "Returns the sum of all the floats in the list"
 //   ; fn =
@@ -254,7 +254,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "min" 0
 
-//   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
+//   ; parameters = [Param.make "a" TFloat ""; Param.make "b" TFloat ""]
 //   ; returnType = TFloat
 //   ; description = "Returns the lesser of float `a` and float `b`"
 //   ; fn =
@@ -269,7 +269,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "max" 0
 
-//   ; parameters = [Param.make "a" TFloat; Param.make "b" TFloat]
+//   ; parameters = [Param.make "a" TFloat ""; Param.make "b" TFloat ""]
 //   ; returnType = TFloat
 //   ; description = "Returns the greater of float `a` and float `b`"
 //   ; fn =
@@ -284,7 +284,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Float" "clamp" 0
 
-//   ; parameters = [Param.make "value" TFloat; Param.make "limitA" TFloat; Param.make "limitB" TFloat]
+//   ; parameters = [Param.make "value" TFloat ""; Param.make "limitA" TFloat ""; Param.make "limitB" TFloat ""]
 //   ; returnType = TFloat
 //   ; description =
 //       "If `value` is within the range given by `limitA` and `limitB`, returns `value`.

@@ -38,7 +38,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "degrees" 0
 
-    ; parameters = [Param.make "angleInDegrees" TFloat]
+    ; parameters = [Param.make "angleInDegrees" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns the equivalent of `angleInDegrees` in radians, the unit used by all of Dark's trigonometry functions.
@@ -55,7 +55,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "turns" 0
 
-    ; parameters = [Param.make "angleInTurns" TFloat]
+    ; parameters = [Param.make "angleInTurns" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns the equivalent of `angleInTurns` in radians, the unit used by all of Dark's trigonometry functions.
@@ -69,7 +69,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "radians" 0
 
-    ; parameters = [Param.make "angleInRadians" TFloat]
+    ; parameters = [Param.make "angleInRadians" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns `angleInRadians` in radians, the unit used by all of Dark's trigonometry functions.
@@ -82,7 +82,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cos" 0
 
-    ; parameters = [Param.make "angleInRadians" TFloat]
+    ; parameters = [Param.make "angleInRadians" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns the cosine of the given `angleInRadians`.
@@ -95,7 +95,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sin" 0
 
-    ; parameters = [Param.make "angleInRadians" TFloat]
+    ; parameters = [Param.make "angleInRadians" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns the sine of the given `angleInRadians`.
@@ -108,7 +108,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tan" 0
 
-    ; parameters = [Param.make "angleInRadians" TFloat]
+    ; parameters = [Param.make "angleInRadians" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns the tangent of the given `angleInRadians`.
@@ -121,7 +121,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "acos" 0
 
-    ; parameters = [Param.make "ratio" TFloat]
+    ; parameters = [Param.make "ratio" TFloat ""]
     ; returnType = TOption
     ; description =
         "Returns the arc cosine of `ratio`, as an Option.
@@ -143,7 +143,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "asin" 0
 
-    ; parameters = [Param.make "ratio" TFloat]
+    ; parameters = [Param.make "ratio" TFloat ""]
     ; returnType = TOption
     ; description =
         "Returns the arc sine of `ratio`, as an Option.
@@ -165,7 +165,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan" 0
 
-    ; parameters = [Param.make "ratio" TFloat]
+    ; parameters = [Param.make "ratio" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns the arc tangent of `ratio`. The result is in radians and is between `-Math::pi/2` and `Math::pi/2`.
@@ -179,7 +179,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "atan2" 0
 
-    ; parameters = [Param.make "y" TFloat; Param.make "x" TFloat]
+    ; parameters = [Param.make "y" TFloat ""; Param.make "x" TFloat ""]
     ; returnType = TFloat
     ; description =
         "Returns the arc tangent of `y / x`, using the signs of `y` and `x` to determine the quadrant of the result.
@@ -196,7 +196,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "cosh" 0
 
-    ; parameters = [Param.make "angleInRadians" TFloat]
+    ; parameters = [Param.make "angleInRadians" TFloat ""]
     ; returnType = TFloat
     ; description = "Returns the hyperbolic cosine of `angleInRadians`."
     ; fn =
@@ -208,7 +208,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "sinh" 0
 
-    ; parameters = [Param.make "angleInRadians" TFloat]
+    ; parameters = [Param.make "angleInRadians" TFloat ""]
     ; returnType = TFloat
     ; description = "Returns the hyperbolic sine of `angleInRadians`."
     ; fn =
@@ -220,7 +220,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "Math" "tanh" 0
 
-    ; parameters = [Param.make "angleInRadians" TFloat]
+    ; parameters = [Param.make "angleInRadians" TFloat ""]
     ; returnType = TFloat
     ; description = "Returns the hyperbolic tangent of `angleInRadians`."
     ; fn =

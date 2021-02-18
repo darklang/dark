@@ -9,10 +9,10 @@ module Dint = Libexecution.Dint
 module Unicode_string = Libexecution.Unicode_string
 
 let params =
-  [Param.make "uri" TStr; Param.make "body" TAny; Param.make "query" TObj; Param.make "headers" TObj]
+  [Param.make "uri" TStr ""; Param.make "body" TAny ""; Param.make "query" TObj ""; Param.make "headers" TObj ""]
 
 
-let params_no_body = [Param.make "uri" TStr; Param.make "query" TObj; Param.make "headers" TObj]
+let params_no_body = [Param.make "uri" TStr ""; Param.make "query" TObj ""; Param.make "headers" TObj ""]
 
 type headers = (string * string) list
 
@@ -764,7 +764,7 @@ let fns : fn list =
     ; deprecated = NotDeprecated }
   ; { name = fn "HttpClient" "basicAuth" 0
 
-    ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
@@ -784,7 +784,7 @@ let fns : fn list =
     }
   ; { name = fn "HttpClient" "basicAuth" 1
 
-    ; parameters = [Param.make "username" TStr; Param.make "password" TStr]
+    ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
     ; returnType = TObj
     ; description =
         "Returns an object with 'Authorization' created using HTTP basic auth"
