@@ -28,7 +28,6 @@ allow bs-tea to continue its diffing in the right place.
 If it can't tell, it will just blow away the existing DOM nodes and recreate
 everything beneath it, which can be very slow.
 
-
 # Vdom.noNode
 
 A common way for a list to be blown away in our code is when toggling an
@@ -69,7 +68,6 @@ not, the nodes will not update when any values that are missed are updated. We
 have found that the fastest way to turn values into a key is to use
 `Js.Json.stringifyAny`.
 
-
 # Key vs uniq
 
 Most places where we use `key` in the codebase were probably better as `uniq`.
@@ -82,11 +80,13 @@ subnodes. If they have the same `key`, bs-tea will stop there.
 ## Closed over values
 
 An important consideration in using keys is that sometimes the value of a
-property is a function. Since OCaml cannot compare functions, you need to use
-the `key` to tell bs-tea whether the nested value is the same or not. If you do
-not include all data in the key, bs-tea will not change the DOM, and so the DOM will continue to include stale nodes (which are rendering the old Vdom).
+property is a function. Since ReScript cannot compare functions, you need to
+use the `key` to tell bs-tea whether the nested value is the same or not. If
+you do not include all data in the key, bs-tea will not change the DOM, and so
+the DOM will continue to include stale nodes (which are rendering the old
+Vdom).
 
 If you use `uniq` instead, it will just recalculate the vdom each time. This
 seems like it should be fine, but hides a subtle bug: it will always replace
 the DOM nodes, which causes events triggered on those nodes to be dropped
-(presumably becaue the event handler is briefly missing). 
+(presumably becaue the event handler is briefly missing).

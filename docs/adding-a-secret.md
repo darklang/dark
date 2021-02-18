@@ -46,9 +46,9 @@ the containers that need it.
 
 ## Make it accessible to the app
 
-Getting the production configuration into the OCaml app is handled in
-`config.ml`/`config.mli` or `config.rs`. It typically makes it into the JS app
-via `ui.html`, which has values filled in from `webserver.ml`.
+Getting the production configuration into the F# app is handled in
+`Config.fs` or `config.rs`. It typically makes it into the JS app
+via `ui.html`, which has values filled in from `Ui.fs`.
 
 ## Non-secret configuration
 

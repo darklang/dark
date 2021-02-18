@@ -15,8 +15,9 @@ to make the the build script use the last built one.
 In another shell you can now kick off a `scripts/builder --compile` to rebuild the container
 in parallel with your currently working one.
 
-You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker invocations, including say ocamlmerlin, use the old+running container as opposed to attempting to use the container
-that has an in progress build.
+You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker
+invocations, use the old+running container as opposed to attempting to use the
+container that has an in progress build.
 
 ### Preserving battery life
 
@@ -29,5 +30,3 @@ POLL_FREQUENCY, which is the number of times per second to check.
 You can also disable the polling (and consequently the building):
 
 - `scripts/builder --compile --serve`
-
-

@@ -23,12 +23,14 @@ clues.
 
 ### Merlin
 
-Merlin is an OCaml language server that provides things like autocompletion,
-type information, and go-to-definition functionality. Because all OCaml
-libraries are installed inside the container and not on your local machine,
-merlin needs to be running inside the container. Unfortunately, this install is
-not completely isolated and we still need some supporting things installed on
-your host machine.
+Merlin is a language server used by ResCript that provides things like
+autocompletion, type information, and go-to-definition functionality. Because
+all libraries are installed inside the container and not on your local
+machine, merlin needs to be running inside the container. Unfortunately, this
+install is not completely isolated and we still need some supporting things
+installed on your host machine.
+
+_These instructions are quite possibly out of date, please let us know if this still works._
 
 The way this works is that you'll need merlin on your host machine (to get the editor
 support files) and then you'll point those at the `scripts/ocamlmerlin` wrapper
@@ -58,12 +60,14 @@ this in an alias or something).
 ### Formatting
 
 You will also want to support formatting in your client. Dark uses Prettier for
-JS/HTML/CSS, OCamlformat for OCaml and Bucklescript, and Fantomas for F#. The
-script `script/format` can be used to format or check formatting, and there is
-a pre-commit hook you can use to run it automatically.
+JS/HTML/CSS, OCamlformat for ReScript, and Fantomas for F#. The script
+`script/format` can be used to format or check formatting, and there is a
+pre-commit hook you can use to run it automatically.
 
 For emacs, see [the
-readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
+readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup).
+
+For vim:
 
 - install [ALE](https://github.com/w0rp/ale)
 - Add to your `.vimrc` (with an appropriate path-to-dark replacement):

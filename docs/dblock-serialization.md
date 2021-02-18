@@ -6,7 +6,10 @@ which was not possible to serialize.
 Afterwards, it was a combination of param names, an expr for the body, and a
 symtable, all of which could be serialized.
 
-However, we made the explicit decision (https://github.com/darklang/dark/pull/1780) to not allow dblocks to be deserialized in a user-visible way. In discussing it, we realized there real challenges:
+However, we made the explicit decision
+(https://github.com/darklang/dark/pull/1780) to not allow dblocks to be
+deserialized in a user-visible way. In discussing it, we realized there real
+challenges:
 
 - users receiving malicious Dark code in HTTP requests from strangers
 - users saving values in queues or databases, that may not deserialize

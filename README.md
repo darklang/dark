@@ -148,7 +148,7 @@ You can enable the FluidDebugger by mousing over the Gear in the
 left-sidebar. There is also "Enable debugger" which enables a legacy
 debugger that nobody uses and doesn't work well.
 
-If you're using Chrome, enable Custom Formatters to see OCaml values in
+If you're using Chrome, enable Custom Formatters to see ReScript values in
 Chrome Dev Tools instead of their JS representation. From within Chrome
 Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
 Formatters".
@@ -183,6 +183,5 @@ and postgres-honeytail).
 - [Oplist serialization](docs/oplist-serialization.md)
 - [Intricacies of Bucklescript-tea](docs/bs-tea.md)
 - [Writing Stdlib docstrings](docs/writing-docstrings.md)
-- [Debugging PPXes](docs/debugging-ppxes.md)
 - [Editing other BS libraries](docs/modifying-libraries.md)
 - [Add an account for yourself](docs/add-account.md)

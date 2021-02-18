@@ -1,1 +1,1 @@
-We run nginx containers as part of our OCaml pods. This is their config files.
+We run nginx containers as part of our backend pods. This is their config files.

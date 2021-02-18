@@ -1,5 +1,7 @@
 # Stroller - push proxy
 
+_Stroller is being phased out, and will no longer be used after we switch to F#._
+
 Stroller runs alongside the OCaml backend processes to offload I/O-intensive
 operations onto. Currently the only such operation supported is sending events
 in realtime ("push") to the editor. OCaml doesn't offer great support for
