@@ -110,7 +110,7 @@ type FnInfo =
 let fileTests () : Test =
   let dir = "tests/testfiles/"
 
-  System.IO.Directory.GetFiles(dir, "*")
+  System.IO.Directory.GetFiles(dir, "*.tests")
   |> Array.map
        (fun file ->
          let filename = System.IO.Path.GetFileName file

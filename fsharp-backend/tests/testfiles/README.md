@@ -52,3 +52,9 @@ parsed as one. The DB previously defined as MyDB is available to the test.
 `[fn.name argnames]` creates a function which is available to all subsequent
 tests. The following lines are part of the function body (until we hit
 another test indicator)
+
+# Test functions
+
+To produce results that are hard to otherwise create, you can add functions to
+LibTest.fs. For example, Test.nan_v0 produces a NaN float, and Test.typeError
+produces a built-in error.
