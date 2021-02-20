@@ -7,8 +7,8 @@
   // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
 
   // "image": "darklang/Dockerfile",
-  "image": "dark",
-  //"dockerFile": "../Dockerfile",
+  //"image" : "dark",
+  "dockerFile": "../Dockerfile",
 
   // Set *default* container specific settings.json values on container create.
   "settings": {
@@ -37,7 +37,8 @@
     //  "--security-opt seccomp=scripts/support/chrome-seccomp.json"
   ],
 
-  "workspaceMount": "source=${localWorkspaceFolder},target=/home/dark/app,type=bind,consistency=delegated",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/dark/app,type=bind,consistency=delegated", // for local
+  //"workspaceMount": "source=remote-workspace,target=/home/dark/app,type=volume", // for remote
   "workspaceFolder": "/home/dark/app",
 
   "mounts": [
