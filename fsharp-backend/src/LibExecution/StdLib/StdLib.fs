@@ -10,9 +10,16 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let prefixFns : List<BuiltInFn> =
   List.concat [ LibBool.fns
                 LibBytes.fns
+                LibChar.fns
                 LibDate.fns
                 LibDict.fns
                 LibFloat.fns
+                LibHttp.fns
+                LibHttpClient.fns
+                LibJson.fns
+                LibMath.fns
+                LibObject.fns
+                LibUuid.fns
                 LibInt.fns
                 LibList.fns
                 LibMiddleware.fns

@@ -17,7 +17,7 @@ let varB = TVariable "b"
 
 
 let fns : List<BuiltInFn> =
-  [ { name = FQFnName.stdlibName "" "toString" 0
+  [ { name = fn "" "toString" 0
       description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
       parameters = [ Param.make "a" (TVariable "a") "" ]
@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
 //   ; fn =
 //         (function
 //         | _, [a] ->
-//             Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
+//             DStr (Dval.to_developer_repr_v0 a)
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
@@ -121,7 +121,7 @@ let fns : List<BuiltInFn> =
 //               |> List.map to_input
 //               |> String.concat "\n"
 //             in
-//             Dval.dstr_of_string_exn
+//             DStr
 //               (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
 //         | _ ->
 //             incorrectArgs ())
@@ -135,7 +135,7 @@ let fns : List<BuiltInFn> =
 //   ; fn =
 //         (function
 //         | _, [DError (_, err)] ->
-//             Dval.dstr_of_string_exn err
+//             DStr err
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
@@ -151,7 +151,7 @@ let fns : List<BuiltInFn> =
 //             str
 //             |> Unicode_string.to_string
 //             |> Stdlib_util.AWS.url_encode
-//             |> Dval.dstr_of_string_exn
+//             |> DStr
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO
@@ -167,7 +167,7 @@ let fns : List<BuiltInFn> =
 //             s
 //             |> Unicode_string.to_string
 //             |> Uri.pct_encode `Userinfo
-//             |> Dval.dstr_of_string_exn
+//             |> DStr
 //         | _ ->
 //             incorrectArgs ())
 //   ; sqlSpec = NotYetImplementedTODO

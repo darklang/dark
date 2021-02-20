@@ -65,13 +65,13 @@ type T = RT.Dval
 //
 // let parsed_headers (headers : (string * string) list) =
 //   headers
-//   |> List.map ~f:(fun (k, v) -> (k, Dval.dstr_of_string_exn v))
+//   |> List.map ~f:(fun (k, v) -> (k, DStr v))
 //   |> DvalMap.from_list
 //   |> fun dm -> DObj dm |> fun dv -> Dval.to_dobj_exn [("headers", dv)]
 //
 //
 // let unparsed_body rb =
-//   let dval = Dval.dstr_of_string_exn rb in
+//   let dval = DStr rb in
 //   Dval.to_dobj_exn [("fullBody", dval)]
 //
 //
@@ -97,7 +97,7 @@ type T = RT.Dval
 //   |> List.map ~f:(String.lsplit2 ~on:'=')
 //   |> List.filter_opt
 //   |> List.map ~f:(fun (k, v) ->
-//          (Uri.pct_decode k, Dval.dstr_of_string_exn (Uri.pct_decode v)))
+//          (Uri.pct_decode k, DStr (Uri.pct_decode v)))
 //   |> Dval.to_dobj_exn
 //
 //
@@ -111,7 +111,7 @@ type T = RT.Dval
 // let url (uri : Uri.t) =
 //   uri
 //   |> Uri.to_string
-//   |> fun s -> Dval.to_dobj_exn [("url", Dval.dstr_of_string_exn s)]
+//   |> fun s -> Dval.to_dobj_exn [("url", DStr s)]
 //
 //
 // (* ------------------------- *)

@@ -28,7 +28,7 @@ module Errors = LibExecution.Errors
 //   |> Result.all
 
 // let error_result msg =
-//   DResult(ResError(Dval.dstr_of_string_exn msg))
+//   DResult(ResError(DStr msg))
 let fn = FQFnName.stdlibName
 
 let err (str : string) = Value(Dval.errStr str)
@@ -550,19 +550,19 @@ let fns : List<BuiltInFn> =
 //         (function
 //         | _, [DStr s] ->
 //           ( try
-//               Dval.dstr_of_string_exn
+//               DStr
 //                 (B64.decode
 //                    B64.uri_safe_alphabet
 //                    (Unicode_string.to_string s))
 //             with Not_found_s _ | Caml.Not_found ->
 //               ( try
-//                   Dval.dstr_of_string_exn
+//                   DStr
 //                     (B64.decode
 //                        B64.default_alphabet
 //                        (Unicode_string.to_string s))
 //                 with Not_found_s _ | Caml.Not_found ->
 //                   RT.error
-//                       (Dval.dstr_of_string_exn (Unicode_string.to_string s))
+//                       (DStr (Unicode_string.to_string s))
 //                     "Not a valid base64 string" ) )
 //         | _ ->
 //             incorrectArgs ())

@@ -176,6 +176,7 @@ and postgres-honeytail).
 - [Contributor docs](https://darklang.github.io/docs/contributing/getting-started)
 - [Other ways to run the dev container](docs/builder-options.md)
 - [Setting up your editor](docs/editor-setup.md)
+- [Dark unit tests](fsharp-backend/tests/testfiles/README.md)
 
 ### Less important docs
 
