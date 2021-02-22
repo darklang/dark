@@ -31,8 +31,8 @@ let typeErrorMsg
   (actual : RT.Dval)
   : string =
   let expected = LibExecution.DvalRepr.typeToDeveloperReprV0 expected
-  let actual = LibExecution.DvalRepr.prettyTypename actual
-  $"Expected a value of type {expected} but got a {actual} in column {colName}"
+  let actualType = LibExecution.DvalRepr.prettyTypename actual
+  $"Expected a value of type {expected} but got a {actualType} ({actual}) in column {colName}"
 
 
 

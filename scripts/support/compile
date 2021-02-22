@@ -249,6 +249,7 @@ def fsharp_backend_quick_build():
   # it for the main binaries, but for now let's just not generate them.
   build = f"cd fsharp-backend \
     && unbuffer dotnet build \
+      -graphBuild:true \
       --no-restore \
       --verbosity minimal \
       --configuration Debug"
