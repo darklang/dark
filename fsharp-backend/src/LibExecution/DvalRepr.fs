@@ -357,13 +357,13 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
   )
 
 
-// (* The "unsafe" variations here are bad. They encode data ambiguously, and
-//  * though we mostly have the decoding right, it's brittle and unsafe.  This
-//  * should be considered append only. There's a ton of dangerous things in this,
-//  * and we really need to move off it, but for now we're here. Do not change
-//  * existing encodings - this will break everything.
-//  *)
-// let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
+// The "unsafe" variations here are bad. They encode data ambiguously, and
+// though we mostly have the decoding right, it's brittle and unsafe.  This
+// should be considered append only. There's a ton of dangerous things in this,
+// and we really need to move off it, but for now we're here. Do not change
+// existing encodings - this will break everything.
+let rec unsafeDvalOfJsonV0 (json : JsonElement) : Dval =
+  fstodo "unsafeDvalOfJsonV0"
 //   (* sort so this isn't key-order-dependent. *)
 //   let json = Yojson.Safe.sort json in
 //   match json with
@@ -790,7 +790,7 @@ let toInternalQueryableV0 (dval : Dval) : string =
 
 
 let ofInternalQueryableV0 (str : string) : Dval =
-  str |> parseJson |> unsafeDvalOfJsonV1
+  str |> parseJson |> unsafeDvalOfJsonV0
 
 
 let toInternalQueryableV1 (dvalMap : DvalMap) : string =

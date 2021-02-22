@@ -10,6 +10,7 @@ open Expecto.ExpectoFsCheck
 open Prelude
 
 module PT = LibBackend.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 let (.=.) actual expected : bool =
   (if actual = expected then
@@ -146,7 +147,21 @@ let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   |> LibBackend.OCamlInterop.exprTLIDPairOfCachedBinary
   .=. pair
 
+let dvalReprInternalQueryablev0Roundtrip (dv : RT.Dval) : bool =
+  dv
+  |> LibExecution.DvalRepr.toInternalQueryableV0
+  |> LibExecution.DvalRepr.ofInternalQueryableV0
+  .=. dv
 
+let dvalReprInternalQueryablev1Roundtrip (dvm : RT.DvalMap) : bool =
+  let output =
+    dvm
+    |> LibExecution.DvalRepr.toInternalQueryableV1
+    |> LibExecution.DvalRepr.ofInternalQueryableV1
+
+  match output with
+  | RT.DObj r -> r .=. dvm
+  | _ -> failwith "incorrect shape output"
 
 
 let roundtrips =
@@ -164,6 +179,12 @@ let roundtrips =
       testProperty
         "roundtripping OCamlInteropYojsonExpr"
         ocamlInteropYojsonExprRoundtrip
+      testProperty
+        "roundtripping InternalQueryable v0"
+        dvalReprInternalQueryablev0Roundtrip
+      testProperty
+        "roundtripping InternalQueryable v1"
+        dvalReprInternalQueryablev1Roundtrip
       testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
 
 let tests = testList "FuzzTests" [ roundtrips ]
