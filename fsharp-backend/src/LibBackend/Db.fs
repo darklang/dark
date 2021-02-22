@@ -97,12 +97,6 @@ module Sql =
     idsParam.Value <- ids |> List.map int64 |> List.toArray
     Sql.parameter idsParam
 
-  let queryableDval (dval : RT.Dval) : SqlValue =
-    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
-    let param = NpgsqlParameter("dval", typ)
-    param.Value <- LibExecution.DvalRepr.toInternalQueryableFieldV1 dval
-    Sql.parameter param
-
   let queryableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
     let param = NpgsqlParameter("dvalmap", typ)

@@ -255,7 +255,7 @@ let fns : List<BuiltInFn> =
 
                 let bytified =
                   response
-                  |> LibExecution.DvalRepr.toPrettyMachineJsonV1
+                  |> LibExecution.DvalRepr.toPrettyMachineJsonStringV1
                   |> toBytes
                   |> DBytes
 
