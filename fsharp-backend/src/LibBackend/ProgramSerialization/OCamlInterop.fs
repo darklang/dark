@@ -12,14 +12,10 @@ module LibBackend.ProgramSerialization.OCamlInterop
 // typically direct deserializations of these types.
 
 open System.Runtime.InteropServices
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open FSharpPlus
-open System.Text.RegularExpressions
 
 open Prelude
 open Tablecloth
-open LibBackend.Db
 
 module PT = ProgramTypes
 
