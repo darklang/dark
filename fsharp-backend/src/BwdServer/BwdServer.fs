@@ -200,7 +200,7 @@ let runDarkHandler : HttpHandler =
                       List.iter (fun (k, v) -> addHeader ctx k v) headers
                       do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
                       return! next ctx
-                  | RT.DFakeVal (RT.DIncomplete _) ->
+                  | RT.DIncomplete _ ->
                       return!
                         msg
                           500

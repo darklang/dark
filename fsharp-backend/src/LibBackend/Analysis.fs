@@ -73,7 +73,7 @@ module PT = LibBackend.ProgramTypes
 // -------------------------
 // Input vars
 // -------------------------
-let incomplete = RT.DFakeVal(RT.DIncomplete RT.SourceNone)
+let incomplete = RT.DIncomplete RT.SourceNone
 let sampleRequest : LibExecution.ParsedRequest.T =
   RT.Dval.obj [ ("body", incomplete)
                 ("jsonBody", incomplete)
@@ -85,7 +85,7 @@ let sampleRequest : LibExecution.ParsedRequest.T =
 
 let sampleRequestInputVars : AT.InputVars = [ ("request", sampleRequest) ]
 
-let sampleEventInputVars : AT.InputVars = [ ("event", RT.DFakeVal(RT.DIncomplete RT.SourceNone)) ]
+let sampleEventInputVars : AT.InputVars = [ ("event", RT.DIncomplete RT.SourceNone) ]
 
 let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
@@ -100,7 +100,7 @@ let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
   | PT.Handler.HTTP (route, _, _) ->
       route
       |> Routing.routeVariables
-      |> List.map (fun k -> (k, RT.DFakeVal(RT.DIncomplete RT.SourceNone)))
+      |> List.map (fun k -> (k, RT.DIncomplete RT.SourceNone))
   | _ -> []
 
 let sampleInputVars (h : PT.Handler.T) : AT.InputVars =

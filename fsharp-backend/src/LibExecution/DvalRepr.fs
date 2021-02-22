@@ -218,10 +218,10 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DDate d -> d.toIsoString ()
     | DUuid uuid -> uuid.ToString()
     | DDB dbname -> $"<DB: {dbname}>"
-    | DFakeVal (DError _) ->
+    | DError _ ->
         // FSTODO make this a string again
         "Error: TODO: print message"
-    | DFakeVal (DIncomplete _) -> "<Incomplete>"
+    | DIncomplete _ -> "<Incomplete>"
     | DFnVal _ ->
         // See docs/dblock-serialization.ml
         "<Block>"
@@ -230,7 +230,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     //     "<Password>"
     | DObj _
     | DList _ -> toNestedString nestedreprfn dv
-    | DFakeVal (DErrorRail d) ->
+    | DErrorRail d ->
         // We don't print error here, because the errorrail value will know
         // whether it's an error or not.
         reprfn d
@@ -277,9 +277,9 @@ let toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dval : Dval) : unit =
     | DFnVal _ ->
         (* See docs/dblock-serialization.ml *)
         w.WriteNullValue ()
-    | DFakeVal (DIncomplete _) -> w.WriteNullValue ()
+    | DIncomplete _ -> w.WriteNullValue ()
     | DChar c -> w.WriteStringValue c
-    | DFakeVal (DError (_, msg)) ->
+    | DError (_, msg) ->
         w.WriteStartObject ()
         fstodo "handle derror"
         writeInObj "Error" (DStr msg)
@@ -292,7 +292,7 @@ let toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dval : Dval) : unit =
     //     `Assoc [("Error", `String "Password is redacted")]
     | DUuid uuid -> w.WriteStringValue uuid
     | DOption opt -> match opt with | None -> w.WriteNullValue () | Some v -> writeValue v
-    | DFakeVal (DErrorRail dv) -> writeValue dv
+    | DErrorRail dv -> writeValue dv
     | DResult res ->
          (match res with
          | Ok dv -> writeValue dv
@@ -323,9 +323,9 @@ let toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dval : Dval) : unit =
     | DFnVal _ ->
         (* See docs/dblock-serialization.ml *)
         w.WriteNull field
-    | DFakeVal (DIncomplete _) -> w.WriteNull field
+    | DIncomplete _ -> w.WriteNull field
     | DChar c -> w.WriteString(field, c)
-    | DFakeVal (DError (_, msg)) ->
+    | DError (_, msg) ->
         w.WriteStartObject field
         fstodo "handle derror"
         writeInObj "Error" (DStr "msg")
@@ -337,7 +337,7 @@ let toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dval : Dval) : unit =
     //     `Assoc [("Error", `String "Password is redacted")]
     | DUuid uuid -> w.WriteString(field, uuid)
     | DOption opt -> match opt with | None -> w.WriteNull field | Some v -> writeInObj field v
-    | DFakeVal (DErrorRail dv) -> writeInObj field dv
+    | DErrorRail dv -> writeInObj field dv
     | DResult res ->
          (match res with
          | Ok dv -> writeInObj field dv
@@ -525,7 +525,7 @@ let rec unsafeDvalOfJsonV1 (json : JsonElement) : Dval =
 //        | _ -> DObj(unsafeDvalmapOfJsonV1 json))
 //   | J.JsonValue.Record [| ("type", J.JsonValue.String "incomplete");
 //                           ("value", J.JsonValue.Null) |] ->
-//       DFakeVal(DIncomplete SourceNone)
+//       DIncomplete SourceNone
 //   | J.JsonValue.Record [| ("type", J.JsonValue.String "option"); ("value", dv) |] ->
 //       if dv = J.JsonValue.Null then
 //         DOption None
@@ -538,7 +538,7 @@ let rec unsafeDvalOfJsonV1 (json : JsonElement) : Dval =
 //         Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
 //       )
 //   | J.JsonValue.Record [| ("type", J.JsonValue.String "errorrail"); ("value", dv) |] ->
-//       DFakeVal(DErrorRail(unsafeDvalOfJsonV1 dv))
+//       DErrorRail(unsafeDvalOfJsonV1 dv)
 //   | J.JsonValue.Record [| ("type", J.JsonValue.String "date");
 //                           ("value", J.JsonValue.String v) |] ->
 //       DDate(System.DateTime.ofIsoString v)
@@ -602,9 +602,9 @@ let rec unsafeDvalToJsonValueV0 (w : Utf8JsonWriter) (redact : bool) (dv : Dval)
   | DFnVal _ ->
       (* See docs/dblock-serialization.ml *)
       w.WriteNullValue ()
-  | DFakeVal (DIncomplete _) -> w.WriteNullValue ()
+  | DIncomplete _ -> w.WriteNullValue ()
   | DChar c -> w.WriteStringValue c
-  | DFakeVal (DError (_, msg)) ->
+  | DError (_, msg) ->
       w.WriteStartObject ()
       writeField "Error" (DStr msg)
       w.WriteEndObject ()
@@ -643,7 +643,7 @@ let rec unsafeDvalToJsonValueV0 (w : Utf8JsonWriter) (redact : bool) (dv : Dval)
       (match opt with
        | None -> wrapStrValue (Dval.toType dv) "null"
        | Some ndv -> wrapNestedDvalValue (Dval.toType dv) ndv)
-  | DFakeVal (DErrorRail erdv) ->
+  | DErrorRail erdv ->
       wrapNestedDvalValue (Dval.toType dv) erdv
   | DResult res ->
       (match res with
@@ -700,9 +700,9 @@ and unsafeDvalToJsonFieldV0 (w : Utf8JsonWriter) (redact : bool) (field : string
   | DFnVal _ ->
       (* See docs/dblock-serialization.ml *)
       w.WriteNull field
-  | DFakeVal (DIncomplete _) -> w.WriteNull field
+  | DIncomplete _ -> w.WriteNull field
   | DChar c -> w.WriteString(field, c)
-  | DFakeVal (DError (_, msg)) ->
+  | DError (_, msg) ->
       w.WriteStartObject field
       writeField "Error" (DStr msg)
       w.WriteEndObject ()
@@ -741,7 +741,7 @@ and unsafeDvalToJsonFieldV0 (w : Utf8JsonWriter) (redact : bool) (field : string
       (match opt with
        | None -> wrapStrInObj field (Dval.toType dv) "null"
        | Some ndv -> wrapNestedDvalInObj field (Dval.toType dv) ndv)
-  | DFakeVal (DErrorRail erdv) ->
+  | DErrorRail erdv ->
       wrapNestedDvalInObj field (Dval.toType dv) erdv
   | DResult res ->
       (match res with
@@ -932,8 +932,8 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DFnVal _ ->
         (* See docs/dblock-serialization.ml *)
         justtipe
-    | DFakeVal (DIncomplete _) -> justtipe
-    | DFakeVal (DError (_, msg)) -> wrap msg
+    | DIncomplete _ -> justtipe
+    | DError (_, msg) -> wrap msg
     | DDate d -> wrap (d.toIsoString ())
     | DDB name -> wrap name
     | DUuid uuid -> wrap (uuid.ToString())
@@ -960,7 +960,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DOption (Some dv) -> "Just " + toRepr_ indent dv
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
-    | DFakeVal (DErrorRail dv) -> "ErrorRail: " + toRepr_ indent dv
+    | DErrorRail dv -> "ErrorRail: " + toRepr_ indent dv
     | DBytes bytes -> bytes |> System.Convert.ToBase64String
 
   toRepr_ 0 dv

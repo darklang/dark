@@ -159,29 +159,7 @@ and Dval =
   (* compound types *)
   | DList of List<Dval>
   | DObj of DvalMap
-  (* special types - see notes above *)
   | DFnVal of FnValImpl
-  | DFakeVal of FakeDval
-  (* user types: awaiting a better type system *)
-  | DHttpResponse of DHTTP * Dval
-  | DDB of string
-  | DDate of System.DateTime
-  // FSTODO
-  (* | DPassword of PasswordBytes.t *)
-  | DUuid of System.Guid
-  | DOption of Option<Dval>
-  | DResult of Result<Dval, Dval>
-  | DBytes of byte array
-
-and DvalTask = Prelude.TaskOrValue<Dval>
-
-and Symtable = Map<string, Dval>
-
-// A Fake Dval is some control-flow that's modelled in the interpreter as a
-// Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
-// it instead of operating on it, including when they're put in a list, in a
-// value, in a record, as a parameter to a function, etc.
-and FakeDval =
   // a DError represents something that shouldn't have happened in the engine,
   // that should have been reported elsewhere. It's usually a type error of
   // some kind, but occasionally we'll paint ourselves into a corner and need
@@ -225,6 +203,23 @@ and FakeDval =
   // - an if with an derrorrail in an subexpression is a derrorrail
   // -  a list containing a derrorrail is a derrorail
   | DErrorRail of Dval
+
+
+
+  (* user types: awaiting a better type system *)
+  | DHttpResponse of DHTTP * Dval
+  | DDB of string
+  | DDate of System.DateTime
+  // FSTODO
+  (* | DPassword of PasswordBytes.t *)
+  | DUuid of System.Guid
+  | DOption of Option<Dval>
+  | DResult of Result<Dval, Dval>
+  | DBytes of byte array
+
+and DvalTask = Prelude.TaskOrValue<Dval>
+
+and Symtable = Map<string, Dval>
 
 and DType =
   | TAny
@@ -297,29 +292,35 @@ module Expr =
 
 
 module Dval =
+  // A Fake Dval is some control-flow that's modelled in the interpreter as a
+  // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
+  // it instead of operating on it, including when they're put in a list, in a
+  // value, in a record, as a parameter to a function, etc.
   let isFake (dv : Dval) : bool =
     match dv with
-    | DFakeVal _ -> true
+    | DError _ -> true
+    | DIncomplete _ -> true
+    | DErrorRail _ -> true
     | _ -> false
 
   let isIncomplete (dv : Dval) : bool =
     match dv with
-    | DFakeVal (DIncomplete _) -> true
+    | DIncomplete _ -> true
     | _ -> false
 
   let isErrorRail (dv : Dval) : bool =
     match dv with
-    | DFakeVal (DErrorRail _) -> true
+    | DErrorRail _ -> true
     | _ -> false
 
   let isDError (dv : Dval) : bool =
     match dv with
-    | DFakeVal (DError _) -> true
+    | DError _ -> true
     | _ -> false
 
   let unwrapFromErrorRail (dv : Dval) : Dval =
     match dv with
-    | DFakeVal (DErrorRail dv) -> dv
+    | DErrorRail dv -> dv
     | other -> other
 
   let toPairs (dv : Dval) : (string * Dval) list =
@@ -340,9 +341,9 @@ module Dval =
     | DObj map ->
         map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TLambda
-    | DFakeVal (DError _) -> TError
-    | DFakeVal (DIncomplete _) -> TIncomplete
-    | DFakeVal (DErrorRail _) -> TErrorRail
+    | DError _ -> TError
+    | DIncomplete _ -> TIncomplete
+    | DErrorRail _ -> TErrorRail
     | DHttpResponse (_, dv) -> THttpResponse(toType dv)
     | DDB _ -> TDB TAny
     | DDate _ -> TDate
@@ -365,14 +366,14 @@ module Dval =
     try
       DFloat(makeFloat (sign = Positive) whole fraction)
     with _ ->
-      DFakeVal(DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}"))
+      DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
   let floatStringParts (sign : Sign, whole : string, fraction : string) : Dval =
     // FSTODO - add sourceID to errors
     try
       DFloat(parseFloat whole fraction)
     with _ ->
-      DFakeVal(DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}"))
+      DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
 
   // Dvals should never be constructed that contain fakevals - the fakeval
@@ -394,12 +395,12 @@ module Dval =
         | m, k, v when isFake m -> m
         // Skip empty rows
         | _, "", _ -> m
-        | _, _, DFakeVal (DIncomplete _) -> m
+        | _, _, DIncomplete _ -> m
         // Errors and Errorrail should propagate (but only if we're not already propagating an error)
         | DObj _, _, v when isFake v -> v
         // Error if the key appears twice
         | DObj m, k, v when Map.containsKey k m ->
-            DFakeVal(DError(SourceNone, $"Duplicate key: {k}"))
+            DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
         | DObj m, k, v -> DObj(Map.add k v m)
         // If we haven't got a DObj we're propagating an error so let it go
@@ -417,9 +418,9 @@ module Dval =
     | Some dv -> optionJust dv // checks isFake
     | None -> DOption None
 
-  let errStr (s : string) : Dval = DFakeVal(DError(SourceNone, s))
+  let errStr (s : string) : Dval = DError(SourceNone, s)
 
-  let errSStr (source : DvalSource) (s : string) : Dval = DFakeVal(DError(source, s))
+  let errSStr (source : DvalSource) (s : string) : Dval = DError(source, s)
 
 module Handler =
   type CronInterval =

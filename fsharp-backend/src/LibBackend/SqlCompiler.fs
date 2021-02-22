@@ -42,7 +42,7 @@ let rec canonicalize (expr : Expr) : Expr = expr
 
 let dvalToSql (dval : Dval) : SqlValue =
   match dval with
-  | DFakeVal _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
+  | DError _ | DIncomplete _ | DErrorRail _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
   | DObj _
   | DList _
   | DHttpResponse _

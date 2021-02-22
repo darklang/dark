@@ -20,8 +20,8 @@ open TestUtils
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DFakeVal (RT.DError (_, str)) -> RT.DFakeVal(RT.DError(RT.SourceNone, str))
-  | RT.DFakeVal (RT.DIncomplete _) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
+  | RT.DError (_, str) -> RT.DError(RT.SourceNone, str)
+  | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
 let fns =

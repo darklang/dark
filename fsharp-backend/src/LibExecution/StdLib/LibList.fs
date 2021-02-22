@@ -563,7 +563,7 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DBool b -> return b
-                  | DFakeVal (DIncomplete _) ->
+                  | DIncomplete _ ->
                       incomplete := true
                       return false
                   | v ->
@@ -572,7 +572,7 @@ let fns : List<BuiltInFn> =
                 }
 
               if !incomplete then
-                return DFakeVal(DIncomplete SourceNone)
+                return DIncomplete SourceNone
               else
                 let! result = filter_s f l
                 return DList(result)
@@ -610,7 +610,7 @@ let fns : List<BuiltInFn> =
 
                   match r with
                   | DBool b -> return b
-                  | DFakeVal (DIncomplete _) ->
+                  | DIncomplete _ ->
                       incomplete := true
                       return false
                   | v ->
@@ -619,7 +619,7 @@ let fns : List<BuiltInFn> =
                 }
 
               if !incomplete then
-                return DFakeVal(DIncomplete SourceNone)
+                return DIncomplete SourceNone
               else
                 let! result = filter_s f l
                 return DBool((result.Length) = (l.Length))
