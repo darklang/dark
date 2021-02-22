@@ -10,7 +10,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 
 // open Analysis_types
 // module RTT = Types.RuntimeT

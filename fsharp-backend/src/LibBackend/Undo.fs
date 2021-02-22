@@ -7,7 +7,7 @@ open System.Runtime.InteropServices
 open Prelude
 open Tablecloth
 
-module PT = ProgramSerialization.ProgramTypes
+module PT = ProgramTypes
 
 type Oplist = List<int>
 

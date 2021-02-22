@@ -10,7 +10,7 @@ open FSharpPlus
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 module Routing = LibBackend.Routing
 
 open TestUtils
@@ -96,7 +96,7 @@ let t name =
         (CanvasName.create $"test-{name}")
 
     do!
-      LibBackend.ProgramSerialization.SQL.saveHttpHandlersToCache
+      LibBackend.Canvas.saveHttpHandlersToCache
         canvasID
         ownerID
         handlers

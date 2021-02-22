@@ -9,7 +9,7 @@ open Expecto.ExpectoFsCheck
 
 open Prelude
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 
 let (.=.) actual expected : bool =
   (if actual = expected then
@@ -101,32 +101,32 @@ let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
 
 let ocamlInteropYojsonExprRoundtrip (a : PT.Expr) : bool =
   a
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlExpr
+  |> LibBackend.OCamlInterop.Convert.pt2ocamlExpr
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlExpr2PT
+  |> LibBackend.OCamlInterop.Convert.ocamlExpr2PT
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlExpr
+  |> LibBackend.OCamlInterop.Convert.pt2ocamlExpr
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlExpr2PT
+  |> LibBackend.OCamlInterop.Convert.ocamlExpr2PT
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a
 
 let ocamlInteropYojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   a
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlHandler
+  |> LibBackend.OCamlInterop.Convert.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlHandler2PT a.pos
+  |> LibBackend.OCamlInterop.Convert.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlHandler
+  |> LibBackend.OCamlInterop.Convert.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlHandler2PT a.pos
+  |> LibBackend.OCamlInterop.Convert.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a
@@ -135,15 +135,15 @@ let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
   let h = PT.TLHandler a
 
   h
-  |> LibBackend.ProgramSerialization.OCamlInterop.toplevelToCachedBinary
+  |> LibBackend.OCamlInterop.toplevelToCachedBinary
   |> fun bin -> bin, None
-  |> LibBackend.ProgramSerialization.OCamlInterop.toplevelOfCachedBinary
+  |> LibBackend.OCamlInterop.toplevelOfCachedBinary
   .=. h
 
 let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   pair
-  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairToCachedBinary
-  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairOfCachedBinary
+  |> LibBackend.OCamlInterop.exprTLIDPairToCachedBinary
+  |> LibBackend.OCamlInterop.exprTLIDPairOfCachedBinary
   .=. pair
 
 
@@ -170,5 +170,5 @@ let tests = testList "FuzzTests" [ roundtrips ]
 
 [<EntryPoint>]
 let main args =
-  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+  LibBackend.OCamlInterop.Binary.init ()
   runTestsWithCLIArgs [] args tests

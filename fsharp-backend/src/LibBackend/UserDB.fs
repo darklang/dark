@@ -11,7 +11,7 @@ open Db
 open Prelude
 open Tablecloth
 
-module PT = ProgramSerialization.ProgramTypes
+module PT = ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 // Bump this if you make a breaking change to the underlying data format, and

@@ -1,4 +1,4 @@
-module LibBackend.ProgramSerialization.OCamlInterop
+module LibBackend.OCamlInterop
 
 // Interoperation functions with OCaml.
 

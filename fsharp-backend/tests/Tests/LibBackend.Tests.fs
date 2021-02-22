@@ -3,9 +3,9 @@ module Tests.LibBackend
 open Expecto
 open Prelude
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 
-open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
+open LibBackend.ProgramTypes.Shortcuts
 
 let parserTests =
   let t name testStr expectedExpr =

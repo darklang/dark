@@ -23,7 +23,7 @@ open Prelude
 open Tablecloth
 open FSharpx
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 
