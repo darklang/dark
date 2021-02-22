@@ -27,16 +27,35 @@ let writeJson (f : Utf8JsonWriter -> unit) : string =
 let parseJson (s : string) : JsonElement =
   (JsonDocument.Parse s).RootElement
 
+let formatFloat (f : float) : string =
+  f.ToString("0.0################")
+
 let writeFloat (w : Utf8JsonWriter) (f : float) =
-  let floatStr : string = f.ToString("0.0################")
+  // This is an ugly hack to get around what appears to be missing
+  // functionality, while trying to make a float like "82.0" appear with the
+  // ".0":
+  //
+  // - The standard Utf8JsonWriter.WriteNumberValue method takes a double and
+  // formats it for me, and the format (which is the standard 'G' format) omits
+  // the ".0" suffix.
+  //
+  // By design it seems that I can't just write a raw string to Utf8JsonWriter,
+  // but I found a workaround: to create a JsonElement and call
+  // JsonElement.WriteTo`.  This calls a private method in Utf8JsonWriter and
+  // writes the string directly into it.
+  //
+  // Obviously the performance here will be bad. Looking for a better solution.
+  let floatStr = formatFloat f
   let jse = JsonDocument.Parse(floatStr).RootElement
   jse.WriteTo w
 
 let writeFloatProperty (w : Utf8JsonWriter) (field : string) (f : float) =
-  let floatStr : string = f.ToString("0.0################")
+  let floatStr = formatFloat f
   let jse = JsonDocument.Parse(floatStr).RootElement
   w.WritePropertyName field
   jse.WriteTo w
+
+
 
 
 // -------------------------
@@ -193,7 +212,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
-    | DFloat f -> f.ToString("0.0##################")
+    | DFloat f -> formatFloat f
     | DChar c -> c
     | DNull -> "null"
     | DDate d -> d.toIsoString ()
@@ -908,7 +927,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DInt i -> i.ToString()
     | DBool true -> "true"
     | DBool false -> "false"
-    | DFloat f -> f.ToString("0.0##################")
+    | DFloat f -> formatFloat f
     | DNull -> "null"
     | DFnVal _ ->
         (* See docs/dblock-serialization.ml *)
