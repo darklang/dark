@@ -46,11 +46,8 @@ let testDvalRoundtrippableRoundtrips =
               Expect.equalDval
                 dv
                 (dv
-                 |> debug "dval"
                  |> DvalRepr.toInternalRoundtrippableV0
-                 |> debug "stringified"
-                 |> DvalRepr.ofInternalRoundtrippableV0
-                 |> debug "parsed")
+                 |> DvalRepr.ofInternalRoundtrippableV0)
                 "full"
 
               Expect.equal
@@ -65,196 +62,63 @@ let testDvalRoundtrippableRoundtrips =
 // FSTODO: test that printable formats support all data types
 // FSTODO: test nested objects
 
+let testDvalOptionQueryableSpecialCase =
+  test "dval Option Queryable Special Case" {
+    let dvm = Map.ofList [ ("type", RT.DStr "option"); ("value", RT.DInt 5I) ]
 
-// let t_dval_user_db_json_roundtrips () =
-//   let queryable_rt v =
-//     v
-//     |> (function
-//          | DObj dval_map -> dval_map | _ -> Exception.internal "dobj only here")
-//     |> Dval.to_internal_queryable_v1
-//     |> Dval.of_internal_queryable_v1
-//   in
-//   let check name (v : dval) =
-//     check_dval ("queryable: " ^ name) v (queryable_rt v) ;
-//     ()
-//   in
-//   let dvals =
-//     [ ( "looks like an option but isn't"
-//       , Dval.to_dobj_exn
-//           [("type", Dval.dstr_of_string_exn "option"); ("value", Dval.dint 5)]
-//       ) ]
-//   in
-//   List.iter dvals ~f:(fun (name, dv) -> check name dv)
-//
-//
-// let t_dval_user_db_v1_migration () =
-//   let forward v =
-//     (* Saved with old version, can be read with new version *)
-//     v |> Dval.to_internal_queryable_v0 |> Dval.of_internal_queryable_v1
-//   in
-//   let backwards v =
-//     (* Saved with new version, can be read with old version *)
-//     v
-//     |> (function
-//          | DObj dval_map -> dval_map | _ -> Exception.internal "dobj only here")
-//     |> Dval.to_internal_queryable_v1
-//     |> Dval.of_internal_queryable_v0
-//   in
-//   let check name (v : dval) =
-//     check_dval ("forward: " ^ name) v (forward v) ;
-//     check_dval ("backwards: " ^ name) v (backwards v) ;
-//     ()
-//   in
-//   let fields =
-//     sample_dvals
-//     (* These are the field types allowed in the DB *)
-//     |> List.filter ~f:(fun (_, dv) ->
-//            Prelude.List.member
-//              (Dval.tipe_of dv)
-//              [ TInt
-//              ; TFloat
-//              ; TBool
-//              ; TNull
-//              ; TStr
-//              ; TList
-//              ; TDate
-//              ; TPassword
-//              ; TUuid
-//              ; TObj ])
-//   in
-//   check "regular old object" (Dval.to_dobj_exn fields)
-//
-//
-// let t_result_to_response_works () =
-//   let req =
-//     Req.make
-//       ~headers:(Header.init ())
-//       (Uri.of_string "http://test.builtwithdark.com/")
-//   in
-//   let req_example_com =
-//     Req.make
-//       ~headers:(Header.of_list [("Origin", "https://example.com")])
-//       (Uri.of_string "http://test.builtwithdark.com/")
-//   in
-//   let req_google_com =
-//     Req.make
-//       ~headers:(Header.of_list [("Origin", "https://google.com")])
-//       (Uri.of_string "http://test.builtwithdark.com/")
-//   in
-//   let c = ops2c_exn "test" [] in
-//   ignore
-//     (List.map
-//        ~f:(fun (dval, req, cors_setting, check) ->
-//          Canvas.update_cors_setting c cors_setting ;
-//          dval
-//          |> Webserver.result_to_response ~c ~execution_id ~req
-//          |> Libcommon.Telemetry.with_root "test" (fun span ->
-//                 Webserver.respond_or_redirect span)
-//          |> Lwt_main.run
-//          |> fst
-//          |> check)
-//        [ ( exec_ast (record [])
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "objects get application/json content-type"
-//                (Some "application/json; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (list [int 1; int 2])
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "lists get application/json content-type"
-//                (Some "application/json; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (int 2)
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "other things get text/plain content-type"
-//                (Some "text/plain; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (fn "Http::success" [record []])
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "Http::success gets application/json"
-//                (Some "application/json; charset=utf-8")
-//                (Header.get (Resp.headers r) "Content-Type") )
-//        ; ( exec_ast (int 1)
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "without any other settings, we get Access-Control-Allow-Origin: *."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( DError (SourceNone, "oh no :(")
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "we get Access-Control-Allow-Origin: * even for errors."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( DIncomplete SourceNone
-//          , req
-//          , None
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "we get Access-Control-Allow-Origin: * even for incompletes."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req
-//          , Some Canvas.AllOrigins
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with explicit wildcard setting, we get Access-Control-Allow-Origin: *."
-//                (Some "*")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req
-//          , Some (Canvas.Origins ["https://example.com"])
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with allowlist setting and no Origin, we get no Access-Control-Allow-Origin"
-//                None
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req_example_com
-//          , Some (Canvas.Origins ["https://example.com"])
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with allowlist setting and matching Origin, we get good Access-Control-Allow-Origin"
-//                (Some "https://example.com")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-//        ; ( exec_ast (int 1)
-//          , req_google_com
-//          , Some (Canvas.Origins ["https://example.com"])
-//          , fun r ->
-//              AT.check
-//                (AT.option AT.string)
-//                "with allowlist setting and mismatched Origin, we get null Access-Control-Allow-Origin"
-//                (Some "null")
-//                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") ) ]) ;
-//   ()
-//
-//
+    Expect.equal
+      (RT.DObj dvm)
+      (dvm |> DvalRepr.toInternalQueryableV1 |> DvalRepr.ofInternalQueryableV1)
+      "extra"
+  }
+
+let testDvalUserDBV1Migration =
+  let forward v =
+    // Saved with old version, can be read with new version *)
+    v |> DvalRepr.toInternalQueryableV0 |> DvalRepr.ofInternalQueryableV1
+
+  let backwards v =
+    // Saved with new version, can be read with old version
+    v
+    |> (function
+    | RT.DObj dvm -> dvm
+    | _ -> failwith "dobj only here")
+    |> DvalRepr.toInternalQueryableV1
+    |> DvalRepr.ofInternalQueryableV0
+
+  sampleDvals
+  // These are the field types allowed in the DB
+  |> List.filter
+       (fun (_, dv) ->
+         match dv with
+         | RT.DInt _
+         | RT.DFloat _
+         | RT.DBool _
+         | RT.DNull
+         | RT.DStr _
+         | RT.DList _
+         | RT.DDate _
+         // | DPassword _
+         | RT.DUuid _
+         | RT.DObj _ -> true
+         | RT.DChar _
+         | RT.DDB _
+         | RT.DError _
+         | RT.DIncomplete _
+         | RT.DErrorRail _
+         | RT.DOption _
+         | RT.DResult _
+         | RT.DFnVal _
+         | RT.DHttpResponse _
+         | RT.DBytes _ -> false)
+  |> fun fields ->
+       test $"dbv1migration" {
+         let dv = RT.DObj(Map.ofList fields)
+         Expect.equalDval dv (forward dv) $"forward"
+         Expect.equalDval dv (backwards dv) $"backwards"
+       }
+
+
 // let date_migration_has_correct_formats () =
 //   let str = "2019-03-08T08:26:14Z" in
 //   let date = DDate (Util.date_of_isostring str) in
@@ -372,40 +236,11 @@ let testDvalRoundtrippableRoundtrips =
 //     Dval.to_internal_queryable_v1
 //     Dval.of_internal_queryable_v1 ;
 //   ()
-//
-//
-// let suite =
-//   [ ( "Parsing JSON to Dvals doesn't care about key order"
-//     , `Quick
-//     , t_internal_roundtrippable_doesnt_care_about_order )
-//   ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
-//   ; ( "UserDB values migrate from v0 to v1 safely"
-//     , `Quick
-//     , t_dval_user_db_v1_migration )
-//   ; ( "UserDB values roundtrip to yojson correctly"
-//     , `Quick
-//     , t_dval_user_db_json_roundtrips )
-//   ; ( "Dvals get converted to web responses correctly"
-//     , `Quick
-//     , t_result_to_response_works )
-//   ; ( "Date has correct formats in migration"
-//     , `Quick
-//     , date_migration_has_correct_formats )
-//   ; ( "Passwords serialize correctly and redact (or not) correctly"
-//     , `Quick
-//     , t_password_serialization )
-//   ; ( "Passwords serialize correctly and redact (or not) correctly (when put through object)"
-//     , `Quick
-//     , t_password_serialization2 )
-//   ; ( "Passwords in objects roundtrip correctly"
-//     , `Quick
-//     , t_password_serialization )
-//   ; ( "Passwords serialize when not redacting"
-//     , `Quick
-//     , t_password_json_round_trip_forwards ) ]
 
 let tests =
   testList
     "dvalRepr"
     [ testDvalRoundtrippableRoundtrips
-      testInternalRoundtrippableDoesntCareAboutOrder ]
+      testInternalRoundtrippableDoesntCareAboutOrder
+      testDvalOptionQueryableSpecialCase
+      testDvalUserDBV1Migration ]
