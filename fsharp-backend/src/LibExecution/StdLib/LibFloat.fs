@@ -112,17 +112,15 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Float" "sqrt" 0
-
-    //   ; parameters = [Param.make "a" TFloat ""]
-    //   ; returnType = TFloat
-    //   ; description = "Get the square root of a float"
-    //   ; fn =
-
-    //         (function _, [DFloat a] -> DFloat (sqrt a) | _ -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Float" "sqrt" 0
+      parameters = [Param.make "a" TFloat ""]
+      returnType = TFloat
+      description = "Get the square root of a float"
+      fn =
+        (function _, [DFloat a] -> Value(DFloat (Math.Sqrt a)) | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Float" "power" 0
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
       returnType = TFloat
