@@ -221,7 +221,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
 // ; { name = fn "Float" "sum" 0
 
 //   ; parameters = [Param.make "a" TList ""]
@@ -252,22 +252,18 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "Float" "min" 0
-
-//   ; parameters = [Param.make "a" TFloat ""; Param.make "b" TFloat ""]
-//   ; returnType = TFloat
-//   ; description = "Returns the lesser of float `a` and float `b`"
-//   ; fn =
-
-//         (function
-//         | _, [DFloat a; DFloat b] ->
-//             DFloat (Float.min a b)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Float" "max" 0
+    { name = fn "Float" "min" 0
+      parameters = [Param.make "a" TFloat ""; Param.make "b" TFloat ""]
+      returnType = TFloat
+      description = "Returns the lesser of float `a` and float `b`"
+      fn =
+        (function
+        | _, [DFloat a; DFloat b] -> Value(DFloat (Math.Min(a, b)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+//; { name = fn "Float" "max" 0
 
 //   ; parameters = [Param.make "a" TFloat ""; Param.make "b" TFloat ""]
 //   ; returnType = TFloat
@@ -315,3 +311,4 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
+  ]
