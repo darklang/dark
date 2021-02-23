@@ -19,6 +19,7 @@ nuget Giraffe = 5.0.0-rc-6
 
 // LibExecution
 nuget GuidEx.Standard = 1.0.2
+nuget Newtonsoft.Json = 12.0.3
 nuget FSharp.SystemTextJson = 0.15.14
 nuget Ply = 0.3.1
 nuget FSharpPlus = 1.2.0-CI01665

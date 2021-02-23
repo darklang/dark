@@ -15,57 +15,49 @@ open Tablecloth
 
 open RuntimeTypes
 
+// FSTODO: json.net is very permissive. Make sure we only use it for internal
+// types. What do we use to read from users? It should be strict.
+
+// I tried System.Text.Json but ran into a number of problems:
+//
+// - Infinity/Nan: The original OCaml Yojson converter represented these special floats as invalid JSON, which System.Text.Json threw an exception over.
+// - 82.0: It was possible to workaround this using incredibly ugly hacks, but by default 82.0 would be printed as `82` and there was no way to change that.
+
 open System.Text.Json
+open Newtonsoft.Json
 
 // TODO CLEANUP - remove all the unsafeDval by inlining them into the named
 // functions that use them, such as toQueryable or toRoundtrippable
 
-let writeJson (f : Utf8JsonWriter -> unit) : string =
-  let stream = new System.IO.MemoryStream ()
-  let w = new Utf8JsonWriter(stream)
+let writeJson (f : JsonWriter -> unit) : string =
+  let stream = new System.IO.StringWriter()
+  let w = new JsonTextWriter(stream)
+  // Match yojson
+  w.FloatFormatHandling <- FloatFormatHandling.Symbol
   f w
-  w.Flush ()
-  System.Text.Encoding.UTF8.GetString (stream.ToArray())
+  stream.ToString()
 
-let parseJson (s : string) : JsonElement =
-  (JsonDocument.Parse s).RootElement
+let parseJson (s : string) : JsonElement = (JsonDocument.Parse s).RootElement
 
-let formatFloat (f : float) : string =
-  f.ToString("0.0################")
+let formatFloat (f : float) : string = f.ToString("0.0################")
 
-let writeFloat (w : Utf8JsonWriter) (f : float) =
-  // TODO CLEANUP
-  // This is an ugly hack to get around what appears to be missing
-  // functionality, while trying to make a float like "82.0" appear with the
-  // ".0":
-  //
-  // - The standard Utf8JsonWriter.WriteNumberValue method takes a double and
-  // formats it for me, and the format (which is the standard 'G' format) omits
-  // the ".0" suffix.
-  //
-  // By design it seems that I can't just write a raw string to Utf8JsonWriter,
-  // but I found a workaround: to create a JsonElement and call
-  // JsonElement.WriteTo`.  This calls a private method in Utf8JsonWriter and
-  // writes the string directly into it.
-  //
-  // Obviously the performance here will be bad. Looking for a better solution.
-  let floatStr = formatFloat f
-  let jse = JsonDocument.Parse(floatStr).RootElement
-  jse.WriteTo w
-
-let writeFloatProperty (w : Utf8JsonWriter) (field : string) (f : float) =
-  let floatStr = formatFloat f
-  let jse = JsonDocument.Parse(floatStr).RootElement
-  w.WritePropertyName field
-  jse.WriteTo w
+let writeFloat (w : JsonWriter) (f : float) = w.WriteRawValue(formatFloat f)
 
 // Determine whethere the number is a float or an int and parse appropriately.
 let parseJsonNumber (j : JsonElement) : Dval =
-  let str = j.GetRawText ()
+  let str = j.GetRawText()
+
   if String.includes "." str then
     str |> System.Double.Parse |> DFloat
   else
-    str |> parseBigint |> DInt
+    match str with
+    | "Infinity" -> DFloat System.Double.PositiveInfinity
+    | "-Infinity" -> DFloat System.Double.NegativeInfinity
+    | "infinity" -> DFloat System.Double.PositiveInfinity
+    | "-infinity" -> DFloat System.Double.NegativeInfinity
+    | "NaN" -> DFloat System.Double.NaN
+    | "nan" -> DFloat System.Double.NaN
+    | _ -> str |> parseBigint |> DInt
 
 
 // -------------------------
@@ -168,7 +160,8 @@ let dtypeName (dv : Dval) : string =
 
 let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
 
-let unsafeDTypeToJson (typ : DType) : string = typ |> dtypeToString |> String.toLowercase
+let unsafeDTypeToJson (typ : DType) : string =
+  typ |> dtypeToString |> String.toLowercase
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
@@ -263,108 +256,86 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
 
   reprfn dval
 
-let toPrettyMachineJsonV1 (w : Utf8JsonWriter) (dval : Dval) : unit =
+let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
+  let writeDval = toPrettyMachineJsonV1 w
   // utf8jsonwriter has different methods for writing into objects vs arrays.
   // Dark doesn't assume the outermost value is an array or object, so try
   // writing the array version to start, then recurse between the two as
   // appropriate based on the content.
-  let rec writeValue (dv : Dval) =
-    match dv with
-    (* basic types *)
-    | DInt i -> w.WriteNumberValue (decimal i)
-    | DFloat f -> writeFloat w f
-    | DBool b -> w.WriteBooleanValue b
-    | DNull -> w.WriteNullValue ()
-    | DStr s -> w.WriteStringValue s
-    | DList l ->
-        w.WriteStartArray ()
-        List.iter writeValue l
-        w.WriteEndArray ()
-    | DObj o ->
-        w.WriteStartObject ()
-        Map.iter (fun k v -> writeInObj k v) o
-        w.WriteEndObject ()
-    | DFnVal _ ->
-        (* See docs/dblock-serialization.ml *)
-        w.WriteNullValue ()
-    | DIncomplete _ -> w.WriteNullValue ()
-    | DChar c -> w.WriteStringValue c
-    | DError (_, msg) ->
-        w.WriteStartObject ()
-        fstodo "handle derror"
-        writeInObj "Error" (DStr msg)
-        w.WriteEndObject ()
-    | DHttpResponse (h, response) -> fstodo "httpresponse"
-    | DDB dbName -> w.WriteStringValue dbName
-    | DDate date -> w.WriteStringValue (date.toIsoString ())
-    // FSTODO
-    // | DPassword hashed ->
-    //     `Assoc [("Error", `String "Password is redacted")]
-    | DUuid uuid -> w.WriteStringValue uuid
-    | DOption opt -> match opt with | None -> w.WriteNullValue () | Some v -> writeValue v
-    | DErrorRail dv -> writeValue dv
-    | DResult res ->
-         (match res with
-         | Ok dv -> writeValue dv
-         | Error dv ->
-            w.WriteStartObject ()
-            writeInObj "Error" dv
-            w.WriteEndObject ())
-    | DBytes bytes ->
-        //FSTODO: rather than using a mutable byte array, should this be a readonly span?
-        w.WriteStringValue (System.Convert.ToBase64String bytes)
+  match dv with
+  (* basic types *)
+  | DInt i -> w.WriteValue i
+  | DFloat f -> writeFloat w f
+  | DBool b -> w.WriteValue b
+  | DNull -> w.WriteNull()
+  | DStr s -> w.WriteValue s
+  | DList l ->
+      w.WriteStartArray()
+      List.iter writeDval l
+      w.WriteEnd()
+  | DObj o ->
+      w.WriteStartObject()
 
-  and writeInObj (field : string) (dv : Dval) =
-    match dv with
-    (* basic types *)
-    | DInt i -> w.WriteNumber(field, decimal i)
-    | DFloat f -> writeFloatProperty w field f
-    | DBool b -> w.WriteBoolean(field, b)
-    | DNull -> w.WriteNull field
-    | DStr s -> w.WriteString (field, s)
-    | DList l ->
-        w.WriteStartArray field
-        List.iter writeValue l
-        w.WriteEndArray ()
-    | DObj o ->
-        w.WriteStartObject field
-        Map.iter (fun k v -> writeInObj k v) o
-        w.WriteEndObject ()
-    | DFnVal _ ->
-        (* See docs/dblock-serialization.ml *)
-        w.WriteNull field
-    | DIncomplete _ -> w.WriteNull field
-    | DChar c -> w.WriteString(field, c)
-    | DError (_, msg) ->
-        w.WriteStartObject field
-        fstodo "handle derror"
-        writeInObj "Error" (DStr "msg")
-        w.WriteEndObject ()
-    | DHttpResponse (h, response) -> fstodo "httpresponse"
-    | DDB dbName -> w.WriteString(field, dbName)
-    | DDate date -> w.WriteString(field, date.toIsoString ())
-    // | DPassword hashed -> // FSOTOD
-    //     `Assoc [("Error", `String "Password is redacted")]
-    | DUuid uuid -> w.WriteString(field, uuid)
-    | DOption opt -> match opt with | None -> w.WriteNull field | Some v -> writeInObj field v
-    | DErrorRail dv -> writeInObj field dv
-    | DResult res ->
-         (match res with
-         | Ok dv -> writeInObj field dv
-         | Error dv ->
-            w.WriteStartObject ()
-            writeInObj "Error" dv
-            w.WriteEndObject ())
-    | DBytes bytes ->
-        //FSTODO: rather than using a mutable byte array, should this be a readonly span?
-        w.WriteString (field,System.Convert.ToBase64String bytes)
-  writeValue dval
+      Map.iter
+        (fun k v ->
+          w.WritePropertyName k
+          writeDval v)
+        o
+
+      w.WriteEnd()
+  | DFnVal _ ->
+      (* See docs/dblock-serialization.ml *)
+      w.WriteNull()
+  | DIncomplete _ -> w.WriteNull()
+  | DChar c -> w.WriteValue c
+  | DError (_, msg) ->
+      w.WriteStartObject()
+      w.WritePropertyName "Error"
+      w.WriteValue msg
+      w.WriteEnd()
+  | DHttpResponse (h, response) -> fstodo "httpresponse"
+  | DDB dbName -> w.WriteValue dbName
+  | DDate date -> w.WriteValue(date.toIsoString ())
+  // FSTODO
+  // | DPassword hashed ->
+  //     `Assoc [("Error", `String "Password is redacted")]
+  | DUuid uuid -> w.WriteValue uuid
+  | DOption opt ->
+      match opt with
+      | None -> w.WriteNull()
+      | Some v -> writeDval v
+  | DErrorRail dv -> writeDval dv
+  | DResult res ->
+      (match res with
+       | Ok dv -> writeDval dv
+       | Error dv ->
+           w.WriteStartObject()
+           w.WritePropertyName "Error"
+           writeDval dv
+           w.WriteEnd())
+  | DBytes bytes ->
+      //FSTODO: rather than using a mutable byte array, should this be a readonly span?
+      w.WriteValue(System.Convert.ToBase64String bytes)
 
 
 let toPrettyMachineJsonStringV1 (dval : Dval) : string =
-  writeJson (fun w ->
-    toPrettyMachineJsonV1 w dval
-  )
+  writeJson (fun w -> toPrettyMachineJsonV1 w dval)
+
+// This special format was originally the default OCaml (yojson-derived) format
+// for this.
+let responseOfJson (a : Dval) : DHTTP =
+  match a with
+  | DList [ DStr "Redirect"; DStr url ] -> Redirect url
+  | DList [ DStr "Response"; DInt code; DList headers ] ->
+      let headers =
+        headers
+        |> List.map
+             (function
+             | DList [ DStr k; DStr v ] -> (k, v)
+             | _ -> failwith "Invalid DHttpResponse headers")
+
+      Response(int code, headers)
+  | _ -> failwith "invalid response json"
 
 
 // The "unsafe" variations here are bad. They encode data ambiguously, and
@@ -373,50 +344,58 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 // and we really need to move off it, but for now we're here. Do not change
 // existing encodings - this will break everything.
 let rec unsafeDvalOfJsonV0 (json : JsonElement) : Dval =
-   let convert = unsafeDvalOfJsonV0
-   match json.ValueKind with
-   | JsonValueKind.Number -> parseJsonNumber json
-   | JsonValueKind.True -> DBool true
-   | JsonValueKind.False -> DBool false
-   | JsonValueKind.Null -> DNull
-   | JsonValueKind.Undefined -> DNull
-   | JsonValueKind.String -> DStr (json.GetString ())
-   | JsonValueKind.Array ->
-       // We shouldnt have saved dlist that have incompletes or error rails but we might have
-        seq (json.EnumerateArray()) |> Seq.toList  |> List.map convert |> Dval.list
-   | JsonValueKind.Object ->
-        let fields =
-          seq (json.EnumerateObject()) |> Seq.toList  |> List.map (fun jp -> (jp.Name, convert jp.Value)) |> List.sortBy (fun (k, _) -> k)
-        // These are the only types that are allowed in the queryable
-        // representation. We may allow more in the future, but the real thing to
-        // do is to use the DB's type and version to encode/decode them correctly
-        match fields with
-          // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
-        | [ ("type", DStr "response"); ("value", DList [a; b]) ] -> fstodo "unsafeDResp"
-        | [ ("type", DStr "date"); ("value", DStr v) ] -> DDate(System.DateTime.ofIsoString v)
-        | [ ("type", DStr "password"); ("value", DStr v) ] ->
-              // v |> B64.decode |> Bytes.of_string |> DPassword
-               fstodo "password"
-        | [ ("type", DStr "error"); ("value", DStr v) ] -> DError (SourceNone, v)
-        | [ ("type", DStr "bytes"); ("value", DStr v) ] -> v |> System.Convert.FromBase64String |> DBytes
-        | [ ("type", DStr "char"); ("value", DStr v) ] -> DChar v
-        | [ ("type", DStr "character"); ("value", DStr v) ] -> DChar v
-        | [ ("type", DStr "datastore"); ("value", DStr v) ] -> DDB v
-        | [ ("type", DStr "incomplete"); ("value", DNull) ] -> DIncomplete SourceNone
-        | [ ("type", DStr "errorrail"); ("value", dv) ] -> DErrorRail dv
-        | [ ("type", DStr "option"); ("value", DNull) ] -> DOption None
-        | [ ("type", DStr "option"); ("value", dv) ] -> DOption (Some dv)
-        | [ ("type", DStr "block"); ("value", DNull) ] ->
-            // See docs/dblock-serialization.ml
-            DFnVal (Lambda
-              { body = EBlank (id 56789)
-              ; symtable = Map.empty
-              ; parameters = [] })
-        | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
-        | [ ("constructor", DStr "Ok"); ("type", DStr "result"); ("values", DList [dv]) ] -> DResult (Ok dv)
-        | [ ("constructor", DStr "Error");  ("type", DStr "result"); ("values", DList [dv]) ] -> DResult (Error dv)
-        | _ -> fields |> Map.ofList |> DObj
-    | _ -> DNull // enums make take values outside known cases
+  let convert = unsafeDvalOfJsonV0
+
+  match json.ValueKind with
+  | JsonValueKind.Number -> parseJsonNumber json
+  | JsonValueKind.True -> DBool true
+  | JsonValueKind.False -> DBool false
+  | JsonValueKind.Null -> DNull
+  | JsonValueKind.Undefined -> DNull
+  | JsonValueKind.String -> DStr(json.GetString())
+  | JsonValueKind.Array ->
+      // We shouldnt have saved dlist that have incompletes or error rails but we might have
+      seq (json.EnumerateArray()) |> Seq.toList |> List.map convert |> Dval.list
+  | JsonValueKind.Object ->
+      let fields =
+        seq (json.EnumerateObject())
+        |> Seq.toList
+        |> List.map (fun jp -> (jp.Name, convert jp.Value))
+        |> List.sortBy (fun (k, _) -> k)
+      // These are the only types that are allowed in the queryable
+      // representation. We may allow more in the future, but the real thing to
+      // do is to use the DB's type and version to encode/decode them correctly
+      match fields with
+      // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
+      | [ ("type", DStr "response"); ("value", DList [ a; b ]) ] ->
+          DHttpResponse(responseOfJson a, b)
+      | [ ("type", DStr "date"); ("value", DStr v) ] ->
+          DDate(System.DateTime.ofIsoString v)
+      | [ ("type", DStr "password"); ("value", DStr v) ] ->
+          // v |> B64.decode |> Bytes.of_string |> DPassword
+          fstodo "password"
+      | [ ("type", DStr "error"); ("value", DStr v) ] -> DError(SourceNone, v)
+      | [ ("type", DStr "bytes"); ("value", DStr v) ] ->
+          v |> System.Convert.FromBase64String |> DBytes
+      | [ ("type", DStr "char"); ("value", DStr v) ] -> DChar v
+      | [ ("type", DStr "character"); ("value", DStr v) ] -> DChar v
+      | [ ("type", DStr "datastore"); ("value", DStr v) ] -> DDB v
+      | [ ("type", DStr "incomplete"); ("value", DNull) ] -> DIncomplete SourceNone
+      | [ ("type", DStr "errorrail"); ("value", dv) ] -> DErrorRail dv
+      | [ ("type", DStr "option"); ("value", DNull) ] -> DOption None
+      | [ ("type", DStr "option"); ("value", dv) ] -> DOption(Some dv)
+      | [ ("type", DStr "block"); ("value", DNull) ] ->
+          // See docs/dblock-serialization.ml
+          DFnVal(
+            Lambda { body = EBlank(id 56789); symtable = Map.empty; parameters = [] }
+          )
+      | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
+      | [ ("constructor", DStr "Ok"); ("type", DStr "result");
+          ("values", DList [ dv ]) ] -> DResult(Ok dv)
+      | [ ("constructor", DStr "Error"); ("type", DStr "result");
+          ("values", DList [ dv ]) ] -> DResult(Error dv)
+      | _ -> fields |> Map.ofList |> DObj
+  | _ -> DNull // enums make take values outside known cases
 
 
 // and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : dval_map =
@@ -430,99 +409,63 @@ let rec unsafeDvalOfJsonV0 (json : JsonElement) : Dval =
 //   | _ ->
 //       Exception.internal "Not a json object"
 
+// Convert a dval (already converted from json) into
 let rec unsafeDvalOfJsonV1 (json : JsonElement) : Dval =
-  fstodo "unsafeDvalOfJsonV1"
-  (* sort so this isn't key-order-dependent. *)
-//   fstodo "sort"
-//   // let json = Yojson.Safe.sort json in
-//   match json with
-//   | J.JsonValue.Number d ->
-//       let str = d.ToString()
-//
-//       if String.includes "." str then
-//         str |> System.Double.Parse |> DFloat
-//       else
-//         str |> parseBigint |> DInt
-//   | J.JsonValue.Float b -> DFloat b
-//   | J.JsonValue.Boolean b -> DBool b
-//   | J.JsonValue.Null -> DNull
-//   | J.JsonValue.String s -> DStr s
-//   | J.JsonValue.Array l ->
-//       // We shouldnt have saved dlist that have incompletes or error rails but we might have
-//       l |> Array.map unsafeDvalOfJsonV1 |> Array.toList |> Dval.list
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "response");
-//                           ("value", J.JsonValue.Array [| a; b |]) |] ->
-//       let dhttp =
-//         match a with
-//         | J.JsonValue.Array [| J.JsonValue.String "Redirect"; J.JsonValue.String url |] ->
-//             Redirect url
-//         | J.JsonValue.Array [| J.JsonValue.String "Response"; J.JsonValue.Number i;
-//                                J.JsonValue.Array headers |] ->
-//             let headers =
-//               headers
-//               |> Array.map
-//                    (function
-//                    | J.JsonValue.Array [| J.JsonValue.String k; J.JsonValue.String v |] ->
-//                        (k, v)
-//                    | _ -> failwith "invalid dresponse header")
-//               |> Array.toList
-//
-//             Response(int i, headers)
-//         | _ -> failwith "invalid response json"
-//
-//       DHttpResponse(dhttp, unsafeDvalOfJsonV1 b)
-//   | J.JsonValue.Record [| ("constructor", J.JsonValue.String constructor);
-//                           ("type", J.JsonValue.String tipe);
-//                           ("values", J.JsonValue.Array vs) |] ->
-//       let expectOne f vs =
-//         match vs with
-//         | [| v |] -> f v
-//         | _ -> DObj(unsafeDvalmapOfJsonV1 json)
-//
-//       (match (tipe, constructor) with
-//        | "result", "Ok" ->
-//            vs |> expectOne (fun v -> DResult(Ok(unsafeDvalOfJsonV1 v)))
-//        | "result", "Error" ->
-//            vs |> expectOne (fun v -> DResult(Error(unsafeDvalOfJsonV1 v)))
-//        | _ -> DObj(unsafeDvalmapOfJsonV1 json))
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "incomplete");
-//                           ("value", J.JsonValue.Null) |] ->
-//       DIncomplete SourceNone
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "option"); ("value", dv) |] ->
-//       if dv = J.JsonValue.Null then
-//         DOption None
-//       else
-//         DOption(Some(unsafeDvalOfJsonV1 dv))
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "block");
-//                           ("value", J.JsonValue.Null) |] ->
-//       (* See docs/dblock-serialization.ml *)
-//       DFnVal(
-//         Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
-//       )
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "errorrail"); ("value", dv) |] ->
-//       DErrorRail(unsafeDvalOfJsonV1 dv)
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "date");
-//                           ("value", J.JsonValue.String v) |] ->
-//       DDate(System.DateTime.ofIsoString v)
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "error");
-//                           ("value", J.JsonValue.String v) |] -> Dval.errStr v
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "password");
-//                           ("value", J.JsonValue.String v) |] ->
-//       fstodo "support password"
-//   // v |> base64Decode |> toBytes |> DPassword
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "datastore");
-//                           ("value", J.JsonValue.String v) |] -> DDB v
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "uuid");
-//                           ("value", J.JsonValue.String v) |] -> DUuid(System.Guid v)
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "char");
-//                           ("value", J.JsonValue.String v) |]
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "character");
-//                           ("value", J.JsonValue.String v) |] ->
-//       v |> String.toEgcSeq |> Seq.head |> DChar
-//   | J.JsonValue.Record [| ("type", J.JsonValue.String "bytes");
-//                           ("value", J.JsonValue.String v) |] ->
-//       v |> base64Decode |> toBytes |> DBytes
-//   | J.JsonValue.Record _ -> DObj(unsafeDvalmapOfJsonV1 json)
+  let convert = unsafeDvalOfJsonV1
+
+  match json.ValueKind with
+  | JsonValueKind.Number -> parseJsonNumber json
+  | JsonValueKind.True -> DBool true
+  | JsonValueKind.False -> DBool false
+  | JsonValueKind.Null -> DNull
+  | JsonValueKind.Undefined -> DNull
+  | JsonValueKind.String -> DStr(json.GetString())
+  | JsonValueKind.Array ->
+      // We shouldnt have saved dlist that have incompletes or error rails but we might have
+      seq (json.EnumerateArray()) |> Seq.toList |> List.map convert |> Dval.list
+  | JsonValueKind.Object ->
+      let fields =
+        seq (json.EnumerateObject())
+        |> Seq.toList
+        |> List.map (fun jp -> (jp.Name, convert jp.Value))
+        |> List.sortBy (fun (k, _) -> k)
+      // These are the only types that are allowed in the queryable
+      // representation. We may allow more in the future, but the real thing to
+      // do is to use the DB's type and version to encode/decode them correctly
+      match fields with
+      // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
+      | [ ("type", DStr "response"); ("value", DList [ a; b ]) ] ->
+          DHttpResponse(responseOfJson a, b)
+      | [ ("type", DStr "date"); ("value", DStr v) ] ->
+          DDate(System.DateTime.ofIsoString v)
+      | [ ("type", DStr "password"); ("value", DStr v) ] ->
+          // v |> B64.decode |> Bytes.of_string |> DPassword
+          fstodo "password"
+      | [ ("type", DStr "error"); ("value", DStr v) ] -> DError(SourceNone, v)
+      | [ ("type", DStr "bytes"); ("value", DStr v) ] ->
+          v |> System.Convert.FromBase64String |> DBytes
+      | [ ("type", DStr "char"); ("value", DStr v) ] ->
+          v |> String.toEgcSeq |> Seq.head |> DChar
+      | [ ("type", DStr "character"); ("value", DStr v) ] ->
+          v |> String.toEgcSeq |> Seq.head |> DChar
+      | [ ("type", DStr "datastore"); ("value", DStr v) ] -> DDB v
+      | [ ("type", DStr "incomplete"); ("value", DNull) ] -> DIncomplete SourceNone
+      | [ ("type", DStr "errorrail"); ("value", dv) ] -> DErrorRail dv
+      | [ ("type", DStr "option"); ("value", DNull) ] -> DOption None
+      | [ ("type", DStr "option"); ("value", dv) ] -> DOption(Some dv)
+      | [ ("type", DStr "block"); ("value", DNull) ] ->
+          // See docs/dblock-serialization.ml
+          DFnVal(
+            Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
+          )
+      | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
+      | [ ("constructor", DStr "Ok"); ("type", DStr "result");
+          ("values", DList [ dv ]) ] -> DResult(Ok dv)
+      | [ ("constructor", DStr "Error"); ("type", DStr "result");
+          ("values", DList [ dv ]) ] -> DResult(Error dv)
+      | _ -> fields |> Map.ofList |> DObj
+  | _ -> DNull // enums make take values outside known cases
+
 //
 // and unsafeDvalmapOfJsonV1 (j : J.JsonValue) : DvalMap =
 //   match j with
@@ -533,70 +476,88 @@ let rec unsafeDvalOfJsonV1 (json : JsonElement) : Dval =
 //         records
 //   | _ -> failwith "Not a json object"
 
-let rec unsafeDvalToJsonValueV0 (w : Utf8JsonWriter) (redact : bool) (dv : Dval) : unit =
-  let writeValue = unsafeDvalToJsonValueV0 w redact
-  let writeField = unsafeDvalToJsonFieldV0 w redact
+let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
+  let writeDval = unsafeDvalToJsonValueV0 w redact
+
   let rec wrapStringValue (typ : string) (str : string) =
-    w.WriteStartObject ()
-    w.WriteString("type", typ)
-    w.WriteString("value", str)
-    w.WriteEndObject ()
-  let rec wrapNullValue (typ : string)  =
-    w.WriteStartObject ()
-    w.WriteString("type", typ)
-    w.WriteNull "value"
-    w.WriteEndObject ()
+    w.WriteStartObject()
+    w.WritePropertyName "type"
+    w.WriteValue(typ)
+    w.WritePropertyName "value"
+    w.WriteValue(str)
+    w.WriteEnd()
+
+  let rec wrapNullValue (typ : string) =
+    w.WriteStartObject()
+    w.WritePropertyName "type"
+    w.WriteValue(typ)
+    w.WritePropertyName "value"
+    w.WriteNull()
+    w.WriteEnd()
+
   and wrapNestedDvalValue (typ : string) (dv : Dval) =
-    w.WriteStartObject ()
-    w.WriteString("type", typ)
-    writeField "value" dv
-    w.WriteEndObject ()
+    w.WriteStartObject()
+    w.WritePropertyName "type"
+    w.WriteValue(typ)
+    w.WritePropertyName "value"
+    writeDval dv
+    w.WriteEnd()
+
   match dv with
   (* basic types *)
-  | DInt i -> w.WriteNumberValue (decimal i) // FSTODO
+  | DInt i -> w.WriteValue i
   | DFloat f -> writeFloat w f
-  | DBool b -> w.WriteBooleanValue b
-  | DNull -> w.WriteNullValue ()
-  | DStr s -> w.WriteStringValue s
+  | DBool b -> w.WriteValue b
+  | DNull -> w.WriteNull()
+  | DStr s -> w.WriteValue s
   | DList l ->
-      w.WriteStartArray ()
-      List.iter writeValue l
-      w.WriteEndArray ()
+      w.WriteStartArray()
+      List.iter writeDval l
+      w.WriteEnd()
   | DObj o ->
-      w.WriteStartObject ()
-      Map.iter (fun k v -> writeField k v) o
-      w.WriteEndObject ()
+      w.WriteStartObject()
+
+      Map.iter
+        (fun k v ->
+          w.WritePropertyName k
+          writeDval v)
+        o
+
+      w.WriteEnd()
   | DFnVal _ ->
       // See docs/dblock-serialization.md
       wrapNullValue "block"
-  | DIncomplete _ ->
-      wrapNullValue "incomplete"
+  | DIncomplete _ -> wrapNullValue "incomplete"
   | DChar c -> wrapStringValue "character" c
-  | DError (_, msg) ->
-      wrapStringValue "error" msg
+  | DError (_, msg) -> wrapStringValue "error" msg
   | DHttpResponse (h, hdv : Dval) ->
-      w.WriteStartArray ()
+      w.WriteStartArray()
+
       match h with
       | Redirect str ->
-          w.WriteStartArray ()
-          w.WriteStringValue "Redirect"
-          w.WriteStringValue str
-          w.WriteEndArray ()
+          w.WriteStartArray()
+          w.WriteValue "Redirect"
+          w.WriteValue str
+          w.WriteEnd()
       | Response (code, headers) ->
-          w.WriteStartArray ()
-          w.WriteStringValue "Response"
-          w.WriteNumberValue code
-          w.WriteStartArray ()
-          List.iter (fun (k : string, v : string) ->
-            w.WriteStartArray ()
-            w.WriteStringValue k
-            w.WriteStringValue v
-            w.WriteEndArray ()) headers
-          w.WriteEndArray ()
-          w.WriteEndArray ()
+          w.WriteStartArray()
+          w.WriteValue "Response"
+          w.WriteValue code
+          w.WriteStartArray()
+
+          List.iter
+            (fun (k : string, v : string) ->
+              w.WriteStartArray()
+              w.WriteValue k
+              w.WriteValue v
+              w.WriteEnd())
+            headers
+
+          w.WriteEnd()
+          w.WriteEnd()
       // value object
       wrapNestedDvalValue "response" hdv
-      w.WriteEndArray ()
+      w.WriteEnd()
   | DDB dbname -> wrapStringValue "datastore" dbname
   | DDate date -> wrapStringValue "date" (date.toIsoString ())
   // | DPassword hashed ->
@@ -609,128 +570,36 @@ let rec unsafeDvalToJsonValueV0 (w : Utf8JsonWriter) (redact : bool) (dv : Dval)
       (match opt with
        | None -> wrapNullValue "option"
        | Some ndv -> wrapNestedDvalValue "option" ndv)
-  | DErrorRail erdv ->
-      wrapNestedDvalValue "errorrail" erdv
+  | DErrorRail erdv -> wrapNestedDvalValue "errorrail" erdv
   | DResult res ->
       (match res with
        | Ok rdv ->
-          w.WriteStartObject ()
-          w.WriteString("type", "result")
-          w.WriteString("constructor", "Ok")
-          w.WriteStartArray "values"
-          writeValue rdv
-          w.WriteEndArray ()
-          w.WriteEndObject ()
+           w.WriteStartObject()
+           w.WritePropertyName "type"
+           w.WriteValue("result")
+           w.WritePropertyName "constructor"
+           w.WriteValue("Ok")
+           w.WritePropertyName "values"
+           w.WriteStartArray()
+           writeDval rdv
+           w.WriteEnd()
+           w.WriteEnd()
        | Error rdv ->
-          w.WriteStartObject ()
-          w.WriteString("type", "result")
-          w.WriteString("constructor", "Error")
-          w.WriteStartArray "values"
-          writeValue rdv
-          w.WriteEndArray ()
-          w.WriteEndObject ())
+           w.WriteStartObject()
+           w.WritePropertyName "type"
+           w.WriteValue("result")
+           w.WritePropertyName "constructor"
+           w.WriteValue("Error")
+           w.WritePropertyName "values"
+           w.WriteStartArray()
+           writeDval rdv
+           w.WriteEnd()
+           w.WriteEnd())
   | DBytes bytes -> wrapStringValue "bytes" (System.Convert.ToBase64String bytes)
 
 
-and unsafeDvalToJsonFieldV0 (w : Utf8JsonWriter) (redact : bool) (field : string) (dv : Dval) : unit =
-  let writeValue = unsafeDvalToJsonValueV0 w redact
-  let writeField = unsafeDvalToJsonFieldV0 w redact
-  let wrapStrInObj (field : string) (typ : DType) (str : string) =
-    w.WriteStartObject field
-    w.WriteString("type", unsafeDTypeToJson typ)
-    w.WriteString("value", str)
-    w.WriteEndObject ()
-  let wrapNestedDvalInObj (field : string) (typ : DType) (dv : Dval) =
-    w.WriteStartObject field
-    w.WriteString("type", unsafeDTypeToJson typ)
-    writeField "value" dv
-    w.WriteEndObject ()
-  let wrapNestedDvalValue (typ : DType) (dv : Dval) =
-    w.WriteStartObject ()
-    w.WriteString("type", unsafeDTypeToJson typ)
-    writeField "value" dv
-    w.WriteEndObject ()
-  match dv with
-  (* basic types *)
-  | DInt i -> w.WriteNumber(field, (decimal i))
-  | DFloat f -> writeFloatProperty w field f
-  | DBool b -> w.WriteBoolean(field, b)
-  | DNull -> w.WriteNull field
-  | DStr s -> w.WriteString(field, s)
-  | DList l ->
-      w.WriteStartArray field
-      List.iter writeValue l
-      w.WriteEndArray ()
-  | DObj o ->
-      w.WriteStartObject field
-      Map.iter (fun k v -> writeField k v) o
-      w.WriteEndObject ()
-  | DFnVal _ ->
-      (* See docs/dblock-serialization.ml *)
-      w.WriteNull field
-  | DIncomplete _ -> w.WriteNull field
-  | DChar c -> w.WriteString(field, c)
-  | DError (_, msg) ->
-      w.WriteStartObject field
-      writeField "Error" (DStr msg)
-      w.WriteEndObject ()
-  | DHttpResponse (h, hdv : Dval) ->
-      w.WriteStartArray field
-      match h with
-      | Redirect str ->
-          w.WriteStartArray ()
-          w.WriteStringValue "Redirect"
-          w.WriteStringValue str
-          w.WriteEndArray ()
-      | Response (code, headers) ->
-          w.WriteStartArray ()
-          w.WriteStringValue "Response"
-          w.WriteNumberValue code
-          w.WriteStartArray ()
-          List.iter (fun (k : string, v : string) ->
-            w.WriteStartArray ()
-            w.WriteStringValue k
-            w.WriteStringValue v
-            w.WriteEndArray ()) headers
-          w.WriteEndArray ()
-          w.WriteEndArray ()
-      // value object
-      wrapNestedDvalValue (Dval.toType dv) hdv
-      w.WriteEndArray ()
-  | DDB dbname -> wrapStrInObj field (TDB TAny) dbname
-  | DDate date -> wrapStrInObj field TDate (date.toIsoString ())
-  // | DPassword hashed ->
-  //     if redact then
-  //       wrap_user_type J.nil
-  //     else
-  //       hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
-  | DUuid uuid -> wrapStrInObj field TUuid (uuid.ToString())
-  | DOption opt ->
-      (match opt with
-       | None -> wrapStrInObj field (Dval.toType dv) "null"
-       | Some ndv -> wrapNestedDvalInObj field (Dval.toType dv) ndv)
-  | DErrorRail erdv ->
-      wrapNestedDvalInObj field (Dval.toType dv) erdv
-  | DResult res ->
-      (match res with
-       | Ok rdv ->
-          w.WriteStartObject field
-          w.WriteString("type", dv |> Dval.toType |> unsafeDTypeToJson)
-          w.WriteString("constructor", "Ok")
-          w.WriteStartArray "values"
-          writeValue rdv
-          w.WriteEndArray ()
-       | Error rdv ->
-          w.WriteStartObject field
-          w.WriteString("type", dv |> Dval.toType |> unsafeDTypeToJson)
-          w.WriteString("constructor", "Error")
-          w.WriteStartArray "values"
-          writeValue rdv
-          w.WriteEndArray ())
-  | DBytes bytes -> wrapStrInObj field TBytes (System.Convert.ToBase64String bytes)
 
-
-let unsafeDvalToJsonValueV1 (w : Utf8JsonWriter) (redact : bool) (dv : Dval) : unit =
+let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
   unsafeDvalToJsonValueV0 w redact dv
 
 (* ------------------------- *)
@@ -747,8 +616,8 @@ let ofInternalRoundtrippableJsonV0 (j : JsonElement) : Result<Dval, string> =
   with e -> Error(e.ToString())
 
 let ofInternalRoundtrippableV0 (str : string) : Dval =
-   // cleanup: we know the types here, so we should probably do type directed parsing and simplify what's stored
-   str |> parseJson |> unsafeDvalOfJsonV1
+  // cleanup: we know the types here, so we should probably do type directed parsing and simplify what's stored
+  str |> parseJson |> unsafeDvalOfJsonV1
 
 // -------------------------
 // Queryable - for the DB *)
@@ -762,13 +631,18 @@ let ofInternalQueryableV0 (str : string) : Dval =
 
 
 let toInternalQueryableV1 (dvalMap : DvalMap) : string =
-  writeJson (fun w ->
-    w.WriteStartObject ()
-    dvalMap
-    |> Map.toList
-    |> List.iter (fun (k, dval) -> (unsafeDvalToJsonFieldV0 w false k dval))
-    w.WriteEndObject ()
-   )
+  writeJson
+    (fun w ->
+      w.WriteStartObject()
+
+      dvalMap
+      |> Map.toList
+      |> List.iter
+           (fun (k, dval) ->
+             (w.WritePropertyName k
+              unsafeDvalToJsonValueV0 w false dval))
+
+      w.WriteEnd())
 
 let ofInternalQueryableV1 (str : string) : Dval =
   // The first level _must_ be an object at the moment
@@ -784,23 +658,28 @@ let ofInternalQueryableV1 (str : string) : Dval =
     | JsonValueKind.False -> DBool false
     | JsonValueKind.Null -> DNull
     | JsonValueKind.Undefined -> DNull
-    | JsonValueKind.String -> DStr (json.GetString ())
+    | JsonValueKind.String -> DStr(json.GetString())
     | JsonValueKind.Array ->
-       // We shouldnt have saved dlist that have incompletes or error rails but we might have
-        seq (json.EnumerateArray()) |> Seq.toList  |> List.map convert |> Dval.list
+        // We shouldnt have saved dlist that have incompletes or error rails but we might have
+        seq (json.EnumerateArray()) |> Seq.toList |> List.map convert |> Dval.list
     | JsonValueKind.Object ->
         let fields =
-          seq (json.EnumerateObject()) |> Seq.toList  |> List.map (fun jp -> (jp.Name, convert jp.Value)) |> List.sortBy (fun (k, _) -> k)
+          seq (json.EnumerateObject())
+          |> Seq.toList
+          |> List.map (fun jp -> (jp.Name, convert jp.Value))
+          |> List.sortBy (fun (k, _) -> k)
         // These are the only types that are allowed in the queryable
         // representation. We may allow more in the future, but the real thing to
         // do is to use the DB's type and version to encode/decode them correctly
         match fields with
-        | [ ("type", DStr "date"); ("value", DStr v) ] -> DDate(System.DateTime.ofIsoString v)
+        | [ ("type", DStr "date"); ("value", DStr v) ] ->
+            DDate(System.DateTime.ofIsoString v)
         | [ ("type", DStr "password"); ("value", DStr v) ] -> fstodo "password"
         // v |> B64.decode |> Bytes.of_string |> DPassword
         | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
         | _ -> fields |> Map.ofList |> DObj
     | _ -> DNull // enums make take values outside known cases
+
   str |> parseJson |> convertTopLevel
 
 // -------------------------
