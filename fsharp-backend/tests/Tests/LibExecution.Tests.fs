@@ -84,7 +84,7 @@ let t
         let astMsg = $"{actualProg} = {expectedResult} ->"
         let dataMsg = $"\n\nActual:\n{actual}\n = \n{expected}"
         let msg = astMsg + dataMsg
-        return (dvalEquals msg actual expected)
+        return (Expect.equalDval actual expected msg)
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
         return (Expect.equal "Exception thrown in test" (e.ToString()) "")

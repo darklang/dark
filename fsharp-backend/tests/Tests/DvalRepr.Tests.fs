@@ -7,61 +7,43 @@ open TestUtils
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
+module DvalRepr = LibExecution.DvalRepr
+
 
 // module Resp = Cohttp_lwt_unix.Response
 // module Req = Cohttp_lwt_unix.Request
 // module Header = Cohttp.Header
-// module AT = Alcotest
-//
-// let t_internal_roundtrippable_doesnt_care_about_order () =
-//   check_dval
-//     "internal_roundtrippable doesn't care about key order"
-//     (Dval.of_internal_roundtrippable_v0
-//        "{
-//          \"type\": \"option\",
-//          \"value\": 5
-//         }")
-//     (Dval.of_internal_roundtrippable_v0
-//        "{
-//          \"value\": 5,
-//          \"type\": \"option\"
-//         }")
-//
-//
-// let t_dval_yojson_roundtrips () =
-//   let checks =
-//     [ ( "roundtrippable"
-//       , Dval.to_internal_roundtrippable_v0
-//       , Dval.of_internal_roundtrippable_v0 )
-//     ; ( "safe"
-//       , (fun v -> v |> dval_to_yojson |> Yojson.Safe.to_string)
-//       , fun v ->
-//           v
-//           |> Yojson.Safe.from_string
-//           |> dval_of_yojson
-//           |> Result.ok_or_failwith ) ]
-//   in
-//   let check name (v : dval) =
-//     List.iter
-//       checks
-//       ~f:(fun (test_name, (encode : dval -> string), (decode : string -> dval))
-//               ->
-//         check_dval (test_name ^ ": " ^ name) v (v |> encode |> decode) ;
-//         AT.check
-//           AT.string
-//           (test_name ^ " as string: " ^ name)
-//           (v |> encode)
-//           (v |> encode |> decode |> encode) ;
-//         ())
-//   in
-//   sample_dvals
-//   |> List.filter ~f:(function
-//          | _, DBlock _ | _, DPassword _ ->
-//              false
-//          | _ ->
-//              true)
-//   |> List.iter ~f:(fun (name, dv) -> check name dv)
-//
+
+let testInternalRoundtrippableDoesntCareAboutOrder =
+  test "internal_roundtrippable doesn't care about key order" {
+    Expect.equal
+      (DvalRepr.ofInternalRoundtrippableV0
+         "{
+           \"type\": \"option\",
+           \"value\": 5
+          }")
+      (DvalRepr.ofInternalRoundtrippableV0
+         "{
+           \"value\": 5,
+           \"type\": \"option\"
+          }") ""
+          }
+
+
+let testDvalRoundtrippableRoundtrips =
+  testList "roundtrippable dvals roundtrip"
+    (sampleDvals
+    |> List.filter (function
+           | _, RT.DFnVal _ -> false
+           // | _, RT.DPassword _ -> false // FSTODO
+           | _ -> true)
+    |> List.map (fun (name, dv) ->
+                    test $"{name}: {dv}" {
+                      Expect.equalDval dv (dv |> DvalRepr.toInternalRoundtrippableV0 |> DvalRepr.ofInternalRoundtrippableV0) "full"
+                      Expect.equal (dv |> DvalRepr.toInternalRoundtrippableV0) (dv |> DvalRepr.toInternalRoundtrippableV0 |> DvalRepr.ofInternalRoundtrippableV0 |> DvalRepr.toInternalRoundtrippableV0) "extra"
+                    }))
+
+
 //
 // let t_dval_user_db_json_roundtrips () =
 //   let queryable_rt v =
@@ -401,4 +383,4 @@ module RT = LibExecution.RuntimeTypes
 //     , `Quick
 //     , t_password_json_round_trip_forwards ) ]
 
-let tests = testList "dvalRepr" []
+let tests = testList "dvalRepr" [testDvalRoundtrippableRoundtrips; testInternalRoundtrippableDoesntCareAboutOrder]

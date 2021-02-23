@@ -20,4 +20,4 @@ let fuzzedTests =
             "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1" ])
     ]
 
-let tests = fuzzedTests
+let tests = testList "ProgramTypes" [fuzzedTests]
