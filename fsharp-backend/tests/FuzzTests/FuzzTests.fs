@@ -8,6 +8,7 @@ open Expecto
 open Expecto.ExpectoFsCheck
 
 open Prelude
+open TestUtils
 
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -151,17 +152,13 @@ let dvalReprInternalQueryablev0Roundtrip (dv : RT.Dval) : bool =
   dv
   |> LibExecution.DvalRepr.toInternalQueryableV0
   |> LibExecution.DvalRepr.ofInternalQueryableV0
-  .=. dv
+  |> dvalEquality dv
 
 let dvalReprInternalQueryablev1Roundtrip (dvm : RT.DvalMap) : bool =
-  let output =
-    dvm
-    |> LibExecution.DvalRepr.toInternalQueryableV1
-    |> LibExecution.DvalRepr.ofInternalQueryableV1
-
-  match output with
-  | RT.DObj r -> r .=. dvm
-  | _ -> failwith "incorrect shape output"
+  dvm
+  |> LibExecution.DvalRepr.toInternalQueryableV1
+  |> LibExecution.DvalRepr.ofInternalQueryableV1
+  |> dvalEquality (RT.DObj dvm)
 
 
 let roundtrips =

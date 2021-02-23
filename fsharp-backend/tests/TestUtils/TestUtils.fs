@@ -1,4 +1,4 @@
-module Tests.TestUtils
+module TestUtils
 
 open Expecto
 
@@ -131,8 +131,8 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
 
 open LibExecution.RuntimeTypes
 
-let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
-  let de l r = dvalEquals l r msg
+let rec dvalEquals (msg : string) (left : Dval) (right : Dval)  : unit =
+  let de = dvalEquals msg
 
   match left, right with
   | DFloat l, DFloat r ->
@@ -149,15 +149,21 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   | DResult (Ok l), DResult (Ok r) -> de l r
   | DResult (Error l), DResult (Error r) -> de l r
   | DOption (Some l), DOption (Some r) -> de l r
+  | DDate l, DDate r ->
+       // Set the milliseconds to zero as we don't preserve them in serializations
+       Expect.equal
+          (l.AddMilliseconds (-(double l.Millisecond)))
+          (r.AddMilliseconds (-(double r.Millisecond)))
+          $"{msg}: {l} <> {r}"
   | DList ls, DList rs ->
       let lLength = List.length ls
       let rLength = List.length rs
-      Expect.equal lLength rLength $"{ls} <> {rs}"
+      Expect.equal lLength rLength $"{ls} <> {rs} in ({msg})"
       List.iter2 de ls rs
   | DObj ls, DObj rs ->
       let lLength = Map.count ls
       let rLength = Map.count rs
-      Expect.equal lLength rLength $"{ls} <> {rs}"
+      Expect.equal lLength rLength $"{ls} <> {rs} in ({msg})"
 
       List.iter2
         (fun (k1, v1) (k2, v2) ->
@@ -195,3 +201,12 @@ let rec dvalEquals (left : Dval) (right : Dval) (msg : string) : unit =
   | DDB _, _
   | DUuid _, _
   | DBytes _, _ -> Expect.equal left right msg
+
+let dvalEquality (left : Dval) (right : Dval) : bool =
+  try
+    dvalEquals "" left right
+    true
+  with e ->
+    printfn $"Dvals aren't equal: {e}"
+    false
+
