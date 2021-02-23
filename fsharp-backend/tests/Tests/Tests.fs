@@ -14,15 +14,18 @@ let main args =
   (LibBackend.Account.initTestAccounts ()).Wait()
 
   let tests =
-    testList
-      "tests"
       [ Tests.LibExecution.tests.Force()
-        Tests.LibBackend.tests
+        Tests.ProgramTypes.tests
+        Tests.OCamlInterop.tests
+        Tests.DvalRepr.tests
+        Tests.SqlCompiler.tests
+        Tests.FSharpToExpr.tests
+        Tests.Account.tests
         Tests.BwdServer.tests
         Tests.ApiServer.tests ]
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang
-  let result = runTestsWithCLIArgs [] args tests
+  let result = runTestsWithCLIArgs [] args (testList "tests" tests)
   if result <> 0 then failwith "Tests have non-zero exit code"
   0

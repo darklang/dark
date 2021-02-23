@@ -115,8 +115,6 @@ let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>
           Expect.equal (fn input1 input2) expected "" })
       values)
 
-
-
 let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) =
   testList
     name
@@ -127,6 +125,17 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
           Expect.equal result expected ""
         })
       values)
+
+// Allow reusing property-test definitions with test cases found by fuzzing
+let testListUsingProperty (name : string) (prop : 'a -> bool) (list : 'a list) =
+  testList
+    name
+    (List.map
+      (fun testCase ->
+        testTask $"{name} {testCase}" { return (Expect.isTrue (prop testCase) "") })
+      list)
+
+
 
 
 open LibExecution.RuntimeTypes
@@ -210,3 +219,64 @@ let dvalEquality (left : Dval) (right : Dval) : bool =
     printfn $"Dvals aren't equal: {e}"
     false
 
+let sampleDvals : List<string * Dval> =
+  [ ("int", Dval.int 5)
+  ; ("int2", Dval.int (-1))
+  ; ("int_max_31_bits", RT.DInt 1073741824I)
+  ; ("int_above_31_bits", RT.DInt 1073741825I)
+  ; ("int_max_32_bits", RT.DInt 2147483647I)
+  ; ("int_above_32_bits", RT.DInt 2147483648I)
+  ; ("int_max_53_bits", RT.DInt 4503599627370496I)
+  ; ("int_above_53_bits", RT.DInt 4503599627370497I)
+  ; ("int_max_63_bits", RT.DInt 4611686018427387903I)
+  ; ("float", DFloat 7.2)
+  ; ("float2", DFloat (-7.2))
+    (* Long term, we shoudln't allow Infinity/NaNs, but since we do we should
+     * make sure they roundtrip OK. *)
+  ; ("nan", DFloat System.Double.NaN)
+  ; ("positive infinity", DFloat System.Double.PositiveInfinity)
+  ; ("negative infinity", DFloat System.Double.NegativeInfinity)
+  ; ("true", DBool true)
+  ; ("false", DBool false)
+  ; ("null", DNull)
+  ; ("datastore", DDB "Visitors")
+  ; ("string", DStr "incredibly this was broken")
+  ; ("list", DList [Dval.int 4])
+  ; ("obj", DObj (Map.ofList ["foo", Dval.int 5 ]))
+  ; ( "obj2"
+    , DObj
+        (Map.ofList
+           [("type", DStr "weird"); ("value", DNull)]) )
+  ; ( "obj3"
+    , DObj
+        (Map.ofList
+           [ ("type", DStr "weird")
+           ; ("value", DStr "x") ]) )
+  ; ("incomplete", DIncomplete SourceNone)
+  ; ("error", DError (SourceNone, "some error string"))
+  ; ( "block"
+    , DFnVal (Lambda
+        { body = RT.EBlank (id 1234)
+        ; symtable = Map.empty
+        ; parameters = [(id 5678, "a")] } ))
+  ; ("errorrail", DErrorRail (Dval.int 5))
+  ; ("redirect", DHttpResponse (Redirect "/home", DNull))
+  ; ( "httpresponse"
+    , DHttpResponse (Response (200, []), DStr "success") )
+  ; ("db", DDB "Visitors")
+  ; ("date", DDate (System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
+  // ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
+  ; ("uuid", DUuid (System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("option", DOption None)
+  ; ("option2", DOption (Some (Dval.int 15)))
+  ; ("option3", DOption (Some (DStr "a string")))
+  ; ("character", DChar "s")
+  ; ("result", DResult (Ok (Dval.int 15)))
+  ; ( "result2" , DResult (Error (DList [DStr "dunno if really supported"])))
+  ; ("result3", DResult (Ok (DStr "a string")))
+  ; ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes)
+  ]
+  // ; ( "bytes2"
+    // , DBytes
+    //     (* use image bytes here to test for any weird bytes forms *)
+    //     (File.readfile Testdata "sample_image_bytes.png"))
