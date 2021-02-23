@@ -18,33 +18,54 @@ let testInternalRoundtrippableDoesntCareAboutOrder =
   test "internal_roundtrippable doesn't care about key order" {
     Expect.equal
       (DvalRepr.ofInternalRoundtrippableV0
-         "{
+        "{
            \"type\": \"option\",
            \"value\": 5
           }")
       (DvalRepr.ofInternalRoundtrippableV0
-         "{
+        "{
            \"value\": 5,
            \"type\": \"option\"
-          }") ""
-          }
+          }")
+      ""
+  }
 
 
 let testDvalRoundtrippableRoundtrips =
-  testList "roundtrippable dvals roundtrip"
+  testList
+    "roundtrippable dvals roundtrip"
     (sampleDvals
-    |> List.filter (function
-           | _, RT.DFnVal _ -> false
-           // | _, RT.DPassword _ -> false // FSTODO
-           | _ -> true)
-    |> List.map (fun (name, dv) ->
-                    test $"{name}: {dv}" {
-                      Expect.equalDval dv (dv |> DvalRepr.toInternalRoundtrippableV0 |> DvalRepr.ofInternalRoundtrippableV0) "full"
-                      Expect.equal (dv |> DvalRepr.toInternalRoundtrippableV0) (dv |> DvalRepr.toInternalRoundtrippableV0 |> DvalRepr.ofInternalRoundtrippableV0 |> DvalRepr.toInternalRoundtrippableV0) "extra"
-                    }))
+     |> List.filter
+          (function
+          | _, RT.DFnVal _ -> false
+          // | _, RT.DPassword _ -> false // FSTODO
+          | _ -> true)
+     |> List.map
+          (fun (name, dv) ->
+            test $"{name}: {dv}" {
+              Expect.equalDval
+                dv
+                (dv
+                 |> debug "dval"
+                 |> DvalRepr.toInternalRoundtrippableV0
+                 |> debug "stringified"
+                 |> DvalRepr.ofInternalRoundtrippableV0
+                 |> debug "parsed")
+                "full"
+
+              Expect.equal
+                (dv |> DvalRepr.toInternalRoundtrippableV0)
+                (dv
+                 |> DvalRepr.toInternalRoundtrippableV0
+                 |> DvalRepr.ofInternalRoundtrippableV0
+                 |> DvalRepr.toInternalRoundtrippableV0)
+                "extra"
+            }))
+
+// FSTODO: test that printable formats support all data types
+// FSTODO: test nested objects
 
 
-//
 // let t_dval_user_db_json_roundtrips () =
 //   let queryable_rt v =
 //     v
@@ -383,4 +404,8 @@ let testDvalRoundtrippableRoundtrips =
 //     , `Quick
 //     , t_password_json_round_trip_forwards ) ]
 
-let tests = testList "dvalRepr" [testDvalRoundtrippableRoundtrips; testInternalRoundtrippableDoesntCareAboutOrder]
+let tests =
+  testList
+    "dvalRepr"
+    [ testDvalRoundtrippableRoundtrips
+      testInternalRoundtrippableDoesntCareAboutOrder ]
