@@ -369,44 +369,62 @@ module Json =
     type BigIntConverter() =
       inherit JsonConverter<bigint>()
 
-      override this.Read
-        (
-          reader : byref<Utf8JsonReader>,
-          _typ : System.Type,
-          _options : JsonSerializerOptions
-        ) =
+      override this.Read(reader : byref<Utf8JsonReader>,
+                         _typ : System.Type,
+                         _options : JsonSerializerOptions) =
         reader.GetString() |> parseBigint
 
-      override this.Write
-        (
-          writer : Utf8JsonWriter,
-          value : bigint,
-          _options : JsonSerializerOptions
-        ) =
+      override this.Write(writer : Utf8JsonWriter,
+                          value : bigint,
+                          _options : JsonSerializerOptions) =
         writer.WriteStringValue(value.ToString())
 
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
 
-      override this.Read
-        (
-          reader : byref<Utf8JsonReader>,
-          _typ : System.Type,
-          _options : JsonSerializerOptions
-        ) =
+      override this.Read(reader : byref<Utf8JsonReader>,
+                         _typ : System.Type,
+                         _options : JsonSerializerOptions) =
         if reader.TokenType = JsonTokenType.String then
           let str = reader.GetString()
           parseUInt64 str
         else
           reader.GetUInt64()
 
-      override this.Write
-        (
-          writer : Utf8JsonWriter,
-          value : tlid,
-          _options : JsonSerializerOptions
-        ) =
+      override this.Write(writer : Utf8JsonWriter,
+                          value : tlid,
+                          _options : JsonSerializerOptions) =
         writer.WriteNumberValue(value)
+
+    type FloatConverter() =
+      // We need this because OCaml gives us Infinity and NaN in our JSON
+      inherit JsonConverter<double>()
+
+      // We need this because OCaml gives us Infinity and NaN in our JSON. Note
+      // that unlike other places, this is type-directed so we know we're
+      // expecting a float and can check specific things
+      override this.Read(reader : byref<Utf8JsonReader>,
+                         _typ : System.Type,
+                         _options : JsonSerializerOptions) =
+        let rawToken = reader.ValueSpan.ToArray() |> ofBytes
+        printfn $"rawtoken: {rawToken}"
+
+        match rawToken with
+        | "Infinity" -> System.Double.PositiveInfinity
+        | "infinity" -> System.Double.PositiveInfinity
+        | "-Infinity" -> System.Double.NegativeInfinity
+        | "-infinity" -> System.Double.NegativeInfinity
+        | "NaN" -> System.Double.NaN
+        | _ -> reader.GetDouble()
+
+      override this.Write(writer : Utf8JsonWriter,
+                          value : double,
+                          _options : JsonSerializerOptions) =
+        match value with
+        | System.Double.PositiveInfinity -> writer.WriteStringValue "Infinity"
+        | System.Double.NegativeInfinity -> writer.WriteStringValue "-Infinity"
+        | _ when System.Double.IsNaN value -> writer.WriteStringValue "NaN"
+        | _ -> writer.WriteNumberValue(value)
 
 
     let _options =
@@ -419,6 +437,7 @@ module Json =
        let options = JsonSerializerOptions()
        options.Converters.Add(TLIDConverter())
        options.Converters.Add(BigIntConverter())
+       options.Converters.Add(FloatConverter())
        options.Converters.Add(fsharpConverter)
        options)
 
