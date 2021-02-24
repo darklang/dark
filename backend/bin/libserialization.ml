@@ -23,8 +23,8 @@ let () =
     "of_internal_roundtrippable_v0"
     Fuzzing.of_internal_roundtrippable_v0 ;
   Callback.register
-    "of_internal_roundtrippable_v0"
-    Fuzzing.of_internal_roundtrippable_v0 ;
+    "to_internal_roundtrippable_v0"
+    Fuzzing.to_internal_roundtrippable_v0 ;
   Callback.register "to_internal_queryable_v0" Fuzzing.to_internal_queryable_v0 ;
   Callback.register "to_internal_queryable_v1" Fuzzing.to_internal_queryable_v1 ;
   Callback.register "to_developer_repr_v0" Fuzzing.to_developer_repr_v0 ;
