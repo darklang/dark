@@ -123,7 +123,6 @@ module WorkerStates =
           value : State,
           options : JsonSerializerOptions
         ) =
-        printfn "serializing state"
         writer.WriteStringValue(toString value)
 
   let find (k : string) (m : T) = Map.get k m
