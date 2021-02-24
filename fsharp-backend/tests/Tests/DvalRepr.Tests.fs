@@ -118,26 +118,14 @@ let testDvalUserDBV1Migration =
          Expect.equalDval dv (backwards dv) $"backwards"
        }
 
-
-// let date_migration_has_correct_formats () =
+// let testDateMigrationHasCorrectFormats () =
 //   let str = "2019-03-08T08:26:14Z" in
-//   let date = DDate (Util.date_of_isostring str) in
-//   let expected =
-//     Yojson.pretty_to_string
-//       (`Assoc [("type", `String "date"); ("value", `String str)])
-//   in
-//   AT.check
-//     AT.string
-//     "old format"
-//     expected
-//     (Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 date) ;
-//   AT.check
-//     AT.string
-//     "new format"
-//     ("\"" ^ str ^ "\"")
-//     (Dval.to_pretty_machine_json_v1 date)
+//   let date = RT.DDate(System.DateTime.ofIsoString str) in
+//   let oldFormat = $"{{ \"type\": \"date\", \"value\": \"{str}\"}}"
+//   Expect.equal (Legacy.toPrettyMachineJsonStringV0 date) oldFormat "old version"
+//   Expect.equal (DvalRepr.toPrettyMachineJsonStringV1 date) $"\"{str}\"" "new version"
 //
-//
+
 // let t_password_json_round_trip_forwards () =
 //   let password = DPassword (Bytes.of_string "x") in
 //   check_dval
