@@ -19,4 +19,24 @@ let () =
   Callback.register "expr_json2bin" BS.expr_json2bin ;
   Callback.register "expr_tlid_pair_json2bin" BS.expr_tlid_pair_json2bin ;
   Callback.register "digest" BS.digest ;
+  Callback.register
+    "of_internal_roundtrippable_v0"
+    Fuzzing.of_internal_roundtrippable_v0 ;
+  Callback.register
+    "of_internal_roundtrippable_v0"
+    Fuzzing.of_internal_roundtrippable_v0 ;
+  Callback.register "to_internal_queryable_v0" Fuzzing.to_internal_queryable_v0 ;
+  Callback.register "to_internal_queryable_v1" Fuzzing.to_internal_queryable_v1 ;
+  Callback.register "to_developer_repr_v0" Fuzzing.to_developer_repr_v0 ;
+  Callback.register
+    "to_enduser_readable_text_v0"
+    Fuzzing.to_enduser_readable_text_v0 ;
+  Callback.register
+    "to_pretty_machine_json_v1"
+    Fuzzing.to_pretty_machine_json_v1 ;
+  Callback.register "to_url_string" Fuzzing.to_url_string ;
+  Callback.register "to_hashable_repr" Fuzzing.to_hashable_repr ;
+  Callback.register "of_unknown_json_v1" Fuzzing.of_unknown_json_v1 ;
+  Callback.register "hash_v0" Fuzzing.hash_v0 ;
+  Callback.register "hash_v1" Fuzzing.hash_v1 ;
   ()

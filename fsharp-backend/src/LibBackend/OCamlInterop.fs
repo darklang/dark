@@ -18,6 +18,7 @@ open Prelude
 open Tablecloth
 
 module PT = ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 module Binary =
   module Internal =
@@ -97,6 +98,81 @@ module Binary =
     extern int oplistJson2Bin(string str, System.IntPtr& byteArray)
 
     // ----------------
+    // dvals - we only need this for fuzzing, so we're just piggybacking on the
+    // code that's already here
+    // ----------------
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_internal_roundtrippable_v0")>]
+    extern string toInternalRoundtrippableV0(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "of_internal_roundtrippable_v0")>]
+    extern string ofInternalRoundtrippableV0(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_internal_queryable_v0")>]
+    extern string toInternalQueryableV0(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_internal_queryable_v1")>]
+    extern string toInternalQueryableV1(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "of_internal_queryable_v0")>]
+    extern string ofInternalQueryableV0(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "of_internal_queryable_v1")>]
+    extern string ofInternalQueryableV1(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_developer_repr")>]
+    extern string toDeveloperRepr(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_enduser_readable_text_v0")>]
+    extern string toEnduserReadableTextV0(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_pretty_machine_json")>]
+    extern string toPrettyMachineJsonV1(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_url_string")>]
+    extern string toUrlString(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "to_hashable_repr")>]
+    extern string toHashableRepr(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "of_unknown_json_v1")>]
+    extern string ofUnknownJsonV1(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "hash_v0")>]
+    extern string hashV0(string str)
+
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "hash_v1")>]
+    extern string hashV1(string str)
+
+
+    // ----------------
     // serialization digest
     // ----------------
     [<DllImport("./libserialization.so",
@@ -151,10 +227,9 @@ module Binary =
     Marshal.Copy(ptr, bytes, 0, length)
     bytes
 
-  let translateBin2Json
-    (internalFn : ((byte array * int) -> string))
-    (bytes : byte [])
-    : string =
+  let translateBin2Json (internalFn : ((byte array * int) -> string))
+                        (bytes : byte [])
+                        : string =
     registerThread ()
     internalFn (bytes, bytes.Length)
 
@@ -384,6 +459,55 @@ module OCamlTypes =
 
     type toplevels = List<toplevel>
 
+    type dval_map = Map<string, dval>
+
+    and dhttp =
+      | Redirect of string
+      | Response of int * (string * string) list
+
+    and optionT =
+      | OptJust of dval
+      | OptNothing
+
+    and resultT =
+      | ResOk of dval
+      | ResError of dval
+
+    and dval_source =
+      | SourceNone
+      | SourceId of tlid * id
+
+    and dblock_args =
+      { symtable : dval_map
+        ``params`` : (id * string) list
+        body : fluidExpr }
+
+    and dval =
+      (* basic types  *)
+      | DInt of int64
+      | DFloat of float
+      | DBool of bool
+      | DNull
+      | DStr of string
+      (* compound types *)
+      | DList of dval list
+      | DObj of dval_map
+      (* special types - see notes above *)
+      | DIncomplete of dval_source
+      | DError of (dval_source * string)
+      | DBlock of dblock_args
+      | DErrorRail of dval
+      (* user types: awaiting a better type system *)
+      | DResp of (dhttp * dval)
+      | DDB of string
+      | DDate of System.DateTime
+      // | DPassword of PasswordBytes.t
+      | DUuid of System.Guid
+      | DOption of optionT
+      | DCharacter of string
+      | DResult of resultT
+      | DBytes of byte []
+
   module PackageManager =
     type parameter = { name : string; tipe : tipe; description : string }
 
@@ -444,7 +568,7 @@ module Convert =
   // client (which also uses these types) and the OCaml libserialization
   // library.
   module OT = OCamlTypes
-  module RT = OT.RuntimeT
+  module ORT = OT.RuntimeT
 
   // ----------------
   // OCaml to ProgramTypes
@@ -467,79 +591,78 @@ module Convert =
     | OT.Filled (_, s) -> s
     | OT.Blank (_) -> ""
 
-  let rec ocamlPattern2PT (o : RT.fluidPattern) : PT.Pattern =
+  let rec ocamlPattern2PT (o : ORT.fluidPattern) : PT.Pattern =
     let r = ocamlPattern2PT
 
     match o with
-    | RT.FPVariable (_, id, str) -> PT.PVariable(id, str)
-    | RT.FPConstructor (_, id, name, pats) ->
+    | ORT.FPVariable (_, id, str) -> PT.PVariable(id, str)
+    | ORT.FPConstructor (_, id, name, pats) ->
         PT.PConstructor(id, name, List.map r pats)
-    | RT.FPInteger (_, id, i) -> PT.PInteger(id, parseBigint i)
-    | RT.FPBool (_, id, b) -> PT.PBool(id, b)
-    | RT.FPString fp -> PT.PString(fp.patternID, fp.str)
-    | RT.FPFloat (_, id, w, f) ->
+    | ORT.FPInteger (_, id, i) -> PT.PInteger(id, parseBigint i)
+    | ORT.FPBool (_, id, b) -> PT.PBool(id, b)
+    | ORT.FPString fp -> PT.PString(fp.patternID, fp.str)
+    | ORT.FPFloat (_, id, w, f) ->
         let whole = parseBigint w
         let sign = if w.[0] = '-' then Negative else Positive
         PT.PFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
-    | RT.FPNull (_, id) -> PT.PNull id
-    | RT.FPBlank (_, id) -> PT.PBlank id
+    | ORT.FPNull (_, id) -> PT.PNull id
+    | ORT.FPBlank (_, id) -> PT.PBlank id
 
-  let rec ocamlSter2PT (o : RT.sendToRail) : PT.SendToRail =
+  let rec ocamlSter2PT (o : ORT.sendToRail) : PT.SendToRail =
     match o with
-    | RT.Rail -> PT.Rail
-    | RT.NoRail -> PT.NoRail
+    | ORT.Rail -> PT.Rail
+    | ORT.NoRail -> PT.NoRail
 
-  let rec ocamlExpr2PT (o : RT.fluidExpr) : PT.Expr =
+  let rec ocamlExpr2PT (o : ORT.fluidExpr) : PT.Expr =
     let r = ocamlExpr2PT
 
     match o with
-    | RT.EBlank id -> PT.EBlank id
-    | RT.EInteger (id, num) -> PT.EInteger(id, parseBigint num)
-    | RT.EString (id, str) -> PT.EString(id, str)
-    | RT.EFloat (id, w, f) ->
+    | ORT.EBlank id -> PT.EBlank id
+    | ORT.EInteger (id, num) -> PT.EInteger(id, parseBigint num)
+    | ORT.EString (id, str) -> PT.EString(id, str)
+    | ORT.EFloat (id, w, f) ->
         let whole = parseBigint w
         let sign = if w.[0] = '-' then Negative else Positive
         PT.EFloat(id, sign, System.Numerics.BigInteger.Abs whole, parseBigint f)
-    | RT.EBool (id, b) -> PT.EBool(id, b)
-    | RT.ENull id -> PT.ENull id
-    | RT.EVariable (id, var) -> PT.EVariable(id, var)
-    | RT.EFieldAccess (id, obj, fieldname) -> PT.EFieldAccess(id, r obj, fieldname)
-    | RT.EFnCall (id, name, args, ster) ->
+    | ORT.EBool (id, b) -> PT.EBool(id, b)
+    | ORT.ENull id -> PT.ENull id
+    | ORT.EVariable (id, var) -> PT.EVariable(id, var)
+    | ORT.EFieldAccess (id, obj, fieldname) -> PT.EFieldAccess(id, r obj, fieldname)
+    | ORT.EFnCall (id, name, args, ster) ->
         PT.EFnCall(id, PT.FQFnName.parse name, List.map r args, ocamlSter2PT ster)
-    | RT.EBinOp (id, name, arg1, arg2, ster) ->
+    | ORT.EBinOp (id, name, arg1, arg2, ster) ->
         PT.EBinOp(id, PT.FQFnName.parse name, r arg1, r arg2, ocamlSter2PT ster)
-    | RT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
-    | RT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
-    | RT.EIf (id, cond, thenExpr, elseExpr) ->
+    | ORT.ELambda (id, vars, body) -> PT.ELambda(id, vars, r body)
+    | ORT.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, r rhs, r body)
+    | ORT.EIf (id, cond, thenExpr, elseExpr) ->
         PT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EPartial (id, str, oldExpr) -> PT.EPartial(id, str, r oldExpr)
-    | RT.ERightPartial (id, str, oldExpr) -> PT.ERightPartial(id, str, r oldExpr)
-    | RT.ELeftPartial (id, str, oldExpr) -> PT.ELeftPartial(id, str, r oldExpr)
-    | RT.EList (id, exprs) -> PT.EList(id, List.map r exprs)
-    | RT.ERecord (id, pairs) -> PT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
-    | RT.EPipe (id, expr1 :: expr2 :: rest) ->
+    | ORT.EPartial (id, str, oldExpr) -> PT.EPartial(id, str, r oldExpr)
+    | ORT.ERightPartial (id, str, oldExpr) -> PT.ERightPartial(id, str, r oldExpr)
+    | ORT.ELeftPartial (id, str, oldExpr) -> PT.ELeftPartial(id, str, r oldExpr)
+    | ORT.EList (id, exprs) -> PT.EList(id, List.map r exprs)
+    | ORT.ERecord (id, pairs) -> PT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | ORT.EPipe (id, expr1 :: expr2 :: rest) ->
         PT.EPipe(id, r expr1, r expr2, List.map r rest)
-    | RT.EPipe (id, [ expr ]) -> r expr
-    | RT.EPipe (id, []) -> failwith "Invalid pipe {o}"
-    | RT.EConstructor (id, name, exprs) ->
+    | ORT.EPipe (id, [ expr ]) -> r expr
+    | ORT.EPipe (id, []) -> failwith "Invalid pipe {o}"
+    | ORT.EConstructor (id, name, exprs) ->
         PT.EConstructor(id, name, List.map r exprs)
-    | RT.EMatch (id, mexpr, pairs) ->
+    | ORT.EMatch (id, mexpr, pairs) ->
         PT.EMatch(
           id,
           r mexpr,
           List.map ((Tuple2.mapItem1 ocamlPattern2PT) << (Tuple2.mapItem2 r)) pairs
         )
-    | RT.EPipeTarget id -> PT.EPipeTarget id
-    | RT.EFeatureFlag (id, name, cond, caseA, caseB) ->
+    | ORT.EPipeTarget id -> PT.EPipeTarget id
+    | ORT.EFeatureFlag (id, name, cond, caseA, caseB) ->
         PT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
 
 
-  let ocamlexprTLIDPair2PT
-    ((expr, tlid) : (RT.fluidExpr * OT.tlid))
-    : PT.Expr * tlid =
+  let ocamlexprTLIDPair2PT ((expr, tlid) : (ORT.fluidExpr * OT.tlid))
+                           : PT.Expr * tlid =
     (ocamlExpr2PT expr, tlid)
 
-  let ocamlSpec2PT (o : RT.HandlerT.spec) : PT.Handler.Spec =
+  let ocamlSpec2PT (o : ORT.HandlerT.spec) : PT.Handler.Spec =
     let ids : PT.Handler.ids =
       { moduleID = bo2ID o.``module``
         nameID = bo2ID o.name
@@ -552,10 +675,9 @@ module Convert =
     | "REPL", name, _ -> PT.Handler.REPL(name, ids)
     | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
 
-  let ocamlHandler2PT
-    (pos : pos)
-    (o : RT.HandlerT.handler<RT.fluidExpr>)
-    : PT.Handler.T =
+  let ocamlHandler2PT (pos : pos)
+                      (o : ORT.HandlerT.handler<ORT.fluidExpr>)
+                      : PT.Handler.T =
     { tlid = o.tlid
       ast = ocamlExpr2PT o.ast
       spec = ocamlSpec2PT o.spec
@@ -594,13 +716,13 @@ module Convert =
     | OT.TUserType (name, version) -> PT.TUserType(name, version)
     | OT.TBytes -> PT.TBytes
 
-  let ocamlDBCol2PT ((name, tipe) : RT.DbT.col) : PT.DB.Col =
+  let ocamlDBCol2PT ((name, tipe) : ORT.DbT.col) : PT.DB.Col =
     { nameID = bo2ID name
       name = bo2String name
       typ = bo2Option tipe |> Option.map ocamlTipe2PT
       typeID = bo2ID tipe }
 
-  let ocamlDB2PT (pos : pos) (o : RT.DbT.db<RT.fluidExpr>) : PT.DB.T =
+  let ocamlDB2PT (pos : pos) (o : ORT.DbT.db<ORT.fluidExpr>) : PT.DB.T =
     { tlid = o.tlid
       name = bo2String o.name
       nameID = bo2ID o.name
@@ -608,17 +730,17 @@ module Convert =
       cols = List.map ocamlDBCol2PT o.cols
       version = o.version }
 
-  let ocamlUserType2PT (o : RT.user_tipe) : PT.UserType.T =
+  let ocamlUserType2PT (o : ORT.user_tipe) : PT.UserType.T =
     { tlid = o.tlid
       name = o.name |> bo2String
       nameID = bo2ID o.name
       version = o.version
       definition =
         match o.definition with
-        | RT.UTRecord fields ->
+        | ORT.UTRecord fields ->
             PT.UserType.Record(
               List.map
-                (fun (rf : RT.user_record_field) ->
+                (fun (rf : ORT.user_record_field) ->
                   { name = rf.name |> bo2String
                     nameID = bo2ID rf.name
                     typ = rf.tipe |> bo2Option |> Option.map ocamlTipe2PT
@@ -627,7 +749,7 @@ module Convert =
             ) }
 
 
-  let ocamlUserFunction2PT (o : RT.user_fn<RT.fluidExpr>) : PT.UserFunction.T =
+  let ocamlUserFunction2PT (o : ORT.user_fn<ORT.fluidExpr>) : PT.UserFunction.T =
     { tlid = o.tlid
       name = o.metadata.name |> bo2String
       nameID = o.metadata.name |> bo2ID
@@ -642,7 +764,7 @@ module Convert =
       infix = o.metadata.infix
       body = ocamlExpr2PT o.ast }
 
-  let ocamlOp2PT (o : OT.op<RT.fluidExpr>) : PT.Op =
+  let ocamlOp2PT (o : OT.op<ORT.fluidExpr>) : PT.Op =
     match o with
     | OT.SetHandler (tlid, pos, handler) ->
         PT.SetHandler(tlid, pos, ocamlHandler2PT pos handler)
@@ -695,12 +817,11 @@ module Convert =
     | OT.DeleteTypeForever tlid -> PT.DeleteTypeForever tlid
 
 
-  let ocamlOplist2PT (list : OT.oplist<RT.fluidExpr>) : PT.Oplist =
+  let ocamlOplist2PT (list : OT.oplist<ORT.fluidExpr>) : PT.Oplist =
     List.map ocamlOp2PT list
 
-  let ocamlTLIDOplist2PT
-    (tlidOplist : OT.tlid_oplist<RT.fluidExpr>)
-    : tlid * PT.Oplist =
+  let ocamlTLIDOplist2PT (tlidOplist : OT.tlid_oplist<ORT.fluidExpr>)
+                         : tlid * PT.Oplist =
     Tuple2.mapItem2 ocamlOplist2PT tlidOplist
 
   // ----------------
@@ -714,79 +835,78 @@ module Convert =
     | None -> OT.Blank id
     | Some v -> OT.Filled(id, v)
 
-  let rec pt2ocamlPattern (mid : id) (p : PT.Pattern) : RT.fluidPattern =
+  let rec pt2ocamlPattern (mid : id) (p : PT.Pattern) : ORT.fluidPattern =
     let r = pt2ocamlPattern mid
 
     match p with
-    | PT.PVariable (id, str) -> RT.FPVariable(mid, id, str)
+    | PT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
     | PT.PConstructor (id, name, pats) ->
-        RT.FPConstructor(mid, id, name, List.map r pats)
-    | PT.PInteger (id, i) -> RT.FPInteger(mid, id, i.ToString())
+        ORT.FPConstructor(mid, id, name, List.map r pats)
+    | PT.PInteger (id, i) -> ORT.FPInteger(mid, id, i.ToString())
     | PT.PCharacter (id, c) -> failwith "Character patterns not supported"
-    | PT.PBool (id, b) -> RT.FPBool(mid, id, b)
-    | PT.PString (id, s) -> RT.FPString { matchID = mid; patternID = id; str = s }
+    | PT.PBool (id, b) -> ORT.FPBool(mid, id, b)
+    | PT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | PT.PFloat (id, Positive, w, f) ->
-        RT.FPFloat(mid, id, w.ToString(), f.ToString())
-    | PT.PFloat (id, Negative, w, f) -> RT.FPFloat(mid, id, $"-{w}", f.ToString())
-    | PT.PNull (id) -> RT.FPNull(mid, id)
-    | PT.PBlank (id) -> RT.FPBlank(mid, id)
+        ORT.FPFloat(mid, id, w.ToString(), f.ToString())
+    | PT.PFloat (id, Negative, w, f) -> ORT.FPFloat(mid, id, $"-{w}", f.ToString())
+    | PT.PNull (id) -> ORT.FPNull(mid, id)
+    | PT.PBlank (id) -> ORT.FPBlank(mid, id)
 
-  let rec pt2ocamlSter (p : PT.SendToRail) : RT.sendToRail =
+  let rec pt2ocamlSter (p : PT.SendToRail) : ORT.sendToRail =
     match p with
-    | PT.Rail -> RT.Rail
-    | PT.NoRail -> RT.NoRail
+    | PT.Rail -> ORT.Rail
+    | PT.NoRail -> ORT.NoRail
 
-  let rec pt2ocamlExpr (p : PT.Expr) : RT.fluidExpr =
+  let rec pt2ocamlExpr (p : PT.Expr) : ORT.fluidExpr =
     let r = pt2ocamlExpr
 
     match p with
-    | PT.EBlank id -> RT.EBlank id
-    | PT.EInteger (id, num) -> RT.EInteger(id, num.ToString())
+    | PT.EBlank id -> ORT.EBlank id
+    | PT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
     | PT.ECharacter (id, num) -> failwith "Characters not supported"
-    | PT.EString (id, str) -> RT.EString(id, str)
-    | PT.EFloat (id, Positive, w, f) -> RT.EFloat(id, w.ToString(), f.ToString())
-    | PT.EFloat (id, Negative, w, f) -> RT.EFloat(id, $"-{w}", f.ToString())
-    | PT.EBool (id, b) -> RT.EBool(id, b)
-    | PT.ENull id -> RT.ENull id
-    | PT.EVariable (id, var) -> RT.EVariable(id, var)
-    | PT.EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
+    | PT.EString (id, str) -> ORT.EString(id, str)
+    | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, w.ToString(), f.ToString())
+    | PT.EFloat (id, Negative, w, f) -> ORT.EFloat(id, $"-{w}", f.ToString())
+    | PT.EBool (id, b) -> ORT.EBool(id, b)
+    | PT.ENull id -> ORT.ENull id
+    | PT.EVariable (id, var) -> ORT.EVariable(id, var)
+    | PT.EFieldAccess (id, obj, fieldname) -> ORT.EFieldAccess(id, r obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
-        RT.EFnCall(id, name.ToString(), List.map r args, pt2ocamlSter ster)
+        ORT.EFnCall(id, name.ToString(), List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
-        RT.EBinOp(id, name.ToString(), r arg1, r arg2, pt2ocamlSter ster)
-    | PT.ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
-    | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
+        ORT.EBinOp(id, name.ToString(), r arg1, r arg2, pt2ocamlSter ster)
+    | PT.ELambda (id, vars, body) -> ORT.ELambda(id, vars, r body)
+    | PT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
-        RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | PT.EPartial (id, str, oldExpr) -> RT.EPartial(id, str, r oldExpr)
-    | PT.ERightPartial (id, str, oldExpr) -> RT.ERightPartial(id, str, r oldExpr)
-    | PT.ELeftPartial (id, str, oldExpr) -> RT.ELeftPartial(id, str, r oldExpr)
-    | PT.EList (id, exprs) -> RT.EList(id, List.map r exprs)
-    | PT.ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+        ORT.EIf(id, r cond, r thenExpr, r elseExpr)
+    | PT.EPartial (id, str, oldExpr) -> ORT.EPartial(id, str, r oldExpr)
+    | PT.ERightPartial (id, str, oldExpr) -> ORT.ERightPartial(id, str, r oldExpr)
+    | PT.ELeftPartial (id, str, oldExpr) -> ORT.ELeftPartial(id, str, r oldExpr)
+    | PT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
+    | PT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
     | PT.EPipe (id, expr1, expr2, rest) ->
-        RT.EPipe(id, r expr1 :: r expr2 :: List.map r rest)
+        ORT.EPipe(id, r expr1 :: r expr2 :: List.map r rest)
     | PT.EConstructor (id, name, exprs) ->
-        RT.EConstructor(id, name, List.map r exprs)
+        ORT.EConstructor(id, name, List.map r exprs)
     | PT.EMatch (id, mexpr, pairs) ->
-        RT.EMatch(
+        ORT.EMatch(
           id,
           r mexpr,
           List.map
             ((Tuple2.mapItem1 (pt2ocamlPattern id)) << (Tuple2.mapItem2 r))
             pairs
         )
-    | PT.EPipeTarget id -> RT.EPipeTarget id
+    | PT.EPipeTarget id -> ORT.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
-        RT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
+        ORT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
 
-  let pt2ocamlexprTLIDPair
-    ((expr, tlid) : (PT.Expr * tlid))
-    : RT.fluidExpr * OT.tlid =
+  let pt2ocamlexprTLIDPair ((expr, tlid) : (PT.Expr * tlid))
+                           : ORT.fluidExpr * OT.tlid =
     (pt2ocamlExpr expr, tlid)
 
 
-  let pt2ocamlSpec (p : PT.Handler.Spec) : RT.HandlerT.spec =
-    let types : RT.HandlerT.spec_types =
+  let pt2ocamlSpec (p : PT.Handler.Spec) : ORT.HandlerT.spec =
+    let types : ORT.HandlerT.spec_types =
       { input = OT.Blank(gid ()); output = OT.Blank(gid ()) }
 
     match p with
@@ -816,7 +936,7 @@ module Convert =
           modifier = string2bo ids.modifierID "_"
           types = types }
 
-  let pt2ocamlHandler (p : PT.Handler.T) : RT.HandlerT.handler<RT.fluidExpr> =
+  let pt2ocamlHandler (p : PT.Handler.T) : ORT.HandlerT.handler<ORT.fluidExpr> =
     { tlid = p.tlid; ast = pt2ocamlExpr p.ast; spec = pt2ocamlSpec p.spec }
 
   let rec pt2ocamlTipe (p : PT.DType) : OT.tipe =
@@ -848,10 +968,10 @@ module Convert =
     | PT.TUserType (name, version) -> OT.TUserType(name, version)
     | PT.TBytes -> OT.TBytes
 
-  let pt2ocamlDBCol (p : PT.DB.Col) : RT.DbT.col =
+  let pt2ocamlDBCol (p : PT.DB.Col) : ORT.DbT.col =
     (string2bo p.nameID p.name, option2bo p.typeID (Option.map pt2ocamlTipe p.typ))
 
-  let pt2ocamlDB (p : PT.DB.T) : RT.DbT.db<RT.fluidExpr> =
+  let pt2ocamlDB (p : PT.DB.T) : ORT.DbT.db<ORT.fluidExpr> =
     { tlid = p.tlid
       name = string2bo p.nameID p.name
       cols = List.map pt2ocamlDBCol p.cols
@@ -860,14 +980,14 @@ module Convert =
       active_migration = None }
 
 
-  let pt2ocamlUserType (p : PT.UserType.T) : RT.user_tipe =
+  let pt2ocamlUserType (p : PT.UserType.T) : ORT.user_tipe =
     { tlid = p.tlid
       name = p.name |> string2bo p.nameID
       version = p.version
       definition =
         match p.definition with
         | PT.UserType.Record fields ->
-            RT.UTRecord(
+            ORT.UTRecord(
               List.map
                 (fun (rf : PT.UserType.RecordField) ->
                   { name = string2bo rf.nameID rf.name
@@ -875,7 +995,7 @@ module Convert =
                 fields
             ) }
 
-  let pt2ocamlUserFunction (p : PT.UserFunction.T) : RT.user_fn<RT.fluidExpr> =
+  let pt2ocamlUserFunction (p : PT.UserFunction.T) : ORT.user_fn<ORT.fluidExpr> =
     { tlid = p.tlid
       metadata =
         { name = string2bo p.nameID p.name
@@ -886,7 +1006,7 @@ module Convert =
           infix = p.infix }
       ast = pt2ocamlExpr p.body }
 
-  let pt2ocamlOp (p : PT.Op) : OT.op<RT.fluidExpr> =
+  let pt2ocamlOp (p : PT.Op) : OT.op<ORT.fluidExpr> =
     match p with
     | PT.SetHandler (tlid, pos, handler) ->
         OT.SetHandler(tlid, pos, pt2ocamlHandler handler)
@@ -940,12 +1060,11 @@ module Convert =
     | PT.DeleteTypeForever tlid -> OT.DeleteTypeForever tlid
 
 
-  let pt2ocamlOplist (list : PT.Oplist) : OT.oplist<RT.fluidExpr> =
+  let pt2ocamlOplist (list : PT.Oplist) : OT.oplist<ORT.fluidExpr> =
     List.map pt2ocamlOp list
 
-  let pt2ocamlToplevels
-    (toplevels : Map<tlid, PT.Toplevel>)
-    : RT.toplevels * RT.user_fn<RT.fluidExpr> list * RT.user_tipe list =
+  let pt2ocamlToplevels (toplevels : Map<tlid, PT.Toplevel>)
+                        : ORT.toplevels * ORT.user_fn<ORT.fluidExpr> list * ORT.user_tipe list =
     toplevels
     |> Map.values
     |> List.fold
@@ -955,28 +1074,26 @@ module Convert =
            | PT.TLHandler h ->
                let ocamlHandler = pt2ocamlHandler h
 
-               let ocamlTL : RT.toplevel =
-                 { tlid = h.tlid; pos = h.pos; data = RT.Handler ocamlHandler }
+               let ocamlTL : ORT.toplevel =
+                 { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
 
                ocamlTL :: tls, ufns, uts
            | PT.TLDB db ->
                let ocamlDB = pt2ocamlDB db
 
-               let ocamlTL : RT.toplevel =
-                 { tlid = db.tlid; pos = db.pos; data = RT.DB ocamlDB }
+               let ocamlTL : ORT.toplevel =
+                 { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
 
                ocamlTL :: tls, ufns, uts
            | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
            | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
-  let ocamlPackageManagerParameter2PT
-    (o : OT.PackageManager.parameter)
-    : PT.PackageManager.Parameter =
+  let ocamlPackageManagerParameter2PT (o : OT.PackageManager.parameter)
+                                      : PT.PackageManager.Parameter =
     { name = o.name; description = o.description; typ = ocamlTipe2PT o.tipe }
 
-  let pt2ocamlPackageManagerParameter
-    (p : PT.PackageManager.Parameter)
-    : OT.PackageManager.parameter =
+  let pt2ocamlPackageManagerParameter (p : PT.PackageManager.Parameter)
+                                      : OT.PackageManager.parameter =
     { name = p.name; description = p.description; tipe = pt2ocamlTipe p.typ }
 
 
@@ -1008,12 +1125,90 @@ module Convert =
       deprecated = p.deprecated
       tlid = p.tlid }
 
+  let rec rt2ocamlDval (p : RT.Dval) : ORT.dval =
+    let c = rt2ocamlDval
+
+    match p with
+    | RT.DStr s -> ORT.DStr s
+    | RT.DChar c -> ORT.DCharacter c
+    | RT.DInt i -> ORT.DInt(int64 i)
+    | RT.DBool true -> ORT.DBool true
+    | RT.DBool false -> ORT.DBool false
+    | RT.DFloat f -> ORT.DFloat f
+    | RT.DNull -> ORT.DNull
+    | RT.DFnVal (RT.FnName _) -> failwith "not supported in ocaml"
+    | RT.DFnVal (RT.Lambda args) ->
+        ORT.DBlock
+          { ``params`` = args.parameters
+            symtable = Map.map c args.symtable
+            body = ORT.EBlank 1UL }
+    | RT.DIncomplete RT.SourceNone -> ORT.DIncomplete ORT.SourceNone
+    | RT.DIncomplete (RT.SourceID (tlid, id)) ->
+        ORT.DIncomplete(ORT.SourceId(tlid, id))
+    | RT.DError (RT.SourceNone, msg) -> ORT.DError(ORT.SourceNone, msg)
+    | RT.DError (RT.SourceID (tlid, id), msg) ->
+        ORT.DError(ORT.SourceId(tlid, id), msg)
+    | RT.DDate d -> ORT.DDate d
+    | RT.DDB name -> ORT.DDB name
+    | RT.DUuid uuid -> ORT.DUuid uuid
+    | RT.DHttpResponse (RT.Redirect url, hdv) -> ORT.DResp(ORT.Redirect url, c hdv)
+    | RT.DHttpResponse (RT.Response (code, headers), hdv) ->
+        ORT.DResp(ORT.Response(code, headers), c hdv)
+    | RT.DList l -> ORT.DList(List.map c l)
+    | RT.DObj o -> ORT.DObj(Map.map c o)
+    | RT.DOption None -> ORT.DOption ORT.OptNothing
+    | RT.DOption (Some dv) -> ORT.DOption(ORT.OptJust(c dv))
+    | RT.DResult (Ok dv) -> ORT.DResult(ORT.ResOk(c dv))
+    | RT.DResult (Error dv) -> ORT.DResult(ORT.ResError(c dv))
+    | RT.DErrorRail dv -> ORT.DErrorRail(c dv)
+    | RT.DBytes bytes -> ORT.DBytes bytes
+
+  let rec ocamlDval2rt (p : ORT.dval) : RT.Dval =
+    let c = ocamlDval2rt
+
+    match p with
+    | ORT.DStr s -> RT.DStr s
+    | ORT.DCharacter c -> RT.DChar c
+    | ORT.DInt i -> RT.DInt(bigint i)
+    | ORT.DBool true -> RT.DBool true
+    | ORT.DBool false -> RT.DBool false
+    | ORT.DFloat f -> RT.DFloat f
+    | ORT.DNull -> RT.DNull
+    | ORT.DBlock (args) ->
+        RT.DFnVal(
+          RT.Lambda
+            { parameters = args.``params``
+              symtable = Map.map c args.symtable
+              body = RT.EBlank 1UL }
+        )
+    | ORT.DIncomplete ORT.SourceNone -> RT.DIncomplete RT.SourceNone
+    | ORT.DIncomplete (ORT.SourceId (tlid, id)) ->
+        RT.DIncomplete(RT.SourceID(tlid, id))
+    | ORT.DError (ORT.SourceNone, msg) -> RT.DError(RT.SourceNone, msg)
+    | ORT.DError (ORT.SourceId (tlid, id), msg) ->
+        RT.DError(RT.SourceID(tlid, id), msg)
+    | ORT.DDate d -> RT.DDate d
+    | ORT.DDB name -> RT.DDB name
+    | ORT.DUuid uuid -> RT.DUuid uuid
+    | ORT.DResp (ORT.Redirect url, hdv) -> RT.DHttpResponse(RT.Redirect url, c hdv)
+    | ORT.DResp (ORT.Response (code, headers), hdv) ->
+        RT.DHttpResponse(RT.Response(code, headers), c hdv)
+    | ORT.DList l -> RT.DList(List.map c l)
+    | ORT.DObj o -> RT.DObj(Map.map c o)
+    | ORT.DOption ORT.OptNothing -> RT.DOption None
+    | ORT.DOption (ORT.OptJust dv) -> RT.DOption(Some(c dv))
+    | ORT.DResult (ORT.ResOk dv) -> RT.DResult(Ok(c dv))
+    | ORT.DResult (ORT.ResError dv) -> RT.DResult(Error(c dv))
+    | ORT.DErrorRail dv -> RT.DErrorRail(c dv)
+    | ORT.DBytes bytes -> RT.DBytes bytes
+
+
+
 // ----------------
 // Binary conversions
 // ----------------
-let toplevelOfCachedBinary
-  ((data, pos) : (byte array * string option))
-  : PT.Toplevel =
+let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
+                           : PT.Toplevel =
   let pos =
     pos
     |> Option.map Json.AutoSerialize.deserialize<pos>
@@ -1105,3 +1300,116 @@ let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
   |> Convert.pt2ocamlexprTLIDPair
   |> Json.AutoSerialize.serialize
   |> Binary.exprTLIDPairJson2Bin
+
+// for fuzzing
+let ofInternalQueryableV0 (str : string) : RT.Dval =
+  Binary.Internal.registerThread ()
+
+  str
+  |> Binary.Internal.ofInternalQueryableV0
+  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Convert.ocamlDval2rt
+
+let ofInternalQueryableV1 (str : string) : RT.Dval =
+  Binary.Internal.registerThread ()
+
+  str
+  |> Binary.Internal.ofInternalQueryableV1
+  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Convert.ocamlDval2rt
+
+let ofInternalRoundtrippableV0 (str : string) : RT.Dval =
+  Binary.Internal.registerThread ()
+
+  str
+  |> Binary.Internal.ofInternalRoundtrippableV0
+  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Convert.ocamlDval2rt
+
+let ofUnknownJson (str : string) : RT.Dval =
+  Binary.Internal.registerThread ()
+
+  str
+  |> Binary.Internal.ofUnknownJsonV1
+  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Convert.ocamlDval2rt
+
+let toDeveloperRepr (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toDeveloperRepr
+
+let toEnduserReadableTextV0 (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toEnduserReadableTextV0
+
+let toHashableRepr (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toHashableRepr
+
+let toInternalQueryableV0 (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toInternalQueryableV0
+
+let toInternalQueryableV1 (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toInternalQueryableV1
+
+let toInternalRoundtrippableV0 (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toInternalRoundtrippableV0
+
+let toPrettyMachineJsonV1 (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toPrettyMachineJsonV1
+
+let toUrlString (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.toUrlString
+
+let hashV0 (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.hashV0
+
+let hashV1 (dv : RT.Dval) : string =
+  Binary.Internal.registerThread ()
+
+  dv
+  |> Convert.rt2ocamlDval
+  |> Json.AutoSerialize.serialize
+  |> Binary.Internal.hashV1

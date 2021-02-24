@@ -1395,3 +1395,6 @@ let hash (version : int) (arglist : dval list) : string =
       DList arglist |> to_hashable_repr |> Util.hash
   | _ ->
       Exception.internal ("Invalid Dval.hash version: " ^ string_of_int version)
+
+
+let fuzzing_to_hashable_repr (arg : dval) : string = to_hashable_repr arg

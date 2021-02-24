@@ -213,3 +213,6 @@ val supported_hash_versions : int list
 val current_hash_version : int
 
 val hash : int -> Types.RuntimeT.dval list -> string
+
+(* exposed for F# fuzzing *)
+val fuzzing_to_hashable_repr : Types.RuntimeT.dval -> string

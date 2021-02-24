@@ -57,13 +57,12 @@ module FQFnName =
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
 
-  let packageName
-    (owner : string)
-    (package : string)
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    : T =
+  let packageName (owner : string)
+                  (package : string)
+                  (module_ : string)
+                  (function_ : string)
+                  (version : int)
+                  : T =
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
@@ -365,15 +364,13 @@ module Dval =
     // FSTODO - add sourceID to errors
     try
       DFloat(makeFloat (sign = Positive) whole fraction)
-    with _ ->
-      DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
+    with _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
   let floatStringParts (sign : Sign, whole : string, fraction : string) : Dval =
     // FSTODO - add sourceID to errors
     try
       DFloat(parseFloat whole fraction)
-    with _ ->
-      DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
+    with _ -> DError(SourceNone, $"Invalid float: {sign}{whole}.{fraction}")
 
 
   // Dvals should never be constructed that contain fakevals - the fakeval

@@ -68,6 +68,7 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -181,18 +182,30 @@ module RoundtrippableDval =
 
   let dvalReprInternalRoundtrippableV1Roundtrip (dv : RT.Dval) : bool =
     dv
-    |> debug "original"
     |> LibExecution.DvalRepr.toInternalRoundtrippableV0
-    |> debug "converted"
     |> LibExecution.DvalRepr.ofInternalRoundtrippableV0
-    |> debug "converted back"
     |> dvalEquality dv
+
+  // the thing that matters is that we can read it, and that it can read us.
+  let dvalReprInternalRoundtrippableV1VsOCaml (dv : RT.Dval) : bool =
+    debuG "value" dv
+    let fs = dv |> LibExecution.DvalRepr.toInternalRoundtrippableV0 |> debug "F#   "
+
+    let oc =
+      dv |> LibBackend.OCamlInterop.toInternalRoundtrippableV0 |> debug "OCaml"
+
+    oc .=. fs
+
 
   let tests =
     [ testPropertyWithGenerator
         typeof<RoundtrippableDvalGenerator>
         "roundtripping InternalRoundtrippable v0"
-        dvalReprInternalRoundtrippableV1Roundtrip ]
+        dvalReprInternalRoundtrippableV1Roundtrip
+      testPropertyWithGenerator
+        typeof<RoundtrippableDvalGenerator>
+        "roundtrippable generated string v1 as same as OCaml"
+        dvalReprInternalRoundtrippableV1VsOCaml ]
 
 
 

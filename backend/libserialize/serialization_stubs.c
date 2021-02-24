@@ -170,7 +170,79 @@ extern int expr_tlid_pair_json2bin(char* json, void** out_bytes) {
   return call_json2bin("expr_tlid_pair_json2bin", json, out_bytes);
 }
 
+/* --------------------
+ * Dvals
+ * -------------------- */
+const char* string_to_string (const char* callback_name, const char* json) {
+  lock();
+  value* closure = caml_named_value(callback_name);
+  if (Is_exception_result(*closure)) {
+    printf("call_json2bin: Closure is exception!\n");
+  }
+  value v = caml_copy_string(json);
+  check_string(v);
 
+  value result = caml_callback_exn(*closure, v);
+  char* retval = copy_string_outside_runtime(result);
+  unlock();
+  return retval;
+}
+
+extern const char* to_internal_roundtrippable_v0 (const char* json) {
+  return string_to_string("to_internal_roundtrippable_v0", json);
+}
+
+extern const char* of_internal_roundtrippable_v0 (const char* json) {
+  return string_to_string("of_internal_roundtrippable_v0", json);
+}
+
+extern const char* to_internal_queryable_v0 (const char* json) {
+  return string_to_string("to_internal_queryable_v0", json);
+}
+
+extern const char* to_internal_queryable_v1 (const char* json) {
+  return string_to_string("to_internal_queryable_v1", json);
+}
+
+extern const char* of_internal_queryable_v0 (const char* json) {
+  return string_to_string("of_internal_queryable_v0", json);
+}
+
+extern const char* of_internal_queryable_v1 (const char* json) {
+  return string_to_string("of_internal_queryable_v1", json);
+}
+
+extern const char* to_developer_repr_v0 (const char* json) {
+  return string_to_string("to_developer_repr_v0", json);
+}
+
+extern const char* to_enduser_readable_text_v0 (const char* json) {
+  return string_to_string("to_enduser_readable_text_v0", json);
+}
+
+extern const char* to_pretty_machine_json_v1 (const char* json) {
+  return string_to_string("to_pretty_machine_json_v1", json);
+}
+
+extern const char* to_url_string (const char* json) {
+  return string_to_string("to_url_string", json);
+}
+
+extern const char* to_hashable_repr (const char* json) {
+  return string_to_string("to_hashable_repr", json);
+}
+
+extern const char* of_unknown_json_v1 (const char* json) {
+  return string_to_string("of_unknown_json_v1", json);
+}
+
+extern const char* hash_v0 (const char* json) {
+  return string_to_string("hash_v0", json);
+}
+
+extern const char* hash_v1 (const char* json) {
+  return string_to_string("hash_v1", json);
+}
 
 /* --------------------
  * OCaml values
