@@ -478,6 +478,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       DStr(json.Value<string>())
   | JTokenType.Array ->
       // We shouldnt have saved dlist that have incompletes or error rails but we might have
+      // FSTODO: to_list here is preventing us from saving DErrors in arrays
       seq (json.AsJEnumerable()) |> Seq.toList |> List.map convert |> Dval.list
   | JTokenType.Object ->
       let fields =

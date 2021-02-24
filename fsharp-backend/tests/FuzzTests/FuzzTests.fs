@@ -15,7 +15,7 @@ module RT = LibExecution.RuntimeTypes
 
 let (.=.) actual expected : bool =
   (if actual = expected then
-     true
+    true
    else
      printfn $"Expected:\n{expected}\n but got:\n{actual}"
      false)
@@ -68,7 +68,6 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
-
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -91,9 +90,14 @@ let config : FsCheckConfig =
       maxTest = 10000
       arbitrary = [ typeof<DarkFsCheck.MyGenerators> ] }
 
+let configWithGenerator (typ : System.Type) : FsCheckConfig =
+  { FsCheckConfig.defaultConfig with maxTest = 10000; arbitrary = [ typ ] }
+
 let testProperty (name : string) (x : 'a) : Test =
   testPropertyWithConfig config name x
 
+let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
+  testPropertyWithConfig (configWithGenerator typ) name x
 
 // Tests
 // These tests are like this so they can be reused from LibBackend.Tests
@@ -148,41 +152,74 @@ let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   |> LibBackend.OCamlInterop.exprTLIDPairOfCachedBinary
   .=. pair
 
-let dvalReprInternalQueryablev0Roundtrip (dv : RT.Dval) : bool =
+let dvalReprInternalQueryableV0Roundtrip (dv : RT.Dval) : bool =
   dv
   |> LibExecution.DvalRepr.toInternalQueryableV0
   |> LibExecution.DvalRepr.ofInternalQueryableV0
   |> dvalEquality dv
 
-let dvalReprInternalQueryablev1Roundtrip (dvm : RT.DvalMap) : bool =
+let dvalReprInternalQueryableV1Roundtrip (dvm : RT.DvalMap) : bool =
   dvm
   |> LibExecution.DvalRepr.toInternalQueryableV1
   |> LibExecution.DvalRepr.ofInternalQueryableV1
   |> dvalEquality (RT.DObj dvm)
 
+module RoundtrippableDval =
+  open FsCheck
+
+  type RoundtrippableDvalGenerator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter (fun (s : string) -> s <> null)
+
+    static member RoundtrippableDvals() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false
+           | RT.DChar "" -> false // Invalid value
+           | _ -> true)
+
+  let dvalReprInternalRoundtrippableV1Roundtrip (dv : RT.Dval) : bool =
+    dv
+    |> debug "original"
+    |> LibExecution.DvalRepr.toInternalRoundtrippableV0
+    |> debug "converted"
+    |> LibExecution.DvalRepr.ofInternalRoundtrippableV0
+    |> debug "converted back"
+    |> dvalEquality dv
+
+  let tests =
+    [ testPropertyWithGenerator
+        typeof<RoundtrippableDvalGenerator>
+        "roundtripping InternalRoundtrippable v0"
+        dvalReprInternalRoundtrippableV1Roundtrip ]
+
+
+
 
 let roundtrips =
   testList
     "roundtripping"
-    [ testProperty
-        "roundtripping OCamlInteropBinaryHandler"
-        ocamlInteropBinaryHandlerRoundtrip
-      testProperty
-        "roundtripping OCamlInteropBinaryExpr"
-        ocamlInteropBinaryExprRoundtrip
-      testProperty
-        "roundtripping OCamlInteropYojsonHandler"
-        ocamlInteropYojsonHandlerRoundtrip
-      testProperty
-        "roundtripping OCamlInteropYojsonExpr"
-        ocamlInteropYojsonExprRoundtrip
-      testProperty
-        "roundtripping InternalQueryable v0"
-        dvalReprInternalQueryablev0Roundtrip
-      testProperty
-        "roundtripping InternalQueryable v1"
-        dvalReprInternalQueryablev1Roundtrip
-      testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
+    ([ testProperty
+         "roundtripping OCamlInteropBinaryHandler"
+         ocamlInteropBinaryHandlerRoundtrip
+       testProperty
+         "roundtripping OCamlInteropBinaryExpr"
+         ocamlInteropBinaryExprRoundtrip
+       testProperty
+         "roundtripping OCamlInteropYojsonHandler"
+         ocamlInteropYojsonHandlerRoundtrip
+       testProperty
+         "roundtripping OCamlInteropYojsonExpr"
+         ocamlInteropYojsonExprRoundtrip
+       testProperty
+         "roundtripping InternalQueryable v0"
+         dvalReprInternalQueryableV0Roundtrip
+       testProperty
+         "roundtripping InternalQueryable v1"
+         dvalReprInternalQueryableV1Roundtrip
+       testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
+     @ RoundtrippableDval.tests)
 
 let tests = testList "FuzzTests" [ roundtrips ]
 
