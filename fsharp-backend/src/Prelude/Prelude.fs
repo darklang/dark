@@ -370,10 +370,10 @@ module Json =
     type BigIntConverter() =
       inherit JsonConverter<bigint>()
 
-      override this.ReadJson(reader : JsonReader, _, _, _, s) : bigint =
+      override _.ReadJson(reader : JsonReader, _, _, _, s) : bigint =
         reader.Value :?> string |> parseBigint
 
-      override this.WriteJson
+      override _.WriteJson
         (
           writer : JsonWriter,
           value : bigint,
@@ -384,7 +384,7 @@ module Json =
     type OCamlDuConverter() =
       inherit JsonConverter()
 
-      override __.WriteJson(writer, value, serializer) =
+      override _.WriteJson(writer, value, serializer) =
         let unionType = value.GetType()
         let case, fields = FSharpValue.GetUnionFields(value, unionType)
         writer.WriteStartArray()
@@ -392,7 +392,7 @@ module Json =
         Array.iter (fun field -> serializer.Serialize(writer, field)) fields
         writer.WriteEndArray()
 
-      override __.ReadJson(reader, destinationType, _, serializer : JsonSerializer) =
+      override _.ReadJson(reader, destinationType, _, serializer : JsonSerializer) =
         match reader.TokenType with
         | JsonToken.StartArray -> ()
         | _ -> failwith "Incorrect starting token for union: should be array"
@@ -400,9 +400,6 @@ module Json =
         let caseName : string =
           reader.Read() |> ignore
           reader.Value :?> string
-
-        debuG "casename" caseName
-        debuG "typename" destinationType.Name
 
         let caseInfo =
           FSharpType.GetUnionCases(destinationType)
@@ -428,20 +425,20 @@ module Json =
 
         FSharpValue.MakeUnion(caseInfo, args)
 
-      override __.CanConvert(objectType) = FSharpType.IsUnion objectType
+      override _.CanConvert(objectType) = FSharpType.IsUnion objectType
 
     // http://gorodinski.com/blog/2013/01/05/json-dot-net-type-converters-for-f-option-list-tuple/
-    type ListConverter() =
+    type FSharpListConverter() =
       inherit JsonConverter()
 
-      override x.CanConvert(t : System.Type) =
+      override _.CanConvert(t : System.Type) =
         t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<list<_>>
 
-      override x.WriteJson(writer, value, serializer) =
+      override _.WriteJson(writer, value, serializer) =
         let list = value :?> System.Collections.IEnumerable |> Seq.cast
         serializer.Serialize(writer, list)
 
-      override x.ReadJson(reader, t, _, serializer) =
+      override _.ReadJson(reader, t, _, serializer) =
         let itemType = t.GetGenericArguments().[0]
 
         let collectionType =
@@ -463,16 +460,16 @@ module Json =
         make (collection |> Seq.toList)
 
     // http://gorodinski.com/blog/2013/01/05/json-dot-net-type-converters-for-f-option-list-tuple/
-    type TupleConverter() =
+    type FSharpTupleConverter() =
       inherit JsonConverter()
 
-      override x.CanConvert(t : System.Type) = FSharpType.IsTuple(t)
+      override _.CanConvert(t : System.Type) = FSharpType.IsTuple(t)
 
-      override x.WriteJson(writer, value, serializer) =
+      override _.WriteJson(writer, value, serializer) =
         let values = FSharpValue.GetTupleFields(value)
         serializer.Serialize(writer, values)
 
-      override x.ReadJson(reader, t, _, serializer) =
+      override _.ReadJson(reader, t, _, serializer) =
         let advance = reader.Read >> ignore
         let deserialize t = serializer.Deserialize(reader, t)
         let itemTypes = FSharpType.GetTupleElements(t)
@@ -499,25 +496,20 @@ module Json =
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
 
-      override this.ReadJson(reader : JsonReader, _, _, _, _) =
+      override _.ReadJson(reader : JsonReader, _, _, _, _) =
         if reader.TokenType = JsonToken.String then
           let str = reader.ReadAsString()
           parseUInt64 str
         else
           (reader.Value :?> uint64)
 
-      override this.WriteJson
-        (
-          writer : JsonWriter,
-          value : tlid,
-          _ : JsonSerializer
-        ) =
+      override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
         writer.WriteValue(value)
 
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
-      override this.ReadJson(reader : JsonReader, _, _, _, _) =
+      override _.ReadJson(reader : JsonReader, _, _, _, _) =
         let rawToken = reader.Value :?> string
 
         match rawToken with
@@ -528,7 +520,7 @@ module Json =
         | "NaN" -> System.Double.NaN
         | _ -> reader.Value :?> float
 
-      override this.WriteJson
+      override _.WriteJson
         (
           writer : JsonWriter,
           value : double,
@@ -544,8 +536,8 @@ module Json =
       (let settings = JsonSerializerSettings()
        settings.Converters.Add(BigIntConverter())
        settings.Converters.Add(TLIDConverter())
-       settings.Converters.Add(ListConverter())
-       settings.Converters.Add(TupleConverter())
+       settings.Converters.Add(FSharpListConverter())
+       settings.Converters.Add(FSharpTupleConverter())
        settings.Converters.Add(OCamlFloatConverter())
        settings.Converters.Add(OCamlDuConverter())
        settings)
