@@ -70,7 +70,6 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
-
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -160,7 +159,12 @@ module RoundtrippableDval =
 
   type RoundtrippableDvalGenerator =
     static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter (fun (s : string) -> s <> null)
+      Arb.Default.String()
+      |> Arb.filter
+           (fun (s : string) ->
+             // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
+             s <> null && not (s.Contains('\u0000')))
+
 
     static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
