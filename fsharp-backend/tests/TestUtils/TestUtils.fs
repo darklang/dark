@@ -211,13 +211,64 @@ module Expect =
     | DUuid _, _
     | DBytes _, _ -> Expect.equal left right msg
 
-let dvalEquality (left : Dval) (right : Dval) : bool =
-  try
-    Expect.equalDval left right ""
-    true
-  with e ->
-    printfn $"Dvals aren't equal: {e}"
-    false
+// We reimplement the same conditions as it's confusing to have this print out the same errors
+let rec dvalEquality (left : Dval) (right : Dval) : bool =
+  let de = dvalEquality
+
+  match left, right with
+  | DFloat l, DFloat r ->
+      if System.Double.IsNaN l && System.Double.IsNaN r then
+        true
+      else if System.Double.IsPositiveInfinity l
+              && System.Double.IsPositiveInfinity r then
+        true
+      else if System.Double.IsNegativeInfinity l
+              && System.Double.IsNegativeInfinity r then
+        true
+      else
+        Accuracy.areClose Accuracy.veryHigh l r
+  | DResult (Ok l), DResult (Ok r) -> de l r
+  | DResult (Error l), DResult (Error r) -> de l r
+  | DOption (Some l), DOption (Some r) -> de l r
+  | DDate l, DDate r ->
+      // Set the milliseconds to zero as we don't preserve them in serializations
+      let newL = l.AddMilliseconds(-(double l.Millisecond))
+      let newR = r.AddMilliseconds(-(double r.Millisecond))
+      newL = newR
+  | DList ls, DList rs -> List.map2 de ls rs |> List.all (fun x -> x)
+  | DObj ls, DObj rs ->
+      List.map2
+        (fun (k1, v1) (k2, v2) -> k1 = k2 && de v1 v2)
+        (Map.toList ls)
+        (Map.toList rs)
+      |> List.all (fun x -> x)
+  | DHttpResponse (Response (sc1, h1), b1), DHttpResponse (Response (sc2, h2), b2) ->
+      sc1 = sc2 && h1 = h2 && de b1 b2
+  | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
+      u1 = u2 && de b1 b2
+  | DIncomplete _, DIncomplete _ -> true
+  // Keep for exhaustiveness checking
+  | DHttpResponse _, _
+  | DObj _, _
+  | DList _, _
+  | DResult _, _
+  | DOption _, _
+  // All others can be directly compared
+  | DInt _, _
+  | DDate _, _
+  | DBool _, _
+  | DFloat _, _
+  | DNull, _
+  | DStr _, _
+  | DChar _, _
+  | DFnVal _, _
+  | DIncomplete _, _
+  | DErrorRail _, _
+  | DError _, _
+  | DDB _, _
+  | DUuid _, _
+  | DBytes _, _ -> left = right
+
 
 let sampleDvals : List<string * Dval> =
   [ ("int", Dval.int 5)
