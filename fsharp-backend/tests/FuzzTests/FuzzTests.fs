@@ -162,6 +162,9 @@ module RoundtrippableDval =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter (fun (s : string) -> s <> null)
 
+    static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
+      Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
+
     static member RoundtrippableDvals() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
       |> Arb.filter
