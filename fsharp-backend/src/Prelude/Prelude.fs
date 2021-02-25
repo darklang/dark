@@ -362,52 +362,47 @@ type id = uint64
 // ----------------------
 module Json =
   module AutoSerialize =
-    open System.Text.Json
-    open System.Text.Json.Serialization
+    open Newtonsoft.Json
+    open Newtonsoft.Json.Converters
 
     // Serialize bigints as strings
     type BigIntConverter() =
       inherit JsonConverter<bigint>()
 
-      override this.Read(reader : byref<Utf8JsonReader>,
-                         _typ : System.Type,
-                         _options : JsonSerializerOptions) =
-        reader.GetString() |> parseBigint
+      override this.ReadJson(reader : JsonReader, _, _, _, s) : bigint =
+        reader.Value :?> string |> parseBigint
 
-      override this.Write(writer : Utf8JsonWriter,
-                          value : bigint,
-                          _options : JsonSerializerOptions) =
-        writer.WriteStringValue(value.ToString())
+      override this.WriteJson
+        (
+          writer : JsonWriter,
+          value : bigint,
+          serializer : JsonSerializer
+        ) =
+        writer.WriteRawValue(value.ToString())
 
     type TLIDConverter() =
       inherit JsonConverter<tlid>()
 
-      override this.Read(reader : byref<Utf8JsonReader>,
-                         _typ : System.Type,
-                         _options : JsonSerializerOptions) =
-        if reader.TokenType = JsonTokenType.String then
-          let str = reader.GetString()
+      override this.ReadJson(reader : JsonReader, _, _, _, _) =
+        if reader.TokenType = JsonToken.String then
+          let str = reader.ReadAsString()
           parseUInt64 str
         else
-          reader.GetUInt64()
+          (reader.Value :?> uint64)
 
-      override this.Write(writer : Utf8JsonWriter,
-                          value : tlid,
-                          _options : JsonSerializerOptions) =
-        writer.WriteNumberValue(value)
+      override this.WriteJson
+        (
+          writer : JsonWriter,
+          value : tlid,
+          _ : JsonSerializer
+        ) =
+        writer.WriteValue(value)
 
     type FloatConverter() =
-      // We need this because OCaml gives us Infinity and NaN in our JSON
       inherit JsonConverter<double>()
 
-      // We need this because OCaml gives us Infinity and NaN in our JSON. Note
-      // that unlike other places, this is type-directed so we know we're
-      // expecting a float and can check specific things
-      override this.Read(reader : byref<Utf8JsonReader>,
-                         _typ : System.Type,
-                         _options : JsonSerializerOptions) =
-        let rawToken = reader.ValueSpan.ToArray() |> ofBytes
-        printfn $"rawtoken: {rawToken}"
+      override this.ReadJson(reader : JsonReader, _, _, _, _) =
+        let rawToken = reader.Value :?> string
 
         match rawToken with
         | "Infinity" -> System.Double.PositiveInfinity
@@ -415,41 +410,37 @@ module Json =
         | "-Infinity" -> System.Double.NegativeInfinity
         | "-infinity" -> System.Double.NegativeInfinity
         | "NaN" -> System.Double.NaN
-        | _ -> reader.GetDouble()
+        | _ -> reader.Value :?> float
 
-      override this.Write(writer : Utf8JsonWriter,
-                          value : double,
-                          _options : JsonSerializerOptions) =
+      override this.WriteJson
+        (
+          writer : JsonWriter,
+          value : double,
+          serializer : JsonSerializer
+        ) =
         match value with
-        | System.Double.PositiveInfinity -> writer.WriteStringValue "Infinity"
-        | System.Double.NegativeInfinity -> writer.WriteStringValue "-Infinity"
-        | _ when System.Double.IsNaN value -> writer.WriteStringValue "NaN"
-        | _ -> writer.WriteNumberValue(value)
+        | System.Double.PositiveInfinity -> writer.WriteRawValue "Infinity"
+        | System.Double.NegativeInfinity -> writer.WriteRawValue "-Infinity"
+        | _ when System.Double.IsNaN value -> writer.WriteRawValue "NaN"
+        | _ -> writer.WriteValue(value)
 
-
-    let _options =
-      (let fsharpConverter =
-        JsonFSharpConverter(
-          unionEncoding =
-            (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
-        )
-
-       let options = JsonSerializerOptions()
-       options.Converters.Add(TLIDConverter())
-       options.Converters.Add(BigIntConverter())
-       options.Converters.Add(FloatConverter())
-       options.Converters.Add(fsharpConverter)
-       options)
+    let _settings =
+      (let settings = JsonSerializerSettings()
+       settings.Converters.Add(BigIntConverter())
+       settings.Converters.Add(TLIDConverter())
+       settings.Converters.Add(FloatConverter())
+       settings.Converters.Add(DiscriminatedUnionConverter())
+       settings)
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
       // supports the type, not the best one
-      _options.Converters.Insert(0, c)
+      _settings.Converters.Insert(0, c)
 
-    let serialize (data : 'a) : string = JsonSerializer.Serialize(data, _options)
+    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
 
     let deserialize<'a> (json : string) : 'a =
-      JsonSerializer.Deserialize<'a>(json, _options)
+      JsonConvert.DeserializeObject<'a>(json, _settings)
 
 // ----------------------
 // Functions we'll later add to Tablecloth

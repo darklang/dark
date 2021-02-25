@@ -103,27 +103,22 @@ module WorkerStates =
   let empty = Map.empty
 
   module JsonConverter =
-    open System.Text.Json
-    open System.Text.Json.Serialization
+    open Newtonsoft.Json
+    open Newtonsoft.Json.Converters
 
     type WorkerStateConverter() =
       inherit JsonConverter<State>()
 
-      override this.Read
-        (
-          reader : byref<Utf8JsonReader>,
-          _typ : System.Type,
-          options : JsonSerializerOptions
-        ) =
-        reader.GetString() |> parse
+      override this.ReadJson(reader : JsonReader, _typ, _, _, serializer) : State =
+        reader.Value :?> string |> parse
 
-      override this.Write
+      override this.WriteJson
         (
-          writer : Utf8JsonWriter,
+          writer : JsonWriter,
           value : State,
-          options : JsonSerializerOptions
+          _ : JsonSerializer
         ) =
-        writer.WriteStringValue(toString value)
+        writer.WriteValue(toString value)
 
   let find (k : string) (m : T) = Map.get k m
 

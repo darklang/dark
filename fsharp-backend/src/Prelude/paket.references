@@ -3,3 +3,4 @@ FSharp.Core
 FSharpX.Extras
 FSharpPlus
 FSharp.SystemTextJson
+Newtonsoft.Json

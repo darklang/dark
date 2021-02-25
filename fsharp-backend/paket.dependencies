@@ -15,6 +15,7 @@ nuget FSharp.Compiler.Service = 38.0.2
 
 // Web servers
 nuget Giraffe = 5.0.0-rc-6
+nuget Microsoft.AspNetCore.Mvc.NewtonsoftJson = 5.0.3
 
 
 // LibExecution
