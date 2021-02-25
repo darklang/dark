@@ -176,7 +176,6 @@ module RoundtrippableDval =
            | RT.DFnVal _ -> false
            | RT.DBytes _ -> false // Temporary til everything else works
            | RT.DFloat _ -> false // Temporary til everything else works
-           | RT.DHttpResponse _ -> false // Temporary til everything else works
            | RT.DChar c when c.Length = 1 -> true
            | RT.DChar _ -> false
            | _ -> true)
