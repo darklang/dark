@@ -532,12 +532,19 @@ module Json =
         | _ when System.Double.IsNaN value -> writer.WriteRawValue "NaN"
         | _ -> writer.WriteValue(value)
 
+    // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
+    // base64, like BinaryConverter. It's not appropriate for all byte arrays,
+    // but I think this is the only user. If not, we'll need to add a RawBytes type
+    type OCamlRawBytesConverter() =
+      inherit BinaryConverter()
+
     let _settings =
       (let settings = JsonSerializerSettings()
        settings.Converters.Add(BigIntConverter())
        settings.Converters.Add(TLIDConverter())
        settings.Converters.Add(FSharpListConverter())
        settings.Converters.Add(FSharpTupleConverter())
+       settings.Converters.Add(OCamlRawBytesConverter())
        settings.Converters.Add(OCamlFloatConverter())
        settings.Converters.Add(OCamlDuConverter())
        settings)
