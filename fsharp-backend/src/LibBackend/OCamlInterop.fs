@@ -227,9 +227,10 @@ module Binary =
     Marshal.Copy(ptr, bytes, 0, length)
     bytes
 
-  let translateBin2Json (internalFn : ((byte array * int) -> string))
-                        (bytes : byte [])
-                        : string =
+  let translateBin2Json
+    (internalFn : ((byte array * int) -> string))
+    (bytes : byte [])
+    : string =
     registerThread ()
     internalFn (bytes, bytes.Length)
 
@@ -658,8 +659,9 @@ module Convert =
         PT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
 
 
-  let ocamlexprTLIDPair2PT ((expr, tlid) : (ORT.fluidExpr * OT.tlid))
-                           : PT.Expr * tlid =
+  let ocamlexprTLIDPair2PT
+    ((expr, tlid) : (ORT.fluidExpr * OT.tlid))
+    : PT.Expr * tlid =
     (ocamlExpr2PT expr, tlid)
 
   let ocamlSpec2PT (o : ORT.HandlerT.spec) : PT.Handler.Spec =
@@ -675,9 +677,10 @@ module Convert =
     | "REPL", name, _ -> PT.Handler.REPL(name, ids)
     | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
 
-  let ocamlHandler2PT (pos : pos)
-                      (o : ORT.HandlerT.handler<ORT.fluidExpr>)
-                      : PT.Handler.T =
+  let ocamlHandler2PT
+    (pos : pos)
+    (o : ORT.HandlerT.handler<ORT.fluidExpr>)
+    : PT.Handler.T =
     { tlid = o.tlid
       ast = ocamlExpr2PT o.ast
       spec = ocamlSpec2PT o.spec
@@ -820,8 +823,9 @@ module Convert =
   let ocamlOplist2PT (list : OT.oplist<ORT.fluidExpr>) : PT.Oplist =
     List.map ocamlOp2PT list
 
-  let ocamlTLIDOplist2PT (tlidOplist : OT.tlid_oplist<ORT.fluidExpr>)
-                         : tlid * PT.Oplist =
+  let ocamlTLIDOplist2PT
+    (tlidOplist : OT.tlid_oplist<ORT.fluidExpr>)
+    : tlid * PT.Oplist =
     Tuple2.mapItem2 ocamlOplist2PT tlidOplist
 
   // ----------------
@@ -900,8 +904,9 @@ module Convert =
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
         ORT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
 
-  let pt2ocamlexprTLIDPair ((expr, tlid) : (PT.Expr * tlid))
-                           : ORT.fluidExpr * OT.tlid =
+  let pt2ocamlexprTLIDPair
+    ((expr, tlid) : (PT.Expr * tlid))
+    : ORT.fluidExpr * OT.tlid =
     (pt2ocamlExpr expr, tlid)
 
 
@@ -1063,8 +1068,9 @@ module Convert =
   let pt2ocamlOplist (list : PT.Oplist) : OT.oplist<ORT.fluidExpr> =
     List.map pt2ocamlOp list
 
-  let pt2ocamlToplevels (toplevels : Map<tlid, PT.Toplevel>)
-                        : ORT.toplevels * ORT.user_fn<ORT.fluidExpr> list * ORT.user_tipe list =
+  let pt2ocamlToplevels
+    (toplevels : Map<tlid, PT.Toplevel>)
+    : ORT.toplevels * ORT.user_fn<ORT.fluidExpr> list * ORT.user_tipe list =
     toplevels
     |> Map.values
     |> List.fold
@@ -1088,12 +1094,14 @@ module Convert =
            | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
            | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
-  let ocamlPackageManagerParameter2PT (o : OT.PackageManager.parameter)
-                                      : PT.PackageManager.Parameter =
+  let ocamlPackageManagerParameter2PT
+    (o : OT.PackageManager.parameter)
+    : PT.PackageManager.Parameter =
     { name = o.name; description = o.description; typ = ocamlTipe2PT o.tipe }
 
-  let pt2ocamlPackageManagerParameter (p : PT.PackageManager.Parameter)
-                                      : OT.PackageManager.parameter =
+  let pt2ocamlPackageManagerParameter
+    (p : PT.PackageManager.Parameter)
+    : OT.PackageManager.parameter =
     { name = p.name; description = p.description; tipe = pt2ocamlTipe p.typ }
 
 
@@ -1207,8 +1215,9 @@ module Convert =
 // ----------------
 // Binary conversions
 // ----------------
-let toplevelOfCachedBinary ((data, pos) : (byte array * string option))
-                           : PT.Toplevel =
+let toplevelOfCachedBinary
+  ((data, pos) : (byte array * string option))
+  : PT.Toplevel =
   let pos =
     pos
     |> Option.map Json.AutoSerialize.deserialize<pos>
@@ -1322,8 +1331,11 @@ let ofInternalRoundtrippableV0 (str : string) : RT.Dval =
   Binary.Internal.registerThread ()
 
   str
+  |> debug "sending to ocaml"
   |> Binary.Internal.ofInternalRoundtrippableV0
+  |> debug "get back from ocaml"
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
+  |> debug "deserialized from ocaml"
   |> Convert.ocamlDval2rt
 
 let ofUnknownJson (str : string) : RT.Dval =
@@ -1378,9 +1390,13 @@ let toInternalRoundtrippableV0 (dv : RT.Dval) : string =
   Binary.Internal.registerThread ()
 
   dv
+  |> debug "going to send to ocaml"
   |> Convert.rt2ocamlDval
+  |> debug "converting to ocaml type"
   |> Json.AutoSerialize.serialize
+  |> debug "serializting ocaml"
   |> Binary.Internal.toInternalRoundtrippableV0
+  |> debug "sent to ocaml and got this back"
 
 let toPrettyMachineJsonV1 (dv : RT.Dval) : string =
   Binary.Internal.registerThread ()

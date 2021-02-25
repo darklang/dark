@@ -17,7 +17,7 @@ module DvalRepr = LibExecution.DvalRepr
 
 let (.=.) actual expected : bool =
   (if actual = expected then
-    true
+     true
    else
      printfn $"Expected:\n{expected}\n but got:\n{actual}"
      false)
@@ -70,7 +70,6 @@ module DarkFsCheck =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
-
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -177,48 +176,52 @@ module RoundtrippableDval =
     |> dvalEquality dv
 
   let roundtrippableWorks (dv : RT.Dval) : bool =
-    // here we need to be able to read the data OCaml generates and OCaml needs to be able to read the data F# generates. But, both of those are buggy. So if they produce the same string it's fine at least.
-    // either: we get the same string both ways, or we can read in both directions
-    let ocamlString =
-      dv
-      |> debug "value"
-      |> OCamlInterop.toInternalRoundtrippableV0
-      |> debug "as string by ocaml"
+    try
+      // here we need to be able to read the data OCaml generates and OCaml needs to be able to read the data F# generates. But, both of those are buggy. So if they produce the same string it's fine at least.
+      // either: we get the same string both ways, or we can read in both directions
+      let fsString =
+        dv
+        |> debug "fuzzing roundtrippable works on value"
+        |> DvalRepr.toInternalRoundtrippableV0
+        |> debug "as string by f#"
 
-    let ocamlCanReadFS =
-      ocamlString
-      |> DvalRepr.ofInternalRoundtrippableV0
-      |> debug "converted by F#"
-      |> dvalEquality dv
+      let fsCanReadOCaml =
+        fsString
+        |> OCamlInterop.ofInternalRoundtrippableV0
+        |> debug "converted by OCaml"
+        |> dvalEquality dv
 
-    let fsString =
-      dv |> DvalRepr.toInternalRoundtrippableV0 |> debug "as string by f#"
+      let ocamlString =
+        dv |> OCamlInterop.toInternalRoundtrippableV0 |> debug "as string by ocaml"
 
-    let fsCanReadOCaml =
-      fsString
-      |> OCamlInterop.ofInternalRoundtrippableV0
-      |> debug "converted by OCaml"
-      |> dvalEquality dv
+      let ocamlCanReadFS =
+        ocamlString
+        |> DvalRepr.ofInternalRoundtrippableV0
+        |> debug "converted by F#"
+        |> dvalEquality dv
 
-    let theyMakeTheSameMistakes =
-      OCamlInterop.ofInternalRoundtrippableV0 ocamlString
-      |> dvalEquality (DvalRepr.ofInternalRoundtrippableV0 fsString)
+      let theyMakeTheSameMistakes =
+        OCamlInterop.ofInternalRoundtrippableV0 ocamlString
+        |> dvalEquality (DvalRepr.ofInternalRoundtrippableV0 fsString)
 
-    let theyCanReadEachOthersText = ocamlCanReadFS && fsCanReadOCaml
-    let theyGenerateTheSameString = fsString = ocamlString
+      let theyCanReadEachOthersText = ocamlCanReadFS && fsCanReadOCaml
+      let theyGenerateTheSameString = fsString = ocamlString
 
-    if theyCanReadEachOthersText
-       || theyGenerateTheSameString
-       || theyMakeTheSameMistakes then
-      true
-    else
-      printfn
-        "%s"
-        ($"theyCanReadEachOthersText: {theyCanReadEachOthersText}\n"
-         + $"theyGenerateTheSameString: {theyGenerateTheSameString}\n"
-         + $"theyMakeTheSameMistakes: {theyMakeTheSameMistakes}\n")
+      if theyCanReadEachOthersText
+         || theyGenerateTheSameString
+         || theyMakeTheSameMistakes then
+        true
+      else
+        printfn
+          "%s"
+          ($"theyCanReadEachOthersText: {theyCanReadEachOthersText}\n"
+           + $"theyGenerateTheSameString: {theyGenerateTheSameString}\n"
+           + $"theyMakeTheSameMistakes: {theyMakeTheSameMistakes}\n")
 
-      false
+        false
+    with e ->
+      printfn $"Cause exception while fuzzing {e}"
+      reraise ()
 
 
 
@@ -230,7 +233,7 @@ module RoundtrippableDval =
         dvalReprInternalRoundtrippableV1Roundtrip
       testPropertyWithGenerator
         typeof<RoundtrippableDvalGenerator>
-        "roundtrippable will work"
+        "roundtrippable works"
         roundtrippableWorks ]
 
 

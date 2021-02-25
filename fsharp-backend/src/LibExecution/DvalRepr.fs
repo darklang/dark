@@ -75,24 +75,6 @@ type JsonWriter with
     this.WriteEnd()
 
 
-
-// Determine whethere the number is a float or an int and parse appropriately.
-// let parseJsonNumber (j : JsonElement) : Dval =
-//   let str = j.GetRawText()
-//
-//   if String.includes "." str then
-//     str |> System.Double.Parse |> DFloat
-//   else
-//     match str with
-//     | "Infinity" -> DFloat System.Double.PositiveInfinity
-//     | "-Infinity" -> DFloat System.Double.NegativeInfinity
-//     | "infinity" -> DFloat System.Double.PositiveInfinity
-//     | "-infinity" -> DFloat System.Double.NegativeInfinity
-//     | "NaN" -> DFloat System.Double.NaN
-//     | "nan" -> DFloat System.Double.NaN
-//     | _ -> str |> parseBigint |> DInt
-//
-
 // -------------------------
 // Runtime Types
 // -------------------------
