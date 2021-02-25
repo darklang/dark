@@ -172,6 +172,7 @@ module RoundtrippableDval =
            | RT.DFnVal _ -> false
            | RT.DBytes _ -> false // Temporary til everything else works
            | RT.DFloat _ -> false // Temporary til everything else works
+           | RT.DHttpResponse _ -> false // Temporary til everything else works
            | RT.DChar c when c.Length = 1 -> true
            | RT.DChar _ -> false
            | _ -> true)
@@ -188,7 +189,7 @@ module RoundtrippableDval =
       // either: we get the same string both ways, or we can read in both directions
       let fsString =
         dv
-        |> debug "fuzzing roundtrippable works on value"
+        |> debug "\n\n\n\n\nfuzzing roundtrippable works on value"
         |> DvalRepr.toInternalRoundtrippableV0
         |> debug "as string by f#"
 
