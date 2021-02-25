@@ -74,6 +74,28 @@ type JsonWriter with
     f ()
     this.WriteEnd()
 
+let (|JString|_|) (j : JToken) : Option<string> =
+  match j.Type with
+  | JTokenType.String -> Some(JString(j.Value<string>()))
+  | _ -> None
+
+let (|JNull|_|) (j : JToken) : Option<unit> =
+  match j.Type with
+  | JTokenType.Null -> Some(JNull)
+  | _ -> None
+
+
+let (|JInteger|_|) (j : JToken) : Option<int64> =
+  match j.Type with
+  | JTokenType.Integer -> Some(JInteger(j.Value<int64>()))
+  | _ -> None
+
+let (|JList|_|) (j : JToken) : Option<List<JToken>> =
+  match j.Type with
+  | JTokenType.Array -> Some(JList(j.Values<JToken>() |> Seq.toList))
+  | _ -> None
+
+
 
 // -------------------------
 // Runtime Types
@@ -333,15 +355,15 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 
 // This special format was originally the default OCaml (yojson-derived) format
 // for this.
-let responseOfJson (a : Dval) : DHTTP =
-  match a with
-  | DList [ DStr "Redirect"; DStr url ] -> Redirect url
-  | DList [ DStr "Response"; DInt code; DList headers ] ->
+let responseOfJson (j : JToken) : DHTTP =
+  match j with
+  | JList [ JString "Redirect"; JString url ] -> Redirect url
+  | JList [ JString "Response"; JInteger code; JList headers ] ->
       let headers =
         headers
         |> List.map
              (function
-             | DList [ DStr k; DStr v ] -> (k, v)
+             | JList [ JString k; JString v ] -> (k, v)
              | _ -> failwith "Invalid DHttpResponse headers")
 
       Response(int code, headers)
@@ -378,41 +400,42 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
       let fields =
         seq (json.Values())
         |> Seq.toList
-        |> List.map (fun (jp : JProperty) -> (jp.Name, convert jp.Value))
+        |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
         |> List.sortBy (fun (k, _) -> k)
       // These are the only types that are allowed in the queryable
       // representation. We may allow more in the future, but the real thing to
       // do is to use the DB's type and version to encode/decode them correctly
       match fields with
       // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
-      | [ ("type", DStr "response"); ("value", DList [ a; b ]) ] ->
-          DHttpResponse(responseOfJson a, b)
-      | [ ("type", DStr "date"); ("value", DStr v) ] ->
+      | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
+          DHttpResponse(responseOfJson a, convert b)
+      | [ ("type", JString "date"); ("value", JString v) ] ->
           DDate(System.DateTime.ofIsoString v)
-      | [ ("type", DStr "password"); ("value", DStr v) ] ->
+      | [ ("type", JString "password"); ("value", JString v) ] ->
           // v |> B64.decode |> Bytes.of_string |> DPassword
           fstodo "password"
-      | [ ("type", DStr "error"); ("value", DStr v) ] -> DError(SourceNone, v)
-      | [ ("type", DStr "bytes"); ("value", DStr v) ] ->
+      | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
+      | [ ("type", JString "bytes"); ("value", JString v) ] ->
           v |> System.Convert.FromBase64String |> DBytes
-      | [ ("type", DStr "char"); ("value", DStr v) ] -> DChar v
-      | [ ("type", DStr "character"); ("value", DStr v) ] -> DChar v
-      | [ ("type", DStr "datastore"); ("value", DStr v) ] -> DDB v
-      | [ ("type", DStr "incomplete"); ("value", DNull) ] -> DIncomplete SourceNone
-      | [ ("type", DStr "errorrail"); ("value", dv) ] -> DErrorRail dv
-      | [ ("type", DStr "option"); ("value", DNull) ] -> DOption None
-      | [ ("type", DStr "option"); ("value", dv) ] -> DOption(Some dv)
-      | [ ("type", DStr "block"); ("value", DNull) ] ->
+      | [ ("type", JString "char"); ("value", JString v) ] -> DChar v
+      | [ ("type", JString "character"); ("value", JString v) ] -> DChar v
+      | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
+      | [ ("type", JString "incomplete"); ("value", JNull) ] ->
+          DIncomplete SourceNone
+      | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
+      | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
+      | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
+      | [ ("type", JString "block"); ("value", JNull) ] ->
           // See docs/dblock-serialization.ml
           DFnVal(
             Lambda { body = EBlank(id 56789); symtable = Map.empty; parameters = [] }
           )
-      | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
-      | [ ("constructor", DStr "Ok"); ("type", DStr "result");
-          ("values", DList [ dv ]) ] -> DResult(Ok dv)
-      | [ ("constructor", DStr "Error"); ("type", DStr "result");
-          ("values", DList [ dv ]) ] -> DResult(Error dv)
-      | _ -> fields |> Map.ofList |> DObj
+      | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+      | [ ("constructor", JString "Ok"); ("type", JString "result");
+          ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
+      | [ ("constructor", JString "Error"); ("type", JString "result");
+          ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
+      | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
   // disable all those so we fail if we see them. Hwoever, we might need to
@@ -466,8 +489,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       let fields =
         seq (json.Values())
         |> Seq.toList
-        |> List.map
-             (fun (jp : JProperty) -> (String.toLowercase jp.Name, convert jp.Value))
+        |> List.map (fun (jp : JProperty) -> (String.toLowercase jp.Name, jp.Value))
         |> List.sortBy (fun (k, _) -> k)
 
       debuG "field are" fields
@@ -476,36 +498,37 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       // do is to use the DB's type and version to encode/decode them correctly
       match fields with
       // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
-      | [ ("type", DStr "response"); ("value", DList [ a; b ]) ] ->
-          DHttpResponse(responseOfJson a, b)
-      | [ ("type", DStr "date"); ("value", DStr v) ] ->
+      | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
+          DHttpResponse(responseOfJson a, convert b)
+      | [ ("type", JString "date"); ("value", JString v) ] ->
           DDate(System.DateTime.ofIsoString v)
-      | [ ("type", DStr "password"); ("value", DStr v) ] ->
+      | [ ("type", JString "password"); ("value", JString v) ] ->
           // v |> B64.decode |> Bytes.of_string |> DPassword
           fstodo "password"
-      | [ ("type", DStr "error"); ("value", DStr v) ] -> DError(SourceNone, v)
-      | [ ("type", DStr "bytes"); ("value", DStr v) ] ->
+      | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
+      | [ ("type", JString "bytes"); ("value", JString v) ] ->
           v |> System.Convert.FromBase64String |> DBytes
-      | [ ("type", DStr "char"); ("value", DStr v) ] ->
+      | [ ("type", JString "char"); ("value", JString v) ] ->
           v |> String.toEgcSeq |> Seq.head |> DChar
-      | [ ("type", DStr "character"); ("value", DStr v) ] ->
+      | [ ("type", JString "character"); ("value", JString v) ] ->
           v |> String.toEgcSeq |> Seq.head |> DChar
-      | [ ("type", DStr "datastore"); ("value", DStr v) ] -> DDB v
-      | [ ("type", DStr "incomplete"); ("value", DNull) ] -> DIncomplete SourceNone
-      | [ ("type", DStr "errorrail"); ("value", dv) ] -> DErrorRail dv
-      | [ ("type", DStr "option"); ("value", DNull) ] -> DOption None
-      | [ ("type", DStr "option"); ("value", dv) ] -> DOption(Some dv)
-      | [ ("type", DStr "block"); ("value", DNull) ] ->
+      | [ ("type", JString "datastore"); ("value", JString v) ] -> DDB v
+      | [ ("type", JString "incomplete"); ("value", JNull) ] ->
+          DIncomplete SourceNone
+      | [ ("type", JString "errorrail"); ("value", dv) ] -> DErrorRail(convert dv)
+      | [ ("type", JString "option"); ("value", JNull) ] -> DOption None
+      | [ ("type", JString "option"); ("value", dv) ] -> DOption(Some(convert dv))
+      | [ ("type", JString "block"); ("value", JNull) ] ->
           // See docs/dblock-serialization.ml
           DFnVal(
             Lambda { body = EBlank(id 23456); symtable = Map.empty; parameters = [] }
           )
-      | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
-      | [ ("constructor", DStr "Ok"); ("type", DStr "result");
-          ("values", DList [ dv ]) ] -> DResult(Ok dv)
-      | [ ("constructor", DStr "Error"); ("type", DStr "result");
-          ("values", DList [ dv ]) ] -> DResult(Error dv)
-      | _ -> fields |> Map.ofList |> DObj
+      | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+      | [ ("constructor", JString "Ok"); ("type", JString "result");
+          ("values", JList [ dv ]) ] -> DResult(Ok(convert dv))
+      | [ ("constructor", JString "Error"); ("type", JString "result");
+          ("values", JList [ dv ]) ] -> DResult(Error(convert dv))
+      | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
   // disable all those so we fail if we see them. Hwoever, we might need to
