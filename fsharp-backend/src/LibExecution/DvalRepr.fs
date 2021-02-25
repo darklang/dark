@@ -466,8 +466,11 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       let fields =
         seq (json.Values())
         |> Seq.toList
-        |> List.map (fun (jp : JProperty) -> (jp.Name, convert jp.Value))
+        |> List.map
+             (fun (jp : JProperty) -> (String.toLowercase jp.Name, convert jp.Value))
         |> List.sortBy (fun (k, _) -> k)
+
+      debuG "field are" fields
       // These are the only types that are allowed in the queryable
       // representation. We may allow more in the future, but the real thing to
       // do is to use the DB's type and version to encode/decode them correctly
@@ -715,7 +718,9 @@ let ofInternalQueryableV1 (str : string) : Dval =
         let fields =
           seq (json.Values())
           |> Seq.toList
-          |> List.map (fun (jp : JProperty) -> (jp.Name, convert jp.Value))
+          |> List.map
+               (fun (jp : JProperty) ->
+                 (String.toLowercase jp.Name, convert jp.Value))
           |> List.sortBy (fun (k, _) -> k)
         // These are the only types that are allowed in the queryable
         // representation. We may allow more in the future, but the real thing to
