@@ -489,7 +489,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       let fields =
         seq (json.Values())
         |> Seq.toList
-        |> List.map (fun (jp : JProperty) -> (String.toLowercase jp.Name, jp.Value))
+        |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
         |> List.sortBy (fun (k, _) -> k)
 
       debuG "field are" fields
