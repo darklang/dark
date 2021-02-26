@@ -190,43 +190,27 @@ module RoundtrippableDval =
     try
       // here we need to be able to read the data OCaml generates and OCaml needs to be able to read the data F# generates. But, both of those are buggy. So if they produce the same string it's fine at least.
       // either: we get the same string both ways, or we can read in both directions
-      let fsString =
-        dv
-        |> debug "\n\n\n\n\nfuzzing roundtrippable works on value"
-        |> DvalRepr.toInternalRoundtrippableV0
-        |> debug "as string by f#"
+      let fsString = dv |> DvalRepr.toInternalRoundtrippableV0
+      let ocamlString = dv |> OCamlInterop.toInternalRoundtrippableV0
 
       let fsCanReadOCaml =
-        fsString
-        |> OCamlInterop.ofInternalRoundtrippableV0
-        |> debug "converted by OCaml"
-        |> dvalEquality dv
-
-      let ocamlString =
-        dv |> OCamlInterop.toInternalRoundtrippableV0 |> debug "as string by ocaml"
+        fsString |> OCamlInterop.ofInternalRoundtrippableV0 |> dvalEquality dv
 
       let ocamlCanReadFS =
-        ocamlString
-        |> DvalRepr.ofInternalRoundtrippableV0
-        |> debug "converted by F#"
-        |> dvalEquality dv
+        ocamlString |> DvalRepr.ofInternalRoundtrippableV0 |> dvalEquality dv
+
+      let theyCanReadEachOthersText = ocamlCanReadFS && fsCanReadOCaml
 
       let theyMakeTheSameMistakes =
         OCamlInterop.ofInternalRoundtrippableV0 ocamlString
         |> dvalEquality (DvalRepr.ofInternalRoundtrippableV0 fsString)
 
-      let theyCanReadEachOthersText = ocamlCanReadFS && fsCanReadOCaml
-      let theyGenerateTheSameString = fsString = ocamlString
-
-      if theyCanReadEachOthersText
-         || theyGenerateTheSameString
-         || theyMakeTheSameMistakes then
+      if theyCanReadEachOthersText || theyMakeTheSameMistakes then
         true
       else
         printfn
           "%s"
           ($"theyCanReadEachOthersText: {theyCanReadEachOthersText}\n"
-           + $"theyGenerateTheSameString: {theyGenerateTheSameString}\n"
            + $"theyMakeTheSameMistakes: {theyMakeTheSameMistakes}\n")
 
         false

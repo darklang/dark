@@ -1225,28 +1225,24 @@ let toplevelOfCachedBinary
 
   let toplevelOfCachedHandler () =
     Binary.handlerBin2Json data
-    // |> debug "handler"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlHandler2PT pos
     |> PT.TLHandler
 
   let toplevelOfCachedDB () =
     Binary.dbBin2Json data
-    // |> debug "db"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlDB2PT pos
     |> PT.TLDB
 
   let toplevelOfCachedUserFunction () =
     Binary.userfnBin2Json data
-    // |> debug "userfn"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlUserFunction2PT
     |> PT.TLFunction
 
   let toplevelOfCachedUserTipe () =
     Binary.usertipeBin2Json data
-    // |> debug "tipe"
     |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_tipe>
     |> Convert.ocamlUserType2PT
     |> PT.TLType
@@ -1331,11 +1327,8 @@ let ofInternalRoundtrippableV0 (str : string) : RT.Dval =
   Binary.Internal.registerThread ()
 
   str
-  |> debug "sending to ocaml"
   |> Binary.Internal.ofInternalRoundtrippableV0
-  |> debug "get back from ocaml"
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
-  |> debug "deserialized from ocaml"
   |> Convert.ocamlDval2rt
 
 let ofUnknownJson (str : string) : RT.Dval =
@@ -1390,13 +1383,9 @@ let toInternalRoundtrippableV0 (dv : RT.Dval) : string =
   Binary.Internal.registerThread ()
 
   dv
-  |> debug "going to send to ocaml"
   |> Convert.rt2ocamlDval
-  |> debug "converting to ocaml type"
   |> Json.AutoSerialize.serialize
-  |> debug "serializting ocaml"
   |> Binary.Internal.toInternalRoundtrippableV0
-  |> debug "sent to ocaml and got this back"
 
 let toPrettyMachineJsonV1 (dv : RT.Dval) : string =
   Binary.Internal.registerThread ()
