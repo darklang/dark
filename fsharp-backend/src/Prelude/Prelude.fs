@@ -110,8 +110,21 @@ let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString 
 let base64Encode (input : string) : string =
   input |> toBytes |> System.Convert.ToBase64String
 
+// Convert a base64 encoded string to one that is url-safe
+let base64ToUrlEncoded (str : string) : string =
+  str.Replace('+', '-').Replace('/', '_').Replace("=", "")
+
+// Convert a url-safe base64 string to one that users the more traditional format
+let base64FromUrlEncoded (str : string) : string =
+  let initial = str.Replace('-', '+').Replace('_', '/')
+  let length = initial.Length
+
+  if length % 4 = 2 then $"{initial}=="
+  else if length % 4 = 3 then $"{initial}="
+  else initial
+
 let base64UrlEncode (str : string) : string =
-  (base64Encode str).Replace('+', '-').Replace('/', '_').Replace("=", "")
+  str |> base64Encode |> base64ToUrlEncoded
 
 let base64Decode (encoded : string) : string =
   encoded |> System.Convert.FromBase64String |> ofBytes
@@ -532,11 +545,28 @@ module Json =
         | _ when System.Double.IsNaN value -> writer.WriteRawValue "NaN"
         | _ -> writer.WriteValue(value)
 
-    // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
-    // base64, like BinaryConverter. It's not appropriate for all byte arrays,
-    // but I think this is the only user. If not, we'll need to add a RawBytes type
     type OCamlRawBytesConverter() =
-      inherit BinaryConverter()
+      inherit JsonConverter<byte array>()
+      // In OCaml, we wrap the in DBytes with a RawBytes, whose serializer uses
+      // the url-safe version of base64. It's not appropriate for all byte
+      // arrays, but I think this is the only user. If not, we'll need to add a
+      // RawBytes type.
+      override _.ReadJson(reader : JsonReader, _, v, _, _) =
+        reader.Value :?> string
+        |> base64FromUrlEncoded
+        |> System.Convert.FromBase64String
+
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value : byte [],
+          _ : JsonSerializer
+        ) =
+        value
+        |> System.Convert.ToBase64String
+        |> base64ToUrlEncoded
+        |> writer.WriteValue
+
 
     let _settings =
       (let settings = JsonSerializerSettings()

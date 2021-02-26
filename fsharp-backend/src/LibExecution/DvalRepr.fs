@@ -416,6 +416,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
           fstodo "password"
       | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
       | [ ("type", JString "bytes"); ("value", JString v) ] ->
+          // Note that the OCaml version uses the non-url-safe b64 encoding here
           v |> System.Convert.FromBase64String |> DBytes
       | [ ("type", JString "char"); ("value", JString v) ] -> DChar v
       | [ ("type", JString "character"); ("value", JString v) ] -> DChar v
@@ -507,6 +508,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
           fstodo "password"
       | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
       | [ ("type", JString "bytes"); ("value", JString v) ] ->
+          // Note that the OCaml version uses the non-url-safe b64 encoding here
           v |> System.Convert.FromBase64String |> DBytes
       | [ ("type", JString "char"); ("value", JString v) ] ->
           v |> String.toEgcSeq |> Seq.head |> DChar
@@ -669,8 +671,9 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
                w.WriteValue("Error")
                w.WritePropertyName "values"
                w.writeArray (fun () -> writeDval rdv)))
-  | DBytes bytes -> wrapStringValue "bytes" (System.Convert.ToBase64String bytes)
-
+  | DBytes bytes ->
+      // Note that the OCaml version uses the non-url-safe b64 encoding here
+      bytes |> System.Convert.ToBase64String |> wrapStringValue "bytes"
 
 
 let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
