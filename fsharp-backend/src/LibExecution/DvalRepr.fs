@@ -384,7 +384,6 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
       // We don't want that because we have our own format for Dates, and this
       // might be a string with a date in it.
       DStr(json.Value<string>())
-
   | JTokenType.Array ->
       // We shouldnt have saved dlist that have incompletes or error rails but we might have
       seq (json.AsJEnumerable()) |> Seq.toList |> List.map convert |> Dval.list
@@ -484,8 +483,6 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
         |> Seq.toList
         |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
         |> List.sortBy (fun (k, _) -> k)
-
-      debuG "field are" fields
       // These are the only types that are allowed in the queryable
       // representation. We may allow more in the future, but the real thing to
       // do is to use the DB's type and version to encode/decode them correctly
@@ -736,20 +733,19 @@ let ofInternalQueryableV1 (str : string) : Dval =
         let fields =
           seq (json.Values())
           |> Seq.toList
-          |> List.map
-               (fun (jp : JProperty) ->
-                 (String.toLowercase jp.Name, convert jp.Value))
+          |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
           |> List.sortBy (fun (k, _) -> k)
         // These are the only types that are allowed in the queryable
         // representation. We may allow more in the future, but the real thing to
         // do is to use the DB's type and version to encode/decode them correctly
         match fields with
-        | [ ("type", DStr "date"); ("value", DStr v) ] ->
+        | [ ("type", JString "date"); ("value", JString v) ] ->
             DDate(System.DateTime.ofIsoString v)
-        | [ ("type", DStr "password"); ("value", DStr v) ] -> fstodo "password"
+        | [ ("type", JString "password"); ("value", JString v) ] -> fstodo "password"
         // v |> B64.decode |> Bytes.of_string |> DPassword
-        | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
-        | _ -> fields |> Map.ofList |> DObj
+        | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
+        | _ ->
+            fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     // Json.NET does a bunch of magic based on the contents of various types.
     // For example, it has tokens for Dates, constructors, etc. We've tried to
     // disable all those so we fail if we see them. Hwoever, we might need to
