@@ -386,4 +386,4 @@ ENV CARGO_HOME=/home/dark/.cargo
 
 USER dark
 
-RUN sudo apt update && sudo apt install -y gdb htop
+RUN sudo apt update && sudo apt install -y lldb htop
