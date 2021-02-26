@@ -174,9 +174,8 @@ module RoundtrippableDval =
       Arb.Default.Derive()
       |> Arb.filter
            (function
-           | RT.DFnVal _ -> false
-           | RT.DBytes _ -> true // Temporary til everything else works
-           | RT.DFloat _ -> false // Temporary til everything else works
+           | RT.DFnVal _ -> false // not supported
+           | RT.DFloat _ -> true // Temporary til everything else works
            | RT.DChar c when c.Length = 1 -> true
            | RT.DChar _ -> false
            | _ -> true)

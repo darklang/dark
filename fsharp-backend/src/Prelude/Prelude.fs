@@ -510,11 +510,8 @@ module Json =
       inherit JsonConverter<tlid>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        if reader.TokenType = JsonToken.String then
-          let str = reader.ReadAsString()
-          parseUInt64 str
-        else
-          (reader.Value :?> uint64)
+        let rawToken = reader.Value.ToString()
+        parseUInt64 rawToken
 
       override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
         writer.WriteValue(value)
@@ -522,8 +519,8 @@ module Json =
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
-      override _.ReadJson(reader : JsonReader, _, _, _, _) =
-        let rawToken = reader.Value :?> string
+      override _.ReadJson(reader : JsonReader, _, v, _, _) =
+        let rawToken = reader.Value.ToString()
 
         match rawToken with
         | "Infinity" -> System.Double.PositiveInfinity
@@ -531,7 +528,9 @@ module Json =
         | "-Infinity" -> System.Double.NegativeInfinity
         | "-infinity" -> System.Double.NegativeInfinity
         | "NaN" -> System.Double.NaN
-        | _ -> reader.Value :?> float
+        | _ ->
+            let style = System.Globalization.NumberStyles.Float
+            System.Double.Parse(rawToken, style)
 
       override _.WriteJson
         (

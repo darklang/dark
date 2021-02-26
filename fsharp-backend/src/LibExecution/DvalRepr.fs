@@ -54,14 +54,6 @@ let parseJson (s : string) : JToken =
 
 let formatFloat (f : float) : string = f.ToString("0.0################")
 
-let writeFloat (w : JsonWriter) (f : float) =
-  if System.Double.IsFinite f then
-    // make sure to get the zeroes
-    w.WriteRawValue(formatFloat f)
-  else
-    // json.NET encodes infinity, etc, appropriately for our use case
-    w.WriteValue f
-
 type JsonWriter with
 
   member this.writeObject(f : unit -> unit) =
@@ -302,7 +294,7 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
   match dv with
   (* basic types *)
   | DInt i -> w.WriteValue i
-  | DFloat f -> writeFloat w f
+  | DFloat f -> w.WriteValue f
   | DBool b -> w.WriteValue b
   | DNull -> w.WriteNull()
   | DStr s -> w.WriteValue s
@@ -587,7 +579,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   match dv with
   (* basic types *)
   | DInt i -> w.WriteValue i
-  | DFloat f -> writeFloat w f
+  | DFloat f -> w.WriteValue f
   | DBool b -> w.WriteValue b
   | DNull -> w.WriteNull()
   | DStr s -> w.WriteValue s
