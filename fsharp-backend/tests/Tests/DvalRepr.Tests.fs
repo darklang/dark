@@ -59,8 +59,17 @@ let testDvalRoundtrippableRoundtrips =
                 "extra"
             }))
 
-// FSTODO: test that printable formats support all data types
-// FSTODO: test nested objects
+let testSpecialRoundtrips =
+  testMany
+    "special roundtrippable dvals roundtrip"
+    FuzzTests.All.RoundtrippableDval.dvalReprInternalRoundtrippableV1Roundtrip
+    [ RT.DObj(
+        Map.ofList [ ("", RT.DFloat 1.797693135e+308)
+                     ("a", RT.DErrorRail(RT.DFloat nan)) ]
+      ),
+      true ]
+
+
 
 let testDvalOptionQueryableSpecialCase =
   test "dval Option Queryable Special Case" {
@@ -231,4 +240,5 @@ let tests =
     [ testDvalRoundtrippableRoundtrips
       testInternalRoundtrippableDoesntCareAboutOrder
       testDvalOptionQueryableSpecialCase
+      testSpecialRoundtrips
       testDvalUserDBV1Migration ]

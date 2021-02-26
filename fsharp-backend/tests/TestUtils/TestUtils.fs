@@ -141,10 +141,10 @@ let testListUsingProperty (name : string) (prop : 'a -> bool) (list : 'a list) =
 open LibExecution.RuntimeTypes
 
 module Expect =
-  let rec equalDval (left : Dval) (right : Dval) (msg : string) : unit =
-    let de l r = equalDval l r msg
+  let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
+    let de a e = equalDval a e msg
 
-    match left, right with
+    match actual, expected with
     | DFloat l, DFloat r ->
         if System.Double.IsNaN l && System.Double.IsNaN r then
           ()
@@ -189,11 +189,13 @@ module Expect =
         Expect.equal u1 u2 msg
         de b1 b2
     | DIncomplete _, DIncomplete _ -> Expect.equal true true "two incompletes"
+    | DErrorRail l, DErrorRail r -> de l r
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DObj _, _
     | DList _, _
     | DResult _, _
+    | DErrorRail _, _
     | DOption _, _
     // All others can be directly compared
     | DInt _, _
@@ -205,11 +207,10 @@ module Expect =
     | DChar _, _
     | DFnVal _, _
     | DIncomplete _, _
-    | DErrorRail _, _
     | DError _, _
     | DDB _, _
     | DUuid _, _
-    | DBytes _, _ -> Expect.equal left right msg
+    | DBytes _, _ -> Expect.equal actual expected msg
 
 // We reimplement the same conditions as it's confusing to have this print out the same errors
 let rec dvalEquality (left : Dval) (right : Dval) : bool =
@@ -247,9 +248,11 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
       u1 = u2 && de b1 b2
   | DIncomplete _, DIncomplete _ -> true
+  | DErrorRail l, DErrorRail r -> de l r
   // Keep for exhaustiveness checking
   | DHttpResponse _, _
   | DObj _, _
+  | DErrorRail _, _
   | DList _, _
   | DResult _, _
   | DOption _, _
@@ -263,7 +266,6 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DChar _, _
   | DFnVal _, _
   | DIncomplete _, _
-  | DErrorRail _, _
   | DError _, _
   | DDB _, _
   | DUuid _, _
@@ -288,9 +290,9 @@ let sampleDvals : List<string * Dval> =
     ("float6", DFloat 0.0)
     (* Long term, we shoudln't allow Infinity/NaNs, but since we do we should
      * make sure they roundtrip OK. *)
-    ("nan", DFloat System.Double.NaN)
-    ("positive infinity", DFloat System.Double.PositiveInfinity)
-    ("negative infinity", DFloat System.Double.NegativeInfinity)
+    ("nan", DFloat nan)
+    ("positive infinity", DFloat infinity)
+    ("negative infinity", DFloat -infinity)
     ("true", DBool true)
     ("false", DBool false)
     ("null", DNull)
@@ -322,6 +324,8 @@ let sampleDvals : List<string * Dval> =
            parameters = [ (id 5678, "a") ] }
      ))
     ("errorrail", DErrorRail(Dval.int 5))
+    ("errorrail with float",
+     DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
     ("redirect", DHttpResponse(Redirect "/home", DNull))
     ("httpresponse", DHttpResponse(Response(200, []), DStr "success"))
     ("db", DDB "Visitors")
