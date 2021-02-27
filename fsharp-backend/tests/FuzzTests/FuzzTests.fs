@@ -158,7 +158,7 @@ let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
 module RoundtrippableDval =
   open FsCheck
 
-  type RoundtrippableDvalGenerator =
+  type StrictRoundtrippableDvalGenerator =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String()
       |> Arb.filter
@@ -171,16 +171,26 @@ module RoundtrippableDval =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
     static member RoundtrippableDvals() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           | RT.DFnVal _ -> false // not supported
-           | RT.DFloat _ -> true // Temporary til everything else works
-           | RT.DChar c when c.Length = 1 -> true
-           | RT.DChar _ -> false
-           | _ -> true)
+      Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval true)
 
-  let dvalReprInternalRoundtrippableV1Roundtrip (dv : RT.Dval) : bool =
+  type NonStrictRoundtrippableDvalGenerator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String()
+      |> Arb.filter
+           (fun (s : string) ->
+             // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
+             s <> null && not (s.Contains('\u0000')))
+
+
+    static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
+      Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
+
+    static member RoundtrippableDvals() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval false)
+
+
+
+  let dvalReprInternalRoundtrippableV0Roundtrip (dv : RT.Dval) : bool =
     dv
     |> DvalRepr.toInternalRoundtrippableV0
     |> DvalRepr.ofInternalRoundtrippableV0
@@ -218,18 +228,56 @@ module RoundtrippableDval =
       printfn $"Cause exception while fuzzing {e}"
       reraise ()
 
+  let tests =
+    [ testPropertyWithGenerator
+        typeof<StrictRoundtrippableDvalGenerator>
+        "roundtripping InternalRoundtrippable v0"
+        dvalReprInternalRoundtrippableV0Roundtrip
+      testPropertyWithGenerator
+        typeof<NonStrictRoundtrippableDvalGenerator>
+        "roundtrippable works"
+        roundtrippableWorks ]
 
 
+module Queryable =
+  open FsCheck
+
+  type QueryableDvalGenerator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String()
+      |> Arb.filter
+           (fun (s : string) ->
+             // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
+             s <> null && not (s.Contains('\u0000')))
+
+    static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
+      Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
+
+    static member QueryableDvals() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive() |> Arb.filter DvalRepr.isQueryableDval
+
+  let dvalReprInternalQueryableV0Roundtrip (dv : RT.Dval) : bool =
+    dv
+    |> DvalRepr.toInternalQueryableV0
+    |> DvalRepr.ofInternalQueryableV0
+    |> dvalEquality dv
+
+  let dvalReprInternalQueryableV1Roundtrip (dvm : RT.DvalMap) : bool =
+    dvm
+    |> DvalRepr.toInternalQueryableV1
+    |> DvalRepr.ofInternalQueryableV1
+    |> dvalEquality (RT.DObj dvm)
 
   let tests =
     [ testPropertyWithGenerator
-        typeof<RoundtrippableDvalGenerator>
-        "roundtripping InternalRoundtrippable v0"
-        dvalReprInternalRoundtrippableV1Roundtrip
+        typeof<QueryableDvalGenerator>
+        "roundtripping InternalQueryable v0"
+        dvalReprInternalQueryableV0Roundtrip
       testPropertyWithGenerator
-        typeof<RoundtrippableDvalGenerator>
-        "roundtrippable works"
-        roundtrippableWorks ]
+        typeof<QueryableDvalGenerator>
+        "roundtripping InternalQueryable v1"
+        dvalReprInternalQueryableV1Roundtrip ]
+
 
 
 
@@ -250,7 +298,7 @@ let roundtrips =
          "roundtripping OCamlInteropYojsonExpr"
          ocamlInteropYojsonExprRoundtrip
        testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
-     @ RoundtrippableDval.tests)
+     @ RoundtrippableDval.tests @ Queryable.tests)
 
 let tests = testList "FuzzTests" [ roundtrips ]
 

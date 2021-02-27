@@ -671,6 +671,40 @@ let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit 
 let toInternalRoundtrippableV0 (dval : Dval) : string =
   writeJson (fun w -> unsafeDvalToJsonValueV1 w false dval)
 
+// Used for fuzzing and to document what's supported. We allow some things that
+// are wrong because ocaml supported them. With strict to true we'll return
+// false for them.
+let isRoundtrippableDval (strict : bool) (dval : Dval) : bool =
+  match dval with
+  | DChar c when c.Length = 1 -> true
+  | DChar _ -> false // invalid
+  | DStr _ -> true
+  | DInt _ -> true
+  | DNull _ -> true
+  | DBool _ -> true
+  | DFloat _ -> true
+  | DList ls when strict ->
+      // CLEANUP: Bug where Lists containing fake dvals will be replaced with
+      // the fakeval
+      not (List.any Dval.isFake ls)
+  | DList _ -> true
+  | DObj _ -> true
+  | DDate _ -> true
+  // | DPassword _ -> true // FSTODO
+  | DUuid _ -> true
+  | DBytes _ -> true
+  | DHttpResponse _ -> true
+  | DOption (Some DNull) when strict ->
+      // CLEANUP: Bug where Lists containing fake dvals will be replaced with
+      // the fakeval
+      false
+  | DOption _ -> true
+  | DResult _ -> true
+  | DDB _ -> true
+  | DError _ -> true
+  | DIncomplete _ -> true
+  | DErrorRail _ -> true
+  | DFnVal _ -> false // not supported
 
 let ofInternalRoundtrippableJsonV0 (j : JToken) : Result<Dval, string> =
   (* Switched to v1 cause it was a bug fix *)
@@ -706,6 +740,31 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
               unsafeDvalToJsonValueV0 w false dval))
 
       w.WriteEnd())
+
+let isQueryableDval (dval : Dval) : bool =
+  match dval with
+  | DStr _ -> true
+  | DInt _ -> true
+  | DNull _ -> true
+  | DBool _ -> true
+  | DFloat _ -> true
+  | DList _ -> true
+  | DObj _ -> true
+  | DDate _ -> true
+  // | DPassword _ -> true // FSTODO
+  | DUuid _ -> true
+  // TODO support
+  | DChar _ -> false
+  | DBytes _ -> false
+  | DHttpResponse _ -> false
+  | DOption _ -> false
+  | DResult _ -> false
+  // Not supportable I think
+  | DDB _ -> false
+  | DFnVal _ -> false // not supported
+  | DError _ -> false
+  | DIncomplete _ -> false
+  | DErrorRail _ -> false
 
 let ofInternalQueryableV1 (str : string) : Dval =
   // The first level _must_ be an object at the moment
