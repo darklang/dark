@@ -15,9 +15,6 @@ open Tablecloth
 
 open RuntimeTypes
 
-// FSTODO: json.net is very permissive. Make sure we only use it for internal
-// types. What do we use to read from users? It should be strict.
-
 // I tried System.Text.Json but ran into a number of problems:
 //
 // - Infinity/Nan: The original OCaml Yojson converter represented these
@@ -76,16 +73,55 @@ let (|JNull|_|) (j : JToken) : Option<unit> =
   | JTokenType.Null -> Some(JNull)
   | _ -> None
 
-
 let (|JInteger|_|) (j : JToken) : Option<int64> =
   match j.Type with
   | JTokenType.Integer -> Some(JInteger(j.Value<int64>()))
+  | _ -> None
+
+let (|JFloat|_|) (j : JToken) : Option<float> =
+  match j.Type with
+  | JTokenType.Float -> Some(JFloat(j.Value<float>()))
+  | _ -> None
+
+let (|JBoolean|_|) (j : JToken) : Option<bool> =
+  match j.Type with
+  | JTokenType.Boolean -> Some(JBoolean(j.Value<bool>()))
   | _ -> None
 
 let (|JList|_|) (j : JToken) : Option<List<JToken>> =
   match j.Type with
   | JTokenType.Array -> Some(JList(j.Values<JToken>() |> Seq.toList))
   | _ -> None
+
+let (|JObject|_|) (j : JToken) : Option<List<string * JToken>> =
+  match j.Type with
+  | JTokenType.Object ->
+      let list =
+        j.Values()
+        |> seq
+        |> Seq.toList
+        |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
+
+      Some(JObject list)
+  | _ -> None
+
+
+let (|JNonStandard|_|) (j : JToken) : Option<unit> =
+  match j.Type with
+  | JTokenType.None
+  | JTokenType.Undefined
+  | JTokenType.Constructor
+  | JTokenType.Property
+  | JTokenType.Guid
+  | JTokenType.Raw
+  | JTokenType.Bytes
+  | JTokenType.TimeSpan
+  | JTokenType.Uri
+  | JTokenType.Comment
+  | JTokenType.Date -> Some()
+  | _ -> None
+
+
 
 
 
@@ -371,28 +407,18 @@ let responseOfJson (j : JToken) : DHTTP =
 let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
   let convert = unsafeDvalOfJsonV0
 
-  match json.Type with
-  | JTokenType.Integer -> DInt(json.Value<int64>() |> bigint)
-  | JTokenType.Float -> DFloat(json.Value<double>())
-  | JTokenType.Boolean -> DBool(json.Value<bool>())
-  | JTokenType.None
-  | JTokenType.Null
-  | JTokenType.Undefined -> DNull
-  | JTokenType.String -> DStr(json.Value<string>())
-  | JTokenType.Date ->
-      // If json.NET finds a string-looking thing, it will encode it as a Date.
-      // We don't want that because we have our own format for Dates, and this
-      // might be a string with a date in it.
-      DStr(json.Value<string>())
-  | JTokenType.Array ->
+  match json with
+  | JInteger i -> DInt(bigint i)
+  | JFloat f -> DFloat f
+  | JBoolean b -> DBool b
+  | JNull -> DNull
+  | JString s -> DStr s
+  | JList l ->
       // We shouldnt have saved dlist that have incompletes or error rails but we might have
-      seq (json.AsJEnumerable()) |> Seq.toList |> List.map convert |> Dval.list
-  | JTokenType.Object ->
-      let fields =
-        seq (json.Values())
-        |> Seq.toList
-        |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
-        |> List.sortBy (fun (k, _) -> k)
+      l |> List.map convert |> Dval.list
+
+  | JObject fields ->
+      let fields = fields |> List.sortBy (fun (k, _) -> k)
       // These are the only types that are allowed in the queryable
       // representation. We may allow more in the future, but the real thing to
       // do is to use the DB's type and version to encode/decode them correctly
@@ -432,16 +458,8 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
   // For example, it has tokens for Dates, constructors, etc. We've tried to
   // disable all those so we fail if we see them. Hwoever, we might need to
   // just convert some of these into strings.
-  | JTokenType.Date
-  | JTokenType.Constructor
-  | JTokenType.Property
-  | JTokenType.Guid
-  | JTokenType.Raw
-  | JTokenType.Bytes
-  | JTokenType.TimeSpan
-  | JTokenType.Uri -> failwith $"Invalid type in json: {json}"
-  | JTokenType.Comment -> failwith "Comments in JSON are not supported"
-
+  | JNonStandard
+  | _ -> failwith $"Invalid type in json: {json}"
 
 
 
@@ -460,29 +478,17 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
 let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   let convert = unsafeDvalOfJsonV1
 
-  match json.Type with
-  | JTokenType.Integer -> DInt(json.Value<int64>() |> bigint)
-  | JTokenType.Float -> DFloat(json.Value<double>())
-  | JTokenType.Boolean -> DBool(json.Value<bool>())
-  | JTokenType.None
-  | JTokenType.Null
-  | JTokenType.Undefined -> DNull
-  | JTokenType.String -> DStr(json.Value<string>())
-  | JTokenType.Date ->
-      // If json.NET finds a string-looking thing, it will encode it as a Date.
-      // We don't want that because we have our own format for Dates, and this
-      // might be a string with a date in it.
-      DStr(json.Value<string>())
-  | JTokenType.Array ->
+  match json with
+  | JInteger i -> DInt(bigint i)
+  | JFloat f -> DFloat f
+  | JBoolean b -> DBool b
+  | JNull -> DNull
+  | JString s -> DStr s
+  | JList l ->
       // We shouldnt have saved dlist that have incompletes or error rails but we might have
-      // FSTODO: to_list here is preventing us from saving DErrors in arrays
-      seq (json.AsJEnumerable()) |> Seq.toList |> List.map convert |> Dval.list
-  | JTokenType.Object ->
-      let fields =
-        seq (json.Values())
-        |> Seq.toList
-        |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
-        |> List.sortBy (fun (k, _) -> k)
+      l |> List.map convert |> Dval.list
+  | JObject fields ->
+      let fields = fields |> List.sortBy (fun (k, _) -> k)
       // These are the only types that are allowed in the queryable
       // representation. We may allow more in the future, but the real thing to
       // do is to use the DB's type and version to encode/decode them correctly
@@ -524,17 +530,8 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
   // For example, it has tokens for Dates, constructors, etc. We've tried to
   // disable all those so we fail if we see them. Hwoever, we might need to
   // just convert some of these into strings.
-  | JTokenType.Date
-  | JTokenType.Constructor
-  | JTokenType.Property
-  | JTokenType.Guid
-  | JTokenType.Raw
-  | JTokenType.Bytes
-  | JTokenType.TimeSpan
-  | JTokenType.Uri -> failwith $"Invalid type in json: {json}"
-  | JTokenType.Comment -> failwith "Comments in JSON are not supported"
-
-
+  | JNonStandard
+  | _ -> failwith $"Invalid type in json: {json}"
 
 
 // and unsafeDvalmapOfJsonV1 (j : J.JsonValue) : DvalMap =
@@ -713,28 +710,22 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
 let ofInternalQueryableV1 (str : string) : Dval =
   // The first level _must_ be an object at the moment
   let rec convertTopLevel (json : JToken) : Dval =
-    match json.Type with
-    | JTokenType.Object -> convert json
+    match json with
+    | JObject _ -> convert json
     | _ -> failwith "Value that isn't an object"
 
   and convert (json : JToken) : Dval =
-    match json.Type with
-    | JTokenType.Integer -> DInt(json.Value<int64>() |> bigint)
-    | JTokenType.Float -> DFloat(json.Value<double>())
-    | JTokenType.Boolean -> DBool(json.Value<bool>())
-    | JTokenType.None
-    | JTokenType.Null
-    | JTokenType.Undefined -> DNull
-    | JTokenType.String -> DStr(json.Value<string>())
-    | JTokenType.Array ->
+    match json with
+    | JInteger i -> DInt(bigint i)
+    | JFloat f -> DFloat f
+    | JBoolean b -> DBool b
+    | JNull -> DNull
+    | JString s -> DStr s
+    | JList l ->
         // We shouldnt have saved dlist that have incompletes or error rails but we might have
-        seq (json.AsJEnumerable()) |> Seq.toList |> List.map convert |> Dval.list
-    | JTokenType.Object ->
-        let fields =
-          seq (json.Values())
-          |> Seq.toList
-          |> List.map (fun (jp : JProperty) -> (jp.Name, jp.Value))
-          |> List.sortBy (fun (k, _) -> k)
+        l |> List.map convert |> Dval.list
+    | JObject fields ->
+        let fields = fields |> List.sortBy (fun (k, _) -> k)
         // These are the only types that are allowed in the queryable
         // representation. We may allow more in the future, but the real thing to
         // do is to use the DB's type and version to encode/decode them correctly
@@ -750,16 +741,8 @@ let ofInternalQueryableV1 (str : string) : Dval =
     // For example, it has tokens for Dates, constructors, etc. We've tried to
     // disable all those so we fail if we see them. Hwoever, we might need to
     // just convert some of these into strings.
-    | JTokenType.Date
-    | JTokenType.Constructor
-    | JTokenType.Property
-    | JTokenType.Guid
-    | JTokenType.Raw
-    | JTokenType.Bytes
-    | JTokenType.TimeSpan
-    | JTokenType.Uri -> failwith $"Invalid type in json: {json}"
-    | JTokenType.Comment -> failwith "Comments in JSON are not supported"
-
+    | JNonStandard _
+    | _ -> failwith $"Invalid type in json: {json}"
 
   str |> parseJson |> convertTopLevel
 
