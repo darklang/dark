@@ -9,10 +9,10 @@ open FSharp.Compiler.SourceCodeServices
 open Prelude
 open Tablecloth
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-open LibBackend.ProgramSerialization.ProgramTypes.Shortcuts
+open LibBackend.ProgramTypes.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"

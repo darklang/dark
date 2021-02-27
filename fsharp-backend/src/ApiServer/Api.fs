@@ -16,11 +16,11 @@ open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
-module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
-module RT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes.RuntimeT
+module PT = LibBackend.ProgramTypes
+module OT = LibBackend.OCamlInterop.OCamlTypes
+module RT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
-module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
+module Convert = LibBackend.OCamlInterop.Convert
 
 module Config = LibBackend.Config
 module Session = LibBackend.Session
@@ -330,7 +330,7 @@ module InitialLoad =
       let ocamlToplevels =
         canvas
         |> LibBackend.Canvas.toplevels
-        |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlToplevels
+        |> LibBackend.OCamlInterop.Convert.pt2ocamlToplevels
 
       // t3
       let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id

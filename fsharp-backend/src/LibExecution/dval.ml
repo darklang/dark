@@ -709,12 +709,6 @@ let to_internal_roundtrippable_v0 dval : string =
   unsafe_dval_to_yojson_v1 ~redact:false dval |> Yojson.Safe.to_string
 
 
-let of_internal_roundtrippable_json_v0 j =
-  (* Switched to v1 cause it was a bug fix *)
-  Result.try_with (fun _ -> unsafe_dval_of_yojson_v1 j)
-  |> Result.map_error ~f:Exception.to_string
-
-
 let of_internal_roundtrippable_v0 str : dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v1
 

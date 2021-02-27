@@ -12,7 +12,7 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 module Exe = LibExecution.Execution
 
 open TestUtils
@@ -20,8 +20,8 @@ open TestUtils
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DFakeVal (RT.DError (_, str)) -> RT.DFakeVal(RT.DError(RT.SourceNone, str))
-  | RT.DFakeVal (RT.DIncomplete _) -> RT.DFakeVal(RT.DIncomplete(RT.SourceNone))
+  | RT.DError (_, str) -> RT.DError(RT.SourceNone, str)
+  | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
 let fns =
@@ -83,8 +83,8 @@ let t
         //let str = $"{source} => {actualProg} = {expectedResult}"
         let astMsg = $"{actualProg} = {expectedResult} ->"
         let dataMsg = $"\n\nActual:\n{actual}\n = \n{expected}"
-        let str = astMsg + dataMsg
-        return (dvalEquals actual expected str)
+        let msg = astMsg + dataMsg
+        return (Expect.equalDval actual expected msg)
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
         return (Expect.equal "Exception thrown in test" (e.ToString()) "")

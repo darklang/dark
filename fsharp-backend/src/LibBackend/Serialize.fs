@@ -14,7 +14,7 @@ open System.Text.RegularExpressions
 
 open Prelude
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 
 // FSTODO inline this file into canvas
 
@@ -104,7 +104,7 @@ let loadOnlyRenderedTLIDs
        (fun read ->
          let cache = read.bytea "rendered_oplist_cache"
          let pos = read.stringOrNone "pos"
-         ProgramSerialization.OCamlInterop.toplevelOfCachedBinary (cache, pos))
+         OCamlInterop.toplevelOfCachedBinary (cache, pos))
 
 
 // let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :

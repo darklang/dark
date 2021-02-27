@@ -1,3 +1,5 @@
 Giraffe
 FSharp.Core
 FSharpPlus
+Newtonsoft.Json
+Microsoft.AspNetCore.Mvc.NewtonsoftJson

@@ -4,6 +4,7 @@ open System
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
+open Microsoft.AspNetCore.Mvc.NewtonsoftJson
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
 open Microsoft.AspNetCore.Http
@@ -71,14 +72,15 @@ let configureServices (services : IServiceCollection) =
   services
     .AddRouting()
     .AddGiraffe()
-    .AddSingleton<Json.ISerializer>(SystemTextJson.Serializer
-                                      (Json.AutoSerialize._options))
+    .AddSingleton<Json.ISerializer>(NewtonsoftJson.Serializer
+                                      (Json.AutoSerialize._settings))
   |> ignore
 
 [<EntryPoint>]
 let main args =
   printfn "Starting BwdServer"
   LibBackend.Init.init ()
+
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel()
   |> fun wh -> wh.ConfigureServices(configureServices)

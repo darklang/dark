@@ -46,9 +46,6 @@ val to_internal_roundtrippable_v0 : Types.RuntimeT.dval -> string
  * bugs. *)
 val of_internal_roundtrippable_v0 : string -> Types.RuntimeT.dval
 
-val of_internal_roundtrippable_json_v0 :
-  Yojson.Safe.t -> (Types.RuntimeT.dval, string) Core_kernel._result
-
 (* This is a format used for roundtripping dvals internally, while still being
  * queryable using jsonb in our DB. v0 has bugs due to a legacy of trying to
  * make one function useful for everything. Also roundtrippable. Does not
@@ -213,3 +210,6 @@ val supported_hash_versions : int list
 val current_hash_version : int
 
 val hash : int -> Types.RuntimeT.dval list -> string
+
+(* exposed for F# fuzzing *)
+val fuzzing_to_hashable_repr : Types.RuntimeT.dval -> string

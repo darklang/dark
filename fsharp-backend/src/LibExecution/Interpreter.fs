@@ -26,7 +26,7 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 // fsharplint:disable FL0039
 let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
-  let incomplete id = Value(DFakeVal(DIncomplete(SourceID(state.tlid, id))))
+  let incomplete id = Value(DIncomplete(SourceID(state.tlid, id)))
 
   taskv {
     match e with
@@ -103,11 +103,11 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           match obj with
           | DObj o ->
               if field = "" then
-                DFakeVal(DIncomplete(sourceID id))
+                DIncomplete(sourceID id)
               else
                 Map.tryFind field o |> Option.defaultValue DNull
-          | DFakeVal (DIncomplete _) -> obj
-          | DFakeVal (DErrorRail _) -> obj
+          | DIncomplete _ -> obj
+          | DErrorRail _ -> obj
           | x ->
               let actualType =
                 match Dval.toType x with
@@ -115,13 +115,11 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
                 | tipe -> $"it's a {DvalRepr.typeToDeveloperReprV0 tipe}"
 
-              DFakeVal(
-                DError(
-                  sourceID id,
-                  "Attempting to access a field of something that isn't a record or dict, ("
-                  + actualType
-                  + ")."
-                )
+              DError(
+                sourceID id,
+                "Attempting to access a field of something that isn't a record or dict, ("
+                + actualType
+                + ")."
               )
 
         return! Value result
@@ -155,7 +153,9 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             (* preview st oldcode *)
             return! eval state st newcode
         // FSTODO
-        | DFakeVal _ ->
+        | DIncomplete _
+        | DErrorRail _
+        | DError _ ->
             // FSTODO
             (* preview st newcode *)
             return! eval state st oldcode
@@ -299,7 +299,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                    //   if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
                    //     incomplete pid
                    //   else
-                   //     Value(DFakeVal(DError(UndefinedConstructor name)))
+                   //     Value(DError(UndefinedConstructor name))
                    // FSTODO
                    // traceNonMatch st expr builtUpTraces pid error
                    // FSTODO
@@ -323,7 +323,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         match cond with
         | DBool (false)
         | DNull -> return! eval state st elsebody
-        | DFakeVal (_) -> return cond
+        | _ when Dval.isFake cond -> return cond
         // CLEANUP: I dont know why I made these always true
         | _ -> return! eval state st thenbody
     | EConstructor (id, name, args) ->
@@ -357,7 +357,7 @@ and applyFn
     match fn with
     | DFnVal fnVal -> return! applyFnVal state id fnVal args isInPipe ster
     // Incompletes are allowed in pipes
-    | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
+    | DIncomplete _ when isInPipe = InPipe ->
         return Option.defaultValue fn (List.tryHead args)
     | other ->
         return
@@ -390,7 +390,7 @@ and applyFnVal
         // That is, unless it's an incomplete in a pipe. In a pipe, we treat
         // the entire expression as a blank, and skip it, returning the input
         // (first) value to be piped into the next statement instead. *)
-        | DFakeVal (DIncomplete _) when isInPipe = InPipe ->
+        | DIncomplete _ when isInPipe = InPipe ->
             return Option.defaultValue dv (List.tryHead argList)
         | _ -> return dv
     | None
@@ -489,7 +489,7 @@ and applyFnVal
 
                       | _ ->
                           fstodo $"support other function type {fn.fn}"
-                          return DFakeVal(DIncomplete SourceNone)
+                          return DIncomplete SourceNone
                     with
                     | Errors.FakeValFoundInQuery dv -> return dv
                     | Errors.DBQueryException e ->
@@ -533,10 +533,10 @@ and applyFnVal
               match Dval.unwrapFromErrorRail result with
               | DOption (Some v) -> return v
               | DResult (Ok v) -> return v
-              | DFakeVal _ as f -> return f
+              | v when Dval.isFake v -> return v
               // There should only be DOptions and DResults here, but hypothetically we got
               // something else, they would go on the error rail too.
-              | other -> return DFakeVal(DErrorRail other)
+              | other -> return DErrorRail other
             else
               return result
 

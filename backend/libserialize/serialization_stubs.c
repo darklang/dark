@@ -5,6 +5,7 @@
 #include <caml/memory.h>
 #include <caml/alloc.h>
 #include <caml/threads.h>
+#include <caml/printexc.h>
 
 /* --------------------
  * Initialize
@@ -23,23 +24,31 @@ void unlock() {
   caml_release_runtime_system();
 }
 
-void check_string(value v) {
+void check_exception(const char* ctx1, const char* ctx2, const char* ctx3, value v) {
   if (Is_exception_result(v)) {
-    printf("Value is exception!\n");
+    printf (
+      "WARNING: Exception thrown (%s -> %s -> %s) %s\n",
+      ctx1, ctx2, ctx3,
+      caml_format_exception (Extract_exception (v)));
     fflush(stdout);
     unlock();
   }
+}
+
+void check_string(const char* ctx1, const char* ctx2, const char* ctx3, value v) {
+  check_exception(ctx1, ctx2, ctx3, v);
   if (Tag_val(v) != String_tag) {
-    printf("Value is expected to be a string but isn't!\n");
-    unlock();
+    printf("WARNING: Value is expected to be a string but isn't! (%s -> %s -> %s)\n",
+      ctx1, ctx2, ctx3);
     fflush(stdout);
+    unlock();
   }
 }
 
 // Allocates memory of exactly the size of the bytes in the value, and copies the
 // data into it. Returns the new memory.
 char* copy_bytes_outside_runtime(value v) {
-  check_string(v);
+  check_string("", "copy_bytes_outside_runtime", "", v);
   int length = caml_string_length(v);
   void* dest = malloc(length);
   memcpy(dest, String_val(v), length);
@@ -48,8 +57,8 @@ char* copy_bytes_outside_runtime(value v) {
 
 // Allocates memory sized 1 byte larger than the string in the value, copies
 // the data, and adds a NULL byte at the end. Returns the new memory.
-char* copy_string_outside_runtime(value v) {
-  check_string(v);
+char* copy_string_outside_runtime(const char* ctx1, const char* ctx2, value v) {
+  check_string(ctx1, ctx2, "copy_string_outside_runtime", v);
   // OCaml strings can have NULL bytes in them, so don't use strndup
   int length = caml_string_length(v);
   char* dest = malloc(length+1);
@@ -64,9 +73,7 @@ extern char* dark_init_ocaml() {
   argv[1] = NULL;
   printf("OCAML loaded!\n");
   value res = caml_startup_exn(argv);
-  if (Is_exception_result(res)) {
-    printf("OCAML exception !\n");
-  }
+  check_exception("dark_init_ocaml", "caml_startup_exn", "", res);
   printf("Registering main thread!\n");
   caml_c_thread_register();
   // The main thread holds the lock - we need to release it or other threads
@@ -86,16 +93,12 @@ void register_thread() {
 char* call_bin2json(const char* callback_name, void* bytes, int length) {
   lock();
   value v = caml_alloc_initialized_string(length, bytes);
-  check_string(v);
+  check_string(callback_name, "call_bin2json", "caml_alloc_initialized_string", v);
   value* closure = caml_named_value(callback_name);
-  if (Is_exception_result(*closure)) {
-    printf("Closure is exception!\n");
-  }
+  check_exception(callback_name, "closure", "caml_named_value", *closure);
   value result = caml_callback_exn(*closure, v);
-  if (Is_exception_result(result)) {
-    printf("result is exception!\n");
-  }
-  char* retval = copy_string_outside_runtime(result);
+  check_exception(callback_name, "result", "caml_callback_exn", result);
+  char* retval = copy_string_outside_runtime(callback_name, "call_bin2json", result);
   unlock();
   return retval;
 }
@@ -133,11 +136,9 @@ extern char* expr_tlid_pair_bin2json(void* bytes, int length) {
 int call_json2bin(const char* callback_name, char* json, void** out_bytes) {
   lock();
   value* closure = caml_named_value(callback_name);
-  if (Is_exception_result(*closure)) {
-    printf("call_json2bin: Closure is exception!\n");
-  }
+  check_exception(callback_name, "call_json2bin", "caml_named_value", *closure);
   value v = caml_copy_string(json);
-  check_string(v);
+  check_string(callback_name, "call_json2bin", "caml_copy_string", v);
 
   value result = caml_callback_exn(*closure, v);
   int length = caml_string_length(result);
@@ -170,7 +171,77 @@ extern int expr_tlid_pair_json2bin(char* json, void** out_bytes) {
   return call_json2bin("expr_tlid_pair_json2bin", json, out_bytes);
 }
 
+/* --------------------
+ * Dvals
+ * -------------------- */
+const char* string_to_string (const char* callback_name, const char* json) {
+  lock();
+  value* closure = caml_named_value(callback_name);
+  check_exception(callback_name, "string_to_string", "caml_named_value", *closure);
+  value v = caml_copy_string(json);
+  check_string(callback_name, "string_to_string", "copy_string", v);
 
+  value result = caml_callback_exn(*closure, v);
+  char* retval = copy_string_outside_runtime(callback_name, "string_to_string", result);
+  unlock();
+  return retval;
+}
+
+extern const char* to_internal_roundtrippable_v0 (const char* json) {
+  return string_to_string("to_internal_roundtrippable_v0", json);
+}
+
+extern const char* of_internal_roundtrippable_v0 (const char* json) {
+  return string_to_string("of_internal_roundtrippable_v0", json);
+}
+
+extern const char* to_internal_queryable_v0 (const char* json) {
+  return string_to_string("to_internal_queryable_v0", json);
+}
+
+extern const char* to_internal_queryable_v1 (const char* json) {
+  return string_to_string("to_internal_queryable_v1", json);
+}
+
+extern const char* of_internal_queryable_v0 (const char* json) {
+  return string_to_string("of_internal_queryable_v0", json);
+}
+
+extern const char* of_internal_queryable_v1 (const char* json) {
+  return string_to_string("of_internal_queryable_v1", json);
+}
+
+extern const char* to_developer_repr_v0 (const char* json) {
+  return string_to_string("to_developer_repr_v0", json);
+}
+
+extern const char* to_enduser_readable_text_v0 (const char* json) {
+  return string_to_string("to_enduser_readable_text_v0", json);
+}
+
+extern const char* to_pretty_machine_json_v1 (const char* json) {
+  return string_to_string("to_pretty_machine_json_v1", json);
+}
+
+extern const char* to_url_string (const char* json) {
+  return string_to_string("to_url_string", json);
+}
+
+extern const char* to_hashable_repr (const char* json) {
+  return string_to_string("to_hashable_repr", json);
+}
+
+extern const char* of_unknown_json_v1 (const char* json) {
+  return string_to_string("of_unknown_json_v1", json);
+}
+
+extern const char* hash_v0 (const char* json) {
+  return string_to_string("hash_v0", json);
+}
+
+extern const char* hash_v1 (const char* json) {
+  return string_to_string("hash_v1", json);
+}
 
 /* --------------------
  * OCaml values
@@ -178,7 +249,7 @@ extern int expr_tlid_pair_json2bin(char* json, void** out_bytes) {
 extern char* digest () {
   lock();
   value* digest_value = caml_named_value("digest");
-  char* result = copy_string_outside_runtime(*digest_value);
+  char* result = copy_string_outside_runtime("digest", "caml_named_value", *digest_value);
   unlock();
   return result;
 }

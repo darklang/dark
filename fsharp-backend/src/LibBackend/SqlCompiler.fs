@@ -42,7 +42,7 @@ let rec canonicalize (expr : Expr) : Expr = expr
 
 let dvalToSql (dval : Dval) : SqlValue =
   match dval with
-  | DFakeVal _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
+  | DError _ | DIncomplete _ | DErrorRail _ -> raise (LibExecution.Errors.FakeValFoundInQuery dval)
   | DObj _
   | DList _
   | DHttpResponse _
@@ -262,7 +262,7 @@ let rec lambdaToSql
       (match expectedType with
        | TDate ->
            // This match arm handles types that are serialized in
-           // unsafe_dval_to_yojson using wrap_user_type or wrap_user_str, meaning
+           // unsafeDvalToJson using wrapUserType or wrapUserStr, meaning
            // they are wrapped in {type:, value:}. Right now, of the types sql
            // compiler supports, that's just TDate.
            // Likely future candidates include DPassword and DUuid; at time of

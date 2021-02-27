@@ -9,14 +9,19 @@
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
+    <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
     <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FSharpToExpr.fs" />
     <Compile Include="LibTest.fs" />
-    <Compile Include="TestUtils.fs" />
     <Compile Include="LibExecution.Tests.fs" />
-    <Compile Include="LibBackend.Tests.fs" />
+    <Compile Include="ProgramTypes.Tests.fs" />
+    <Compile Include="OCamlInterop.Tests.fs" />
+    <Compile Include="DvalRepr.Tests.fs" />
+    <Compile Include="SqlCompiler.Tests.fs" />
+    <Compile Include="FSharpToExpr.Tests.fs" />
+    <Compile Include="Account.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Tests.fs" />

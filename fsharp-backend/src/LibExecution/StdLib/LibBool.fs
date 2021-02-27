@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
         | _, [ value ] ->
             Value(
               match value with
-              | DFakeVal (DError _) -> DBool true
+              | DError _ -> DBool true
               | _ -> DBool false
             )
         | _ -> incorrectArgs ())

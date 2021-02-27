@@ -1,4 +1,4 @@
-module LibBackend.ProgramSerialization.ProgramTypes
+module LibBackend.ProgramTypes
 
 // These are the types that are serialized for the program.
 

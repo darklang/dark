@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
       description = "Return an errorRail wrapping nothing."
       fn =
         (function
-        | state, [] -> Value(DFakeVal(DErrorRail(DOption None)))
+        | state, [] -> Value(DErrorRail(DOption None))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DStr errorString ] ->
-            Value(DFakeVal(DError(SourceNone, errorString)))
+            Value(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr errorString ] ->
             let msg = LibExecution.Errors.queryCompilerErrorTemplate ++ errorString
-            Value(DFakeVal(DError(SourceNone, msg)))
+            Value(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

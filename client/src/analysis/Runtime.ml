@@ -182,7 +182,7 @@ let isComplete (dv : dval) : bool =
 
 
 (* Copied from Dval.to_repr in backend code, but that's terrible and it should
- * be recopied from to_developer_repr *)
+ * be recopied from to_developer_repr_v0 *)
 let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   let wrap value = "<" ^ (dv |> typeOf |> tipe2str) ^ ": " ^ value ^ ">" in
   let asType = "<" ^ (dv |> typeOf |> tipe2str) ^ ">" in

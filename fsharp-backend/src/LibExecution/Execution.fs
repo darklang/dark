@@ -118,14 +118,14 @@ let runHttp
       |> TaskOrValue.toTask
 
     match result with
-    | RT.DFakeVal (RT.DErrorRail (RT.DOption None))
-    | RT.DFakeVal (RT.DErrorRail (RT.DResult (Error _))) ->
+    | RT.DErrorRail (RT.DOption None)
+    | RT.DErrorRail (RT.DResult (Error _)) ->
         return
           (RT.DHttpResponse(
             RT.Response(404, [ "Content-length", "9"; "server", "darklang" ]),
             RT.DBytes(toBytes "Not found")
           ))
-    | RT.DFakeVal (RT.DErrorRail _) ->
+    | RT.DErrorRail _ ->
         return
           (RT.DHttpResponse(
             RT.Response(500, [ "Content-length", "32"; "server", "darklang" ]),

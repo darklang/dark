@@ -5,7 +5,7 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
 
 // Functions related to the HTTP server
 

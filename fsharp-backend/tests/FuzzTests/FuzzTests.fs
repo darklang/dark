@@ -8,8 +8,12 @@ open Expecto
 open Expecto.ExpectoFsCheck
 
 open Prelude
+open TestUtils
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
+module PT = LibBackend.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module OCamlInterop = LibBackend.OCamlInterop
+module DvalRepr = LibExecution.DvalRepr
 
 let (.=.) actual expected : bool =
   (if actual = expected then
@@ -89,9 +93,14 @@ let config : FsCheckConfig =
       maxTest = 10000
       arbitrary = [ typeof<DarkFsCheck.MyGenerators> ] }
 
+let configWithGenerator (typ : System.Type) : FsCheckConfig =
+  { FsCheckConfig.defaultConfig with maxTest = 10000; arbitrary = [ typ ] }
+
 let testProperty (name : string) (x : 'a) : Test =
   testPropertyWithConfig config name x
 
+let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
+  testPropertyWithConfig (configWithGenerator typ) name x
 
 // Tests
 // These tests are like this so they can be reused from LibBackend.Tests
@@ -101,32 +110,32 @@ let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
 
 let ocamlInteropYojsonExprRoundtrip (a : PT.Expr) : bool =
   a
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlExpr
+  |> OCamlInterop.Convert.pt2ocamlExpr
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlExpr2PT
+  |> OCamlInterop.Convert.ocamlExpr2PT
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlExpr
+  |> OCamlInterop.Convert.pt2ocamlExpr
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlExpr2PT
+  |> OCamlInterop.Convert.ocamlExpr2PT
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a
 
 let ocamlInteropYojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
   a
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlHandler
+  |> OCamlInterop.Convert.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlHandler2PT a.pos
+  |> OCamlInterop.Convert.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.pt2ocamlHandler
+  |> OCamlInterop.Convert.pt2ocamlHandler
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
-  |> LibBackend.ProgramSerialization.OCamlInterop.Convert.ocamlHandler2PT a.pos
+  |> OCamlInterop.Convert.ocamlHandler2PT a.pos
   |> Json.AutoSerialize.serialize
   |> Json.AutoSerialize.deserialize
   .=. a
@@ -135,16 +144,92 @@ let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
   let h = PT.TLHandler a
 
   h
-  |> LibBackend.ProgramSerialization.OCamlInterop.toplevelToCachedBinary
+  |> OCamlInterop.toplevelToCachedBinary
   |> fun bin -> bin, None
-  |> LibBackend.ProgramSerialization.OCamlInterop.toplevelOfCachedBinary
+  |> OCamlInterop.toplevelOfCachedBinary
   .=. h
 
 let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
   pair
-  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairToCachedBinary
-  |> LibBackend.ProgramSerialization.OCamlInterop.exprTLIDPairOfCachedBinary
+  |> OCamlInterop.exprTLIDPairToCachedBinary
+  |> OCamlInterop.exprTLIDPairOfCachedBinary
   .=. pair
+
+module RoundtrippableDval =
+  open FsCheck
+
+  type RoundtrippableDvalGenerator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String()
+      |> Arb.filter
+           (fun (s : string) ->
+             // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
+             s <> null && not (s.Contains('\u0000')))
+
+
+    static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
+      Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
+
+    static member RoundtrippableDvals() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false // not supported
+           | RT.DFloat _ -> true // Temporary til everything else works
+           | RT.DChar c when c.Length = 1 -> true
+           | RT.DChar _ -> false
+           | _ -> true)
+
+  let dvalReprInternalRoundtrippableV1Roundtrip (dv : RT.Dval) : bool =
+    dv
+    |> DvalRepr.toInternalRoundtrippableV0
+    |> DvalRepr.ofInternalRoundtrippableV0
+    |> dvalEquality dv
+
+  let roundtrippableWorks (dv : RT.Dval) : bool =
+    try
+      // here we need to be able to read the data OCaml generates and OCaml needs to be able to read the data F# generates. But, both of those are buggy. So if they produce the same string it's fine at least.
+      // either: we get the same string both ways, or we can read in both directions
+      let fsString = dv |> DvalRepr.toInternalRoundtrippableV0
+      let ocamlString = dv |> OCamlInterop.toInternalRoundtrippableV0
+
+      let fsCanReadOCaml =
+        fsString |> OCamlInterop.ofInternalRoundtrippableV0 |> dvalEquality dv
+
+      let ocamlCanReadFS =
+        ocamlString |> DvalRepr.ofInternalRoundtrippableV0 |> dvalEquality dv
+
+      let theyCanReadEachOthersText = ocamlCanReadFS && fsCanReadOCaml
+
+      let theyMakeTheSameMistakes =
+        OCamlInterop.ofInternalRoundtrippableV0 ocamlString
+        |> dvalEquality (DvalRepr.ofInternalRoundtrippableV0 fsString)
+
+      if theyCanReadEachOthersText || theyMakeTheSameMistakes then
+        true
+      else
+        printfn
+          "%s"
+          ($"theyCanReadEachOthersText: {theyCanReadEachOthersText}\n"
+           + $"theyMakeTheSameMistakes: {theyMakeTheSameMistakes}\n")
+
+        false
+    with e ->
+      printfn $"Cause exception while fuzzing {e}"
+      reraise ()
+
+
+
+
+  let tests =
+    [ testPropertyWithGenerator
+        typeof<RoundtrippableDvalGenerator>
+        "roundtripping InternalRoundtrippable v0"
+        dvalReprInternalRoundtrippableV1Roundtrip
+      testPropertyWithGenerator
+        typeof<RoundtrippableDvalGenerator>
+        "roundtrippable works"
+        roundtrippableWorks ]
 
 
 
@@ -152,23 +237,24 @@ let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
 let roundtrips =
   testList
     "roundtripping"
-    [ testProperty
-        "roundtripping OCamlInteropBinaryHandler"
-        ocamlInteropBinaryHandlerRoundtrip
-      testProperty
-        "roundtripping OCamlInteropBinaryExpr"
-        ocamlInteropBinaryExprRoundtrip
-      testProperty
-        "roundtripping OCamlInteropYojsonHandler"
-        ocamlInteropYojsonHandlerRoundtrip
-      testProperty
-        "roundtripping OCamlInteropYojsonExpr"
-        ocamlInteropYojsonExprRoundtrip
-      testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
+    ([ testProperty
+         "roundtripping OCamlInteropBinaryHandler"
+         ocamlInteropBinaryHandlerRoundtrip
+       testProperty
+         "roundtripping OCamlInteropBinaryExpr"
+         ocamlInteropBinaryExprRoundtrip
+       testProperty
+         "roundtripping OCamlInteropYojsonHandler"
+         ocamlInteropYojsonHandlerRoundtrip
+       testProperty
+         "roundtripping OCamlInteropYojsonExpr"
+         ocamlInteropYojsonExprRoundtrip
+       testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
+     @ RoundtrippableDval.tests)
 
 let tests = testList "FuzzTests" [ roundtrips ]
 
 [<EntryPoint>]
 let main args =
-  LibBackend.ProgramSerialization.OCamlInterop.Binary.init ()
+  LibBackend.OCamlInterop.Binary.init ()
   runTestsWithCLIArgs [] args tests

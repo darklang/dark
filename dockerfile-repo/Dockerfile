@@ -385,3 +385,5 @@ RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 ENV CARGO_HOME=/home/dark/.cargo
 
 USER dark
+
+RUN sudo apt update && sudo apt install -y lldb htop

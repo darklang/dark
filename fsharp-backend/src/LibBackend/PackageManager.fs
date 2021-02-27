@@ -13,9 +13,9 @@ open Prelude
 open Tablecloth
 open Db
 
-module PT = LibBackend.ProgramSerialization.ProgramTypes
-module OT = LibBackend.ProgramSerialization.OCamlInterop.OCamlTypes
-module Convert = LibBackend.ProgramSerialization.OCamlInterop.Convert
+module PT = LibBackend.ProgramTypes
+module OT = LibBackend.OCamlInterop.OCamlTypes
+module Convert = LibBackend.OCamlInterop.Convert
 
 (* ------------------ *)
 (* Uploading *)
@@ -306,7 +306,7 @@ let allFunctions () : Task<List<PT.PackageManager.Fn>> =
                (read.int "version")
            body =
              read.bytea "body"
-             |> ProgramSerialization.OCamlInterop.exprTLIDPairOfCachedBinary
+             |> OCamlInterop.exprTLIDPairOfCachedBinary
              |> fun (expr, _) -> expr
            returnType = PT.DType.parse (read.string "return_type")
            parameters =
