@@ -39,8 +39,6 @@ NUGET
     FSharp.Control.AsyncSeq (3.0.3)
       FSharp.Core (>= 4.3.2)
     FSharp.Core (5.0)
-    FSharp.SystemTextJson (0.15.14)
-      FSharp.Core (>= 4.7)
     FSharpPlus (1.2.0-CI01665)
       FSharp.Core (>= 4.6.2)
     FSharpx.Async (1.14.1)
