@@ -39,6 +39,17 @@ let writeJson (f : JsonWriter -> unit) : string =
   f w
   stream.ToString()
 
+let writePrettyJson (f : JsonWriter -> unit) : string =
+  let stream = new System.IO.StringWriter()
+  let w = new JsonTextWriter(stream)
+  // Match yojson
+  w.FloatFormatHandling <- FloatFormatHandling.Symbol
+  w.Formatting <- Formatting.Indented
+  f w
+  stream.ToString()
+
+
+
 let parseJson (s : string) : JToken =
   let reader = new JsonTextReader(new System.IO.StringReader(s))
   let jls = new JsonLoadSettings()
@@ -357,7 +368,7 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
         (fun () ->
           w.WritePropertyName "Error"
           w.WriteValue msg)
-  | DHttpResponse (h, response) -> fstodo "httpresponse"
+  | DHttpResponse (h, response) -> writeDval response
   | DDB dbName -> w.WriteValue dbName
   | DDate date -> w.WriteValue(date.toIsoString ())
   // FSTODO
@@ -383,7 +394,7 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
 
 
 let toPrettyMachineJsonStringV1 (dval : Dval) : string =
-  writeJson (fun w -> toPrettyMachineJsonV1 w dval)
+  writePrettyJson (fun w -> toPrettyMachineJsonV1 w dval)
 
 // This special format was originally the default OCaml (yojson-derived) format
 // for this.

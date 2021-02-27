@@ -305,6 +305,42 @@ module DeveloperRepr =
         "roundtripping toDeveloperRepr"
         equalsOCaml ]
 
+module PrettyMachineJson =
+  open FsCheck
+
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
+
+    // This should produce identical JSON to the OCaml function or customers will have an unexpected change
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false
+           | _ -> true)
+
+  let equalsParsed (dv : RT.Dval) : bool =
+    let actual =
+      dv
+      |> DvalRepr.toPrettyMachineJsonStringV1
+      |> Newtonsoft.Json.Linq.JToken.Parse
+      |> toString
+
+    let expected =
+      dv
+      |> OCamlInterop.toPrettyMachineJsonV1
+      |> Newtonsoft.Json.Linq.JToken.Parse
+      |> toString
+
+    actual .=. expected
+
+  let tests =
+    [ testPropertyWithGenerator
+        typeof<Generator>
+        "roundtripping prettyMachineJson"
+        equalsParsed ]
+
 
 
 let tests =
@@ -314,6 +350,7 @@ let tests =
                    OCamlInterop.tests
                    RoundtrippableDval.tests
                    Queryable.tests
+                   PrettyMachineJson.tests
                    DeveloperRepr.tests ])
 
 [<EntryPoint>]
