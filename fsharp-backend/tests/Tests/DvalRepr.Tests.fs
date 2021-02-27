@@ -127,6 +127,17 @@ let testDvalUserDBV1Migration =
          Expect.equalDval dv (backwards dv) $"backwards"
        }
 
+let testToDeveloperRepr =
+  testMany
+    "toDeveloperRepr"
+    DvalRepr.toDeveloperReprV0
+    // Most of this is just the OCaml output and not really what the output should be
+    [ RT.DHttpResponse(RT.Response(0, []), RT.DNull), "0 {  }\nnull"
+      RT.DFloat(-0.0), "-0.0"
+      RT.DFloat(infinity), "Infinity"
+      RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
+      RT.DList [ RT.DNull ], "[ \n  null\n]" ]
+
 // let testDateMigrationHasCorrectFormats () =
 //   let str = "2019-03-08T08:26:14Z" in
 //   let date = RT.DDate(System.DateTime.ofIsoString str) in
@@ -241,4 +252,5 @@ let tests =
       testInternalRoundtrippableDoesntCareAboutOrder
       testDvalOptionQueryableSpecialCase
       testSpecialRoundtrips
+      testToDeveloperRepr
       testDvalUserDBV1Migration ]

@@ -49,7 +49,11 @@ let parseJson (s : string) : JToken =
   reader.DateParseHandling <- DateParseHandling.None
   JToken.ReadFrom(reader)
 
-let formatFloat (f : float) : string = f.ToString("0.0################")
+let formatFloat (f : float) : string =
+  if System.Double.IsPositiveInfinity f then "Infinity"
+  else if System.Double.IsNegativeInfinity f then "-Infinity"
+  else if System.Double.IsNaN f then "NaN"
+  else f.ToString("0.0################")
 
 type JsonWriter with
 
@@ -263,7 +267,7 @@ let httpResponseToRepr (h) : string =
         |> String.concat ","
         |> fun s -> "{ " + s + " }"
 
-      $"{code} {headerString}" + "\n"
+      $"{code} {headerString}"
 
 let toEnduserReadableTextV0 (dval : Dval) : string =
   let rec nestedreprfn dv =
@@ -904,11 +908,12 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DUuid uuid -> wrap (uuid.ToString())
     | DHttpResponse (h, hdv) -> httpResponseToRepr h + nl + toRepr_ indent hdv
     | DList l ->
-        if List.is_empty l then
+        if List.isEmpty l then
           "[]"
         else
           let elems = String.concat ", " (List.map (toRepr_ indent) l)
-          $"[{inl}{elems}{nl}]"
+          // CLEANUP: this space makes no sense
+          $"[ {inl}{elems}{nl}]"
     | DObj o ->
         if Map.isEmpty o then
           "{}"
@@ -920,7 +925,8 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
               o
 
           let elems = String.concat $",{inl}" strs
-          "{" + $"{inl}{elems}{nl}" + "}}"
+          // CLEANUP: this space makes no sense
+          "{ " + $"{inl}{elems}{nl}" + "}"
     | DOption None -> "Nothing"
     | DOption (Some dv) -> "Just " + toRepr_ indent dv
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv

@@ -18,11 +18,15 @@ module DvalRepr = LibExecution.DvalRepr
 open FsCheck
 
 let (.=.) actual expected : bool =
-  (if actual = expected then
-     true
-   else
-     printfn $"Expected:\n{expected}\n but got:\n{actual}"
-     false)
+  if actual = expected then
+    Expect.equal actual expected ""
+    true
+  else
+    let o = actual.ToString() |> toBytes
+    let e = expected.ToString() |> toBytes
+    Expect.equal (actual, o) (expected, e) ""
+    false
+
 
 module GeneratorUtils =
   let nonNullString (s : string) : bool = s <> null
@@ -277,6 +281,20 @@ module DeveloperRepr =
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
+
+    // The format here is only used for errors so it doesn't matter all the
+    // much. These are places where we've manually checked the differing
+    // outputs are fine.
+
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false
+           | RT.DFloat 0.0 -> false
+           | RT.DFloat infinity -> false
+           | _ -> true)
+
 
   let equalsOCaml (dv : RT.Dval) : bool =
     DvalRepr.toDeveloperReprV0 dv .=. OCamlInterop.toDeveloperRepr dv
