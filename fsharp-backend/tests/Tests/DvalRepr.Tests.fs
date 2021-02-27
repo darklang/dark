@@ -62,7 +62,7 @@ let testDvalRoundtrippableRoundtrips =
 let testSpecialRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
-    FuzzTests.All.RoundtrippableDval.dvalReprInternalRoundtrippableV0Roundtrip
+    FuzzTests.All.RoundtrippableDval.roundtrip
     [ RT.DObj(
         Map.ofList [ ("", RT.DFloat 1.797693135e+308)
                      ("a", RT.DErrorRail(RT.DFloat nan)) ]

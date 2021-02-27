@@ -133,7 +133,7 @@ module Binary =
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_developer_repr")>]
+                EntryPoint = "to_developer_repr_v0")>]
     extern string toDeveloperRepr(string str)
 
     [<DllImport("./libserialization.so",
@@ -143,7 +143,7 @@ module Binary =
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_pretty_machine_json")>]
+                EntryPoint = "to_pretty_machine_json_v1")>]
     extern string toPrettyMachineJsonV1(string str)
 
     [<DllImport("./libserialization.so",

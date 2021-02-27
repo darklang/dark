@@ -15,6 +15,8 @@ module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalRepr = LibExecution.DvalRepr
 
+open FsCheck
+
 let (.=.) actual expected : bool =
   (if actual = expected then
      true
@@ -22,13 +24,29 @@ let (.=.) actual expected : bool =
      printfn $"Expected:\n{expected}\n but got:\n{actual}"
      false)
 
+module GeneratorUtils =
+  let nonNullString (s : string) : bool = s <> null
 
-// This allows us to control the values of the types that are generated. We can
-// write our own generators, or filter existing ones. To add new type
-// generators, add new static members
-module DarkFsCheck =
-  open FsCheck
+  let safeOCamlString (s : string) : bool =
+    // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
+    s <> null && not (s.Contains('\u0000'))
 
+open GeneratorUtils
+
+let baseConfig : FsCheckConfig = { FsCheckConfig.defaultConfig with maxTest = 10000 }
+
+let baseConfigWithGenerator (typ : System.Type) : FsCheckConfig =
+  { baseConfig with arbitrary = [ typ ] }
+
+let testProperty (name : string) (x : 'a) : Test =
+  testPropertyWithConfig baseConfig name x
+
+let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
+  testPropertyWithConfig (baseConfigWithGenerator typ) name x
+
+
+
+module FQFnName =
   let nameGenerator (first : char list) (other : char list) : Gen<string> =
     gen {
       let! length = Gen.choose (0, 20)
@@ -37,30 +55,11 @@ module DarkFsCheck =
       return System.String(Array.append [| head |] tail)
     }
 
-  type MyGenerators =
-    static member Expr() =
-      Arb.Default.Derive()
-      |> Arb.mapFilter
-           (function
-           // make sure we get numbers in our floats
-           | other -> other)
-           (function
-           // characters are not yet supported in OCaml
-           | PT.ECharacter _ -> false
-           | other -> true)
-
-    static member Pattern() =
-      Arb.Default.Derive()
-      |> Arb.filter
-           (function
-           // characters are not yet supported in OCaml
-           | PT.PCharacter _ -> false
-           | _ -> true)
-
+  type Generator =
     static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter (fun (s : string) -> s <> null)
+      Arb.Default.String() |> Arb.filter nonNullString
 
-    static member FQFnType() =
+    static member FQFnName() : Arbitrary<PT.FQFnName.T> =
       let alphaNumeric =
         (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
 
@@ -87,109 +86,112 @@ module DarkFsCheck =
                   version = version }
             } }
 
-let config : FsCheckConfig =
-  { FsCheckConfig.defaultConfig with
-      maxTest = 10000
-      arbitrary = [ typeof<DarkFsCheck.MyGenerators> ] }
+  let roundtrip (a : PT.FQFnName.T) : bool = a.ToString() |> PT.FQFnName.parse .=. a
 
-let configWithGenerator (typ : System.Type) : FsCheckConfig =
-  { FsCheckConfig.defaultConfig with maxTest = 10000; arbitrary = [ typ ] }
+  let tests =
+    [ testPropertyWithGenerator typeof<Generator> "roundtripping FQFnName" roundtrip ]
 
-let testProperty (name : string) (x : 'a) : Test =
-  testPropertyWithConfig config name x
 
-let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
-  testPropertyWithConfig (configWithGenerator typ) name x
+module OCamlInterop =
+  open OCamlInterop.Convert
+  open OCamlInterop
+  open Json.AutoSerialize
 
-// Tests
-// These tests are like this so they can be reused from LibBackend.Tests
+  type Generator =
+    static member Expr() =
+      Arb.Default.Derive()
+      |> Arb.mapFilter
+           (function
+           // make sure we get numbers in our floats
+           | other -> other)
+           (function
+           // characters are not yet supported in OCaml
+           | PT.ECharacter _ -> false
+           | other -> true)
 
-let fqFnNameRoundtrip (a : PT.FQFnName.T) : bool =
-  a.ToString() |> PT.FQFnName.parse .=. a
+    static member Pattern() =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           // characters are not yet supported in OCaml
+           | PT.PCharacter _ -> false
+           | _ -> true)
 
-let ocamlInteropYojsonExprRoundtrip (a : PT.Expr) : bool =
-  a
-  |> OCamlInterop.Convert.pt2ocamlExpr
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  |> OCamlInterop.Convert.ocamlExpr2PT
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  |> OCamlInterop.Convert.pt2ocamlExpr
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  |> OCamlInterop.Convert.ocamlExpr2PT
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  .=. a
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter nonNullString
 
-let ocamlInteropYojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
-  a
-  |> OCamlInterop.Convert.pt2ocamlHandler
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  |> OCamlInterop.Convert.ocamlHandler2PT a.pos
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  |> OCamlInterop.Convert.pt2ocamlHandler
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  |> OCamlInterop.Convert.ocamlHandler2PT a.pos
-  |> Json.AutoSerialize.serialize
-  |> Json.AutoSerialize.deserialize
-  .=. a
 
-let ocamlInteropBinaryHandlerRoundtrip (a : PT.Handler.T) : bool =
-  let h = PT.TLHandler a
+  let yojsonExprRoundtrip (a : PT.Expr) : bool =
+    a
+    |> pt2ocamlExpr
+    |> serialize
+    |> deserialize
+    |> ocamlExpr2PT
+    |> serialize
+    |> deserialize
+    |> pt2ocamlExpr
+    |> serialize
+    |> deserialize
+    |> ocamlExpr2PT
+    |> serialize
+    |> deserialize
+    .=. a
 
-  h
-  |> OCamlInterop.toplevelToCachedBinary
-  |> fun bin -> bin, None
-  |> OCamlInterop.toplevelOfCachedBinary
-  .=. h
+  let yojsonHandlerRoundtrip (a : PT.Handler.T) : bool =
+    a
+    |> pt2ocamlHandler
+    |> serialize
+    |> deserialize
+    |> ocamlHandler2PT a.pos
+    |> serialize
+    |> deserialize
+    |> pt2ocamlHandler
+    |> serialize
+    |> deserialize
+    |> ocamlHandler2PT a.pos
+    |> serialize
+    |> deserialize
+    .=. a
 
-let ocamlInteropBinaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
-  pair
-  |> OCamlInterop.exprTLIDPairToCachedBinary
-  |> OCamlInterop.exprTLIDPairOfCachedBinary
-  .=. pair
+  let binaryHandlerRoundtrip (a : PT.Handler.T) : bool =
+    let h = PT.TLHandler a
+
+    h |> toplevelToCachedBinary |> (fun bin -> bin, None) |> toplevelOfCachedBinary
+    .=. h
+
+  let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
+    pair |> exprTLIDPairToCachedBinary |> exprTLIDPairOfCachedBinary .=. pair
+
+  let tests =
+    let tp f = testPropertyWithGenerator typeof<Generator> f
+
+    [ tp "roundtripping OCamlInteropBinaryHandler" binaryHandlerRoundtrip
+      tp "roundtripping OCamlInteropBinaryExpr" binaryExprRoundtrip
+      tp "roundtripping OCamlInteropYojsonHandler" yojsonHandlerRoundtrip
+      tp "roundtripping OCamlInteropYojsonExpr" yojsonExprRoundtrip ]
 
 module RoundtrippableDval =
-  open FsCheck
+  type StrictGenerator =
+    static member String() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
 
-  type StrictRoundtrippableDvalGenerator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String()
-      |> Arb.filter
-           (fun (s : string) ->
-             // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
-             s <> null && not (s.Contains('\u0000')))
-
-
-    static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
+    static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
-    static member RoundtrippableDvals() : Arbitrary<RT.Dval> =
+    static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval true)
 
-  type NonStrictRoundtrippableDvalGenerator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String()
-      |> Arb.filter
-           (fun (s : string) ->
-             // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
-             s <> null && not (s.Contains('\u0000')))
+  type NonStrictGenerator =
+    static member String() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
 
-
-    static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
+    static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
-    static member RoundtrippableDvals() : Arbitrary<RT.Dval> =
+    static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval false)
 
-
-
-  let dvalReprInternalRoundtrippableV0Roundtrip (dv : RT.Dval) : bool =
+  let roundtrip (dv : RT.Dval) : bool =
     dv
     |> DvalRepr.toInternalRoundtrippableV0
     |> DvalRepr.ofInternalRoundtrippableV0
@@ -229,30 +231,26 @@ module RoundtrippableDval =
 
   let tests =
     [ testPropertyWithGenerator
-        typeof<StrictRoundtrippableDvalGenerator>
-        "roundtripping InternalRoundtrippable v0"
-        dvalReprInternalRoundtrippableV0Roundtrip
+        typeof<StrictGenerator>
+        "roundtripping works properly"
+        roundtrip
       testPropertyWithGenerator
-        typeof<NonStrictRoundtrippableDvalGenerator>
-        "roundtrippable works"
+        typeof<NonStrictGenerator>
+        "roundtrippable works the same as the OCaml version"
         roundtrippableWorks ]
 
 
 module Queryable =
   open FsCheck
 
-  type QueryableDvalGenerator =
+  type Generator =
     static member SafeString() : Arbitrary<string> =
-      Arb.Default.String()
-      |> Arb.filter
-           (fun (s : string) ->
-             // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
-             s <> null && not (s.Contains('\u0000')))
+      Arb.Default.String() |> Arb.filter safeOCamlString
 
-    static member SafeDvalSource() : Arbitrary<RT.DvalSource> =
+    static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
-    static member QueryableDvals() : Arbitrary<RT.Dval> =
+    static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter DvalRepr.isQueryableDval
 
   let dvalReprInternalQueryableV0Roundtrip (dv : RT.Dval) : bool =
@@ -268,38 +266,37 @@ module Queryable =
     |> dvalEquality (RT.DObj dvm)
 
   let tests =
+    let tp f = testPropertyWithGenerator typeof<Generator> f
+
+    [ tp "roundtripping InternalQueryable v0" dvalReprInternalQueryableV0Roundtrip
+      tp "roundtripping InternalQueryable v1" dvalReprInternalQueryableV1Roundtrip ]
+
+module DeveloperRepr =
+  open FsCheck
+
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
+
+  let equalsOCaml (dv : RT.Dval) : bool =
+    DvalRepr.toDeveloperReprV0 dv .=. OCamlInterop.toDeveloperRepr dv
+
+  let tests =
     [ testPropertyWithGenerator
-        typeof<QueryableDvalGenerator>
-        "roundtripping InternalQueryable v0"
-        dvalReprInternalQueryableV0Roundtrip
-      testPropertyWithGenerator
-        typeof<QueryableDvalGenerator>
-        "roundtripping InternalQueryable v1"
-        dvalReprInternalQueryableV1Roundtrip ]
+        typeof<Generator>
+        "roundtripping toDeveloperRepr"
+        equalsOCaml ]
 
 
 
-
-
-let roundtrips =
+let tests =
   testList
-    "roundtripping"
-    ([ testProperty
-         "roundtripping OCamlInteropBinaryHandler"
-         ocamlInteropBinaryHandlerRoundtrip
-       testProperty
-         "roundtripping OCamlInteropBinaryExpr"
-         ocamlInteropBinaryExprRoundtrip
-       testProperty
-         "roundtripping OCamlInteropYojsonHandler"
-         ocamlInteropYojsonHandlerRoundtrip
-       testProperty
-         "roundtripping OCamlInteropYojsonExpr"
-         ocamlInteropYojsonExprRoundtrip
-       testProperty "roundtripping FQFnName" fqFnNameRoundtrip ]
-     @ RoundtrippableDval.tests @ Queryable.tests)
-
-let tests = testList "FuzzTests" [ roundtrips ]
+    "FuzzTests"
+    (List.concat [ FQFnName.tests
+                   OCamlInterop.tests
+                   RoundtrippableDval.tests
+                   Queryable.tests
+                   DeveloperRepr.tests ])
 
 [<EntryPoint>]
 let main args =
