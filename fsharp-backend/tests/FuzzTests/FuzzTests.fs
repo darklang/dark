@@ -37,7 +37,8 @@ module GeneratorUtils =
 
 open GeneratorUtils
 
-let baseConfig : FsCheckConfig = { FsCheckConfig.defaultConfig with maxTest = 10000 }
+let baseConfig : FsCheckConfig =
+  { FsCheckConfig.defaultConfig with maxTest = 100000 }
 
 let baseConfigWithGenerator (typ : System.Type) : FsCheckConfig =
   { baseConfig with arbitrary = [ typ ] }
@@ -73,6 +74,7 @@ module FQFnName =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -175,17 +177,7 @@ module OCamlInterop =
       tp "roundtripping OCamlInteropYojsonExpr" yojsonExprRoundtrip ]
 
 module RoundtrippableDval =
-  type StrictGenerator =
-    static member String() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
-
-    static member DvalSource() : Arbitrary<RT.DvalSource> =
-      Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
-
-    static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval true)
-
-  type NonStrictGenerator =
+  type Generator =
     static member String() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
 
@@ -195,38 +187,54 @@ module RoundtrippableDval =
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval false)
 
+  type GeneratorWithBugs =
+    static member String() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
+
+    static member DvalSource() : Arbitrary<RT.DvalSource> =
+      Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
+
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval true)
+
   let roundtrip (dv : RT.Dval) : bool =
     dv
     |> DvalRepr.toInternalRoundtrippableV0
     |> DvalRepr.ofInternalRoundtrippableV0
     |> dvalEquality dv
 
-  let roundtrippableWorks (dv : RT.Dval) : bool =
+  let isInteroperable (dv : RT.Dval) : bool =
     try
-      // here we need to be able to read the data OCaml generates and OCaml needs to be able to read the data F# generates. But, both of those are buggy. So if they produce the same string it's fine at least.
-      // either: we get the same string both ways, or we can read in both directions
-      let fsString = dv |> DvalRepr.toInternalRoundtrippableV0
-      let ocamlString = dv |> OCamlInterop.toInternalRoundtrippableV0
+      // What does it mean to interoperate? Ideally, the F# impl would be able
+      // to read what the OCaml impl sends it and vice versa. However, because
+      // the OCaml side is buggy, and we want to reproduce those bugs exactly
+      // (for now), that isn't sufficient. We actually just want to make sure
+      // we produce the same thing as they do for the same value. BUT, we don't
+      // actually produce the exact same thing, and it's hard to do that for
+      // the edge cases we've found. So really we just want to make sure that
+      // whatever either side produces, both sides are able to read it and get
+      // the same result.
+      let bothCanReadOCamlString =
+        let ocamlString = dv |> OCamlInterop.toInternalRoundtrippableV0
 
-      let fsCanReadOCaml =
-        fsString |> OCamlInterop.ofInternalRoundtrippableV0 |> dvalEquality dv
+        ocamlString
+        |> OCamlInterop.ofInternalRoundtrippableV0
+        |> dvalEquality (DvalRepr.ofInternalQueryableV0 ocamlString)
 
-      let ocamlCanReadFS =
-        ocamlString |> DvalRepr.ofInternalRoundtrippableV0 |> dvalEquality dv
+      let bothCanReadFSharpString =
+        let fsString = dv |> DvalRepr.toInternalRoundtrippableV0
 
-      let theyCanReadEachOthersText = ocamlCanReadFS && fsCanReadOCaml
+        fsString
+        |> OCamlInterop.ofInternalRoundtrippableV0
+        |> dvalEquality (DvalRepr.ofInternalQueryableV0 fsString)
 
-      let theyMakeTheSameMistakes =
-        OCamlInterop.ofInternalRoundtrippableV0 ocamlString
-        |> dvalEquality (DvalRepr.ofInternalRoundtrippableV0 fsString)
-
-      if theyCanReadEachOthersText || theyMakeTheSameMistakes then
+      if bothCanReadFSharpString && bothCanReadOCamlString then
         true
       else
         printfn
           "%s"
-          ($"theyCanReadEachOthersText: {theyCanReadEachOthersText}\n"
-           + $"theyMakeTheSameMistakes: {theyMakeTheSameMistakes}\n")
+          ($"ocamlStringReadable: {bothCanReadOCamlString}\n"
+           + $"fsharpStringReadable: {bothCanReadFSharpString}\n")
 
         false
     with e ->
@@ -235,18 +243,16 @@ module RoundtrippableDval =
 
   let tests =
     [ testPropertyWithGenerator
-        typeof<StrictGenerator>
+        typeof<Generator>
         "roundtripping works properly"
         roundtrip
       testPropertyWithGenerator
-        typeof<NonStrictGenerator>
-        "roundtrippable works the same as the OCaml version"
-        roundtrippableWorks ]
+        typeof<GeneratorWithBugs>
+        "roundtrippable is interoperable"
+        isInteroperable ]
 
 
 module Queryable =
-  open FsCheck
-
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
@@ -269,6 +275,7 @@ module Queryable =
     |> DvalRepr.ofInternalQueryableV1
     |> dvalEquality (RT.DObj dvm)
 
+
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
@@ -276,8 +283,6 @@ module Queryable =
       tp "roundtripping InternalQueryable v1" dvalReprInternalQueryableV1Roundtrip ]
 
 module DeveloperRepr =
-  open FsCheck
-
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
@@ -304,6 +309,22 @@ module DeveloperRepr =
         typeof<Generator>
         "roundtripping toDeveloperRepr"
         equalsOCaml ]
+
+module EndUserReadable =
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
+
+  // The format here is used to show users so it has to be exact
+  let equalsOCaml (dv : RT.Dval) : bool =
+    DvalRepr.toEnduserReadableTextV0 dv .=. OCamlInterop.toEnduserReadableTextV0 dv
+
+  let tests =
+    [ testPropertyWithGenerator
+        typeof<Generator>
+        "roundtripping toEnduserReadable"
+        equalsOCaml ]
+
 
 module PrettyMachineJson =
   open FsCheck
@@ -342,16 +363,21 @@ module PrettyMachineJson =
         equalsParsed ]
 
 
+let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
 
-let tests =
+let knownGood =
   testList
-    "FuzzTests"
+    "known good"
     (List.concat [ FQFnName.tests
-                   OCamlInterop.tests
                    RoundtrippableDval.tests
                    Queryable.tests
-                   PrettyMachineJson.tests
-                   DeveloperRepr.tests ])
+                   DeveloperRepr.tests
+                   EndUserReadable.tests
+                   PrettyMachineJson.tests ])
+
+let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
+
+
 
 [<EntryPoint>]
 let main args =

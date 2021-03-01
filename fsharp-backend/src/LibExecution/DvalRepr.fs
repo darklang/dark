@@ -295,7 +295,9 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
-    | DFloat f -> formatFloat f
+    | DFloat f ->
+        // CLEANUP this is a very bad representation, why do we have this? See tests for horrible formats
+        f.ToString("0.########")
     | DChar c -> c
     | DNull -> "null"
     | DDate d -> d.toIsoString ()
@@ -686,10 +688,11 @@ let unsafeDvalToJsonValueV1 (w : JsonWriter) (redact : bool) (dv : Dval) : unit 
 let toInternalRoundtrippableV0 (dval : Dval) : string =
   writeJson (fun w -> unsafeDvalToJsonValueV1 w false dval)
 
-// Used for fuzzing and to document what's supported. We allow some things that
-// are wrong because ocaml supported them. With strict to true we'll return
-// false for them.
-let isRoundtrippableDval (strict : bool) (dval : Dval) : bool =
+// Used for fuzzing and to document what's supported. There are a number of
+// known bugs in our roundtripping in OCaml - we actually want to reproduce
+// these in the F# implementation to make sure nothing changes. We return false
+// if any of these appear unless "allowKnownBuggyValues" is true.
+let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
   match dval with
   | DChar c when c.Length = 1 -> true
   | DChar _ -> false // invalid
@@ -698,7 +701,7 @@ let isRoundtrippableDval (strict : bool) (dval : Dval) : bool =
   | DNull _ -> true
   | DBool _ -> true
   | DFloat _ -> true
-  | DList ls when strict ->
+  | DList ls when not allowKnownBuggyValues ->
       // CLEANUP: Bug where Lists containing fake dvals will be replaced with
       // the fakeval
       not (List.any Dval.isFake ls)
@@ -709,7 +712,7 @@ let isRoundtrippableDval (strict : bool) (dval : Dval) : bool =
   | DUuid _ -> true
   | DBytes _ -> true
   | DHttpResponse _ -> true
-  | DOption (Some DNull) when strict ->
+  | DOption (Some DNull) when not allowKnownBuggyValues ->
       // CLEANUP: Bug where Lists containing fake dvals will be replaced with
       // the fakeval
       false

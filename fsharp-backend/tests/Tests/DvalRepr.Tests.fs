@@ -138,6 +138,15 @@ let testToDeveloperRepr =
       RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
       RT.DList [ RT.DNull ], "[ \n  null\n]" ]
 
+let testToEnduserReadable =
+  testMany
+    "toEnduserReadable"
+    DvalRepr.toEnduserReadableTextV0
+    // Most of this is just the OCaml output and not really what the output should be
+    [ RT.DFloat(0.0), "0." // this one in particular is ridic
+      RT.DFloat(-0.0), "-0."
+      RT.DHttpResponse(RT.Response(0, []), RT.DNull), "0 {  }\nnull" ]
+
 // let testDateMigrationHasCorrectFormats () =
 //   let str = "2019-03-08T08:26:14Z" in
 //   let date = RT.DDate(System.DateTime.ofIsoString str) in
@@ -253,4 +262,5 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testSpecialRoundtrips
       testToDeveloperRepr
+      testToEnduserReadable
       testDvalUserDBV1Migration ]
