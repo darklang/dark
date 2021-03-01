@@ -341,7 +341,9 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DResult (Error d) -> "Error: " + reprfn d
     | DOption (Some d) -> reprfn d
     | DOption None -> "Nothing"
-    | DBytes bytes -> System.BitConverter.ToString bytes
+    | DBytes bytes ->
+        // Cleanup: dumping these as ASCII isn't a great look
+        bytes |> System.Text.Encoding.ASCII.GetChars |> System.String
 
   reprfn dval
 

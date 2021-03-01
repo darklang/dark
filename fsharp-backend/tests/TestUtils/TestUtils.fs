@@ -281,27 +281,28 @@ let interestingFloats : List<string * float> =
       "max 32 bit", -System.Math.Pow(2.0, 31.0)
       // interesting cause doubles support up to 53-bit ints
       "min 53 bit", System.Math.Pow(2.0, 52.0) - 1.0
-      "max 53 bit",  -System.Math.Pow(2.0, 52.0)
+      "max 53 bit", -System.Math.Pow(2.0, 52.0)
       // interesting cause OCaml uses 63 bit ints
-      "min 63 bit",    System.Math.Pow(2.0, 62.0) - 1.0
-      "max 63 bit",    -System.Math.Pow(2.0, 62.0)
+      "min 63 bit", System.Math.Pow(2.0, 62.0) - 1.0
+      "max 63 bit", -System.Math.Pow(2.0, 62.0)
       // interesting cause boundary of 64 bit ints
-      "min 64 bit",  System.Math.Pow(2.0, 63.0) - 1.0
-      "max 64 bit",  -System.Math.Pow(2.0, 63.0)
+      "min 64 bit", System.Math.Pow(2.0, 63.0) - 1.0
+      "max 64 bit", -System.Math.Pow(2.0, 63.0)
       // Interesting anyway
       "zero", 0.0
       "negative zero", -0.0
       "NaN", nan
       "infinity", infinity
-      "-infinity",  -infinity
-    ]
+      "-infinity", -infinity
+      // Mathy values
+      "e", System.Math.E
+      "pi", System.Math.PI
+      "tau", System.Math.Tau ]
+
   initial
-  |> List.flatMap (fun (doc, v) ->
-                     [
-                       ($"{doc} - 1", v - 1.0)
-                       ($"{doc} + 0",  v)
-                       ($"{doc} + 1", v + 1.0)
-                     ])
+  |> List.flatMap
+       (fun (doc, v) ->
+         [ ($"{doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
 
 let sampleDvals : List<string * Dval> =
   [ ("int", Dval.int 5)
@@ -320,54 +321,56 @@ let sampleDvals : List<string * Dval> =
     // Special floats
     ("float zero", DFloat 0.0)
     ("float negative zero", DFloat -0.0)
-    ("float nan", DFloat nan) ] @ List.map (fun (doc, float) -> ($"float {doc}", DFloat float)) interestingFloats @ [
-    ("true", DBool true)
-    ("false", DBool false)
-    ("null", DNull)
-    ("datastore", DDB "Visitors")
-    ("string", DStr "incredibly this was broken")
-    // Json.NET has a habit of converting things automatically based on the type in the string
-    ("date string", DStr "2018-09-14T00:31:41Z")
-    ("int string", DStr "1039485")
-    ("int string2", DStr "-1039485")
-    ("int string3", DStr "0")
-    ("float string", DStr "5.6")
-    ("float string2", DStr "5.0")
-    ("float string3", DStr "-5.0")
-    ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
-    ("list", DList [ Dval.int 4 ])
-    ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
-    ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
-    ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
-    // More Json.NET tests
-    ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
-    ("obj5", DObj(Map.ofList [ "$type", Dval.int 5 ]))
-    ("incomplete", DIncomplete SourceNone)
-    ("error", DError(SourceNone, "some error string"))
-    ("block",
-     DFnVal(
-       Lambda
-         { body = RT.EBlank(id 1234)
-           symtable = Map.empty
-           parameters = [ (id 5678, "a") ] }
-     ))
-    ("errorrail", DErrorRail(Dval.int 5))
-    ("errorrail with float",
-     DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
-    ("redirect", DHttpResponse(Redirect "/home", DNull))
-    ("httpresponse", DHttpResponse(Response(200, []), DStr "success"))
-    ("db", DDB "Visitors")
-    ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
-    // ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
-    ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
-    ("option", DOption None)
-    ("option2", DOption(Some(Dval.int 15)))
-    ("option3", DOption(Some(DStr "a string")))
-    ("character", DChar "s")
-    ("result", DResult(Ok(Dval.int 15)))
-    ("result2", DResult(Error(DList [ DStr "dunno if really supported" ])))
-    ("result3", DResult(Ok(DStr "a string")))
-    ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes) ]
+    ("float nan", DFloat nan) ]
+  @ (List.map (fun (doc, float) -> ($"float {doc}", DFloat float)) interestingFloats)
+    @ [ ("true", DBool true)
+        ("false", DBool false)
+        ("null", DNull)
+        ("datastore", DDB "Visitors")
+        ("string", DStr "incredibly this was broken")
+        // Json.NET has a habit of converting things automatically based on the type in the string
+        ("date string", DStr "2018-09-14T00:31:41Z")
+        ("int string", DStr "1039485")
+        ("int string2", DStr "-1039485")
+        ("int string3", DStr "0")
+        ("float string", DStr "5.6")
+        ("float string2", DStr "5.0")
+        ("float string3", DStr "-5.0")
+        ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
+        ("list", DList [ Dval.int 4 ])
+        ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
+        ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
+        ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+        // More Json.NET tests
+        ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
+        ("obj5", DObj(Map.ofList [ "$type", Dval.int 5 ]))
+        ("incomplete", DIncomplete SourceNone)
+        ("error", DError(SourceNone, "some error string"))
+        ("block",
+         DFnVal(
+           Lambda
+             { body = RT.EBlank(id 1234)
+               symtable = Map.empty
+               parameters = [ (id 5678, "a") ] }
+         ))
+        ("errorrail", DErrorRail(Dval.int 5))
+        ("errorrail with float",
+         DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
+        ("redirect", DHttpResponse(Redirect "/home", DNull))
+        ("httpresponse", DHttpResponse(Response(200, []), DStr "success"))
+        ("db", DDB "Visitors")
+        ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
+        // ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
+        ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+        ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
+        ("option", DOption None)
+        ("option2", DOption(Some(Dval.int 15)))
+        ("option3", DOption(Some(DStr "a string")))
+        ("character", DChar "s")
+        ("result", DResult(Ok(Dval.int 15)))
+        ("result2", DResult(Error(DList [ DStr "dunno if really supported" ])))
+        ("result3", DResult(Ok(DStr "a string")))
+        ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes) ]
 // FSTODO
 // ; ( "bytes2"
 // , DBytes
