@@ -2,6 +2,7 @@ module Tests.DvalRepr
 
 open Expecto
 open Prelude
+open Prelude.Tablecloth
 open TestUtils
 
 module PT = LibBackend.ProgramTypes
@@ -9,10 +10,6 @@ module RT = LibExecution.RuntimeTypes
 
 module DvalRepr = LibExecution.DvalRepr
 
-
-// module Resp = Cohttp_lwt_unix.Response
-// module Req = Cohttp_lwt_unix.Request
-// module Header = Cohttp.Header
 
 let testInternalRoundtrippableDoesntCareAboutOrder =
   test "internal_roundtrippable doesn't care about key order" {
@@ -33,42 +30,41 @@ let testInternalRoundtrippableDoesntCareAboutOrder =
 
 let testDvalRoundtrippableRoundtrips =
   testList
-    "roundtrippable dvals roundtrip"
-    (sampleDvals
-     |> List.filter
-          (function
-          | _, RT.DFnVal _ -> false
-          // | _, RT.DPassword _ -> false // FSTODO
-          | _ -> true)
-     |> List.map
-          (fun (name, dv) ->
-            test $"{name}: {dv}" {
-              Expect.equalDval
-                dv
-                (dv
-                 |> DvalRepr.toInternalRoundtrippableV0
-                 |> DvalRepr.ofInternalRoundtrippableV0)
-                "full"
+    "roundtrippable"
+    [ testList
+        "roundtrippable dvals roundtrip"
+        (sampleDvals
+         |> List.filter
+              (function
+              | _, RT.DFnVal _ -> false
+              // | _, RT.DPassword _ -> false // FSTODO
+              | _ -> true)
+         |> List.map
+              (fun (name, dv) ->
+                test $"{name}: {dv}" {
+                  Expect.equalDval
+                    dv
+                    (dv
+                     |> DvalRepr.toInternalRoundtrippableV0
+                     |> DvalRepr.ofInternalRoundtrippableV0)
+                    "full"
 
-              Expect.equal
-                (dv |> DvalRepr.toInternalRoundtrippableV0)
-                (dv
-                 |> DvalRepr.toInternalRoundtrippableV0
-                 |> DvalRepr.ofInternalRoundtrippableV0
-                 |> DvalRepr.toInternalRoundtrippableV0)
-                "extra"
-            }))
-
-let testSpecialRoundtrips =
-  testMany
-    "special roundtrippable dvals roundtrip"
-    FuzzTests.All.RoundtrippableDval.roundtrip
-    [ RT.DObj(
-        Map.ofList [ ("", RT.DFloat 1.797693135e+308)
-                     ("a", RT.DErrorRail(RT.DFloat nan)) ]
-      ),
-      true ]
-
+                  Expect.equal
+                    (dv |> DvalRepr.toInternalRoundtrippableV0)
+                    (dv
+                     |> DvalRepr.toInternalRoundtrippableV0
+                     |> DvalRepr.ofInternalRoundtrippableV0
+                     |> DvalRepr.toInternalRoundtrippableV0)
+                    "extra"
+                }))
+      testMany
+        "special roundtrippable dvals roundtrip"
+        FuzzTests.All.RoundtrippableDval.roundtrip
+        [ RT.DObj(
+            Map.ofList [ ("", RT.DFloat 1.797693135e+308)
+                         ("a", RT.DErrorRail(RT.DFloat nan)) ]
+          ),
+          true ] ]
 
 
 let testDvalOptionQueryableSpecialCase =
@@ -128,24 +124,43 @@ let testDvalUserDBV1Migration =
        }
 
 let testToDeveloperRepr =
-  testMany
+  testList
     "toDeveloperRepr"
-    DvalRepr.toDeveloperReprV0
-    // Most of this is just the OCaml output and not really what the output should be
-    [ RT.DHttpResponse(RT.Response(0, []), RT.DNull), "0 {  }\nnull"
-      RT.DFloat(-0.0), "-0.0"
-      RT.DFloat(infinity), "Infinity"
-      RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
-      RT.DList [ RT.DNull ], "[ \n  null\n]" ]
+    [ testMany
+        "toDeveloperRepr string"
+        DvalRepr.toDeveloperReprV0
+        // Most of this is just the OCaml output and not really what the output should be
+        [ RT.DHttpResponse(RT.Response(0, []), RT.DNull), "0 {  }\nnull"
+          RT.DFloat(-0.0), "-0."
+          RT.DFloat(infinity), "inf"
+          RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
+          RT.DList [ RT.DNull ], "[ \n  null\n]" ]
+      testMany
+        "equalsOCaml"
+        FuzzTests.All.DeveloperRepr.equalsOCaml
+        (List.map (fun (_, dv) -> (dv, true)) TestUtils.sampleDvals) ]
 
 let testToEnduserReadable =
-  testMany
-    "toEnduserReadable"
-    DvalRepr.toEnduserReadableTextV0
-    // Most of this is just the OCaml output and not really what the output should be
-    [ RT.DFloat(0.0), "0." // this one in particular is ridic
-      RT.DFloat(-0.0), "-0."
-      RT.DHttpResponse(RT.Response(0, []), RT.DNull), "0 {  }\nnull" ]
+  testList
+    "enduserReadable"
+    [ testMany
+        "toEnduserReadable string"
+        DvalRepr.toEnduserReadableTextV0
+        // Most of this is just the OCaml output and not really what the output should be
+        [ RT.DFloat(0.0), "0." // this type of thing in particular is ridic
+          RT.DFloat(-0.0), "-0."
+          RT.DFloat(5.0), "5."
+          RT.DFloat(5.1), "5.1"
+          RT.DFloat(-5.0), "-5."
+          RT.DFloat(-5.1), "-5.1"
+          RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
+          RT.DHttpResponse(RT.Redirect("some url"), RT.DNull), "302 some url\nnull"
+          RT.DHttpResponse(RT.Response(0, [ "a header", "something" ]), RT.DNull),
+          "0 { a header: something }\nnull" ]
+      testMany
+        "equalsOCaml"
+        FuzzTests.All.EndUserReadable.equalsOCaml
+        (List.map (fun (_, dv) -> (dv, true)) TestUtils.sampleDvals) ]
 
 // let testDateMigrationHasCorrectFormats () =
 //   let str = "2019-03-08T08:26:14Z" in
@@ -260,7 +275,6 @@ let tests =
     [ testDvalRoundtrippableRoundtrips
       testInternalRoundtrippableDoesntCareAboutOrder
       testDvalOptionQueryableSpecialCase
-      testSpecialRoundtrips
       testToDeveloperRepr
       testToEnduserReadable
       testDvalUserDBV1Migration ]

@@ -271,6 +271,37 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DUuid _, _
   | DBytes _, _ -> left = right
 
+let interestingFloats : List<string * float> =
+  let initial =
+    // interesting cause OCaml uses 31 bit ints
+    [ "min 31 bit", System.Math.Pow(2.0, 30.0) - 1.0
+      "max 31 bit", -System.Math.Pow(2.0, 30.0)
+      // interesting cause boundary of 32 bit ints
+      "min 32 bit", System.Math.Pow(2.0, 31.0) - 1.0
+      "max 32 bit", -System.Math.Pow(2.0, 31.0)
+      // interesting cause doubles support up to 53-bit ints
+      "min 53 bit", System.Math.Pow(2.0, 52.0) - 1.0
+      "max 53 bit",  -System.Math.Pow(2.0, 52.0)
+      // interesting cause OCaml uses 63 bit ints
+      "min 63 bit",    System.Math.Pow(2.0, 62.0) - 1.0
+      "max 63 bit",    -System.Math.Pow(2.0, 62.0)
+      // interesting cause boundary of 64 bit ints
+      "min 64 bit",  System.Math.Pow(2.0, 63.0) - 1.0
+      "max 64 bit",  -System.Math.Pow(2.0, 63.0)
+      // Interesting anyway
+      "zero", 0.0
+      "negative zero", -0.0
+      "NaN", nan
+      "infinity", infinity
+      "-infinity",  -infinity
+    ]
+  initial
+  |> List.flatMap (fun (doc, v) ->
+                     [
+                       ($"{doc} - 1", v - 1.0)
+                       ($"{doc} + 0",  v)
+                       ($"{doc} + 1", v + 1.0)
+                     ])
 
 let sampleDvals : List<string * Dval> =
   [ ("int", Dval.int 5)
@@ -286,13 +317,10 @@ let sampleDvals : List<string * Dval> =
     ("float2", DFloat -7.2)
     ("float3", DFloat 15.0)
     ("float4", DFloat -15.0)
-    ("float5", DFloat -0.0)
-    ("float6", DFloat 0.0)
-    (* Long term, we shoudln't allow Infinity/NaNs, but since we do we should
-     * make sure they roundtrip OK. *)
-    ("nan", DFloat nan)
-    ("positive infinity", DFloat infinity)
-    ("negative infinity", DFloat -infinity)
+    // Special floats
+    ("float zero", DFloat 0.0)
+    ("float negative zero", DFloat -0.0)
+    ("float nan", DFloat nan) ] @ List.map (fun (doc, float) -> ($"float {doc}", DFloat float)) interestingFloats @ [
     ("true", DBool true)
     ("false", DBool false)
     ("null", DNull)

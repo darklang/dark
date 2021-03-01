@@ -60,12 +60,6 @@ let parseJson (s : string) : JToken =
   reader.DateParseHandling <- DateParseHandling.None
   JToken.ReadFrom(reader)
 
-let formatFloat (f : float) : string =
-  if System.Double.IsPositiveInfinity f then "Infinity"
-  else if System.Double.IsNegativeInfinity f then "-Infinity"
-  else if System.Double.IsNaN f then "NaN"
-  else f.ToString("0.0################")
-
 type JsonWriter with
 
   member this.writeObject(f : unit -> unit) =
@@ -136,8 +130,22 @@ let (|JNonStandard|_|) (j : JToken) : Option<unit> =
   | JTokenType.Date -> Some()
   | _ -> None
 
+let ocamlStringOfFloat (f : float) : string =
+  // We used OCaml's string_of_float in lots of different places and now we're
+  // reliant on it. Ugh.  string_of_float in OCaml is C's sprintf with the
+  // format "%.12g".
+  // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
 
-
+  // CLEANUP We should move on to a nicer format. See DvalRepr.tests for edge cases. See:
+  if System.Double.IsPositiveInfinity f then
+    "inf"
+  else if System.Double.IsNegativeInfinity f then
+    "-inf"
+  else if System.Double.IsNaN f then
+    "nan"
+  else
+    let result = sprintf "%.12g" f
+    if result.Contains "." then result else $"{result}."
 
 
 // -------------------------
@@ -295,17 +303,16 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
-    | DFloat f ->
-        // CLEANUP this is a very bad representation, why do we have this? See tests for horrible formats
-        f.ToString("0.########")
+    | DFloat f -> ocamlStringOfFloat f
+
     | DChar c -> c
     | DNull -> "null"
     | DDate d -> d.toIsoString ()
     | DUuid uuid -> uuid.ToString()
     | DDB dbname -> $"<DB: {dbname}>"
-    | DError _ ->
+    | DError (_, msg) ->
         // FSTODO make this a string again
-        "Error: TODO: print message"
+        $"Error: {msg}"
     | DIncomplete _ -> "<Incomplete>"
     | DFnVal _ ->
         // See docs/dblock-serialization.ml
@@ -321,7 +328,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
         reprfn d
     | DHttpResponse (h, body) ->
         match h with
-        | Redirect url -> $"302 {url}"
+        | Redirect url -> $"302 {url}\n" + nestedreprfn body
         | Response (code, headers) ->
             let headerString =
               headers
@@ -329,7 +336,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
               |> String.concat ","
               |> fun s -> "{ " + s + " }"
 
-            $"{code} {headerString}" + "\n" + nestedreprfn dv
+            $"{code} {headerString}" + "\n" + nestedreprfn body
     | DResult (Ok d) -> reprfn d
     | DResult (Error d) -> "Error: " + reprfn d
     | DOption (Some d) -> reprfn d
@@ -910,7 +917,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DInt i -> i.ToString()
     | DBool true -> "true"
     | DBool false -> "false"
-    | DFloat f -> formatFloat f
+    | DFloat f -> ocamlStringOfFloat f
     | DNull -> "null"
     | DFnVal _ ->
         (* See docs/dblock-serialization.ml *)
@@ -1137,58 +1144,6 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 //           Some (DFloat v)
 //       | None ->
 //           None )
-//
-//
-// (* ------------------------- *)
-// (* Conversion Functions *)
-// (* ------------------------- *)
-// let to_char dv : string option =
-//   match dv with
-//   | DCharacter c ->
-//       Some (Unicode_string.Character.to_string c)
-//   | _ ->
-//       None
-//
-//
-// let to_int dv : Dint.t option = match dv with DInt i -> Some i | _ -> None
-//
-// let to_float dv : Float.t option =
-//   match dv with DFloat f -> Some f | _ -> None
-//
-//
-// let dint (i : int) : dval = DInt (Dint.of_int i)
-//
-// let to_dobj_exn (pairs : (string * dval) list) : dval =
-//   match DvalMap.from_list_unique pairs with
-//   | Ok ok ->
-//       DObj ok
-//   | Error err ->
-//       DError (SourceNone, err)
-//
-//
-// let to_string_opt dv : string option =
-//   match dv with DStr s -> Some (Unicode_string.to_string s) | _ -> None
-//
-//
-// let to_string_exn dv : string =
-//   match to_string_opt dv with
-//   | Some s ->
-//       s
-//   | None ->
-//       Exception.code "expecting str" ~actual:(to_developer_repr_v0 dv)
-//
-//
-// let to_dval_pairs_exn dv : (string * dval) list =
-//   match dv with
-//   | DObj obj ->
-//       DvalMap.to_list obj
-//   | _ ->
-//       Exception.code "expecting str" ~actual:(to_developer_repr_v0 dv)
-//
-//
-// let to_string_pairs_exn dv : (string * string) list =
-//   dv |> to_dval_pairs_exn |> List.map ~f:(fun (k, v) -> (k, to_string_exn v))
-//
 //
 // (* For putting into URLs as query params *)
 // let rec to_url_string_exn (dv : dval) : string =

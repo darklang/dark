@@ -315,6 +315,8 @@ module EndUserReadable =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
 
+    static member FQFnName() : Arbitrary<PT.FQFnName.T> = FQFnName.Generator.FQFnName ()
+
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
     DvalRepr.toEnduserReadableTextV0 dv .=. OCamlInterop.toEnduserReadableTextV0 dv
