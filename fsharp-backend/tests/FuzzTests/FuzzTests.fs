@@ -74,7 +74,6 @@ module FQFnName =
       let packageName = ownerName
       let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
       let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
-
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -315,7 +314,8 @@ module EndUserReadable =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
 
-    static member FQFnName() : Arbitrary<PT.FQFnName.T> = FQFnName.Generator.FQFnName ()
+    static member FQFnName() : Arbitrary<PT.FQFnName.T> =
+      FQFnName.Generator.FQFnName()
 
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =

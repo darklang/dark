@@ -305,15 +305,16 @@ let interestingFloats : List<string * float> =
          [ ($"{doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
 
 let sampleDvals : List<string * Dval> =
-  [ ("int", Dval.int 5)
-    ("int2", Dval.int (-1))
-    ("int_max_31_bits", RT.DInt 1073741824I)
-    ("int_above_31_bits", RT.DInt 1073741825I)
-    ("int_max_32_bits", RT.DInt 2147483647I)
-    ("int_above_32_bits", RT.DInt 2147483648I)
-    ("int_max_53_bits", RT.DInt 4503599627370496I)
-    ("int_above_53_bits", RT.DInt 4503599627370497I)
-    ("int_max_63_bits", RT.DInt 4611686018427387903I)
+  [ ("int0", Dval.int 0)
+    ("int-1", Dval.int (-1))
+    ("int5", Dval.int 5)
+    ("int_max_31_bits", DInt 1073741824I)
+    ("int_above_31_bits", DInt 1073741825I)
+    ("int_max_32_bits", DInt 2147483647I)
+    ("int_above_32_bits", DInt 2147483648I)
+    ("int_max_53_bits", DInt 4503599627370496I)
+    ("int_above_53_bits", DInt 4503599627370497I)
+    ("int_max_63_bits", DInt 4611686018427387903I)
     ("float", DFloat 7.2)
     ("float2", DFloat -7.2)
     ("float3", DFloat 15.0)
@@ -333,9 +334,6 @@ let sampleDvals : List<string * Dval> =
         ("int string", DStr "1039485")
         ("int string2", DStr "-1039485")
         ("int string3", DStr "0")
-        ("float string", DStr "5.6")
-        ("float string2", DStr "5.0")
-        ("float string3", DStr "-5.0")
         ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
         ("list", DList [ Dval.int 4 ])
         ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
@@ -370,11 +368,13 @@ let sampleDvals : List<string * Dval> =
         ("result", DResult(Ok(Dval.int 15)))
         ("result2", DResult(Error(DList [ DStr "dunno if really supported" ])))
         ("result3", DResult(Ok(DStr "a string")))
-        ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes) ]
-// FSTODO
-// ; ( "bytes2"
-// , DBytes
-//     (* use image bytes here to test for any weird bytes forms *)
-//     (File.readfile Testdata "sample_image_bytes.png"))
+        ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes)
+        // use image bytes here to test for any weird bytes forms
+        ("bytes2",
+         DBytes(
+           LibBackend.File.readfileBytes
+             LibBackend.Config.Testdata
+             "sample_image_bytes.png"
+         )) ]
 
 // FSTODO: deeply nested data

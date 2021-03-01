@@ -148,6 +148,14 @@ let ocamlStringOfFloat (f : float) : string =
     if result.Contains "." then result else $"{result}."
 
 
+let ocamlBytesToString (bytes : byte []) =
+  // OCaml stops this at first zero, both otherwise jams the bytes into the
+  // string as is, without conversion.
+  bytes
+  |> Array.takeWhile (fun x -> x <> byte 0)
+  // CLEANUP: dumping these as ASCII isn't a great look
+  |> System.Text.Encoding.UTF8.GetString
+
 // -------------------------
 // Runtime Types
 // -------------------------
@@ -341,9 +349,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DResult (Error d) -> "Error: " + reprfn d
     | DOption (Some d) -> reprfn d
     | DOption None -> "Nothing"
-    | DBytes bytes ->
-        // Cleanup: dumping these as ASCII isn't a great look
-        bytes |> System.Text.Encoding.ASCII.GetChars |> System.String
+    | DBytes bytes -> ocamlBytesToString bytes
 
   reprfn dval
 
