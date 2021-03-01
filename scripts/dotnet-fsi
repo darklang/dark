@@ -1,15 +1,3 @@
 #!/bin/bash
 
-# To generate main.group.fsx, you need to run:
-# $ rm paket-files/paket.restore.cached
-# $ dotnet restore
-# $ dotnet paket generate-load-scripts --framework net50
-
-dotnet fsi \
-  --load:"fsharp-backend/.paket/load/net50/main.group.fsx" \
-  --reference:"fsharp-backend/Build/out/Prelude.dll" \
-  --reference:"fsharp-backend/Build/out/LibExecution.dll" \
-  --reference:"fsharp-backend/Build/out/LibBackend.dll" \
-  --reference:"fsharp-backend/Build/out/ApiServer.dll" \
-  --reference:"fsharp-backend/Build/out/BwdServer.dll" \
-  "${@}"
+dotnet fsi --use:scripts/support/fsi-setup.fsx "${@}"
