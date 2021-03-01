@@ -355,10 +355,7 @@ module Dval =
     | DBytes _ -> TBytes
 
   let int (i : int) = DInt(bigint i)
-  let bigint (i : bigint) = DInt i
   let parseInt (i : string) = DInt(parseBigint i)
-
-  let float (value : double) : Dval = DFloat value
 
   let floatParts (sign : Sign, whole : bigint, fraction : bigint) : Dval =
     // FSTODO - add sourceID to errors
