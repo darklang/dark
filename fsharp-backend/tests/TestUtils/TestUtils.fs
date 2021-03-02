@@ -271,6 +271,8 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DUuid _, _
   | DBytes _, _ -> left = right
 
+let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
+
 let interestingFloats : List<string * float> =
   let initial =
     // interesting cause OCaml uses 31 bit ints

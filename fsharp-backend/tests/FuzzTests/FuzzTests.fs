@@ -37,7 +37,8 @@ module GeneratorUtils =
 
 open GeneratorUtils
 
-let baseConfig : FsCheckConfig = FsCheckConfig.defaultConfig
+let baseConfig : FsCheckConfig =
+  { FsCheckConfig.defaultConfig with maxTest = 100000 }
 
 let baseConfigWithGenerator (typ : System.Type) : FsCheckConfig =
   { baseConfig with arbitrary = [ typ ] }
@@ -123,6 +124,41 @@ module OCamlInterop =
   open OCamlInterop.Convert
   open OCamlInterop
   open Json.AutoSerialize
+
+  let isInteroperable
+    (ocamlToString : 'a -> string)
+    (ocamlOfString : string -> 'a)
+    (fsToString : 'a -> string)
+    (fsOfString : string -> 'a)
+    (equality : 'a -> 'a -> bool)
+    (v : 'a)
+    : bool =
+    try
+      // What does it mean to interoperate? Ideally, the F# impl would be able
+      // to read what the OCaml impl sends it and vice versa. However, because
+      // the OCaml side is buggy, and we want to reproduce those bugs exactly
+      // (for now), that isn't sufficient. We actually just want to make sure
+      // we produce the same thing as they do for the same value. BUT, we don't
+      // actually produce the exact same thing, and it's hard to do that for
+      // the edge cases we've found. So really we just want to make sure that
+      // whatever either side produces, both sides are able to read it and get
+      // the same result.
+      let bothCanRead str = str |> ocamlOfString |> equality (fsOfString str)
+      let bothCanReadOCamlString = bothCanRead (ocamlToString v)
+      let bothCanReadFSharpString = bothCanRead (fsToString v)
+
+      if bothCanReadFSharpString && bothCanReadOCamlString then
+        true
+      else
+        printfn
+          "%s"
+          ($"ocamlStringReadable: {bothCanReadOCamlString}\n"
+           + $"fsharpStringReadable: {bothCanReadFSharpString}\n")
+
+        false
+    with e ->
+      printfn $"Cause exception while fuzzing {e}"
+      reraise ()
 
   type Generator =
     static member Expr() =
@@ -224,43 +260,14 @@ module RoundtrippableDval =
     |> DvalRepr.ofInternalRoundtrippableV0
     |> dvalEquality dv
 
-  let isInteroperable (dv : RT.Dval) : bool =
-    try
-      // What does it mean to interoperate? Ideally, the F# impl would be able
-      // to read what the OCaml impl sends it and vice versa. However, because
-      // the OCaml side is buggy, and we want to reproduce those bugs exactly
-      // (for now), that isn't sufficient. We actually just want to make sure
-      // we produce the same thing as they do for the same value. BUT, we don't
-      // actually produce the exact same thing, and it's hard to do that for
-      // the edge cases we've found. So really we just want to make sure that
-      // whatever either side produces, both sides are able to read it and get
-      // the same result.
-      let bothCanReadOCamlString =
-        let ocamlString = dv |> OCamlInterop.toInternalRoundtrippableV0
-
-        ocamlString
-        |> OCamlInterop.ofInternalRoundtrippableV0
-        |> dvalEquality (DvalRepr.ofInternalQueryableV0 ocamlString)
-
-      let bothCanReadFSharpString =
-        let fsString = dv |> DvalRepr.toInternalRoundtrippableV0
-
-        fsString
-        |> OCamlInterop.ofInternalRoundtrippableV0
-        |> dvalEquality (DvalRepr.ofInternalQueryableV0 fsString)
-
-      if bothCanReadFSharpString && bothCanReadOCamlString then
-        true
-      else
-        printfn
-          "%s"
-          ($"ocamlStringReadable: {bothCanReadOCamlString}\n"
-           + $"fsharpStringReadable: {bothCanReadFSharpString}\n")
-
-        false
-    with e ->
-      printfn $"Cause exception while fuzzing {e}"
-      reraise ()
+  let isInteroperableV0 dv =
+    OCamlInterop.isInteroperable
+      OCamlInterop.toInternalRoundtrippableV0
+      OCamlInterop.ofInternalRoundtrippableV0
+      DvalRepr.toInternalRoundtrippableV0
+      DvalRepr.ofInternalRoundtrippableV0
+      dvalEquality
+      dv
 
   let tests =
     [ testPropertyWithGenerator
@@ -270,7 +277,7 @@ module RoundtrippableDval =
       testPropertyWithGenerator
         typeof<GeneratorWithBugs>
         "roundtrippable is interoperable"
-        isInteroperable ]
+        isInteroperableV0 ]
 
 
 module Queryable =
@@ -284,24 +291,50 @@ module Queryable =
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter DvalRepr.isQueryableDval
 
-  let dvalReprInternalQueryableV0Roundtrip (dv : RT.Dval) : bool =
+  let v0Roundtrip (dv : RT.Dval) : bool =
     dv
     |> DvalRepr.toInternalQueryableV0
     |> DvalRepr.ofInternalQueryableV0
     |> dvalEquality dv
 
-  let dvalReprInternalQueryableV1Roundtrip (dvm : RT.DvalMap) : bool =
+  let v1Roundtrip (dvm : RT.DvalMap) : bool =
     dvm
     |> DvalRepr.toInternalQueryableV1
     |> DvalRepr.ofInternalQueryableV1
     |> dvalEquality (RT.DObj dvm)
 
+  let isInteroperableV0 dv =
+    OCamlInterop.isInteroperable
+      OCamlInterop.toInternalQueryableV0
+      OCamlInterop.ofInternalQueryableV0
+      DvalRepr.toInternalQueryableV0
+      DvalRepr.ofInternalQueryableV0
+      dvalEquality
+      dv
+
+  let isInteroperableV1 (dvm : RT.DvalMap) =
+    let unwrap fn str =
+      match fn str with
+      | RT.DObj dvm -> dvm
+      | _ -> failwith "not a dobj"
+
+    let wrap fn dvm = fn (RT.DObj dvm)
+
+    OCamlInterop.isInteroperable
+      (wrap OCamlInterop.toInternalQueryableV1)
+      (unwrap OCamlInterop.ofInternalQueryableV1)
+      DvalRepr.toInternalQueryableV1
+      (unwrap DvalRepr.ofInternalQueryableV1)
+      dvalMapEquality
+      dvm
 
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
-    [ tp "roundtripping InternalQueryable v0" dvalReprInternalQueryableV0Roundtrip
-      tp "roundtripping InternalQueryable v1" dvalReprInternalQueryableV1Roundtrip ]
+    [ tp "roundtripping InternalQueryable v0" v0Roundtrip
+      tp "roundtripping InternalQueryable v1" v1Roundtrip
+      tp "interoperable v0" isInteroperableV0
+      tp "interoperable v1" isInteroperableV1 ]
 
 module DeveloperRepr =
   type Generator =
