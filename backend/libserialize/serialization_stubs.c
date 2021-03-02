@@ -35,6 +35,16 @@ void check_exception(const char* ctx1, const char* ctx2, const char* ctx3, value
   }
 }
 
+void check_null_closure(const char* ctx1, const char* ctx2, const char* ctx3, value *v) {
+  if (v == NULL) {
+    printf (
+      "WARNING: Closure not found (%s -> %s -> %s)\n",
+      ctx1, ctx2, ctx3);
+    fflush(stdout);
+    unlock();
+  }
+}
+
 void check_string(const char* ctx1, const char* ctx2, const char* ctx3, value v) {
   check_exception(ctx1, ctx2, ctx3, v);
   if (Tag_val(v) != String_tag) {
@@ -95,6 +105,7 @@ char* call_bin2json(const char* callback_name, void* bytes, int length) {
   value v = caml_alloc_initialized_string(length, bytes);
   check_string(callback_name, "call_bin2json", "caml_alloc_initialized_string", v);
   value* closure = caml_named_value(callback_name);
+  check_null_closure(callback_name, "call_bin2json", "", closure);
   check_exception(callback_name, "closure", "caml_named_value", *closure);
   value result = caml_callback_exn(*closure, v);
   check_exception(callback_name, "result", "caml_callback_exn", result);
@@ -136,8 +147,9 @@ extern char* expr_tlid_pair_bin2json(void* bytes, int length) {
 int call_json2bin(const char* callback_name, char* json, void** out_bytes) {
   lock();
   value* closure = caml_named_value(callback_name);
+  check_null_closure(callback_name, "call_json2bin", "", closure);
   check_exception(callback_name, "call_json2bin", "caml_named_value", *closure);
-  value v = caml_copy_string(json);
+  value v = caml_copy_string(json); // has a strlen, think it's safe here
   check_string(callback_name, "call_json2bin", "caml_copy_string", v);
 
   value result = caml_callback_exn(*closure, v);
@@ -173,74 +185,78 @@ extern int expr_tlid_pair_json2bin(char* json, void** out_bytes) {
 
 /* --------------------
  * Dvals
+ * Strings can contain NULL bytes so we always use byte arrays and pass a length.
  * -------------------- */
-const char* string_to_string (const char* callback_name, const char* json) {
+const int string_to_string (const char* callback_name, char* bytesIn, int lengthIn, char** bytesOut) {
   lock();
   value* closure = caml_named_value(callback_name);
+  check_null_closure(callback_name, "string_to_string", "", closure);
   check_exception(callback_name, "string_to_string", "caml_named_value", *closure);
-  value v = caml_copy_string(json);
+  value v = caml_alloc_initialized_string(lengthIn, bytesIn);
   check_string(callback_name, "string_to_string", "copy_string", v);
 
   value result = caml_callback_exn(*closure, v);
   char* retval = copy_string_outside_runtime(callback_name, "string_to_string", result);
+  *bytesOut = retval;
+  int lengthOut = caml_string_length(result);
   unlock();
-  return retval;
+  return lengthOut;
 }
 
-extern const char* to_internal_roundtrippable_v0 (const char* json) {
-  return string_to_string("to_internal_roundtrippable_v0", json);
+extern int to_internal_roundtrippable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_internal_roundtrippable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_internal_roundtrippable_v0 (const char* json) {
-  return string_to_string("of_internal_roundtrippable_v0", json);
+extern int of_internal_roundtrippable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_internal_roundtrippable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_internal_queryable_v0 (const char* json) {
-  return string_to_string("to_internal_queryable_v0", json);
+extern int to_internal_queryable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_internal_queryable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_internal_queryable_v1 (const char* json) {
-  return string_to_string("to_internal_queryable_v1", json);
+extern int to_internal_queryable_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_internal_queryable_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_internal_queryable_v0 (const char* json) {
-  return string_to_string("of_internal_queryable_v0", json);
+extern int of_internal_queryable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_internal_queryable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_internal_queryable_v1 (const char* json) {
-  return string_to_string("of_internal_queryable_v1", json);
+extern int of_internal_queryable_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_internal_queryable_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_developer_repr_v0 (const char* json) {
-  return string_to_string("to_developer_repr_v0", json);
+extern int to_developer_repr_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_developer_repr_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_enduser_readable_text_v0 (const char* json) {
-  return string_to_string("to_enduser_readable_text_v0", json);
+extern int to_enduser_readable_text_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_enduser_readable_text_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_pretty_machine_json_v1 (const char* json) {
-  return string_to_string("to_pretty_machine_json_v1", json);
+extern int to_pretty_machine_json_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_pretty_machine_json_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_url_string (const char* json) {
-  return string_to_string("to_url_string", json);
+extern int to_url_string (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_url_string", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_hashable_repr (const char* json) {
-  return string_to_string("to_hashable_repr", json);
+extern int to_hashable_repr (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_hashable_repr", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_unknown_json_v1 (const char* json) {
-  return string_to_string("of_unknown_json_v1", json);
+extern int of_unknown_json_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_unknown_json_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* hash_v0 (const char* json) {
-  return string_to_string("hash_v0", json);
+extern int hash_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("hash_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* hash_v1 (const char* json) {
-  return string_to_string("hash_v1", json);
+extern int hash_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("hash_v1", bytesIn, lengthIn, bytesOut);
 }
 
 /* --------------------
@@ -249,6 +265,7 @@ extern const char* hash_v1 (const char* json) {
 extern char* digest () {
   lock();
   value* digest_value = caml_named_value("digest");
+  check_null_closure("digest", "", "", digest_value);
   char* result = copy_string_outside_runtime("digest", "caml_named_value", *digest_value);
   unlock();
   return result;

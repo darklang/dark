@@ -12,7 +12,7 @@ open LibBackend.ProgramTypes
 let fuzzedTests =
   [ testListUsingProperty
       "OCamlInterop expr tests"
-      FuzzTests.All.ocamlInteropYojsonExprRoundtrip
+      FuzzTests.All.OCamlInterop.yojsonExprRoundtrip
       [ EFnCall(0UL, FQFnName.parse "b/k/C::r_v1", [], NoRail) // norail was copied wrong
         EBinOp(
           0UL,
@@ -29,29 +29,21 @@ let fuzzedTests =
         ) ]
     testListUsingProperty
       "OCamlInterop Yojson handler tests"
-      FuzzTests.All.ocamlInteropYojsonHandlerRoundtrip
+      FuzzTests.All.OCamlInterop.yojsonHandlerRoundtrip
       [ { tlid = 0UL
           ast = EFnCall(0UL, FQFnName.parse "o/t/F::e_v1", [], NoRail)
           pos = { x = 0; y = 0 }
           spec =
-            Handler.Worker(
-              "",
-              { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
-            ) }
+            Handler.Worker("", { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }) }
 
         { tlid = 0UL
           pos = { x = 0; y = 0 }
           ast = EBool(0UL, false)
           spec =
-            Handler.Cron(
-              "",
-              "",
-              { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
-            ) } ]
+            Handler.Cron("", "", { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }) } ]
     testListUsingProperty
       "OCamlInterop Binary handler tests"
-      FuzzTests.All.ocamlInteropBinaryHandlerRoundtrip
-      []
-  ]
+      FuzzTests.All.OCamlInterop.binaryHandlerRoundtrip
+      [] ]
 
 let tests = testList "ocamlInterop" fuzzedTests

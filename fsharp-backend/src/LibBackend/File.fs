@@ -74,6 +74,11 @@ let lsdir (root : Config.Root) (dir : string) : string list =
 let readfile (root : Config.Root) (f : string) : string =
   f |> checkFilename root Read |> System.IO.File.ReadAllText
 
+let readfileBytes (root : Config.Root) (f : string) : byte [] =
+  f |> checkFilename root Read |> System.IO.File.ReadAllBytes
+
+
+
 // let readfile_lwt root f : string Lwt.t =
 //   let f = check_filename root Read f in
 //   Lwt_io.with_file mode:Lwt_io.input f Lwt_io.read

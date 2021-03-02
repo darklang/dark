@@ -384,7 +384,7 @@ module Json =
       inherit JsonConverter<bigint>()
 
       override _.ReadJson(reader : JsonReader, _, _, _, s) : bigint =
-        reader.Value :?> string |> parseBigint
+        reader.Value.ToString() |> parseBigint
 
       override _.WriteJson
         (

@@ -39,7 +39,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return! (eval state st body)
     | EString (_id, s) -> return (DStr s)
     | EBool (_id, b) -> return DBool b
-    | EInteger (_id, i) -> return Dval.bigint i
+    | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
     | ENull _id -> return DNull
     | ECharacter (_id, s) -> return DChar s
@@ -231,7 +231,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
            * is ready to match. *)
           match pattern with
           | PInteger (pid, i) ->
-              let v = Dval.bigint i
+              let v = DInt i
 
               if v = dv then
                 executeMatch [] ((pid, v) :: builtUpTraces) st expr

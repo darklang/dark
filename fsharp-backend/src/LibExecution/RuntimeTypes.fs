@@ -57,12 +57,13 @@ module FQFnName =
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
 
-  let packageName (owner : string)
-                  (package : string)
-                  (module_ : string)
-                  (function_ : string)
-                  (version : int)
-                  : T =
+  let packageName
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : T =
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
@@ -355,10 +356,7 @@ module Dval =
     | DBytes _ -> TBytes
 
   let int (i : int) = DInt(bigint i)
-  let bigint (i : bigint) = DInt i
   let parseInt (i : string) = DInt(parseBigint i)
-
-  let float (value : double) : Dval = DFloat value
 
   let floatParts (sign : Sign, whole : bigint, fraction : bigint) : Dval =
     // FSTODO - add sourceID to errors

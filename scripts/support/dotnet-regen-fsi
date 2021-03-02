@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+cd fsharp-backend
+rm paket-files/paket.restore.cached
+dotnet restore
+dotnet paket generate-load-scripts --framework net50
