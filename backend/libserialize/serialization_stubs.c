@@ -149,7 +149,7 @@ int call_json2bin(const char* callback_name, char* json, void** out_bytes) {
   value* closure = caml_named_value(callback_name);
   check_null_closure(callback_name, "call_json2bin", "", closure);
   check_exception(callback_name, "call_json2bin", "caml_named_value", *closure);
-  value v = caml_copy_string(json);
+  value v = caml_copy_string(json); // has a strlen, think it's safe here
   check_string(callback_name, "call_json2bin", "caml_copy_string", v);
 
   value result = caml_callback_exn(*closure, v);
@@ -185,75 +185,78 @@ extern int expr_tlid_pair_json2bin(char* json, void** out_bytes) {
 
 /* --------------------
  * Dvals
+ * Strings can contain NULL bytes so we always use byte arrays and pass a length.
  * -------------------- */
-const char* string_to_string (const char* callback_name, const char* json) {
+const int string_to_string (const char* callback_name, char* bytesIn, int lengthIn, char** bytesOut) {
   lock();
   value* closure = caml_named_value(callback_name);
   check_null_closure(callback_name, "string_to_string", "", closure);
   check_exception(callback_name, "string_to_string", "caml_named_value", *closure);
-  value v = caml_copy_string(json);
+  value v = caml_alloc_initialized_string(lengthIn, bytesIn);
   check_string(callback_name, "string_to_string", "copy_string", v);
 
   value result = caml_callback_exn(*closure, v);
   char* retval = copy_string_outside_runtime(callback_name, "string_to_string", result);
+  *bytesOut = retval;
+  int lengthOut = caml_string_length(result);
   unlock();
-  return retval;
+  return lengthOut;
 }
 
-extern const char* to_internal_roundtrippable_v0 (const char* json) {
-  return string_to_string("to_internal_roundtrippable_v0", json);
+extern int to_internal_roundtrippable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_internal_roundtrippable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_internal_roundtrippable_v0 (const char* json) {
-  return string_to_string("of_internal_roundtrippable_v0", json);
+extern int of_internal_roundtrippable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_internal_roundtrippable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_internal_queryable_v0 (const char* json) {
-  return string_to_string("to_internal_queryable_v0", json);
+extern int to_internal_queryable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_internal_queryable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_internal_queryable_v1 (const char* json) {
-  return string_to_string("to_internal_queryable_v1", json);
+extern int to_internal_queryable_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_internal_queryable_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_internal_queryable_v0 (const char* json) {
-  return string_to_string("of_internal_queryable_v0", json);
+extern int of_internal_queryable_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_internal_queryable_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_internal_queryable_v1 (const char* json) {
-  return string_to_string("of_internal_queryable_v1", json);
+extern int of_internal_queryable_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_internal_queryable_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_developer_repr_v0 (const char* json) {
-  return string_to_string("to_developer_repr_v0", json);
+extern int to_developer_repr_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_developer_repr_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_enduser_readable_text_v0 (const char* json) {
-  return string_to_string("to_enduser_readable_text_v0", json);
+extern int to_enduser_readable_text_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_enduser_readable_text_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_pretty_machine_json_v1 (const char* json) {
-  return string_to_string("to_pretty_machine_json_v1", json);
+extern int to_pretty_machine_json_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_pretty_machine_json_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_url_string (const char* json) {
-  return string_to_string("to_url_string", json);
+extern int to_url_string (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_url_string", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* to_hashable_repr (const char* json) {
-  return string_to_string("to_hashable_repr", json);
+extern int to_hashable_repr (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("to_hashable_repr", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* of_unknown_json_v1 (const char* json) {
-  return string_to_string("of_unknown_json_v1", json);
+extern int of_unknown_json_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("of_unknown_json_v1", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* hash_v0 (const char* json) {
-  return string_to_string("hash_v0", json);
+extern int hash_v0 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("hash_v0", bytesIn, lengthIn, bytesOut);
 }
 
-extern const char* hash_v1 (const char* json) {
-  return string_to_string("hash_v1", json);
+extern int hash_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("hash_v1", bytesIn, lengthIn, bytesOut);
 }
 
 /* --------------------

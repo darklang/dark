@@ -100,76 +100,80 @@ module Binary =
     // ----------------
     // dvals - we only need this for fuzzing, so we're just piggybacking on the
     // code that's already here
+    //
+    // Dvals can have \0 bytes in them. This is fine for both dotnet strings
+    // and ocaml strings. However, when passing between the two we need
+    // explicit lengths both in and out to make sure we copy every byte.
     // ----------------
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_internal_roundtrippable_v0")>]
-    extern string toInternalRoundtrippableV0(string str)
+    extern int toInternalRoundtrippableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_internal_roundtrippable_v0")>]
-    extern string ofInternalRoundtrippableV0(string str)
+    extern int ofInternalRoundtrippableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_internal_queryable_v0")>]
-    extern string toInternalQueryableV0(string str)
+    extern int toInternalQueryableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_internal_queryable_v1")>]
-    extern string toInternalQueryableV1(string str)
+    extern int toInternalQueryableV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_internal_queryable_v0")>]
-    extern string ofInternalQueryableV0(string str)
+    extern int ofInternalQueryableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_internal_queryable_v1")>]
-    extern string ofInternalQueryableV1(string str)
+    extern int ofInternalQueryableV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_developer_repr_v0")>]
-    extern string toDeveloperRepr(string str)
+    extern int toDeveloperRepr(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_enduser_readable_text_v0")>]
-    extern string toEnduserReadableTextV0(string str)
+    extern int toEnduserReadableTextV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_pretty_machine_json_v1")>]
-    extern string toPrettyMachineJsonV1(string str)
+    extern int toPrettyMachineJsonV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_url_string")>]
-    extern string toUrlString(string str)
+    extern int toUrlString(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_hashable_repr")>]
-    extern string toHashableRepr(string str)
+    extern int toHashableRepr(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_unknown_json_v1")>]
-    extern string ofUnknownJsonV1(string str)
+    extern int ofUnknownJsonV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "hash_v0")>]
-    extern string hashV0(string str)
+    extern int hashV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
     [<DllImport("./libserialization.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "hash_v1")>]
-    extern string hashV1(string str)
+    extern int hashV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
 
     // ----------------
@@ -1307,114 +1311,98 @@ let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
   |> Binary.exprTLIDPairJson2Bin
 
 // for fuzzing
-let ofInternalQueryableV0 (str : string) : RT.Dval =
-  Binary.Internal.registerThread ()
+let startString2String (str : string) : System.IntPtr * byte array =
+  Binary.registerThread ()
+  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
 
-  str
-  |> Binary.Internal.ofInternalQueryableV0
+
+let startDval2String (dv : RT.Dval) : System.IntPtr * byte array =
+  Binary.registerThread ()
+  let str = dv |> Convert.rt2ocamlDval |> Json.AutoSerialize.serialize
+  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+
+let finishString2String (outLength : int) (outBytes : System.IntPtr) : string =
+  Binary.registerThread ()
+  let (resultBytes : byte array) = Array.zeroCreate outLength
+  Marshal.Copy(outBytes, resultBytes, 0, outLength)
+  let resultString = System.Text.Encoding.UTF8.GetString resultBytes
+  resultString
+
+let finishString2Dval (outLength : int) (outBytes : System.IntPtr) : RT.Dval =
+  finishString2String outLength outBytes
   |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
   |> Convert.ocamlDval2rt
+
+
+let ofInternalQueryableV0 (str : string) : RT.Dval =
+  let mutable (out, bytes) = startString2String str
+  let outLength = Binary.Internal.ofInternalQueryableV0 (bytes, bytes.Length, &out)
+  finishString2Dval outLength out
 
 let ofInternalQueryableV1 (str : string) : RT.Dval =
-  Binary.Internal.registerThread ()
-
-  str
-  |> Binary.Internal.ofInternalQueryableV1
-  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
-  |> Convert.ocamlDval2rt
+  let mutable (out, bytes) = startString2String str
+  let outLength = Binary.Internal.ofInternalQueryableV1 (bytes, bytes.Length, &out)
+  finishString2Dval outLength out
 
 let ofInternalRoundtrippableV0 (str : string) : RT.Dval =
-  Binary.Internal.registerThread ()
+  let mutable (out, bytes) = startString2String str
 
-  str
-  |> Binary.Internal.ofInternalRoundtrippableV0
-  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
-  |> Convert.ocamlDval2rt
+  let outLength =
+    Binary.Internal.ofInternalRoundtrippableV0 (bytes, bytes.Length, &out)
 
-let ofUnknownJson (str : string) : RT.Dval =
-  Binary.Internal.registerThread ()
+  finishString2Dval outLength out
 
-  str
-  |> Binary.Internal.ofUnknownJsonV1
-  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
-  |> Convert.ocamlDval2rt
+let ofUnknownJsonV1 (str : string) : RT.Dval =
+  let mutable (out, bytes) = startString2String str
+  let outLength = Binary.Internal.ofUnknownJsonV1 (bytes, bytes.Length, &out)
+  finishString2Dval outLength out
 
 let toDeveloperRepr (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toDeveloperRepr
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.toDeveloperRepr (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let toEnduserReadableTextV0 (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toEnduserReadableTextV0
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.toEnduserReadableTextV0 (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let toHashableRepr (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toHashableRepr
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.toHashableRepr (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let toInternalQueryableV0 (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toInternalQueryableV0
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.toInternalQueryableV0 (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let toInternalQueryableV1 (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toInternalQueryableV1
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.toInternalQueryableV1 (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let toInternalRoundtrippableV0 (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toInternalRoundtrippableV0
+  let mutable (out, bytes) = startDval2String dv
+  let ol = Binary.Internal.toInternalRoundtrippableV0 (bytes, bytes.Length, &out)
+  finishString2String ol out
 
 let toPrettyMachineJsonV1 (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toPrettyMachineJsonV1
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.toPrettyMachineJsonV1 (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let toUrlString (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.toUrlString
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.toUrlString (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let hashV0 (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.hashV0
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.hashV0 (bytes, bytes.Length, &out)
+  finishString2String outLength out
 
 let hashV1 (dv : RT.Dval) : string =
-  Binary.Internal.registerThread ()
-
-  dv
-  |> Convert.rt2ocamlDval
-  |> Json.AutoSerialize.serialize
-  |> Binary.Internal.hashV1
+  let mutable (out, bytes) = startDval2String dv
+  let outLength = Binary.Internal.hashV1 (bytes, bytes.Length, &out)
+  finishString2String outLength out

@@ -149,12 +149,8 @@ let ocamlStringOfFloat (f : float) : string =
 
 
 let ocamlBytesToString (bytes : byte []) =
-  // OCaml stops this at first zero, both otherwise jams the bytes into the
-  // string as is, without conversion.
-  bytes
-  |> Array.takeWhile (fun x -> x <> byte 0)
   // CLEANUP: dumping these as ASCII isn't a great look
-  |> System.Text.Encoding.UTF8.GetString
+  System.Text.Encoding.UTF8.GetString bytes
 
 // -------------------------
 // Runtime Types
