@@ -11,7 +11,7 @@ let fuzzedTests =
     "Tests found by fuzzing"
     [ testListUsingProperty
         "FQFnName parse tests"
-        FuzzTests.All.FQFnName.roundtrip
+        FuzzTests.All.FQFnName.ptRoundtrip
 
         (List.map
           PT.FQFnName.parse

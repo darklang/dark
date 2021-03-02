@@ -37,8 +37,7 @@ module GeneratorUtils =
 
 open GeneratorUtils
 
-let baseConfig : FsCheckConfig =
-  { FsCheckConfig.defaultConfig with maxTest = 100000 }
+let baseConfig : FsCheckConfig = FsCheckConfig.defaultConfig
 
 let baseConfigWithGenerator (typ : System.Type) : FsCheckConfig =
   { baseConfig with arbitrary = [ typ ] }
@@ -60,20 +59,21 @@ module FQFnName =
       return System.String(Array.append [| head |] tail)
     }
 
+  let alphaNumeric =
+    (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
+
+  let ownerName : Gen<string> =
+    nameGenerator [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
+
+  let packageName = ownerName
+  let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
+  let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter nonNullString
 
-    static member FQFnName() : Arbitrary<PT.FQFnName.T> =
-      let alphaNumeric =
-        (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
-
-      let ownerName : Gen<string> =
-        nameGenerator [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
-
-      let packageName = ownerName
-      let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
-      let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+    static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
             gen {
@@ -91,10 +91,32 @@ module FQFnName =
                   version = version }
             } }
 
-  let roundtrip (a : PT.FQFnName.T) : bool = a.ToString() |> PT.FQFnName.parse .=. a
+    static member RTFQFnName() : Arbitrary<RT.FQFnName.T> =
+      { new Arbitrary<RT.FQFnName.T>() with
+          member x.Generator =
+            gen {
+              let! owner = ownerName
+              let! package = packageName
+              let! module_ = modName
+              let! function_ = fnName
+              let! NonNegativeInt version = Arb.generate<NonNegativeInt>
+
+              return
+                { owner = owner
+                  package = package
+                  module_ = module_
+                  function_ = function_
+                  version = version }
+            } }
+
+  let ptRoundtrip (a : PT.FQFnName.T) : bool =
+    a.ToString() |> PT.FQFnName.parse .=. a
 
   let tests =
-    [ testPropertyWithGenerator typeof<Generator> "roundtripping FQFnName" roundtrip ]
+    [ testPropertyWithGenerator
+        typeof<Generator>
+        "roundtripping PT.FQFnName"
+        ptRoundtrip ]
 
 
 module OCamlInterop =
@@ -314,8 +336,24 @@ module EndUserReadable =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
 
-    static member FQFnName() : Arbitrary<PT.FQFnName.T> =
-      FQFnName.Generator.FQFnName()
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false
+
+           // When printing bytes with 0 in them, the string cuts off. Probably
+           // a null-terminated string thing. While this is bad, bytes are not
+           // used very much, and especially they're unlikely to be directly
+           // printed as a string. So this is probably OK. Given this is very
+           // hard to solve this (since if the bytes are in another structure,
+           // the other structure will be cut off too), so it makes sense to
+           // put up with that problem.
+
+           | RT.DBytes bytes -> not (Array.exists (fun x -> byte 0 = x) bytes)
+           | _ -> true)
+
+
 
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
