@@ -122,6 +122,7 @@ let allRoundtrips =
       t "developerRepr" F.DeveloperRepr.equalsOCaml all
       t "prettyMachineJson" F.PrettyMachineJson.equalsOCaml all ]
 
+// FSTODO
 // let testDateMigrationHasCorrectFormats () =
 //   let str = "2019-03-08T08:26:14Z" in
 //   let date = RT.DDate(System.DateTime.ofIsoString str) in
@@ -133,7 +134,7 @@ let allRoundtrips =
 module Password =
   let testJsonRoundtripForwards =
     test "json roundtrips forward" {
-      let password = RT.DPassword(Password (toBytes "x"))
+      let password = RT.DPassword(Password(toBytes "x"))
 
       Expect.equalDval
         password
@@ -149,7 +150,7 @@ module Password =
     test "password serialization" {
       let testSerialize expected name f =
         let bytes = toBytes "encryptedbytes"
-        let password = RT.DPassword (Password bytes)
+        let password = RT.DPassword(Password bytes)
 
         Expect.equal
           expected
@@ -161,7 +162,7 @@ module Password =
 
       let roundtrips name serialize deserialize =
         let bytes = toBytes "encryptedbytes"
-        let password = RT.DPassword (Password bytes)
+        let password = RT.DPassword(Password bytes)
 
         Expect.equalDval
           password
@@ -197,7 +198,7 @@ module Password =
     test "serialization in object" {
       let roundtrips name serialize deserialize =
         let bytes = toBytes "encryptedbytes" in
-        let password = RT.DObj(Map.ofList [ "x", RT.DPassword (Password bytes) ])
+        let password = RT.DObj(Map.ofList [ "x", RT.DPassword(Password bytes) ])
 
         let wrappedSerialize dval =
           dval
@@ -226,7 +227,7 @@ module Password =
       let mutable success = false
 
       try
-        Json.AutoSerialize.serialize (RT.DPassword (Password [||])) |> ignore
+        Json.AutoSerialize.serialize (RT.DPassword(Password [||])) |> ignore
       with e -> success <- true
 
       Expect.equal success true "success should be true"
