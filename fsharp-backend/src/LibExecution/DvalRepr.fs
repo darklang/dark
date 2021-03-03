@@ -954,67 +954,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 
   toRepr_ 0 dv
 
-//
-// let to_pretty_machine_yojson_v1 dval =
-//   let rec recurse dv =
-//     match dv with
-//     (* basic types *)
-//     | DInt i ->
-//         Dint.to_yojson i
-//     | DFloat f ->
-//         `Float f
-//     | DBool b ->
-//         `Bool b
-//     | DNull ->
-//         `Null
-//     | DStr s ->
-//         Unicode_string.to_yojson s
-//     | DList l ->
-//         `List (List.map l recurse)
-//     | DObj o ->
-//         o
-//         |> DvalMap.to_list
-//         |> List.map ~f:(fun (k, v) -> (k, recurse v))
-//         |> fun x -> `Assoc x
-//     | DBlock _ ->
-//         (* See docs/dblock-serialization.ml *)
-//         `Null
-//     | DIncomplete _ ->
-//         `Null
-//     | DCharacter c ->
-//         `String (Unicode_string.Character.to_string c)
-//     | DError (_, msg) ->
-//         `Assoc [("Error", `String msg)]
-//     | DResp (h, hdv) ->
-//         recurse hdv
-//     | DDB dbname ->
-//         `String dbname
-//     | DDate date ->
-//         `String (Util.isostring_of_date date)
-//     | DPassword hashed ->
-//         `Assoc [("Error", `String "Password is redacted")]
-//     | DUuid uuid ->
-//         `String (Uuidm.to_string uuid)
-//     | DOption opt ->
-//       (match opt with OptNothing -> `Null | OptJust dv -> recurse dv)
-//     | DErrorRail dv ->
-//         recurse dv
-//     | DResult res ->
-//       ( match res with
-//       | ResOk dv ->
-//           recurse dv
-//       | ResError dv ->
-//           `Assoc [("Error", recurse dv)] )
-//     | DBytes bytes ->
-//         `String (bytes |> RawBytes.to_string |> B64.encode)
-//   in
-//   recurse dval
-//
-//
-// let to_pretty_machine_json_v1 dval : string =
-//   to_pretty_machine_yojson_v1 dval |> Yojson.Safe.pretty_to_string
-//
-//
+
 // let of_unknown_json_v0 str =
 //   try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 //   with e ->
