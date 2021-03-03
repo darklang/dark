@@ -369,6 +369,10 @@ type tlid = uint64
 
 type id = uint64
 
+// This is important to prevent auto-serialization accidentally leaking this,
+// though it never should anyway
+type Password = Password of byte array
+
 // ----------------------
 // Json auto-serialization
 // ----------------------
@@ -515,6 +519,22 @@ module Json =
       override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
         writer.WriteValue(value)
 
+    type PasswordConverter() =
+      inherit JsonConverter<Password>()
+
+      override _.ReadJson(reader : JsonReader, _, _, _, _) =
+        failwith "unsupported deserialization of password"
+        Password(toBytes "password should never be read here")
+
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value : Password,
+          _ : JsonSerializer
+        ) =
+        failwith "unsupported serialization of password"
+        writer.WriteValue "<password should never be written here>"
+
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
@@ -568,11 +588,15 @@ module Json =
 
     let _settings =
       (let settings = JsonSerializerSettings()
+       // This might be a potential vulnerability, turn it off anyway
        settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
+       // This is a potential vulnerability
        settings.TypeNameHandling <- TypeNameHandling.None
+       // dont deserialize date-looking string as dates
        settings.DateParseHandling <- DateParseHandling.None
        settings.Converters.Add(BigIntConverter())
        settings.Converters.Add(TLIDConverter())
+       settings.Converters.Add(PasswordConverter())
        settings.Converters.Add(FSharpListConverter())
        settings.Converters.Add(FSharpTupleConverter())
        settings.Converters.Add(OCamlRawBytesConverter())

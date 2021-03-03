@@ -506,7 +506,7 @@ module OCamlTypes =
       | DResp of (dhttp * dval)
       | DDB of string
       | DDate of System.DateTime
-      // | DPassword of PasswordBytes.t
+      | DPassword of byte array // We dont use this path for testing, see DvalRepr.Tests
       | DUuid of System.Guid
       | DOption of optionT
       | DCharacter of string
@@ -1163,6 +1163,7 @@ module Convert =
     | RT.DDate d -> ORT.DDate d
     | RT.DDB name -> ORT.DDB name
     | RT.DUuid uuid -> ORT.DUuid uuid
+    | RT.DPassword (Password bytes) -> ORT.DPassword bytes
     | RT.DHttpResponse (RT.Redirect url, hdv) -> ORT.DResp(ORT.Redirect url, c hdv)
     | RT.DHttpResponse (RT.Response (code, headers), hdv) ->
         ORT.DResp(ORT.Response(code, headers), c hdv)
@@ -1202,6 +1203,7 @@ module Convert =
     | ORT.DDate d -> RT.DDate d
     | ORT.DDB name -> RT.DDB name
     | ORT.DUuid uuid -> RT.DUuid uuid
+    | ORT.DPassword bytes -> RT.DPassword(Password bytes)
     | ORT.DResp (ORT.Redirect url, hdv) -> RT.DHttpResponse(RT.Redirect url, c hdv)
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
         RT.DHttpResponse(RT.Response(code, headers), c hdv)
@@ -1310,7 +1312,10 @@ let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
   |> Json.AutoSerialize.serialize
   |> Binary.exprTLIDPairJson2Bin
 
-// for fuzzing
+// ---------------------------
+// These are only here for fuzzing. We should not be fetching dvals via the
+// OCaml runtime, but always via HTTP or via the DB.
+// ---------------------------
 let startString2String (str : string) : System.IntPtr * byte array =
   Binary.registerThread ()
   System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str

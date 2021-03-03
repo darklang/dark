@@ -207,6 +207,7 @@ module Expect =
     | DNull, _
     | DStr _, _
     | DChar _, _
+    | DPassword _, _
     | DFnVal _, _
     | DIncomplete _, _
     | DError _, _
@@ -261,6 +262,7 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   // All others can be directly compared
   | DInt _, _
   | DDate _, _
+  | DPassword _, _
   | DBool _, _
   | DFloat _, _
   | DNull, _
@@ -358,7 +360,7 @@ let sampleDvals : List<string * Dval> =
         ("httpresponse", DHttpResponse(Response(200, []), DStr "success"))
         ("db", DDB "Visitors")
         ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
-        // ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
+        ("password", DPassword(Password(toBytes "somebytes")))
         ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
         ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
         ("option", DOption None)

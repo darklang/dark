@@ -3,6 +3,7 @@ module Tests.DvalRepr
 open Expecto
 open Prelude
 open Prelude.Tablecloth
+open Tablecloth
 open TestUtils
 
 module PT = LibBackend.ProgramTypes
@@ -84,7 +85,18 @@ module F = FuzzTests.All
 
 let allRoundtrips =
   let t = testListUsingProperty
-  let all = TestUtils.sampleDvals
+
+  let all =
+    // interoperable tests do not support passwords because it's very
+    // hard/risky to get ocaml to roundtrip them correctly without compromising
+    // the redaction protections. We do password tests in the rest of the file
+    // so lets not confuse these tests.
+    TestUtils.sampleDvals
+    |> List.filter
+         (function
+         | (_, RT.DPassword _) -> false
+         | _ -> true)
+
   let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
 
   testList
@@ -101,7 +113,7 @@ let allRoundtrips =
       t
         "queryable interop v0"
         F.Queryable.isInteroperableV0
-        (dvs DvalRepr.isQueryableDval)
+        (dvs (DvalRepr.isQueryableDval))
       t
         "queryable interop v1"
         F.Queryable.isInteroperableV1
@@ -118,104 +130,116 @@ let allRoundtrips =
 //   Expect.equal (DvalRepr.toPrettyMachineJsonStringV1 date) $"\"{str}\"" "new version"
 //
 
-// let t_password_json_round_trip_forwards () =
-//   let password = DPassword (Bytes.of_string "x") in
-//   check_dval
-//     "Passwords serialize and deserialize if there's no redaction."
-//     password
-//     ( password
-//     |> Dval.to_internal_roundtrippable_v0
-//     |> Dval.of_internal_roundtrippable_v0
-//     |> Dval.to_internal_roundtrippable_v0
-//     |> Dval.of_internal_roundtrippable_v0 )
-//
-//
-// let t_password_serialization () =
-//   let does_serialize name expected f =
-//     let bytes = Bytes.of_string "encryptedbytes" in
-//     let password = DPassword bytes in
-//     AT.check
-//       AT.bool
-//       ("Passwords serialize in non-redaction function: " ^ name)
-//       expected
-//       (String.is_substring
-//          ~substring:(B64.encode "encryptedbytes")
-//          (f password))
-//   in
-//   let roundtrips name serialize deserialize =
-//     let bytes = Bytes.of_string "encryptedbytes" in
-//     let password = DPassword bytes in
-//     AT.check
-//       at_dval
-//       ("Passwords serialize in non-redaction function: " ^ name)
-//       password
-//       (password |> serialize |> deserialize |> serialize |> deserialize)
-//   in
-//   (* doesn't redact *)
-//   does_serialize
-//     "to_internal_roundtrippable_v0"
-//     true
-//     Dval.to_internal_roundtrippable_v0 ;
-//   (* roundtrips *)
-//   roundtrips
-//     "to_internal_roundtrippable_v0"
-//     Dval.to_internal_roundtrippable_v0
-//     Dval.of_internal_roundtrippable_v0 ;
-//   (* redacting *)
-//   does_serialize
-//     "to_enduser_readable_text_v0"
-//     false
-//     Dval.to_enduser_readable_text_v0 ;
-//   does_serialize
-//     "to_enduser_readable_html_v0"
-//     false
-//     Dval.to_enduser_readable_html_v0 ;
-//   does_serialize "to_developer_repr_v0" false Dval.to_developer_repr_v0 ;
-//   does_serialize
-//     "to_pretty_machine_json_v1"
-//     false
-//     Dval.to_pretty_machine_json_v1 ;
-//   does_serialize
-//     "to_pretty_request_json_v0"
-//     false
-//     Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 ;
-//   does_serialize
-//     "to_pretty_response_json_v1"
-//     false
-//     Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 ;
-//   ()
-//
-//
-// (* put it in an object too *)
-// let t_password_serialization2 () =
-//   let roundtrips name serialize deserialize =
-//     let bytes = Bytes.of_string "encryptedbytes" in
-//     let password = DObj (DvalMap.singleton "x" (DPassword bytes)) in
-//     let wrapped_serialize dval =
-//       dval
-//       |> (function
-//            | DObj dval_map ->
-//                dval_map
-//            | _ ->
-//                Exception.internal "dobj only here")
-//       |> serialize
-//     in
-//     AT.check
-//       at_dval
-//       ("Passwords serialize in non-redaction function: " ^ name)
-//       password
-//       ( password
-//       |> wrapped_serialize
-//       |> deserialize
-//       |> wrapped_serialize
-//       |> deserialize )
-//   in
-//   (* roundtrips *)
-//   roundtrips
-//     "to_internal_queryable_v1"
-//     Dval.to_internal_queryable_v1
-//     Dval.of_internal_queryable_v1 ;
-//   ()
+module Password =
+  let testJsonRoundtripForwards =
+    test "json roundtrips forward" {
+      let password = RT.DPassword(Password (toBytes "x"))
+
+      Expect.equalDval
+        password
+        (password
+         |> DvalRepr.toInternalRoundtrippableV0
+         |> DvalRepr.ofInternalRoundtrippableV0
+         |> DvalRepr.toInternalRoundtrippableV0
+         |> DvalRepr.ofInternalRoundtrippableV0)
+        "Passwords serialize and deserialize if there's no redaction."
+    }
+
+  let testSerialization =
+    test "password serialization" {
+      let testSerialize expected name f =
+        let bytes = toBytes "encryptedbytes"
+        let password = RT.DPassword (Password bytes)
+
+        Expect.equal
+          expected
+          (String.includes ("encryptedbytes" |> toBytes |> base64Encode) (f password))
+          ($"Passwords serialize in non-redaction function: {name}")
+
+      let doesSerialize = testSerialize true
+      let doesntSerialize = testSerialize false
+
+      let roundtrips name serialize deserialize =
+        let bytes = toBytes "encryptedbytes"
+        let password = RT.DPassword (Password bytes)
+
+        Expect.equalDval
+          password
+          (password |> serialize |> deserialize |> serialize |> deserialize)
+          $"Passwords serialize in non-redaction function: {name}"
+
+      // doesn't redact
+      doesSerialize "toInternalRoundtrippableV0" DvalRepr.toInternalRoundtrippableV0
+
+      // roundtrips
+      roundtrips
+        "toInternalRoundtrippableV0 roundtrips"
+        DvalRepr.toInternalRoundtrippableV0
+        DvalRepr.ofInternalRoundtrippableV0
+
+      // redacting
+      doesntSerialize "toEnduserReadableTextV0" DvalRepr.toEnduserReadableTextV0
+      doesntSerialize "toDeveloperReprV0" DvalRepr.toDeveloperReprV0
+      doesntSerialize "toPrettyMachineJsonV1" DvalRepr.toPrettyMachineJsonStringV1
+    // FSTODO
+    //   doesSerialize
+    //     "toPrettyRequestJsonV0"
+    //     false
+    //     Libexecution.Legacy.PrettyRequestJsonV0.toPrettyRequestJsonV0 ;
+    //   doesSerialize
+    //     "toPrettyResponseJsonV1"
+    //     false
+    //     Libexecution.Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0 ;
+    //   ()
+    }
+
+  let testSerialization2 =
+    test "serialization in object" {
+      let roundtrips name serialize deserialize =
+        let bytes = toBytes "encryptedbytes" in
+        let password = RT.DObj(Map.ofList [ "x", RT.DPassword (Password bytes) ])
+
+        let wrappedSerialize dval =
+          dval
+          |> (function
+          | RT.DObj dvalMap -> dvalMap
+          | _ -> failwith "dobj only here")
+          |> serialize
+
+        Expect.equalDval
+          password
+          (password
+           |> wrappedSerialize
+           |> deserialize
+           |> wrappedSerialize
+           |> deserialize)
+          $"Passwords serialize in non-redaction function: {name}"
+      // roundtrips
+      roundtrips
+        "toInternalQueryableV1"
+        DvalRepr.toInternalQueryableV1
+        DvalRepr.ofInternalQueryableV1
+    }
+
+  let testNoAutoSerialization =
+    test "no auto serialization of passwords" {
+      let mutable success = false
+
+      try
+        Json.AutoSerialize.serialize (RT.DPassword (Password [||])) |> ignore
+      with e -> success <- true
+
+      Expect.equal success true "success should be true"
+    }
+
+  let tests =
+    testList
+      "password"
+      [ testJsonRoundtripForwards
+        testSerialization
+        testSerialization2
+        testNoAutoSerialization ]
+
 
 let tests =
   testList
@@ -225,4 +249,5 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
+      Password.tests
       allRoundtrips ]
