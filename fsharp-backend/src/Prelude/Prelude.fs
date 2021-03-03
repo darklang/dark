@@ -569,6 +569,9 @@ module Json =
 
     let _settings =
       (let settings = JsonSerializerSettings()
+       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
+       settings.TypeNameHandling <- TypeNameHandling.None
+       settings.DateParseHandling <- DateParseHandling.None
        settings.Converters.Add(BigIntConverter())
        settings.Converters.Add(TLIDConverter())
        settings.Converters.Add(FSharpListConverter())
