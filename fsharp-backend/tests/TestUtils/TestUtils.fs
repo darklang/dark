@@ -127,16 +127,18 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
       values)
 
 // Allow reusing property-test definitions with test cases found by fuzzing
-let testListUsingProperty (name : string) (prop : 'a -> bool) (list : 'a list) =
+let testListUsingProperty
+  (name : string)
+  (prop : 'a -> bool)
+  (list : (string * 'a) list)
+  =
   testList
     name
     (List.map
-      (fun testCase ->
-        testTask $"{name} {testCase}" { return (Expect.isTrue (prop testCase) "") })
+      (fun (doc, testCase) ->
+        let doc = if doc = "" then testCase.ToString() else doc
+        testTask $"{name} {doc}" { return (Expect.isTrue (prop testCase) "") })
       list)
-
-
-
 
 open LibExecution.RuntimeTypes
 
@@ -320,11 +322,7 @@ let sampleDvals : List<string * Dval> =
     ("float", DFloat 7.2)
     ("float2", DFloat -7.2)
     ("float3", DFloat 15.0)
-    ("float4", DFloat -15.0)
-    // Special floats
-    ("float zero", DFloat 0.0)
-    ("float negative zero", DFloat -0.0)
-    ("float nan", DFloat nan) ]
+    ("float4", DFloat -15.0) ]
   @ (List.map (fun (doc, float) -> ($"float {doc}", DFloat float)) interestingFloats)
     @ [ ("true", DBool true)
         ("false", DBool false)

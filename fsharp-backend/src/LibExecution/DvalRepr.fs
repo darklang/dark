@@ -748,13 +748,6 @@ let ofInternalRoundtrippableV0 (str : string) : Dval =
 // -------------------------
 // Queryable - for the DB *)
 // -------------------------
-let toInternalQueryableV0 (dval : Dval) : string =
-  writeJson (fun w -> unsafeDvalToJsonValueV0 w false dval)
-
-
-let ofInternalQueryableV0 (str : string) : Dval =
-  str |> parseJson |> unsafeDvalOfJsonV0
-
 
 let toInternalQueryableV1 (dvalMap : DvalMap) : string =
   writeJson

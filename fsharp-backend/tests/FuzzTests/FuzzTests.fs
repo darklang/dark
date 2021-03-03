@@ -233,7 +233,7 @@ module OCamlInterop =
       tp "roundtripping OCamlInteropYojsonHandler" yojsonHandlerRoundtrip
       tp "roundtripping OCamlInteropYojsonExpr" yojsonExprRoundtrip ]
 
-module RoundtrippableDval =
+module Roundtrippable =
   type Generator =
     static member String() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
@@ -291,48 +291,42 @@ module Queryable =
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive() |> Arb.filter DvalRepr.isQueryableDval
 
-  let v0Roundtrip (dv : RT.Dval) : bool =
-    dv
-    |> DvalRepr.toInternalQueryableV0
-    |> DvalRepr.ofInternalQueryableV0
-    |> dvalEquality dv
-
-  let v1Roundtrip (dvm : RT.DvalMap) : bool =
+  let v1Roundtrip (dv : RT.Dval) : bool =
+    let dvm = (Map.ofList [ "field", dv ])
     dvm
     |> DvalRepr.toInternalQueryableV1
     |> DvalRepr.ofInternalQueryableV1
     |> dvalEquality (RT.DObj dvm)
 
-  let isInteroperableV0 dv =
+  let isInteroperableV1 (dv : RT.Dval) =
+    let dvm = (Map.ofList [ "field", dv ])
     OCamlInterop.isInteroperable
-      OCamlInterop.toInternalQueryableV0
-      OCamlInterop.ofInternalQueryableV0
-      DvalRepr.toInternalQueryableV0
-      DvalRepr.ofInternalQueryableV0
+      (OCamlInterop.toInternalQueryableV1)
+      (OCamlInterop.ofInternalQueryableV1)
+      (function
+      | RT.DObj dvm -> DvalRepr.toInternalQueryableV1 dvm
+      | _ -> failwith "not an obj")
+      (DvalRepr.ofInternalQueryableV1)
       dvalEquality
-      dv
+      (RT.DObj dvm)
 
-  let isInteroperableV1 (dvm : RT.DvalMap) =
-    let unwrap fn str =
-      match fn str with
-      | RT.DObj dvm -> dvm
-      | _ -> failwith "not a dobj"
-
-    let wrap fn dvm = fn (RT.DObj dvm)
-
+  // OCaml v0 vs F# v1
+  let isInteroperableV0 (dv : RT.Dval) =
+    let dvm = (Map.ofList [ "field", dv ])
     OCamlInterop.isInteroperable
-      (wrap OCamlInterop.toInternalQueryableV1)
-      (unwrap OCamlInterop.ofInternalQueryableV1)
-      DvalRepr.toInternalQueryableV1
-      (unwrap DvalRepr.ofInternalQueryableV1)
-      dvalMapEquality
-      dvm
+      (OCamlInterop.toInternalQueryableV0)
+      (OCamlInterop.ofInternalQueryableV0)
+      (function
+      | RT.DObj dvm -> DvalRepr.toInternalQueryableV1 dvm
+      | _ -> failwith "not an obj")
+      (DvalRepr.ofInternalQueryableV1)
+      dvalEquality
+      (RT.DObj dvm)
 
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
-    [ tp "roundtripping InternalQueryable v0" v0Roundtrip
-      tp "roundtripping InternalQueryable v1" v1Roundtrip
+    [ tp "roundtripping InternalQueryable v1" v1Roundtrip
       tp "interoperable v0" isInteroperableV0
       tp "interoperable v1" isInteroperableV1 ]
 
@@ -400,8 +394,6 @@ module EndUserReadable =
 
 
 module PrettyMachineJson =
-  open FsCheck
-
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
@@ -414,7 +406,7 @@ module PrettyMachineJson =
            | RT.DFnVal _ -> false
            | _ -> true)
 
-  let equalsParsed (dv : RT.Dval) : bool =
+  let equalsOCaml (dv : RT.Dval) : bool =
     let actual =
       dv
       |> DvalRepr.toPrettyMachineJsonStringV1
@@ -433,7 +425,7 @@ module PrettyMachineJson =
     [ testPropertyWithGenerator
         typeof<Generator>
         "roundtripping prettyMachineJson"
-        equalsParsed ]
+        equalsOCaml ]
 
 
 let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
@@ -442,7 +434,7 @@ let knownGood =
   testList
     "known good"
     (List.concat [ FQFnName.tests
-                   RoundtrippableDval.tests
+                   Roundtrippable.tests
                    Queryable.tests
                    DeveloperRepr.tests
                    EndUserReadable.tests

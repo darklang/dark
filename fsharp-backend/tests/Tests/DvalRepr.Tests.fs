@@ -29,42 +29,14 @@ let testInternalRoundtrippableDoesntCareAboutOrder =
 
 
 let testDvalRoundtrippableRoundtrips =
-  testList
-    "roundtrippable"
-    [ testList
-        "roundtrippable dvals roundtrip"
-        (sampleDvals
-         |> List.filter
-              (function
-              | _, RT.DFnVal _ -> false
-              // | _, RT.DPassword _ -> false // FSTODO
-              | _ -> true)
-         |> List.map
-              (fun (name, dv) ->
-                test $"{name}: {dv}" {
-                  Expect.equalDval
-                    dv
-                    (dv
-                     |> DvalRepr.toInternalRoundtrippableV0
-                     |> DvalRepr.ofInternalRoundtrippableV0)
-                    "full"
-
-                  Expect.equal
-                    (dv |> DvalRepr.toInternalRoundtrippableV0)
-                    (dv
-                     |> DvalRepr.toInternalRoundtrippableV0
-                     |> DvalRepr.ofInternalRoundtrippableV0
-                     |> DvalRepr.toInternalRoundtrippableV0)
-                    "extra"
-                }))
-      testMany
-        "special roundtrippable dvals roundtrip"
-        FuzzTests.All.RoundtrippableDval.roundtrip
-        [ RT.DObj(
-            Map.ofList [ ("", RT.DFloat 1.797693135e+308)
-                         ("a", RT.DErrorRail(RT.DFloat nan)) ]
-          ),
-          true ] ]
+  testMany
+    "special roundtrippable dvals roundtrip"
+    FuzzTests.All.Roundtrippable.roundtrip
+    [ RT.DObj(
+        Map.ofList [ ("", RT.DFloat 1.797693135e+308)
+                     ("a", RT.DErrorRail(RT.DFloat nan)) ]
+      ),
+      true ]
 
 
 let testDvalOptionQueryableSpecialCase =
@@ -77,52 +49,6 @@ let testDvalOptionQueryableSpecialCase =
       "extra"
   }
 
-let testDvalUserDBV1Migration =
-  let forward v =
-    // Saved with old version, can be read with new version *)
-    v |> DvalRepr.toInternalQueryableV0 |> DvalRepr.ofInternalQueryableV1
-
-  let backwards v =
-    // Saved with new version, can be read with old version
-    v
-    |> (function
-    | RT.DObj dvm -> dvm
-    | _ -> failwith "dobj only here")
-    |> DvalRepr.toInternalQueryableV1
-    |> DvalRepr.ofInternalQueryableV0
-
-  sampleDvals
-  // These are the field types allowed in the DB
-  |> List.filter
-       (fun (_, dv) ->
-         match dv with
-         | RT.DInt _
-         | RT.DFloat _
-         | RT.DBool _
-         | RT.DNull
-         | RT.DStr _
-         | RT.DList _
-         | RT.DDate _
-         // | DPassword _
-         | RT.DUuid _
-         | RT.DObj _ -> true
-         | RT.DChar _
-         | RT.DDB _
-         | RT.DError _
-         | RT.DIncomplete _
-         | RT.DErrorRail _
-         | RT.DOption _
-         | RT.DResult _
-         | RT.DFnVal _
-         | RT.DHttpResponse _
-         | RT.DBytes _ -> false)
-  |> fun fields ->
-       test $"dbv1migration" {
-         let dv = RT.DObj(Map.ofList fields)
-         Expect.equalDval dv (forward dv) $"forward"
-         Expect.equalDval dv (backwards dv) $"backwards"
-       }
-
 let testToDeveloperRepr =
   testList
     "toDeveloperRepr"
@@ -134,11 +60,7 @@ let testToDeveloperRepr =
           RT.DFloat(-0.0), "-0."
           RT.DFloat(infinity), "inf"
           RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
-          RT.DList [ RT.DNull ], "[ \n  null\n]" ]
-      testMany
-        "equalsOCaml"
-        FuzzTests.All.DeveloperRepr.equalsOCaml
-        (List.map (fun (_, dv) -> (dv, true)) TestUtils.sampleDvals) ]
+          RT.DList [ RT.DNull ], "[ \n  null\n]" ] ]
 
 let testToEnduserReadable =
   testList
@@ -156,11 +78,37 @@ let testToEnduserReadable =
           RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
           RT.DHttpResponse(RT.Redirect("some url"), RT.DNull), "302 some url\nnull"
           RT.DHttpResponse(RT.Response(0, [ "a header", "something" ]), RT.DNull),
-          "0 { a header: something }\nnull" ]
-      testMany
-        "equalsOCaml"
-        FuzzTests.All.EndUserReadable.equalsOCaml
-        (List.map (fun (_, dv) -> (dv, true)) TestUtils.sampleDvals) ]
+          "0 { a header: something }\nnull" ] ]
+
+module F = FuzzTests.All
+
+let allRoundtrips =
+  let t = testListUsingProperty
+  let all = TestUtils.sampleDvals
+  let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
+
+  testList
+    "roundtrips"
+    [ t
+        "roundtrippable"
+        F.Roundtrippable.roundtrip
+        (dvs (DvalRepr.isRoundtrippableDval false))
+      t
+        "roundtrippable interop"
+        F.Roundtrippable.isInteroperableV0
+        (dvs (DvalRepr.isRoundtrippableDval false))
+      t "queryable v0" F.Queryable.v1Roundtrip (dvs DvalRepr.isQueryableDval)
+      t
+        "queryable interop v0"
+        F.Queryable.isInteroperableV0
+        (dvs DvalRepr.isQueryableDval)
+      t
+        "queryable interop v1"
+        F.Queryable.isInteroperableV1
+        (dvs DvalRepr.isQueryableDval)
+      t "enduserReadable" F.EndUserReadable.equalsOCaml all
+      t "developerRepr" F.DeveloperRepr.equalsOCaml all
+      t "prettyMachineJson" F.PrettyMachineJson.equalsOCaml all ]
 
 // let testDateMigrationHasCorrectFormats () =
 //   let str = "2019-03-08T08:26:14Z" in
@@ -277,4 +225,4 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
-      testDvalUserDBV1Migration ]
+      allRoundtrips ]

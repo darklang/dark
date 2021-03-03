@@ -122,6 +122,6 @@ type RowReader with
   member this.id(name : string) : id = this.int64 name |> uint64
 
 // member this.queryableDval(name : string) =
-//   this.string name |> LibExecution.DvalRepr.ofInternalQueryableV0
+//   this.string name |> LibExecution.DvalRepr.ofInternalQueryableV1
 // member this.roundtrippableDval(name : string) =
 //   this.string name |> LibExecution.DvalRepr.ofInternalRoundtrippableV0
