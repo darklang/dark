@@ -17,9 +17,10 @@
  DB.get_v1_ster "hello" X) = { x = null }
 
 [test.db roundtrip password] with DB Passwords
+// Each call to hash gets a different but compatible answer
 (let pw = Password.hash_v0 "password" in
  let _ = DB.add_v0 { password = pw } Passwords in
- (List.head_v0 (DB.getAll_v2 Passwords)).password) = Password.hash_v0 "password"
+ (List.head_v0 (DB.getAll_v2 Passwords)).password = pw) = true
 
 // ------------
 // Errors
