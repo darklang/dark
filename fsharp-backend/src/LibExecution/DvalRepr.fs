@@ -321,9 +321,9 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DFnVal _ ->
         // See docs/dblock-serialization.ml
         "<Block>"
-    // | DPassword _ ->
-    //     (* redacting, do not unredact *)
-    //     "<Password>"
+    | DPassword _ ->
+        // redacting, do not unredact
+        "<Password>"
     | DObj _
     | DList _ -> toNestedString nestedreprfn dv
     | DErrorRail d ->
@@ -384,9 +384,11 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
   | DHttpResponse (h, response) -> writeDval response
   | DDB dbName -> w.WriteValue dbName
   | DDate date -> w.WriteValue(date.toIsoString ())
-  // FSTODO
-  // | DPassword hashed ->
-  //     `Assoc [("Error", `String "Password is redacted")]
+  | DPassword hashed ->
+      w.writeObject
+        (fun () ->
+          w.WritePropertyName "Error"
+          w.WriteValue "Password is redacted")
   | DUuid uuid -> w.WriteValue uuid
   | DOption opt ->
       match opt with
@@ -457,8 +459,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
       | [ ("type", JString "date"); ("value", JString v) ] ->
           DDate(System.DateTime.ofIsoString v)
       | [ ("type", JString "password"); ("value", JString v) ] ->
-          // v |> B64.decode |> Bytes.of_string |> DPassword
-          fstodo "password"
+          v |> base64Decode |> Password |> DPassword
       | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
       | [ ("type", JString "bytes"); ("value", JString v) ] ->
           // Note that the OCaml version uses the non-url-safe b64 encoding here
@@ -527,8 +528,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       | [ ("type", JString "date"); ("value", JString v) ] ->
           DDate(System.DateTime.ofIsoString v)
       | [ ("type", JString "password"); ("value", JString v) ] ->
-          // v |> B64.decode |> Bytes.of_string |> DPassword
-          fstodo "password"
+          v |> base64Decode |> Password |> DPassword
       | [ ("type", JString "error"); ("value", JString v) ] -> DError(SourceNone, v)
       | [ ("type", JString "bytes"); ("value", JString v) ] ->
           // Note that the OCaml version uses the non-url-safe b64 encoding here
@@ -654,11 +654,11 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
               writeDval hdv))
   | DDB dbname -> wrapStringValue "datastore" dbname
   | DDate date -> wrapStringValue "date" (date.toIsoString ())
-  // | DPassword hashed ->
-  //     if redact then
-  //       wrap_user_type J.nil
-  //     else
-  //       hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
+  | DPassword (Password hashed) ->
+      if redact then
+        wrapNullValue "password"
+      else
+        hashed |> base64Encode |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (uuid.ToString())
   | DOption opt ->
       (match opt with
@@ -719,7 +719,7 @@ let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
   | DList _ -> true
   | DObj _ -> true
   | DDate _ -> true
-  // | DPassword _ -> true // FSTODO
+  | DPassword _ -> true
   | DUuid _ -> true
   | DBytes _ -> true
   | DHttpResponse _ -> true
@@ -748,13 +748,6 @@ let ofInternalRoundtrippableV0 (str : string) : Dval =
 // -------------------------
 // Queryable - for the DB *)
 // -------------------------
-let toInternalQueryableV0 (dval : Dval) : string =
-  writeJson (fun w -> unsafeDvalToJsonValueV0 w false dval)
-
-
-let ofInternalQueryableV0 (str : string) : Dval =
-  str |> parseJson |> unsafeDvalOfJsonV0
-
 
 let toInternalQueryableV1 (dvalMap : DvalMap) : string =
   writeJson
@@ -780,7 +773,7 @@ let isQueryableDval (dval : Dval) : bool =
   | DList _ -> true
   | DObj _ -> true
   | DDate _ -> true
-  // | DPassword _ -> true // FSTODO
+  | DPassword _ -> true
   | DUuid _ -> true
   // TODO support
   | DChar _ -> false
@@ -820,8 +813,8 @@ let ofInternalQueryableV1 (str : string) : Dval =
         match fields with
         | [ ("type", JString "date"); ("value", JString v) ] ->
             DDate(System.DateTime.ofIsoString v)
-        | [ ("type", JString "password"); ("value", JString v) ] -> fstodo "password"
-        // v |> B64.decode |> Bytes.of_string |> DPassword
+        | [ ("type", JString "password"); ("value", JString v) ] ->
+            v |> base64Decode |> Password |> DPassword
         | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
         | _ ->
             fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
@@ -899,9 +892,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
 //         Bytes.to_string bytes
 //   in
 //   reprfn dval
-//
-//
-// let to_enduser_readable_html_v0 dv = to_enduser_readable_text_v0 dv
+
 
 let rec toDeveloperReprV0 (dv : Dval) : string =
   let rec toRepr_ (indent : int) (dv : Dval) : string =
@@ -914,8 +905,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     let justtipe = $"<{typename}>"
 
     match dv with
-    // | DPassword _ ->
-    //     "<password>"
+    | DPassword _ -> "<password>"
     | DStr s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
     | DInt i -> i.ToString()
@@ -961,67 +951,7 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 
   toRepr_ 0 dv
 
-//
-// let to_pretty_machine_yojson_v1 dval =
-//   let rec recurse dv =
-//     match dv with
-//     (* basic types *)
-//     | DInt i ->
-//         Dint.to_yojson i
-//     | DFloat f ->
-//         `Float f
-//     | DBool b ->
-//         `Bool b
-//     | DNull ->
-//         `Null
-//     | DStr s ->
-//         Unicode_string.to_yojson s
-//     | DList l ->
-//         `List (List.map l recurse)
-//     | DObj o ->
-//         o
-//         |> DvalMap.to_list
-//         |> List.map ~f:(fun (k, v) -> (k, recurse v))
-//         |> fun x -> `Assoc x
-//     | DBlock _ ->
-//         (* See docs/dblock-serialization.ml *)
-//         `Null
-//     | DIncomplete _ ->
-//         `Null
-//     | DCharacter c ->
-//         `String (Unicode_string.Character.to_string c)
-//     | DError (_, msg) ->
-//         `Assoc [("Error", `String msg)]
-//     | DResp (h, hdv) ->
-//         recurse hdv
-//     | DDB dbname ->
-//         `String dbname
-//     | DDate date ->
-//         `String (Util.isostring_of_date date)
-//     | DPassword hashed ->
-//         `Assoc [("Error", `String "Password is redacted")]
-//     | DUuid uuid ->
-//         `String (Uuidm.to_string uuid)
-//     | DOption opt ->
-//       (match opt with OptNothing -> `Null | OptJust dv -> recurse dv)
-//     | DErrorRail dv ->
-//         recurse dv
-//     | DResult res ->
-//       ( match res with
-//       | ResOk dv ->
-//           recurse dv
-//       | ResError dv ->
-//           `Assoc [("Error", recurse dv)] )
-//     | DBytes bytes ->
-//         `String (bytes |> RawBytes.to_string |> B64.encode)
-//   in
-//   recurse dval
-//
-//
-// let to_pretty_machine_json_v1 dval : string =
-//   to_pretty_machine_yojson_v1 dval |> Yojson.Safe.pretty_to_string
-//
-//
+
 // let of_unknown_json_v0 str =
 //   try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 //   with e ->

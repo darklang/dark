@@ -169,6 +169,7 @@ echo "Run the build"
 # -p 9000:9000 to expose the F# api server
 # -p 9001:9001 to expose the F# bwd server
 # -p 8000:8000 to expose the OCaml backend server
+# -cap-add & -secururity-opt to attach a gdb/strace to .net code
 $FSWATCH | docker run \
              --init \
              --rm \
@@ -192,10 +193,8 @@ $FSWATCH | docker run \
              -p 2345:2345 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
              -w /home/dark/app \
+             --cap-add=ALL \
+             --security-opt seccomp=unconfined \
              $MOUNTS \
              dark \
              scripts/support/build-server "${@}"
-
-# To attach a gdb/strace to .net code, you'll need these
-# --cap-add=ALL \
-# --security-opt seccomp=unconfined \

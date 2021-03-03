@@ -127,16 +127,18 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
       values)
 
 // Allow reusing property-test definitions with test cases found by fuzzing
-let testListUsingProperty (name : string) (prop : 'a -> bool) (list : 'a list) =
+let testListUsingProperty
+  (name : string)
+  (prop : 'a -> bool)
+  (list : (string * 'a) list)
+  =
   testList
     name
     (List.map
-      (fun testCase ->
-        testTask $"{name} {testCase}" { return (Expect.isTrue (prop testCase) "") })
+      (fun (doc, testCase) ->
+        let doc = if doc = "" then testCase.ToString() else doc
+        testTask $"{name} {doc}" { return (Expect.isTrue (prop testCase) "") })
       list)
-
-
-
 
 open LibExecution.RuntimeTypes
 
@@ -205,6 +207,7 @@ module Expect =
     | DNull, _
     | DStr _, _
     | DChar _, _
+    | DPassword _, _
     | DFnVal _, _
     | DIncomplete _, _
     | DError _, _
@@ -259,6 +262,7 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   // All others can be directly compared
   | DInt _, _
   | DDate _, _
+  | DPassword _, _
   | DBool _, _
   | DFloat _, _
   | DNull, _
@@ -320,11 +324,7 @@ let sampleDvals : List<string * Dval> =
     ("float", DFloat 7.2)
     ("float2", DFloat -7.2)
     ("float3", DFloat 15.0)
-    ("float4", DFloat -15.0)
-    // Special floats
-    ("float zero", DFloat 0.0)
-    ("float negative zero", DFloat -0.0)
-    ("float nan", DFloat nan) ]
+    ("float4", DFloat -15.0) ]
   @ (List.map (fun (doc, float) -> ($"float {doc}", DFloat float)) interestingFloats)
     @ [ ("true", DBool true)
         ("false", DBool false)
@@ -360,7 +360,7 @@ let sampleDvals : List<string * Dval> =
         ("httpresponse", DHttpResponse(Response(200, []), DStr "success"))
         ("db", DDB "Visitors")
         ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
-        // ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
+        ("password", DPassword(Password(toBytes "somebytes")))
         ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
         ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
         ("option", DOption None)

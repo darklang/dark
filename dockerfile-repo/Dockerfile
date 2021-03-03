@@ -387,3 +387,5 @@ ENV CARGO_HOME=/home/dark/.cargo
 USER dark
 
 RUN sudo apt update && sudo apt install -y lldb htop
+RUN dotnet tool install -g dotnet-sos
+RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit

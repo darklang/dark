@@ -536,7 +536,7 @@ let fns : List<BuiltInFn> =
         "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
       fn =
         (function
-        | _, [ DStr s ] -> Prelude.base64UrlEncode s |> DStr |> Value
+        | _, [ DStr s ] -> s |> toBytes |> base64UrlEncode |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

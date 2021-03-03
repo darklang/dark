@@ -203,15 +203,11 @@ and Dval =
   // - an if with an derrorrail in an subexpression is a derrorrail
   // -  a list containing a derrorrail is a derrorail
   | DErrorRail of Dval
-
-
-
   (* user types: awaiting a better type system *)
   | DHttpResponse of DHTTP * Dval
   | DDB of string
   | DDate of System.DateTime
-  // FSTODO
-  (* | DPassword of PasswordBytes.t *)
+  | DPassword of Password
   | DUuid of System.Guid
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
@@ -347,7 +343,7 @@ module Dval =
     | DHttpResponse (_, dv) -> THttpResponse(toType dv)
     | DDB _ -> TDB TAny
     | DDate _ -> TDate
-    // | DPassword _ -> TPassword
+    | DPassword _ -> TPassword
     | DUuid _ -> TUuid
     | DOption None -> TOption TAny
     | DOption (Some v) -> TOption(toType v)

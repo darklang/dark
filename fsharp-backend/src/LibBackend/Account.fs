@@ -289,7 +289,7 @@ let authenticate
   |> Sql.parameters [ "usernameOrEmail", Sql.string usernameOrEmail ]
   |> Sql.executeRowAsync
        (fun read ->
-         let dbHash = read.string "password" |> base64Decode
+         let dbHash = read.string "password" |> base64Decode |> ofBytes
 
          if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
            Some(read.string "username")

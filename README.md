@@ -153,6 +153,25 @@ Chrome Dev Tools instead of their JS representation. From within Chrome
 Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
 Formatters".
 
+## Debugging dotnet
+
+### REPL (fsi)
+
+You can get a REPL with all of the Dark libraries loaded by running:
+
+- `scripts/dotnet-fsi`
+
+### Segfaults and crashes
+
+When dotnet crashes, you can debug it by running:
+
+- `lldb -- [your command]
+
+In LLDB, you can use dotnet's SOS plugin to read the stack, values, etc. See
+https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension
+for instructions. The plugin is automatically loaded in lldb in the dev
+container.
+
 ## Production Services
 
 The app is split into `backend/` and `client/`. Part of the backend is used in

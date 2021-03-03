@@ -10,6 +10,24 @@ function ctrl_c() {
   exit 1
 }
 
+DEBUG=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --debug)
+    DEBUG=true
+    shift
+    ;;
+    *)
+    echo "Unexpected argument: $i"
+    exit 1
+    ;;
+  esac
+done
+
+
+
 ./scripts/support/wait-for-background-services postgresql
 dropdb --if-exists testdb
 createdb testdb
@@ -20,9 +38,19 @@ cp "/home/dark/app/_build/default/backend/bin/libserialization.so" "${BINPATH}"
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the
 # spinner and not running the tests in parallel.
-cd fsharp-backend
-DARK_CONFIG_DB_HOST=localhost \
-DARK_CONFIG_DB_DBNAME=testdb \
-DARK_CONFIG_DB_USER=dark \
-DARK_CONFIG_DB_PASSWORD=eapnsdc \
-Build/out/Tests --no-spinner --sequenced "${@}"
+
+if [[ "$DEBUG" == "true" ]]; then
+  cd fsharp-backend
+  DARK_CONFIG_DB_HOST=localhost \
+  DARK_CONFIG_DB_DBNAME=testdb \
+  DARK_CONFIG_DB_USER=dark \
+  DARK_CONFIG_DB_PASSWORD=eapnsdc \
+  lldb -- Build/out/Tests --no-spinner --sequenced "${@}"
+else
+  cd fsharp-backend
+  DARK_CONFIG_DB_HOST=localhost \
+  DARK_CONFIG_DB_DBNAME=testdb \
+  DARK_CONFIG_DB_USER=dark \
+  DARK_CONFIG_DB_PASSWORD=eapnsdc \
+  Build/out/Tests --no-spinner --sequenced "${@}"
+fi

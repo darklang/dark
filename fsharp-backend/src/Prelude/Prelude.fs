@@ -107,8 +107,7 @@ let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes i
 
 let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
 
-let base64Encode (input : string) : string =
-  input |> toBytes |> System.Convert.ToBase64String
+let base64Encode (input : byte []) : string = input |> System.Convert.ToBase64String
 
 // Convert a base64 encoded string to one that is url-safe
 let base64ToUrlEncoded (str : string) : string =
@@ -123,11 +122,11 @@ let base64FromUrlEncoded (str : string) : string =
   else if length % 4 = 3 then $"{initial}="
   else initial
 
-let base64UrlEncode (str : string) : string =
-  str |> base64Encode |> base64ToUrlEncoded
+let base64UrlEncode (bytes : byte []) : string =
+  bytes |> base64Encode |> base64ToUrlEncoded
 
-let base64Decode (encoded : string) : string =
-  encoded |> System.Convert.FromBase64String |> ofBytes
+let base64Decode (encoded : string) : byte [] =
+  encoded |> System.Convert.FromBase64String
 
 let sha1digest (input : string) : byte [] =
   use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
@@ -370,6 +369,10 @@ type tlid = uint64
 
 type id = uint64
 
+// This is important to prevent auto-serialization accidentally leaking this,
+// though it never should anyway
+type Password = Password of byte array
+
 // ----------------------
 // Json auto-serialization
 // ----------------------
@@ -516,6 +519,22 @@ module Json =
       override _.WriteJson(writer : JsonWriter, value : tlid, _ : JsonSerializer) =
         writer.WriteValue(value)
 
+    type PasswordConverter() =
+      inherit JsonConverter<Password>()
+
+      override _.ReadJson(reader : JsonReader, _, _, _, _) =
+        failwith "unsupported deserialization of password"
+        Password(toBytes "password should never be read here")
+
+      override _.WriteJson
+        (
+          writer : JsonWriter,
+          value : Password,
+          _ : JsonSerializer
+        ) =
+        failwith "unsupported serialization of password"
+        writer.WriteValue "<password should never be written here>"
+
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
@@ -569,8 +588,15 @@ module Json =
 
     let _settings =
       (let settings = JsonSerializerSettings()
+       // This might be a potential vulnerability, turn it off anyway
+       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
+       // This is a potential vulnerability
+       settings.TypeNameHandling <- TypeNameHandling.None
+       // dont deserialize date-looking string as dates
+       settings.DateParseHandling <- DateParseHandling.None
        settings.Converters.Add(BigIntConverter())
        settings.Converters.Add(TLIDConverter())
+       settings.Converters.Add(PasswordConverter())
        settings.Converters.Add(FSharpListConverter())
        settings.Converters.Add(FSharpTupleConverter())
        settings.Converters.Add(OCamlRawBytesConverter())
