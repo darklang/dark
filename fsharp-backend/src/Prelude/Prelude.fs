@@ -107,8 +107,7 @@ let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes i
 
 let ofBytes (input : byte array) : string = System.Text.Encoding.UTF8.GetString input
 
-let base64Encode (input : string) : string =
-  input |> toBytes |> System.Convert.ToBase64String
+let base64Encode (input : byte []) : string = input |> System.Convert.ToBase64String
 
 // Convert a base64 encoded string to one that is url-safe
 let base64ToUrlEncoded (str : string) : string =
@@ -123,11 +122,11 @@ let base64FromUrlEncoded (str : string) : string =
   else if length % 4 = 3 then $"{initial}="
   else initial
 
-let base64UrlEncode (str : string) : string =
-  str |> base64Encode |> base64ToUrlEncoded
+let base64UrlEncode (bytes : byte []) : string =
+  bytes |> base64Encode |> base64ToUrlEncoded
 
-let base64Decode (encoded : string) : string =
-  encoded |> System.Convert.FromBase64String |> ofBytes
+let base64Decode (encoded : string) : byte [] =
+  encoded |> System.Convert.FromBase64String
 
 let sha1digest (input : string) : byte [] =
   use sha1 = new System.Security.Cryptography.SHA1CryptoServiceProvider()
