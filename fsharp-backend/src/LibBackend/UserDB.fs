@@ -13,6 +13,7 @@ open Tablecloth
 
 module PT = ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Errors = LibExecution.Errors
 
 // Bump this if you make a breaking change to the underlying data format, and
 // are migrating user data to the new version
@@ -21,20 +22,6 @@ module RT = LibExecution.RuntimeTypes
 let currentDarkVersion = 0
 
 type Uuid = System.Guid
-
-// -------------------------
-// actual DB stuff *)
-// -------------------------
-let typeErrorMsg
-  (colName : string)
-  (expected : RT.DType)
-  (actual : RT.Dval)
-  : string =
-  let expected = LibExecution.DvalRepr.typeToDeveloperReprV0 expected
-  let actualType = LibExecution.DvalRepr.prettyTypename actual
-  $"Expected a value of type {expected} but got a {actualType} ({actual}) in column {colName}"
-
-
 
 let rec queryExactFields
   (state : RT.ExecutionState)
@@ -112,16 +99,13 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         // FSTODO
         // | RT.TDbList _, RT.DList _ ->
         //     value
-        // FSTODO
-        // | RT.TPassword, RT.DPassword _ ->
-        //     value
+        | RT.TPassword, RT.DPassword _ -> value
         | RT.TUuid, RT.DUuid _ -> value
         | RT.TDict _, RT.DObj _ -> value
         | RT.TRecord _, RT.DObj _ -> value
         | _, RT.DNull -> value (* allow nulls for now *)
         | expectedType, valueOfActualType ->
-            // FSTODO can be shown to users
-            failwith (typeErrorMsg key expectedType valueOfActualType))
+            Errors.throw (Errors.typeErrorMsg key expectedType valueOfActualType))
       obj
   else
     let missingKeys = Set.difference tipeKeys objKeys in
@@ -139,11 +123,11 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
       + "]"
 
     match (Set.isEmpty missingKeys, Set.isEmpty extraKeys) with
-    | false, false -> failwith $"{missingMsg} & {extraMsg}"
-    | false, true -> failwith missingMsg
-    | true, false -> failwith extraMsg
+    | false, false -> Errors.throw $"{missingMsg} & {extraMsg}"
+    | false, true -> Errors.throw missingMsg
+    | true, false -> Errors.throw extraMsg
     | true, true ->
-        failwith
+        Errors.throw
           "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 

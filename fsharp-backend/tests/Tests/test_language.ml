@@ -1,48 +1,4 @@
 (* ---------------- *)
-(* Errorrail *)
-(* ---------------- *)
-
-let t_errorrail_toplevel () =
-  check_dval
-    "Errorrail goes to 404"
-    (DResp (Response (404, []), Dval.dstr_of_string_exn "Not found"))
-    (exec_handler
-       (pipe
-          (list [])
-          [ fn "List::head_v1" ~ster:Rail [pipeTarget]
-          ; binop "+" pipeTarget (int 3)
-          ; lambda
-              ["x"]
-              (if'
-                 (binop ">" (binop "+" (var "x") (int 4)) (int 1))
-                 (var "x")
-                 (binop "+" (int 1) (var "x"))) ])) ;
-  check_dval
-    "No errorrail goes to option"
-    (DOption OptNothing)
-    (exec_handler (fn "List::head_v1" [list []])) ;
-  ()
-
-
-let t_errorrail_userfn () =
-  check_dval
-    "userfn unwraps"
-    (DOption OptNothing)
-    (exec_userfn
-       (pipe
-          (list [])
-          [ fn "List::head_v1" ~ster:Rail [pipeTarget]
-          ; binop "+" pipeTarget (int 3)
-          ; lambda
-              ["x"]
-              (if'
-                 (binop ">" (binop "+" (var "x") (int 4)) (int 1))
-                 (var "x")
-                 (binop "+" (int 1) (var "x"))) ])) ;
-  ()
-
-
-(* ---------------- *)
 (* Type checking *)
 (* ---------------- *)
 let t_basic_typecheck_works_happy () =

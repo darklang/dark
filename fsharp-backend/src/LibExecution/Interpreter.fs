@@ -108,6 +108,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 Map.tryFind field o |> Option.defaultValue DNull
           | DIncomplete _ -> obj
           | DErrorRail _ -> obj
+          | DError _ -> obj // differs from ocaml, but produces an Error either way
           | x ->
               let actualType =
                 match Dval.toType x with
@@ -434,7 +435,6 @@ and applyFnVal
                   taskv {
                     // FSTODO: if an argument is an error rail, return it
                     try
-
                       // FSTODO: all the behaviour in AST.exec_fn
                       match fn.fn with
                       | StdLib fnval ->
