@@ -68,9 +68,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DPassword (Password existingpw); DStr rawpw ] ->
-            debuG "existingpw" existingpw
-            debuG "rawpw" rawpw
-
             Sodium.PasswordHash.ArgonHashStringVerify(existingpw, toBytes rawpw)
             |> DBool
             |> Value
