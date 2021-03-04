@@ -1,11 +1,12 @@
 [db.X { "x" : "Str" }]
+[db.Insensitive { "cOlUmNnAmE" : "Str" }]
 [db.XY { "x" : "Str", "y": "Str" }]
 [db.SortedX { "x" : "Str", "sortBy": "Int" }]
 [db.Timestamp { "ts" : "Date"}]
 [db.Passwords { "password" : "Password"}]
 
 // ------------
-// Date Functions
+// Roundtripping Functions
 // ------------
 [test.dbnullroundtrip] with DB X
 (let old = { x = null } in
@@ -15,6 +16,11 @@
 [test.dbnullroundtrip2] with DB X
 (let _ = DB.set_v1 { x = null } "hello" X in
  DB.get_v1_ster "hello" X) = { x = null }
+
+[test.db case insensitive roundtrip] with DB Insensitive
+(let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
+ DB.get_v1_ster "hello" Insensitive) = { cOlUmNnAmE = "some value" }
+
 
 [test.db roundtrip password] with DB Passwords
 // Each call to hash gets a different but compatible answer
