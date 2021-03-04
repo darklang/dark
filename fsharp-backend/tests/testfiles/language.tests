@@ -175,11 +175,16 @@ Ok blank = blank
 [tests.error]
 List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
 
+[fn.errorRailFn arg]
+[] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))
+
+
 [tests.errorrail]
 Dict.get_v1 {} "i" = Nothing
 Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
 ([5] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 8
 ([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailNothing_v0
+(errorRailFn null) = Nothing
 
 [tests.errorrailPropagation]
 List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
