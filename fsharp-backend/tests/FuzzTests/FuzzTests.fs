@@ -8,6 +8,7 @@ open Expecto
 open Expecto.ExpectoFsCheck
 
 open Prelude
+open Prelude.Tablecloth
 open TestUtils
 
 module PT = LibBackend.ProgramTypes
@@ -293,6 +294,7 @@ module Queryable =
 
   let v1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])
+
     dvm
     |> DvalRepr.toInternalQueryableV1
     |> DvalRepr.ofInternalQueryableV1
@@ -300,6 +302,7 @@ module Queryable =
 
   let isInteroperableV1 (dv : RT.Dval) =
     let dvm = (Map.ofList [ "field", dv ])
+
     OCamlInterop.isInteroperable
       (OCamlInterop.toInternalQueryableV1)
       (OCamlInterop.ofInternalQueryableV1)
@@ -313,6 +316,7 @@ module Queryable =
   // OCaml v0 vs F# v1
   let isInteroperableV0 (dv : RT.Dval) =
     let dvm = (Map.ofList [ "field", dv ])
+
     OCamlInterop.isInteroperable
       (OCamlInterop.toInternalQueryableV0)
       (OCamlInterop.ofInternalQueryableV0)
@@ -427,6 +431,30 @@ module PrettyMachineJson =
         "roundtripping prettyMachineJson"
         equalsOCaml ]
 
+module ExecutePureFunctions =
+  open LibExecution.Shortcuts
+
+  let test =
+    testTask "execute_pure_function" {
+      let dv0 = RT.DInt 4I
+      let dv1 = RT.DInt 1I
+      let ast = eFn "Int" "add" 0 [ eVar "v0"; eVar "v1" ]
+      let st = Map.ofList [ "v0", dv0; "v1", dv1 ]
+
+      let fns =
+        (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+         |> Map.fromListBy (fun fn -> fn.name))
+
+      let! state =
+        TestUtils.executionStateFor "execute_pure_function" Map.empty Map.empty fns
+
+      let! fsharpResult = LibExecution.Execution.run state st ast
+
+      Expect.equalDval fsharpResult (RT.DInt 3I) ""
+    }
+
+  let tests = [ test ]
+
 
 let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
 
@@ -438,7 +466,8 @@ let knownGood =
                    Queryable.tests
                    DeveloperRepr.tests
                    EndUserReadable.tests
-                   PrettyMachineJson.tests ])
+                   PrettyMachineJson.tests
+                   ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 

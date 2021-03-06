@@ -42,40 +42,11 @@ let t
   else
     testTask name {
       try
-        let! owner = testOwner.Force()
-        let ownerID : UserID = (owner : LibBackend.Account.UserInfo).id
-
-        // Performance optimization: don't touch the DB if you don't use the DB
-        let! canvasID =
-          if List.length dbs > 0 then
-            task {
-              let hash = sha1digest name |> System.Convert.ToBase64String
-              let canvasName = CanvasName.create $"test-{hash}"
-              do! TestUtils.clearCanvasData canvasName
-
-              let! canvasID =
-                LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
-
-              return canvasID
-            }
-          else
-            task { return! testCanvasID.Force() }
+        let dbs = (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
+        let! state = TestUtils.executionStateFor name dbs functions (fns.Force())
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
-        let tlid = id 7
-
-        let state =
-          Exe.createState
-            ownerID
-            canvasID
-            tlid
-            (fns.Force())
-            Map.empty
-            (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
-            functions
-            Map.empty
-            []
 
         let! actual = Exe.run state Map.empty actualProg
         let! expected = Exe.run state Map.empty expectedResult

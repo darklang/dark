@@ -15,6 +15,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
+module Exe = LibExecution.Execution
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
   lazy
@@ -95,6 +96,48 @@ let clearCanvasData (name : CanvasName.T) : Task<unit> =
 
     return ()
   }
+
+let executionStateFor
+  (name : string)
+  (dbs : Map<string, RT.DB.T>)
+  (userFunctions : Map<string, RT.UserFunction.T>)
+  (fns : Map<RT.FQFnName.T, RT.BuiltInFn>)
+  : Task<RT.ExecutionState> =
+  task {
+    let! owner = testOwner.Force()
+    let ownerID : UserID = (owner : LibBackend.Account.UserInfo).id
+
+    // Performance optimization: don't touch the DB if you don't use the DB
+    let! canvasID =
+      if Map.count dbs > 0 then
+        task {
+          let hash = sha1digest name |> System.Convert.ToBase64String
+          let canvasName = CanvasName.create $"test-{hash}"
+          do! clearCanvasData canvasName
+
+          let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+
+          return canvasID
+        }
+      else
+        task { return! testCanvasID.Force() }
+
+    let tlid = id 7
+
+    return
+      Exe.createState
+        ownerID
+        canvasID
+        tlid
+        fns
+        Map.empty
+        dbs
+        userFunctions
+        Map.empty
+        []
+  }
+
+
 
 
 let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
