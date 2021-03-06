@@ -432,25 +432,23 @@ module PrettyMachineJson =
         equalsOCaml ]
 
 module ExecutePureFunctions =
-  open LibExecution.Shortcuts
+  open LibBackend.ProgramTypes.Shortcuts
 
   let test =
     testTask "execute_pure_function" {
-      let dv0 = RT.DInt 4I
-      let dv1 = RT.DInt 1I
-      let ast = eFn "Int" "add" 0 [ eVar "v0"; eVar "v1" ]
-      let st = Map.ofList [ "v0", dv0; "v1", dv1 ]
+      let dv0 = RT.DStr "4"
+      let ast = eFn "String" "toInt" 1 [ eVar "v0" ]
+      let st = Map.ofList [ "v0", dv0 ]
 
+      // Just the LibExecution fns for now
       let fns =
-        (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-         |> Map.fromListBy (fun fn -> fn.name))
+        (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
 
-      let! state =
-        TestUtils.executionStateFor "execute_pure_function" Map.empty Map.empty fns
+      let! state = executionStateFor "execute_pure_function" Map.empty Map.empty fns
+      let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
+      let expected = OCamlInterop.execute ast st
 
-      let! fsharpResult = LibExecution.Execution.run state st ast
-
-      Expect.equalDval fsharpResult (RT.DInt 3I) ""
+      Expect.equalDval actual expected ""
     }
 
   let tests = [ test ]

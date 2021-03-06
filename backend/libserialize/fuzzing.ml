@@ -128,3 +128,46 @@ let hash_v1 (json : string) : string =
     |> Result.ok_or_failwith
   in
   Dval.hash 1 dvallist
+
+
+(* ---------------------- *)
+(* Below this is fuzzing execution *)
+(* ---------------------- *)
+let exec_state : Types.RuntimeT.exec_state =
+  { tlid = Types.id_of_int 7
+  ; callstack = Tc.StrSet.empty
+  ; account_id = Uuidm.v `V4
+  ; canvas_id = Uuidm.v `V4
+  ; user_fns = []
+  ; user_tipes = []
+  ; package_fns = []
+  ; secrets = []
+  ; fail_fn = None
+  ; executing_fnname = ""
+  ; dbs = []
+  ; execution_id = Types.id_of_int 8
+  ; trace = (fun ~on_execution_path _ _ -> ())
+  ; trace_tlid = (fun _ -> ())
+  ; on_execution_path = true
+  ; exec = Ast.exec
+  ; context = Real
+  ; load_fn_result = Execution.load_no_results
+  ; store_fn_result = Execution.store_no_results
+  ; load_fn_arguments = Execution.load_no_arguments
+  ; store_fn_arguments = Execution.store_no_arguments }
+
+
+type execute_type = Types.fluid_expr * (string * Types.RuntimeT.dval) list
+[@@deriving yojson]
+
+let execute (json : string) : string =
+  Libexecution.Init.init `Inspect `Json [] ;
+  let program, args =
+    json
+    |> Yojson.Safe.from_string
+    |> execute_type_of_yojson
+    |> Result.ok_or_failwith
+  in
+  Ast.execute_ast ~input_vars:args ~state:exec_state program
+  |> Types.RuntimeT.dval_to_yojson
+  |> Yojson.Safe.to_string

@@ -175,6 +175,11 @@ module Binary =
                 EntryPoint = "hash_v1")>]
     extern int hashV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
+    [<DllImport("./libserialization.so",
+                CallingConvention = CallingConvention.Cdecl,
+                EntryPoint = "execute")>]
+    extern int execute(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
+
 
     // ----------------
     // serialization digest
@@ -1411,3 +1416,12 @@ let hashV1 (dv : RT.Dval) : string =
   let mutable (out, bytes) = startDval2String dv
   let outLength = Binary.Internal.hashV1 (bytes, bytes.Length, &out)
   finishString2String outLength out
+
+let execute (program : PT.Expr) (symtable : Map<string, RT.Dval>) : RT.Dval =
+  let program = Convert.pt2ocamlExpr program
+  let args = Map.toList symtable
+  let str = Json.AutoSerialize.serialize ((program, args))
+  printfn $"executing {str}"
+  let mutable (out, bytes) = startString2String str
+  let outLength = Binary.Internal.execute (bytes, bytes.Length, &out)
+  finishString2Dval outLength out
