@@ -885,9 +885,20 @@ module Convert =
     | PT.EVariable (id, var) -> ORT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) -> ORT.EFieldAccess(id, r obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
-        ORT.EFnCall(id, name.ToString(), List.map r args, pt2ocamlSter ster)
+        ORT.EFnCall(
+          id,
+          name.ToString() |> String.replace "_v0" "",
+          List.map r args,
+          pt2ocamlSter ster
+        )
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
-        ORT.EBinOp(id, name.ToString(), r arg1, r arg2, pt2ocamlSter ster)
+        ORT.EBinOp(
+          id,
+          name.ToString() |> String.replace "_v0" "",
+          r arg1,
+          r arg2,
+          pt2ocamlSter ster
+        )
     | PT.ELambda (id, vars, body) -> ORT.ELambda(id, vars, r body)
     | PT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->

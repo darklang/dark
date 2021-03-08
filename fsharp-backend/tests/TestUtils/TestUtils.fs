@@ -294,6 +294,8 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
       u1 = u2 && de b1 b2
   | DIncomplete _, DIncomplete _ -> true
+  | DError (_, msg1), DError (_, msg2) ->
+      (msg1.Replace("_v0", "")) = (msg2.Replace("_v0", ""))
   | DErrorRail l, DErrorRail r -> de l r
   // Keep for exhaustiveness checking
   | DHttpResponse _, _
