@@ -6,6 +6,10 @@ module FuzzTests.All
 
 open Expecto
 open Expecto.ExpectoFsCheck
+open FsCheck
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 open Prelude
 open Prelude.Tablecloth
@@ -15,8 +19,6 @@ module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalRepr = LibExecution.DvalRepr
-
-open FsCheck
 
 let (.=.) actual expected : bool =
   if actual = expected then
@@ -424,24 +426,58 @@ module PrettyMachineJson =
 module ExecutePureFunctions =
   open LibBackend.ProgramTypes.Shortcuts
 
-  let test =
-    testTask "execute_pure_function" {
-      let dv0 = RT.DStr "4"
-      let ast = eFn "String" "toInt" 1 [ eVar "v0" ]
-      let st = Map.ofList [ "v0", dv0 ]
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
 
-      // Just the LibExecution fns for now
-      let fns =
-        (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false
+           | _ -> true)
 
-      let! state = executionStateFor "execute_pure_function" Map.empty Map.empty fns
-      let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
-      let expected = OCamlInterop.execute ast st
+    static member Fn() : Arbitrary<PT.FQFnName.T * List<RT.Dval>> =
+      { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
+          member x.Generator =
+            gen {
+              let fns = LibExecution.StdLib.StdLib.fns
+              let! fnIndex = Gen.choose (0, List.length fns)
+              let name = fns.[fnIndex].name
+              return (name, [])
+            } }
 
-      Expect.equalDval actual expected ""
-    }
 
-  let tests = [ test ]
+  let equalsOCaml ((fn, args) : (PT.FQFnName.T * List<RT.Dval>)) : bool =
+    let t =
+      task {
+        let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
+        let fnArgList = List.map (fun (name, _) -> eVar name) args
+        let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
+        let st = Map.ofList args
+
+        // Just the LibExecution fns for now
+        let fns =
+          (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
+
+        let! state =
+          executionStateFor "execute_pure_function" Map.empty Map.empty fns
+
+        let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
+        let expected = OCamlInterop.execute ast st
+        debuG "actual" actual
+        debuG "expected" expected
+
+        return dvalEquality actual expected
+      }
+
+    Task.WaitAll [| t :> Task |]
+    t.Result
+
+  let tests =
+    [ testPropertyWithGenerator typeof<Generator> "executePure" equalsOCaml ]
+
+
 
 
 let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
