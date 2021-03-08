@@ -504,7 +504,8 @@ and applyFnVal
                           return
                             Dval.errSStr
                               sourceID
-                              $"Expected {paramLength} arguments, got {argLength}"
+                              ($"{fn.name} has {paramLength} parameters,"
+                               + $" but here was called with {argLength} arguments.")
 
                         else
                           let invalid =
