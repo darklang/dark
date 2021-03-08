@@ -22,57 +22,11 @@ module RT = LibExecution.RuntimeTypes
 // Expressions - the main part of the language.
 
 module FQFnName =
-  type T =
-    { owner : string
-      package : string
-      module_ : string
-      function_ : string
-      version : int }
+  type T = RT.FQFnName.T
 
-    override this.ToString() : string =
-      let module_ = if this.module_ = "" then "" else $"{this.module_}::"
-      let fn = $"{module_}{this.function_}_v{this.version}"
-
-      if this.owner = "dark" && this.package = "stdlib" then fn
-      else if this.owner = "" && this.package = "" then fn
-      else $"{this.owner}/{this.package}/{fn}"
-
-    member this.toRuntimeType() : RT.FQFnName.T =
-      { owner = this.owner
-        package = this.package
-        module_ = this.module_
-        function_ = this.function_
-        version = this.version }
-
-  let namePat = @"^[a-z][a-z0-9_]*$"
-  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
-  let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
-
-  let packageName
-    (owner : string)
-    (package : string)
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    : T =
-    assertRe "owner must match" namePat owner
-    assertRe "package must match" namePat package
-    if module_ <> "" then assertRe "modName name must match" modNamePat module_
-    assertRe "function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
-
-    { owner = owner
-      package = package
-      module_ = module_
-      function_ = function_
-      version = version }
-
-  let userFnName (fnName : string) : T =
-    assertRe "function name must match" fnnamePat fnName
-    { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
-
-  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    packageName "dark" "stdlib" module_ function_ version
+  let packageName = RT.FQFnName.packageName
+  let userFnName = RT.FQFnName.userFnName
+  let stdlibName = RT.FQFnName.stdlibName
 
   let parse (fnName : string) : T =
     let owner, package, module_, function_, version =
@@ -95,7 +49,7 @@ module FQFnName =
       | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
       | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
-    packageName owner package module_ function_ version
+    RT.FQFnName.packageName owner package module_ function_ version
 
 
 
@@ -224,7 +178,7 @@ type Expr =
     | EFnCall (id, name, args, ster) ->
         RT.EApply(
           id,
-          RT.EFQFnValue(gid (), name.toRuntimeType ()),
+          RT.EFQFnValue(gid (), name),
           List.map r args,
           RT.NotInPipe,
           ster.toRuntimeType ()
@@ -255,7 +209,7 @@ type Expr =
             | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
                 RT.EApply(
                   id,
-                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  RT.EFQFnValue(ptID, name),
                   prev :: List.map r exprs,
                   RT.InPipe,
                   rail.toRuntimeType ()
@@ -264,7 +218,7 @@ type Expr =
             | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
                 RT.EApply(
                   id,
-                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  RT.EFQFnValue(ptID, name),
                   [ prev; r expr2 ],
                   RT.InPipe,
                   rail.toRuntimeType ()
