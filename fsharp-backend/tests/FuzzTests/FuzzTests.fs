@@ -372,16 +372,6 @@ module EndUserReadable =
       |> Arb.filter
            (function
            | RT.DFnVal _ -> false
-
-           // When printing bytes with 0 in them, the string cuts off. Probably
-           // a null-terminated string thing. While this is bad, bytes are not
-           // used very much, and especially they're unlikely to be directly
-           // printed as a string. So this is probably OK. Given this is very
-           // hard to solve this (since if the bytes are in another structure,
-           // the other structure will be cut off too), so it makes sense to
-           // put up with that problem.
-
-           | RT.DBytes bytes -> not (Array.exists (fun x -> byte 0 = x) bytes)
            | _ -> true)
 
 
