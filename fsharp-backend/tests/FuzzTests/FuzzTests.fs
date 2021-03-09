@@ -13,6 +13,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open Prelude.Tablecloth
+open Tablecloth
 open TestUtils
 
 module PT = LibBackend.ProgramTypes
@@ -435,16 +436,58 @@ module ExecutePureFunctions =
       |> Arb.filter
            (function
            | RT.DFnVal _ -> false
+           | RT.DPassword _ -> false // can't serialize to OCaml
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.T * List<RT.Dval>> =
       { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
           member x.Generator =
             gen {
-              let fns = LibExecution.StdLib.StdLib.fns
+              let fns =
+                LibExecution.StdLib.StdLib.fns
+                |> List.filter (fun fn -> fn.previewable = RT.Pure)
+                |> List.filter
+                     (fun fn ->
+                       match fn.name.ToString() with
+                       | "String::toList_v0" -> false // deprecated, different error messages
+                       | _ -> true)
+
               let! fnIndex = Gen.choose (0, List.length fns)
               let name = fns.[fnIndex].name
-              return (name, [])
+              let signature = fns.[fnIndex].parameters
+
+              let unifiesWith(typ : RT.DType) =
+                (fun dv ->
+                  dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
+
+              let arg(i : int) =
+                Arb.generate<RT.Dval> |> Gen.filter (unifiesWith signature.[i].typ)
+
+              match List.length signature with
+              | 0 -> return (name, [])
+              | 1 ->
+                  let! arg0 = arg 0
+                  return (name, [ arg0 ])
+              | 2 ->
+                  let! arg0 = arg 0
+                  let! arg1 = arg 1
+                  return (name, [ arg0; arg1 ])
+              | 3 ->
+                  let! arg0 = arg 0
+                  let! arg1 = arg 1
+                  let! arg2 = arg 2
+                  return (name, [ arg0; arg1; arg2 ])
+              | 4 ->
+                  let! arg0 = arg 0
+                  let! arg1 = arg 1
+                  let! arg2 = arg 2
+                  let! arg3 = arg 3
+                  return (name, [ arg0; arg1; arg2; arg3 ])
+              | _ ->
+                  failwith
+                    "No support for generating functions with over 4 parameters yet"
+
+                  return (name, [])
             } }
 
 
@@ -463,10 +506,10 @@ module ExecutePureFunctions =
         let! state =
           executionStateFor "execute_pure_function" Map.empty Map.empty fns
 
-        let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
         let expected = OCamlInterop.execute ast st
-        debuG "actual" actual
         debuG "expected" expected
+        let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
+        debuG "actual" actual
 
         return dvalEquality actual expected
       }
