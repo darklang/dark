@@ -323,12 +323,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       failwith $"There was a parser error parsing: {expr}"
   | expr -> failwith $"Unsupported expression: {ast}"
 
-let convertToTest
-  (ast : SynExpr)
-  : LibExecution.RuntimeTypes.Expr * LibExecution.RuntimeTypes.Expr =
+let convertToTest (ast : SynExpr) : PT.Expr * PT.Expr =
   // Split equality into actual vs expected in tests.
-  let convert (x : SynExpr) : LibExecution.RuntimeTypes.Expr =
-    (convertToExpr x).toRuntimeType()
+  let convert (x : SynExpr) : PT.Expr = convertToExpr x
 
   match ast with
   | SynExpr.App (_,
@@ -338,7 +335,7 @@ let convertToTest
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
       (convert actual, convert expected)
-  | _ -> convert ast, LibExecution.Shortcuts.eBool true
+  | _ -> convert ast, PT.Shortcuts.eBool true
 
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
 let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType()

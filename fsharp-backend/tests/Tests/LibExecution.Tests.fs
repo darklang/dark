@@ -17,10 +17,20 @@ module Exe = LibExecution.Execution
 
 open TestUtils
 
+// Many OCaml errors use a bunch of different fields, which seemed smart at the
+// time but ultimately was pretty annoying. We can normalize by fetching the
+// "short" field (there are other fields but we'll ignore them)
+type OCamlError = { short : string }
+
+let parseOCamlError (str : string) : string =
+  try
+    (Json.AutoSerialize.deserialize<OCamlError> str).short
+  with _ -> str
+
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError (_, str) -> RT.DError(RT.SourceNone, str)
+  | RT.DError (_, str) -> RT.DError(RT.SourceNone, parseOCamlError str)
   | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
@@ -28,6 +38,26 @@ let fns =
   lazy
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
      |> Map.fromListBy (fun fn -> fn.name))
+
+// We do allow some new stuff in the F# version that's not allowed in OCaml.
+let isSafeOCamlValue (ast : PT.Expr) : bool =
+  let mutable result = true
+
+  ast
+  |> PT.preTraversal
+       (fun e ->
+         match e with
+         | PT.EInteger (_, x) when x > 4611686018427387903I ->
+             result <- false
+             e
+         | PT.EInteger (_, x) when x < -4611686018427387904I ->
+             result <- false
+             e
+         | _ -> e)
+  |> ignore
+
+
+  result
 
 let t
   (comment : string)
@@ -47,15 +77,27 @@ let t
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
+        let rtActualProg = actualProg.toRuntimeType ()
+        let rtExpectedResult = expectedResult.toRuntimeType ()
 
-        let! actual = Exe.run state Map.empty actualProg
-        let! expected = Exe.run state Map.empty expectedResult
+        let! actual = Exe.run state Map.empty rtActualProg
+        let! expected = Exe.run state Map.empty rtExpectedResult
+
+        let ocamlExpected =
+          if isSafeOCamlValue actualProg then
+            LibBackend.OCamlInterop.execute actualProg Map.empty
+            |> normalizeDvalResult
+          else
+            expected
+
         let actual = normalizeDvalResult actual
         //let str = $"{source} => {actualProg} = {expectedResult}"
         let astMsg = $"{actualProg} = {expectedResult} ->"
         let dataMsg = $"\n\nActual:\n{actual}\n = \n{expected}"
         let msg = astMsg + dataMsg
-        return (Expect.equalDval actual expected msg)
+        Expect.equalDval actual expected msg
+        Expect.equalDval actual ocamlExpected $"OCaml equality: {msg}"
+        return ()
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
         return (Expect.equal "Exception thrown in test" (e.ToString()) "")
