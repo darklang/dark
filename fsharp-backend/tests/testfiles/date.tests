@@ -3,7 +3,7 @@
 
 [tests.date parsing]
 (Date.parse_v0 "2019-07-28T22:42:36Z") |> Date.toString_v0 = "2019-07-28T22:42:36Z"
-//Date.parse_v0 "asd" = Test.typeError_v0 "Invalid date format"
+Date.parse_v0 "asd" = Test.typeError_v0 "Invalid date format"
 (Date.parse_v1 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
 Date.parse_v1 "asd" = Error "Invalid date format"
 (Date.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x) = Ok "2019-07-28T22:42:36Z"

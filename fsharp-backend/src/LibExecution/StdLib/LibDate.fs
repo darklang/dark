@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s ] ->
             (try
               Value(DDate(System.DateTime.ofIsoString s))
-             with e -> failwith "Invalid date format")
+             with e -> Value(DError(SourceNone, "Invalid date format")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
