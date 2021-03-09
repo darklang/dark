@@ -436,6 +436,7 @@ module ExecutePureFunctions =
       |> Arb.filter
            (function
            | RT.DFnVal _ -> false
+           | RT.DChar _ -> false // FSTODO: I think ocaml can't deal with this
            | RT.DPassword _ -> false // can't serialize to OCaml
            | _ -> true)
 
