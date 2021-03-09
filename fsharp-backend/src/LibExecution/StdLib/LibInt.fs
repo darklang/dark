@@ -29,22 +29,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DInt v; DInt m as mdv ] ->
-            (try
+            if m <= bigint 0 then
+              err (Errors.argumentWasnt "positive" "b" mdv)
+            else
               Value(DInt(v % m))
-             with e ->
-               if m = bigint 0 then
-                 err (Errors.argumentWasnt "positive" "b" mdv)
-               else
-                 // FSTODO
-                 // In case there's another failure mode, rollbar
-                 failwith "mod error")
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
-      (*
-         * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
-         * The current function returns DError (it used to rollbar) on negative `b`.
-         *)
+      // TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
+      // The current function returns DError (it used to rollbar) on negative `b`.
       deprecated = NotDeprecated }
     (*  (* See above for when to uncomment this *)
   ; { name = fn "Int" "mod" 1
