@@ -19,10 +19,6 @@ do
     DEBUG=true
     shift
     ;;
-    *)
-    echo "Unexpected argument: $i"
-    exit 1
-    ;;
   esac
 done
 
