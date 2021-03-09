@@ -504,15 +504,30 @@ module ExecutePureFunctions =
         let fns =
           (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
 
+        let expected = OCamlInterop.execute ast st
+        debuG "expected" expected
+
         let! state =
           executionStateFor "execute_pure_function" Map.empty Map.empty fns
 
-        let expected = OCamlInterop.execute ast st
-        debuG "expected" expected
         let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
         debuG "actual" actual
 
-        return dvalEquality actual expected
+        let differentErrorsAllowed =
+
+          // Error messages are not required to be directly the same between
+          // old and new implementations, but we do prefer them to be the same
+          // if possible. this is a list of error messages which have been
+          // manually verified to be "close-enough"
+          let l = [ "String::toInt_v0" ]
+          List.contains (fn.ToString()) l
+
+        if dvalEquality actual expected then
+          return true
+        else
+          match actual, expected with
+          | RT.DError _, RT.DError _ -> return differentErrorsAllowed
+          | _ -> return false
       }
 
     Task.WaitAll [| t :> Task |]
