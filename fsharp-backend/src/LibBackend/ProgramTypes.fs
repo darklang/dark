@@ -996,7 +996,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EVariable _
     | ECharacter _
     | EPipeTarget _
-    | EBool
+    | EBool _
     | ENull _
     | EFloat _ -> expr
     | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
