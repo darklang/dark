@@ -155,7 +155,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr search; DStr replace ] ->
-            Value(DStr(s.Replace(search, replace)))
+            if search = "" then
+              Value(DStr s)
+            else
+              Value(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "replace"
       previewable = Pure
