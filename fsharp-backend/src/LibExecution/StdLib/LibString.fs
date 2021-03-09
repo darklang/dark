@@ -203,7 +203,13 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s as dv ] ->
             (try
               float (s) |> DFloat |> Value
-             with e -> err (Errors.argumentWasnt "a stringified float" "s" dv))
+             with e ->
+               err (
+                 Errors.argumentWasnt
+                   "a string representation of an IEEE float"
+                   "s"
+                   dv
+               ))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
