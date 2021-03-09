@@ -109,7 +109,7 @@ String.sha256_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 String.length_v0 (String.random_v0 10) = 10
 String.length_v0 (String.random_v0 5) = 5
 String.length_v0 (String.random_v0 0) = 0
-String.length_v0 (String.random_v0 -1) = (Test.typeError_v0 "Expected the argument `length` to be positive, but it was -1")
+String.length_v0 (String.random_v0 -1) = (Test.typeError_v0 "Expected the argument `length` to be positive, but it was `-1`")
 (String.random_v0 5) == (String.random_v0 5) = false
 (String.random_v0 2) == (String.random_v0 2) = false
 String.length_v0 (String.random_v2 10) = 10

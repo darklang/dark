@@ -43,7 +43,7 @@ let expectedLambdaType (typ : DType) (actual : Dval) : string =
 // reason. Really, any function using this should have a Result type instead.
 let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string =
   let actual = DvalRepr.toDeveloperReprV0 dv
-  $"Expected the argument `{paramName}` to be {expected}, but it was {actual}"
+  $"Expected the argument `{paramName}` to be {expected}, but it was `{actual}`"
 
 let dividingByZero (paramName : string) : string = $"`{paramName}` cannot be zero"
 
@@ -54,7 +54,7 @@ let typeErrorMsg (colName : string) (expected : DType) (actual : Dval) : string 
   let expected = DvalRepr.typeToDeveloperReprV0 expected
   let actualType = DvalRepr.prettyTypename actual
 
-  $"Expected a value of type {expected} but got a {actualType} ({actual})"
+  $"Expected a value of type {expected} but got a {actualType} (`{actual}`)"
   + $" in column {colName}"
 
 // ------------------
