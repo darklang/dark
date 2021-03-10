@@ -286,8 +286,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DFloat v; DFloat a; DFloat b ] ->
-            let min, max = if a < b then (a, b) else (b, a) in
-            Value(DFloat(Math.Clamp(v, min, max)))
+            if System.Double.IsNaN a || System.Double.IsNaN b then
+              Value(
+                DError(SourceNone, "clamp requires arguments to be valid numbers")
+              )
+            else
+              let min, max = if a < b then (a, b) else (b, a)
+              Value(DFloat(Math.Clamp(v, min, max)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
