@@ -171,7 +171,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             (try
-              s |> System.Numerics.BigInteger.Parse |> DInt |> Value
+              let int = s |> System.Numerics.BigInteger.Parse
+
+              if int < -4611686018427387904I then failwith "goto exception case"
+              else if int >= 4611686018427387904I then failwith "goto exception case"
+              else int |> DInt |> Value
              with e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -186,7 +190,12 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             try
-              s |> System.Numerics.BigInteger.Parse |> DInt |> Ok |> DResult |> Value
+              // CLEANUP: These constants represent how high the OCaml parsers would go
+              let int = s |> System.Numerics.BigInteger.Parse
+
+              if int < -4611686018427387904I then failwith "goto exception case"
+              else if int >= 4611686018427387904I then failwith "goto exception case"
+              else int |> DInt |> Ok |> DResult |> Value
             with e ->
               $"Expected to parse string with only numbers, instead got \"{s}\""
               |> DStr
