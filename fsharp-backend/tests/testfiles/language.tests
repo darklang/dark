@@ -192,7 +192,7 @@ List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 List.map_v0 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 List.fold_v0 [1;2;3;4] 1 (fun x y -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 List.map_v0 [1;2;3;4] (fun x -> blank) = blank
-({ x = (List.head_v1_ster []) }) = Test.errorRailNothing_v0_ster
+{ x = (List.head_v1_ster []) } = Test.errorRailNothing_v0_ster
 Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 
 //[tests.returns]
@@ -215,14 +215,14 @@ Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 { col1 = 2 ; col2 = blank } = { col1 = 2 }
 //({ col1 = 2 ; ```` = blank }) = ({ col1 = 2 }) // todo: do unit test instead
 { col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
-{ col1 = 2 ; col2 = (List.head_v1_ster []) } = Test.errorRailNothing_v0
+{ col1 = 2 ; col2 = (List.head_v1_ster []) } = Test.errorRailNothing_v0_ster
 
 [tests.list]
 [] = []
 [1] = [1]
 [ 5; blank; 0 ] = [5;0]
 [ 5; Int.add_v0 blank 5; 0 ] = [5;0]
-[ 5; Test.typeError_v0 "test"; 0 ] = Test.typeError_v0 "test"
+[ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ]
 [ 5; (List.head_v1_ster []); 0 ] = Test.errorRailNothing_v0
 
 

@@ -51,7 +51,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
         let filtered =
           List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
-        // TODO: why do we only find errorRail, and not errors. Seems like
+        // CLEANUP: why do we only find errorRail, and not errors. Seems like
         // a mistake
         match List.tryFind (fun (dv : Dval) -> Dval.isErrorRail dv) filtered with
         | Some er -> return er

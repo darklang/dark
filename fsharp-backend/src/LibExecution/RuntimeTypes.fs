@@ -412,7 +412,7 @@ module Dval =
         | _, _, DIncomplete _ -> m
         // Errorrail should propagate (but only if we're not already propagating an error)
         // NOTE: we do not propagate DError here! That's the ONLY difference with the version above
-        | DObj _, _, DErrorRail v -> v
+        | DObj _, _, (DErrorRail _ as v) -> v
         // Error if the key appears twice
         | DObj m, k, v when Map.containsKey k m ->
             DError(SourceNone, $"Duplicate key: {k}")

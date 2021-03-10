@@ -69,11 +69,6 @@ let t
           else if String.includes "OCAMLONLY" comment then (true, false)
           else (true, true)
 
-        if testFSharp then
-          let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())
-          let fsharpActual = normalizeDvalResult fsharpActual
-          Expect.equalDval fsharpActual expected $"FSharp: {msg}"
-
         if testOCaml then
           let ocamlActual =
             LibBackend.OCamlInterop.execute
@@ -84,6 +79,11 @@ let t
             |> normalizeDvalResult
 
           Expect.equalDval ocamlActual expected $"OCaml: {msg}"
+
+        if testFSharp then
+          let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())
+          let fsharpActual = normalizeDvalResult fsharpActual
+          Expect.equalDval fsharpActual expected $"FSharp: {msg}"
 
         return ()
       with e ->
