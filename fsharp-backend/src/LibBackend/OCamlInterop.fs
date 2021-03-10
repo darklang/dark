@@ -1432,7 +1432,6 @@ let execute (program : PT.Expr) (symtable : Map<string, RT.Dval>) : RT.Dval =
   let program = Convert.pt2ocamlExpr program
   let args = Map.toList symtable
   let str = Json.AutoSerialize.serialize ((program, args))
-  printfn $"executing {str}"
   let mutable (out, bytes) = startString2String str
   let outLength = Binary.Internal.execute (bytes, bytes.Length, &out)
   finishString2Dval outLength out
