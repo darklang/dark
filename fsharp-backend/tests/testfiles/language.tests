@@ -214,7 +214,7 @@ Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 { col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
 { col1 = 2 ; col2 = blank } = { col1 = 2 }
 //({ col1 = 2 ; ```` = blank }) = ({ col1 = 2 }) // todo: do unit test instead
-{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
+{ col1 = 2 ; col2 = (5 % 0) } = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `0`"
 { col1 = 2 ; col2 = (List.head_v1_ster []) } = Test.errorRailNothing_v0
 
 
@@ -223,7 +223,7 @@ flag "test" true "old" "new" = "new" // show new for true
 flag "test" false "old" "new" = "old" // show old for false
 flag "test" blank "old" "new" = "old" // show old for incomplete condition
 flag "test" null "old" "new" = "old" // show old for null
-flag "test" (Test.typeError_v0 "testerror") "old" "new" = "old" // show old for error
+flag "test" (5 % 0) "old" "new" = "old" // show old for error
 flag "test" (List.head_v1_ster []) "old" "new" = "old" // show old for errorrail
 flag "test" {x = true} "old" "new" = "old" // show old for object
 flag "test" [true] "old" "new" = "old" // show old for list
