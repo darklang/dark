@@ -83,8 +83,8 @@ let fns : List<BuiltInFn> =
               BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Value
              with e ->
                if d = bigint 0 then
-                 Value(Dval.errStr (Errors.dividingByZero "divisor"))
-               else (* In case there's another failure mode, rollbar *)
+                 Value(DResult(Error(DStr(Errors.dividingByZero "divisor"))))
+               else // In case there's another failure mode, rollbar
                  raise e)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
