@@ -25,4 +25,4 @@ Bool.xor_v0 false true = true
 Bool.xor_v0 true false = true
 Bool.xor_v0 true true = false
 Bool.isError_v0 true = false
-Bool.isError_v0 (5 % 0) = true
+Bool.isError_v0 (Test.typeError_v0 "test") = true

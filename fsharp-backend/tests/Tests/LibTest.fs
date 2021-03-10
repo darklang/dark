@@ -38,8 +38,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | state, [ DStr errorString ] ->
-            Value(DError(SourceNone, errorString))
+        | state, [ DStr errorString ] -> Value(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

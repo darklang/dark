@@ -164,8 +164,111 @@ type execute_type =
   * Types.RuntimeT.user_fn list
 [@@deriving yojson]
 
+let sideEffectCount : int ref = ref 0
+
+let fns : Types.RuntimeT.fn list =
+  [ { prefix_names = ["Test::errorRailNothing"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TOption
+    ; description = "Return an errorRail wrapping nothing."
+    ; func =
+        InProcess
+          (function
+          | state, [] -> DErrorRail (DOption OptNothing) | args -> Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::typeError"]
+    ; infix_names = []
+    ; parameters = [Lib.par "errorString" TStr]
+    ; return_type = TInt
+    ; description = "Return a value representing a type error"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr errorString] ->
+              DError (SourceNone, Unicode_string.to_string errorString)
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::sqlError"]
+    ; infix_names = []
+    ; parameters = [Lib.par "errorString" TStr]
+    ; return_type = TInt
+    ; description =
+        "Return a value that matches errors thrown by the SqlCompiler"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr errorString] ->
+              let msg = "TODO: we don't support sqlError yet" in
+              DError (SourceNone, msg)
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::nan"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TFloat
+    ; description = "Return a NaN"
+    ; func =
+        InProcess (function _, [] -> DFloat Float.nan | args -> Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::infinity"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TFloat
+    ; description = "Returns positive infitity"
+    ; func =
+        InProcess
+          (function _, [] -> DFloat Float.infinity | args -> Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::negativeInfinity"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TFloat
+    ; description = "Returns negative infitity"
+    ; func =
+        InProcess
+          (function
+          | _, [] -> DFloat Float.neg_infinity | args -> Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::incrementSideEffectCounter"]
+    ; infix_names = []
+    ; parameters = [Lib.par "passThru" TAny]
+    ; return_type = TAny
+    ; description =
+        "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
+    ; func =
+        InProcess
+          (function
+          | state, [arg] ->
+              sideEffectCount := !sideEffectCount + 1 ;
+              arg
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::sideEffectCount"]
+    ; infix_names = []
+    ; parameters = []
+    ; return_type = TInt
+    ; description = "Return the value of the side-effect counter"
+    ; func =
+        InProcess
+          (function
+          | state, [] -> Dval.dint !sideEffectCount | args -> Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false } ]
+
+
 let execute (json : string) : string =
-  Libexecution.Init.init `Inspect `Json [] ;
+  Libexecution.Init.init `Inspect `Json fns ;
   let program, args, dbs, user_fns =
     json
     |> Yojson.Safe.from_string
