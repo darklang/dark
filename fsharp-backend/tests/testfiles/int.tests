@@ -19,18 +19,18 @@ Int.negate_v0 -5 = 5
 Int.negate_v0 5 = -5
 Int.negate_v0 0 = 0
 Int.negate_v0 -0 = 0
-Int.remainder_v0 15 6 = 3
-Int.remainder_v0 20 8 = 4
-Int.remainder_v0 -20 8 = -4
-Int.remainder_v0 -20 -8 = -4
-Int.remainder_v0 -15 6 = -3
-Int.remainder_v0 5 0 = Test.typeError_v0 "`divisor` cannot be zero"
+Int.remainder_v0 15 6 = Ok 3
+Int.remainder_v0 20 8 = Ok 4
+Int.remainder_v0 -20 8 = Ok -4
+Int.remainder_v0 -20 -8 = Ok -4
+Int.remainder_v0 -15 6 = Ok -3
+Int.remainder_v0 5 0 = Error "`divisor` cannot be zero"
 //List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v -4) = [ Ok -1, Ok 0, Ok -3, Ok -2, Ok -1, Ok 0, Ok 1, Ok 2, Ok 3, Ok 0, Ok 1 ]
 //List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v 4) = [ Ok -1, Ok 0, Ok -3, Ok -2, Ok -1, Ok 0, Ok 1, Ok 2, Ok 3, Ok 0, Ok 1 ]
 Int.mod_v0 15 5 = 0
 Int.mod_v0 15 6 = 3
 Int.mod_v0 0 15 = 0
-Int.mod_v0 9999999999999999999999999998I 3 = 2
+//Int.mod_v0 9999999999999999999999999998I 3 = 2
 Int.mod_v0 5 0 = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `0`"
 Int.mod_v0 5 (-5) = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `-5`"
 //List.map_v0 (List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [3;0;1;2;3;0;1;2;3;0;1]
@@ -91,13 +91,13 @@ Int.multiply_v0 8 8 = 64
 Int.multiply_v0 5145 5145 = 26471025
 Int.divide_v0 10 5 = 2
 Int.divide_v0 0 1 = 0
-List.all_v0 (List.map_v0 (List.map_v0 (List.range_v0 1 100) (fun x -> Int.random_v0 1 5)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 1) (Int.lessThanOrEqualTo_v0 x 5))) (fun element -> element) = true
-List.all_v0 (List.map_v0 (List.map_v0 (List.range_v0 1 100) (fun x -> Int.random_v0 10 20)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 10) (Int.lessThanOrEqualTo_v0 x 19))) (fun element -> element) = true
-List.all_v0 (List.map_v0 (List.map_v0 (List.range_v0 1 100) (fun x -> Int.random_v0 10 30)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 9) (Int.lessThanOrEqualTo_v0 x 19))) (fun element -> element) = false
-List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 1 2)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 1)) = [true; true; true; true; true]
-List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 10 20)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 10) (Int.lessThanOrEqualTo_v0 x 19)) = [true; true; true; true; true]
-List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 2 1)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 0) (Int.lessThanOrEqualTo_v0 x 1)) = [true; true; true; true; true]
-List.map_v0 (List.map_v0 (List.range_v0 1 5) (fun x -> Int.random_v1 20 10)) (fun x -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 10) (Int.lessThanOrEqualTo_v0 x 19)) = [true; true; true; true; true]
+(List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0  1  5) |> List.map_v0 (fun x -> (x >=  1) && (x <= 5)) |> List.member_v0 false = false
+(List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0 10 20) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) |> List.member_v0 false = false
+(List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0 10 30) |> List.map_v0 (fun x -> (x >= 10) && (x <= 30)) |> List.member_v0 false = false
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1  1  2) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1 10 20) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1  2  1) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1 20 10) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
 List.append_v0 [1, 2, 3] [4, 5, 6] = [1, 2, 3, 4, 5, 6]
 List.isEmpty_v0 [] = true
 List.isEmpty_v0 [1] = false

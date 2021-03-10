@@ -71,7 +71,7 @@ let fns : List<BuiltInFn> =
     ; deprecated = NotDeprecated } *)
     { name = fn "Int" "remainder" 0
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
-      returnType = TInt
+      returnType = TResult(TInt, TStr)
       description = "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
           For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
           The sign of `divisor` doesn't influence the outcome.
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt v; DInt d ] ->
             (try
-              BigInteger.Remainder(v, d) |> DInt |> Value
+              BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Value
              with e ->
                if d = bigint 0 then
                  Value(Dval.errStr (Errors.dividingByZero "divisor"))
