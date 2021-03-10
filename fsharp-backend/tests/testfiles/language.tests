@@ -145,7 +145,7 @@
  |> blank
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
 
-[test.pipevariable]
+[test.pipevariable FSHARPONLY - we didn't implement this in OCaml]
 (let x = fun a -> a + 1 in
  (5
  |> x
