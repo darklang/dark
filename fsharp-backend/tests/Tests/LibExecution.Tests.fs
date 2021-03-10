@@ -62,9 +62,14 @@ let t
         let! expected = Exe.run state Map.empty (expectedResult.toRuntimeType ())
 
         let testOCaml, testFSharp =
-          if String.includes "FSHARPONLY" comment then (false, true)
-          else if String.includes "OCAMLONLY" comment then (true, false)
-          else (true, true)
+          if String.includes "FSHARPONLY" comment then
+            (false, true)
+          else if String.includes "OCAMLONLY" comment then
+            (true, false)
+          else
+            // FSTODO: support these test cases in OCaml
+            let dbsEmpty = Map.isEmpty dbs
+            (dbsEmpty, true)
 
         if testFSharp then
           let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())
