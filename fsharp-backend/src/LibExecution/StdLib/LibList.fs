@@ -56,10 +56,7 @@ let fns : List<BuiltInFn> =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
       fn =
         (function
-        | _, [ DList l ] ->
-            (match List.tryHead l with
-             | Some dv -> Value(l.Head)
-             | None -> Value(DOption None))
+        | _, [ DList l ] -> l |> List.tryHead |> DOption |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -75,7 +72,7 @@ let fns : List<BuiltInFn> =
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
         | _, [ DList l ] ->
-            (if List.length l > 0 then DList l.Tail else DOption None) |> Value
+            (if List.isEmpty l then None else Some(DList l.Tail)) |> DOption |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -121,7 +118,7 @@ let fns : List<BuiltInFn> =
         "Returns the last value in `list`. Returns null if the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> (if l.Length > 0 then List.last l else DNull) |> Value
+        | _, [ DList l ] -> (if List.isEmpty l then DNull else List.last l) |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
