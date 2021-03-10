@@ -31,42 +31,42 @@ module Binary =
     // ----------------
     // toplevels
     // ----------------
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "handler_bin2json")>]
     extern string handlerBin2Json(byte[] bytes, int length)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "handler_json2bin")>]
     extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "db_bin2json")>]
     extern string dbBin2Json(byte[] bytes, int length)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "db_json2bin")>]
     extern int dbJson2Bin(string str, System.IntPtr& byteArray)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "user_fn_bin2json")>]
     extern string userfnBin2Json(byte[] bytes, int length)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "user_fn_json2bin")>]
     extern int userfnJson2Bin(string str, System.IntPtr& byteArray)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "user_tipe_bin2json")>]
     extern string usertipeBin2Json(byte[] bytes, int length)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "user_tipe_json2bin")>]
     extern int usertipeJson2Bin(string str, System.IntPtr& byteArray)
@@ -74,12 +74,12 @@ module Binary =
     // ----------------
     // expr/tlid pairs (used for packages)
     // ----------------
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "expr_tlid_pair_bin2json")>]
     extern string exprTLIDPairBin2Json(byte[] bytes, int length)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "expr_tlid_pair_json2bin")>]
     extern int exprTLIDPairJson2Bin(string str, System.IntPtr& byteArray)
@@ -87,12 +87,12 @@ module Binary =
     // ----------------
     // oplists
     // ----------------
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "oplist_bin2json")>]
     extern string oplistBin2Json(byte[] bytes, int length)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "oplist_json2bin")>]
     extern int oplistJson2Bin(string str, System.IntPtr& byteArray)
@@ -105,77 +105,77 @@ module Binary =
     // and ocaml strings. However, when passing between the two we need
     // explicit lengths both in and out to make sure we copy every byte.
     // ----------------
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_internal_roundtrippable_v0")>]
     extern int toInternalRoundtrippableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_internal_roundtrippable_v0")>]
     extern int ofInternalRoundtrippableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_internal_queryable_v0")>]
     extern int toInternalQueryableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_internal_queryable_v1")>]
     extern int toInternalQueryableV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_internal_queryable_v0")>]
     extern int ofInternalQueryableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_internal_queryable_v1")>]
     extern int ofInternalQueryableV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_developer_repr_v0")>]
     extern int toDeveloperRepr(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_enduser_readable_text_v0")>]
     extern int toEnduserReadableTextV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_pretty_machine_json_v1")>]
     extern int toPrettyMachineJsonV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_url_string")>]
     extern int toUrlString(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "to_hashable_repr")>]
     extern int toHashableRepr(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "of_unknown_json_v1")>]
     extern int ofUnknownJsonV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "hash_v0")>]
     extern int hashV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "hash_v1")>]
     extern int hashV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "execute")>]
     extern int execute(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
@@ -184,7 +184,7 @@ module Binary =
     // ----------------
     // serialization digest
     // ----------------
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "digest")>]
     extern string digest()
@@ -192,12 +192,12 @@ module Binary =
     // ----------------
     // OCaml runtime
     // ----------------
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "dark_init_ocaml")>]
     extern string darkInitOcaml()
 
-    [<DllImport("./libserialization.so",
+    [<DllImport("./libocaml.so",
                 CallingConvention = CallingConvention.Cdecl,
                 EntryPoint = "register_thread")>]
     extern void registerThread()
@@ -575,7 +575,7 @@ module Convert =
   // This module converts back-and-forth between the F# ProgramTypes and OCaml
   // types. Prelude.Json.AutoSerialize generates JSON in the same format as
   // OCaml's Yojson so we can use these types directly to communicate with the
-  // client (which also uses these types) and the OCaml libserialization
+  // client (which also uses these types) and the OCaml libocaml
   // library.
   module OT = OCamlTypes
   module ORT = OT.RuntimeT

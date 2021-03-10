@@ -1,7 +1,7 @@
 (* This is an implementation of libtarget that does nothing. We need this to
- * link libserialization without re2, which doesn't like being compiled into a
+ * link libocaml without re2, which doesn't like being compiled into a
  * shared library. The functions here are only used for the execution engine in
- * libexecution, which libserialization doesn't use. Libserialization only uses
+ * libexecution, which libocaml doesn't use. libocaml only uses
  * the types for serialization *)
 
 let sha (input : string) ~f : string = ""

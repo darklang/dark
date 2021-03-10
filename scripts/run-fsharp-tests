@@ -29,7 +29,7 @@ dropdb --if-exists testdb
 createdb testdb
 
 BINPATH="fsharp-backend/Build/out/"
-cp "/home/dark/app/_build/default/backend/bin/libserialization.so" "${BINPATH}"
+cp "/home/dark/app/_build/default/backend/bin/libocaml.so" "${BINPATH}"
 
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the
