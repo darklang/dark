@@ -42,8 +42,8 @@ let fns =
 let t
   (comment : string)
   (code : string)
-  (dbs : List<RT.DB.T>)
-  (functions : Map<string, RT.UserFunction.T>)
+  (dbs : List<PT.DB.T>)
+  (functions : Map<string, PT.UserFunction.T>)
   : Test =
   let name = $"{comment} ({code})"
 
@@ -52,9 +52,12 @@ let t
   else
     testTask name {
       try
-        let dbs = (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
+        let rtDBs =
+          (dbs |> List.map (fun db -> db.name, db.toRuntimeType ()) |> Map.ofList)
 
-        let! state = TestUtils.executionStateFor name dbs functions (fns.Force())
+        let rtFunctions = functions |> Map.map (fun f -> f.toRuntimeType ())
+
+        let! state = TestUtils.executionStateFor name rtDBs rtFunctions (fns.Force())
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
@@ -62,14 +65,9 @@ let t
         let! expected = Exe.run state Map.empty (expectedResult.toRuntimeType ())
 
         let testOCaml, testFSharp =
-          if String.includes "FSHARPONLY" comment then
-            (false, true)
-          else if String.includes "OCAMLONLY" comment then
-            (true, false)
-          else
-            // FSTODO: support these test cases in OCaml
-            let dbsEmpty = Map.isEmpty dbs
-            (dbsEmpty, true)
+          if String.includes "FSHARPONLY" comment then (false, true)
+          else if String.includes "OCAMLONLY" comment then (true, false)
+          else (true, true)
 
         if testFSharp then
           let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())
@@ -78,7 +76,11 @@ let t
 
         if testOCaml then
           let ocamlActual =
-            LibBackend.OCamlInterop.execute actualProg Map.empty
+            LibBackend.OCamlInterop.execute
+              actualProg
+              Map.empty
+              dbs
+              (Map.values functions)
             |> normalizeDvalResult
 
           Expect.equalDval ocamlActual expected $"OCaml: {msg}"
@@ -94,16 +96,16 @@ type TestInfo =
   { name : string
     recording : bool
     code : string
-    dbs : List<RT.DB.T> }
+    dbs : List<PT.DB.T> }
 
-type TestGroup = { name : string; tests : List<Test>; dbs : List<RT.DB.T> }
+type TestGroup = { name : string; tests : List<Test>; dbs : List<PT.DB.T> }
 
 type FnInfo =
   { name : string
     recording : bool
     code : string
     tlid : tlid
-    parameters : List<RT.UserFunction.Parameter> }
+    parameters : List<PT.UserFunction.Parameter> }
 
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
@@ -127,8 +129,8 @@ let fileTests () : Test =
          // for recording a bunch if single-line tests grouped together
          let mutable currentGroup = emptyGroup
          let mutable allTests = []
-         let mutable functions : Map<string, RT.UserFunction.T> = Map.empty
-         let mutable dbs : Map<string, RT.DB.T> = Map.empty
+         let mutable functions : Map<string, PT.UserFunction.T> = Map.empty
+         let mutable dbs : Map<string, PT.DB.T> = Map.empty
 
          let finish () =
            if currentTest.recording then
@@ -142,13 +144,15 @@ let fileTests () : Test =
              allTests <- allTests @ [ newTestCase ]
 
            if currentFn.recording then
-             let (fn : RT.UserFunction.T) =
+             let (fn : PT.UserFunction.T) =
                { tlid = currentFn.tlid
                  name = currentFn.name
-                 returnType = RT.TAny
+                 nameID = gid ()
+                 returnType = PT.TAny
+                 returnTypeID = gid ()
                  description = "test function"
                  infix = false
-                 body = (FSharpToExpr.parseRTExpr currentFn.code)
+                 body = (FSharpToExpr.parsePTExpr currentFn.code)
                  parameters = currentFn.parameters }
 
              functions <- Map.add currentFn.name fn functions
@@ -183,27 +187,39 @@ let fileTests () : Test =
                 | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
                     finish ()
 
-                    let (db : RT.DB.T) =
+                    let (db : PT.DB.T) =
                       { tlid = id i
+                        pos = { x = 0; y = 0 }
                         name = name
+                        nameID = gid ()
                         version = 0
                         cols =
                           definition
                           |> Json.AutoSerialize.deserialize<Map<string, string>>
-                          |> Map.map LibExecution.DvalRepr.dtypeOfString
-                          |> Map.toList }
+                          |> Map.mapWithIndex
+                               (fun k v ->
+                                 ({ name = k
+                                    nameID = gid ()
+                                    typ =
+                                      if v = "" then None else Some(PT.parseType v)
+                                    typeID = gid () } : PT.DB.Col))
+                          |> Map.values }
 
                     dbs <- Map.add name db dbs
                 // [function] declaration
                 | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
                     finish ()
 
-                    let parameters : List<RT.UserFunction.Parameter> =
+                    let parameters : List<PT.UserFunction.Parameter> =
                       definition
                       |> String.split " "
                       |> List.map
                            (fun name ->
-                             { name = name; description = ""; typ = RT.TAny })
+                             { name = name
+                               nameID = gid ()
+                               description = ""
+                               typ = Some PT.TAny
+                               typeID = gid () })
 
                     currentFn <-
                       { tlid = id i

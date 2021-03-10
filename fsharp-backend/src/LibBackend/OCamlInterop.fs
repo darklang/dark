@@ -760,12 +760,18 @@ module Convert =
                 fields
             ) }
 
+  let ocamlParameter2PT (o : ORT.ufn_param) : PT.UserFunction.Parameter =
+    { name = o.name |> bo2String
+      nameID = o.name |> bo2ID
+      typ = o.tipe |> bo2Option |> Option.map ocamlTipe2PT
+      typeID = o.tipe |> bo2ID
+      description = o.description }
 
   let ocamlUserFunction2PT (o : ORT.user_fn<ORT.fluidExpr>) : PT.UserFunction.T =
     { tlid = o.tlid
       name = o.metadata.name |> bo2String
       nameID = o.metadata.name |> bo2ID
-      parameters = []
+      parameters = o.metadata.parameters |> List.map ocamlParameter2PT
       returnType =
         o.metadata.return_type
         |> bo2Option
@@ -1020,11 +1026,19 @@ module Convert =
                 fields
             ) }
 
+  let pt2ocamlParameter (p : PT.UserFunction.Parameter) : ORT.ufn_param =
+    { name = string2bo p.nameID p.name
+      tipe = option2bo p.typeID (Option.map pt2ocamlTipe p.typ)
+      description = p.description
+      optional = false
+      block_args = [] // FSTODO
+    }
+
   let pt2ocamlUserFunction (p : PT.UserFunction.T) : ORT.user_fn<ORT.fluidExpr> =
     { tlid = p.tlid
       metadata =
         { name = string2bo p.nameID p.name
-          parameters = []
+          parameters = List.map pt2ocamlParameter p.parameters
           return_type =
             p.returnType |> pt2ocamlTipe |> Some |> option2bo p.returnTypeID
           description = p.description
@@ -1428,10 +1442,17 @@ let hashV1 (dv : RT.Dval) : string =
   let outLength = Binary.Internal.hashV1 (bytes, bytes.Length, &out)
   finishString2String outLength out
 
-let execute (program : PT.Expr) (symtable : Map<string, RT.Dval>) : RT.Dval =
+let execute
+  (program : PT.Expr)
+  (symtable : Map<string, RT.Dval>)
+  (dbs : List<PT.DB.T>)
+  (fns : List<PT.UserFunction.T>)
+  : RT.Dval =
   let program = Convert.pt2ocamlExpr program
   let args = Map.toList symtable
-  let str = Json.AutoSerialize.serialize ((program, args))
+  let dbs = List.map Convert.pt2ocamlDB dbs
+  let fns = List.map Convert.pt2ocamlUserFunction fns
+  let str = Json.AutoSerialize.serialize ((program, args, dbs, fns))
   let mutable (out, bytes) = startString2String str
   let outLength = Binary.Internal.execute (bytes, bytes.Length, &out)
   finishString2Dval outLength out

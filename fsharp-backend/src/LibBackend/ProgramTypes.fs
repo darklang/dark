@@ -1019,3 +1019,33 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
         EFeatureFlag(id, str, r cond, r casea, r caseb)
 
   f result
+
+// Shoudl be synced to DvalRepr.dtypeToString
+let rec parseType (str : string) : DType =
+  match String.toLowercase str with
+  | "any" -> TAny
+  | "int" -> TInt
+  | "integer" -> TInt
+  | "float" -> TFloat
+  | "bool" -> TBool
+  | "boolean" -> TBool
+  | "nothing" -> TNull
+  | "character"
+  | "char" -> TChar
+  | "str" -> TStr
+  | "string" -> TStr
+  | "list" -> TList TAny
+  | "obj" -> TDict TAny
+  | "block" -> TLambda
+  | "incomplete" -> TIncomplete
+  | "error" -> TError
+  | "response" -> THttpResponse TAny
+  | "datastore" -> TDB TAny
+  | "date" -> TDate
+  | "password" -> TPassword
+  | "uuid" -> TUuid
+  | "option" -> TOption TAny
+  | "errorrail" -> TErrorRail
+  | "result" -> TResult(TAny, TAny)
+  | "dict" -> TDict TAny
+  | _ -> failwith "unsupported runtime type"

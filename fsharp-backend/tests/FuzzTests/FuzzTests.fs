@@ -504,7 +504,7 @@ module ExecutePureFunctions =
         let fns =
           (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
 
-        let expected = OCamlInterop.execute ast st
+        let expected = OCamlInterop.execute ast st [] []
         debuG "expected" expected
 
         let! state =
