@@ -1,6 +1,6 @@
-//List.contains_v0 [1;2;3] 2 = true
-//List.contains_v0 [1;2;3] 4 = false
-//List.contains_v0 [] 1 = false
+List.contains_v0 [1;2;3] 2 = true
+List.contains_v0 [1;2;3] 4 = false
+List.contains_v0 [] 1 = false
 //List.dropWhile_v0 [1;2;3;4] (fun item -> item < 3) = [ 3, 4 ]
 //List.dropWhile_v0 [1;2;3;4] (fun item -> item >= 1) = []
 //List.dropWhile_v0 [1;5;2;2] (fun item -> item < 3) = [ 5, 2, 2 ]
@@ -38,7 +38,10 @@
 //List.map2_v0 [10;20] [1;2;3] (fun a b -> a - b) = Nothing
 //List.map2shortest_v0 [10;20;30] [1;2;3] (fun a b -> a - b) = [ 9, 18, 27 ]
 //List.map2shortest_v0 [10;20] [1;2;3] (fun a b -> a - b) = [ 9, 18 ]
-//List.member_v0 [] 1 = false
+List.member_v0 [] 1 = false
+List.member_v0 [1;2;3] 2 = true
+List.member_v0 [1;2;3] 4 = false
+List.member_v0 [] 1 = false
 //List.randomElement_v0 [1] = Just 1
 //List.randomElement_v0 [] = Nothing
 //List.singleton_v0 1 = [ 1 ]
