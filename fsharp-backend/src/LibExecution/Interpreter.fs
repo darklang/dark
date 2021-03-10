@@ -86,11 +86,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               })
             skipEmptyKeys
 
-        return
-          (resolved
-           // allow users to edit code safely
-           |> List.filter (fun (k, v : Dval) -> not (Dval.isIncomplete v))
-           |> Dval.obj)
+        return Dval.interpreterObj resolved
     | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
         let! args = Prelude.map_s (eval state st) exprs
