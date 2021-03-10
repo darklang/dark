@@ -514,12 +514,11 @@ module ExecutePureFunctions =
         debuG "actual" actual
 
         let differentErrorsAllowed =
-
           // Error messages are not required to be directly the same between
           // old and new implementations, but we do prefer them to be the same
           // if possible. this is a list of error messages which have been
           // manually verified to be "close-enough"
-          let l = [ "String::toInt_v0" ]
+          let l = [ "String::toInt_v0"; "String::toInt_v1"; "Date::parse_v0" ]
           List.contains (fn.ToString()) l
 
         if dvalEquality actual expected then

@@ -39,26 +39,6 @@ let fns =
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
      |> Map.fromListBy (fun fn -> fn.name))
 
-// We do allow some new stuff in the F# version that's not allowed in OCaml.
-let isSafeOCamlValue (ast : PT.Expr) : bool =
-  let mutable result = true
-
-  ast
-  |> PT.preTraversal
-       (fun e ->
-         match e with
-         | PT.EInteger (_, x) when x > 4611686018427387903I ->
-             result <- false
-             e
-         | PT.EInteger (_, x) when x < -4611686018427387904I ->
-             result <- false
-             e
-         | _ -> e)
-  |> ignore
-
-
-  result
-
 let t
   (comment : string)
   (code : string)
@@ -73,30 +53,31 @@ let t
     testTask name {
       try
         let dbs = (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
+
         let! state = TestUtils.executionStateFor name dbs functions (fns.Force())
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
-        let rtActualProg = actualProg.toRuntimeType ()
-        let rtExpectedResult = expectedResult.toRuntimeType ()
+        let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
+        let! expected = Exe.run state Map.empty (expectedResult.toRuntimeType ())
 
-        let! actual = Exe.run state Map.empty rtActualProg
-        let! expected = Exe.run state Map.empty rtExpectedResult
+        let testOCaml, testFSharp =
+          if String.includes "FSHARPONLY" comment then (false, true)
+          else if String.includes "OCAMLONLY" comment then (true, false)
+          else (true, true)
 
-        let ocamlExpected =
-          if isSafeOCamlValue actualProg then
+        if testFSharp then
+          let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())
+          let fsharpActual = normalizeDvalResult fsharpActual
+          Expect.equalDval fsharpActual expected $"FSharp: {msg}"
+
+        if testOCaml then
+          let ocamlActual =
             LibBackend.OCamlInterop.execute actualProg Map.empty
             |> normalizeDvalResult
-          else
-            expected
 
-        let actual = normalizeDvalResult actual
-        //let str = $"{source} => {actualProg} = {expectedResult}"
-        let astMsg = $"{actualProg} = {expectedResult} ->"
-        let dataMsg = $"\n\nActual:\n{actual}\n = \n{expected}"
-        let msg = astMsg + dataMsg
-        Expect.equalDval actual expected msg
-        Expect.equalDval actual ocamlExpected $"OCaml equality: {msg}"
+          Expect.equalDval ocamlActual expected $"OCaml: {msg}"
+
         return ()
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
@@ -241,8 +222,7 @@ let fileTests () : Test =
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments
-                | Regex @"^\s*//.*$" [] when
-                  currentTest.recording || currentFn.recording -> ()
+                | Regex @"^\s*//.*$" [] -> ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
                     currentTest <-
@@ -250,17 +230,18 @@ let fileTests () : Test =
                 | _ when currentFn.recording ->
                     currentFn <- { currentFn with code = currentFn.code + line }
                 // 1-line test
-                | Regex "^(.*)\s*$" [ code ] ->
-                    let test = t $"line {i}" code currentGroup.dbs functions
-
-                    currentGroup <-
-                      { currentGroup with tests = currentGroup.tests @ [ test ] }
-                | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
+                | Regex @"^(.*)\s*//\s*(.*)$" [ code; comment ] ->
                     let test =
                       t $"{comment} (line {i})" code currentGroup.dbs functions
 
                     currentGroup <-
                       { currentGroup with tests = currentGroup.tests @ [ test ] }
+                | Regex @"^(.*)\s*$" [ code ] ->
+                    let test = t $"line {i}" code currentGroup.dbs functions
+
+                    currentGroup <-
+                      { currentGroup with tests = currentGroup.tests @ [ test ] }
+
                 | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()
