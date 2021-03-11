@@ -5,6 +5,8 @@ open Libexecution
 module SF = Serialization_format
 module Binary_serialization = Libserialize.Binary_serialization
 module Span = Telemetry.Span
+module Db = Libbackend_basics.Db
+module Event_queue = Libbackend_basics.Event_queue
 
 (* -------------------------------------------------------- *)
 (* Moved from op.ml as it touches the DB *)

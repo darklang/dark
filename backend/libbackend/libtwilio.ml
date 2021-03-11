@@ -2,6 +2,23 @@ open Core_kernel
 open Libexecution.Lib
 open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
+module Db = Libbackend_basics.Db
+module Config = Libbackend_basics.Config
+module Httpclient = Libbackend_basics.Httpclient
+
+(* Added to break a dependency on Canvas *)
+let name_for_id (id : Uuidm.t) : string =
+  Db.fetch_one
+    ~name:"fetch_canvas_name"
+    "SELECT name FROM canvases WHERE id = $1"
+    ~params:[Uuid id]
+  |> List.hd_exn
+
+
+let url_for (id : Uuidm.t) : string =
+  let canvas_name = name_for_id id in
+  "http://" ^ canvas_name ^ "." ^ Config.public_domain
+
 
 let fns : fn list =
   [ { prefix_names = ["Twilio::sendText"]
@@ -35,7 +52,7 @@ let fns : fn list =
                 |> DvalMap.from_list
                 |> DObj
               in
-              let host_url = Canvas.url_for s.canvas_id in
+              let host_url = url_for s.canvas_id in
               let body =
                 [ ("From", DStr fromNumber)
                 ; ("To", DStr toNumber)
@@ -96,7 +113,7 @@ let fns : fn list =
                 |> DvalMap.from_list
                 |> DObj
               in
-              let host_url = Canvas.url_for s.canvas_id in
+              let host_url = url_for s.canvas_id in
               let body =
                 [ ("From", DStr fromNumber)
                 ; ("To", DStr toNumber)

@@ -5,6 +5,7 @@ open Types
 open Types.RuntimeT
 open Utils
 open Libshared.FluidShortcuts
+module Sql_compiler = Libbackend_basics.Sql_compiler
 
 let t_db_add_roundtrip () =
   clear_test_data () ;

@@ -50,10 +50,19 @@ let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
       Lwt_result.fail (`GcloudAuthError (pp_gcloud_err x))
 
 
+(* Copied from Canvas.ml to allow moving this to Libbackend_basics *)
+let name_for_id (id : Uuidm.t) : string =
+  Db.fetch_one
+    ~name:"fetch_canvas_name"
+    "SELECT name FROM canvases WHERE id = $1"
+    ~params:[Uuid id]
+  |> List.hd_exn
+
+
 let app_hash (canvas_id : Uuidm.t) =
   Nocrypto.Hash.SHA1.digest
     (Cstruct.of_string
-       ( Canvas.name_for_id canvas_id
+       ( name_for_id canvas_id
        (* enough to make this hash not easily discoverable *)
        ^ "SOME SALT HERE"
        ^ Config.env_display_name ))
@@ -74,10 +83,7 @@ let url (canvas_id : Uuidm.t) (deploy_hash : string) variant : string =
   in
   String.concat
     ~sep:"/"
-    [ "https:/"
-    ; Canvas.name_for_id canvas_id ^ domain
-    ; app_hash canvas_id
-    ; deploy_hash ]
+    ["https:/"; name_for_id canvas_id ^ domain; app_hash canvas_id; deploy_hash]
 
 
 (* TODO [polish] could instrument this to error on bad deploy hash, maybe also

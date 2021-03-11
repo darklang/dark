@@ -1,4 +1,5 @@
 open Core_kernel
+module File = Libbackend_basics.File
 
 (* Not taken from  *)
 (* https://github.com/natebrennand/swagger/blob/master/schema.mli *)

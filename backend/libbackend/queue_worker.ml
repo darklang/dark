@@ -6,6 +6,7 @@ module RTT = Types.RuntimeT
 module C = Canvas
 module TL = Toplevel
 module Span = Telemetry.Span
+module Event_queue = Libbackend_basics.Event_queue
 open Result.Let_syntax
 
 let dequeue_and_process execution_id :

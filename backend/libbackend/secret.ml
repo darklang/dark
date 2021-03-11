@@ -4,6 +4,7 @@ open Libexecution
 open Util
 open Types
 open Types.RuntimeT
+module Db = Libbackend_basics.Db
 
 let secrets_in_canvas (canvas_id : Uuidm.t) : secret list =
   Db.fetch

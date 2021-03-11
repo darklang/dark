@@ -3,7 +3,10 @@ open Libexecution
 open Runtime
 open Lib
 open Types.RuntimeT
-open Curl_logging
+open Libbackend_basics.Curl_logging
+module Curl_logging = Libbackend_basics.Curl_logging
+module Httpclient = Libbackend_basics.Httpclient
+module Config = Libbackend_basics.Config
 
 module HttpclientV0 = struct
   module C = Curl

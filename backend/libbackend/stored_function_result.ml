@@ -4,6 +4,7 @@ open Analysis_types
 open Types
 module RTT = Types.RuntimeT
 open Libcommon
+module Db = Libbackend_basics.Db
 
 (* ------------------------- *)
 (* External *)

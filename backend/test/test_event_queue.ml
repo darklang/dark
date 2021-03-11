@@ -4,6 +4,7 @@ open Libbackend
 open Libshared.FluidShortcuts
 open Utils
 open Libcommon
+module Event_queue = Libbackend_basics.Event_queue
 
 (* ------------------- *)
 (*      event queue    *)

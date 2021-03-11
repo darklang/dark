@@ -3,6 +3,7 @@ open Libexecution
 open Types
 open Analysis_types
 module Op = Libserialize.Op
+module Account = Libbackend_basics.Account
 
 type add_op_rpc_params =
   { ops : oplist
@@ -185,7 +186,7 @@ let functions ~username =
              v.prefix_names
              |> List.exists ~f:(fun fn_prefix_name ->
                     Tc.StrSet.member
-                      Sql_compiler.compilerSupportedFns
+                      Libbackend_basics.Sql_compiler.compilerSupportedFns
                       ~value:fn_prefix_name) })
   |> List.map ~f:function_metadata_to_yojson
   |> (fun l -> `List l)

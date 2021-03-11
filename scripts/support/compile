@@ -532,7 +532,7 @@ def mark(should, f):
           or ("dune" in f):
     should.backend_build = True
 
-  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f)):
+  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f) or ("libocaml" in f)):
     should.backend_build = True
     should.fsharp_backend_quick_build = True
 

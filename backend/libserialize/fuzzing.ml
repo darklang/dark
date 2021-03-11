@@ -268,14 +268,18 @@ let fns : Types.RuntimeT.fn list =
 
 
 let execute (json : string) : string =
-  Libexecution.Init.init `Inspect `Json fns ;
-  let program, args, dbs, user_fns =
-    json
-    |> Yojson.Safe.from_string
-    |> execute_type_of_yojson
-    |> Result.ok_or_failwith
-  in
-  let exec_state = {exec_state with dbs; user_fns} in
-  Ast.execute_ast ~input_vars:args ~state:exec_state program
-  |> Types.RuntimeT.dval_to_yojson
-  |> Yojson.Safe.to_string
+  try
+    Libexecution.Init.init `Inspect `Json fns ;
+    let program, args, dbs, user_fns =
+      json
+      |> Yojson.Safe.from_string
+      |> execute_type_of_yojson
+      |> Result.ok_or_failwith
+    in
+    let exec_state = {exec_state with dbs; user_fns} in
+    Ast.execute_ast ~input_vars:args ~state:exec_state program
+    |> Types.RuntimeT.dval_to_yojson
+    |> Yojson.Safe.to_string
+  with e ->
+    print_endline (Exception.to_string e) ;
+    Libexecution.Exception.reraise e

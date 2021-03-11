@@ -1,5 +1,7 @@
 open Libexecution.Types.RuntimeT
 open Libexecution.Types
+module Httpclient = Libbackend_basics.Httpclient
+module Curl_logging = Libbackend_basics.Curl_logging
 
 module HttpclientV0 : sig
   val http_call :

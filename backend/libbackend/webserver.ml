@@ -3,14 +3,14 @@ open Libcommon
 open Lwt
 module Cl = Cohttp_lwt
 module Clu = Cohttp_lwt_unix
-module SA = Static_assets
+module SA = Libbackend_basics.Static_assets
 module S = Clu.Server
 module CRequest = Clu.Request
 module CResponse = Clu.Response
 module Header = Cohttp.Header
 module Cookie = Cohttp.Cookie
 module Client = Clu.Client
-module A = Account
+module A = Libbackend_basics.Account
 module C = Canvas
 module Exception = Libexecution.Exception
 module Util = Libexecution.Util
@@ -26,6 +26,12 @@ module Prelude = Libexecution.Prelude
 module Dbconnection = Libservice.Dbconnection
 module Span = Telemetry.Span
 module Op = Libserialize.Op
+module Db = Libbackend_basics.Db
+module Config = Libbackend_basics.Config
+module File = Libbackend_basics.File
+module Account = Libbackend_basics.Account
+module Static_assets = Libbackend_basics.Static_assets
+module Event_queue = Libbackend_basics.Event_queue
 
 (* ------------------------------- *)
 (* utils *)

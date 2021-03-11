@@ -20,7 +20,10 @@ type t =
   ; (* Delay in ms since it entered the queue *)
     delay : Float.t }
 
-val to_event_desc : t -> Stored_event.event_desc
+(* space, path, modifier *)
+type event_desc = string * string * string [@@deriving show, yojson]
+
+val to_event_desc : t -> event_desc
 
 val enqueue :
      account_id:Uuidm.t

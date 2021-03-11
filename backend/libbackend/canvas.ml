@@ -6,6 +6,12 @@ open Types
 open Libserialize
 module RTT = Types.RuntimeT
 module TL = Toplevel
+module Db = Libbackend_basics.Db
+module User_db = Libbackend_basics.User_db
+module Account = Libbackend_basics.Account
+module Config = Libbackend_basics.Config
+module Event_queue = Libbackend_basics.Event_queue
+module File = Libbackend_basics.File
 
 type cors_setting =
   | AllOrigins

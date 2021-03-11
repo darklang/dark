@@ -3,6 +3,8 @@ open Libcommon
 open Libexecution
 open Types
 module BS = Libserialize.Binary_serialization
+module Db = Libbackend_basics.Db
+module Account = Libbackend_basics.Account
 
 (* ------------------ *)
 (* APIs *)

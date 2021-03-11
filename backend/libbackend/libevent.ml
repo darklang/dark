@@ -3,6 +3,7 @@ open Libexecution
 open Lib
 open Types.RuntimeT
 module RT = Runtime
+module Event_queue = Libbackend_basics.Event_queue
 
 let fns : fn list =
   [ { prefix_names = ["emit"]

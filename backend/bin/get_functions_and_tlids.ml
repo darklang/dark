@@ -1,6 +1,6 @@
 open Core_kernel
 module Util = Libexecution.Util
-module Account = Libbackend.Account
+module Account = Libbackend_basics.Account
 open Libbackend
 open Libexecution
 module RTT = Types.RuntimeT
