@@ -4,7 +4,7 @@ open Libexecution
 module RTT = Libexecution.Types.RuntimeT
 open Libbackend
 open Libcommon
-module Account = Libbackend_basics.Account
+module Account = Libbackend.Account
 
 let usage () : unit =
   Format.printf

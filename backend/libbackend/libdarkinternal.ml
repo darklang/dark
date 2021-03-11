@@ -9,9 +9,7 @@ module Op = Libserialize.Op
 module Unicode = Libexecution.Unicode_string
 module Db = Libbackend_basics.Db
 module User_db = Libbackend_basics.User_db
-module Account = Libbackend_basics.Account
 module Event_queue = Libbackend_basics.Event_queue
-module Static_assets = Libbackend_basics.Static_assets
 
 (* Apply this to function to wrap that function in an InProcess that checks
  * permissions for the dark internal functions and logs status. *)

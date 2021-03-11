@@ -7,7 +7,6 @@ open Libexecution.Exception
 module Dval = Libexecution.Dval
 module Dint = Libexecution.Dint
 module Unicode_string = Libexecution.Unicode_string
-module Httpclient = Libbackend_basics.Httpclient
 
 let params =
   [par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj]

@@ -4,7 +4,6 @@ open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 module Db = Libbackend_basics.Db
 module Config = Libbackend_basics.Config
-module Httpclient = Libbackend_basics.Httpclient
 
 (* Added to break a dependency on Canvas *)
 let name_for_id (id : Uuidm.t) : string =

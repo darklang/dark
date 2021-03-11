@@ -1,11 +1,10 @@
-open Libbackend_basics.Static_assets
+open Static_assets
 open Libcommon
 open Libexecution.Types.RuntimeT
 open Libexecution.Runtime
 open Libexecution.Lib
 module Unicode_string = Libexecution.Unicode_string
 module Dval = Libexecution.Dval
-module Httpclient = Libbackend_basics.Httpclient
 
 let fns : fn list =
   [ { prefix_names = ["StaticAssets::baseUrlFor"]

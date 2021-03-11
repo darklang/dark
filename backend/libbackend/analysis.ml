@@ -7,11 +7,10 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 module SE = Stored_event
-module SA = Libbackend_basics.Static_assets
+module SA = Static_assets
 module User_db = Libbackend_basics.User_db
 module Db = Libbackend_basics.Db
 module Event_queue = Libbackend_basics.Event_queue
-module Account = Libbackend_basics.Account
 
 (* ------------------------- *)
 (* Non-execution analysis *)

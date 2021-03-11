@@ -1,7 +1,6 @@
 open Core_kernel
 open Libbackend
 open Libcommon
-module Account = Libbackend_basics.Account
 
 (* Iterates over all users to send an Identify event to heapio *)
 

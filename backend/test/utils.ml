@@ -15,7 +15,7 @@ module RT = Runtime
 module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
-module Account = Libbackend_basics.Account
+module Account = Libbackend.Account
 module Db = Libbackend_basics.Db
 module File = Libbackend_basics.File
 

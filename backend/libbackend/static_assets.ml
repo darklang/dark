@@ -4,6 +4,8 @@ open Libcommon
 open Types
 open Lwt
 open Lwt_result.Infix
+module Db = Libbackend_basics.Db
+module Config = Libbackend_basics.Config
 
 let pp_gcloud_err (err : Gcloud.Auth.error) : string =
   Gcloud.Auth.pp_error Format.str_formatter err ;

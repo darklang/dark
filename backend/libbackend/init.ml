@@ -1,8 +1,6 @@
 open Core_kernel
 module Config = Libbackend_basics.Config
 module File = Libbackend_basics.File
-module Httpclient = Libbackend_basics.Httpclient
-module Account = Libbackend_basics.Account
 
 let has_inited : bool ref = ref false
 
@@ -19,11 +17,11 @@ let init ~run_side_effects =
         Libbackend_stdlib.Libdb.fns
         @ Libbackend_stdlib.Libdb2.fns
         @ Libbackend_stdlib.Libevent.fns
-        @ Libbackend_stdlib.Libhttpclient.fns
+        @ Libhttpclient.fns
         @ Libbackend_stdlib.Libcrypto.fns
-        @ Libbackend_stdlib.Libtwilio.fns
+        @ Libtwilio.fns
         @ Libdarkinternal.fns
-        @ Libbackend_stdlib.Libstaticassets.fns
+        @ Libstaticassets.fns
         @ Libbackend_stdlib.Libjwt.fns
         @ Libbackend_stdlib.Libx509.fns
       in

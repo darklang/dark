@@ -1671,7 +1671,7 @@ let t_libbytes () =
 
 
 let t_internal_functions () =
-  Libbackend_basics.Account.set_admin "test" true ;
+  Libbackend.Account.set_admin "test" true ;
   check_dval
     "We should get an error on failed validation"
     (DResult

@@ -2,7 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Libbackend
-module Account = Libbackend_basics.Account
+module Account = Libbackend.Account
 module File = Libbackend_basics.File
 
 let () =

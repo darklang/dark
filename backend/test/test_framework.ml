@@ -18,8 +18,8 @@ module TL = Toplevel
 module AT = Alcotest
 module SE = Stored_event
 module Event_queue = Libbackend_basics.Event_queue
-module Httpclient = Libbackend_basics.Httpclient
-module Libhttpclient = Libbackend_stdlib.Libhttpclient
+module Httpclient = Libbackend.Httpclient
+module Libhttpclient = Libbackend.Libhttpclient
 
 (* ------------------- *)
 (* Stored events *)
@@ -311,7 +311,7 @@ let t_curl_file_urls () =
     (* TODO: use modern http_call *)
     ( try
         ignore
-          (Libbackend_stdlib.Legacy.HttpclientV0.http_call
+          (Libbackend.Legacy.HttpclientV0.http_call
              "file://localhost/etc/passwd"
              []
              Httpclient.GET

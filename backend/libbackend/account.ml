@@ -2,6 +2,9 @@ open Core_kernel
 open Libexecution
 open Types
 module Hash = Sodium.Password_hash.Bytes
+module Password = Libbackend_basics.Password
+module Db = Libbackend_basics.Db
+module Config = Libbackend_basics.Config
 
 let banned_usernames : string list =
   (* originally from https://ldpreload.com/blog/names-to-reserve *)

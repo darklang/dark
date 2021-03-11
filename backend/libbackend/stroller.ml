@@ -5,8 +5,6 @@ module Cl = Cohttp_lwt
 module Clu = Cohttp_lwt_unix
 module CResponse = Clu.Response
 module Config = Libbackend_basics.Config
-module Account = Libbackend_basics.Account
-module Static_assets = Libbackend_basics.Static_assets
 module Event_queue = Libbackend_basics.Event_queue
 
 let status () =

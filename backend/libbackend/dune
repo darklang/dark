@@ -17,8 +17,7 @@
   (libraries  libtarget
               libexecution
               libservice
-              libserialize
-              core_extended
+              core_kernel
               cstruct
               curl
               nocrypto
@@ -32,15 +31,11 @@
               x509
               )
   (modules db
-           file
            config
            user_db
            sql_compiler
-           static_assets
-           account
            event_queue
-           httpclient
-           curl_logging
+           file
            password
            )
 )
@@ -63,8 +58,7 @@
               libbackend_basics
               libexecution
               libservice
-              libserialize
-              core_extended
+              core_kernel
               cstruct
               curl
               nocrypto
@@ -78,12 +72,8 @@
   (modules libcrypto
            libdb
            libdb2
-           legacy
            libevent
-           libhttpclient
            libjwt
-           libstaticassets
-           libtwilio
            libx509)
 )
 
@@ -101,17 +91,24 @@
                ppx_pipebang
                ppx_let
                ))
-  (modules analysis
+  (modules account
+           analysis
            api
            auth
            authorization
            canvas
            canvas_clone
            cron
+           curl_logging
            garbage_collection
+           httpclient
            init
            internal_analysis
+           legacy
            libdarkinternal
+           libhttpclient
+           libstaticassets
+           libtwilio
            migrations
            mock
            package_manager
@@ -119,6 +116,7 @@
            rollbar
            secret
            serialize
+           static_assets
            stroller
            stored_event
            stored_function_arguments

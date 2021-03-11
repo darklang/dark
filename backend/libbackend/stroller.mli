@@ -35,7 +35,7 @@ val push_new_404 :
 val push_new_static_deploy :
      execution_id:Types.id
   -> canvas_id:Uuidm.t
-  -> Libbackend_basics.Static_assets.static_deploy
+  -> Static_assets.static_deploy
   -> unit
 
 val push_new_event :
