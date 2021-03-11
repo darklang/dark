@@ -10,8 +10,9 @@
 // Roundtripping Functions
 // ------------
 [test.dbnullroundtrip] with DB X
-(let old = { x = null } in
- let key = DB.add_v0 old X in
+(let key = DB.generateKey_v0 in
+ let old = { x = null } in
+ let _ = DB.set_v1 old key X in
  DB.get_v1_ster key X) = { x = null }
 
 [test.dbnullroundtrip2] with DB X
@@ -25,12 +26,13 @@
 [test.db roundtrip password] with DB Passwords
 // Each call to hash gets a different but compatible answer
 (let pw = Password.hash_v0 "password" in
- let _ = DB.add_v0 { password = pw } Passwords in
- (List.head_v0 (DB.getAll_v2 Passwords)).password = pw) = true
+ let x = DB.set_v1 { password = pw } "test" Passwords in
+ let y = DB.queryOneWithExactFields_v0_ster { password = pw } Passwords in
+ Password.check_v0 y.password "password") = true
 
 [test.db roundtrip uuid] with DB Uuid
 (let i = Uuid.generate_v0 in
- let _ = DB.add_v0 { uu = i } Uuid in
+ let _ = DB.set_v1 { uu = i } "test" Uuid in
  (List.head_v0 (DB.getAll_v2 Uuid)).uu = i) = true
 
 

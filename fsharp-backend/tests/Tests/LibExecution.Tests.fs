@@ -72,6 +72,8 @@ let t
         if testOCaml then
           let ocamlActual =
             LibBackend.OCamlInterop.execute
+              state.accountID
+              state.canvasID
               actualProg
               Map.empty
               dbs
@@ -235,11 +237,18 @@ let fileTests () : Test =
                     | Some db -> currentTest <- { currentTest with dbs = [ db ] }
                     | None -> failwith $"No DB named {dbName} found"
 
-                    currentTest <- { currentTest with name = name; recording = true }
+                    currentTest <-
+                      { currentTest with
+                          name = $"{name} (line {i})"
+                          recording = true }
                 // [test] indicator (no DB)
                 | Regex @"^\[test\.(.*)\]$" [ name ] ->
                     finish ()
-                    currentTest <- { currentTest with name = name; recording = true }
+
+                    currentTest <-
+                      { currentTest with
+                          name = $"{name} (line {i})"
+                          recording = true }
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments

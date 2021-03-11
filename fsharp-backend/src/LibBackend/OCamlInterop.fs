@@ -1443,6 +1443,8 @@ let hashV1 (dv : RT.Dval) : string =
   finishString2String outLength out
 
 let execute
+  (ownerID : UserID)
+  (canvasID : CanvasID)
   (program : PT.Expr)
   (symtable : Map<string, RT.Dval>)
   (dbs : List<PT.DB.T>)
@@ -1452,7 +1454,10 @@ let execute
   let args = Map.toList symtable
   let dbs = List.map Convert.pt2ocamlDB dbs
   let fns = List.map Convert.pt2ocamlUserFunction fns
-  let str = Json.AutoSerialize.serialize ((program, args, dbs, fns))
+
+  let str =
+    Json.AutoSerialize.serialize ((ownerID, canvasID, program, args, dbs, fns))
+
   let mutable (out, bytes) = startString2String str
   let outLength = Binary.Internal.execute (bytes, bytes.Length, &out)
   finishString2Dval outLength out

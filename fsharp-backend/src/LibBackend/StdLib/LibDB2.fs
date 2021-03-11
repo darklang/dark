@@ -451,29 +451,26 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Impure
 //   ; deprecated = ReplacedBy(fn "" "" 0) }
 //   (* see queryOneExactFields *)
-// ; { name = fn "DB" "queryOneWithExactFields" 0
-//   ; parameters = [Param.make "spec" TObj ""; tableParam]
-//   ; returnType = TOption
-//   ; description =
-//       "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
-//   ; fn =
-//          (function
-//         | state, [(DObj _ as obj); DDB dbname] -> taskv {
-//             let results =
-//               let db = state.dbs.[dbname]
-//               UserDB.query_exact_fields state db obj
-//             in
-//             ( match results with
-//             | [(_, v)] ->
-//                 Dval.to_opt_just v
-//             | _ ->
-//                 DOption OptNothing )
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+    { name = fn "DB" "queryOneWithExactFields" 0
+      parameters = [ specParam; tableParam ]
+      returnType = TOption varA
+      description =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Previously called DB::queryOne_v2"
+      fn =
+        (function
+        | state, [ (DObj fields); DDB dbname ] ->
+            taskv {
+              let db = state.dbs.[dbname]
+              let! results = UserDB.queryExactFields state db fields
+
+              match results with
+              | [ (_, v) ] -> return (DOption(Some v))
+              | _ -> return (DOption None)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "DB" "queryOneWithKey" 1
       parameters = [ specParam; tableParam ]
       returnType = TOption varA
