@@ -269,7 +269,15 @@ let fns : Types.RuntimeT.fn list =
 
 let execute (json : string) : string =
   try
-    Libexecution.Init.init `Inspect `Json fns ;
+    let non_client_fns =
+      Libbackend_stdlib.Libdb.fns
+      @ Libbackend_stdlib.Libdb2.fns
+      @ Libbackend_stdlib.Libevent.fns
+      @ Libbackend_stdlib.Libcrypto.fns
+      @ Libbackend_stdlib.Libjwt.fns
+      @ Libbackend_stdlib.Libx509.fns
+    in
+    Libexecution.Init.init `Inspect `Json (fns @ non_client_fns) ;
     let program, args, dbs, user_fns =
       json
       |> Yojson.Safe.from_string
