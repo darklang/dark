@@ -286,12 +286,35 @@ String.toLowercase_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱
 String.toLowercase_v1 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
 String.toLowercase_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toLowercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+
 String.toUppercase_v0 "hello😄world" = "HELLO😄WORLD"
-String.toUppercase_v0 "żółw" = "ŻÓŁW"
-String.toUppercase_v1 "abcdef" = "ABCDEF" // String.toUppercase_v1 works for ASCII range
-String.toUppercase_v1 "hello😄world" = "HELLO😄WORLD" // String.toUppercase_v1 works on mixed strings
+String.toUppercase_v0 "abcdef" = "ABCDEF" // String.toUppercase_v0 works for ASCII range
+String.toUppercase_v0 "ab323cdef" = "AB323CDEF"
+String.toUppercase_v0 "sánchez" = "SáNCHEZ" // note lowercase a
+String.toUppercase_v0 "SÁNChEZ" = "SÁNCHEZ"
+String.toUppercase_v0 "żółw" = "żółW"
+String.toUppercase_v0 "😄orange" = "😄ORANGE"
+String.toUppercase_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+String.toUppercase_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+String.toUppercase_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+String.toUppercase_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
+String.toUppercase_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+String.toUppercase_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+
+String.toUppercase_v1 "hello😄world" = "HELLO😄WORLD"
+String.toUppercase_v1 "abcdef" = "ABCDEF" // String.toUppercase_v0 works for ASCII range
+String.toUppercase_v1 "ab323cdef" = "AB323CDEF"
+String.toUppercase_v1 "sánchez" = "SÁNCHEZ" // not lowercase a
+String.toUppercase_v1 "SÁNChEZ" = "SÁNCHEZ"
 String.toUppercase_v1 "żółw" = "ŻÓŁW" // String.toUppercase_v1 works on non-ascii strings
+String.toUppercase_v1 "😄orange" = "😄ORANGE"
 String.toUppercase_v1 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+String.toUppercase_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+String.toUppercase_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+String.toUppercase_v1 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
+String.toUppercase_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+String.toUppercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+
 String.trimEnd_v0 "      " = ""
 String.trimEnd_v0 "  foo  " = "  foo"
 String.trimEnd_v0 "  foo bar  " = "  foo bar"
@@ -308,6 +331,7 @@ String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
 String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
 String.trimEnd_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+
 String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
 String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
 String.trimStart_v0 "      " = ""
@@ -324,6 +348,7 @@ String.trimStart_v0 "       ﷽﷽  " = "﷽﷽  "
 String.trimStart_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️ "
 String.trimStart_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
 String.trimStart_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
+
 String.trim_v0 "      " = "" // String trim empties a whitespace only string
 String.trim_v0 "  foo  " = "foo" // String trims both leading + trailing spaces
 String.trim_v0 "  foo bar  " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched
@@ -340,6 +365,7 @@ String.trim_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍�
 String.trim_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.trim_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
 String.trim_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
+
 String.reverse_v0 "abcde" = "edcba"
 String.reverse_v0 "0abcde" = "edcba0"
 String.reverse_v0 "a" = "a"
@@ -352,6 +378,8 @@ String.reverse_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽�
 String.reverse_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱🏿👱🏾👱🏽👱🏼👱🏻👱"
 String.reverse_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♂️🧟‍♀️"
 String.reverse_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "🇵🇷🏳️‍⚧️‍️👩‍👩‍👧‍👦👨‍❤️‍💋‍👨"
+String.reverse_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "o̙̔ͮ̇͐̇ǧ̗͚̚lͮ̒ͫä͖̭̈̇Z̤͔ͧ̑̓"
+
 String.dropFirst_v0 "abcd" -3 = "abcd"
 String.dropFirst_v0 "abcd" 0 = "abcd"
 String.dropFirst_v0 "abcd" 3 = "d"
@@ -367,6 +395,7 @@ String.dropFirst_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 = "﷽�
 String.dropFirst_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 1 = "👱🏻👱🏼👱🏽👱🏾👱🏿"
 String.dropFirst_v0 "🧟‍♀️🧟‍♂️" 20 = ""
 String.dropFirst_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "🇵🇷"
+
 String.dropLast_v0 "abcd" -3 = "abcd"
 String.dropLast_v0 "abcd" 0 = "abcd"
 String.dropLast_v0 "abcd" 3 = "a"
@@ -379,6 +408,7 @@ String.dropLast_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱👱�
 String.dropLast_v0 "🧟‍♀️🧟‍♂️" 20 = ""
 String.dropLast_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦"
 String.dropLast_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "żółw🧑🏽‍🦰"
+
 String.last_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "🧑🏻‍🍼✋✋🏻✋🏿"
 String.last_v0 "abcd" -3 = ""
 String.last_v0 "abcd" 0 = ""
@@ -393,6 +423,7 @@ String.last_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 = "﷽﷽"
 String.last_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3 = "👱🏽👱🏾👱🏿"
 String.last_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♂️"
 String.last_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 1 = "🇵🇷"
+
 String.contains_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "2223" = false
 String.contains_v0 "👱👱🏻👱🏼👱🏽👱🏾" "👱🏿" = false
 String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = true
@@ -505,7 +536,6 @@ String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 // Test cases not working
 // String.toLowercase_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" // The expected result looks equals to actual result
-//String.reverse_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "o̙̔ͮ̇͐̇ǧ̗͚̚lͮ̒ͫä͖̭̈̇Z̤͔ͧ̑̓" // This is not working yet, not the same result than the Ocalm version
 //String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ 'Z̤͔ͧ̑̓', 'ä͖̭̈̇', 'lͮ̒ͫ', 'ǧ̗͚̚', 'o̙̔ͮ̇͐̇' ]
 //String.toList_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽' ]
 //String.toList_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ '👱', '👱🏻', '👱🏼', '👱🏽', '👱🏾', '👱🏿' ]

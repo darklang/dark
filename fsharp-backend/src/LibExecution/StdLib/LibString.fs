@@ -248,10 +248,19 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "toUppercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
-      description = "Returns the string, uppercased"
+      description =
+        "Returns the string, uppercased (only ASCII characters are uppercased)"
       fn =
         (function
-        | _, [ DStr s ] -> Value(DStr(String.toUpper s))
+        | _, [ DStr s ] ->
+            s
+            |> String.toEgcSeq
+            |> Seq.map
+                 (fun s ->
+                   if s.Length = 1 && (int s.[0]) < 128 then s.ToUpper() else s)
+            |> String.concat ""
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
