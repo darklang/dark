@@ -1,3 +1,7 @@
+[fn.c arg]
+Test.toChar_v0_ster arg
+
+[tests.tests]
 "a" ++ "̂" = "â"
 "hello" ++ " world" = "hello world"
 "ᄀ" ++ "ᅡᆨ" = "각"
@@ -143,6 +147,7 @@ String.htmlEscape_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z�
 String.htmlEscape_v0 "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></html>" = "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
 String.htmlEscape_v0 "<head>🧟‍♀️🧟‍♂️</head>" = "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
 String.htmlEscape_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
 String.isEmpty_v0 "" = true
 String.isEmpty_v0 "a" = false
 String.isEmpty_v0 "🧑🏼‍💻🧑🏻‍🍼" = false
@@ -151,6 +156,7 @@ String.isEmpty_v0 "﷽﷽﷽﷽﷽" = false
 String.isEmpty_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = false
 String.isEmpty_v0 "🧟‍♀️🧟‍♂️" = false
 String.isEmpty_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= false
+
 String.newline_v0 = "\n"
 
 // length v0
@@ -240,6 +246,7 @@ String.toInt_v0 "-11111" = -11111
 String.toInt_v0 "0" = 0
 String.toInt_v0 "1" = 1
 String.toInt_v0 "55555555" = 55555555
+
 String.toInt_v1 "" = Error "Expected a string with only numbers, got " // OCAMLONLY
 String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\"" // FSHARPONLY
 String.toInt_v1 "-00001" = Ok -1
@@ -257,6 +264,7 @@ String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead 
 String.toInt_v1 "" = Error "Expected a string with only numbers, got " // OCAMLONLY
 String.toInt_v1 "0" = Ok 0
 String.toInt_v1 "1" = Ok 1
+
 String.toFloat_v0 "1.5" = 1.5
 String.toFloat_v0 "0.0" = 0.0
 String.toFloat_v0 "-0.5" = -0.5
@@ -270,7 +278,14 @@ String.toFloat_v1 "+0.5" = Ok 0.5
 String.toFloat_v1 ".5" = Ok 0.5
 String.toFloat_v1 "-55555555555555555555555555555.5" = Ok -55555555555555555555555555555.5
 String.toFloat_v1 "-141s" = Error "Expected a string representation of an IEEE float"
-String.toList_v1 "abc" = [ 'a', 'b', 'c'] // String.toList_v1 works
+
+String.toList_v1 "abc" = [ 'a'; 'b'; 'c']
+String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c "Z̤͔ͧ̑̓"; c "ä͖̭̈̇"; c "lͮ̒ͫ"; c "ǧ̗͚̚"; c "o̙̔ͮ̇͐̇" ]
+String.toList_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽" ]
+String.toList_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ c "👱"; c "👱🏻"; c "👱🏼"; c "👱🏽"; c "👱🏾"; c "👱🏿" ]
+String.toList_v1 "🧟‍♀️🧟‍♂️" = [ c "🧟‍♀️"; c "🧟‍♂️" ]
+String.toList_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = [ c "👨‍❤️‍💋‍👨"; c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "🇵🇷" ]
+String.toList_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ c "ż"; c "ó"; c "ł"; c "w"; c "🧑🏽‍🦰"; c "🧑🏻‍🍼"; c "✋"; c "✋🏻"; c "✋🏿" ]
 
 String.toLowercase_v0 "HELLO😄WORLD" = "hello😄world"
 String.toLowercase_v0 "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
@@ -549,12 +564,6 @@ String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 // Test cases not working
 // String.toLowercase_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" // The expected result looks equals to actual result
-//String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ 'Z̤͔ͧ̑̓', 'ä͖̭̈̇', 'lͮ̒ͫ', 'ǧ̗͚̚', 'o̙̔ͮ̇͐̇' ]
-//String.toList_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽', '﷽' ]
-//String.toList_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ '👱', '👱🏻', '👱🏼', '👱🏽', '👱🏾', '👱🏿' ]
-//String.toList_v1 "🧟‍♀️🧟‍♂️" = [ '🧟‍♀️', '🧟‍♂️' ]
-//String.toList_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = [ '👨‍❤️‍💋‍👨', '👩‍👩‍👧‍👦', '🏳️‍⚧️‍️', '🇵🇷' ]
-//String.toList_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ 'ż', 'ó', 'ł', 'w', '🧑🏽‍🦰', '🧑🏻‍🍼', '✋', '✋🏻', '✋🏿' ]
 //String.slugify_v2 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "" // This is the Ocalm result zlo
 //String.replaceAll_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ä͖̭̈̇" "$" = "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" // This is the Ocalm result Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇
 //String.sha384_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "LG7K5mKmxhZtrXnduzMqxmAXhkbEpJwBdEagHeGQIEquA1Ggn9d-cCcx73mGJE07"  // this is a correct Ocalm expected result
