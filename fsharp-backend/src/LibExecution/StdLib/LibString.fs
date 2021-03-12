@@ -921,8 +921,10 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
+            let n = String.lengthInEgcs s |> min (int n) |> max 0
+
             String.toEgcSeq s
-            |> List.take (int n)
+            |> List.take n
             |> String.concat ""
             |> fun s -> s.Normalize()
             |> DStr
