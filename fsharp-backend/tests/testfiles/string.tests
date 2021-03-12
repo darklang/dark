@@ -450,18 +450,28 @@ String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = "�
 String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000"
 String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = "🧟‍♀️🧟‍♂️000"
 String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
-toString_v0 (String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-toString_v0 (String.toUUID_v0 "11111111-2222-3333-4444-555555555555") = "11111111-2222-3333-4444-555555555555"
+
+// String.toUUID
+String.toUUID_v0 "👱🏼" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v0 "1111111🍇-2222-3333-4444-555555555555" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v0 "psp-soslsls==" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v0 "123456" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+String.toUUID_v0 "d388ff30-667f-11eb-ae93" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v0 "d388ff30-667f-11eb-ae93-0242ac13000" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+String.toUUID_v0 "11111111-2222-3333-4444-555555555555" = String.toUUID_v0 "11111111-2222-3333-4444-555555555555"
+
 String.toUUID_v1 "👱🏼" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v1 "123🍊🍊000" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+String.toUUID_v1 "1111111🍇-2222-3333-4444-555555555555" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+String.toUUID_v1 "psp-soslsls==" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+String.toUUID_v1 "123456" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v1 "d388ff30-667f-11eb-ae93" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v1 "d388ff30-667f-11eb-ae93-0242ac13000" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 String.toUUID_v1 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = Ok (String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
 String.toUUID_v1 "11111111-2222-3333-4444-555555555555" = Ok (String.toUUID_v0 "11111111-2222-3333-4444-555555555555")
+
+
+// String.isSubstring
 String.isSubstring_v0 "in" "a string" = true
 String.isSubstring_v0 "x" "a string"= false
 String.isSubstring_v0 "✋🏻" "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" = false
@@ -471,6 +481,7 @@ String.isSubstring_v0  "🧟‍🧟‍♂️" "🧟‍♀️🧟‍♂️" = fal
 String.isSubstring_v0 "﷽﷽﷽﷽" "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = true
 String.isSubstring_v0 "ǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = true
 String.isSubstring_v0 "🧟‍🧟‍♂️" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" = false
+
 String.isSubstring_v1 "a string" "in" = true
 String.isSubstring_v1 "a string" "x" = false
 String.isSubstring_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" "✋🏻" = false
