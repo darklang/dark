@@ -862,51 +862,30 @@ Don't rely on either the size or the algorithm."
        Indices represent characters."
       fn =
         (function
-        | _, [ DStr s; DInt f; DInt l ] ->
-            let egcSeq = String.toEgcSeq s
-            let stringEgcCount = bigint (length egcSeq)
+        | _, [ DStr s; DInt first; DInt last ] ->
 
-            let slice s (first : bigint) (last : bigint) =
-              let clampUnchecked t min max =
-                if t < min then min
-                else if t <= max then t
-                else max
+            let chars = String.toEgcSeq s
+            let length = length chars
 
-              let len = stringEgcCount in
-              let min = 0I in
-              let max = len + 1I in
-              (* If we get negative indices, we need to treat them as indices from the end
-               * which means that we need to add [len] to them. We clamp the result to
-               * a value within range of the actual string: *)
+            let normalize i =
+              i
+              |> int
+              |> fun i -> if i < 0 then length + i else i // account for - values
+              |> min length
+              |> max 0
 
-              let first =
-                if first >= 0I then first else len + first |> clampUnchecked min max
 
-              let last =
-                if last >= 0I then last else len + last |> clampUnchecked min max
+            let f = normalize first
+            let l = normalize last
+            let l = if f > l then f else l // return empty string when start is less than end
 
-              let stringBuilder = new StringBuilder(String.length s) in
-              (* To slice, we iterate through every EGC, adding it to the buffer
-               * if it is within the specified index range: *)
-              let slicerFunc (acc : bigint) (seg : string) =
-                if acc >= first && acc < last then
-                  stringBuilder.Append seg |> ignore
-                else
-                  () |> ignore
-
-                1I + acc
-
-              ignore (
-                egcSeq
-                |> Seq.toList
-                |> List.mapi (fun index value -> (slicerFunc (bigint index) value))
-              )
-              (* We don't need to renormalize because all normalization forms are closed
-               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              stringBuilder.ToString()
-
-            let first, last = (f, l) in
-            Value(DStr(slice s first last))
+            chars
+            |> Seq.toList
+            |> List.drop f
+            |> List.take (l - f)
+            |> String.concat ""
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
