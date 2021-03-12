@@ -461,3 +461,6 @@ Date.parse_v2_ster "2100-01-01T00:00:00Z"
 (let _ = prepDates null in
  DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts))
 = Just { ts = beforeDate null }
+
+[tests.other tests]
+(DB.generateKey_v0 |> String.length_v1) = 36

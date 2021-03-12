@@ -671,20 +671,17 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotQueryable
 //   ; previewable = Impure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "generateKey" 0
-//   ; parameters = []
-//   ; returnType = TStr
-//   ; description = "Returns a random key suitable for use as a DB key"
-//   ; fn =
-//          (function
-//         | _, [] ->
-//             Uuidm.v `V4 |> Uuidm.to_string |> DStr
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+    { name = fn "DB" "generateKey" 0
+      parameters = []
+      returnType = TStr
+      description = "Returns a random key suitable for use as a DB key"
+      fn =
+        (function
+        | _, [] -> System.Guid.NewGuid().ToString() |> DStr |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "DB" "keys" 1
       parameters = [ tableParam ]
       returnType = TList TAny
