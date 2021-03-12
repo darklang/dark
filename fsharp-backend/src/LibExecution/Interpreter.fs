@@ -37,7 +37,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let! rhs = eval state st rhs
         let st = st.Add(lhs, rhs)
         return! (eval state st body)
-    | EString (_id, s) -> return (DStr s)
+    | EString (_id, s) -> return (DStr(s.Normalize()))
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
