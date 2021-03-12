@@ -279,10 +279,19 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "toLowercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
-      description = "Returns the string, lowercased"
+      description =
+        "Returns the string, lowercased (only ASCII characters are lowercased)"
       fn =
         (function
-        | _, [ DStr s ] -> Value(DStr(String.toLower s))
+        | _, [ DStr s ] ->
+            s
+            |> String.toEgcSeq
+            |> Seq.map
+                 (fun s ->
+                   if s.Length = 1 && (int s.[0]) < 128 then s.ToLower() else s)
+            |> String.concat ""
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
