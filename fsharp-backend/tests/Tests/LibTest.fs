@@ -115,4 +115,17 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "inspect" 0
+      parameters = [ Param.make "var" varA ""; Param.make "msg" TStr "" ]
+      returnType = varA
+      description = "Prints the value into stdout"
+      fn =
+        (function
+        | state, [ v; DStr msg ] ->
+            printfn $"{msg}: {v}"
+            Value v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]

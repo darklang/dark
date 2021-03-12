@@ -233,6 +233,22 @@ let fns : Types.RuntimeT.fn list =
           (function
           | state, [] -> Dval.dint !sideEffectCount | args -> Lib.fail args)
     ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::inspect"]
+    ; infix_names = []
+    ; parameters = [Lib.par "var" TAny; Lib.par "msg" TStr]
+    ; return_type = TAny
+    ; description = "Prints the value into stdout"
+    ; func =
+        InProcess
+          (function
+          | state, [v; DStr msg] ->
+              let msg = Unicode_string.to_string msg in
+              Libcommon.Log.inspecT msg v ;
+              v
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
     ; deprecated = false } ]
 
 
