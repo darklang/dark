@@ -302,13 +302,21 @@
 (friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ))
 = [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db lambda doesnt return a bool] with DB Person
+[test.db lambda doesnt return a bool FSHARPONLY] with DB Person
 (friends (fun p -> "x"))
 = Test.sqlError_v0 "Incorrect type in string \"x\", expected Bool, but got a String"
 
-[test.db bad variable name] with DB Person
+[test.db lambda doesnt return a bool OCAMLONLY] with DB Person
+(friends (fun p -> "x"))
+= Test.typeError_v0 "Fn called with an error as an argument"
+
+[test.db bad variable name FSHARPONLY] with DB Person
 (friends (fun p -> let x = 32 in true && p.height > y))
 = Test.sqlError_v0 "This variable is not defined: y"
+
+[test.db bad variable name OCAMLONLY] with DB Person
+(friends (fun p -> let x = 32 in true && p.height > y))
+= Test.typeError_v0 "Fn called with an error as an argument"
 
 [test.db sql injection] with DB Person
 (friends (fun p -> "; select * from users;" = p.name )) = []
