@@ -655,7 +655,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DInt l as dv ] ->
             if l < 0I then
-              err (Errors.argumentWasnt "positive" "length" dv)
+              err "l should be a positive integer"
             else
               let randomString length =
                 let gen () =
@@ -705,13 +705,18 @@ Don't rely on either the size or the algorithm."
       deprecated = ReplacedBy(fn "String" "random" 1) }
     { name = fn "String" "random" 2
       parameters = [ Param.make "length" TInt "" ]
-      returnType = TStr
+      returnType = TResult(TStr, TStr)
       description = "Generate a string of length `length` from random characters."
       fn =
         (function
         | _, [ DInt l as dv ] ->
             if l < 0I then
-              err (Errors.argumentWasnt "positive" "length" dv)
+              dv
+              |> Errors.argumentWasnt "positive" "length"
+              |> DStr
+              |> Error
+              |> DResult
+              |> Value
             else
               let randomString length =
                 let gen () =
@@ -726,7 +731,7 @@ Don't rely on either the size or the algorithm."
                 |> List.map (fun i -> i.ToString())
                 |> String.concat ""
 
-              randomString (int l) |> DStr |> Value
+              randomString (int l) |> DStr |> Ok |> DResult |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -916,29 +921,12 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let firstN s (numEgcs : bigint) =
-              let stringBuilder = new StringBuilder(String.length s) in
-              (* We iterate through every EGC, adding it to the buffer
-               * if its index < numEgcs: *)
-
-              let firstFunc (idx : bigint) (seg : string) =
-                if idx < numEgcs then
-                  stringBuilder.Append seg |> ignore
-                else
-                  () |> ignore
-
-                1I + idx
-
-              ignore (
-                String.toEgcSeq s
-                |> Seq.toList
-                |> List.mapi (fun index value -> (firstFunc (bigint index) value))
-              )
-              (* We don't need to renormalize because all normalization forms are closed
-               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              stringBuilder.ToString()
-
-            Value(DStr(firstN s n))
+            String.toEgcSeq s
+            |> List.take (int n)
+            |> String.concat ""
+            |> fun s -> s.Normalize()
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
