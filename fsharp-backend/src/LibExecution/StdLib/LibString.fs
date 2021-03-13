@@ -598,34 +598,45 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "base64Decode" 0
-//      ; parameters = [Param.make "s" TStr ""]
-//      ; returnType = TStr
-//      ; description =
-//       "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//           ( try
-//               DStr
-//                 (B64.decode
-//                    B64.uri_safe_alphabet
-//                    (Unicode_string.to_string s))
-//             with Not_found_s _ | Caml.Not_found ->
-//               ( try
-//                   DStr
-//                     (B64.decode
-//                        B64.default_alphabet
-//                        (Unicode_string.to_string s))
-//                 with Not_found_s _ | Caml.Not_found ->
-//                   RT.error
-//                       (DStr (Unicode_string.to_string s))
-//                     "Not a valid base64 string" ) )
-//         | _ ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//    ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "base64Decode" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description =
+        "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            // CLEANUP this should be a result
+            let base64FromUrlEncoded (str : string) : string =
+              let initial = str.Replace('-', '+').Replace('_', '/')
+              let length = initial.Length
+
+              if length % 4 = 2 then $"{initial}=="
+              else if length % 4 = 3 then $"{initial}="
+              else initial
+
+            if s = "" then
+              // This seems valid
+              Value(DStr "")
+            // dotnet ignores whitespace but we don't allow it
+            else if Regex.IsMatch(s, @"\s") then
+              err "Not a valid base64 string"
+            else
+              try
+                let decodedBytes =
+                  try
+                    // Try regular
+                    System.Convert.FromBase64String s
+                  with e ->
+                    // try URL safe
+                    s |> base64FromUrlEncoded |> System.Convert.FromBase64String
+
+                decodedBytes |> ofBytes |> fun s -> s.Normalize() |> DStr |> Value
+              with _ -> err "Not a valid base64 string"
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "digest" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr

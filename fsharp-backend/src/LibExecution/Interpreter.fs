@@ -523,6 +523,7 @@ and applyFnVal
                         return
                           Dval.errSStr sourceID $"{fn.name} was removed from Dark"
                     | Errors.StdlibException (Errors.FakeDvalFound dv) -> return dv
+                    | e -> return Dval.errSStr sourceID (e.ToString())
 
                   }
 
