@@ -213,12 +213,19 @@ module Expect =
     | DList ls, DList rs ->
         let lLength = List.length ls
         let rLength = List.length rs
-        Expect.equal lLength rLength $"{ls} <> {rs} in ({msg})"
+
+        let lenMsg list =
+          if lLength = rLength then
+            ""
+          else
+            List.map toString list |> String.concat "; " |> fun s -> $"[{s}]"
+
+        Expect.equal lLength rLength $"{lenMsg ls} <> {lenMsg rs} in ({msg})"
         List.iter2 de ls rs
     | DObj ls, DObj rs ->
         let lLength = Map.count ls
         let rLength = Map.count rs
-        Expect.equal lLength rLength $"{ls} <> {rs} in ({msg})"
+        Expect.equal lLength rLength $"{ls.ToString()} <> {rs.ToString()} in ({msg})"
 
         List.iter2
           (fun (k1, v1) (k2, v2) ->
