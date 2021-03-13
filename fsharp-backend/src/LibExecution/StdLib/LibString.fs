@@ -391,19 +391,17 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-
-            let to_remove = @"[^\-\w\s$*_+~.()'\""!:@]"
+            let toRemove = @"[^-a-zA-Z0-9\s$*_+~.()'""!:@]"
             let trim = @"^\s+|\s+$"
             let spaces = @"[-\s]+"
 
-            let objRegex (pattern : string) (input : string) (replacement : string) =
+            let replace (pattern : string) (replacement : string) (input : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
-            |> fun s -> objRegex to_remove s ""
-            |> fun s -> objRegex trim s ""
-            |> fun s -> objRegex spaces s "-"
-
+            |> replace toRemove ""
+            |> replace trim ""
+            |> replace spaces "-"
             |> String.toLower
             |> DStr
             |> Value
@@ -420,18 +418,17 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
 
-            let to_remove = @"[^\w\s_-]"
+            let toRemove = @"[^a-zA-Z0-9\s_-]"
             let trim = @"^\s+|\s+$"
-            let newspaces = @"[-_\s]+"
+            let newSpaces = @"[-_\s]+"
 
-            let objRegex (pattern : string) (input : string) (replacement : string) =
+            let replace (pattern : string) (replacement : string) (input : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
-            |> fun s -> objRegex to_remove s ""
-            |> fun s -> objRegex trim s ""
-            |> fun s -> objRegex newspaces s "-"
-
+            |> replace toRemove ""
+            |> replace trim ""
+            |> replace newSpaces "-"
             |> String.toLower
             |> DStr
             |> Value
@@ -453,16 +450,14 @@ let fns : List<BuiltInFn> =
             let toRemove = @"[^a-z0-9\s_-]+"
             let toBeHyphenated = @"[-_\s]+"
 
-            let objRegex (pattern : string) (input : string) (replacement : string) =
+            let replace (pattern : string) (replacement : string) (input : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
             |> String.toLower
-            |> fun s -> objRegex toRemove s ""
+            |> replace toRemove ""
             |> fun s -> s.Trim()
-            |> fun s -> objRegex toBeHyphenated s "-"
-
-            |> String.toLower
+            |> replace toBeHyphenated "-"
             |> DStr
             |> Value
         | _ -> incorrectArgs ())
