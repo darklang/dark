@@ -534,7 +534,8 @@ let fns : List<BuiltInFn> =
                   | _ -> Errors.throw (Errors.expectedLambdaType TStr s))
                 l
 
-            Value(DStr((String.concat sep strs).Normalize()))
+            // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
+            Value(DStr((String.concat sep strs)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

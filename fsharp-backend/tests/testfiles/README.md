@@ -16,7 +16,7 @@ The code is written using F#, which is very similar to Dark. It is parsed by the
 - all tests must be of the format `x = y`, that is, they must have a single
   expression on the left, one on the right, and an equals sign in between. You can use parens around multiple expressions to group them into a single expression, eg `(5 |> toString)`.
 
-- be explicit around pipes, wrapping them in parens to make sure the right expression is being piped.
+- be explicit around pipes, wrapping them in parens to make sure the right expression is being piped. Otherwise you will typically get type errors.
 
 # Test file format
 
