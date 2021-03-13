@@ -211,10 +211,12 @@ String.slugify_v2 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
 String.slugify_v2 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
 String.slugify_v2 "🧟‍♀️🧟‍♂️" = ""
 String.slugify_v2 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
-String.fromList_v0 ['a', 'b'] = (Test.typeError_v0 "String::fromList_v0 was removed from Dark")
-String.fromList_v1 ['a', 'b', '1'] = "ab1"
-String.fromList_v1 ['@', 'Ǣ', 'á', '1'] = "@Ǣá1"
-String.fromList_v1 ['@', 'Ǣ', 'á', '1'] = "@Ǣá1"
+
+("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "This function no longer exists.") // OCAMLONLY
+("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "String::fromList_v0 was removed from Dark") // FSHARPONLY
+("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
+("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
+
 String.split_v0 "hello😄world" "😄" = [ "hello", "world" ] // String split works on strings with emoji + ascii
 String.split_v0 "hello&&&&world" "&&&&" = [ "hello", "world" ]
 String.split_v0 "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
