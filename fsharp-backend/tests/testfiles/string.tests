@@ -10,6 +10,7 @@ Test.toChar_v0_ster arg
 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
 "Είναι προικισμένοι με λογική" = "Είναι προικισμένοι με λογική"
 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
 //String.append_v0 "a" "̂" = "̂â" // broken, not first quote in second arg
 String.append_v1 "a" "̂" = "â"
 String.append_v1 "hello" " world" = "hello world"
@@ -38,6 +39,7 @@ Bytes.length_v0 (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽�
 Bytes.length_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
 Bytes.length_v0 (String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
 Bytes.length_v0 (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
+Bytes.length_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
 
 String.startsWith_v0 "a string" "a s" = true
 String.startsWith_v0 "a string" " s" = false
@@ -649,8 +651,6 @@ String.isSubstring_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽
 String.isSubstring_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
 String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "🧟‍🧟‍♂️" = false
 
-// Test cases not working
-//String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 49
 
 [test.stringForeach]
 // Check that foreach executes the right number of times
