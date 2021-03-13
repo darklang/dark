@@ -83,6 +83,7 @@ String.base64Encode_v0 "foo" = "Zm9v"
 String.base64Encode_v0 "foob" = "Zm9vYg"
 String.base64Encode_v0 "fooba" = "Zm9vYmE"
 String.base64Encode_v0 "foobar" = "Zm9vYmFy"
+
 String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
 String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
 String.digest_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
@@ -93,6 +94,7 @@ String.digest_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbU
 String.digest_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
 String.digest_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
 String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
+
 String.sha384_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
 String.sha384_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
 String.sha384_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
@@ -103,6 +105,8 @@ String.sha384_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbU
 String.sha384_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
 String.sha384_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
 String.sha384_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
+String.sha384_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "LG7K5mKmxhZtrXnduzMqxmAXhkbEpJwBdEagHeGQIEquA1Ggn9d-cCcx73mGJE07"
+
 String.sha256_v0 "" = "47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU="
 String.sha256_v0 "😄" = "JQME7QhZCYN_m3giiRc9GbdVDVQqtRZG6UwPOEOEpQI="
 String.sha256_v0 "ελπίδα" = "v9JGQTLCr2YCjR5CWDh2Il-ZjVZeQRdU5lZ7xlVKuZM="
@@ -114,6 +118,7 @@ String.sha256_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "NTh4YG349
 String.sha256_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "Jh2ny_FeYu6TRbZSj3RxDgjwV3IDwgbcWIjCmWColQQ="
 String.sha256_v0 "🧟‍♀️🧟‍♂️" = "3_ie3_0nyJzd4UpBhdcHI4xSO4wu8Qbl9di7SqfLXdA="
 String.sha256_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "4fkcC7KZ-mOXSWpIW3BLOqZx_WDduKyLyaOLQc1A3Lk="
+String.sha256_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "DikVVJkkCXt8o0yzHG9-Lpiuk_x6ET6DYAtPCNWJgi0="
 
 // Random v0
 String.length_v1 (String.random_v0 10) = 10
@@ -626,8 +631,6 @@ String.isSubstring_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ
 String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "🧟‍🧟‍♂️" = false
 
 // Test cases not working
-//String.sha384_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "LG7K5mKmxhZtrXnduzMqxmAXhkbEpJwBdEagHeGQIEquA1Ggn9d-cCcx73mGJE07"  // this is a correct Ocalm expected result
-//String.sha256_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "DikVVJkkCXt8o0yzHG9-Lpiuk_x6ET6DYAtPCNWJgi0=" // this is a correct Ocalm expected result
 //String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 49
 
 [test.stringForeach]
