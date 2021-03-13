@@ -489,11 +489,30 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
-            s.Split sep
-            |> Array.toList
-            |> List.map (fun str -> DStr str)
-            |> DList
-            |> Value
+            if sep = "" then
+              s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Value
+            else
+              // CLEANUP
+              // This behaviour is the worst. This mimics what OCaml did: There
+              // should be (n-1) empty strings returned for each sequence of n
+              // strings matching the separator (eg: split "aaaa" "a" = ["",
+              // "", ""]). However, the .NET string split puts in n-1 empty
+              // strings correctly everywhere except at the start and end,
+              // where there are n empty strings instead.
+              let stripStartingEmptyString =
+                (function
+                | "" :: rest -> rest
+                | all -> all)
+
+              s.Split sep
+              |> Array.toList
+              |> stripStartingEmptyString
+              |> List.rev
+              |> stripStartingEmptyString
+              |> List.rev
+              |> List.map DStr
+              |> DList
+              |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
