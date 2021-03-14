@@ -149,7 +149,8 @@ let fns : List<BuiltInFn> =
       description = "Divides two integers"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
+        | _, [ DInt a; DInt b ] ->
+            if b = 0I then err "Division by zero" else Value(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
