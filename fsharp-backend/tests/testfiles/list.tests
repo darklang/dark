@@ -28,6 +28,7 @@ List.filter_v0 [-20; 5; 9;] (fun x -> x < 1) = [-20]
 //List.filter_v2 [] (fun item -> true) = []
 
 List.foreach_v0 [1;2;3] (fun x -> x + 1) = [2;3;4]
+List.foreach_v0 [Test.typeError_v0 "test"] (fun x -> x) = [Test.typeError_v0 "test"]
 
 //List.flatten_v0 [[1];[2];[3]] = [ 1, 2, 3 ]
 //List.flatten_v0 [[1];[[2;3]]] = [ 1, [ 2, 3 ] ]

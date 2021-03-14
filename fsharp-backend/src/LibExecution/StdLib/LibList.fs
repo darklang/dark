@@ -873,7 +873,7 @@ let fns : List<BuiltInFn> =
                       NoRail)
                   l
 
-              return Dval.list result
+              return DList result
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
