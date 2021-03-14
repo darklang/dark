@@ -118,10 +118,9 @@ module FQFnName =
     a.ToString() |> PT.FQFnName.parse .=. a
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping PT.FQFnName"
-        ptRoundtrip ]
+    testList
+      "PT.FQFnName"
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" ptRoundtrip ]
 
 
 module OCamlInterop =
@@ -274,14 +273,16 @@ module Roundtrippable =
       dv
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping works properly"
-        roundtrip
-      testPropertyWithGenerator
-        typeof<GeneratorWithBugs>
-        "roundtrippable is interoperable"
-        isInteroperableV0 ]
+    testList
+      "roundtrippable"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "roundtripping works properly"
+          roundtrip
+        testPropertyWithGenerator
+          typeof<GeneratorWithBugs>
+          "roundtrippable is interoperable"
+          isInteroperableV0 ]
 
 
 module Queryable =
@@ -333,9 +334,11 @@ module Queryable =
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
-    [ tp "roundtripping InternalQueryable v1" v1Roundtrip
-      tp "interoperable v0" isInteroperableV0
-      tp "interoperable v1" isInteroperableV1 ]
+    testList
+      "InternalQueryable"
+      [ tp "roundtripping v1" v1Roundtrip
+        tp "interoperable v0" isInteroperableV0
+        tp "interoperable v1" isInteroperableV1 ]
 
 module DeveloperRepr =
   type Generator =
@@ -360,10 +363,9 @@ module DeveloperRepr =
     DvalRepr.toDeveloperReprV0 dv .=. OCamlInterop.toDeveloperRepr dv
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping toDeveloperRepr"
-        equalsOCaml ]
+    testList
+      "toDeveloperRepr"
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
 
 module EndUserReadable =
   type Generator =
@@ -384,10 +386,9 @@ module EndUserReadable =
     DvalRepr.toEnduserReadableTextV0 dv .=. OCamlInterop.toEnduserReadableTextV0 dv
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping toEnduserReadable"
-        equalsOCaml ]
+    testList
+      "toEnduserReadable"
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
 
 
 module PrettyMachineJson =
@@ -419,10 +420,12 @@ module PrettyMachineJson =
     actual .=. expected
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping prettyMachineJson"
-        equalsOCaml ]
+    testList
+      "prettyMachineJson"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "roundtripping prettyMachineJson"
+          equalsOCaml ]
 
 module ExecutePureFunctions =
   open LibBackend.ProgramTypes.Shortcuts
@@ -536,9 +539,9 @@ module ExecutePureFunctions =
     t.Result
 
   let tests =
-    [ testPropertyWithGenerator typeof<Generator> "executePure" equalsOCaml ]
-
-
+    testList
+      "executePureFunctions"
+      [ testPropertyWithGenerator typeof<Generator> "equalsOCaml" equalsOCaml ]
 
 
 let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
@@ -546,13 +549,13 @@ let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
 let knownGood =
   testList
     "known good"
-    (List.concat [ FQFnName.tests
-                   Roundtrippable.tests
-                   Queryable.tests
-                   DeveloperRepr.tests
-                   EndUserReadable.tests
-                   PrettyMachineJson.tests
-                   ExecutePureFunctions.tests ])
+    ([ FQFnName.tests
+       Roundtrippable.tests
+       Queryable.tests
+       DeveloperRepr.tests
+       EndUserReadable.tests
+       PrettyMachineJson.tests
+       ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 
