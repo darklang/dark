@@ -85,7 +85,7 @@ let rec unify
   //
   // Potentially needs to be removed before we use this type checker for DBs?
   //   - Could always have a type checking context that allows/disallows any
-  | TAny, _ -> Ok()
+  | TVariable _, _ -> Ok()
   | TInt, DInt _ -> Ok()
   | TFloat, DFloat _ -> Ok()
   | TBool, DBool _ -> Ok()
@@ -95,7 +95,7 @@ let rec unify
   | TDate, DDate _ -> Ok()
   | TDict _, DObj _ -> Ok()
   | TRecord _, DObj _ -> Ok()
-  | TLambda _, DFnVal _ -> Ok()
+  | TFn _, DFnVal _ -> Ok()
   | TPassword, DPassword _ -> Ok()
   | TUuid, DUuid _ -> Ok()
   | TOption _, DOption _ -> Ok()

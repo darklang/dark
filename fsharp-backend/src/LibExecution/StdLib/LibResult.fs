@@ -104,8 +104,8 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
 // ; { name = fn "Result" "withDefault" 0
-//   ; parameters = [Param.make "result" TResult ""; Param.make "default" TAny ""]
-//   ; returnType = TAny
+//   ; parameters = [Param.make "result" TResult ""; Param.make "default" varA ""]
+//   ; returnType = varA
 //   ; description =
 //       "If <param result> is {{Ok <var value>}}, returns <var value>. Returns <param default> otherwise."
 //   ; fn =

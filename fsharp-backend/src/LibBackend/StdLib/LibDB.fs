@@ -47,10 +47,10 @@ let fns : List<BuiltInFn> =
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
     { name = fn "DB" "fetchBy" 0
       parameters =
-        [ Param.make "value" TAny ""
+        [ Param.make "value" varA ""
           Param.make "field" TStr ""
           Param.make "table" dbType "" ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the values in `table` whose `field` is `value`"
       fn = removedFunction
       sqlSpec = NotQueryable
@@ -58,10 +58,10 @@ let fns : List<BuiltInFn> =
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
     { name = fn "DB" "fetchOneBy" 0
       parameters =
-        [ Param.make "value" TAny ""
+        [ Param.make "value" varA ""
           Param.make "field" TStr ""
           Param.make "table" dbType "" ]
-      returnType = TAny
+      returnType = varA
       description = "Fetch exactly one value in `table` whose `field` is `value`"
       fn = removedFunction
       sqlSpec = NotQueryable
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
     { name = fn "DB" "fetchByMany" 0
       parameters = [ Param.make "spec" varA ""; Param.make "table" dbType "" ]
-      returnType = TList TAny
+      returnType = TList varA
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has"
       fn = removedFunction
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
     { name = fn "DB" "fetchOneByMany" 0
       parameters = [ Param.make "spec" varA ""; Param.make "table" dbType "" ]
-      returnType = TAny
+      returnType = varA
       description =
         "Fetch exactly one value from `table`, which have the same fields and values that `spec` has"
       fn = removedFunction
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
     { name = fn "DB" "fetchAll" 0
       parameters = [ Param.make "table" dbType "" ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the values in `table`"
       fn = removedFunction
       sqlSpec = NotQueryable
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
       deprecated = DeprecatedBecause("Old DB functions have been removed") }
     { name = fn "DB" "keys" 0
       parameters = [ Param.make "table" dbType "" ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the keys in `table`"
       fn = removedFunction
       sqlSpec = NotQueryable

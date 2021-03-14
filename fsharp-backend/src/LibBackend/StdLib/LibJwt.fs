@@ -144,185 +144,185 @@ let varB = TVariable "b"
 //
 //
 let fns : List<BuiltInFn> = []
-  // [ { name = fn "JWT" "signAndEncode" 0
-  //
-  //   ; parameters = [Param.make "pemPrivKey" TStr ""; Param.make "payload" TAny ""]
-  //   ; returnType = TStr
-  //   ; description =
-  //       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
-  //   ; fn =
-  //         (function
-  //         | _, [DStr key; payload] ->
-  //             let (`RSA key) =
-  //               key
-  //               |> Unicode_string.to_string
-  //               |> Cstruct.of_string
-  //               |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
-  //             in
-  //             let payload = Dval.to_pretty_machine_yojson_v1 payload in
-  //             sign_and_encode ~key ~extra_headers:[] ~payload
-  //             |> DStr
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
-  //   ; parameters =
-  //       [Param.make "pemPrivKey" TStr ""; Param.make "headers" TObj ""; Param.make "payload" TAny ""]
-  //   ; returnType = TStr
-  //   ; description =
-  //       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
-  //   ; fn =
-  //         (function
-  //         | _, [DStr key; DObj headers; payload] ->
-  //             let (`RSA key) =
-  //               key
-  //               |> Unicode_string.to_string
-  //               |> Cstruct.of_string
-  //               |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
-  //             in
-  //             let json_hdrs =
-  //               DObj headers
-  //               |> Dval.to_pretty_machine_yojson_v1
-  //               |> Yojson.Safe.Util.to_assoc
-  //             in
-  //             let payload = Dval.to_pretty_machine_yojson_v1 payload in
-  //             sign_and_encode ~key ~extra_headers:json_hdrs ~payload
-  //             |> DStr
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "JWT" "signAndEncode" 1
-  //   ; parameters = [Param.make "pemPrivKey" TStr ""; Param.make "payload" TAny ""]
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
-  //   ; fn =
-  //         (function
-  //         | _, [DStr key; payload] ->
-  //             handle_error (fun () ->
-  //                 let (`RSA key) =
-  //                   key
-  //                   |> Unicode_string.to_string
-  //                   |> Cstruct.of_string
-  //                   |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
-  //                 in
-  //                 let payload = Dval.to_pretty_machine_yojson_v1 payload in
-  //                 sign_and_encode ~key ~extra_headers:[] ~payload
-  //                 |> DStr)
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
-  //   ; parameters =
-  //       [Param.make "pemPrivKey" TStr ""; Param.make "headers" TObj ""; Param.make "payload" TAny ""]
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
-  //   ; fn =
-  //         (function
-  //         | _, [DStr key; DObj headers; payload] ->
-  //             handle_error (fun () ->
-  //                 let (`RSA key) =
-  //                   key
-  //                   |> Unicode_string.to_string
-  //                   |> Cstruct.of_string
-  //                   |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
-  //                 in
-  //                 let json_hdrs =
-  //                   DObj headers
-  //                   |> Dval.to_pretty_machine_yojson_v1
-  //                   |> Yojson.Safe.Util.to_assoc
-  //                 in
-  //                 let payload = Dval.to_pretty_machine_yojson_v1 payload in
-  //                 sign_and_encode ~key ~extra_headers:json_hdrs ~payload
-  //                 |> DStr)
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "JWT" "verifyAndExtract" 0
-  //   ; parameters = [Param.make "pemPubKey" TStr ""; Param.make "token" TStr ""]
-  //   ; returnType = TOption
-  //   ; description =
-  //       "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
-  //   ; fn =
-  //         (function
-  //         | _, [DStr key; DStr token] ->
-  //           ( match
-  //               key
-  //               |> Unicode_string.to_string
-  //               |> Cstruct.of_string
-  //               |> X509.Encoding.Pem.Public_key.of_pem_cstruct1
-  //             with
-  //           | `EC_pub _ ->
-  //               DOption OptNothing
-  //           | `RSA key ->
-  //             ( match
-  //                 verify_and_extract_v0
-  //                   ~key
-  //                   (Unicode_string.to_string token)
-  //               with
-  //             | Some (headers, payload) ->
-  //                 [ ("header", Dval.of_unknown_json_v1 headers)
-  //                 ; ("payload", Dval.of_unknown_json_v1 payload) ]
-  //                 |> Prelude.StrDict.from_list_exn
-  //                 |> DObj
-  //                 |> OptJust
-  //                 |> DOption
-  //             | None ->
-  //                 DOption OptNothing ) )
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "JWT" "verifyAndExtract" 1
-  //   ; parameters = [Param.make "pemPubKey" TStr ""; Param.make "token" TStr ""]
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
-  //   ; fn =
-  //         (function
-  //         | _, [DStr key; DStr token] ->
-  //           ( try
-  //               match
-  //                 key
-  //                 |> Unicode_string.to_string
-  //                 |> Cstruct.of_string
-  //                 |> X509.Encoding.Pem.Public_key.of_pem_cstruct1
-  //               with
-  //               | `EC_pub _ ->
-  //                   DOption OptNothing
-  //               | `RSA key ->
-  //                 ( match
-  //                     verify_and_extract_v1
-  //                       ~key
-  //                       (Unicode_string.to_string token)
-  //                   with
-  //                 | Ok (headers, payload) ->
-  //                     [ ("header", Dval.of_unknown_json_v1 headers)
-  //                     ; ("payload", Dval.of_unknown_json_v1 payload) ]
-  //                     |> Prelude.StrDict.from_list_exn
-  //                     |> DObj
-  //                     |> ResOk
-  //                     |> DResult
-  //                 | Error msg ->
-  //                     DResult (ResError (DStr msg)) )
-  //             with Invalid_argument msg ->
-  //               let msg =
-  //                 if msg = "No public keys" then "Invalid public key" else msg
-  //               in
-  //               DResult (ResError (DStr msg)) )
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated } ]
-  //
+// [ { name = fn "JWT" "signAndEncode" 0
+//
+//   ; parameters = [Param.make "pemPrivKey" TStr ""; Param.make "payload" varA ""]
+//   ; returnType = TStr
+//   ; description =
+//       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
+//   ; fn =
+//         (function
+//         | _, [DStr key; payload] ->
+//             let (`RSA key) =
+//               key
+//               |> Unicode_string.to_string
+//               |> Cstruct.of_string
+//               |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
+//             in
+//             let payload = Dval.to_pretty_machine_yojson_v1 payload in
+//             sign_and_encode ~key ~extra_headers:[] ~payload
+//             |> DStr
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "JWT" "signAndEncodeWithHeaders" 0
+//   ; parameters =
+//       [Param.make "pemPrivKey" TStr ""; Param.make "headers" TObj ""; Param.make "payload" varA ""]
+//   ; returnType = TStr
+//   ; description =
+//       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
+//   ; fn =
+//         (function
+//         | _, [DStr key; DObj headers; payload] ->
+//             let (`RSA key) =
+//               key
+//               |> Unicode_string.to_string
+//               |> Cstruct.of_string
+//               |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
+//             in
+//             let json_hdrs =
+//               DObj headers
+//               |> Dval.to_pretty_machine_yojson_v1
+//               |> Yojson.Safe.Util.to_assoc
+//             in
+//             let payload = Dval.to_pretty_machine_yojson_v1 payload in
+//             sign_and_encode ~key ~extra_headers:json_hdrs ~payload
+//             |> DStr
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "JWT" "signAndEncode" 1
+//   ; parameters = [Param.make "pemPrivKey" TStr ""; Param.make "payload" varA ""]
+//   ; returnType = TResult
+//   ; description =
+//       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
+//   ; fn =
+//         (function
+//         | _, [DStr key; payload] ->
+//             handle_error (fun () ->
+//                 let (`RSA key) =
+//                   key
+//                   |> Unicode_string.to_string
+//                   |> Cstruct.of_string
+//                   |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
+//                 in
+//                 let payload = Dval.to_pretty_machine_yojson_v1 payload in
+//                 sign_and_encode ~key ~extra_headers:[] ~payload
+//                 |> DStr)
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "JWT" "signAndEncodeWithHeaders" 1
+//   ; parameters =
+//       [Param.make "pemPrivKey" TStr ""; Param.make "headers" TObj ""; Param.make "payload" varA ""]
+//   ; returnType = TResult
+//   ; description =
+//       "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
+//   ; fn =
+//         (function
+//         | _, [DStr key; DObj headers; payload] ->
+//             handle_error (fun () ->
+//                 let (`RSA key) =
+//                   key
+//                   |> Unicode_string.to_string
+//                   |> Cstruct.of_string
+//                   |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
+//                 in
+//                 let json_hdrs =
+//                   DObj headers
+//                   |> Dval.to_pretty_machine_yojson_v1
+//                   |> Yojson.Safe.Util.to_assoc
+//                 in
+//                 let payload = Dval.to_pretty_machine_yojson_v1 payload in
+//                 sign_and_encode ~key ~extra_headers:json_hdrs ~payload
+//                 |> DStr)
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "JWT" "verifyAndExtract" 0
+//   ; parameters = [Param.make "pemPubKey" TStr ""; Param.make "token" TStr ""]
+//   ; returnType = TOption
+//   ; description =
+//       "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
+//   ; fn =
+//         (function
+//         | _, [DStr key; DStr token] ->
+//           ( match
+//               key
+//               |> Unicode_string.to_string
+//               |> Cstruct.of_string
+//               |> X509.Encoding.Pem.Public_key.of_pem_cstruct1
+//             with
+//           | `EC_pub _ ->
+//               DOption OptNothing
+//           | `RSA key ->
+//             ( match
+//                 verify_and_extract_v0
+//                   ~key
+//                   (Unicode_string.to_string token)
+//               with
+//             | Some (headers, payload) ->
+//                 [ ("header", Dval.of_unknown_json_v1 headers)
+//                 ; ("payload", Dval.of_unknown_json_v1 payload) ]
+//                 |> Prelude.StrDict.from_list_exn
+//                 |> DObj
+//                 |> OptJust
+//                 |> DOption
+//             | None ->
+//                 DOption OptNothing ) )
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "JWT" "verifyAndExtract" 1
+//   ; parameters = [Param.make "pemPubKey" TStr ""; Param.make "token" TStr ""]
+//   ; returnType = TResult
+//   ; description =
+//       "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
+//   ; fn =
+//         (function
+//         | _, [DStr key; DStr token] ->
+//           ( try
+//               match
+//                 key
+//                 |> Unicode_string.to_string
+//                 |> Cstruct.of_string
+//                 |> X509.Encoding.Pem.Public_key.of_pem_cstruct1
+//               with
+//               | `EC_pub _ ->
+//                   DOption OptNothing
+//               | `RSA key ->
+//                 ( match
+//                     verify_and_extract_v1
+//                       ~key
+//                       (Unicode_string.to_string token)
+//                   with
+//                 | Ok (headers, payload) ->
+//                     [ ("header", Dval.of_unknown_json_v1 headers)
+//                     ; ("payload", Dval.of_unknown_json_v1 payload) ]
+//                     |> Prelude.StrDict.from_list_exn
+//                     |> DObj
+//                     |> ResOk
+//                     |> DResult
+//                 | Error msg ->
+//                     DResult (ResError (DStr msg)) )
+//             with Invalid_argument msg ->
+//               let msg =
+//                 if msg = "No public keys" then "Invalid public key" else msg
+//               in
+//               DResult (ResError (DStr msg)) )
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated } ]
+//

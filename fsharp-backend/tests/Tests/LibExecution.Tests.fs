@@ -150,7 +150,7 @@ let fileTests () : Test =
                { tlid = currentFn.tlid
                  name = currentFn.name
                  nameID = gid ()
-                 returnType = PT.TAny
+                 returnType = PT.TVariable "a"
                  returnTypeID = gid ()
                  description = "test function"
                  infix = false
@@ -220,7 +220,7 @@ let fileTests () : Test =
                              { name = name
                                nameID = gid ()
                                description = ""
-                               typ = Some PT.TAny
+                               typ = Some(PT.TVariable "a")
                                typeID = gid () })
 
                     currentFn <-

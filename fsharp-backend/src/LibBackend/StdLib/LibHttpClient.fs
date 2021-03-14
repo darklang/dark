@@ -20,7 +20,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 // let params =
-//   [Param.make "uri" TStr ""; Param.make "body" TAny ""; Param.make "query" TObj ""; Param.make "headers" TObj ""]
+//   [Param.make "uri" TStr ""; Param.make "body" varA ""; Param.make "query" TObj ""; Param.make "headers" TObj ""]
 //
 //
 // let params_no_body = [Param.make "uri" TStr ""; Param.make "query" TObj ""; Param.make "headers" TObj ""]
@@ -239,536 +239,536 @@ let varB = TVariable "b"
 //
 
 let fns : List<BuiltInFn> = []
-  // [ { name = fn "HttpClient" "post" 0
-  //
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.POST
-  //         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "put" 0
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.PUT
-  //         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "get" 0
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.GET
-  //         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "delete" 0
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.DELETE
-  //         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "options" 0
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.OPTIONS
-  //         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "head" 0
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.HEAD
-  //         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "patch" 0
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.PATCH
-  //         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "post" 1
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description = "Make blocking HTTP POST call to `uri`"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.POST
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "put" 1
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description = "Make blocking HTTP PUT call to `uri`"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.PUT
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "get" 1
-  //   ; parameters = params_no_body
-  //   ; returnType = TObj
-  //   ; description = "Make blocking HTTP GET call to `uri`"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call_no_body
-  //         Httpclient.GET
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "delete" 1
-  //   ; infix_names =
-  //       []
-  //       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
-  //        * the spec says it may have a body *)
-  //   ; parameters = params_no_body
-  //   ; returnType = TObj
-  //   ; description = "Make blocking HTTP DELETE call to `uri`"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call_no_body
-  //         Httpclient.DELETE
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "options" 1
-  //   ; parameters = params_no_body
-  //   ; returnType = TObj
-  //   ; description = "Make blocking HTTP OPTIONS call to `uri`"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call_no_body
-  //         Httpclient.OPTIONS
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "head" 1
-  //   ; parameters = params_no_body
-  //   ; returnType = TObj
-  //   ; description = "Make blocking HTTP HEAD call to `uri`"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call_no_body
-  //         Httpclient.HEAD
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "patch" 1
-  //   ; parameters = params
-  //   ; returnType = TObj
-  //   ; description = "Make blocking HTTP PATCH call to `uri`"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.call
-  //         Httpclient.PATCH
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "post" 2
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.wrapped_call
-  //         Httpclient.POST
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "put" 2
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.wrapped_call
-  //         Httpclient.PUT
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "get" 2
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.wrapped_call_no_body
-  //         Httpclient.GET
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "delete" 2
-  //   ; infix_names =
-  //       []
-  //       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
-  //        * the spec says it may have a body *)
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.wrapped_call_no_body
-  //         Httpclient.DELETE
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "options" 2
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.wrapped_call_no_body
-  //         Httpclient.OPTIONS
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "head" 2
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.wrapped_call_no_body
-  //         Httpclient.HEAD
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "patch" 2
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-  //   ; fn =
-  //       Legacy.LibhttpclientV0.wrapped_call
-  //         Httpclient.PATCH
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "post" 3
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV1.call
-  //         Httpclient.POST
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "put" 3
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV1.call
-  //         Httpclient.PUT
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "get" 3
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV1.call_no_body
-  //         Httpclient.GET
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "delete" 3
-  //   ; infix_names =
-  //       []
-  //       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
-  //        * the spec says it may have a body *)
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV1.call_no_body
-  //         Httpclient.DELETE
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "options" 3
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV1.call_no_body
-  //         Httpclient.OPTIONS
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "head" 3
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV1.call_no_body
-  //         Httpclient.HEAD
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "patch" 3
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV1.call
-  //         Httpclient.PATCH
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "post" 4
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV2.call
-  //         Httpclient.POST
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "put" 4
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV2.call
-  //         Httpclient.PUT
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "get" 4
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV2.call_no_body
-  //         Httpclient.GET
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "delete" 4
-  //   ; infix_names =
-  //       []
-  //       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
-  //        * the spec says it may have a body *)
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV2.call_no_body
-  //         Httpclient.DELETE
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "options" 4
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV2.call_no_body
-  //         Httpclient.OPTIONS
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "head" 4
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV2.call_no_body
-  //         Httpclient.HEAD
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "patch" 4
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn =
-  //       Legacy.LibhttpclientV2.call
-  //         Httpclient.PATCH
-  //         Dval.to_pretty_machine_json_v1
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) }
-  // ; { name = fn "HttpClient" "post" 5
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn = call Httpclient.POST
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "put" 5
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn = call Httpclient.PUT
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "get" 5
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn = call_no_body Httpclient.GET
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "delete" 5
-  //   ; infix_names =
-  //       []
-  //       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
-  //        * the spec says it may have a body *)
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn = call_no_body Httpclient.DELETE
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "options" 5
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn = call_no_body Httpclient.OPTIONS
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "head" 5
-  //   ; parameters = params_no_body
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn = call_no_body Httpclient.HEAD
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "patch" 5
-  //   ; parameters = params
-  //   ; returnType = TResult
-  //   ; description =
-  //       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
-  //   ; fn = call Httpclient.PATCH
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated }
-  // ; { name = fn "HttpClient" "basicAuth" 0
-  //   ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Returns an object with 'Authorization' created using HTTP basic auth"
-  //   ; fn =
-  //         (function
-  //         | _, [DStr u; DStr p] ->
-  //             DObj
-  //               (Map.singleton
-  //                  "Authorization"
-  //                  (DStr (encode_basic_auth_broken u p)))
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = ReplacedBy(fn "" "" 0) (* Deprecated due to using encode_basic_auth_broken *)
-  //   }
-  // ; { name = fn "HttpClient" "basicAuth" 1
-  //   ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
-  //   ; returnType = TObj
-  //   ; description =
-  //       "Returns an object with 'Authorization' created using HTTP basic auth"
-  //   ; fn =
-  //         (function
-  //         | _, [DStr u; DStr p] ->
-  //             DObj
-  //               (Map.singleton
-  //                  "Authorization"
-  //                  (DStr (encode_basic_auth u p)))
-  //         | _ ->
-  //             incorrectArgs ())
-  //   ; sqlSpec = NotYetImplementedTODO
-  //   ; previewable = Impure
-  //   ; deprecated = NotDeprecated } ]
-  //
+// [ { name = fn "HttpClient" "post" 0
+//
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description =
+//       "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.POST
+//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "put" 0
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description =
+//       "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.PUT
+//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "get" 0
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description =
+//       "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.GET
+//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "delete" 0
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description =
+//       "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.DELETE
+//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "options" 0
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description =
+//       "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.OPTIONS
+//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "head" 0
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description =
+//       "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.HEAD
+//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "patch" 0
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description =
+//       "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.PATCH
+//         Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "post" 1
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description = "Make blocking HTTP POST call to `uri`"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.POST
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "put" 1
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description = "Make blocking HTTP PUT call to `uri`"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.PUT
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "get" 1
+//   ; parameters = params_no_body
+//   ; returnType = TObj
+//   ; description = "Make blocking HTTP GET call to `uri`"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call_no_body
+//         Httpclient.GET
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "delete" 1
+//   ; infix_names =
+//       []
+//       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+//        * the spec says it may have a body *)
+//   ; parameters = params_no_body
+//   ; returnType = TObj
+//   ; description = "Make blocking HTTP DELETE call to `uri`"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call_no_body
+//         Httpclient.DELETE
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "options" 1
+//   ; parameters = params_no_body
+//   ; returnType = TObj
+//   ; description = "Make blocking HTTP OPTIONS call to `uri`"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call_no_body
+//         Httpclient.OPTIONS
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "head" 1
+//   ; parameters = params_no_body
+//   ; returnType = TObj
+//   ; description = "Make blocking HTTP HEAD call to `uri`"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call_no_body
+//         Httpclient.HEAD
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "patch" 1
+//   ; parameters = params
+//   ; returnType = TObj
+//   ; description = "Make blocking HTTP PATCH call to `uri`"
+//   ; fn =
+//       Legacy.LibhttpclientV0.call
+//         Httpclient.PATCH
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "post" 2
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+//   ; fn =
+//       Legacy.LibhttpclientV0.wrapped_call
+//         Httpclient.POST
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "put" 2
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+//   ; fn =
+//       Legacy.LibhttpclientV0.wrapped_call
+//         Httpclient.PUT
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "get" 2
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+//   ; fn =
+//       Legacy.LibhttpclientV0.wrapped_call_no_body
+//         Httpclient.GET
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "delete" 2
+//   ; infix_names =
+//       []
+//       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+//        * the spec says it may have a body *)
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+//   ; fn =
+//       Legacy.LibhttpclientV0.wrapped_call_no_body
+//         Httpclient.DELETE
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "options" 2
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+//   ; fn =
+//       Legacy.LibhttpclientV0.wrapped_call_no_body
+//         Httpclient.OPTIONS
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "head" 2
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+//   ; fn =
+//       Legacy.LibhttpclientV0.wrapped_call_no_body
+//         Httpclient.HEAD
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "patch" 2
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+//   ; fn =
+//       Legacy.LibhttpclientV0.wrapped_call
+//         Httpclient.PATCH
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "post" 3
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV1.call
+//         Httpclient.POST
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "put" 3
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV1.call
+//         Httpclient.PUT
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "get" 3
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV1.call_no_body
+//         Httpclient.GET
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "delete" 3
+//   ; infix_names =
+//       []
+//       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+//        * the spec says it may have a body *)
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV1.call_no_body
+//         Httpclient.DELETE
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "options" 3
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV1.call_no_body
+//         Httpclient.OPTIONS
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "head" 3
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV1.call_no_body
+//         Httpclient.HEAD
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "patch" 3
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV1.call
+//         Httpclient.PATCH
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "post" 4
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV2.call
+//         Httpclient.POST
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "put" 4
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV2.call
+//         Httpclient.PUT
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "get" 4
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV2.call_no_body
+//         Httpclient.GET
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "delete" 4
+//   ; infix_names =
+//       []
+//       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+//        * the spec says it may have a body *)
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV2.call_no_body
+//         Httpclient.DELETE
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "options" 4
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV2.call_no_body
+//         Httpclient.OPTIONS
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "head" 4
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV2.call_no_body
+//         Httpclient.HEAD
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "patch" 4
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn =
+//       Legacy.LibhttpclientV2.call
+//         Httpclient.PATCH
+//         Dval.to_pretty_machine_json_v1
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) }
+// ; { name = fn "HttpClient" "post" 5
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn = call Httpclient.POST
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "HttpClient" "put" 5
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn = call Httpclient.PUT
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "HttpClient" "get" 5
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn = call_no_body Httpclient.GET
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "HttpClient" "delete" 5
+//   ; infix_names =
+//       []
+//       (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+//        * the spec says it may have a body *)
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn = call_no_body Httpclient.DELETE
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "HttpClient" "options" 5
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn = call_no_body Httpclient.OPTIONS
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "HttpClient" "head" 5
+//   ; parameters = params_no_body
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn = call_no_body Httpclient.HEAD
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "HttpClient" "patch" 5
+//   ; parameters = params
+//   ; returnType = TResult
+//   ; description =
+//       "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+//   ; fn = call Httpclient.PATCH
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated }
+// ; { name = fn "HttpClient" "basicAuth" 0
+//   ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
+//   ; returnType = TObj
+//   ; description =
+//       "Returns an object with 'Authorization' created using HTTP basic auth"
+//   ; fn =
+//         (function
+//         | _, [DStr u; DStr p] ->
+//             DObj
+//               (Map.singleton
+//                  "Authorization"
+//                  (DStr (encode_basic_auth_broken u p)))
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = ReplacedBy(fn "" "" 0) (* Deprecated due to using encode_basic_auth_broken *)
+//   }
+// ; { name = fn "HttpClient" "basicAuth" 1
+//   ; parameters = [Param.make "username" TStr ""; Param.make "password" TStr ""]
+//   ; returnType = TObj
+//   ; description =
+//       "Returns an object with 'Authorization' created using HTTP basic auth"
+//   ; fn =
+//         (function
+//         | _, [DStr u; DStr p] ->
+//             DObj
+//               (Map.singleton
+//                  "Authorization"
+//                  (DStr (encode_basic_auth u p)))
+//         | _ ->
+//             incorrectArgs ())
+//   ; sqlSpec = NotYetImplementedTODO
+//   ; previewable = Impure
+//   ; deprecated = NotDeprecated } ]
+//

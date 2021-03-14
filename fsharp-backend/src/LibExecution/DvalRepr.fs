@@ -160,7 +160,6 @@ let rec dtypeToString (t : DType) : string =
   // impact of cleaning up the terrible names here.
   // This function is used for putting lots of Data in the DB so we need to be super careful.
   match t with
-  | TAny -> "Any"
   | TInt -> "Int"
   | TFloat -> "Float"
   | TBool -> "Bool"
@@ -169,9 +168,8 @@ let rec dtypeToString (t : DType) : string =
   | TStr -> "Str"
   | TList _ -> "List"
   | TFn _ -> "Block"
-  | TLambda -> "Block"
   | TRecord _ -> "Dict"
-  | TVariable name -> fstodo "dtype of TVariable"
+  | TVariable name -> "Any"
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
@@ -189,7 +187,6 @@ let rec dtypeToString (t : DType) : string =
 
 let rec typeToDeveloperReprV0 (t : DType) : string =
   match t with
-  | TAny -> "Any"
   | TInt -> "Int"
   | TFloat -> "Float"
   | TBool -> "Bool"
@@ -199,9 +196,8 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TList _ -> "List"
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
-  | TLambda -> "Block"
   | TFn _ -> "Block"
-  | TVariable varname -> varname
+  | TVariable varname -> "Any"
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
@@ -217,8 +213,10 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
 
 
 let rec dtypeOfString (str : string) : DType =
+  let any = TVariable "a"
+
   match String.toLowercase str with
-  | "any" -> TAny
+  | "any" -> any
   | "int" -> TInt
   | "integer" -> TInt
   | "float" -> TFloat
@@ -229,20 +227,20 @@ let rec dtypeOfString (str : string) : DType =
   | "char" -> TChar
   | "str" -> TStr
   | "string" -> TStr
-  | "list" -> TList TAny
-  | "obj" -> TDict TAny
-  | "block" -> TLambda
+  | "list" -> TList any
+  | "obj" -> TDict any
+  | "block" -> TFn([], any)
   | "incomplete" -> TIncomplete
   | "error" -> TError
-  | "response" -> THttpResponse TAny
-  | "datastore" -> TDB TAny
+  | "response" -> THttpResponse any
+  | "datastore" -> TDB any
   | "date" -> TDate
   | "password" -> TPassword
   | "uuid" -> TUuid
-  | "option" -> TOption TAny
+  | "option" -> TOption any
   | "errorrail" -> TErrorRail
-  | "result" -> TResult(TAny, TAny)
-  | "dict" -> TDict TAny
+  | "result" -> TResult(any, any)
+  | "dict" -> TDict any
   | _ -> failwith "unsupported runtime type"
 
 

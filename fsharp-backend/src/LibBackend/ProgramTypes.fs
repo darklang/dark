@@ -572,7 +572,6 @@ module Shortcuts =
 
 
 type DType =
-  | TAny
   | TInt
   | TFloat
   | TBool
@@ -582,7 +581,6 @@ type DType =
   | TDict of DType
   | TIncomplete
   | TError
-  | TLambda
   | THttpResponse of DType
   | TDB of DType
   | TDate
@@ -594,9 +592,9 @@ type DType =
   | TUserType of string * int
   | TBytes
   | TResult of DType * DType
-  // A named variable, eg `a` in `List<a>`
-  | TVariable of string
-  | TFn of List<DType> * DType
+  // A named variable, eg `a` in `List<a>`, matches anything
+  | TVariable of string // replaces TAny
+  | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
   // This allows you to build up a record to eventually be the right shape.
@@ -606,7 +604,6 @@ type DType =
 
   member this.toRuntimeType() : RT.DType =
     match this with
-    | TAny -> RT.TAny
     | TInt -> RT.TInt
     | TFloat -> RT.TFloat
     | TBool -> RT.TBool
@@ -616,7 +613,6 @@ type DType =
     | TDict typ -> RT.TDict(typ.toRuntimeType ())
     | TIncomplete -> RT.TIncomplete
     | TError -> RT.TError
-    | TLambda -> RT.TLambda
     | THttpResponse typ -> RT.THttpResponse(typ.toRuntimeType ())
     | TDB typ -> RT.TDB(typ.toRuntimeType ())
     | TDate -> RT.TDate
@@ -640,8 +636,10 @@ type DType =
     | TDbList typ -> RT.TList(typ.toRuntimeType ())
 
   static member parse(str : string) : DType =
+    let any = TVariable "a"
+
     match String.toLower str with
-    | "any" -> TAny
+    | "any" -> any
     | "int" -> TInt
     | "integer" -> TInt
     | "float" -> TFloat
@@ -652,20 +650,20 @@ type DType =
     | "char" -> TChar
     | "str" -> TStr
     | "string" -> TStr
-    | "list" -> TList TAny
-    | "obj" -> TDict TAny
-    | "block" -> TFn([ TAny ], TAny)
+    | "list" -> TList any
+    | "obj" -> TDict any
+    | "block" -> TFn([ any ], any)
     | "incomplete" -> TIncomplete
     | "error" -> TError
-    | "response" -> THttpResponse TAny
-    | "datastore" -> TDB TAny
+    | "response" -> THttpResponse any
+    | "datastore" -> TDB any
     | "date" -> TDate
     | "password" -> TPassword
     | "uuid" -> TUuid
-    | "option" -> TOption TAny
+    | "option" -> TOption any
     | "errorrail" -> TErrorRail
-    | "result" -> TResult(TAny, TAny)
-    | "dict" -> TDict TAny
+    | "result" -> TResult(any, any)
+    | "dict" -> TDict any
     | _ ->
         let parseListTyp(listTyp : string) : DType =
           match String.toLower listTyp with
@@ -678,7 +676,7 @@ type DType =
           | "boolean" -> TDbList TBool
           | "password" -> TDbList TPassword
           | "uuid" -> TDbList TUuid
-          | "dict" -> TDbList(TDict TAny)
+          | "dict" -> TDbList(TDict any)
           | "date" -> TDbList TDate
           | "title" -> TDbList TStr
           | "url" -> TDbList TStr
@@ -847,7 +845,7 @@ module UserFunction =
 
     member this.toRuntimeType() : RT.UserFunction.Parameter =
       { name = this.name
-        typ = (Option.unwrap TAny this.typ).toRuntimeType()
+        typ = (Option.unwrap (TVariable "a") this.typ).toRuntimeType()
         description = this.description }
 
   type T =
@@ -1022,8 +1020,10 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
 
 // Shoudl be synced to DvalRepr.dtypeToString
 let rec parseType (str : string) : DType =
+  let any = TVariable "a"
+
   match String.toLowercase str with
-  | "any" -> TAny
+  | "any" -> any
   | "int" -> TInt
   | "integer" -> TInt
   | "float" -> TFloat
@@ -1034,18 +1034,18 @@ let rec parseType (str : string) : DType =
   | "char" -> TChar
   | "str" -> TStr
   | "string" -> TStr
-  | "list" -> TList TAny
-  | "obj" -> TDict TAny
-  | "block" -> TLambda
+  | "list" -> TList any
+  | "obj" -> TDict any
+  | "block" -> TFn([], any)
   | "incomplete" -> TIncomplete
   | "error" -> TError
-  | "response" -> THttpResponse TAny
-  | "datastore" -> TDB TAny
+  | "response" -> THttpResponse any
+  | "datastore" -> TDB any
   | "date" -> TDate
   | "password" -> TPassword
   | "uuid" -> TUuid
-  | "option" -> TOption TAny
+  | "option" -> TOption any
   | "errorrail" -> TErrorRail
-  | "result" -> TResult(TAny, TAny)
-  | "dict" -> TDict TAny
+  | "result" -> TResult(any, any)
+  | "dict" -> TDict any
   | _ -> failwith "unsupported runtime type"

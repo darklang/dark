@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     // ; { name = fn "" "toRepr" 0
-//   ; parameters = [Param.make "v" TAny ""]
+//   ; parameters = [Param.make "v" varA ""]
 //   ; returnType = TStr
 //   ; description =
 //       "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 // ; { name = fn "" "assoc" 0
-//   ; parameters = [Param.make "obj" TObj ""; Param.make "key" TStr ""; Param.make "val" TAny ""]
+//   ; parameters = [Param.make "obj" TObj ""; Param.make "key" TStr ""; Param.make "val" varA ""]
 //   ; returnType = TObj
 //   ; description = "Return a copy of `obj` with the `key` set to `val`."
 //   ; fn =

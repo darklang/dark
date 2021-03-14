@@ -70,7 +70,6 @@ let dvalToSql (dval : Dval) : SqlValue =
 let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit =
   match expectedType with
   | TVariable _ -> ()
-  | TAny -> ()
   | other when actualType = other -> ()
   | _ ->
       let actual = DvalRepr.typeToDeveloperReprV0 actualType

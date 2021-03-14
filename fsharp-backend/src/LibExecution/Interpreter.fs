@@ -508,7 +508,7 @@ and applyFnVal
                             List.zip fn.parameters argList
                             |> List.filter
                                  (fun (p, a) ->
-                                   Dval.toType a <> p.typ && p.typ <> TAny)
+                                   Dval.toType a <> p.typ && not (p.typ.isAny ()))
 
                           match invalid with
                           | [] ->

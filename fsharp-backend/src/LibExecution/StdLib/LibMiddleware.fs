@@ -82,7 +82,7 @@ let middlewareNextParameter = Param.make "next" middlewareReturnType ""
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "emptyRequest" 0
       parameters = []
-      returnType = TAny
+      returnType = varA
       description = "An empty HTTP request, with no fields"
       fn =
         (function

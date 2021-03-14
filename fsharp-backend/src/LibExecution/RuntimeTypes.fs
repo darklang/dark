@@ -218,7 +218,6 @@ and DvalTask = Prelude.TaskOrValue<Dval>
 and Symtable = Map<string, Dval>
 
 and DType =
-  | TAny
   | TInt
   | TFloat
   | TBool
@@ -228,7 +227,6 @@ and DType =
   | TDict of DType
   | TIncomplete
   | TError
-  | TLambda
   | THttpResponse of DType
   | TDB of DType
   | TDate
@@ -241,9 +239,14 @@ and DType =
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
-  | TVariable of string
-  | TFn of List<DType> * DType
+  | TVariable of string // replaces TAny
+  | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
+
+  member this.isAny() =
+    match this with
+    | TVariable _ -> true
+    | _ -> false
 
 // Record the source of an incomplete or error. Would be useful to add more
 // information later, such as the iteration count that let to this, or
@@ -325,6 +328,8 @@ module Dval =
     | _ -> failwith "expecting str"
 
   let rec toType (dv : Dval) : DType =
+    let any = TVariable "a"
+
     match dv with
     | DInt _ -> TInt
     | DFloat _ -> TFloat
@@ -333,22 +338,22 @@ module Dval =
     | DChar _ -> TChar
     | DStr _ -> TStr
     | DList (head :: _) -> TList(toType head)
-    | DList [] -> TList TAny
+    | DList [] -> TList any
     | DObj map ->
         map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
-    | DFnVal _ -> TLambda
+    | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
     | DError _ -> TError
     | DIncomplete _ -> TIncomplete
     | DErrorRail _ -> TErrorRail
     | DHttpResponse (_, dv) -> THttpResponse(toType dv)
-    | DDB _ -> TDB TAny
+    | DDB _ -> TDB any
     | DDate _ -> TDate
     | DPassword _ -> TPassword
     | DUuid _ -> TUuid
-    | DOption None -> TOption TAny
+    | DOption None -> TOption any
     | DOption (Some v) -> TOption(toType v)
-    | DResult (Ok v) -> TResult(toType v, TAny)
-    | DResult (Error v) -> TResult(TAny, toType v)
+    | DResult (Ok v) -> TResult(toType v, any)
+    | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
 
   let int (i : int) = DInt(bigint i)

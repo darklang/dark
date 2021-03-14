@@ -185,8 +185,7 @@ let allFunctions = LibBackend.StdLib.StdLib.fns @ LibExecution.StdLib.StdLib.fns
 
 let typToApiString (typ : RT.DType) : string =
   match typ with
-  | RT.TVariable _
-  | RT.TAny -> "Any"
+  | RT.TVariable _ -> "Any"
   | RT.TInt -> "Int"
   | RT.TFloat -> "Float"
   | RT.TBool -> "Bool"
@@ -196,8 +195,7 @@ let typToApiString (typ : RT.DType) : string =
   | RT.TList _ -> "List"
   | RT.TRecord _
   | RT.TDict _ -> "Dict"
-  | RT.TFn _
-  | RT.TLambda -> "Block"
+  | RT.TFn _ -> "Block"
   | RT.TIncomplete -> "Incomplete"
   | RT.TError -> "Error"
   | RT.THttpResponse _ -> "Response"

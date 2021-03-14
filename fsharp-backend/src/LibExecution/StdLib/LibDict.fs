@@ -504,7 +504,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
           Param.make "key" TStr ""
-          Param.make "val" TAny "" ]
+          Param.make "val" varA "" ]
       returnType = (TDict(TVariable "a"))
       description = "Returns a copy of `dict` with the `key` set to `val`."
       fn =
