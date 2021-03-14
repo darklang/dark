@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> l |> List.tryHead |> DOption |> Value
+        | _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -135,23 +135,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "last" 2) }
-    //   ; { name = fn "List" "last" 2
-//     ; parameters = [Param.make "list" TList ""]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
-//     ; fn =
-//           (function
-//           | _, [DList []] ->
-//               DOption OptNothing
-//           | _, [DList l] ->
-//               Dval.to_opt_just (List.last_exn l)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "reverse" 0
+    { name = fn "List" "last" 2
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TOption varA
+      description =
+        "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
+      fn =
+        (function
+        | _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   ; { name = fn "List" "reverse" 0
 //     ; parameters = [Param.make "list" TList ""]
 //     ; returnType = TList
 //     ; description = "Returns a reversed copy of `list`."
@@ -1140,7 +1136,7 @@ let fns : List<BuiltInFn> =
 
         (function
         | _, [ DList [] ] -> Value(DOption None)
-        | _, [ DList l ] -> Value(l.[Prelude.random.Next l.Length])
+        | _, [ DList l ] -> Value(Dval.optionJust l.[Prelude.random.Next l.Length])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
