@@ -17,10 +17,20 @@ module Exe = LibExecution.Execution
 
 open TestUtils
 
+// Many OCaml errors use a bunch of different fields, which seemed smart at the
+// time but ultimately was pretty annoying. We can normalize by fetching the
+// "short" field (there are other fields but we'll ignore them)
+type OCamlError = { short : string }
+
+let parseOCamlError (str : string) : string =
+  try
+    (Json.AutoSerialize.deserialize<OCamlError> str).short
+  with _ -> str
+
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError (_, str) -> RT.DError(RT.SourceNone, str)
+  | RT.DError (_, str) -> RT.DError(RT.SourceNone, parseOCamlError str)
   | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
@@ -32,8 +42,8 @@ let fns =
 let t
   (comment : string)
   (code : string)
-  (dbs : List<RT.DB.T>)
-  (functions : Map<string, RT.UserFunction.T>)
+  (dbs : List<PT.DB.T>)
+  (functions : Map<string, PT.UserFunction.T>)
   : Test =
   let name = $"{comment} ({code})"
 
@@ -42,49 +52,42 @@ let t
   else
     testTask name {
       try
-        let! owner = testOwner.Force()
-        let ownerID : UserID = (owner : LibBackend.Account.UserInfo).id
+        let rtDBs =
+          (dbs |> List.map (fun db -> db.name, db.toRuntimeType ()) |> Map.ofList)
 
-        // Performance optimization: don't touch the DB if you don't use the DB
-        let! canvasID =
-          if List.length dbs > 0 then
-            task {
-              let hash = sha1digest name |> System.Convert.ToBase64String
-              let canvasName = CanvasName.create $"test-{hash}"
-              do! TestUtils.clearCanvasData canvasName
+        let rtFunctions = functions |> Map.map (fun f -> f.toRuntimeType ())
 
-              let! canvasID =
-                LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
-
-              return canvasID
-            }
-          else
-            task { return! testCanvasID.Force() }
+        let! state = TestUtils.executionStateFor name rtDBs rtFunctions (fns.Force())
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
-        let tlid = id 7
+        let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
+        let! expected = Exe.run state Map.empty (expectedResult.toRuntimeType ())
 
-        let state =
-          Exe.createState
-            ownerID
-            canvasID
-            tlid
-            (fns.Force())
-            Map.empty
-            (dbs |> List.map (fun db -> db.name, db) |> Map.ofList)
-            functions
-            Map.empty
-            []
+        let testOCaml, testFSharp =
+          if String.includes "FSHARPONLY" comment then (false, true)
+          else if String.includes "OCAMLONLY" comment then (true, false)
+          else (true, true)
 
-        let! actual = Exe.run state Map.empty actualProg
-        let! expected = Exe.run state Map.empty expectedResult
-        let actual = normalizeDvalResult actual
-        //let str = $"{source} => {actualProg} = {expectedResult}"
-        let astMsg = $"{actualProg} = {expectedResult} ->"
-        let dataMsg = $"\n\nActual:\n{actual}\n = \n{expected}"
-        let msg = astMsg + dataMsg
-        return (Expect.equalDval actual expected msg)
+        if testOCaml then
+          let ocamlActual =
+            LibBackend.OCamlInterop.execute
+              state.accountID
+              state.canvasID
+              actualProg
+              Map.empty
+              dbs
+              (Map.values functions)
+            |> normalizeDvalResult
+
+          Expect.equalDval ocamlActual expected $"OCaml: {msg}"
+
+        if testFSharp then
+          let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())
+          let fsharpActual = normalizeDvalResult fsharpActual
+          Expect.equalDval fsharpActual expected $"FSharp: {msg}"
+
+        return ()
       with e ->
         printfn "Exception thrown in test: %s" (e.ToString())
         return (Expect.equal "Exception thrown in test" (e.ToString()) "")
@@ -95,16 +98,16 @@ type TestInfo =
   { name : string
     recording : bool
     code : string
-    dbs : List<RT.DB.T> }
+    dbs : List<PT.DB.T> }
 
-type TestGroup = { name : string; tests : List<Test>; dbs : List<RT.DB.T> }
+type TestGroup = { name : string; tests : List<Test>; dbs : List<PT.DB.T> }
 
 type FnInfo =
   { name : string
     recording : bool
     code : string
     tlid : tlid
-    parameters : List<RT.UserFunction.Parameter> }
+    parameters : List<PT.UserFunction.Parameter> }
 
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
@@ -128,8 +131,8 @@ let fileTests () : Test =
          // for recording a bunch if single-line tests grouped together
          let mutable currentGroup = emptyGroup
          let mutable allTests = []
-         let mutable functions : Map<string, RT.UserFunction.T> = Map.empty
-         let mutable dbs : Map<string, RT.DB.T> = Map.empty
+         let mutable functions : Map<string, PT.UserFunction.T> = Map.empty
+         let mutable dbs : Map<string, PT.DB.T> = Map.empty
 
          let finish () =
            if currentTest.recording then
@@ -143,13 +146,15 @@ let fileTests () : Test =
              allTests <- allTests @ [ newTestCase ]
 
            if currentFn.recording then
-             let (fn : RT.UserFunction.T) =
+             let (fn : PT.UserFunction.T) =
                { tlid = currentFn.tlid
                  name = currentFn.name
-                 returnType = RT.TAny
+                 nameID = gid ()
+                 returnType = PT.TAny
+                 returnTypeID = gid ()
                  description = "test function"
                  infix = false
-                 body = (FSharpToExpr.parseRTExpr currentFn.code)
+                 body = (FSharpToExpr.parsePTExpr currentFn.code)
                  parameters = currentFn.parameters }
 
              functions <- Map.add currentFn.name fn functions
@@ -184,27 +189,39 @@ let fileTests () : Test =
                 | Regex @"^\[db.(.*) (\{.*\})\]\s*$" [ name; definition ] ->
                     finish ()
 
-                    let (db : RT.DB.T) =
+                    let (db : PT.DB.T) =
                       { tlid = id i
+                        pos = { x = 0; y = 0 }
                         name = name
+                        nameID = gid ()
                         version = 0
                         cols =
                           definition
                           |> Json.AutoSerialize.deserialize<Map<string, string>>
-                          |> Map.map LibExecution.DvalRepr.dtypeOfString
-                          |> Map.toList }
+                          |> Map.mapWithIndex
+                               (fun k v ->
+                                 ({ name = k
+                                    nameID = gid ()
+                                    typ =
+                                      if v = "" then None else Some(PT.parseType v)
+                                    typeID = gid () } : PT.DB.Col))
+                          |> Map.values }
 
                     dbs <- Map.add name db dbs
                 // [function] declaration
                 | Regex @"^\[fn\.(\S+) (.*)\]$" [ name; definition ] ->
                     finish ()
 
-                    let parameters : List<RT.UserFunction.Parameter> =
+                    let parameters : List<PT.UserFunction.Parameter> =
                       definition
                       |> String.split " "
                       |> List.map
                            (fun name ->
-                             { name = name; description = ""; typ = RT.TAny })
+                             { name = name
+                               nameID = gid ()
+                               description = ""
+                               typ = Some PT.TAny
+                               typeID = gid () })
 
                     currentFn <-
                       { tlid = id i
@@ -220,16 +237,22 @@ let fileTests () : Test =
                     | Some db -> currentTest <- { currentTest with dbs = [ db ] }
                     | None -> failwith $"No DB named {dbName} found"
 
-                    currentTest <- { currentTest with name = name; recording = true }
+                    currentTest <-
+                      { currentTest with
+                          name = $"{name} (line {i})"
+                          recording = true }
                 // [test] indicator (no DB)
                 | Regex @"^\[test\.(.*)\]$" [ name ] ->
                     finish ()
-                    currentTest <- { currentTest with name = name; recording = true }
+
+                    currentTest <-
+                      { currentTest with
+                          name = $"{name} (line {i})"
+                          recording = true }
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments
-                | Regex @"^\s*//.*$" [] when
-                  currentTest.recording || currentFn.recording -> ()
+                | Regex @"^\s*//.*$" [] -> ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
                     currentTest <-
@@ -237,17 +260,18 @@ let fileTests () : Test =
                 | _ when currentFn.recording ->
                     currentFn <- { currentFn with code = currentFn.code + line }
                 // 1-line test
-                | Regex "^(.*)\s*$" [ code ] ->
-                    let test = t $"line {i}" code currentGroup.dbs functions
-
-                    currentGroup <-
-                      { currentGroup with tests = currentGroup.tests @ [ test ] }
-                | Regex "^(.*)\s*//\s*(.*)$" [ code; comment ] ->
+                | Regex @"^(.*)\s*//\s*(.*)$" [ code; comment ] ->
                     let test =
                       t $"{comment} (line {i})" code currentGroup.dbs functions
 
                     currentGroup <-
                       { currentGroup with tests = currentGroup.tests @ [ test ] }
+                | Regex @"^(.*)\s*$" [ code ] ->
+                    let test = t $"line {i}" code currentGroup.dbs functions
+
+                    currentGroup <-
+                      { currentGroup with tests = currentGroup.tests @ [ test ] }
+
                 | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
          finish ()

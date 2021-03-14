@@ -1,4 +1,5 @@
 open Core_kernel
+module Db = Libbackend_basics.Db
 
 module SessionShared = struct
   let backend = Libservice.Dbconnection.conn

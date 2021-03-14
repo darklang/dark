@@ -22,57 +22,11 @@ module RT = LibExecution.RuntimeTypes
 // Expressions - the main part of the language.
 
 module FQFnName =
-  type T =
-    { owner : string
-      package : string
-      module_ : string
-      function_ : string
-      version : int }
+  type T = RT.FQFnName.T
 
-    override this.ToString() : string =
-      let module_ = if this.module_ = "" then "" else $"{this.module_}::"
-      let fn = $"{module_}{this.function_}_v{this.version}"
-
-      if this.owner = "dark" && this.package = "stdlib" then fn
-      else if this.owner = "" && this.package = "" then fn
-      else $"{this.owner}/{this.package}/{fn}"
-
-    member this.toRuntimeType() : RT.FQFnName.T =
-      { owner = this.owner
-        package = this.package
-        module_ = this.module_
-        function_ = this.function_
-        version = this.version }
-
-  let namePat = @"^[a-z][a-z0-9_]*$"
-  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
-  let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
-
-  let packageName
-    (owner : string)
-    (package : string)
-    (module_ : string)
-    (function_ : string)
-    (version : int)
-    : T =
-    assertRe "owner must match" namePat owner
-    assertRe "package must match" namePat package
-    if module_ <> "" then assertRe "modName name must match" modNamePat module_
-    assertRe "function name must match" fnnamePat function_
-    assert_ "version can't be negative" (version >= 0)
-
-    { owner = owner
-      package = package
-      module_ = module_
-      function_ = function_
-      version = version }
-
-  let userFnName (fnName : string) : T =
-    assertRe "function name must match" fnnamePat fnName
-    { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
-
-  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    packageName "dark" "stdlib" module_ function_ version
+  let packageName = RT.FQFnName.packageName
+  let userFnName = RT.FQFnName.userFnName
+  let stdlibName = RT.FQFnName.stdlibName
 
   let parse (fnName : string) : T =
     let owner, package, module_, function_, version =
@@ -95,7 +49,7 @@ module FQFnName =
       | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
       | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
-    packageName owner package module_ function_ version
+    RT.FQFnName.packageName owner package module_ function_ version
 
 
 
@@ -224,7 +178,7 @@ type Expr =
     | EFnCall (id, name, args, ster) ->
         RT.EApply(
           id,
-          RT.EFQFnValue(gid (), name.toRuntimeType ()),
+          RT.EFQFnValue(gid (), name),
           List.map r args,
           RT.NotInPipe,
           ster.toRuntimeType ()
@@ -255,7 +209,7 @@ type Expr =
             | EFnCall (id, name, EPipeTarget ptID :: exprs, rail) ->
                 RT.EApply(
                   id,
-                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  RT.EFQFnValue(ptID, name),
                   prev :: List.map r exprs,
                   RT.InPipe,
                   rail.toRuntimeType ()
@@ -264,7 +218,7 @@ type Expr =
             | EBinOp (id, name, EPipeTarget ptID, expr2, rail) ->
                 RT.EApply(
                   id,
-                  RT.EFQFnValue(ptID, name.toRuntimeType ()),
+                  RT.EFQFnValue(ptID, name),
                   [ prev; r expr2 ],
                   RT.InPipe,
                   rail.toRuntimeType ()
@@ -995,3 +949,103 @@ module PackageManager =
       author : string
       deprecated : bool
       tlid : tlid }
+
+
+let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
+  let r = preTraversal f in
+  let expr = f expr in
+
+  match expr with
+  | EInteger _
+  | EBlank _
+  | EString _
+  | EVariable _
+  | EBool _
+  | ENull _
+  | ECharacter _
+  | EPipeTarget _
+  | EFloat _ -> expr
+  | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
+  | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
+  | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
+  | ELambda (id, names, expr) -> ELambda(id, names, r expr)
+  | EList (id, exprs) -> EList(id, List.map r exprs)
+  | EBinOp (id, op, arg1, arg2, ster) -> EBinOp(id, op, r arg1, r arg2, ster)
+  | EFnCall (id, fn, args, ster) -> EFnCall(id, fn, List.map r args, ster)
+  | EPipe (id, arg0, arg1, args) -> EPipe(id, r arg0, r arg1, List.map r args)
+  | EMatch (id, mexpr, pairs) ->
+      EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
+  | ERecord (id, fields) ->
+      ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+  | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
+  | EPartial (id, str, oldExpr) -> EPartial(id, str, r oldExpr)
+  | ELeftPartial (id, str, oldExpr) -> ELeftPartial(id, str, r oldExpr)
+  | ERightPartial (id, str, oldExpr) -> ERightPartial(id, str, r oldExpr)
+  | EFeatureFlag (id, msg, cond, casea, caseb) ->
+      EFeatureFlag(id, msg, r cond, r casea, r caseb)
+
+
+let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
+  let r = postTraversal f in
+
+  let result =
+    match expr with
+    | EInteger _
+    | EBlank _
+    | EString _
+    | EVariable _
+    | ECharacter _
+    | EPipeTarget _
+    | EBool _
+    | ENull _
+    | EFloat _ -> expr
+    | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
+    | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
+    | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
+    | ELambda (id, names, expr) -> ELambda(id, names, r expr)
+    | EList (id, exprs) -> EList(id, List.map r exprs)
+    | EMatch (id, mexpr, pairs) ->
+        EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
+    | EBinOp (id, op, arg1, arg2, ster) -> EBinOp(id, op, r arg1, r arg2, ster)
+    | EFnCall (id, fn, args, ster) -> EFnCall(id, fn, List.map r args, ster)
+    | EPipe (id, arg0, arg1, args) -> EPipe(id, r arg0, r arg1, List.map r args)
+    | ERecord (id, fields) ->
+        ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+    | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
+    | EPartial (id, str, oldExpr) -> EPartial(id, str, r oldExpr)
+    | ELeftPartial (id, str, oldExpr) -> ELeftPartial(id, str, r oldExpr)
+    | ERightPartial (id, str, oldExpr) -> ERightPartial(id, str, r oldExpr)
+    | EFeatureFlag (id, str, cond, casea, caseb) ->
+        EFeatureFlag(id, str, r cond, r casea, r caseb)
+
+  f result
+
+// Shoudl be synced to DvalRepr.dtypeToString
+let rec parseType (str : string) : DType =
+  match String.toLowercase str with
+  | "any" -> TAny
+  | "int" -> TInt
+  | "integer" -> TInt
+  | "float" -> TFloat
+  | "bool" -> TBool
+  | "boolean" -> TBool
+  | "nothing" -> TNull
+  | "character"
+  | "char" -> TChar
+  | "str" -> TStr
+  | "string" -> TStr
+  | "list" -> TList TAny
+  | "obj" -> TDict TAny
+  | "block" -> TLambda
+  | "incomplete" -> TIncomplete
+  | "error" -> TError
+  | "response" -> THttpResponse TAny
+  | "datastore" -> TDB TAny
+  | "date" -> TDate
+  | "password" -> TPassword
+  | "uuid" -> TUuid
+  | "option" -> TOption TAny
+  | "errorrail" -> TErrorRail
+  | "result" -> TResult(TAny, TAny)
+  | "dict" -> TDict TAny
+  | _ -> failwith "unsupported runtime type"

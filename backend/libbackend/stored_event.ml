@@ -12,6 +12,7 @@ open Core_kernel
 open Libexecution
 module RTT = Types.RuntimeT
 open Libcommon
+module Db = Libbackend_basics.Db
 
 type event_desc = string * string * string [@@deriving show, yojson]
 

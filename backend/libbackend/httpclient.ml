@@ -4,6 +4,7 @@ open Libexecution
 open Libcommon
 module C = Curl
 open Curl_logging
+module Config = Libbackend_basics.Config
 
 type verb =
   | GET

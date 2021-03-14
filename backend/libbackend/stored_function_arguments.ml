@@ -4,6 +4,7 @@ open Types
 module RTT = Types.RuntimeT
 module Telemetry = Libcommon.Telemetry
 module Log = Libcommon.Log
+module Db = Libbackend_basics.Db
 
 (* ------------------------- *)
 (* External *)

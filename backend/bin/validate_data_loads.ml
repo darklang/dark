@@ -4,6 +4,7 @@ open Libexecution
 module RTT = Libexecution.Types.RuntimeT
 open Libbackend
 open Libcommon
+module Db = Libbackend_basics.Db
 
 (* Validate that data can be loaded from:
  * - stored events
@@ -181,7 +182,7 @@ let () =
                      ; store_fn_arguments = (fun _ _ -> ()) }
                    in
                    try
-                     ignore (Libbackend.User_db.get_all ~state db) ;
+                     ignore (Libbackend_basics.User_db.get_all ~state db) ;
                      Log.infO
                        "user data"
                        ~params:[("db", dbname); ("host", host)]

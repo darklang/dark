@@ -2,6 +2,8 @@ open Core_kernel
 open Libcommon
 open Libexecution
 open Libbackend
+module Account = Libbackend.Account
+module File = Libbackend_basics.File
 
 let () =
   let suites =

@@ -19,6 +19,8 @@ type t =
   ; (* Delay in ms since it entered the queue *)
     delay : Float.t }
 
+type event_desc = string * string * string [@@deriving show, yojson]
+
 let to_event_desc t = (t.space, t.name, t.modifier)
 
 (* ------------------------- *)

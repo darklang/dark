@@ -3,6 +3,7 @@ module Util = Libexecution.Util
 open Libexecution
 module RTT = Libexecution.Types.RuntimeT
 open Libcommon
+module Db = Libbackend_basics.Db
 
 let collect
     (action : Stored_event.trim_events_action)

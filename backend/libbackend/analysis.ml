@@ -8,6 +8,9 @@ module TL = Toplevel
 module PReq = Parsed_request
 module SE = Stored_event
 module SA = Static_assets
+module User_db = Libbackend_basics.User_db
+module Db = Libbackend_basics.Db
+module Event_queue = Libbackend_basics.Event_queue
 
 (* ------------------------- *)
 (* Non-execution analysis *)

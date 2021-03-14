@@ -29,22 +29,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DInt v; DInt m as mdv ] ->
-            (try
+            if m <= bigint 0 then
+              err (Errors.argumentWasnt "positive" "b" mdv)
+            else
               Value(DInt(v % m))
-             with e ->
-               if m = bigint 0 then
-                 err (Errors.argumentWasnt "positive" "b" mdv)
-               else
-                 // FSTODO
-                 // In case there's another failure mode, rollbar
-                 failwith "mod error")
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
-      (*
-         * TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
-         * The current function returns DError (it used to rollbar) on negative `b`.
-         *)
+      // TODO: Deprecate this when we can version infix operators and when infix operators support Result return types.
+      // The current function returns DError (it used to rollbar) on negative `b`.
       deprecated = NotDeprecated }
     (*  (* See above for when to uncomment this *)
   ; { name = fn "Int" "mod" 1
@@ -78,7 +71,7 @@ let fns : List<BuiltInFn> =
     ; deprecated = NotDeprecated } *)
     { name = fn "Int" "remainder" 0
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
-      returnType = TInt
+      returnType = TResult(TInt, TStr)
       description = "Returns the integer remainder left over after dividing `value` by `divisor`, as a Result.
           For example, `Int::remainder 15 6 == Ok 3`. The remainder will be negative only if `value < 0`.
           The sign of `divisor` doesn't influence the outcome.
@@ -87,11 +80,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt v; DInt d ] ->
             (try
-              BigInteger.Remainder(v, d) |> DInt |> Value
+              BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Value
              with e ->
                if d = bigint 0 then
-                 Value(Dval.errStr (Errors.dividingByZero "divisor"))
-               else (* In case there's another failure mode, rollbar *)
+                 Value(DResult(Error(DStr(Errors.dividingByZero "divisor"))))
+               else // In case there's another failure mode, rollbar
                  raise e)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

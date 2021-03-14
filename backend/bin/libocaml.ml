@@ -41,4 +41,5 @@ let () =
   Callback.register "of_unknown_json_v1" Fuzzing.of_unknown_json_v1 ;
   Callback.register "hash_v0" Fuzzing.hash_v0 ;
   Callback.register "hash_v1" Fuzzing.hash_v1 ;
+  Callback.register "execute" Fuzzing.execute ;
   ()

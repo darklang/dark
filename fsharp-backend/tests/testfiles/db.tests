@@ -10,8 +10,9 @@
 // Roundtripping Functions
 // ------------
 [test.dbnullroundtrip] with DB X
-(let old = { x = null } in
- let key = DB.add_v0 old X in
+(let key = DB.generateKey_v0 in
+ let old = { x = null } in
+ let _ = DB.set_v1 old key X in
  DB.get_v1_ster key X) = { x = null }
 
 [test.dbnullroundtrip2] with DB X
@@ -25,12 +26,13 @@
 [test.db roundtrip password] with DB Passwords
 // Each call to hash gets a different but compatible answer
 (let pw = Password.hash_v0 "password" in
- let _ = DB.add_v0 { password = pw } Passwords in
- (List.head_v0 (DB.getAll_v2 Passwords)).password = pw) = true
+ let x = DB.set_v1 { password = pw } "test" Passwords in
+ let y = DB.queryOneWithExactFields_v0_ster { password = pw } Passwords in
+ Password.check_v0 y.password "password") = true
 
 [test.db roundtrip uuid] with DB Uuid
 (let i = Uuid.generate_v0 in
- let _ = DB.add_v0 { uu = i } Uuid in
+ let _ = DB.set_v1 { uu = i } "test" Uuid in
  (List.head_v0 (DB.getAll_v2 Uuid)).uu = i) = true
 
 
@@ -300,13 +302,21 @@
 (friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ))
 = [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db lambda doesnt return a bool] with DB Person
+[test.db lambda doesnt return a bool FSHARPONLY] with DB Person
 (friends (fun p -> "x"))
 = Test.sqlError_v0 "Incorrect type in string \"x\", expected Bool, but got a String"
 
-[test.db bad variable name] with DB Person
+[test.db lambda doesnt return a bool OCAMLONLY] with DB Person
+(friends (fun p -> "x"))
+= Test.typeError_v0 "Fn called with an error as an argument"
+
+[test.db bad variable name FSHARPONLY] with DB Person
 (friends (fun p -> let x = 32 in true && p.height > y))
 = Test.sqlError_v0 "This variable is not defined: y"
+
+[test.db bad variable name OCAMLONLY] with DB Person
+(friends (fun p -> let x = 32 in true && p.height > y))
+= Test.typeError_v0 "Fn called with an error as an argument"
 
 [test.db sql injection] with DB Person
 (friends (fun p -> "; select * from users;" = p.name )) = []
@@ -459,3 +469,6 @@ Date.parse_v2_ster "2100-01-01T00:00:00Z"
 (let _ = prepDates null in
  DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts))
 = Just { ts = beforeDate null }
+
+[tests.other tests]
+(DB.generateKey_v0 |> String.length_v1) = 36

@@ -259,6 +259,10 @@ extern int hash_v1 (char* bytesIn, int lengthIn, char** bytesOut) {
   return string_to_string("hash_v1", bytesIn, lengthIn, bytesOut);
 }
 
+extern int execute (char* bytesIn, int lengthIn, char** bytesOut) {
+  return string_to_string("execute", bytesIn, lengthIn, bytesOut);
+}
+
 /* --------------------
  * OCaml values
  * -------------------- */

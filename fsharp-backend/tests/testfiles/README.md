@@ -16,7 +16,7 @@ The code is written using F#, which is very similar to Dark. It is parsed by the
 - all tests must be of the format `x = y`, that is, they must have a single
   expression on the left, one on the right, and an equals sign in between. You can use parens around multiple expressions to group them into a single expression, eg `(5 |> toString)`.
 
-- be explicit around pipes, wrapping them in parens to make sure the right expression is being piped.
+- be explicit around pipes, wrapping them in parens to make sure the right expression is being piped. Otherwise you will typically get type errors.
 
 # Test file format
 
@@ -26,9 +26,14 @@ Lines with just comments or whitespace are ignored. Single-line tests are made
 up of code optionally followed by a comment (if present, the comment is used as
 the test name).
 
-You can also constructs too, such as multi-line tests, test groups, datastores
-and functions. To do so, add a test indicator (see below) - all code after a
-test indicator is put into that construct.
+Comments with FSHARPONLY only test against the FSharp implementation. Comments
+with OCAMLONLY only test again the OCaml implementation. This allows us to
+document differences between the implementations, including different error
+messages.
+
+We also support more complex tests, involving multiple lines, test groups,
+datastores and functions. To do so, add a test indicator (see below) - all code
+after a test indicator is put into that construct.
 
 ## Test indicators:
 

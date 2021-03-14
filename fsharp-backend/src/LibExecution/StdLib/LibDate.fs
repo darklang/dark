@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s ] ->
             (try
               Value(DDate(System.DateTime.ofIsoString s))
-             with e -> failwith "Invalid date format")
+             with e -> Value(DError(SourceNone, "Invalid date format")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -352,7 +352,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d ] ->
             // This is wrong, hence being replaced
-            Value(Dval.int ((d - System.DateTime.UnixEpoch).Hours % 60))
+            ((d - System.DateTime.UnixEpoch).TotalHours % 60.0)
+            |> int
+            |> Dval.int
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -363,7 +366,10 @@ let fns : List<BuiltInFn> =
       description = "Returns the hour portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] -> Value(Dval.int d.Hour)
+        | _, [ DDate d ] ->
+            // CLEANUP - this was made bug-for-bug compatible
+            let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
+            Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -374,7 +380,10 @@ let fns : List<BuiltInFn> =
       description = "Returns the minute portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] -> Value(Dval.int (d.Minute))
+        | _, [ DDate d ] ->
+            // CLEANUP - this was made bug-for-bug compatible
+            let s = if d.Year < 1970 then d.Minute - 59 else d.Minute
+            Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -385,7 +394,10 @@ let fns : List<BuiltInFn> =
       description = "Returns the second portion of the Date as an int"
       fn =
         (function
-        | _, [ DDate d ] -> Value(Dval.int (d.Second))
+        | _, [ DDate d ] ->
+            // CLEANUP - this was made bug-for-bug compatible
+            let s = if d.Year < 1970 then d.Second - 60 else d.Second
+            Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure

@@ -1,6 +1,6 @@
 open Core_kernel
 module Util = Libexecution.Util
-module Password = Libbackend.Password
+module Password = Libbackend_basics.Password
 
 let usage () =
   Format.printf "Usage: %s [--prompt-for-password]\n" Sys.argv.(0) ;

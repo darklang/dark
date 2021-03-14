@@ -17,6 +17,7 @@
                ppx_pipebang
                ))
   (libraries  libexecution
+              libbackend_stdlib
               core_extended
               ppx_deriving_yojson.runtime
               yojson

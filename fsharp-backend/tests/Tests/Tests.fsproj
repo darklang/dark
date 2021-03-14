@@ -24,6 +24,7 @@
     <Compile Include="Account.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
+    <Compile Include="FSI.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

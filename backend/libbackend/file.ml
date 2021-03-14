@@ -47,10 +47,9 @@ let lsdir ~root dir : string list =
   Sys.ls_dir dir
 
 
-let rm ~root file : unit =
-  let file = check_filename ~root ~mode:`Write file in
-  Core_extended.Shell.rm ~f:() file
-
+(* let rm ~root file : unit = *)
+(*   let file = check_filename ~root ~mode:`Write file in *)
+(*   Core_extended.Shell.rm ~f:() file *)
 
 let readfile ~root f : string =
   let f = check_filename ~root ~mode:`Read f in

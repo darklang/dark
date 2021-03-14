@@ -4,6 +4,7 @@ open Runtime
 open Lib
 open Types.RuntimeT
 open Curl_logging
+module Config = Libbackend_basics.Config
 
 module HttpclientV0 = struct
   module C = Curl

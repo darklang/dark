@@ -10,6 +10,7 @@
     <Compile Include="Shortcuts.fs" />
     <Compile Include="DvalRepr.fs" />
     <Compile Include="Errors.fs" />
+    <Compile Include="TypeChecker.fs" />
     <Compile Include="Ast.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="StdLib/LibBool.fs" />

@@ -2,6 +2,7 @@ open Core_kernel
 open Lwt
 open Libcommon
 open Libbackend.Worker_util
+module Event_queue = Libbackend_basics.Event_queue
 
 let shutdown = ref false
 

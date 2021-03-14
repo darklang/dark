@@ -38,8 +38,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | state, [ DStr errorString ] ->
-            Value(DError(SourceNone, errorString))
+        | state, [ DStr errorString ] -> Value(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -79,6 +78,25 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Test" "toChar" 0
+      parameters = [ Param.make "c" TStr "" ]
+      returnType = TOption TChar
+      description = "Turns a string of length 1 into a character"
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            let chars = String.toEgcSeq s
+
+            if Seq.length chars = 1 then
+              chars
+              |> Seq.toList
+              |> fun l -> l.[0] |> DChar |> Some |> DOption |> Value
+            else
+              Value(DOption None)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Test" "negativeInfinity" 0
       parameters = []
       returnType = TFloat
@@ -113,6 +131,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [] -> Value(Dval.int !sideEffectCount)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "inspect" 0
+      parameters = [ Param.make "var" varA ""; Param.make "msg" TStr "" ]
+      returnType = varA
+      description = "Prints the value into stdout"
+      fn =
+        (function
+        | state, [ v; DStr msg ] ->
+            printfn $"{msg}: {v}"
+            Value v
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

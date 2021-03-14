@@ -44,7 +44,7 @@ val push_new_event :
 val push_worker_states :
      execution_id:Types.id
   -> canvas_id:Uuidm.t
-  -> Event_queue.Worker_states.t
+  -> Libbackend_basics.Event_queue.Worker_states.t
   -> unit
 
 val status : unit -> [> `Healthy | `Unconfigured | `Unhealthy of string] Lwt.t

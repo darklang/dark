@@ -1,6 +1,6 @@
 (5 + 3) = 8 // binop
-
 -55555555555555555555555555555.5 = -55555555555555555555555555555.5
+
 [test.lambda]
 (let y = (fun x -> x + 1) in
  List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
@@ -145,7 +145,7 @@
  |> blank
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
 
-[test.pipevariable]
+[test.pipevariable FSHARPONLY - we didn't implement this in OCaml]
 (let x = fun a -> a + 1 in
  (5
  |> x
@@ -192,7 +192,7 @@ List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 List.map_v0 [1;2;3;4] (fun x -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 List.fold_v0 [1;2;3;4] 1 (fun x y -> List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 List.map_v0 [1;2;3;4] (fun x -> blank) = blank
-({ x = (List.head_v1_ster []) }) = Test.errorRailNothing_v0_ster
+{ x = (List.head_v1_ster []) } = Test.errorRailNothing_v0_ster
 Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 
 //[tests.returns]
@@ -214,8 +214,16 @@ Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 { col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
 { col1 = 2 ; col2 = blank } = { col1 = 2 }
 //({ col1 = 2 ; ```` = blank }) = ({ col1 = 2 }) // todo: do unit test instead
-{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
-{ col1 = 2 ; col2 = (List.head_v1_ster []) } = Test.errorRailNothing_v0
+{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
+{ col1 = 2 ; col2 = (List.head_v1_ster []) } = Test.errorRailNothing_v0_ster
+
+[tests.list]
+[] = []
+[1] = [1]
+[ 5; blank; 0 ] = [5;0]
+[ 5; Int.add_v0 blank 5; 0 ] = [5;0]
+[ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ]
+[ 5; (List.head_v1_ster []); 0 ] = Test.errorRailNothing_v0
 
 
 [tests.featureflag]
@@ -223,7 +231,7 @@ flag "test" true "old" "new" = "new" // show new for true
 flag "test" false "old" "new" = "old" // show old for false
 flag "test" blank "old" "new" = "old" // show old for incomplete condition
 flag "test" null "old" "new" = "old" // show old for null
-flag "test" (Test.typeError_v0 "testerror") "old" "new" = "old" // show old for error
+flag "test" (Test.typeError_v0 "test") "old" "new" = "old" // show old for error
 flag "test" (List.head_v1_ster []) "old" "new" = "old" // show old for errorrail
 flag "test" {x = true} "old" "new" = "old" // show old for object
 flag "test" [true] "old" "new" = "old" // show old for list

@@ -37,7 +37,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let! rhs = eval state st rhs
         let st = st.Add(lhs, rhs)
         return! (eval state st body)
-    | EString (_id, s) -> return (DStr s)
+    | EString (_id, s) -> return (DStr(s.Normalize()))
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
@@ -51,7 +51,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
         let filtered =
           List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
-        // TODO: why do we only find errorRail, and not errors. Seems like
+        // CLEANUP: why do we only find errorRail, and not errors. Seems like
         // a mistake
         match List.tryFind (fun (dv : Dval) -> Dval.isErrorRail dv) filtered with
         | Some er -> return er
@@ -86,11 +86,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               })
             skipEmptyKeys
 
-        return
-          (resolved
-           // allow users to edit code safely
-           |> List.filter (fun (k, v : Dval) -> not (Dval.isIncomplete v))
-           |> Dval.obj)
+        return Dval.interpreterObj resolved
     | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
         let! args = Prelude.map_s (eval state st) exprs
@@ -504,7 +500,8 @@ and applyFnVal
                           return
                             Dval.errSStr
                               sourceID
-                              $"Expected {paramLength} arguments, got {argLength}"
+                              ($"{fn.name} has {paramLength} parameters,"
+                               + $" but here was called with {argLength} arguments.")
 
                         else
                           let invalid =
@@ -526,6 +523,7 @@ and applyFnVal
                         return
                           Dval.errSStr sourceID $"{fn.name} was removed from Dark"
                     | Errors.StdlibException (Errors.FakeDvalFound dv) -> return dv
+                    | e -> return Dval.errSStr sourceID (e.ToString())
 
                   }
 

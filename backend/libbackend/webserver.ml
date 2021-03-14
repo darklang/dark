@@ -26,6 +26,10 @@ module Prelude = Libexecution.Prelude
 module Dbconnection = Libservice.Dbconnection
 module Span = Telemetry.Span
 module Op = Libserialize.Op
+module Db = Libbackend_basics.Db
+module Config = Libbackend_basics.Config
+module File = Libbackend_basics.File
+module Event_queue = Libbackend_basics.Event_queue
 
 (* ------------------------------- *)
 (* utils *)

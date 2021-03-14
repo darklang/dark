@@ -153,7 +153,7 @@ def backend_build():
   # technically correct than "parse the sexp in backend/bin/dune", but it
   # is also much simpler.
   def rename(mlfile):
-    if mlfile == "libserialization.ml":
+    if mlfile == "libocaml.ml":
       return "backend/bin/" + mlfile.replace(".ml", ".so")
     else:
       return "backend/bin/" + mlfile.replace(".ml", ".exe")
@@ -532,7 +532,7 @@ def mark(should, f):
           or ("dune" in f):
     should.backend_build = True
 
-  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f)):
+  elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f) or ("libocaml" in f)):
     should.backend_build = True
     should.fsharp_backend_quick_build = True
 

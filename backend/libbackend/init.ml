@@ -1,4 +1,6 @@
 open Core_kernel
+module Config = Libbackend_basics.Config
+module File = Libbackend_basics.File
 
 let has_inited : bool ref = ref false
 
@@ -12,16 +14,16 @@ let init ~run_side_effects =
       Exn.initialize_module () ;
       (* libexecution *)
       let non_client_fns =
-        Libdb.fns
-        @ Libdb2.fns
-        @ Libevent.fns
+        Libbackend_stdlib.Libdb.fns
+        @ Libbackend_stdlib.Libdb2.fns
+        @ Libbackend_stdlib.Libevent.fns
         @ Libhttpclient.fns
-        @ Libcrypto.fns
+        @ Libbackend_stdlib.Libcrypto.fns
         @ Libtwilio.fns
         @ Libdarkinternal.fns
         @ Libstaticassets.fns
-        @ Libjwt.fns
-        @ Libx509.fns
+        @ Libbackend_stdlib.Libjwt.fns
+        @ Libbackend_stdlib.Libx509.fns
       in
       Libexecution.Init.init Config.log_level Config.log_format non_client_fns ;
       (* init the Random module, will be seeded from /dev/urandom on Linux *)

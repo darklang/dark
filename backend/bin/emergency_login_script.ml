@@ -1,4 +1,5 @@
 open Libbackend
+module Config = Libbackend_basics.Config
 
 let usage () : unit =
   Format.printf "Usage: %s username\n\n" Sys.argv.(0) ;

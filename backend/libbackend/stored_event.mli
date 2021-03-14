@@ -1,8 +1,7 @@
 open Core
 open Libexecution
 
-(* space, path, modifier *)
-type event_desc = string * string * string [@@deriving show, yojson]
+type event_desc = Libbackend_basics.Event_queue.event_desc
 
 type event_record =
   string * string * string * Types.RuntimeT.time * Analysis_types.traceid

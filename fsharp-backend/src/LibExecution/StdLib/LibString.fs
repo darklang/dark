@@ -155,7 +155,17 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr search; DStr replace ] ->
-            Value(DStr(s.Replace(search, replace)))
+            if search = "" then
+              // .Net Replace doesn't allow empty string, but we do.
+              String.toEgcSeq s
+              |> Seq.toList
+              |> List.intersperse replace
+              |> (fun l -> replace :: l @ [ replace ])
+              |> String.concat ""
+              |> DStr
+              |> Value
+            else
+              Value(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "replace"
       previewable = Pure
@@ -168,7 +178,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             (try
-              s |> System.Numerics.BigInteger.Parse |> DInt |> Value
+              let int = s |> System.Numerics.BigInteger.Parse
+
+              if int < -4611686018427387904I then failwith "goto exception case"
+              else if int >= 4611686018427387904I then failwith "goto exception case"
+              else int |> DInt |> Value
              with e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -183,7 +197,12 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             try
-              s |> System.Numerics.BigInteger.Parse |> DInt |> Ok |> DResult |> Value
+              // CLEANUP: These constants represent how high the OCaml parsers would go
+              let int = s |> System.Numerics.BigInteger.Parse
+
+              if int < -4611686018427387904I then failwith "goto exception case"
+              else if int >= 4611686018427387904I then failwith "goto exception case"
+              else int |> DInt |> Ok |> DResult |> Value
             with e ->
               $"Expected to parse string with only numbers, instead got \"{s}\""
               |> DStr
@@ -203,7 +222,13 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s as dv ] ->
             (try
               float (s) |> DFloat |> Value
-             with e -> err (Errors.argumentWasnt "a stringified float" "s" dv))
+             with e ->
+               err (
+                 Errors.argumentWasnt
+                   "a string representation of an IEEE float"
+                   "s"
+                   dv
+               ))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -230,10 +255,19 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "toUppercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
-      description = "Returns the string, uppercased"
+      description =
+        "Returns the string, uppercased (only ASCII characters are uppercased)"
       fn =
         (function
-        | _, [ DStr s ] -> Value(DStr(String.toUpper s))
+        | _, [ DStr s ] ->
+            s
+            |> String.toEgcSeq
+            |> Seq.map
+                 (fun s ->
+                   if s.Length = 1 && (int s.[0]) < 128 then s.ToUpper() else s)
+            |> String.concat ""
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -252,10 +286,19 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "toLowercase" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
-      description = "Returns the string, lowercased"
+      description =
+        "Returns the string, lowercased (only ASCII characters are lowercased)"
       fn =
         (function
-        | _, [ DStr s ] -> Value(DStr(String.toLower s))
+        | _, [ DStr s ] ->
+            s
+            |> String.toEgcSeq
+            |> Seq.map
+                 (fun s ->
+                   if s.Length = 1 && (int s.[0]) < 128 then s.ToLower() else s)
+            |> String.concat ""
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -355,19 +398,17 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-
-            let to_remove = @"[^\-\w\s$*_+~.()'\""!:@]"
+            let toRemove = @"[^-a-zA-Z0-9\s$*_+~.()'""!:@]"
             let trim = @"^\s+|\s+$"
             let spaces = @"[-\s]+"
 
-            let objRegex (pattern : string) (input : string) (replacement : string) =
+            let replace (pattern : string) (replacement : string) (input : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
-            |> fun s -> objRegex to_remove s ""
-            |> fun s -> objRegex trim s ""
-            |> fun s -> objRegex spaces s "-"
-
+            |> replace toRemove ""
+            |> replace trim ""
+            |> replace spaces "-"
             |> String.toLower
             |> DStr
             |> Value
@@ -384,18 +425,17 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
 
-            let to_remove = @"[^\w\s_-]"
+            let toRemove = @"[^a-zA-Z0-9\s_-]"
             let trim = @"^\s+|\s+$"
-            let newspaces = @"[-_\s]+"
+            let newSpaces = @"[-_\s]+"
 
-            let objRegex (pattern : string) (input : string) (replacement : string) =
+            let replace (pattern : string) (replacement : string) (input : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
-            |> fun s -> objRegex to_remove s ""
-            |> fun s -> objRegex trim s ""
-            |> fun s -> objRegex newspaces s "-"
-
+            |> replace toRemove ""
+            |> replace trim ""
+            |> replace newSpaces "-"
             |> String.toLower
             |> DStr
             |> Value
@@ -417,16 +457,14 @@ let fns : List<BuiltInFn> =
             let toRemove = @"[^a-z0-9\s_-]+"
             let toBeHyphenated = @"[-_\s]+"
 
-            let objRegex (pattern : string) (input : string) (replacement : string) =
+            let replace (pattern : string) (replacement : string) (input : string) =
               Regex.Replace(input, pattern, replacement)
 
             s
             |> String.toLower
-            |> fun s -> objRegex toRemove s ""
+            |> replace toRemove ""
             |> fun s -> s.Trim()
-            |> fun s -> objRegex toBeHyphenated s "-"
-
-            |> String.toLower
+            |> replace toBeHyphenated "-"
             |> DStr
             |> Value
         | _ -> incorrectArgs ())
@@ -453,11 +491,30 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DStr sep ] ->
-            s.Split sep
-            |> Array.toList
-            |> List.map (fun str -> DStr str)
-            |> DList
-            |> Value
+            if sep = "" then
+              s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Value
+            else
+              // CLEANUP
+              // This behaviour is the worst. This mimics what OCaml did: There
+              // should be (n-1) empty strings returned for each sequence of n
+              // strings matching the separator (eg: split "aaaa" "a" = ["",
+              // "", ""]). However, the .NET string split puts in n-1 empty
+              // strings correctly everywhere except at the start and end,
+              // where there are n empty strings instead.
+              let stripStartingEmptyString =
+                (function
+                | "" :: rest -> rest
+                | all -> all)
+
+              s.Split sep
+              |> Array.toList
+              |> stripStartingEmptyString
+              |> List.rev
+              |> stripStartingEmptyString
+              |> List.rev
+              |> List.map DStr
+              |> DList
+              |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -477,7 +534,8 @@ let fns : List<BuiltInFn> =
                   | _ -> Errors.throw (Errors.expectedLambdaType TStr s))
                 l
 
-            Value(DStr((String.concat sep strs).Normalize()))
+            // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
+            Value(DStr((String.concat sep strs)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -541,34 +599,45 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //      { name = fn "String" "base64Decode" 0
-//      ; parameters = [Param.make "s" TStr ""]
-//      ; returnType = TStr
-//      ; description =
-//       "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
-//      ; fn =
-//         (function
-//         | _, [DStr s] ->
-//           ( try
-//               DStr
-//                 (B64.decode
-//                    B64.uri_safe_alphabet
-//                    (Unicode_string.to_string s))
-//             with Not_found_s _ | Caml.Not_found ->
-//               ( try
-//                   DStr
-//                     (B64.decode
-//                        B64.default_alphabet
-//                        (Unicode_string.to_string s))
-//                 with Not_found_s _ | Caml.Not_found ->
-//                   RT.error
-//                       (DStr (Unicode_string.to_string s))
-//                     "Not a valid base64 string" ) )
-//         | _ ->
-//             incorrectArgs ())
-//      ; sqlSpec = NotYetImplementedTODO
-//    ; previewable = Pure
-//      ; deprecated = NotDeprecated }
+    { name = fn "String" "base64Decode" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description =
+        "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
+      fn =
+        (function
+        | _, [ DStr s ] ->
+            // CLEANUP this should be a result
+            let base64FromUrlEncoded (str : string) : string =
+              let initial = str.Replace('-', '+').Replace('_', '/')
+              let length = initial.Length
+
+              if length % 4 = 2 then $"{initial}=="
+              else if length % 4 = 3 then $"{initial}="
+              else initial
+
+            if s = "" then
+              // This seems valid
+              Value(DStr "")
+            // dotnet ignores whitespace but we don't allow it
+            else if Regex.IsMatch(s, @"\s") then
+              err "Not a valid base64 string"
+            else
+              try
+                let decodedBytes =
+                  try
+                    // Try regular
+                    System.Convert.FromBase64String s
+                  with e ->
+                    // try URL safe
+                    s |> base64FromUrlEncoded |> System.Convert.FromBase64String
+
+                decodedBytes |> ofBytes |> fun s -> s.Normalize() |> DStr |> Value
+              with _ -> err "Not a valid base64 string"
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "String" "digest" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
@@ -637,7 +706,7 @@ Don't rely on either the size or the algorithm."
         (function
         | _, [ DInt l as dv ] ->
             if l < 0I then
-              err (Errors.argumentWasnt "positive" "length" dv)
+              err "l should be a positive integer"
             else
               let randomString length =
                 let gen () =
@@ -687,13 +756,18 @@ Don't rely on either the size or the algorithm."
       deprecated = ReplacedBy(fn "String" "random" 1) }
     { name = fn "String" "random" 2
       parameters = [ Param.make "length" TInt "" ]
-      returnType = TStr
+      returnType = TResult(TStr, TStr)
       description = "Generate a string of length `length` from random characters."
       fn =
         (function
         | _, [ DInt l as dv ] ->
             if l < 0I then
-              err (Errors.argumentWasnt "positive" "length" dv)
+              dv
+              |> Errors.argumentWasnt "positive" "length"
+              |> DStr
+              |> Error
+              |> DResult
+              |> Value
             else
               let randomString length =
                 let gen () =
@@ -708,7 +782,7 @@ Don't rely on either the size or the algorithm."
                 |> List.map (fun i -> i.ToString())
                 |> String.concat ""
 
-              randomString (int l) |> DStr |> Value
+              randomString (int l) |> DStr |> Ok |> DResult |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
@@ -839,51 +913,30 @@ Don't rely on either the size or the algorithm."
        Indices represent characters."
       fn =
         (function
-        | _, [ DStr s; DInt f; DInt l ] ->
-            let egcSeq = String.toEgcSeq s
-            let stringEgcCount = bigint (length egcSeq)
+        | _, [ DStr s; DInt first; DInt last ] ->
 
-            let slice s (first : bigint) (last : bigint) =
-              let clampUnchecked t min max =
-                if t < min then min
-                else if t <= max then t
-                else max
+            let chars = String.toEgcSeq s
+            let length = length chars
 
-              let len = stringEgcCount in
-              let min = 0I in
-              let max = len + 1I in
-              (* If we get negative indices, we need to treat them as indices from the end
-               * which means that we need to add [len] to them. We clamp the result to
-               * a value within range of the actual string: *)
+            let normalize i =
+              i
+              |> int
+              |> fun i -> if i < 0 then length + i else i // account for - values
+              |> min length
+              |> max 0
 
-              let first =
-                if first >= 0I then first else len + first |> clampUnchecked min max
 
-              let last =
-                if last >= 0I then last else len + last |> clampUnchecked min max
+            let f = normalize first
+            let l = normalize last
+            let l = if f > l then f else l // return empty string when start is less than end
 
-              let stringBuilder = new StringBuilder(String.length s) in
-              (* To slice, we iterate through every EGC, adding it to the buffer
-               * if it is within the specified index range: *)
-              let slicerFunc (acc : bigint) (seg : string) =
-                if acc >= first && acc < last then
-                  stringBuilder.Append seg |> ignore
-                else
-                  () |> ignore
-
-                1I + acc
-
-              ignore (
-                egcSeq
-                |> Seq.toList
-                |> List.mapi (fun index value -> (slicerFunc (bigint index) value))
-              )
-              (* We don't need to renormalize because all normalization forms are closed
-               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              stringBuilder.ToString()
-
-            let first, last = (f, l) in
-            Value(DStr(slice s first last))
+            chars
+            |> Seq.toList
+            |> List.drop f
+            |> List.take (l - f)
+            |> String.concat ""
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -898,29 +951,14 @@ Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let firstN s (numEgcs : bigint) =
-              let stringBuilder = new StringBuilder(String.length s) in
-              (* We iterate through every EGC, adding it to the buffer
-               * if its index < numEgcs: *)
+            let n = String.lengthInEgcs s |> min (int n) |> max 0
 
-              let firstFunc (idx : bigint) (seg : string) =
-                if idx < numEgcs then
-                  stringBuilder.Append seg |> ignore
-                else
-                  () |> ignore
-
-                1I + idx
-
-              ignore (
-                String.toEgcSeq s
-                |> Seq.toList
-                |> List.mapi (fun index value -> (firstFunc (bigint index) value))
-              )
-              (* We don't need to renormalize because all normalization forms are closed
-               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
-              stringBuilder.ToString()
-
-            Value(DStr(firstN s n))
+            String.toEgcSeq s
+            |> List.take n
+            |> String.concat ""
+            |> fun s -> s.Normalize()
+            |> DStr
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

@@ -5,6 +5,8 @@ open Libexecution.Types.RuntimeT
 module Exception = Libexecution.Exception
 module Dval = Libexecution.Dval
 module Unicode_string = Libexecution.Unicode_string
+module Db = Libbackend_basics.Db
+module User_db = Libbackend_basics.User_db
 
 let find_db = Libexecution.Ast.find_db
 

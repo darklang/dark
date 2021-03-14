@@ -1,6 +1,8 @@
 open Core_kernel
 open Libcommon
 open Libexecution
+module Db = Libbackend_basics.Db
+module File = Libbackend_basics.File
 
 let is_initialized () =
   Db.exists

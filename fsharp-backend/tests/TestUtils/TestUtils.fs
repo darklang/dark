@@ -15,6 +15,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
+module Exe = LibExecution.Execution
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
   lazy
@@ -96,6 +97,48 @@ let clearCanvasData (name : CanvasName.T) : Task<unit> =
     return ()
   }
 
+let executionStateFor
+  (name : string)
+  (dbs : Map<string, RT.DB.T>)
+  (userFunctions : Map<string, RT.UserFunction.T>)
+  (fns : Map<RT.FQFnName.T, RT.BuiltInFn>)
+  : Task<RT.ExecutionState> =
+  task {
+    let! owner = testOwner.Force()
+    let ownerID : UserID = (owner : LibBackend.Account.UserInfo).id
+
+    // Performance optimization: don't touch the DB if you don't use the DB
+    let! canvasID =
+      if Map.count dbs > 0 then
+        task {
+          let hash = sha1digest name |> System.Convert.ToBase64String
+          let canvasName = CanvasName.create $"test-{hash}"
+          do! clearCanvasData canvasName
+
+          let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+
+          return canvasID
+        }
+      else
+        task { return! testCanvasID.Force() }
+
+    let tlid = id 7
+
+    return
+      Exe.createState
+        ownerID
+        canvasID
+        tlid
+        fns
+        Map.empty
+        dbs
+        userFunctions
+        Map.empty
+        []
+  }
+
+
+
 
 let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
   testList
@@ -170,12 +213,19 @@ module Expect =
     | DList ls, DList rs ->
         let lLength = List.length ls
         let rLength = List.length rs
-        Expect.equal lLength rLength $"{ls} <> {rs} in ({msg})"
+
+        let lenMsg list =
+          if lLength = rLength then
+            ""
+          else
+            List.map toString list |> String.concat "; " |> fun s -> $"[{s}]"
+
+        Expect.equal lLength rLength $"{lenMsg ls} <> {lenMsg rs} in ({msg})"
         List.iter2 de ls rs
     | DObj ls, DObj rs ->
         let lLength = Map.count ls
         let rLength = Map.count rs
-        Expect.equal lLength rLength $"{ls} <> {rs} in ({msg})"
+        Expect.equal lLength rLength $"{ls.ToString()} <> {rs.ToString()} in ({msg})"
 
         List.iter2
           (fun (k1, v1) (k2, v2) ->
@@ -251,6 +301,8 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
       u1 = u2 && de b1 b2
   | DIncomplete _, DIncomplete _ -> true
+  | DError (_, msg1), DError (_, msg2) ->
+      (msg1.Replace("_v0", "")) = (msg2.Replace("_v0", ""))
   | DErrorRail l, DErrorRail r -> de l r
   // Keep for exhaustiveness checking
   | DHttpResponse _, _

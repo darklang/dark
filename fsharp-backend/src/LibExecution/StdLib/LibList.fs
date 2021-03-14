@@ -56,10 +56,7 @@ let fns : List<BuiltInFn> =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
       fn =
         (function
-        | _, [ DList l ] ->
-            (match List.tryHead l with
-             | Some dv -> Value(l.Head)
-             | None -> Value(DOption None))
+        | _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -75,7 +72,7 @@ let fns : List<BuiltInFn> =
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
         | _, [ DList l ] ->
-            (if List.length l > 0 then DList l.Tail else DOption None) |> Value
+            (if List.isEmpty l then None else Some(DList l.Tail)) |> DOption |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -121,7 +118,7 @@ let fns : List<BuiltInFn> =
         "Returns the last value in `list`. Returns null if the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> (if l.Length > 0 then List.last l else DNull) |> Value
+        | _, [ DList l ] -> (if List.isEmpty l then DNull else List.last l) |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -138,23 +135,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "last" 2) }
-    //   ; { name = fn "List" "last" 2
-//     ; parameters = [Param.make "list" TList ""]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
-//     ; fn =
-//           (function
-//           | _, [DList []] ->
-//               DOption OptNothing
-//           | _, [DList l] ->
-//               Dval.to_opt_just (List.last_exn l)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "reverse" 0
+    { name = fn "List" "last" 2
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TOption varA
+      description =
+        "Returns the last value in `list`, wrapped in an option (`Nothing` if the list is empty)."
+      fn =
+        (function
+        | _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   ; { name = fn "List" "reverse" 0
 //     ; parameters = [Param.make "list" TList ""]
 //     ; returnType = TList
 //     ; description = "Returns a reversed copy of `list`."
@@ -222,35 +215,30 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "contains" 0
-//     ; parameters = [Param.make "list" TList ""; Param.make "val" TAny ""]
-//     ; returnType = TBool
-//     ; description = "Returns `true` if `val` is in the list."
-//     ; fn =
-//           (function
-//           | _, [DList l; i] ->
-//               DBool (List.mem equal_dval l i)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable =
-//         Pure
-//         (* Deprecated in favor of List::member for consistency with Elm's naming *)
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "member" 0
-//     ; parameters = [Param.make "list" TList ""; Param.make "val" TAny ""]
-//     ; returnType = TBool
-//     ; description = "Returns `true` if `val` is in the list."
-//     ; fn =
-//           (function
-//           | _, [DList l; i] ->
-//               DBool (List.mem equal_dval l i)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "repeat" 0
+    { name = fn "List" "contains" 0
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
+      returnType = TBool
+      description = "Returns `true` if `val` is in the list."
+      fn =
+        (function
+        | _, [ DList l; i ] -> Value(DBool(List.contains i l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      // Deprecated in favor of List::member for consistency with Elm's naming
+      deprecated = ReplacedBy(fn "List" "member" 0) }
+    { name = fn "List" "member" 0
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
+      returnType = TBool
+      description = "Returns `true` if `val` is in the list."
+      fn =
+        (function
+        | _, [ DList l; i ] -> Value(DBool(List.contains i l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   ; { name = fn "List" "repeat" 0
 //     ; parameters = [Param.make "times" TInt ""; Param.make "val" TAny ""]
 //     ; returnType = TList
 //     ; description =
@@ -581,53 +569,53 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "filter" 1) }
-    { name = fn "List" "all" 0
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.make
-            "fn"
-            (TFn([ varA ], TBool))
-            "Function to be applied on all list elements;" ]
-      returnType = TBool
-      description =
-        "Return true if all elements in the list meet the function's criteria, else false."
-      fn =
-        (function
-        | state, [ DList l; DFnVal b ] ->
-            taskv {
-              let incomplete = ref false
-
-              let f (dv : Dval) : TaskOrValue<bool> =
-                taskv {
-                  let! r =
-                    LibExecution.Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ dv ]
-                      NotInPipe
-                      NoRail
-
-                  match r with
-                  | DBool b -> return b
-                  | DIncomplete _ ->
-                      incomplete := true
-                      return false
-                  | v ->
-                      Errors.throw (Errors.expectedLambdaType TBool dv)
-                      return false
-                }
-
-              if !incomplete then
-                return DIncomplete SourceNone
-              else
-                let! result = filter_s f l
-                return DBool((result.Length) = (l.Length))
-            }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
+    // { name = fn "List" "all" 0 // CLEANUP: not in the ocaml version, add it back
+    //   parameters =
+    //     [ Param.make "list" (TList varA) ""
+    //       Param.make
+    //         "fn"
+    //         (TFn([ varA ], TBool))
+    //         "Function to be applied on all list elements;" ]
+    //   returnType = TBool
+    //   description =
+    //     "Return true if all elements in the list meet the function's criteria, else false."
+    //   fn =
+    //     (function
+    //     | state, [ DList l; DFnVal b ] ->
+    //         taskv {
+    //           let incomplete = ref false
+    //
+    //           let f (dv : Dval) : TaskOrValue<bool> =
+    //             taskv {
+    //               let! r =
+    //                 LibExecution.Interpreter.applyFnVal
+    //                   state
+    //                   (id 0)
+    //                   b
+    //                   [ dv ]
+    //                   NotInPipe
+    //                   NoRail
+    //
+    //               match r with
+    //               | DBool b -> return b
+    //               | DIncomplete _ ->
+    //                   incomplete := true
+    //                   return false
+    //               | v ->
+    //                   Errors.throw (Errors.expectedLambdaType TBool dv)
+    //                   return false
+    //             }
+    //
+    //           if !incomplete then
+    //             return DIncomplete SourceNone
+    //           else
+    //             let! result = filter_s f l
+    //             return DBool((result.Length) = (l.Length))
+    //         }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotYetImplementedTODO
+    //   previewable = Pure
+    //   deprecated = NotDeprecated }
     //   ; { name = fn "List" "filter" 1
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
@@ -1148,7 +1136,7 @@ let fns : List<BuiltInFn> =
 
         (function
         | _, [ DList [] ] -> Value(DOption None)
-        | _, [ DList l ] -> Value(l.[Prelude.random.Next l.Length])
+        | _, [ DList l ] -> Value(Dval.optionJust l.[Prelude.random.Next l.Length])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure

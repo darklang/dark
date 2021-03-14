@@ -5,6 +5,8 @@ open Types.RuntimeT
 open Types.RuntimeT.HandlerT
 module Log = Libcommon.Log
 module Span = Telemetry.Span
+module Db = Libbackend_basics.Db
+module Event_queue = Libbackend_basics.Event_queue
 
 (** sum_pairs folds over the list [l] with function [f], summing the
   * values of the returned (int * int) tuple from each call *)

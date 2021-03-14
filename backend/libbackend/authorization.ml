@@ -3,6 +3,7 @@ open Libexecution
 open Libcommon
 open Util
 open Types
+module Db = Libbackend_basics.Db
 
 (* Permission levels, scoped to a single auth_domain.
    These are stored in the datastore for granted access,

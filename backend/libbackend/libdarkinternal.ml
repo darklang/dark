@@ -7,6 +7,9 @@ open Libexecution.Types.RuntimeT
 open Types
 module Op = Libserialize.Op
 module Unicode = Libexecution.Unicode_string
+module Db = Libbackend_basics.Db
+module User_db = Libbackend_basics.User_db
+module Event_queue = Libbackend_basics.Event_queue
 
 (* Apply this to function to wrap that function in an InProcess that checks
  * permissions for the dark internal functions and logs status. *)

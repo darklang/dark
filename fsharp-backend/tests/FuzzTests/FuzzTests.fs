@@ -6,16 +6,20 @@ module FuzzTests.All
 
 open Expecto
 open Expecto.ExpectoFsCheck
+open FsCheck
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 open Prelude
+open Prelude.Tablecloth
+open Tablecloth
 open TestUtils
 
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalRepr = LibExecution.DvalRepr
-
-open FsCheck
 
 let (.=.) actual expected : bool =
   if actual = expected then
@@ -293,6 +297,7 @@ module Queryable =
 
   let v1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])
+
     dvm
     |> DvalRepr.toInternalQueryableV1
     |> DvalRepr.ofInternalQueryableV1
@@ -300,6 +305,7 @@ module Queryable =
 
   let isInteroperableV1 (dv : RT.Dval) =
     let dvm = (Map.ofList [ "field", dv ])
+
     OCamlInterop.isInteroperable
       (OCamlInterop.toInternalQueryableV1)
       (OCamlInterop.ofInternalQueryableV1)
@@ -313,6 +319,7 @@ module Queryable =
   // OCaml v0 vs F# v1
   let isInteroperableV0 (dv : RT.Dval) =
     let dvm = (Map.ofList [ "field", dv ])
+
     OCamlInterop.isInteroperable
       (OCamlInterop.toInternalQueryableV0)
       (OCamlInterop.ofInternalQueryableV0)
@@ -368,16 +375,6 @@ module EndUserReadable =
       |> Arb.filter
            (function
            | RT.DFnVal _ -> false
-
-           // When printing bytes with 0 in them, the string cuts off. Probably
-           // a null-terminated string thing. While this is bad, bytes are not
-           // used very much, and especially they're unlikely to be directly
-           // printed as a string. So this is probably OK. Given this is very
-           // hard to solve this (since if the bytes are in another structure,
-           // the other structure will be cut off too), so it makes sense to
-           // put up with that problem.
-
-           | RT.DBytes bytes -> not (Array.exists (fun x -> byte 0 = x) bytes)
            | _ -> true)
 
 
@@ -427,6 +424,122 @@ module PrettyMachineJson =
         "roundtripping prettyMachineJson"
         equalsOCaml ]
 
+module ExecutePureFunctions =
+  open LibBackend.ProgramTypes.Shortcuts
+
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
+
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           | RT.DFnVal _ -> false
+           | RT.DChar _ -> false // FSTODO: I think ocaml can't deal with this
+           | RT.DPassword _ -> false // can't serialize to OCaml
+           | _ -> true)
+
+    static member Fn() : Arbitrary<PT.FQFnName.T * List<RT.Dval>> =
+      { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
+          member x.Generator =
+            gen {
+              let fns =
+                LibExecution.StdLib.StdLib.fns
+                |> List.filter (fun fn -> fn.previewable = RT.Pure)
+                |> List.filter
+                     (fun fn ->
+                       match fn.name.ToString() with
+                       | "String::toList_v0" -> false // deprecated, different error messages
+                       | _ -> true)
+
+              let! fnIndex = Gen.choose (0, List.length fns)
+              let name = fns.[fnIndex].name
+              let signature = fns.[fnIndex].parameters
+
+              let unifiesWith(typ : RT.DType) =
+                (fun dv ->
+                  dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
+
+              let arg(i : int) =
+                Arb.generate<RT.Dval> |> Gen.filter (unifiesWith signature.[i].typ)
+
+              match List.length signature with
+              | 0 -> return (name, [])
+              | 1 ->
+                  let! arg0 = arg 0
+                  return (name, [ arg0 ])
+              | 2 ->
+                  let! arg0 = arg 0
+                  let! arg1 = arg 1
+                  return (name, [ arg0; arg1 ])
+              | 3 ->
+                  let! arg0 = arg 0
+                  let! arg1 = arg 1
+                  let! arg2 = arg 2
+                  return (name, [ arg0; arg1; arg2 ])
+              | 4 ->
+                  let! arg0 = arg 0
+                  let! arg1 = arg 1
+                  let! arg2 = arg 2
+                  let! arg3 = arg 3
+                  return (name, [ arg0; arg1; arg2; arg3 ])
+              | _ ->
+                  failwith
+                    "No support for generating functions with over 4 parameters yet"
+
+                  return (name, [])
+            } }
+
+
+  let equalsOCaml ((fn, args) : (PT.FQFnName.T * List<RT.Dval>)) : bool =
+    let t =
+      task {
+        let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
+        let fnArgList = List.map (fun (name, _) -> eVar name) args
+        let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
+        let st = Map.ofList args
+
+        // Just the LibExecution fns for now
+        let fns =
+          (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
+
+        let ownerID = System.Guid.NewGuid()
+        let canvasID = System.Guid.NewGuid()
+
+        let expected = OCamlInterop.execute ownerID canvasID ast st [] []
+        debuG "expected" expected
+
+        let! state =
+          executionStateFor "execute_pure_function" Map.empty Map.empty fns
+
+        let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
+        debuG "actual" actual
+
+        let differentErrorsAllowed =
+          // Error messages are not required to be directly the same between
+          // old and new implementations, but we do prefer them to be the same
+          // if possible. this is a list of error messages which have been
+          // manually verified to be "close-enough"
+          let l = [ "String::toInt_v0"; "String::toInt_v1"; "Date::parse_v0" ]
+          List.contains (fn.ToString()) l
+
+        if dvalEquality actual expected then
+          return true
+        else
+          match actual, expected with
+          | RT.DError _, RT.DError _ -> return differentErrorsAllowed
+          | _ -> return false
+      }
+
+    Task.WaitAll [| t :> Task |]
+    t.Result
+
+  let tests =
+    [ testPropertyWithGenerator typeof<Generator> "executePure" equalsOCaml ]
+
+
+
 
 let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
 
@@ -438,7 +551,8 @@ let knownGood =
                    Queryable.tests
                    DeveloperRepr.tests
                    EndUserReadable.tests
-                   PrettyMachineJson.tests ])
+                   PrettyMachineJson.tests
+                   ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 
