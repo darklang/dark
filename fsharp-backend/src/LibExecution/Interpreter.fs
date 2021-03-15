@@ -382,7 +382,7 @@ and applyFnVal
     match List.tryFind (fun (dv : Dval) -> Dval.isFake dv) argList with
     // If one of the arglist is a fake value used as a marker, return it instead
     // of executing.
-    | Some dv when not isErrorAllowed ->
+    | Some dv when not (isErrorAllowed && (Dval.isDError dv)) ->
         match dv with
         // That is, unless it's an incomplete in a pipe. In a pipe, we treat
         // the entire expression as a blank, and skip it, returning the input
