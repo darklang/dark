@@ -205,11 +205,8 @@ module Expect =
     | DResult (Error l), DResult (Error r) -> de l r
     | DOption (Some l), DOption (Some r) -> de l r
     | DDate l, DDate r ->
-        // Set the milliseconds to zero as we don't preserve them in serializations
-        Expect.equal
-          (l.AddMilliseconds(-(double l.Millisecond)))
-          (r.AddMilliseconds(-(double r.Millisecond)))
-          $"{msg}: {l} <> {r}"
+        // There shouldn't be milliseconds by the time we get here
+        Expect.equal l r $"{msg}: {l} <> {r}"
     | DList ls, DList rs ->
         let lLength = List.length ls
         let rLength = List.length rs
