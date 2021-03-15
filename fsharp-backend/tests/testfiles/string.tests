@@ -232,6 +232,7 @@ String.prepend_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧟
 
 String.replaceAll_v0 "abcABCcbaCBA" "b" "x" = "axcABCcxaCBA"
 String.replaceAll_v0 "abcABCcbaCBA" "" "x" = "xaxbxcxAxBxCxcxbxaxCxBxAx"
+String.replaceAll_v0 "" "" "&" = "&"
 String.replaceAll_v0 "abcABCcbaCBA" "b" "" = "acABCcaCBA"
 String.replaceAll_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ä͖̭̈̇" "$" = "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 String.replaceAll_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" "$" = "$$$$$$$$"

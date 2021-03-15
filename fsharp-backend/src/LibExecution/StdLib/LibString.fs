@@ -156,14 +156,17 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s; DStr search; DStr replace ] ->
             if search = "" then
-              // .Net Replace doesn't allow empty string, but we do.
-              String.toEgcSeq s
-              |> Seq.toList
-              |> List.intersperse replace
-              |> (fun l -> replace :: l @ [ replace ])
-              |> String.concat ""
-              |> DStr
-              |> Value
+              if s = "" then
+                Value(DStr replace)
+              else
+                // .Net Replace doesn't allow empty string, but we do.
+                String.toEgcSeq s
+                |> Seq.toList
+                |> List.intersperse replace
+                |> (fun l -> replace :: l @ [ replace ])
+                |> String.concat ""
+                |> DStr
+                |> Value
             else
               Value(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
