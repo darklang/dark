@@ -5,6 +5,8 @@ Test.toChar_v0_ster arg
 "a" ++ "̂" = "â"
 "hello" ++ " world" = "hello world"
 "ᄀ" ++ "ᅡᆨ" = "각"
+"" ++ "a" = "a"
+"a" ++ "" = "a"
 "a" ++ "̂" = "â"
 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
@@ -21,6 +23,7 @@ String.append_v1 "🧑🏼‍💻" "🧑🏻‍🍼" = "🧑🏼‍💻🧑🏻�
 String.append_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 String.append_v1 "🧟‍♂️🧟‍♀️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
 String.append_v1  "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "👨‍❤️‍💋‍👨"= "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨"
+String.append_v0 "a" "" = "a"
 
 (String.join_v0 ["a"; "̂"] "") |> String.base64Encode_v0 = "YcyC"
 String.join_v0 ["hello"; " world"] "" = "hello world"
@@ -41,6 +44,7 @@ Bytes.length_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿
 Bytes.length_v0 (String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
 Bytes.length_v0 (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
 Bytes.length_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
+Bytes.length_v0 (String.toBytes_v0 "") = 0
 
 String.startsWith_v0 "a string" "a s" = true
 String.startsWith_v0 "a string" " s" = false
@@ -55,9 +59,11 @@ String.startsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽�
 String.startsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿" = false
 String.startsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = false
 String.startsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"= true
+String.startsWith_v0 "a string" "" = true
 
 String.endsWith_v0 "a string" "in" = false
 String.endsWith_v0 "a string" "ing" = true
+String.endsWith_v0 "a string" "" = true
 String.endsWith_v0 "żółw" "żó" = false
 String.endsWith_v0 "żółw" "łw" = true
 String.endsWith_v0 "👩🏻‍🚀🍇" "🍇" = true
@@ -189,6 +195,7 @@ String.newline_v0 = "\n"
 // length v0
 String.length_v0 "😄" = 4
 String.length_v0 "abcdef" = 6
+String.length_v0 "" = 0
 String.length_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 62
 String.length_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 49
 String.length_v0 "﷽﷽﷽﷽﷽" = 15
@@ -198,6 +205,7 @@ String.length_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 
 // length v1
 String.length_v1 "😄" = 1
+String.length_v1 "" = 0
 String.length_v1 "abcdef" = 6
 String.length_v1 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 6
 String.length_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 5
@@ -207,6 +215,8 @@ String.length_v1 "🧟‍♀️🧟‍♂️" = 2
 String.length_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= 4
 
 String.prepend_v0 "hello" "world" = "worldhello" // String.prepend works for ASCII range
+String.prepend_v0 "hello" "" = "hello"
+String.prepend_v0 "" "hello" = "hello"
 String.prepend_v0 "żółw" "😄" = "😄żółw" // String.prepend works on non-ascii strings
 String.prepend_v0 "123" "456" = "456123"
 String.prepend_v0 "óñÜá" "abc" = "abcóñÜá"
@@ -269,6 +279,7 @@ String.slugify_v2 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "" // FSHARPO
 String.slugify_v2 "🧟‍♀️🧟‍♂️" = "" // FSHARPONLY
 String.slugify_v2 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "" // FSHARPONLY
 
+String.fromList_v1 [] = ""
 ("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "This function no longer exists.") // OCAMLONLY
 ("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "String::fromList_v0 was removed from Dark") // FSHARPONLY
 ("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
@@ -364,7 +375,9 @@ String.toFloat_v1 "+0.5" = Ok 0.5
 String.toFloat_v1 ".5" = Ok 0.5
 String.toFloat_v1 "-55555555555555555555555555555.5" = Ok -55555555555555555555555555555.5
 String.toFloat_v1 "-141s" = Error "Expected a string representation of an IEEE float"
+String.toFloat_v1 "" = Error "Expected a string representation of an IEEE float"
 
+String.toList_v1 "" = []
 String.toList_v1 "abc" = [ 'a'; 'b'; 'c']
 String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c "Z̤͔ͧ̑̓"; c "ä͖̭̈̇"; c "lͮ̒ͫ"; c "ǧ̗͚̚"; c "o̙̔ͮ̇͐̇" ]
 String.toList_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽"; c "﷽" ]
@@ -374,6 +387,7 @@ String.toList_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍
 String.toList_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ c "ż"; c "ó"; c "ł"; c "w"; c "🧑🏽‍🦰"; c "🧑🏻‍🍼"; c "✋"; c "✋🏻"; c "✋🏿" ]
 
 String.toLowercase_v0 "HELLO😄WORLD" = "hello😄world"
+String.toLowercase_v0 "" = ""
 String.toLowercase_v0 "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
 String.toLowercase_v0 "AB323CDEF" = "ab323cdef"
 String.toLowercase_v0 "SÁNCHEZ" = "sÁnchez" // note uppercase a
@@ -389,6 +403,7 @@ String.toLowercase_v0 "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" =
 //String.toLowercase_v0 "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓Ä͖̭̈̇lͮ̒ͫǦ̗͚̚o̙̔ͮ̇͐̇"
 
 String.toLowercase_v1 "HELLO😄WORLD" = "hello😄world"
+String.toLowercase_v1 "" = ""
 String.toLowercase_v1 "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
 String.toLowercase_v1 "AB323CDEF" = "ab323cdef"
 String.toLowercase_v1 "SÁNCHEZ" = "sánchez" // not lowercase a
@@ -404,6 +419,7 @@ String.toLowercase_v1 "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" =
 String.toLowercase_v1 "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 
 String.toUppercase_v0 "hello😄world" = "HELLO😄WORLD"
+String.toUppercase_v0 "" = ""
 String.toUppercase_v0 "abcdef" = "ABCDEF" // String.toUppercase_v0 works for ASCII range
 String.toUppercase_v0 "ab323cdef" = "AB323CDEF"
 String.toUppercase_v0 "sánchez" = "SáNCHEZ" // note lowercase a
@@ -418,6 +434,7 @@ String.toUppercase_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 String.toUppercase_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 //String.toUppercase_v0 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇Lͮ̒ͫǧ̗͚̚O̙̔ͮ̇͐̇"
 
+String.toUppercase_v1 "" = ""
 String.toUppercase_v1 "hello😄world" = "HELLO😄WORLD"
 String.toUppercase_v1 "abcdef" = "ABCDEF" // String.toUppercase_v0 works for ASCII range
 String.toUppercase_v1 "ab323cdef" = "AB323CDEF"
@@ -434,6 +451,7 @@ String.toUppercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" =
 String.toUppercase_v1 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
 
 String.trimEnd_v0 "      " = ""
+String.trimEnd_v0 "" = ""
 String.trimEnd_v0 "  foo  " = "  foo"
 String.trimEnd_v0 "  foo bar  " = "  foo bar"
 String.trimEnd_v0 "  foo" = "  foo"
@@ -453,6 +471,7 @@ String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋�
 String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
 String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
 String.trimStart_v0 "      " = ""
+String.trimStart_v0 "" = ""
 String.trimStart_v0 "  foo  " = "foo  "
 String.trimStart_v0 "  foo bar  " = "foo bar  "
 String.trimStart_v0 "  foo" = "foo"
@@ -467,7 +486,8 @@ String.trimStart_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️
 String.trimStart_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
 String.trimStart_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
 
-String.trim_v0 "      " = "" // String trim empties a whitespace only string
+String.trim_v0 "      " = ""
+String.trim_v0 "" = ""
 String.trim_v0 "  foo  " = "foo" // String trims both leading + trailing spaces
 String.trim_v0 "  foo bar  " = "foo bar" // String trims both leading + trailing spaces, leaving inner untouched
 String.trim_v0 "  foo" = "foo" // String trims leading spaces
@@ -501,6 +521,7 @@ String.reverse_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "o̙̔
 String.dropFirst_v0 "abcd" -3 = "abcd"
 String.dropFirst_v0 "abcd" 0 = "abcd"
 String.dropFirst_v0 "abcd" 3 = "d"
+String.dropFirst_v0 "" 3 = ""
 String.dropFirst_v0 "abcd" 3 = "d"
 String.dropFirst_v0 "🍏🍒🍒" 1 = "🍒🍒"
 String.dropFirst_v0 "🍏🍒🍍" 2 = "🍍"
@@ -517,6 +538,7 @@ String.dropFirst_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️
 String.dropLast_v0 "abcd" -3 = "abcd"
 String.dropLast_v0 "abcd" 0 = "abcd"
 String.dropLast_v0 "abcd" 3 = "a"
+String.dropLast_v0 "" 3 = ""
 String.dropLast_v0 "🍏🍒🍒" 1 = "🍏🍒"
 String.dropLast_v0 "🍏🍒🍍" 2 = "🍏"
 String.dropLast_v0 "🍏a🍒b🍍c" 2 = "🍏a🍒b"
@@ -530,6 +552,7 @@ String.dropLast_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = 
 String.last_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4 = "🧑🏻‍🍼✋✋🏻✋🏿"
 String.last_v0 "abcd" -3 = ""
 String.last_v0 "abcd" 0 = ""
+String.last_v0 "" 7 = ""
 String.last_v0 "abcd" 1 = "d"
 String.last_v0 "abcd" 2 = "cd"
 String.last_v0 "abcd" 3 = "bcd"
@@ -548,6 +571,9 @@ String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = true
 String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️🧟‍♂️" = false
 String.contains_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦" = true
 String.contains_v0 "اختبار" "اختبار" = true
+String.contains_v0 "" "" = true
+String.contains_v0 "a" "" = true
+String.contains_v0 "" "a" = false
 
 String.slice_v0 "abcd" -2 4 = "cd"
 String.slice_v0 "abcd" -5 -6 = ""
@@ -569,6 +595,7 @@ String.first_v0 "abcd" 0 = ""
 String.first_v0 "abcd" 1 = "a"
 String.first_v0 "abcd" 2 = "ab"
 String.first_v0 "abcd" 3 = "abc"
+String.first_v0 "" 7 = ""
 String.first_v0 "🍊🍍🍏" 1 = "🍊"
 String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"
 String.first_v0 "🍊🍍🍏" 3 = "🍊🍍🍏"
@@ -583,11 +610,13 @@ String.first_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♀️"
 String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️"
 
 String.padStart_v0 "123" "0" 3 = "123"
+String.padStart_v0 "123" "0" -3 = "123"
 String.padStart_v0 "123" "_-" 4 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"_-\"` is 2 characters long." // OCAMLONLY
 String.padStart_v0 "123" "_-" 4 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`" // FSHARPONLY
 String.padStart_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padStart` to be one character long. However, `\"\"` is 0 characters long." // OCAMLONLY
 String.padStart_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`" // FSHARPONLY
 String.padStart_v0 "123" "0" 6 = "000123"
+String.padStart_v0 "" "0" 0 = ""
 String.padStart_v0 "123🍊🍊" "0" 3 = "123🍊🍊"
 String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = "000🍍🍍🍊🍊"
 String.padStart_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = "0żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
@@ -598,11 +627,13 @@ String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = "000🧟‍♀️🧟‍
 String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
 
 String.padEnd_v0 "123" "0" 3 = "123"
+String.padEnd_v0 "123" "0" -3 = "123"
 String.padEnd_v0 "123" "_-" 3 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"_-\"` is 2 characters long." // OCAMLONLY
 String.padEnd_v0 "123" "_-" 3 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`" // FSHARPONLY
 String.padEnd_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"\"` is 0 characters long." // OCAMLONLY
 String.padEnd_v0 "123" "" 10 = Test.typeError_v0 "Expected the argument `padWith` to be 1 character long, but it was `\"\"`" // FSHARPONLY
 String.padEnd_v0 "123" "0" 6 = "123000"
+String.padEnd_v0 "" "0" 0 = ""
 String.padEnd_v0 "123🍊🍊" "0" 8 = "123🍊🍊000"
 String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0"
 String.padEnd_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇00000"
@@ -633,6 +664,7 @@ String.toUUID_v1 "11111111-2222-3333-4444-555555555555" = Ok (String.toUUID_v0 "
 
 // String.isSubstring
 String.isSubstring_v0 "in" "a string" = true
+String.isSubstring_v0 "" "a string" = true
 String.isSubstring_v0 "x" "a string"= false
 String.isSubstring_v0 "✋🏻" "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" = false
 String.isSubstring_v0 "اختبار" "اختبار النص" = true // these inputs are actually flipped over because of the language, that is why the result is true
@@ -643,6 +675,7 @@ String.isSubstring_v0 "ǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ
 String.isSubstring_v0 "🧟‍🧟‍♂️" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" = false
 
 String.isSubstring_v1 "a string" "in" = true
+String.isSubstring_v1 "a string" "" = true
 String.isSubstring_v1 "a string" "x" = false
 String.isSubstring_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" "✋🏻" = false
 String.isSubstring_v1 "اختبار النص" "اختبار" = true //these inputs are actually fliped over because of the language, that is why result is true
