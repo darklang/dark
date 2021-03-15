@@ -32,7 +32,7 @@ let fns : List<BuiltInFn> =
             if m <= bigint 0 then
               err (Errors.argumentWasnt "positive" "b" mdv)
             else
-              Value(DInt(v % m))
+              Value(DInt((v % m) |> BigInteger.Abs))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
