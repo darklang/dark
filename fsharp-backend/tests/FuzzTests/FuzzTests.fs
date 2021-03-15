@@ -430,6 +430,16 @@ module PrettyMachineJson =
 module ExecutePureFunctions =
   open LibBackend.ProgramTypes.Shortcuts
 
+  let filterFloat (f : float) : bool =
+    match f with
+    | System.Double.PositiveInfinity -> false
+    | System.Double.NegativeInfinity -> false
+    | f when System.Double.IsNaN f -> false
+    | f when f <= -1e+308 -> false
+    | f when f >= 1e+308 -> false
+    | _ -> true
+
+
   type Generator =
     static member SafeString() : Arbitrary<string> =
       Arb.Default.String() |> Arb.filter safeOCamlString
@@ -438,10 +448,10 @@ module ExecutePureFunctions =
       Arb.Default.Derive()
       |> Arb.filter
            (function
+           // These all break the serialization to OCaml
            | RT.DPassword _ -> false
-           | RT.DFloat System.Double.PositiveInfinity -> false
-           | RT.DFloat System.Double.NegativeInfinity -> false
-           | RT.DFloat f when System.Double.IsNaN f -> false
+           | RT.DFnVal _ -> false
+           | RT.DFloat f -> filterFloat f
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.T * List<RT.Dval>> =
@@ -451,14 +461,10 @@ module ExecutePureFunctions =
             match typ with
             | RT.TInt -> return! Gen.map RT.DInt Arb.generate<bigint>
             | RT.TStr -> return! Gen.map RT.DStr Arb.generate<string>
-            | RT.TVariable _ ->
+            | RT.TVariable _ -> return! Arb.generate<RT.Dval>
+            | RT.TFloat ->
                 return!
-                  Arb.generate<RT.Dval>
-                  |> Gen.filter
-                       (function
-                       | RT.DFnVal (RT.FnName _) -> false
-                       | _ -> true)
-            | RT.TFloat -> return! Gen.map RT.DFloat Arb.generate<float>
+                  Gen.map RT.DFloat (Arb.generate<float> |> Gen.filter filterFloat)
             | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
             | RT.TNull -> return RT.DNull
             | RT.TList typ ->
@@ -474,7 +480,14 @@ module ExecutePureFunctions =
             // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
             // | RT.THttpResponse of DType -> return! Gen.map RT.THttpResponse  Arb.generate<httpresponse >
             // | RT.TDB of DType -> return! Gen.map RT.TDB  Arb.generate<db >
-            | RT.TDate -> return! Gen.map RT.DDate Arb.generate<System.DateTime>
+            | RT.TDate ->
+                return!
+                  Gen.map
+                    (fun (dt : System.DateTime) ->
+                      // Set milliseconds to zero
+                      let dt = (dt.AddMilliseconds(-(double dt.Millisecond)))
+                      RT.DDate dt)
+                    Arb.generate<System.DateTime>
             | RT.TChar ->
                 return! Gen.map RT.DChar (Gen.resize 1 Arb.generate<string>)
             // | RT.TPassword -> return! Gen.map RT.TPassword Arb.generate<password>
@@ -525,8 +538,16 @@ module ExecutePureFunctions =
                   dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
 
               let arg(i : int) =
-                debuG "looking for type" signature.[i].typ
                 genDval signature.[i].typ
+                |> Gen.filter
+                     (fun dv ->
+                       match (i, dv, name.module_, name.function_, name.version) with
+                       | 1, RT.DInt i, "Int", "power", 0 when i < 0I -> false
+                       | 1, RT.DInt i, "", "^", 0 when i < 0I -> false
+                       | 1, RT.DInt i, "Int", "divide", 0 when i = 0I -> false
+                       | _ -> true)
+
+
 
               match List.length signature with
               | 0 -> return (name, [])
@@ -555,6 +576,13 @@ module ExecutePureFunctions =
                   return (name, [])
             } }
 
+  let debugDval (_, v) : string =
+    match v with
+    | RT.DStr s ->
+        $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+    | RT.DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
+    | _ -> v.ToString()
+
 
   let equalsOCaml ((fn, args) : (PT.FQFnName.T * List<RT.Dval>)) : bool =
     let t =
@@ -563,7 +591,8 @@ module ExecutePureFunctions =
         let fnArgList = List.map (fun (name, _) -> eVar name) args
         let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
         let st = Map.ofList args
-        debuG "args" args
+
+        debuG "args" (List.map debugDval args)
 
         // Just the LibExecution fns for now
         let fns =
@@ -573,13 +602,13 @@ module ExecutePureFunctions =
         let canvasID = System.Guid.NewGuid()
 
         let expected = OCamlInterop.execute ownerID canvasID ast st [] []
-        debuG "expected" expected
+        debuG "ocaml (expected)" expected
 
         let! state =
           executionStateFor "execute_pure_function" Map.empty Map.empty fns
 
         let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
-        debuG "actual" actual
+        debuG "fsharp (actual) " actual
 
         let differentErrorsAllowed =
           // Error messages are not required to be directly the same between
