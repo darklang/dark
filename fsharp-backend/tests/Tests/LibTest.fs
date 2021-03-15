@@ -100,7 +100,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Test" "negativeInfinity" 0
       parameters = []
       returnType = TFloat
-      description = "Returns negative infitity"
+      description = "Returns negative infinity"
       fn =
         (function
         | _, [] -> Value(DFloat(System.Double.NegativeInfinity))
