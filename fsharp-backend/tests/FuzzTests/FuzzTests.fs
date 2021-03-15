@@ -438,26 +438,86 @@ module ExecutePureFunctions =
       Arb.Default.Derive()
       |> Arb.filter
            (function
-           | RT.DFnVal _ -> false
-           | RT.DChar _ -> false // FSTODO: I think ocaml can't deal with this
-           | RT.DPassword _ -> false // can't serialize to OCaml
+           | RT.DPassword _ -> false
+           | RT.DFloat System.Double.PositiveInfinity -> false
+           | RT.DFloat System.Double.NegativeInfinity -> false
+           | RT.DFloat f when System.Double.IsNaN f -> false
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.T * List<RT.Dval>> =
+      let genDval(typ' : RT.DType) : Gen<RT.Dval> =
+        let rec genDval' typ s =
+          gen {
+            match typ with
+            | RT.TInt -> return! Gen.map RT.DInt Arb.generate<bigint>
+            | RT.TStr -> return! Gen.map RT.DStr Arb.generate<string>
+            | RT.TVariable _ ->
+                return!
+                  Arb.generate<RT.Dval>
+                  |> Gen.filter
+                       (function
+                       | RT.DFnVal (RT.FnName _) -> false
+                       | _ -> true)
+            | RT.TFloat -> return! Gen.map RT.DFloat Arb.generate<float>
+            | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
+            | RT.TNull -> return RT.DNull
+            | RT.TList typ ->
+                return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
+            | RT.TDict typ ->
+                return!
+                  Gen.map
+                    (fun l -> RT.DObj(Map.ofList l))
+                    (Gen.listOfLength
+                      s
+                      (Gen.zip Arb.generate<string> (genDval' typ (s / 2))))
+            // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
+            // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
+            // | RT.THttpResponse of DType -> return! Gen.map RT.THttpResponse  Arb.generate<httpresponse >
+            // | RT.TDB of DType -> return! Gen.map RT.TDB  Arb.generate<db >
+            | RT.TDate -> return! Gen.map RT.DDate Arb.generate<System.DateTime>
+            | RT.TChar ->
+                return! Gen.map RT.DChar (Gen.resize 1 Arb.generate<string>)
+            // | RT.TPassword -> return! Gen.map RT.TPassword Arb.generate<password>
+            | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
+            | RT.TOption typ ->
+                return! Gen.map RT.DOption (Gen.optionOf (genDval' typ s))
+            // | RT.TErrorRail -> return! Gen.map RT.TErrorRail Arb.generate<errorrail>
+            // | RT.TUserType of string * int -> return! Gen.map RT.TUserType  Arb.generate<usertype >
+            | RT.TBytes -> return! Gen.map RT.DBytes Arb.generate<byte []>
+            | RT.TResult (okType, errType) ->
+                return!
+                  Gen.map
+                    RT.DResult
+                    (Gen.oneof [ Gen.map Ok (genDval' okType s)
+                                 Gen.map Error (genDval' errType s) ])
+            | RT.TFn (paramTypes, returnType) ->
+                return
+                  (RT.DFnVal(
+                    RT.Lambda
+                      { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+                  ))
+            // | RT.TRecord of List<string * DType> -> return! Gen.map RT.TRecord  Arb.generate<record >
+            | _ -> return failwith $"Not supported yet: {typ}"
+          }
+
+        Gen.sized (genDval' typ')
+
       { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
           member x.Generator =
             gen {
               let fns =
                 LibExecution.StdLib.StdLib.fns
-                |> List.filter (fun fn -> fn.previewable = RT.Pure)
                 |> List.filter
                      (fun fn ->
-                       match fn.name.ToString() with
-                       | "String::toList_v0" -> false // deprecated, different error messages
-                       | _ -> true)
+                       fn.previewable = RT.Pure
+                       && fn.name.module_ <> "Http"
+                       && fn.name.function_ <> "slugify"
+                       && fn.name.function_ <> "base64Decode")
 
-              let! fnIndex = Gen.choose (0, List.length fns)
+              let! fnIndex = Gen.choose (0, List.length fns - 1)
+              printfn $"index: {fnIndex}, length: {List.length fns}"
               let name = fns.[fnIndex].name
+              debuG "fn" (toString name)
               let signature = fns.[fnIndex].parameters
 
               let unifiesWith(typ : RT.DType) =
@@ -465,7 +525,8 @@ module ExecutePureFunctions =
                   dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
 
               let arg(i : int) =
-                Arb.generate<RT.Dval> |> Gen.filter (unifiesWith signature.[i].typ)
+                debuG "looking for type" signature.[i].typ
+                genDval signature.[i].typ
 
               match List.length signature with
               | 0 -> return (name, [])
@@ -502,6 +563,7 @@ module ExecutePureFunctions =
         let fnArgList = List.map (fun (name, _) -> eVar name) args
         let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
         let st = Map.ofList args
+        debuG "args" args
 
         // Just the LibExecution fns for now
         let fns =
@@ -524,14 +586,18 @@ module ExecutePureFunctions =
           // old and new implementations, but we do prefer them to be the same
           // if possible. this is a list of error messages which have been
           // manually verified to be "close-enough"
-          let l = [ "String::toInt_v0"; "String::toInt_v1"; "Date::parse_v0" ]
-          List.contains (fn.ToString()) l
+          true
 
         if dvalEquality actual expected then
           return true
         else
           match actual, expected with
-          | RT.DError _, RT.DError _ -> return differentErrorsAllowed
+          | RT.DError (_, msg1), RT.DError (_, msg2) ->
+              debuG "ignoring different error msgs" (msg1, msg2)
+              return differentErrorsAllowed
+          | RT.DResult (Error msg1), RT.DResult (Error msg2) ->
+              debuG "ignoring different error msgs" (msg1, msg2)
+              return differentErrorsAllowed
           | _ -> return false
       }
 
