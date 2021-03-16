@@ -379,10 +379,15 @@ and applyFnVal
       | FnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
       | _ -> false
 
-    match List.tryFind (fun (dv : Dval) -> Dval.isFake dv) argList with
-    // If one of the arglist is a fake value used as a marker, return it instead
-    // of executing.
-    | Some dv when not (isErrorAllowed && (Dval.isDError dv)) ->
+    let errorRail = List.tryFind Dval.isErrorRail argList
+    let fake = List.tryFind Dval.isFake argList
+
+    match (errorRail, fake) with
+    // If one of the arglist is a fake value used as a marker, return it
+    // instead of executing. The highest priority is the error rail, if there
+    // is one, return that first.
+    | Some er, _ -> return er
+    | _, Some dv when not (isErrorAllowed && (Dval.isDError dv)) ->
         match dv with
         // That is, unless it's an incomplete in a pipe. In a pipe, we treat
         // the entire expression as a blank, and skip it, returning the input
@@ -390,8 +395,8 @@ and applyFnVal
         | DIncomplete _ when isInPipe = InPipe ->
             return Option.defaultValue dv (List.tryHead argList)
         | _ -> return dv
-    | None
-    | Some _ ->
+    | None, None
+    | _, Some _ ->
         match fnVal with
         | Lambda l ->
             let parameters = List.map snd l.parameters
