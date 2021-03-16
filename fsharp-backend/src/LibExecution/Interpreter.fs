@@ -420,7 +420,7 @@ and applyFnVal
               // paramSyms is higher priority
               let newSymtable = Map.union paramSyms l.symtable
               return! eval state newSymtable l.body
-        | (FnName desc) ->
+        | FnName desc ->
             let fn =
               match desc.owner, desc.package, desc.module_ with
               | "dark", "stdlib", _ ->
