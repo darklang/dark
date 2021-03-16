@@ -525,6 +525,8 @@ module ExecutePureFunctions =
                        fn.previewable = RT.Pure
                        && fn.name.module_ <> "Http"
                        && fn.name.function_ <> "slugify"
+                       && fn.name.function_ <> "sort"
+                       && fn.name.function_ <> "sortBy"
                        && fn.name.function_ <> "base64Decode")
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
