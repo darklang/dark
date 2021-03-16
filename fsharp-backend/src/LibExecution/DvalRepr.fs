@@ -1175,118 +1175,104 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 //
 // let of_form_encoding (f : string) : dval =
 //   f |> Uri.query_of_encoded |> query_to_dval
-//
-//
-// (* ------------------------- *)
-// (* Hashes *)
-// (* ------------------------- *)
-//
-// (* This has been used to save millions of values in our DB, so the format isn't
-//  * amenable to change without a migration. Don't change ANYTHING for existing
-//  * values, but continue to add representations for new values. Also, inline
-//  * everything! *)
-// let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
-//     =
-//   let nl = "\n" ^ String.make indent ' ' in
-//   let inl = "\n" ^ String.make (indent + 2) ' ' in
-//   let indent = indent + 2 in
-//   match dv with
-//   | DDB dbname ->
-//       "<db: " ^ dbname ^ ">"
-//   | DInt i ->
-//       Dint.to_string i
-//   | DBool true ->
-//       "true"
-//   | DBool false ->
-//       "false"
-//   | DFloat f ->
-//       string_of_float f
-//   | DNull ->
-//       "null"
-//   | DStr s ->
-//       "\"" ^ Unicode_string.to_string s ^ "\""
-//   | DCharacter c ->
-//       "'" ^ Unicode_string.Character.to_string c ^ "'"
-//   | DIncomplete _ ->
-//       "<incomplete: <incomplete>>" (* Can't be used anyway *)
-//   | DBlock _ ->
-//       (* See docs/dblock-serialization.ml *)
-//       "<block: <block>>"
-//   | DError (_, msg) ->
-//       "<error: " ^ msg ^ ">"
-//   | DDate d ->
-//       "<date: " ^ Util.isostring_of_date d ^ ">"
-//   | DPassword _ ->
-//       "<password: <password>>"
-//   | DUuid id ->
-//       "<uuid: " ^ Uuidm.to_string id ^ ">"
-//   | DResp (h, hdv) ->
-//       (* deliberately inlined *)
-//       let dhttp_to_formatted_string (d : dhttp) : string =
-//         match d with
-//         | Redirect url ->
-//             "302 " ^ url
-//         | Response (c, hs) ->
-//             let string_of_headers hs =
-//               hs
-//               |> List.map ~f:(fun (k, v) -> k ^ ": " ^ v)
-//               |> String.concat ~sep:","
-//               |> fun s -> "{ " ^ s ^ " }"
-//             in
-//             string_of_int c ^ " " ^ string_of_headers hs
-//       in
-//       dhttp_to_formatted_string h ^ nl ^ to_hashable_repr ~indent hdv
-//   | DList l ->
-//       if List.is_empty l
-//       then "[]"
-//       else
-//         "[ "
-//         ^ inl
-//         ^ String.concat ~sep:", " (List.map ~f:(to_hashable_repr ~indent) l)
-//         ^ nl
-//         ^ "]"
-//   | DObj o ->
-//       if DvalMap.is_empty o
-//       then "{}"
-//       else
-//         let strs =
-//           DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-//               (key ^ ": " ^ to_hashable_repr ~indent value) :: l)
-//         in
-//         "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
-//   | DOption OptNothing ->
-//       "Nothing"
-//   | DOption (OptJust dv) ->
-//       "Just " ^ to_hashable_repr ~indent dv
-//   | DErrorRail dv ->
-//       "ErrorRail: " ^ to_hashable_repr ~indent dv
-//   | DResult (ResOk dv) ->
-//       "ResultOk " ^ to_hashable_repr ~indent dv
-//   | DResult (ResError dv) ->
-//       "ResultError " ^ to_hashable_repr ~indent dv
-//   | DBytes bytes ->
-//       if old_bytes
-//       then bytes |> RawBytes.to_string
-//       else bytes |> Util.hash_bytes
-//
-//
-// let supported_hash_versions : int list = [0; 1]
-//
-// let current_hash_version = 1
-//
-// (* Originally to prevent storing sensitive data to disk, this also reduces the
-//  * size of the data stored by only storing a hash *)
-// let hash (version : int) (arglist : dval list) : string =
-//   (* Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
-//    * [b"ab"; b"c"] *)
-//   match version with
-//   | 0 ->
-//       arglist
-//       |> List.map ~f:(to_hashable_repr ~old_bytes:true)
-//       |> String.concat
-//       |> Util.hash
-//   | 1 ->
-//       DList arglist |> to_hashable_repr |> Util.hash
-//   | _ ->
-//       Exception.internal ("Invalid Dval.hash version: " ^ string_of_int version)
-//
+
+
+// -------------------------
+// Hashes
+// -------------------------
+
+// This has been used to save millions of values in our DB, so the format isn't
+// amenable to change without a migration. Don't change ANYTHING for existing
+// values, but continue to add representations for new values. Also, inline
+// everything!
+let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : string =
+  let makeSpaces len = "".PadRight(len, ' ')
+  let nl = "\n" + makeSpaces indent
+  let inl = "\n" + makeSpaces (indent + 2)
+  let indent = indent + 2 in
+
+  match dv with
+  | DDB dbname -> "<db: " + dbname + ">"
+  | DInt i -> toString i
+  | DBool true -> "true"
+  | DBool false -> "false"
+  | DFloat f -> toString f
+  | DNull -> "null"
+  | DStr s -> "\"" + toString s + "\""
+  | DChar c -> "'" + toString c + "'"
+  | DIncomplete _ -> "<incomplete: <incomplete>>" (* Can't be used anyway *)
+  | DFnVal _ ->
+      (* See docs/dblock-serialization.ml *)
+      "<block: <block>>"
+  | DError (_, msg) -> "<error: " + msg + ">"
+  | DDate d -> "<date: " + d.toIsoString () + ">"
+  | DPassword _ -> "<password: <password>>"
+  | DUuid id -> "<uuid: " + toString id + ">"
+  | DHttpResponse (h, hdv) ->
+      // deliberately inlined
+      let dhttpToFormattedString (d : DHTTP) : string =
+        match d with
+        | Redirect url -> "302 " + url
+        | Response (c, hs) ->
+            let stringOfHeaders hs =
+              hs
+              |> List.map (fun (k, v) -> k + ": " + v)
+              |> String.concat ","
+              |> fun s -> "{ " + s + " }"
+
+            toString c + " " + stringOfHeaders hs
+
+      dhttpToFormattedString h + nl + toHashableRepr indent false hdv
+  | DList l ->
+      if List.is_empty l then
+        "[]"
+      else
+        "[ "
+        + inl
+        + String.concat ", " (List.map (toHashableRepr indent false) l)
+        + nl
+        + "]"
+  | DObj o ->
+      if Map.isEmpty o then
+        "{}"
+      else
+        let strs =
+          Map.fold
+            []
+            (fun key value l ->
+              (key + ": " + toHashableRepr indent false value) :: l)
+            o
+
+        "{ " + inl + String.concat ("," + inl) strs + nl + "}"
+  | DOption None -> "Nothing"
+  | DOption (Some dv) -> "Just " + toHashableRepr indent false dv
+  | DErrorRail dv -> "ErrorRail: " + toHashableRepr indent false dv
+  | DResult (Ok dv) -> "ResultOk " + toHashableRepr indent false dv
+  | DResult (Error dv) -> "ResultError " + toHashableRepr indent false dv
+  | DBytes bytes ->
+      if oldBytes then
+        // FSTODO: doesnt match ocaml repr
+        toString bytes
+      else
+        bytes |> System.Security.Cryptography.SHA384.HashData |> base64UrlEncode
+
+
+let supportedHashVersions : int list = [ 0; 1 ]
+
+let currentHashVersion : int = 1
+
+// Originally to prevent storing sensitive data to disk, this also reduces the
+// size of the data stored by only storing a hash
+let hash (version : int) (arglist : List<Dval>) : string =
+  let hashStr (str : string) : string =
+    str
+    |> toBytes
+    |> System.Security.Cryptography.SHA384.HashData
+    |> base64UrlEncode
+
+  // Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
+  // [b"ab"; b"c"]
+  match version with
+  | 0 -> arglist |> List.map (toHashableRepr 2 true) |> String.concat "" |> hashStr
+  | 1 -> DList arglist |> toHashableRepr 2 false |> hashStr
+  | _ -> failwith $"Invalid Dval.hash version: {version}"

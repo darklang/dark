@@ -26,6 +26,7 @@ open FSharpx
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
+module Interpreter = LibExecution.Interpreter
 
 // This boilerplate is copied from Giraffe. I elected not to use Giraffe
 // because we don't need any of its feature, but the types it uses are very
@@ -109,6 +110,102 @@ let fns =
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
      |> Map.fromListBy (fun fn -> fn.name))
 
+
+let runHttp
+  //     ?(parent = (None : Span.t option))
+  (c : LibBackend.Canvas.T)
+  (tlid : tlid)
+  (traceID : LibExecution.AnalysisTypes.TraceID)
+  (url : string)
+  (body : byte [])
+  (inputVars : RT.Symtable)
+  (expr : RT.Expr)
+  : Task<RT.Dval> =
+  task {
+    let ownerID = c.owner
+    let canvasID = c.id
+    let fns = fns.Force()
+    let packageFns = Map.empty // FSTODO: packageFns
+
+    let dbs =
+      c.dbs
+      |> Map.values
+      |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
+      |> Map.ofList
+
+    let userFns =
+      c.userFunctions
+      |> Map.values
+      |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
+      |> Map.ofList
+
+    let userTypes =
+      c.userTypes
+      |> Map.values
+      |> List.map (fun pt -> ((pt.name, pt.version), pt.toRuntimeType ()))
+      |> Map.ofList
+
+    let secrets =
+      (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
+
+    let loadFnResult = Exe.loadNoResults
+    let storeFnResult = LibBackend.TraceFunctionResults.store canvasID traceID
+    let loadFnArguments = Exe.loadNoArguments
+    let storeFnArguments = LibBackend.TraceFunctionArguments.store canvasID traceID
+
+    let state =
+      Exe.createState
+        ownerID
+        canvasID
+        tlid
+        fns
+        packageFns
+        dbs
+        userFns
+        userTypes
+        secrets
+        loadFnResult
+        storeFnResult
+        loadFnArguments
+        storeFnArguments
+
+    let symtable = LibExecution.Interpreter.withGlobals state inputVars
+
+    let! result =
+      Interpreter.applyFnVal
+        state
+        (RT.Expr.toID expr)
+        (RT.FnName(RT.FQFnName.stdlibName "Http" "middleware" 0))
+        [ RT.DStr url
+          RT.DBytes body
+          RT.DObj Map.empty
+          RT.DFnVal(
+            RT.Lambda
+              { parameters = [ gid (), "request" ]
+                symtable = symtable
+                body = expr }
+          ) ]
+        RT.NotInPipe
+        RT.NoRail
+      |> TaskOrValue.toTask
+
+    match result with
+    | RT.DErrorRail (RT.DOption None)
+    | RT.DErrorRail (RT.DResult (Error _)) ->
+        return
+          (RT.DHttpResponse(
+            RT.Response(404, [ "Content-length", "9"; "server", "darklang" ]),
+            RT.DBytes(toBytes "Not found")
+          ))
+    | RT.DErrorRail _ ->
+        return
+          (RT.DHttpResponse(
+            RT.Response(500, [ "Content-length", "32"; "server", "darklang" ]),
+            RT.DBytes(toBytes "Invalid conversion from errorrail")
+          ))
+    | dv -> return dv
+  }
+
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
@@ -142,6 +239,7 @@ let runDarkHandler : HttpHandler =
           let ownerUsername = UserName.create (ownerName.ToString())
           let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
           let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+          let traceID = System.Guid.NewGuid()
           let method = ctx.Request.Method
 
           let! c =
@@ -155,41 +253,19 @@ let runDarkHandler : HttpHandler =
 
           match Map.values c.handlers with
           | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-              let ms = new IO.MemoryStream()
-              do! ctx.Request.Body.CopyToAsync(ms)
-              let body = ms.ToArray()
               let url = ctx.Request.GetEncodedUrl()
-              let expr = expr.toRuntimeType ()
               let vars = LibBackend.Routing.routeInputVars route requestPath
 
               match vars with
               | Some vars ->
                   let symtable = Map.ofList vars
 
-                  let state =
-                    Exe.createState
-                      ownerID
-                      canvasID
-                      tlid
-                      (fns.Force())
-                      Map.empty // FSTODO: packageFns
-                      (c.dbs
-                       |> Map.values
-                       |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
-                       |> Map.ofList)
-                      (c.userFunctions
-                       |> Map.values
-                       |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
-                       |> Map.ofList)
-                      (c.userTypes
-                       |> Map.values
-                       |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
-                       |> Map.ofList)
-                      (c.secrets
-                       |> Map.map (fun pt -> pt.toRuntimeType ())
-                       |> Map.values)
+                  let ms = new IO.MemoryStream()
+                  do! ctx.Request.Body.CopyToAsync(ms)
+                  let body = ms.ToArray()
+                  let expr = expr.toRuntimeType ()
 
-                  let! result = Exe.runHttp state url body symtable expr
+                  let! result = runHttp c tlid traceID url body symtable expr
 
                   match result with
                   | RT.DHttpResponse (RT.Redirect url, _) ->

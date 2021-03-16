@@ -15,19 +15,30 @@ module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 module DvalRepr = LibExecution.DvalRepr
 
-// (* ------------------------- *)
-// (* External *)
-// (* ------------------------- *)
-//
-// let store ~canvas_id ~trace_id tlid args =
-//   Db.run
-//     ~name:"stored_function_arguments.store"
-//     "INSERT INTO function_arguments
-//      (canvas_id, trace_id, tlid, timestamp, arguments_json)
-//      VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)"
-//     ~params:[Uuid canvas_id; Uuid trace_id; ID tlid; RoundtrippableDvalmap args]
-//
-//
+// -------------------------
+// External *)
+// -------------------------
+
+let store
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  (tlid : tlid)
+  (args : RT.DvalMap)
+  : Task<unit> =
+  Sql.query
+    "INSERT INTO function_arguments
+     (canvas_id, trace_id, tlid, timestamp, arguments_json)
+     VALUES (@canvasID, @traceID, @tlid, CURRENT_TIMESTAMP, @args)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "traceID", Sql.uuid traceID
+                      "tlid", Sql.tlid tlid
+                      ("args",
+                       Sql.string (
+                         DvalRepr.toInternalRoundtrippableV0 (RT.DObj args)
+                       )) ]
+  |> Sql.executeStatementAsync
+
+
 let loadForAnalysis
   (canvasID : CanvasID)
   (traceID : AT.TraceID)

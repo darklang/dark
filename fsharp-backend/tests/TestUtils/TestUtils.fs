@@ -135,6 +135,10 @@ let executionStateFor
         userFunctions
         Map.empty
         []
+        Exe.loadNoResults
+        Exe.storeNoResults
+        Exe.loadNoArguments
+        Exe.storeNoArguments
   }
 
 
