@@ -543,10 +543,12 @@ module ExecutePureFunctions =
                 genDval signature.[i].typ
                 |> Gen.filter
                      (fun dv ->
+                       // Avoid triggering known errors in OCaml
                        match (i, dv, name.module_, name.function_, name.version) with
                        | 1, RT.DInt i, "Int", "power", 0 when i < 0I -> false
                        | 1, RT.DInt i, "", "^", 0 when i < 0I -> false
                        | 1, RT.DInt i, "Int", "divide", 0 when i = 0I -> false
+                       | 0, RT.DBytes i, "", "toString", 0 -> false
                        | _ -> true)
 
 
