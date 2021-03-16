@@ -396,7 +396,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d ] ->
             // CLEANUP - this was made bug-for-bug compatible
-            let s = if d.Year < 1970 then d.Second - 60 else d.Second
+            let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
             Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
