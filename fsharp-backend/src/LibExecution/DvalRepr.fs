@@ -1185,29 +1185,30 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
 // amenable to change without a migration. Don't change ANYTHING for existing
 // values, but continue to add representations for new values. Also, inline
 // everything!
-let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : string =
+let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
   let makeSpaces len = "".PadRight(len, ' ')
   let nl = "\n" + makeSpaces indent
   let inl = "\n" + makeSpaces (indent + 2)
   let indent = indent + 2 in
 
   match dv with
-  | DDB dbname -> "<db: " + dbname + ">"
-  | DInt i -> toString i
-  | DBool true -> "true"
-  | DBool false -> "false"
-  | DFloat f -> ocamlStringOfFloat f
-  | DNull -> "null"
-  | DStr s -> "\"" + toString s + "\""
-  | DChar c -> "'" + toString c + "'"
-  | DIncomplete _ -> "<incomplete: <incomplete>>" (* Can't be used anyway *)
+  | DDB dbname -> ("<db: " + dbname + ">") |> toBytes
+  | DInt i -> toString i |> toBytes
+  | DBool true -> "true" |> toBytes
+  | DBool false -> "false" |> toBytes
+  | DFloat f -> ocamlStringOfFloat f |> toBytes
+  | DNull -> "null" |> toBytes
+  | DStr s -> "\"" + toString s + "\"" |> toBytes
+  | DChar c -> "'" + toString c + "'" |> toBytes
+  | DIncomplete _ ->
+      "<incomplete: <incomplete>>" |> toBytes (* Can't be used anyway *)
   | DFnVal _ ->
       (* See docs/dblock-serialization.ml *)
-      "<block: <block>>"
-  | DError (_, msg) -> "<error: " + msg + ">"
-  | DDate d -> "<date: " + d.toIsoString () + ">"
-  | DPassword _ -> "<password: <password>>"
-  | DUuid id -> "<uuid: " + toString id + ">"
+      "<block: <block>>" |> toBytes
+  | DError (_, msg) -> "<error: " + msg + ">" |> toBytes
+  | DDate d -> "<date: " + d.toIsoString () + ">" |> toBytes
+  | DPassword _ -> "<password: <password>>" |> toBytes
+  | DUuid id -> "<uuid: " + toString id + ">" |> toBytes
   | DHttpResponse (h, hdv) ->
       // deliberately inlined
       let dhttpToFormattedString (d : DHTTP) : string =
@@ -1222,39 +1223,57 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : string =
 
             toString c + " " + stringOfHeaders hs
 
-      dhttpToFormattedString h + nl + toHashableRepr indent false hdv
+      [ (dhttpToFormattedString h + nl) |> toBytes; toHashableRepr indent false hdv ]
+      |> Array.concat
   | DList l ->
       if List.is_empty l then
-        "[]"
+        "[]" |> toBytes
       else
-        "[ "
-        + inl
-        + String.concat ", " (List.map (toHashableRepr indent false) l)
-        + nl
-        + "]"
+        let body =
+          l
+          |> List.map (toHashableRepr indent false)
+          |> List.intersperse (toBytes ", ")
+          |> Array.concat
+
+        Array.concat [ "[ " |> toBytes
+                       inl |> toBytes
+                       body
+                       nl |> toBytes
+                       "]" |> toBytes ]
   | DObj o ->
       if Map.isEmpty o then
-        "{}"
+        "{}" |> toBytes
       else
-        let strs =
-          Map.fold
-            []
-            (fun key value l ->
-              (key + ": " + toHashableRepr indent false value) :: l)
-            o
+        let rows =
+          o
+          |> Map.fold
+               []
+               (fun key value l ->
+                 (Array.concat [ toBytes (key + ": ")
+                                 toHashableRepr indent false value ]
+                  :: l))
+          |> List.intersperse (toBytes ("," + inl))
 
-        "{ " + inl + String.concat ("," + inl) strs + nl + "}"
-  | DOption None -> "Nothing"
-  | DOption (Some dv) -> "Just " + toHashableRepr indent false dv
-  | DErrorRail dv -> "ErrorRail: " + toHashableRepr indent false dv
-  | DResult (Ok dv) -> "ResultOk " + toHashableRepr indent false dv
-  | DResult (Error dv) -> "ResultError " + toHashableRepr indent false dv
+        Array.concat (
+          [ toBytes "{ "; toBytes inl ] @ rows @ [ toBytes nl; toBytes "}" ]
+        )
+  | DOption None -> "Nothing" |> toBytes
+  | DOption (Some dv) ->
+      Array.concat [ "Just " |> toBytes; toHashableRepr indent false dv ]
+  | DErrorRail dv ->
+      Array.concat [ "ErrorRail: " |> toBytes; toHashableRepr indent false dv ]
+  | DResult (Ok dv) ->
+      Array.concat [ "ResultOk " |> toBytes; toHashableRepr indent false dv ]
+  | DResult (Error dv) ->
+      Array.concat [ "ResultError " |> toBytes; toHashableRepr indent false dv ]
   | DBytes bytes ->
       if oldBytes then
-        // FSTODO: doesnt match ocaml repr
-        toString bytes
+        bytes
       else
-        bytes |> System.Security.Cryptography.SHA384.HashData |> base64UrlEncode
+        bytes
+        |> System.Security.Cryptography.SHA384.HashData
+        |> base64UrlEncode
+        |> toBytes
 
 
 let supportedHashVersions : int list = [ 0; 1 ]
@@ -1264,15 +1283,12 @@ let currentHashVersion : int = 1
 // Originally to prevent storing sensitive data to disk, this also reduces the
 // size of the data stored by only storing a hash
 let hash (version : int) (arglist : List<Dval>) : string =
-  let hashStr (str : string) : string =
-    str
-    |> toBytes
-    |> System.Security.Cryptography.SHA384.HashData
-    |> base64UrlEncode
+  let hashStr (bytes : byte []) : string =
+    bytes |> System.Security.Cryptography.SHA384.HashData |> base64UrlEncode
 
   // Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
   // [b"ab"; b"c"]
   match version with
-  | 0 -> arglist |> List.map (toHashableRepr 0 true) |> String.concat "" |> hashStr
+  | 0 -> arglist |> List.map (toHashableRepr 0 true) |> Array.concat |> hashStr
   | 1 -> DList arglist |> toHashableRepr 0 false |> hashStr
   | _ -> failwith $"Invalid Dval.hash version: {version}"

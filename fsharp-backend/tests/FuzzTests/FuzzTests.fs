@@ -404,17 +404,16 @@ module Hashing =
   // The format here is used to get values from the DB, so this has to be 100% identical
   let equalsOCamlToHashable (dv : RT.Dval) : bool =
     let ocamlVersion = OCamlInterop.toHashableRepr dv
-    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv
-    printfn "dval  : %s" (toString dv)
-    printfn "ocaml : %s" fsharpVersion
-    printfn "fsharp: %s" ocamlVersion
+    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> ofBytes
     ocamlVersion .=. fsharpVersion
 
   let equalsOCamlV0 (l : List<RT.Dval>) : bool =
     DvalRepr.hash 0 l .=. OCamlInterop.hashV0 l
 
   let equalsOCamlV1 (l : List<RT.Dval>) : bool =
-    DvalRepr.hash 1 l .=. OCamlInterop.hashV1 l
+    let ocamlVersion = OCamlInterop.hashV1 l
+    let fsharpVersion = DvalRepr.hash 1 l
+    ocamlVersion .=. fsharpVersion
 
   let tests =
     testList
@@ -552,7 +551,6 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
-
       { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
           member x.Generator =
             gen {
