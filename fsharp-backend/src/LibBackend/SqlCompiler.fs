@@ -17,9 +17,7 @@ module DvalRepr = LibExecution.DvalRepr
 module Ast = LibExecution.Ast
 module Errors = LibExecution.Errors
 
-let error (str : string) : 'a =
-  printfn $"DB Exception: {str}"
-  raise (Errors.DBQueryException str)
+let error (str : string) : 'a = raise (Errors.DBQueryException str)
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 

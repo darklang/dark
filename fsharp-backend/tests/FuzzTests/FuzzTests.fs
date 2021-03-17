@@ -551,6 +551,7 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
+
       { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
           member x.Generator =
             gen {
@@ -567,7 +568,6 @@ module ExecutePureFunctions =
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
               let name = fns.[fnIndex].name
-              debuG "fn" (toString name)
               let signature = fns.[fnIndex].parameters
 
               let unifiesWith(typ : RT.DType) =
@@ -665,8 +665,6 @@ module ExecutePureFunctions =
         let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
         let st = Map.ofList args
 
-        debuG "args" (List.map debugDval args)
-
         // Just the LibExecution fns for now
         let fns =
           (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
@@ -675,13 +673,13 @@ module ExecutePureFunctions =
         let canvasID = System.Guid.NewGuid()
 
         let expected = OCamlInterop.execute ownerID canvasID ast st [] []
-        debuG "ocaml (expected)" expected
+        // debuG "ocaml (expected)" expected
 
         let! state =
           executionStateFor "execute_pure_function" Map.empty Map.empty fns
 
         let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
-        debuG "fsharp (actual) " actual
+        // debuG "fsharp (actual) " actual
 
         let differentErrorsAllowed =
           // Error messages are not required to be directly the same between

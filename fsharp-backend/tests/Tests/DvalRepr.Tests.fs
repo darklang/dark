@@ -131,11 +131,11 @@ module ToHashableRepr =
         let ocamlVersion = LibBackend.OCamlInterop.hashV0 l
         let fsharpVersion = DvalRepr.hash 0 l
 
-        // if ocamlVersion <> expected || fsharpVersion <> expected then
-        let p str = str |> toBytes |> System.BitConverter.ToString
-        printfn "expected: %s" (p expected)
-        printfn "ocaml   : %s" (p ocamlVersion)
-        printfn "fsharp  : %s" (p fsharpVersion)
+        if ocamlVersion <> expected || fsharpVersion <> expected then
+          let p str = str |> toBytes |> System.BitConverter.ToString
+          printfn "expected: %s" (p expected)
+          printfn "ocaml   : %s" (p ocamlVersion)
+          printfn "fsharp  : %s" (p fsharpVersion)
 
         Expect.equal ocamlVersion expected "wrong test value"
         Expect.equal fsharpVersion expected "bad fsharp impl"
