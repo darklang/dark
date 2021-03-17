@@ -562,18 +562,24 @@ module ExecutePureFunctions =
                 | RT.DResult (Error dv) -> containsBytes dv
                 | RT.DBytes _ -> true
 
-              let arg(i : int) =
+              let arg (i : int) (prevArgs : List<RT.Dval>) =
                 genDval signature.[i].typ
                 |> Gen.filter
                      (fun dv ->
                        // Avoid triggering known errors in OCaml
-                       match (i, dv, name.module_, name.function_, name.version) with
-                       | 1, RT.DInt i, "Int", "power", 0 when i < 0I -> false // exception
-                       | 1, RT.DInt i, "Int", "power", 0 when i > 15I -> false // overflow
-                       | 1, RT.DInt i, "", "^", 0 when i < 0I -> false // exception
-                       | 1, RT.DInt i, "", "^", 0 when i > 15I -> false // overflow
-                       | 1, RT.DInt i, "Int", "divide", 0 when i = 0I -> false // exception
-                       | 0, _, "", "toString", 0 -> not (containsBytes dv) // exception
+                       match (i,
+                              dv,
+                              prevArgs,
+                              name.module_,
+                              name.function_,
+                              name.version) with
+                       | 1, RT.DInt i, _, "Int", "power", 0
+                       | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false // exception
+                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
+                       | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 when
+                         e ** (int i) > (2I ** 62) -> false // overflow
+                       | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false // exception
+                       | 0, _, _, "", "toString", 0 -> not (containsBytes dv) // exception
                        | _ -> true)
 
 
@@ -581,22 +587,22 @@ module ExecutePureFunctions =
               match List.length signature with
               | 0 -> return (name, [])
               | 1 ->
-                  let! arg0 = arg 0
+                  let! arg0 = arg 0 []
                   return (name, [ arg0 ])
               | 2 ->
-                  let! arg0 = arg 0
-                  let! arg1 = arg 1
+                  let! arg0 = arg 0 []
+                  let! arg1 = arg 1 [ arg0 ]
                   return (name, [ arg0; arg1 ])
               | 3 ->
-                  let! arg0 = arg 0
-                  let! arg1 = arg 1
-                  let! arg2 = arg 2
+                  let! arg0 = arg 0 []
+                  let! arg1 = arg 1 [ arg0 ]
+                  let! arg2 = arg 2 [ arg0; arg1 ]
                   return (name, [ arg0; arg1; arg2 ])
               | 4 ->
-                  let! arg0 = arg 0
-                  let! arg1 = arg 1
-                  let! arg2 = arg 2
-                  let! arg3 = arg 3
+                  let! arg0 = arg 0 []
+                  let! arg1 = arg 1 [ arg0 ]
+                  let! arg2 = arg 2 [ arg0; arg1 ]
+                  let! arg3 = arg 3 [ arg0; arg1; arg2 ]
                   return (name, [ arg0; arg1; arg2; arg3 ])
               | _ ->
                   failwith
