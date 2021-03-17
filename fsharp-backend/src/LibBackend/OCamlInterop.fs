@@ -1356,6 +1356,13 @@ let startDval2String (dv : RT.Dval) : System.IntPtr * byte array =
   let str = dv |> Convert.rt2ocamlDval |> Json.AutoSerialize.serialize
   System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
 
+let startDvalList2String (l : List<RT.Dval>) : System.IntPtr * byte array =
+  Binary.registerThread ()
+  let str = l |> List.map Convert.rt2ocamlDval |> Json.AutoSerialize.serialize
+  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+
+
+
 let finishString2String (outLength : int) (outBytes : System.IntPtr) : string =
   Binary.registerThread ()
   let (resultBytes : byte array) = Array.zeroCreate outLength
@@ -1432,13 +1439,13 @@ let toUrlString (dv : RT.Dval) : string =
   let outLength = Binary.Internal.toUrlString (bytes, bytes.Length, &out)
   finishString2String outLength out
 
-let hashV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
+let hashV0 (l : List<RT.Dval>) : string =
+  let mutable (out, bytes) = startDvalList2String l
   let outLength = Binary.Internal.hashV0 (bytes, bytes.Length, &out)
   finishString2String outLength out
 
-let hashV1 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
+let hashV1 (l : List<RT.Dval>) : string =
+  let mutable (out, bytes) = startDvalList2String l
   let outLength = Binary.Internal.hashV1 (bytes, bytes.Length, &out)
   finishString2String outLength out
 

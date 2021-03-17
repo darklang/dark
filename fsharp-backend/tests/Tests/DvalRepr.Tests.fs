@@ -64,22 +64,66 @@ let testToDeveloperRepr =
           RT.DList [ RT.DNull ], "[ \n  null\n]" ] ]
 
 let testToEnduserReadable =
-  testList
-    "enduserReadable"
-    [ testMany
-        "toEnduserReadable string"
-        DvalRepr.toEnduserReadableTextV0
-        // Most of this is just the OCaml output and not really what the output should be
-        [ RT.DFloat(0.0), "0." // this type of thing in particular is ridic
-          RT.DFloat(-0.0), "-0."
-          RT.DFloat(5.0), "5."
-          RT.DFloat(5.1), "5.1"
-          RT.DFloat(-5.0), "-5."
-          RT.DFloat(-5.1), "-5.1"
-          RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
-          RT.DHttpResponse(RT.Redirect("some url"), RT.DNull), "302 some url\nnull"
-          RT.DHttpResponse(RT.Response(0, [ "a header", "something" ]), RT.DNull),
-          "0 { a header: something }\nnull" ] ]
+  testMany
+    "toEnduserReadable string"
+    DvalRepr.toEnduserReadableTextV0
+    // Most of this is just the OCaml output and not really what the output should be
+    [ RT.DFloat(0.0), "0." // this type of thing in particular is ridic
+      RT.DFloat(-0.0), "-0."
+      RT.DFloat(5.0), "5."
+      RT.DFloat(5.1), "5.1"
+      RT.DFloat(-5.0), "-5."
+      RT.DFloat(-5.1), "-5.1"
+      RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
+      RT.DHttpResponse(RT.Redirect("some url"), RT.DNull), "302 some url\nnull"
+      RT.DHttpResponse(RT.Response(0, [ "a header", "something" ]), RT.DNull),
+      "0 { a header: something }\nnull" ]
+
+module ToHashableRepr =
+  open LibExecution.RuntimeTypes
+
+  let t (dv : Dval) (expected : string) : Test =
+    test $"toHashableRepr: {dv}" {
+      let ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
+      let fsharpVersion = DvalRepr.toHashableRepr 0 false dv
+
+      if ocamlVersion <> expected || fsharpVersion <> expected then
+        let p str = str |> toBytes |> System.BitConverter.ToString
+        printfn "expected: %s" (p expected)
+        printfn "ocaml   : %s" (p ocamlVersion)
+        printfn "fsharp  : %s" (p fsharpVersion)
+
+      Expect.equal ocamlVersion expected "wrong test value"
+      Expect.equal fsharpVersion expected "bad fsharp impl"
+    }
+
+  let tests =
+    testList
+      "toHashableRepr string"
+      [ t (DHttpResponse(Redirect "", DInt 0I)) "302 \n0"
+        t (DFloat 0.0) "0."
+        t
+          (DObj(
+            Map.ofList [ ("", DNull)
+                         ("-", DInt 0I)
+                         ("j", DFloat -1.797693135e+308) ]
+          ))
+          "{ \n  j: -inf,\n  -: 0,\n  : null\n}"
+        t (DIncomplete(SourceID(2UL, 1UL))) "<incomplete: <incomplete>>"
+        t (DOption(Some(DPassword(Password [||])))) "Just <password: <password>>"
+        t
+          (DResult(Error(DResult(Error(DFloat -0.03902435513)))))
+          "ResultError ResultError -0.03902435513"
+        t
+          (DList [ DUuid(System.Guid.Parse "3e64631e-f455-5d61-30f7-2be5794ebb19")
+                   DStr "6"
+                   DResult(Ok(DHttpResponse(Response(0, []), DChar ""))) ])
+          "[ \n  <uuid: 3e64631e-f455-5d61-30f7-2be5794ebb19>, \"6\", ResultOk 0 {  }\n    ''\n]"
+
+        t
+          (DBytes [| 148uy; 96uy; 130uy; 71uy |])
+          "HnXEOfyd6X-BKhAPIBY6kHcrYLxO44nHCshZShS12Qy2qbnLc6vvrQnU4bjTiewW" ]
+
 
 module F = FuzzTests.All
 
@@ -88,7 +132,7 @@ let allRoundtrips =
 
   let all =
     // interoperable tests do not support passwords because it's very
-    // hard/risky to get ocaml to roundtrip them correctly without compromising
+    // hard/risky to get libocaml to roundtrip them correctly without compromising
     // the redaction protections. We do password tests in the rest of the file
     // so lets not confuse these tests.
     TestUtils.sampleDvals
@@ -250,5 +294,6 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
+      ToHashableRepr.tests
       Password.tests
       allRoundtrips ]

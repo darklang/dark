@@ -1196,7 +1196,7 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : string =
   | DInt i -> toString i
   | DBool true -> "true"
   | DBool false -> "false"
-  | DFloat f -> toString f
+  | DFloat f -> ocamlStringOfFloat f
   | DNull -> "null"
   | DStr s -> "\"" + toString s + "\""
   | DChar c -> "'" + toString c + "'"
@@ -1273,6 +1273,6 @@ let hash (version : int) (arglist : List<Dval>) : string =
   // Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
   // [b"ab"; b"c"]
   match version with
-  | 0 -> arglist |> List.map (toHashableRepr 2 true) |> String.concat "" |> hashStr
-  | 1 -> DList arglist |> toHashableRepr 2 false |> hashStr
+  | 0 -> arglist |> List.map (toHashableRepr 0 true) |> String.concat "" |> hashStr
+  | 1 -> DList arglist |> toHashableRepr 0 false |> hashStr
   | _ -> failwith $"Invalid Dval.hash version: {version}"

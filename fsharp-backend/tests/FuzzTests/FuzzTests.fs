@@ -379,8 +379,6 @@ module EndUserReadable =
            | RT.DFnVal _ -> false
            | _ -> true)
 
-
-
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
     DvalRepr.toEnduserReadableTextV0 dv .=. OCamlInterop.toEnduserReadableTextV0 dv
@@ -389,6 +387,46 @@ module EndUserReadable =
     testList
       "toEnduserReadable"
       [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+
+module Hashing =
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
+
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           // not supported in OCaml
+           | RT.DFnVal _ -> false
+           | _ -> true)
+
+  // The format here is used to get values from the DB, so this has to be 100% identical
+  let equalsOCamlToHashable (dv : RT.Dval) : bool =
+    let ocamlVersion = OCamlInterop.toHashableRepr dv
+    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv
+    printfn "dval  : %s" (toString dv)
+    printfn "ocaml : %s" fsharpVersion
+    printfn "fsharp: %s" ocamlVersion
+    ocamlVersion .=. fsharpVersion
+
+  let equalsOCamlV0 (l : List<RT.Dval>) : bool =
+    DvalRepr.hash 0 l .=. OCamlInterop.hashV0 l
+
+  let equalsOCamlV1 (l : List<RT.Dval>) : bool =
+    DvalRepr.hash 1 l .=. OCamlInterop.hashV1 l
+
+  let tests =
+    testList
+      "hash"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "toHashableRepr"
+          equalsOCamlToHashable
+        testPropertyWithGenerator typeof<Generator> "hashv0" equalsOCamlV0
+        testPropertyWithGenerator typeof<Generator> "hashv1" equalsOCamlV1 ]
+
+
 
 
 module PrettyMachineJson =
@@ -514,6 +552,7 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
+
       { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
           member x.Generator =
             gen {
@@ -577,7 +616,8 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false // exception
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 when
-                         e ** (int i) > (2I ** 62) -> false // overflow
+                         (e ** (int i) >= (2I ** 62))
+                         || (e ** (int i) <= -(2I ** 62)) -> false // overflow
                        | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false // exception
                        | 0, _, _, "", "toString", 0 -> not (containsBytes dv) // exception
                        | _ -> true)
@@ -684,6 +724,7 @@ let knownGood =
        Queryable.tests
        DeveloperRepr.tests
        EndUserReadable.tests
+       Hashing.tests
        PrettyMachineJson.tests
        ExecutePureFunctions.tests ])
 
