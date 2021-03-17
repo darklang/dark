@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <caml/callback.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
@@ -24,7 +25,7 @@ void unlock() {
   caml_release_runtime_system();
 }
 
-void check_exception(const char* ctx1, const char* ctx2, const char* ctx3, value v) {
+bool check_exception(const char* ctx1, const char* ctx2, const char* ctx3, value v) {
   if (Is_exception_result(v)) {
     printf (
       "WARNING: Exception thrown (%s -> %s -> %s) %s\n",
@@ -32,33 +33,41 @@ void check_exception(const char* ctx1, const char* ctx2, const char* ctx3, value
       caml_format_exception (Extract_exception (v)));
     fflush(stdout);
     unlock();
+    return false;
   }
+  return true;
 }
 
-void check_null_closure(const char* ctx1, const char* ctx2, const char* ctx3, value *v) {
+bool check_null_closure(const char* ctx1, const char* ctx2, const char* ctx3, value *v) {
   if (v == NULL) {
     printf (
       "WARNING: Closure not found (%s -> %s -> %s)\n",
       ctx1, ctx2, ctx3);
     fflush(stdout);
     unlock();
+    return false;
   }
+  return true;
 }
 
-void check_string(const char* ctx1, const char* ctx2, const char* ctx3, value v) {
+bool check_string(const char* ctx1, const char* ctx2, const char* ctx3, value v) {
   check_exception(ctx1, ctx2, ctx3, v);
   if (Tag_val(v) != String_tag) {
     printf("WARNING: Value is expected to be a string but isn't! (%s -> %s -> %s)\n",
       ctx1, ctx2, ctx3);
     fflush(stdout);
     unlock();
+    return false;
   }
+  return true;
 }
 
 // Allocates memory of exactly the size of the bytes in the value, and copies the
 // data into it. Returns the new memory.
 char* copy_bytes_outside_runtime(value v) {
-  check_string("", "copy_bytes_outside_runtime", "", v);
+  if (!check_string("", "copy_bytes_outside_runtime", "", v)) {
+    return NULL;
+  }
   int length = caml_string_length(v);
   void* dest = malloc(length);
   memcpy(dest, String_val(v), length);
@@ -68,7 +77,9 @@ char* copy_bytes_outside_runtime(value v) {
 // Allocates memory sized 1 byte larger than the string in the value, copies
 // the data, and adds a NULL byte at the end. Returns the new memory.
 char* copy_string_outside_runtime(const char* ctx1, const char* ctx2, value v) {
-  check_string(ctx1, ctx2, "copy_string_outside_runtime", v);
+  if (!check_string(ctx1, ctx2, "copy_string_outside_runtime", v))
+    return NULL;
+
   // OCaml strings can have NULL bytes in them, so don't use strndup
   int length = caml_string_length(v);
   char* dest = malloc(length+1);
@@ -103,12 +114,16 @@ void register_thread() {
 char* call_bin2json(const char* callback_name, void* bytes, int length) {
   lock();
   value v = caml_alloc_initialized_string(length, bytes);
-  check_string(callback_name, "call_bin2json", "caml_alloc_initialized_string", v);
+  if (!check_string(callback_name, "call_bin2json", "caml_alloc_initialized_string", v))
+    return NULL;
   value* closure = caml_named_value(callback_name);
-  check_null_closure(callback_name, "call_bin2json", "", closure);
-  check_exception(callback_name, "closure", "caml_named_value", *closure);
+  if (!check_null_closure(callback_name, "call_bin2json", "", closure))
+    return NULL;
+  if (!check_exception(callback_name, "closure", "caml_named_value", *closure))
+    return NULL;
   value result = caml_callback_exn(*closure, v);
-  check_exception(callback_name, "result", "caml_callback_exn", result);
+  if (!check_exception(callback_name, "result", "caml_callback_exn", result))
+    return NULL;
   char* retval = copy_string_outside_runtime(callback_name, "call_bin2json", result);
   unlock();
   return retval;
@@ -147,10 +162,13 @@ extern char* expr_tlid_pair_bin2json(void* bytes, int length) {
 int call_json2bin(const char* callback_name, char* json, void** out_bytes) {
   lock();
   value* closure = caml_named_value(callback_name);
-  check_null_closure(callback_name, "call_json2bin", "", closure);
-  check_exception(callback_name, "call_json2bin", "caml_named_value", *closure);
+  if (!check_null_closure(callback_name, "call_json2bin", "", closure))
+    return 0;
+  if (!check_exception(callback_name, "call_json2bin", "caml_named_value", *closure))
+    return 0;
   value v = caml_copy_string(json); // has a strlen, think it's safe here
-  check_string(callback_name, "call_json2bin", "caml_copy_string", v);
+  if (!check_string(callback_name, "call_json2bin", "caml_copy_string", v))
+    return 0;
 
   value result = caml_callback_exn(*closure, v);
   int length = caml_string_length(result);
@@ -190,12 +208,19 @@ extern int expr_tlid_pair_json2bin(char* json, void** out_bytes) {
 const int string_to_string (const char* callback_name, char* bytesIn, int lengthIn, char** bytesOut) {
   lock();
   value* closure = caml_named_value(callback_name);
-  check_null_closure(callback_name, "string_to_string", "", closure);
-  check_exception(callback_name, "string_to_string", "caml_named_value", *closure);
+  if (!check_null_closure(callback_name, "string_to_string", "", closure))
+    return 0;
+
+  if (!check_exception(callback_name, "string_to_string", "caml_named_value", *closure))
+    return 0;
   value v = caml_alloc_initialized_string(lengthIn, bytesIn);
-  check_string(callback_name, "string_to_string", "copy_string", v);
+  if (!check_string(callback_name, "string_to_string", "copy_string", v))
+    return 0;
 
   value result = caml_callback_exn(*closure, v);
+  if (!check_string(callback_name, "string_to_string", "callback_exn", result))
+    return 0;
+
   char* retval = copy_string_outside_runtime(callback_name, "string_to_string", result);
   *bytesOut = retval;
   int lengthOut = caml_string_length(result);
@@ -269,7 +294,8 @@ extern int execute (char* bytesIn, int lengthIn, char** bytesOut) {
 extern char* digest () {
   lock();
   value* digest_value = caml_named_value("digest");
-  check_null_closure("digest", "", "", digest_value);
+  if (!check_null_closure("digest", "", "", digest_value))
+    return NULL;
   char* result = copy_string_outside_runtime("digest", "caml_named_value", *digest_value);
   unlock();
   return result;
