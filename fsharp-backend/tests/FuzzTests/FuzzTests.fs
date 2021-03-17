@@ -539,6 +539,31 @@ module ExecutePureFunctions =
                 (fun dv ->
                   dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
 
+              let rec containsBytes(dv : RT.Dval) =
+                match dv with
+                | RT.DDB _
+                | RT.DInt _
+                | RT.DBool _
+                | RT.DFloat _
+                | RT.DNull
+                | RT.DStr _
+                | RT.DChar _
+                | RT.DIncomplete _
+                | RT.DFnVal _
+                | RT.DError _
+                | RT.DDate _
+                | RT.DPassword _
+                | RT.DUuid _
+                | RT.DOption None -> false
+                | RT.DList l -> List.any containsBytes l
+                | RT.DObj o -> o |> Map.values |> List.any containsBytes
+                | RT.DHttpResponse (_, dv)
+                | RT.DOption (Some dv)
+                | RT.DErrorRail dv
+                | RT.DResult (Ok dv)
+                | RT.DResult (Error dv) -> containsBytes dv
+                | RT.DBytes _ -> true
+
               let arg(i : int) =
                 genDval signature.[i].typ
                 |> Gen.filter
@@ -548,7 +573,7 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, "Int", "power", 0 when i < 0I -> false
                        | 1, RT.DInt i, "", "^", 0 when i < 0I -> false
                        | 1, RT.DInt i, "Int", "divide", 0 when i = 0I -> false
-                       | 0, RT.DBytes i, "", "toString", 0 -> false
+                       | 0, _, "", "toString", 0 -> not (containsBytes dv)
                        | _ -> true)
 
 
