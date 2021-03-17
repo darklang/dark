@@ -697,34 +697,36 @@ module Convert =
 
 
   let rec ocamlTipe2PT (o : OT.tipe) : PT.DType =
+    let any = PT.TVariable "a"
+
     match o with
-    | OT.TAny -> PT.TAny
+    | OT.TAny -> any
     | OT.TInt -> PT.TInt
     | OT.TFloat -> PT.TFloat
     | OT.TBool -> PT.TBool
     | OT.TNull -> PT.TNull
-    | OT.TDeprecated1 -> PT.TAny
+    | OT.TDeprecated1 -> any
     | OT.TStr -> PT.TStr
-    | OT.TList -> PT.TList PT.TAny
-    | OT.TObj -> PT.TDict PT.TAny
+    | OT.TList -> PT.TList any
+    | OT.TObj -> PT.TDict any
     | OT.TIncomplete -> PT.TIncomplete
     | OT.TError -> PT.TError
-    | OT.TBlock -> PT.TFn([ PT.TAny ], PT.TAny)
-    | OT.TResp -> PT.THttpResponse PT.TAny
-    | OT.TDB -> PT.TDB PT.TAny
-    | OT.TDeprecated6 -> PT.TAny
+    | OT.TBlock -> PT.TFn([ any ], any)
+    | OT.TResp -> PT.THttpResponse any
+    | OT.TDB -> PT.TDB any
+    | OT.TDeprecated6 -> any
     | OT.TDate -> PT.TDate
-    | OT.TDeprecated2 -> PT.TAny
-    | OT.TDeprecated3 -> PT.TAny
-    | OT.TDeprecated4 string -> PT.TAny
-    | OT.TDeprecated5 string -> PT.TAny
+    | OT.TDeprecated2 -> any
+    | OT.TDeprecated3 -> any
+    | OT.TDeprecated4 string -> any
+    | OT.TDeprecated5 string -> any
     | OT.TDbList tipe -> PT.TDbList(ocamlTipe2PT tipe)
     | OT.TPassword -> PT.TPassword
     | OT.TUuid -> PT.TUuid
-    | OT.TOption -> PT.TOption PT.TAny
+    | OT.TOption -> PT.TOption any
     | OT.TErrorRail -> PT.TErrorRail
     | OT.TCharacter -> PT.TChar
-    | OT.TResult -> PT.TResult(PT.TAny, PT.TAny)
+    | OT.TResult -> PT.TResult(any, any)
     | OT.TUserType (name, version) -> PT.TUserType(name, version)
     | OT.TBytes -> PT.TBytes
 
@@ -776,7 +778,7 @@ module Convert =
         o.metadata.return_type
         |> bo2Option
         |> Option.map ocamlTipe2PT
-        |> Option.defaultValue PT.TAny
+        |> Option.defaultValue (PT.TVariable "a")
       returnTypeID = o.metadata.return_type |> bo2ID
       description = o.metadata.description
       infix = o.metadata.infix
@@ -972,11 +974,10 @@ module Convert =
 
   let rec pt2ocamlTipe (p : PT.DType) : OT.tipe =
     match p with
-    | PT.TVariable _ -> failwith "doesnt exist yet"
-    | PT.TAny -> OT.TAny
+    | PT.TVariable _ -> OT.TAny
     | PT.TInt -> OT.TInt
     | PT.TFloat -> OT.TFloat
-    | PT.TLambda -> OT.TBlock
+    | PT.TFn _ -> OT.TBlock
     | PT.TBool -> OT.TBool
     | PT.TNull -> OT.TNull
     | PT.TStr -> OT.TStr
@@ -984,7 +985,6 @@ module Convert =
     | PT.TRecord _ -> OT.TObj
     | PT.TIncomplete -> OT.TIncomplete
     | PT.TError -> OT.TError
-    | PT.TFn _ -> OT.TBlock
     | PT.THttpResponse _ -> OT.TResp
     | PT.TDB _ -> OT.TDB
     | PT.TDate -> OT.TDate
@@ -1356,6 +1356,13 @@ let startDval2String (dv : RT.Dval) : System.IntPtr * byte array =
   let str = dv |> Convert.rt2ocamlDval |> Json.AutoSerialize.serialize
   System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
 
+let startDvalList2String (l : List<RT.Dval>) : System.IntPtr * byte array =
+  Binary.registerThread ()
+  let str = l |> List.map Convert.rt2ocamlDval |> Json.AutoSerialize.serialize
+  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+
+
+
 let finishString2String (outLength : int) (outBytes : System.IntPtr) : string =
   Binary.registerThread ()
   let (resultBytes : byte array) = Array.zeroCreate outLength
@@ -1432,13 +1439,13 @@ let toUrlString (dv : RT.Dval) : string =
   let outLength = Binary.Internal.toUrlString (bytes, bytes.Length, &out)
   finishString2String outLength out
 
-let hashV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
+let hashV0 (l : List<RT.Dval>) : string =
+  let mutable (out, bytes) = startDvalList2String l
   let outLength = Binary.Internal.hashV0 (bytes, bytes.Length, &out)
   finishString2String outLength out
 
-let hashV1 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
+let hashV1 (l : List<RT.Dval>) : string =
+  let mutable (out, bytes) = startDvalList2String l
   let outLength = Binary.Internal.hashV1 (bytes, bytes.Length, &out)
   finishString2String outLength out
 
@@ -1451,7 +1458,10 @@ let execute
   (fns : List<PT.UserFunction.T>)
   : RT.Dval =
   let program = Convert.pt2ocamlExpr program
-  let args = Map.toList symtable
+
+  let args =
+    symtable |> Map.toList |> List.map (fun (k, dv) -> (k, Convert.rt2ocamlDval dv))
+
   let dbs = List.map Convert.pt2ocamlDB dbs
   let fns = List.map Convert.pt2ocamlUserFunction fns
 

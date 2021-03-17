@@ -150,7 +150,7 @@ let fileTests () : Test =
                { tlid = currentFn.tlid
                  name = currentFn.name
                  nameID = gid ()
-                 returnType = PT.TAny
+                 returnType = PT.TVariable "a"
                  returnTypeID = gid ()
                  description = "test function"
                  infix = false
@@ -220,7 +220,7 @@ let fileTests () : Test =
                              { name = name
                                nameID = gid ()
                                description = ""
-                               typ = Some PT.TAny
+                               typ = Some(PT.TVariable "a")
                                typeID = gid () })
 
                     currentFn <-
@@ -301,6 +301,20 @@ let backendFqFnName =
       (PT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
       (PT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
 
+let equalsOCaml =
+  // These are hard to represent in .tests files, usually because of FakeDval behaviour
+  testMany
+    "equalsOCaml"
+    (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
+    [ ((RT.FQFnName.stdlibName "List" "fold" 0,
+        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0I) ]
+          RT.DList []
+          RT.DFnVal(
+            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+          ) ]),
+       true) ]
+
 
 let tests =
-  lazy (testList "LibExecution" [ fqFnName; backendFqFnName; fileTests () ])
+  lazy
+    (testList "LibExecution" [ fqFnName; backendFqFnName; equalsOCaml; fileTests () ])

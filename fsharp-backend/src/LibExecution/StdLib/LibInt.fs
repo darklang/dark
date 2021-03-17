@@ -32,7 +32,10 @@ let fns : List<BuiltInFn> =
             if m <= bigint 0 then
               err (Errors.argumentWasnt "positive" "b" mdv)
             else
-              Value(DInt(v % m))
+              // dotnet returns negative mods, but OCaml did positive ones
+              let result = v % m
+              let result = if result < 0I then m + result else result
+              Value(DInt(result))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
@@ -149,7 +152,8 @@ let fns : List<BuiltInFn> =
       description = "Divides two integers"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Value(DInt(a / b))
+        | _, [ DInt a; DInt b ] ->
+            if b = 0I then err "Division by zero" else Value(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure

@@ -62,8 +62,7 @@ let varB = TVariable "b"
 //           incorrectArgs ())
 //
 
-let fns : List<BuiltInFn> =
-  []
+let fns : List<BuiltInFn> = []
 //    { name = fn "DarkInternal" "checkAccess" 0
 //     ; parameters = []
 //     ; returnType = TNull
@@ -839,7 +838,7 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Impure
 //     ; deprecated = ReplacedBy(fn "" "" 0) }
 //   ; { name = fn "DarkInternal" "pushStrollerEvent" 1
-//     ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" TAny ""]
+//     ; parameters = [Param.make "canvas_id" TStr ""; Param.make "event" TStr ""; Param.make "payload" varA ""]
 //     ; returnType = TResult
 //     ; description = "Pushes an event to Stroller"
 //     ; fn =

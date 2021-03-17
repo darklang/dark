@@ -371,171 +371,332 @@ and applyFnVal
   (isInPipe : IsInPipe)
   (ster : SendToRail)
   : DvalTask =
+  match fnVal with
+  | Lambda l -> executeLambda state l argList
+  | FnName name -> callFn state name id argList ster isInPipe
+
+and executeLambda
+  (state : ExecutionState)
+  (l : LambdaImpl)
+  (args : List<Dval>)
+  : DvalTask =
+
+  // If one of the args is fake value used as a marker, return it instead of
+  // executing. This is the same behaviour as in fn calls.
+  let firstMarker = List.tryFind Dval.isFake args
+
+  match firstMarker with
+  | Some dv -> Value dv
+  | None ->
+      let parameters = List.map snd l.parameters
+      // One of the reasons to take a separate list of params and args is to
+      // provide this error message here. We don't have this information in
+      // other places, and the alternative is just to provide incompletes
+      // with no context
+      if List.length l.parameters <> List.length args then
+        Value(
+          DError(
+            SourceNone,
+            $"Expected {List.length l.parameters} arguments, got {List.length args}"
+          )
+        )
+      else
+        List.iter
+          (fun ((id, _), dv) -> state.trace state.onExecutionPath id dv)
+          (List.zip l.parameters args)
+
+        let paramSyms = List.zip parameters args |> Map
+        // paramSyms is higher priority
+        let newSymtable = Map.union paramSyms l.symtable
+
+        eval state newSymtable l.body
+
+and callFn
+  (state : ExecutionState)
+  (desc : FQFnName.T)
+  (id : id)
+  (argvals : Dval list)
+  (sendToRail : SendToRail)
+  (isInPipe : IsInPipe)
+  : DvalTask =
   taskv {
-    let sourceID = SourceID(state.tlid, id)
+    let sourceID id = SourceID(state.tlid, id) in
 
-    let isErrorAllowed =
-      match fnVal with
-      | FnName name when name = FQFnName.stdlibName "Bool" "isError" 0 -> true
-      | _ -> false
+    let fn =
+      match desc.owner, desc.package, desc.module_ with
+      | "dark", "stdlib", _ ->
+          state.functions.TryFind desc |> Option.map builtInFnToFn
+      | "", "", "" -> state.userFns.TryFind desc.function_ |> Option.map userFnToFn
+      // FSTODO
+      | _ -> state.packageFns.TryFind desc |> Option.map packageFnToFn
 
-    match List.tryFind (fun (dv : Dval) -> Dval.isFake dv) argList with
-    // If one of the arglist is a fake value used as a marker, return it instead
-    // of executing.
-    | Some dv when not isErrorAllowed ->
-        match dv with
-        // That is, unless it's an incomplete in a pipe. In a pipe, we treat
-        // the entire expression as a blank, and skip it, returning the input
-        // (first) value to be piped into the next statement instead. *)
-        | DIncomplete _ when isInPipe = InPipe ->
-            return Option.defaultValue dv (List.tryHead argList)
-        | _ -> return dv
-    | None
-    | Some _ ->
-        match fnVal with
-        | Lambda l ->
-            let parameters = List.map snd l.parameters
-            // One of the reasons to take a separate list of params and args is to
-            // provide this error message here. We don't have this information in
-            // other places, and the alternative is just to provide incompletes
-            // with no context
-            let paramLength = List.length l.parameters
-            let argLength = List.length argList
-
-            if paramLength <> argLength then
-              return
-                Dval.errSStr
-                  sourceID
-                  $"Expected {paramLength} arguments, got {argLength}"
-            else
-              // FSTODO
-              // List.iter bindings (fun ((id, paramName), dv) ->
-              //     state.trace state.on_execution_path id dv) ;
-              let paramSyms = List.zip parameters argList |> Map
-              // paramSyms is higher priority
-              let newSymtable = Map.union paramSyms l.symtable
-              return! eval state newSymtable l.body
-        | (FnName desc) ->
-            let fn =
-              match desc.owner, desc.package, desc.module_ with
-              | "dark", "stdlib", _ ->
-                  state.functions.TryFind desc |> Option.map builtInFnToFn
-              | "", "", "" ->
-                  state.userFns.TryFind desc.function_ |> Option.map userFnToFn
-              | _ -> state.packageFns.TryFind desc |> Option.map packageFnToFn
-
-            let! (result : Dval) =
-              match fn with
-              | None -> fstodo $"support builtin function {desc}"
-              | Some fn ->
-                  taskv {
-                    // FSTODO: if an argument is an error rail, return it
-                    try
-                      // FSTODO: all the behaviour in AST.exec_fn
-                      match fn.fn with
-                      | StdLib fnval ->
-                          // evaluate this here so that the exception gets caught here
-                          return! fnval (state, argList)
-                      | UserFunction (tlid, body) ->
-                          // FSTODO: check arg length
-                          let argsWithGlobals =
-                            let args =
-                              fn.parameters
-                              |> List.map (fun p -> p.name)
-                              |> fun ps -> List.zip ps argList
-                              |> Map.ofList
-
-                            Map.union (globalsFor state) args in
-
-                          // FSTODO
-                          // let checkedVals =
-                          //   TypeChecker.checkFunctionCall state.userTypes fn args
-                          match Ok() with
-                          | Ok () ->
-                              // FSTODO
-                              state.traceTLID tlid
-                              // Don't execute user functions if it's preview mode and we have a result
-                              match 1 with
-                              // FSTODO
-                              // (state.context,
-                              //         state.loadFnResult sfrDesc arglist) with
-                              // FSTODO
-                              // | Preview, Some (result, _ts) ->
-                              //     return Dval.unwrapFromErrorrail result
-                              | _ ->
-                                  // It's okay to execute user functions in both Preview and Real contexts,
-                                  // But in Preview we might not have all the data we need
-                                  // FSTODO
-                                  // state.store_fn_arguments tlid args
-
-                                  let state = { state with tlid = tlid }
-                                  let! result = eval state argsWithGlobals body
-                                  // FSTODO
-                                  // state.store_fn_result sfr_desc arglist result
-
-                                  return result |> Dval.unwrapFromErrorRail
-                          // |> typeErrorOrValue state.userTypes
-                          | Error errs ->
-                              return
-                                Dval.errSStr
-                                  sourceID
-                                  "Type error(s) in function parameters: "
-                      // FSTODO
-                      // ^ Type_checker.Error.list_to_string errs
-
+    match List.tryFind Dval.isErrorRail argvals with
+    | Some er -> return er
+    | None ->
+        let! result =
+          match fn with
+          // Functions which aren't implemented in the client may have results
+          // available, otherwise they just return incomplete.
+          | None ->
+              let fnRecord = (state.tlid, desc, id) in
+              let fnResult = state.loadFnResult fnRecord argvals in
+              // In the case of DB::query (and friends), we want to backfill
+              // the lambda's livevalues, as the lambda was never actually
+              // executed. We hack this is here as we have no idea what this
+              // abstraction might look like in the future.
+              if state.context = Preview
+                 (* The prefix might match too much but that's fixed by the
+                    * match which is very specific *)
+                 && desc.module_ = "DB"
+                 && String.startsWith "DB::query" desc.function_ then
+                match argvals with
+                | [ DDB dbname; DFnVal (Lambda b) ] ->
+                    let sample =
+                      match fnResult with
+                      | Some (DList (sample :: _), _) -> sample
                       | _ ->
-                          fstodo $"support other function type {fn.fn}"
-                          return DIncomplete SourceNone
-                    with
-                    | Errors.FakeValFoundInQuery dv -> return dv
-                    | Errors.DBQueryException e ->
-                        return Dval.errStr (Errors.queryCompilerErrorTemplate + e)
-                    | Errors.StdlibException (Errors.StringError msg) ->
-                        return Dval.errSStr sourceID msg
-                    | Errors.StdlibException Errors.IncorrectArgs ->
-                        let paramLength = List.length fn.parameters
-                        let argLength = List.length argList
+                          Map.find dbname state.dbs
+                          |> (fun (db : DB.T) -> db.cols)
+                          |> List.map
+                               (fun (field, _) -> (field, DIncomplete SourceNone))
+                          |> Dval.obj
 
-                        if paramLength <> argLength then
-                          return
-                            Dval.errSStr
-                              sourceID
-                              ($"{fn.name} has {paramLength} parameters,"
-                               + $" but here was called with {argLength} arguments.")
+                    ignore (executeLambda state b [ sample ])
+                | _ -> ()
 
-                        else
-                          let invalid =
-                            List.zip fn.parameters argList
-                            |> List.filter
-                                 (fun (p, a) ->
-                                   Dval.toType a <> p.typ && p.typ <> TAny)
+              match fnResult with
+              | Some (result, _ts) -> Value(result)
+              | _ -> Value(DIncomplete(sourceID id))
+          | Some fn ->
+              // equalize length
+              let expectedLength = List.length fn.parameters in
+              let actualLength = List.length argvals in
 
-                          match invalid with
-                          | [] ->
-                              return
-                                Dval.errSStr
-                                  sourceID
-                                  $"unknown error calling {fn.name}"
-                          | (p, actual) :: _ ->
-                              let msg = Errors.incorrectArgsMsg (fn.name) p actual
-                              return Dval.errSStr sourceID msg
-                    | Errors.StdlibException Errors.FunctionRemoved ->
+              if expectedLength = actualLength then
+                let args =
+                  fn.parameters
+                  |> List.map2 (fun dv p -> (p.name, dv)) argvals
+                  |> Map.ofList
+
+                execFn state desc id fn args isInPipe
+              else
+                Value(
+                  DError(
+                    sourceID id,
+                    $"{desc} has {expectedLength} parameters, but here was called"
+                    + " with {actualLength} arguments."
+                  )
+                )
+
+        if sendToRail = Rail then
+          match Dval.unwrapFromErrorRail result with
+          | DOption (Some v) -> return v
+          | DResult (Ok v) -> return v
+          | DIncomplete _ as i -> return i
+          | DError _ as e -> return e
+          // There should only be DOptions and DResults here, but hypothetically we got
+          // something else, they would go on the error rail too.
+          | other -> return DErrorRail other
+        else
+          return result
+  }
+
+
+and execFn
+  (state : ExecutionState)
+  (fnDesc : FQFnName.T)
+  (id : id)
+  (fn : Fn)
+  (args : DvalMap)
+  (isInPipe : IsInPipe)
+  : DvalTask =
+  taskv {
+    let sourceID = SourceID(state.tlid, id) in
+
+    let typeErrorOrValue userTypes result =
+      (* https://www.notion.so/darklang/What-should-happen-when-the-return-type-is-wrong-533f274f94754549867fefc554f9f4e3 *)
+      match TypeChecker.checkFunctionReturnType userTypes fn result with
+      | Ok () -> result
+      | Error errs ->
+          DError(
+            sourceID,
+            $"Type error(s) in return type: {TypeChecker.Error.listToString errs}"
+          )
+
+    if state.context = Preview
+       && not state.onExecutionPath
+       && Set.contains fnDesc state.callstack then
+      // Don't recurse (including transitively!) when previewing unexecuted paths
+      // in the editor. If we do, we'll recurse forever and blow the stack. *)
+      return DIncomplete(SourceID(state.tlid, id))
+    else
+      let state =
+        { state with
+            executingFnName = fnDesc
+            callstack = Set.add fnDesc state.callstack }
+
+      let arglist =
+        fn.parameters
+        |> List.map (fun (p : Param) -> p.name)
+        |> List.choose (fun key -> Map.tryFind key args)
+
+      let argsWithGlobals = withGlobals state args
+
+      let fnRecord = (state.tlid, fnDesc, id) in
+
+      let badArg =
+        List.tryFind
+          (function
+          | DError _ when fnDesc.module_ = "Bool" && fnDesc.function_ = "isError" ->
+              false
+          | DError _
+          | DIncomplete _ -> true
+          | _ -> false)
+          arglist
+
+      match badArg with
+      | Some (DIncomplete src) when isInPipe = InPipe ->
+          // That is, unless it's an incomplete in a pipe. In a pipe, we treat
+          // the entire expression as a blank, and skip it, returning the input
+          // (first) value to be piped into the next statement instead. *)
+          return List.head arglist
+      | Some (DIncomplete src) -> return DIncomplete src
+      | Some (DError (src, _) as err) ->
+          // FSTODO: this is a far nicer error. Should we ship it?
+          // return DError(src, "Fn called with an error as an argument")
+          return err
+      | _ ->
+          try
+            match fn.fn with
+            | StdLib f ->
+                if state.context = Preview && fn.previewable = Pure then
+                  match state.loadFnResult fnRecord arglist with
+                  | Some (result, _ts) -> return result
+                  | None -> return DIncomplete sourceID
+                else
+                  let! result = f (state, arglist)
+
+                  // there's no point storing data we'll never ask for
+                  let! () =
+                    if fn.previewable <> Pure then
+                      state.storeFnResult fnRecord arglist result
+                    else
+                      task { return () }
+
+                  return result
+            | PackageFunction (tlid, body) ->
+                // This is similar to InProcess but also has elements of UserCreated.
+                match TypeChecker.checkFunctionCall Map.empty fn args with
+                | Ok () ->
+                    let! result =
+                      match (state.context, state.loadFnResult fnRecord arglist) with
+                      | Preview, Some (result, _ts) ->
+                          Value(Dval.unwrapFromErrorRail result)
+                      | Preview, None when fn.previewable <> Pure ->
+                          Value(DIncomplete sourceID)
+                      | _ ->
+                          taskv {
+                            // It's okay to execute user functions in both Preview and
+                            // Real contexts, But in Preview we might not have all the
+                            // data we need
+
+                            // TODO: We don't munge `state.tlid` like we do in
+                            // UserCreated, which means there might be `id`
+                            // collisions between AST nodes. Munging `state.tlid`
+                            // would not save us from tlid collisions either.
+                            // tl;dr, executing a package function may result in
+                            // trace data being associated with the wrong
+                            // handler/call site.
+                            let! result = eval state argsWithGlobals body
+
+                            do! state.storeFnResult fnRecord arglist result
+
+                            return
+                              result
+                              |> Dval.unwrapFromErrorRail
+                              |> typeErrorOrValue Map.empty
+                          }
+                    // there's no point storing data we'll never ask for *)
+                    let! () =
+                      if fn.previewable <> Pure then
+                        state.storeFnResult fnRecord arglist result
+                      else
+                        task { return () }
+
+                    return result
+                | Error errs ->
+                    return
+                      DError(
+                        sourceID,
+                        ("Type error(s) in function parameters: "
+                         + TypeChecker.Error.listToString errs)
+                      )
+            | UserFunction (tlid, body) ->
+                match TypeChecker.checkFunctionCall state.userTypes fn args with
+                | Ok () ->
+                    state.traceTLID tlid
+                    // Don't execute user functions if it's preview mode and we have a result
+                    match (state.context, state.loadFnResult fnRecord arglist) with
+                    | Preview, Some (result, _ts) ->
+                        return Dval.unwrapFromErrorRail result
+                    | _ ->
+                        // It's okay to execute user functions in both Preview and Real contexts,
+                        // But in Preview we might not have all the data we need
+                        do! state.storeFnArguments tlid args
+
+                        let state = { state with tlid = tlid }
+                        let! result = eval state argsWithGlobals body
+                        do! state.storeFnResult fnRecord arglist result
+
                         return
-                          Dval.errSStr sourceID $"{fn.name} was removed from Dark"
-                    | Errors.StdlibException (Errors.FakeDvalFound dv) -> return dv
-                    | e -> return Dval.errSStr sourceID (e.ToString())
+                          result
+                          |> Dval.unwrapFromErrorRail
+                          |> typeErrorOrValue state.userTypes
+                | Error errs ->
+                    return
+                      DError(
+                        sourceID,
+                        ("Type error(s) in function parameters: "
+                         + TypeChecker.Error.listToString errs)
+                      )
+          with
+          | Errors.FakeValFoundInQuery dv -> return dv
+          | Errors.DBQueryException e ->
+              return (Dval.errStr (Errors.queryCompilerErrorTemplate + e))
+          | Errors.StdlibException (Errors.StringError msg) ->
+              return (Dval.errSStr sourceID msg)
+          | Errors.StdlibException Errors.IncorrectArgs ->
+              let paramLength = List.length fn.parameters
+              let argLength = List.length arglist
 
-                  }
+              if paramLength <> argLength then
+                return
+                  (Dval.errSStr
+                    sourceID
+                    ($"{fn.name} has {paramLength} parameters,"
+                     + $" but here was called with {argLength} arguments."))
 
-            if ster = Rail then
-              match Dval.unwrapFromErrorRail result with
-              | DOption (Some v) -> return v
-              | DResult (Ok v) -> return v
-              | v when Dval.isFake v -> return v
-              // There should only be DOptions and DResults here, but hypothetically we got
-              // something else, they would go on the error rail too.
-              | other -> return DErrorRail other
-            else
-              return result
+              else
+                let invalid =
+                  List.zip fn.parameters arglist
+                  |> List.filter
+                       (fun (p, a) -> Dval.toType a <> p.typ && not (p.typ.isAny ()))
+
+                match invalid with
+                | [] ->
+                    return (Dval.errSStr sourceID $"unknown error calling {fn.name}")
+                | (p, actual) :: _ ->
+                    let msg = Errors.incorrectArgsMsg (fn.name) p actual
+                    return (Dval.errSStr sourceID msg)
+          | Errors.StdlibException Errors.FunctionRemoved ->
+              return (Dval.errSStr sourceID $"{fn.name} was removed from Dark")
+          | Errors.StdlibException (Errors.FakeDvalFound dv) -> return dv
+          // After the rethrow, this gets eventually caught then shown to the
+          // user as a Dark Internal Exception. It's an internal exception
+          // because we didn't anticipate the problem, give it a nice error
+          // message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
+          // this, give it a nice exception via RT.error. *)
+          // FSTODO: the message above needs to be handled
+          | e -> return (Dval.errSStr sourceID (toString e))
 
   }

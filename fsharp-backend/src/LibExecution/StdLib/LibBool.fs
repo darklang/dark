@@ -10,6 +10,9 @@ let fn = FQFnName.stdlibName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
+let varA = TVariable "a"
+let varB = TVariable "b"
+
 let fns : List<BuiltInFn> =
   [ { name = fn "Bool" "not" 0
       parameters = [ Param.make "b" TBool "" ]
@@ -58,7 +61,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "isNull" 0
-      parameters = [ Param.make "check" TAny "" ]
+      parameters = [ Param.make "check" varA "" ]
       returnType = TBool
       description = "Returns true if the `check` parameter is null"
       fn =
@@ -74,7 +77,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Bool" "isError" 0
-      parameters = [ Param.make "check" TAny "" ]
+      parameters = [ Param.make "check" varA "" ]
       returnType = TBool
       description = "Returns `true` if the `check` parameter is an error"
       fn =

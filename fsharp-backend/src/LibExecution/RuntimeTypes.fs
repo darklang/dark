@@ -28,6 +28,8 @@ module LibExecution.RuntimeTypes
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
@@ -82,6 +84,8 @@ module FQFnName =
 
   let stdlibName (module_ : string) (function_ : string) (version : int) : T =
     packageName "dark" "stdlib" module_ function_ version
+
+  let empty = { owner = ""; package = ""; module_ = ""; function_ = ""; version = 0 }
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
@@ -218,7 +222,6 @@ and DvalTask = Prelude.TaskOrValue<Dval>
 and Symtable = Map<string, Dval>
 
 and DType =
-  | TAny
   | TInt
   | TFloat
   | TBool
@@ -228,7 +231,6 @@ and DType =
   | TDict of DType
   | TIncomplete
   | TError
-  | TLambda
   | THttpResponse of DType
   | TDB of DType
   | TDate
@@ -241,9 +243,14 @@ and DType =
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
-  | TVariable of string
-  | TFn of List<DType> * DType
+  | TVariable of string // replaces TAny
+  | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
+
+  member this.isAny() =
+    match this with
+    | TVariable _ -> true
+    | _ -> false
 
 // Record the source of an incomplete or error. Would be useful to add more
 // information later, such as the iteration count that let to this, or
@@ -325,6 +332,8 @@ module Dval =
     | _ -> failwith "expecting str"
 
   let rec toType (dv : Dval) : DType =
+    let any = TVariable "a"
+
     match dv with
     | DInt _ -> TInt
     | DFloat _ -> TFloat
@@ -333,22 +342,22 @@ module Dval =
     | DChar _ -> TChar
     | DStr _ -> TStr
     | DList (head :: _) -> TList(toType head)
-    | DList [] -> TList TAny
+    | DList [] -> TList any
     | DObj map ->
         map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
-    | DFnVal _ -> TLambda
+    | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
     | DError _ -> TError
     | DIncomplete _ -> TIncomplete
     | DErrorRail _ -> TErrorRail
     | DHttpResponse (_, dv) -> THttpResponse(toType dv)
-    | DDB _ -> TDB TAny
+    | DDB _ -> TDB any
     | DDate _ -> TDate
     | DPassword _ -> TPassword
     | DUuid _ -> TUuid
-    | DOption None -> TOption TAny
+    | DOption None -> TOption any
     | DOption (Some v) -> TOption(toType v)
-    | DResult (Ok v) -> TResult(toType v, TAny)
-    | DResult (Error v) -> TResult(TAny, toType v)
+    | DResult (Ok v) -> TResult(toType v, any)
+    | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
 
   let int (i : int) = DInt(bigint i)
@@ -609,6 +618,16 @@ and Context =
   | Real
   | Preview
 
+and FunctionRecord = tlid * FQFnName.T * id
+
+and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * System.DateTime>
+
+and StoreFnResult = FunctionRecord -> Dval list -> Dval -> Task<unit>
+
+and LoadFnArguments = tlid -> List<DvalMap * System.DateTime>
+
+and StoreFnArguments = tlid -> DvalMap -> Task<unit>
+
 and ExecutionState =
   { functions : Map<FQFnName.T, BuiltInFn>
     tlid : tlid
@@ -616,20 +635,24 @@ and ExecutionState =
     accountID : UserID
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
-    userTypes : Map<string, UserType.T>
+    userTypes : Map<string * int, UserType.T>
     packageFns : Map<FQFnName.T, Package.Fn>
     secrets : List<Secret.T>
     trace : bool -> id -> Dval -> unit
     traceTLID : tlid -> unit
-    executingFnName : string
+    executingFnName : FQFnName.T
     // Used for recursion detection in the editor. In the editor, we call all
     // paths to show live values, but with recursion that causes infinite
     // recursion.
-    callstack : Set<string>
+    callstack : Set<FQFnName.T>
     context : Context
     // Whether the currently executing code is really being executed (as
     // opposed to being executed for traces)
-    onExecutionPath : bool }
+    onExecutionPath : bool
+    loadFnResult : LoadFnResult
+    storeFnResult : StoreFnResult
+    loadFnArguments : LoadFnArguments
+    storeFnArguments : StoreFnArguments }
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = fn.name

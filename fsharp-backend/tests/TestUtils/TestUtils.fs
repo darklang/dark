@@ -135,6 +135,10 @@ let executionStateFor
         userFunctions
         Map.empty
         []
+        Exe.loadNoResults
+        Exe.storeNoResults
+        Exe.loadNoArguments
+        Exe.storeNoArguments
   }
 
 
@@ -205,11 +209,10 @@ module Expect =
     | DResult (Error l), DResult (Error r) -> de l r
     | DOption (Some l), DOption (Some r) -> de l r
     | DDate l, DDate r ->
-        // Set the milliseconds to zero as we don't preserve them in serializations
-        Expect.equal
-          (l.AddMilliseconds(-(double l.Millisecond)))
-          (r.AddMilliseconds(-(double r.Millisecond)))
-          $"{msg}: {l} <> {r}"
+        // Two dates can be the same millisecond and not be equal if they don't
+        // have the same number of ticks. For testing, we shall consider them
+        // equal if they print the same string.
+        Expect.equal (l.ToString()) (r.ToString()) $"{msg}: {l} <> {r}"
     | DList ls, DList rs ->
         let lLength = List.length ls
         let rLength = List.length rs
@@ -272,6 +275,7 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   match left, right with
   | DFloat l, DFloat r ->
       if System.Double.IsNaN l && System.Double.IsNaN r then
+        // This isn't "true" equality, it's just for tests
         true
       else if System.Double.IsPositiveInfinity l
               && System.Double.IsPositiveInfinity r then
@@ -285,10 +289,10 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DResult (Error l), DResult (Error r) -> de l r
   | DOption (Some l), DOption (Some r) -> de l r
   | DDate l, DDate r ->
-      // Set the milliseconds to zero as we don't preserve them in serializations
-      let newL = l.AddMilliseconds(-(double l.Millisecond))
-      let newR = r.AddMilliseconds(-(double r.Millisecond))
-      newL = newR
+      // Two dates can be the same millisecond and not be equal if they don't
+      // have the same number of ticks. For testing, we shall consider them
+      // equal if they print the same string.
+      l.ToString() = r.ToString()
   | DList ls, DList rs -> List.map2 de ls rs |> List.all (fun x -> x)
   | DObj ls, DObj rs ->
       List.map2

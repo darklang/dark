@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "List" "last" 0
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TAny
+      returnType = varA
       description =
         "Returns the last value in `list`. Returns null if the list is empty."
       fn =
@@ -158,7 +158,7 @@ let fns : List<BuiltInFn> =
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "findFirst" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TAny
+//     ; returnType = varA
 //     ; description =
 //         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
 //     ; fn =
@@ -239,7 +239,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     //   ; { name = fn "List" "repeat" 0
-//     ; parameters = [Param.make "times" TInt ""; Param.make "val" TAny ""]
+//     ; parameters = [Param.make "times" TInt ""; Param.make "val" varA ""]
 //     ; returnType = TList
 //     ; description =
 //         "Returns a new list containing `val` repeated `times` times."
@@ -336,7 +336,7 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
 //   ; { name = fn "List" "interpose" 0
-//     ; parameters = [Param.make "list" TList ""; Param.make "sep" TAny ""]
+//     ; parameters = [Param.make "list" TList ""; Param.make "sep" varA ""]
 //     ; returnType = TList
 //     ; description =
 //         "Returns a single list containing the values of `list` separated by `sep`."
@@ -873,7 +873,7 @@ let fns : List<BuiltInFn> =
                       NoRail)
                   l
 
-              return Dval.list result
+              return DList result
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

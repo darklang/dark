@@ -21,7 +21,7 @@ let valParam = Param.make "val" varA ""
 let keyParam = Param.make "key" TStr ""
 let keysParam = Param.make "keys" (TList TStr) ""
 let tableParam = Param.make "table" dbType ""
-let specParam = Param.make "spec" TAny ""
+let specParam = Param.make "spec" varA ""
 let queryParam = Param.make "filter" (TFn([ varA ], TBool)) ""
 
 let fns : List<BuiltInFn> =
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "DB" "set" 1) }
     { name = fn "DB" "get" 1
       parameters = [ keyParam; tableParam ]
-      returnType = TOption TAny
+      returnType = TOption varA
       description = "Finds a value in `table` by `key"
       fn =
         (function
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
     { name = fn "DB" "getMany" 1
       parameters = [ keysParam; tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
       fn =
@@ -119,7 +119,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "DB" "getMany" 2) }
     { name = fn "DB" "getMany" 2
       parameters = [ keysParam; tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description =
         "Finds many values in `table` by `keys, returning a [value] list of values"
       fn =
@@ -174,7 +174,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "DB" "getExisting" 0
       parameters = [ keysParam; tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description =
         "Finds many values in `table` by `keys` (ignoring any missing items), returning a [value] list of values"
       fn =
@@ -199,7 +199,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "DB" "getManyWithKeys" 0
       parameters = [ keysParam; tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description =
         "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
       fn =
@@ -283,7 +283,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
     { name = fn "DB" "query" 1
       parameters = [ specParam; tableParam ]
-      returnType = TList TAny // heterogenous list
+      returnType = TList varA // heterogenous list
       description =
         "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a [[key, value]] list of lists"
       fn =
@@ -336,7 +336,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "DB" "queryExactFields" 0) }
     // ; { name = fn "DB" "queryExactFields" 0
 //   ; parameters = [Param.make "spec" TObj ""; tableParam]
-//   ; returnType = TList TAny
+//   ; returnType = TList varA
 //   ; description =
 //       "Fetch all the values from `table` which have the same fields and values that `spec` has, returning a list of values. Previously called DB::query_v3"
 //   ; fn =
@@ -354,7 +354,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
     { name = fn "DB" "queryWithKey" 1
       parameters = [ specParam; tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the values from `table` which have the same fields and values that `spec` has
           , returning a [[key, value]] list of lists"
       fn =
@@ -536,7 +536,7 @@ let fns : List<BuiltInFn> =
 //   ; deprecated = NotDeprecated }
     { name = fn "DB" "getAll" 1
       parameters = [ tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the values in `table`. Returns a list of lists such that the inner
           lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
@@ -554,7 +554,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "DB" "getAll" 2) }
     { name = fn "DB" "getAll" 2
       parameters = [ tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the values in `table`."
       fn =
         (function
@@ -570,7 +570,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "DB" "getAll" 3) }
     { name = fn "DB" "getAll" 3
       parameters = [ tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the values in `table`."
       fn =
         (function
@@ -586,7 +586,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "DB" "getAllWithKeys" 1
       parameters = [ tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description = "Fetch all the values in `table`. Returns a list of lists such that the inner
                      lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
       fn =
@@ -637,7 +637,7 @@ let fns : List<BuiltInFn> =
 // ; (* previously called `DB::keys` *)
 //   { name = fn "DB" "schemaFields" 1
 //   ; parameters = [tableParam]
-//   ; returnType = TList TAny
+//   ; returnType = TList varA
 //   ; description = "Fetch all the fieldNames in `table`"
 //   ; fn =
 //          (function
@@ -684,7 +684,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "DB" "keys" 1
       parameters = [ tableParam ]
-      returnType = TList TAny
+      returnType = TList varA
       description =
         "Fetch all the keys of entries in `table`. Returns an list with strings"
       fn =
@@ -735,7 +735,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     // ; { name = fn "DB" "queryOne" 3
 //   ; parameters = [tableParam; Param.make "filter" TBlock ["value"]]
-//   ; returnType = TList TAny
+//   ; returnType = TList varA
 //   ; description =
 //       "Fetch exactly one value from `table` for which filter returns true. Note that this does not check every value in `table`, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
 //   ; fn =

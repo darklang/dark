@@ -17,9 +17,7 @@ module DvalRepr = LibExecution.DvalRepr
 module Ast = LibExecution.Ast
 module Errors = LibExecution.Errors
 
-let error (str : string) : 'a =
-  printfn $"DB Exception: {str}"
-  raise (Errors.DBQueryException str)
+let error (str : string) : 'a = raise (Errors.DBQueryException str)
 
 let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
 
@@ -70,7 +68,6 @@ let dvalToSql (dval : Dval) : SqlValue =
 let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit =
   match expectedType with
   | TVariable _ -> ()
-  | TAny -> ()
   | other when actualType = other -> ()
   | _ ->
       let actual = DvalRepr.typeToDeveloperReprV0 actualType

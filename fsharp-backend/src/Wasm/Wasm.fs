@@ -34,6 +34,10 @@ module Program =
           Map.empty
           Map.empty
           []
+          Exe.loadNoResults
+          Exe.storeNoResults
+          Exe.loadNoArguments
+          Exe.storeNoArguments
 
       let! result = Exe.run state Map.empty prog
 

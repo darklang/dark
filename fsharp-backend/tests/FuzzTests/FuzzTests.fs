@@ -118,10 +118,9 @@ module FQFnName =
     a.ToString() |> PT.FQFnName.parse .=. a
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping PT.FQFnName"
-        ptRoundtrip ]
+    testList
+      "PT.FQFnName"
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" ptRoundtrip ]
 
 
 module OCamlInterop =
@@ -274,14 +273,16 @@ module Roundtrippable =
       dv
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping works properly"
-        roundtrip
-      testPropertyWithGenerator
-        typeof<GeneratorWithBugs>
-        "roundtrippable is interoperable"
-        isInteroperableV0 ]
+    testList
+      "roundtrippable"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "roundtripping works properly"
+          roundtrip
+        testPropertyWithGenerator
+          typeof<GeneratorWithBugs>
+          "roundtrippable is interoperable"
+          isInteroperableV0 ]
 
 
 module Queryable =
@@ -333,9 +334,11 @@ module Queryable =
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
-    [ tp "roundtripping InternalQueryable v1" v1Roundtrip
-      tp "interoperable v0" isInteroperableV0
-      tp "interoperable v1" isInteroperableV1 ]
+    testList
+      "InternalQueryable"
+      [ tp "roundtripping v1" v1Roundtrip
+        tp "interoperable v0" isInteroperableV0
+        tp "interoperable v1" isInteroperableV1 ]
 
 module DeveloperRepr =
   type Generator =
@@ -360,10 +363,9 @@ module DeveloperRepr =
     DvalRepr.toDeveloperReprV0 dv .=. OCamlInterop.toDeveloperRepr dv
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping toDeveloperRepr"
-        equalsOCaml ]
+    testList
+      "toDeveloperRepr"
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
 
 module EndUserReadable =
   type Generator =
@@ -377,17 +379,53 @@ module EndUserReadable =
            | RT.DFnVal _ -> false
            | _ -> true)
 
-
-
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
     DvalRepr.toEnduserReadableTextV0 dv .=. OCamlInterop.toEnduserReadableTextV0 dv
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping toEnduserReadable"
-        equalsOCaml ]
+    testList
+      "toEnduserReadable"
+      [ testPropertyWithGenerator typeof<Generator> "roundtripping" equalsOCaml ]
+
+module Hashing =
+  type Generator =
+    static member SafeString() : Arbitrary<string> =
+      Arb.Default.String() |> Arb.filter safeOCamlString
+
+    static member Dval() : Arbitrary<RT.Dval> =
+      Arb.Default.Derive()
+      |> Arb.filter
+           (function
+           // not supported in OCaml
+           | RT.DFnVal _ -> false
+           | _ -> true)
+
+  // The format here is used to get values from the DB, so this has to be 100% identical
+  let equalsOCamlToHashable (dv : RT.Dval) : bool =
+    let ocamlVersion = OCamlInterop.toHashableRepr dv
+    let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> ofBytes
+    ocamlVersion .=. fsharpVersion
+
+  let equalsOCamlV0 (l : List<RT.Dval>) : bool =
+    DvalRepr.hash 0 l .=. OCamlInterop.hashV0 l
+
+  let equalsOCamlV1 (l : List<RT.Dval>) : bool =
+    let ocamlVersion = OCamlInterop.hashV1 l
+    let fsharpVersion = DvalRepr.hash 1 l
+    ocamlVersion .=. fsharpVersion
+
+  let tests =
+    testList
+      "hash"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "toHashableRepr"
+          equalsOCamlToHashable
+        testPropertyWithGenerator typeof<Generator> "hashv0" equalsOCamlV0
+        testPropertyWithGenerator typeof<Generator> "hashv1" equalsOCamlV1 ]
+
+
 
 
 module PrettyMachineJson =
@@ -419,13 +457,25 @@ module PrettyMachineJson =
     actual .=. expected
 
   let tests =
-    [ testPropertyWithGenerator
-        typeof<Generator>
-        "roundtripping prettyMachineJson"
-        equalsOCaml ]
+    testList
+      "prettyMachineJson"
+      [ testPropertyWithGenerator
+          typeof<Generator>
+          "roundtripping prettyMachineJson"
+          equalsOCaml ]
 
 module ExecutePureFunctions =
   open LibBackend.ProgramTypes.Shortcuts
+
+  let filterFloat (f : float) : bool =
+    match f with
+    | System.Double.PositiveInfinity -> false
+    | System.Double.NegativeInfinity -> false
+    | f when System.Double.IsNaN f -> false
+    | f when f <= -1e+308 -> false
+    | f when f >= 1e+308 -> false
+    | _ -> true
+
 
   type Generator =
     static member SafeString() : Arbitrary<string> =
@@ -435,25 +485,88 @@ module ExecutePureFunctions =
       Arb.Default.Derive()
       |> Arb.filter
            (function
+           // These all break the serialization to OCaml
+           | RT.DPassword _ -> false
            | RT.DFnVal _ -> false
-           | RT.DChar _ -> false // FSTODO: I think ocaml can't deal with this
-           | RT.DPassword _ -> false // can't serialize to OCaml
+           | RT.DFloat f -> filterFloat f
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.T * List<RT.Dval>> =
+      let genDval(typ' : RT.DType) : Gen<RT.Dval> =
+        let rec genDval' typ s =
+          gen {
+            match typ with
+            | RT.TInt -> return! Gen.map RT.DInt Arb.generate<bigint>
+            | RT.TStr -> return! Gen.map RT.DStr Arb.generate<string>
+            | RT.TVariable _ -> return! Arb.generate<RT.Dval>
+            | RT.TFloat ->
+                return!
+                  Gen.map RT.DFloat (Arb.generate<float> |> Gen.filter filterFloat)
+            | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
+            | RT.TNull -> return RT.DNull
+            | RT.TList typ ->
+                return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
+            | RT.TDict typ ->
+                return!
+                  Gen.map
+                    (fun l -> RT.DObj(Map.ofList l))
+                    (Gen.listOfLength
+                      s
+                      (Gen.zip Arb.generate<string> (genDval' typ (s / 2))))
+            // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
+            // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
+            // | RT.THttpResponse of DType -> return! Gen.map RT.THttpResponse  Arb.generate<httpresponse >
+            // | RT.TDB of DType -> return! Gen.map RT.TDB  Arb.generate<db >
+            | RT.TDate ->
+                return!
+                  Gen.map
+                    (fun (dt : System.DateTime) ->
+                      // Set milliseconds to zero
+                      let dt = (dt.AddMilliseconds(-(double dt.Millisecond)))
+                      RT.DDate dt)
+                    Arb.generate<System.DateTime>
+            | RT.TChar ->
+                return! Gen.map RT.DChar (Gen.resize 1 Arb.generate<string>)
+            // | RT.TPassword -> return! Gen.map RT.TPassword Arb.generate<password>
+            | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
+            | RT.TOption typ ->
+                return! Gen.map RT.DOption (Gen.optionOf (genDval' typ s))
+            // | RT.TErrorRail -> return! Gen.map RT.TErrorRail Arb.generate<errorrail>
+            // | RT.TUserType of string * int -> return! Gen.map RT.TUserType  Arb.generate<usertype >
+            | RT.TBytes -> return! Gen.map RT.DBytes Arb.generate<byte []>
+            | RT.TResult (okType, errType) ->
+                return!
+                  Gen.map
+                    RT.DResult
+                    (Gen.oneof [ Gen.map Ok (genDval' okType s)
+                                 Gen.map Error (genDval' errType s) ])
+            | RT.TFn (paramTypes, returnType) ->
+                return
+                  (RT.DFnVal(
+                    RT.Lambda
+                      { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+                  ))
+            // | RT.TRecord of List<string * DType> -> return! Gen.map RT.TRecord  Arb.generate<record >
+            | _ -> return failwith $"Not supported yet: {typ}"
+          }
+
+        Gen.sized (genDval' typ')
+
       { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
           member x.Generator =
             gen {
               let fns =
                 LibExecution.StdLib.StdLib.fns
-                |> List.filter (fun fn -> fn.previewable = RT.Pure)
                 |> List.filter
                      (fun fn ->
-                       match fn.name.ToString() with
-                       | "String::toList_v0" -> false // deprecated, different error messages
-                       | _ -> true)
+                       fn.previewable = RT.Pure
+                       && fn.name.module_ <> "Http"
+                       && fn.name.function_ <> "slugify"
+                       && fn.name.function_ <> "sort"
+                       && fn.name.function_ <> "sortBy"
+                       && fn.name.function_ <> "base64Decode")
 
-              let! fnIndex = Gen.choose (0, List.length fns)
+              let! fnIndex = Gen.choose (0, List.length fns - 1)
               let name = fns.[fnIndex].name
               let signature = fns.[fnIndex].parameters
 
@@ -461,28 +574,73 @@ module ExecutePureFunctions =
                 (fun dv ->
                   dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
 
-              let arg(i : int) =
-                Arb.generate<RT.Dval> |> Gen.filter (unifiesWith signature.[i].typ)
+              let rec containsBytes(dv : RT.Dval) =
+                match dv with
+                | RT.DDB _
+                | RT.DInt _
+                | RT.DBool _
+                | RT.DFloat _
+                | RT.DNull
+                | RT.DStr _
+                | RT.DChar _
+                | RT.DIncomplete _
+                | RT.DFnVal _
+                | RT.DError _
+                | RT.DDate _
+                | RT.DPassword _
+                | RT.DUuid _
+                | RT.DOption None -> false
+                | RT.DList l -> List.any containsBytes l
+                | RT.DObj o -> o |> Map.values |> List.any containsBytes
+                | RT.DHttpResponse (_, dv)
+                | RT.DOption (Some dv)
+                | RT.DErrorRail dv
+                | RT.DResult (Ok dv)
+                | RT.DResult (Error dv) -> containsBytes dv
+                | RT.DBytes _ -> true
+
+              let arg (i : int) (prevArgs : List<RT.Dval>) =
+                genDval signature.[i].typ
+                |> Gen.filter
+                     (fun dv ->
+                       // Avoid triggering known errors in OCaml
+                       match (i,
+                              dv,
+                              prevArgs,
+                              name.module_,
+                              name.function_,
+                              name.version) with
+                       | 1, RT.DInt i, _, "Int", "power", 0
+                       | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false // exception
+                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
+                       | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 when
+                         (e ** (int i) >= (2I ** 62))
+                         || (e ** (int i) <= -(2I ** 62)) -> false // overflow
+                       | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false // exception
+                       | 0, _, _, "", "toString", 0 -> not (containsBytes dv) // exception
+                       | _ -> true)
+
+
 
               match List.length signature with
               | 0 -> return (name, [])
               | 1 ->
-                  let! arg0 = arg 0
+                  let! arg0 = arg 0 []
                   return (name, [ arg0 ])
               | 2 ->
-                  let! arg0 = arg 0
-                  let! arg1 = arg 1
+                  let! arg0 = arg 0 []
+                  let! arg1 = arg 1 [ arg0 ]
                   return (name, [ arg0; arg1 ])
               | 3 ->
-                  let! arg0 = arg 0
-                  let! arg1 = arg 1
-                  let! arg2 = arg 2
+                  let! arg0 = arg 0 []
+                  let! arg1 = arg 1 [ arg0 ]
+                  let! arg2 = arg 2 [ arg0; arg1 ]
                   return (name, [ arg0; arg1; arg2 ])
               | 4 ->
-                  let! arg0 = arg 0
-                  let! arg1 = arg 1
-                  let! arg2 = arg 2
-                  let! arg3 = arg 3
+                  let! arg0 = arg 0 []
+                  let! arg1 = arg 1 [ arg0 ]
+                  let! arg2 = arg 2 [ arg0; arg1 ]
+                  let! arg3 = arg 3 [ arg0; arg1; arg2 ]
                   return (name, [ arg0; arg1; arg2; arg3 ])
               | _ ->
                   failwith
@@ -490,6 +648,13 @@ module ExecutePureFunctions =
 
                   return (name, [])
             } }
+
+  let debugDval (_, v) : string =
+    match v with
+    | RT.DStr s ->
+        $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+    | RT.DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
+    | _ -> v.ToString()
 
 
   let equalsOCaml ((fn, args) : (PT.FQFnName.T * List<RT.Dval>)) : bool =
@@ -508,27 +673,31 @@ module ExecutePureFunctions =
         let canvasID = System.Guid.NewGuid()
 
         let expected = OCamlInterop.execute ownerID canvasID ast st [] []
-        debuG "expected" expected
+        // debuG "ocaml (expected)" expected
 
         let! state =
           executionStateFor "execute_pure_function" Map.empty Map.empty fns
 
         let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
-        debuG "actual" actual
+        // debuG "fsharp (actual) " actual
 
         let differentErrorsAllowed =
           // Error messages are not required to be directly the same between
           // old and new implementations, but we do prefer them to be the same
           // if possible. this is a list of error messages which have been
           // manually verified to be "close-enough"
-          let l = [ "String::toInt_v0"; "String::toInt_v1"; "Date::parse_v0" ]
-          List.contains (fn.ToString()) l
+          true
 
         if dvalEquality actual expected then
           return true
         else
           match actual, expected with
-          | RT.DError _, RT.DError _ -> return differentErrorsAllowed
+          | RT.DError (_, msg1), RT.DError (_, msg2) ->
+              debuG "ignoring different error msgs" (msg1, msg2)
+              return differentErrorsAllowed
+          | RT.DResult (Error msg1), RT.DResult (Error msg2) ->
+              debuG "ignoring different error msgs" (msg1, msg2)
+              return differentErrorsAllowed
           | _ -> return false
       }
 
@@ -536,9 +705,9 @@ module ExecutePureFunctions =
     t.Result
 
   let tests =
-    [ testPropertyWithGenerator typeof<Generator> "executePure" equalsOCaml ]
-
-
+    testList
+      "executePureFunctions"
+      [ testPropertyWithGenerator typeof<Generator> "equalsOCaml" equalsOCaml ]
 
 
 let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
@@ -546,13 +715,14 @@ let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
 let knownGood =
   testList
     "known good"
-    (List.concat [ FQFnName.tests
-                   Roundtrippable.tests
-                   Queryable.tests
-                   DeveloperRepr.tests
-                   EndUserReadable.tests
-                   PrettyMachineJson.tests
-                   ExecutePureFunctions.tests ])
+    ([ FQFnName.tests
+       Roundtrippable.tests
+       Queryable.tests
+       DeveloperRepr.tests
+       EndUserReadable.tests
+       Hashing.tests
+       PrettyMachineJson.tests
+       ExecutePureFunctions.tests ])
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 

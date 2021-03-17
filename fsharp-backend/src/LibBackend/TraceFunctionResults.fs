@@ -19,22 +19,31 @@ module DvalRepr = LibExecution.DvalRepr
 // External
 // -------------------------
 
-// let store
-//     ~canvas_id ~trace_id (tlid, fnname, id) (arglist : RTT.dval list) result =
-//   Db.run
-//     ~name:"stored_function_result.store"
-//     "INSERT INTO function_results_v2
-//      (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
-//      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)"
-//     ~params:
-//       [ Uuid canvas_id
-//       ; Uuid trace_id
-//       ; ID tlid
-//       ; String fnname
-//       ; ID id
-//       ; String (Dval.hash Dval.current_hash_version arglist)
-//       ; Int Dval.current_hash_version
-//       ; RoundtrippableDval result ]
+let store
+  (canvasID : CanvasID)
+  (traceID : AT.TraceID)
+  ((tlid, fnDesc, id) : tlid * RT.FQFnName.T * id)
+  (arglist : List<RT.Dval>)
+  (result : RT.Dval)
+  : Task<unit> =
+  Sql.query
+    "INSERT INTO function_results_v2
+     (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
+     VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "traceID", Sql.uuid traceID
+                      "tlid", Sql.tlid tlid
+                      "fnName", Sql.string (toString fnDesc)
+                      "id", Sql.id id
+                      ("hash",
+                       arglist
+                       |> DvalRepr.hash DvalRepr.currentHashVersion
+                       |> Sql.string)
+
+                      "hashVersion", Sql.int DvalRepr.currentHashVersion
+                      ("value",
+                       result |> DvalRepr.toInternalRoundtrippableV0 |> Sql.string) ]
+  |> Sql.executeStatementAsync
 
 let load
   (canvasID : CanvasID)

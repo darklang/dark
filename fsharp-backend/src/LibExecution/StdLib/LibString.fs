@@ -156,14 +156,17 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s; DStr search; DStr replace ] ->
             if search = "" then
-              // .Net Replace doesn't allow empty string, but we do.
-              String.toEgcSeq s
-              |> Seq.toList
-              |> List.intersperse replace
-              |> (fun l -> replace :: l @ [ replace ])
-              |> String.concat ""
-              |> DStr
-              |> Value
+              if s = "" then
+                Value(DStr replace)
+              else
+                // .Net Replace doesn't allow empty string, but we do.
+                String.toEgcSeq s
+                |> Seq.toList
+                |> List.intersperse replace
+                |> (fun l -> replace :: l @ [ replace ])
+                |> String.concat ""
+                |> DStr
+                |> Value
             else
               Value(DStr(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
@@ -1248,7 +1251,8 @@ Don't rely on either the size or the algorithm."
       description = "Checks if `subject` starts with `prefix`"
       fn =
         (function
-        | _, [ DStr subject; DStr prefix ] -> Value(DBool(subject.StartsWith prefix))
+        | _, [ DStr subject; DStr prefix ] ->
+            Value(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1261,7 +1265,8 @@ Don't rely on either the size or the algorithm."
       description = "Checks if `subject` ends with `suffix`"
       fn =
         (function
-        | _, [ DStr subject; DStr suffix ] -> Value(DBool(subject.EndsWith suffix))
+        | _, [ DStr subject; DStr suffix ] ->
+            Value(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
