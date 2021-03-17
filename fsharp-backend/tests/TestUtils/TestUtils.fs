@@ -285,11 +285,7 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
   | DResult (Ok l), DResult (Ok r) -> de l r
   | DResult (Error l), DResult (Error r) -> de l r
   | DOption (Some l), DOption (Some r) -> de l r
-  | DDate l, DDate r ->
-      // Set the milliseconds to zero as we don't preserve them in serializations
-      let newL = l.AddMilliseconds(-(double l.Millisecond))
-      let newR = r.AddMilliseconds(-(double r.Millisecond))
-      newL = newR
+  | DDate l, DDate r -> l = r
   | DList ls, DList rs -> List.map2 de ls rs |> List.all (fun x -> x)
   | DObj ls, DObj rs ->
       List.map2
