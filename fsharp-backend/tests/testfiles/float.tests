@@ -6,6 +6,7 @@ Float.ceiling_v0 -2147483647.8 = -2147483647
 Float.ceiling_v0 2147483647.0 = 2147483647
 Float.ceiling_v0 0000000.1 = 1
 Float.ceiling_v0 0.0 = 0
+Float.ceiling_v0 17.55042081 = 18
 
 Float.roundUp_v0 1.3 = 2
 Float.roundUp_v0 1.0000001 = 2
