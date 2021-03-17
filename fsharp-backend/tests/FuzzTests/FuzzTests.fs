@@ -514,7 +514,6 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
-
       { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
           member x.Generator =
             gen {
@@ -530,7 +529,6 @@ module ExecutePureFunctions =
                        && fn.name.function_ <> "base64Decode")
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
-              printfn $"index: {fnIndex}, length: {List.length fns}"
               let name = fns.[fnIndex].name
               debuG "fn" (toString name)
               let signature = fns.[fnIndex].parameters
@@ -570,10 +568,12 @@ module ExecutePureFunctions =
                      (fun dv ->
                        // Avoid triggering known errors in OCaml
                        match (i, dv, name.module_, name.function_, name.version) with
-                       | 1, RT.DInt i, "Int", "power", 0 when i < 0I -> false
-                       | 1, RT.DInt i, "", "^", 0 when i < 0I -> false
-                       | 1, RT.DInt i, "Int", "divide", 0 when i = 0I -> false
-                       | 0, _, "", "toString", 0 -> not (containsBytes dv)
+                       | 1, RT.DInt i, "Int", "power", 0 when i < 0I -> false // exception
+                       | 1, RT.DInt i, "Int", "power", 0 when i > 15I -> false // overflow
+                       | 1, RT.DInt i, "", "^", 0 when i < 0I -> false // exception
+                       | 1, RT.DInt i, "", "^", 0 when i > 15I -> false // overflow
+                       | 1, RT.DInt i, "Int", "divide", 0 when i = 0I -> false // exception
+                       | 0, _, "", "toString", 0 -> not (containsBytes dv) // exception
                        | _ -> true)
 
 
