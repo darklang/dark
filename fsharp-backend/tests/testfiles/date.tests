@@ -33,6 +33,9 @@ Date.second_v0 (d "1905-12-13T10:12:14Z") = -46
 Date.second_v0 (d "1965-04-24T09:54:28Z") = -32
 
 Date.second_v0  (d "1969-07-05T12:34:00Z") = 0
+Date.minute_v0  (d "1955-05-16T18:08:00Z") = -52
+Date.minute_v0  (d "1949-06-27T12:26:00Z") = -34
+Date.minute_v0  (d "1908-05-12T10:18:00Z") = -42
 
 // CLEANUP: a bug in our implementation causes dates before 1970 to be wrong
 [tests.date before the epoch is negative - 1919]

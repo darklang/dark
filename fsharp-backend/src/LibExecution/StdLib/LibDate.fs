@@ -382,7 +382,12 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d ] ->
             // CLEANUP - this was made bug-for-bug compatible
-            let s = if d.Year < 1970 then d.Minute - 59 else d.Minute
+            let s =
+              if d.Year < 1970 then
+                if d.Second = 0 then (d.Minute - 60) % 60 else d.Minute - 59
+              else
+                d.Minute
+
             Value(Dval.int s)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
