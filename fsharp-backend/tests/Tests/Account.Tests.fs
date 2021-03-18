@@ -6,25 +6,22 @@ open TestUtils
 
 module Account = LibBackend.Account
 
-// let t_special_case_accounts_work () =
-//   AT.check
-//     AT.bool
-//     "lee is allowed"
-//     true
-//     (Authorization.can_edit_canvas ~canvas:"rootvc" ~username:"lee") ;
-//   AT.check
-//     AT.bool
-//     "donkey isn't allowed"
-//     false
-//     (Authorization.can_edit_canvas ~canvas:"rootvc" ~username:"donkey") ;
-//   AT.check
-//     AT.bool
-//     "only goes one way"
-//     false
-//     (Authorization.can_edit_canvas ~canvas:"lee" ~username:"rootvc") ;
-//   ()
-//
-//
+let testAuthentication =
+  testTask "authenticated users" {
+    let! username = Account.authenticate "test" "fVm2CUePzGKCwoEQQdNJktUQ"
+    Expect.equal username (Some "test") "valid authentication"
+
+    let! username = Account.authenticate "test_unhashed" "fVm2CUePzGKCwoEQQdNJktUQ"
+    Expect.equal username None "invalid authentication"
+
+    let! username = Account.authenticate "test" "no"
+    Expect.equal username None "incorrect hash"
+
+    let! username = Account.authenticate "test_unhashed" "no"
+    Expect.equal username None "invalid authentication for unhashed"
+  }
+
+
 let testEmailValidationWorks =
   testMany
     "validateEmail"
@@ -53,4 +50,6 @@ let testUsernameValidationWorks =
 
 
 let tests =
-  testList "Account" [ testEmailValidationWorks; testUsernameValidationWorks ]
+  testList
+    "Account"
+    [ testEmailValidationWorks; testUsernameValidationWorks; testAuthentication ]

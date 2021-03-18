@@ -172,7 +172,6 @@ let samplePermission (owner : OwnerName.T) : Option<Permission> =
 // particular user's canvas
 let permission
   (owner : OwnerName.T)
-  (ownerID : UserID)
   (username : UserName.T)
   : Task<Option<Permission>> =
   let permFs : List<unit -> Task<Option<Permission>>> =
