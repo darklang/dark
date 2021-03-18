@@ -268,6 +268,131 @@ module Expect =
     | DUuid _, _
     | DBytes _, _ -> Expect.equal actual expected msg
 
+
+  let rec equalPatternIgnoringIDs (p : RT.Pattern) (p' : RT.Pattern) : unit =
+    let eq = equalPatternIgnoringIDs
+    let eeq (v : 'a) (v' : 'a) = Expect.equal v v' ""
+
+    let eqList (l1 : List<RT.Pattern>) (l2 : List<RT.Pattern>) =
+      Expect.equal (List.length l1) (List.length l2) ""
+      List.iter2 eq l1 l2
+
+    match (p, p') with
+    | PVariable (_, name), PVariable (_, name') -> eeq name name'
+    | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
+        eeq name name'
+        eqList patterns patterns'
+    | PString (_, str), PString (_, str') -> eeq str str'
+    | PInteger (_, l), PInteger (_, l') -> eeq l l'
+    | PFloat (_, d), PFloat (_, d') -> eeq d d'
+    | PBool (_, l), PBool (_, l') -> eeq l l'
+    | PCharacter (_, c), PCharacter (_, c') -> eeq c c'
+    | PNull (_), PNull (_) -> ()
+    | PBlank (_), PBlank (_) -> ()
+
+    // exhaustiveness check
+    | PVariable _, _
+    | PConstructor _, _
+    | PString _, _
+    | PInteger _, _
+    | PFloat _, _
+    | PBool _, _
+    | PCharacter _, _
+    | PNull _, _
+    | PBlank _, _ -> eeq p p' // fail with appropriate msg
+
+
+  let rec equalExprIgnoringIDs (e : RT.Expr) (e' : Expr) : unit =
+    let eq = equalExprIgnoringIDs
+    let eeq (v : 'a) (v' : 'a) = Expect.equal v v' ""
+
+    let eqList (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
+      Expect.equal (List.length l1) (List.length l2) ""
+      List.iter2 eq l1 l2
+
+    match e, e' with
+    // expressions with no values
+    | ENull _, ENull _
+    | EBlank _, EBlank _ -> ()
+    // expressions with single string values
+    | EString (_, v), EString (_, v') -> eeq v v'
+    | ECharacter (_, v), ECharacter (_, v') -> eeq v v'
+    | EVariable (_, v), EVariable (_, v') -> eeq v v'
+    | EInteger (_, v), EInteger (_, v') -> eeq v v'
+    | EFloat (_, d), EFloat (_, d') -> eeq d d'
+    | EBool (_, v), EBool (_, v') -> eeq v v'
+    | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
+        eeq lhs lhs'
+        eq rhs rhs'
+        eq body body'
+    | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
+        eq con con'
+        eq thn thn'
+        eq els els'
+    | EList (_, l), EList (_, l') -> eqList l l'
+    | EFQFnValue (_, v), EFQFnValue (_, v') -> eeq v v'
+    | EApply (_, name, args, toRail, inPipe),
+      EApply (_, name', args', toRail', inPipe') ->
+        eq name name'
+        eqList args args'
+        eeq toRail toRail'
+        eeq inPipe inPipe'
+    | ERecord (_, pairs), ERecord (_, pairs') ->
+        let sort = List.sortBy (fun (k, _) -> k)
+
+        List.iter2
+          (fun (k, v) (k', v') ->
+            eeq k k'
+            eq v v')
+          (sort pairs)
+          (sort pairs')
+    | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
+        eq e e'
+        eeq f f'
+    | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
+        eq cond cond'
+        eq old old'
+        eq knew knew'
+    | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
+        eeq s s'
+        eqList ts ts'
+    | EPartial (_, e), EPartial (_, e') -> eq e e'
+    | ELambda (_, vars, e), ELambda (_, vars', e') ->
+        eq e e'
+        List.iter2 (fun (_, v) (_, v') -> eeq v v') vars vars'
+    | EMatch (_, e, branches), EMatch (_, e', branches') ->
+        eq e e'
+
+        List.iter2
+          (fun ((p, v) : Pattern * Expr) (p', v') ->
+            equalPatternIgnoringIDs p p'
+            eq v v')
+          branches
+          branches'
+    // exhaustiveness check
+    | ENull _, _
+    | EBlank _, _
+    | EInteger _, _
+    | EString _, _
+    | ECharacter _, _
+    | EVariable _, _
+    | EBool _, _
+    | EFloat _, _
+    | ELet _, _
+    | EIf _, _
+    | EList _, _
+    | EFQFnValue _, _
+    | EApply _, _
+    | ERecord _, _
+    | EFieldAccess _, _
+    | EFeatureFlag _, _
+    | EConstructor _, _
+    | EPartial _, _
+    | ELambda _, _
+    | EMatch _, _ -> eeq e e' // fail with appropriate message
+
+
+
 // We reimplement the same conditions as it's confusing to have this print out the same errors
 let rec dvalEquality (left : Dval) (right : Dval) : bool =
   let de = dvalEquality

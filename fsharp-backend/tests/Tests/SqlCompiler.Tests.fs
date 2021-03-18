@@ -7,6 +7,8 @@ open TestUtils
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
+module C = LibBackend.SqlCompiler
+
 
 // let t_sql_compiler_works () =
 //   let open Types in
@@ -94,6 +96,16 @@ module RT = LibExecution.RuntimeTypes
 //      in
 //      Sql_compiler.inline "value" StrDict.empty expr)
 //     (binop "+" (int 3) (int 7)) ;
+
+let inlineWorksAtRoot =
+  test "inlineWorksAtRoot" {
+    let expr =
+      FSharpToExpr.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
+
+    let expected = FSharpToExpr.parseRTExpr "3 + 5"
+    let result = C.inline' "value" Map.empty expr
+    Expect.equalExprIgnoringIDs result expected
+  }
 //   check_fluid_expr
 //     "inline works (def at root)"
 //     (let expr =
@@ -106,4 +118,4 @@ module RT = LibExecution.RuntimeTypes
 //     (binop "+" (int 3) (int 5)) ;
 //   ()
 
-let tests = testList "SqlCompiler" []
+let tests = testList "SqlCompiler" [ inlineWorksAtRoot ]
