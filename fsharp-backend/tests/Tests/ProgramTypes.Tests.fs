@@ -5,6 +5,7 @@ open Prelude
 open TestUtils
 
 module PT = LibBackend.ProgramTypes
+module S = LibExecution.Shortcuts
 
 let fuzzedTests =
   let p = PT.FQFnName.parse
@@ -18,4 +19,23 @@ let fuzzedTests =
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
           ("", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1") ] ]
 
-let tests = testList "ProgramTypes" [ fuzzedTests ]
+let testPipesToRuntimeTypes =
+  test "pipes to runtime types" {
+    let actual =
+      FSharpToExpr.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+
+    let expected =
+      S.ePipeApply
+        (S.eStdFnVal "" "<" 0)
+        [ S.ePipeApply
+            (S.eStdFnVal "" "+" 0)
+            [ S.ePipeApply
+                (S.eStdFnVal "" "-" 0)
+                [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
+              S.eFieldAccess (S.eVar "value") "age" ]
+          S.eInt 3 ]
+
+    Expect.equalExprIgnoringIDs actual expected
+  }
+
+let tests = testList "ProgramTypes" [ fuzzedTests; testPipesToRuntimeTypes ]
