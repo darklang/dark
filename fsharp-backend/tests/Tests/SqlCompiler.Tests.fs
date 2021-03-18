@@ -38,6 +38,33 @@ module C = LibBackend.SqlCompiler
 //     try check msg ~paramName ~dbFields ~symtable body "<error expected>"
 //     with Db.DBQueryException e -> AT.check AT.string msg e expectedError
 //   in
+
+let compileTrue =
+  testTask "compile true" {
+    let state = []
+
+    let! state =
+      executionStateFor "test" Map.empty Map.empty (Tests.LibExecution.fns.Force())
+
+    let! sql, args =
+      C.compileLambda
+        state
+        Map.empty
+        "value"
+        Map.empty
+        (LibExecution.Shortcuts.eBool true)
+
+    let args = Map.ofList args
+    printfn $"args: {args}"
+    printfn $"sql: {sql}"
+
+    Expect.isMatchGroups
+      sql
+      @"\(@([A-Z]+)\)"
+      (fun g -> Map.find (debug "key" g.[1].Value) args = Sql.bool true)
+      ""
+  }
+
 //   let true' = bool true in
 //   check "true is true" true' "(true)" ;
 //   let field = fieldAccess (var "value") "myfield" in
@@ -76,6 +103,7 @@ module C = LibBackend.SqlCompiler
 //     "pipes expand correctly into nested functions"
 //     thread
 //     "((((CAST(data::jsonb->>'age' as integer)) - (2)) + (CAST(data::jsonb->>'age' as integer))) < (3))" ;
+
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
     let expr =
@@ -97,4 +125,5 @@ let inlineWorksWithNested =
   }
 
 
-let tests = testList "SqlCompiler" [ inlineWorksAtRoot; inlineWorksWithNested ]
+let tests =
+  testList "SqlCompiler" [ inlineWorksAtRoot; inlineWorksWithNested; compileTrue ]
