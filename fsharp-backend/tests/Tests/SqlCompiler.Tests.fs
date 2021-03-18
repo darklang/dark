@@ -120,21 +120,20 @@ let compileTests =
           @"\(\(''';select * from user_data;'''\) = \(CAST\(data::jsonb->>'name' as text\)\)\)"
           args
           []
+      }
+      testTask "pipes expand correctly into nested functions" {
+        let expr =
+          FSharpToExpr.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+
+        let! sql, args = compile Map.empty "value" [ "age", TInt ] expr
+
+        matchSql
+          sql
+          @"\(\(\(\(CAST\(data::jsonb->>'age' as integer\)\) - \(2\)\) + \(CAST\(data::jsonb->>'age' as integer\)\)\) < \(3\)\)"
+          args
+          []
       } ]
 
-
-//   let thread =
-//     pipe
-//       (fieldAccess (var "value") "age")
-//       [ binop "-" pipeTarget (int 2)
-//       ; binop "+" pipeTarget (fieldAccess (var "value") "age")
-//       ; binop "<" pipeTarget (int 3) ]
-//   in
-//   check
-//     ~dbFields:[("age", TInt)]
-//     "pipes expand correctly into nested functions"
-//     thread
-//     "((((CAST(data::jsonb->>'age' as integer)) - (2)) + (CAST(data::jsonb->>'age' as integer))) < (3))" ;
 
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
