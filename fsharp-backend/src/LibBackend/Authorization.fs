@@ -43,28 +43,38 @@ type Permission =
     | Read -> "r"
     | ReadWrite -> "rw"
 
-// let set_user_access (user : Uuidm.t) (org : Uuidm.t) (p : permission option) :
-//     unit =
-//   match p with
-//   | None ->
-//       Db.run
-//         ~name:"set_user_access"
-//         "DELETE from access
-//         WHERE access.access_account = $1 AND access.organization_account = $2"
-//         ~params:[Uuid user; Uuid org] ;
-//       ()
-//   | Some p ->
-//       Db.run
-//         ~name:"set_user_access"
-//         "INSERT into access
-//         (access_account, organization_account, permission)
-//         VALUES
-//         ($1, $2, $3)
-//         ON CONFLICT (access_account, organization_account) DO UPDATE SET permission = EXCLUDED.permission"
-//         ~params:[Uuid user; Uuid org; permission_to_db p] ;
-//       ()
-//
-//
+let setUserAccess
+  (username : UserName.T)
+  (orgName : OwnerName.T)
+  (p : Option<Permission>)
+  : Task<unit> =
+  match p with
+  | None ->
+      Sql.query
+        "DELETE FROM access AS a
+         USING accounts AS u, accounts AS o
+         WHERE o.username = @orgName
+           AND u.username = @username
+           AND a.access_account = u.id
+           AND a.organization_account = o.id"
+      |> Sql.parameters [ "username", username |> toString |> Sql.string
+                          "orgName", orgName |> toString |> Sql.string ]
+      |> Sql.executeStatementAsync
+  | Some p ->
+      Sql.query
+        "INSERT into access
+         (access_account, organization_account, permission)
+         SELECT u.id, o.id, @permission
+         FROM accounts u, accounts o
+         WHERE o.username = @orgName
+           AND u.username = @username
+         ON CONFLICT (access_account, organization_account) DO UPDATE SET permission = EXCLUDED.permission"
+      |> Sql.parameters [ "username", username |> toString |> Sql.string
+                          "orgName", orgName |> toString |> Sql.string
+                          "permission", p |> toString |> Sql.string ]
+      |> Sql.executeStatementAsync
+
+
 // (* Returns a list of (username, permission) pairs for a given auth_domain,
 //  * denoting who has been granted access to a given domain *)
 // let grants_for ~auth_domain : (Account.username * permission) list =
@@ -106,24 +116,27 @@ type Permission =
 
 // If a user has a DB row indicating granted access to this auth_domain,
 // find it.
-let grantedPermission (username : UserName.T) (ownerName : OwnerName.T) :
-      Task<Option<Permission>> =
+let grantedPermission
+  (username : UserName.T)
+  (ownerName : OwnerName.T)
+  : Task<Option<Permission>> =
   Sql.query
     "SELECT permission FROM access
      INNER JOIN accounts user_ ON access.access_account = user_.id
      INNER JOIN accounts org ON access.organization_account = org.id
      WHERE org.username = @ownerName
        AND user_.username = @username"
-  |> Sql.parameters ["username", Sql.string (username |> toString); "ownerName", Sql.string (ownerName |> toString)]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "permission" |> Permission.parse)
+  |> Sql.parameters [ "username", Sql.string (username |> toString)
+                      "ownerName", Sql.string (ownerName |> toString) ]
+  |> Sql.executeRowOptionAsync
+       (fun read -> read.string "permission" |> Permission.parse)
 
 
 // If a user is an admin they get write on everything.
 let adminPermission (username : UserName.T) : Task<Option<Permission>> =
   task {
     let! isAdmin = Account.isAdmin username
-    if isAdmin then return Some ReadWrite
-    else return None
+    if isAdmin then return Some ReadWrite else return None
   }
 
 // We special-case some users, so they have access to particular shared canvases
@@ -168,7 +181,7 @@ let permission
       (fun () -> task { return specialCasePermission username owner })
       (fun () -> task { return samplePermission owner })
       (fun () -> task { return! grantedPermission username owner })
-      (fun () -> task { return! adminPermission username })  ]
+      (fun () -> task { return! adminPermission username }) ]
   // Return the greatest `permission option` of a set of functions producing
   // `permission option`, lazily, so we don't hit the db unnecessarily
   List.fold
@@ -185,7 +198,10 @@ let permission
       })
     permFs
 
-let permitted (neededPermission : Permission) (actualPermission : Option<Permission>): bool =
+let permitted
+  (neededPermission : Permission)
+  (actualPermission : Option<Permission>)
+  : bool =
   match neededPermission, actualPermission with
   | ReadWrite, Some ReadWrite -> true
   | ReadWrite, Some Read -> false

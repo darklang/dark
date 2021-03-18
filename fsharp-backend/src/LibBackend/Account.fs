@@ -120,7 +120,7 @@ let validateEmail (email : string) : Result<unit, string> =
   if FsRegEx.isMatch reString email then
     Ok()
   else
-    Error($"Invalid email '{email}, must match /{reString}/")
+    Error($"Invalid email '{email}'")
 
 
 let validateAccount (account : Account) : Result<unit, string> =
