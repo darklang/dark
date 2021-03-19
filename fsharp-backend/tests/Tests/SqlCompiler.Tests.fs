@@ -38,18 +38,13 @@ let compile
   task {
     let! state = executionStateFor "test" Map.empty Map.empty
 
-    printfn $"expr: {expr}"
-
     try
       let! sql, args =
         C.compileLambda state symtable paramName (Map.ofList dbFields) expr
 
       let args = Map.ofList args
-      printfn $"sql: {sql}"
-      printfn $"args: {args}"
       return sql, args
     with LibExecution.Errors.DBQueryException msg as e ->
-      printfn $"Exception {msg}"
       raise e
       return ("", Map.empty)
   }
@@ -103,14 +98,8 @@ let compileTests =
           []
       }
       testTask "symtable values escaped" {
-        let injection = "';select * from user_data;'"
-
-        let expr =
-          S.eApply
-            (S.eStdFnVal "" "==" 0)
-            [ S.eVar "var"; S.eFieldAccess (S.eVar "value") "name" ]
-
-        let symtable = Map.ofList [ "var", DStr injection ]
+        let expr = p "var == value.name"
+        let symtable = Map.ofList [ "var", DStr "';select * from user_data;'" ]
 
         let! sql, args = compile symtable "value" [ "name", TStr ] expr
 
