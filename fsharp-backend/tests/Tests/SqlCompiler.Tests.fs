@@ -110,9 +110,7 @@ let compileTests =
           []
       }
       testTask "pipes expand correctly into nested functions" {
-        let expr =
-          FSharpToExpr.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
-
+        let expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
         let! sql, args = compile Map.empty "value" [ "age", TInt ] expr
 
         matchSql
