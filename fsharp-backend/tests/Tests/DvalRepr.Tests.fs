@@ -183,18 +183,7 @@ module ToHashableRepr =
           [ DBytes [| 128uy |] ]
           "EYSh9xozHYAoaIUeS40e25VqvD1K7cA72JhEKbAmMtj6xhN02H7nouKqx4GCtvo_" ]
 
-  let testDifferentValues : Test =
-    test "hash returns different values" {
-      let arglist =
-        [ "ab==" |> base64Decode |> DBytes; "c===" |> base64Decode |> DBytes ]
-
-      Expect.notEqual (DvalRepr.hash 0 arglist) (DvalRepr.hash 1 arglist) ""
-    }
-
-  let tests =
-    testList
-      "hashing"
-      [ testToHashableRepr; testHashV0; testHashV1; testDifferentValues ]
+  let tests = testList "hashing" [ testToHashableRepr; testHashV0; testHashV1 ]
 
 
 
