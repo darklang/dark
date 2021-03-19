@@ -53,7 +53,7 @@ let createState
     traceTLID = fun _ -> ()
     onExecutionPath = true
     context = RT.Real
-    executingFnName = RT.FQFnName.empty
+    executingFnName = None
     loadFnResult = loadFnResult
     loadFnArguments = loadFnArguments
     storeFnResult = storeFnResult

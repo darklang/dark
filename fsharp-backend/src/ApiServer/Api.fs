@@ -243,15 +243,18 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
 
 let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)
 
-let userFunctions : Lazy<string> =
+let nonAdminFunctions : Lazy<string> =
   lazy
     (allFunctions
-     |> List.filter (fun fn -> fn.name.module_ <> "DarkInternal")
+     |> List.filter
+          (function
+          | { name = { module_ = "DarkInternal" } } -> false
+          | _ -> true)
      |> functionsToString)
 
 
 let functions (includeAdminFns : bool) : Lazy<string> =
-  if includeAdminFns then adminFunctions else userFunctions
+  if includeAdminFns then adminFunctions else nonAdminFunctions
 
 // --------------------
 // Endpoints

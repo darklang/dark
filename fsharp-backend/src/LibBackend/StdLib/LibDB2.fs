@@ -7,7 +7,7 @@ module UserDB = LibBackend.UserDB
 module Errors = LibExecution.Errors
 module Db = LibBackend.Db
 
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Value(Dval.errStr str)
 

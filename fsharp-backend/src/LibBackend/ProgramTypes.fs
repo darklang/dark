@@ -23,33 +23,40 @@ module RT = LibExecution.RuntimeTypes
 
 module FQFnName =
   type T = RT.FQFnName.T
+  type StdlibFnName = RT.FQFnName.StdlibFnName
+  type PackageFnName = RT.FQFnName.PackageFnName
+  type UserFnName = RT.FQFnName.UserFnName
 
-  let packageName = RT.FQFnName.packageName
+  let packageFnName = RT.FQFnName.packageFnName
   let userFnName = RT.FQFnName.userFnName
-  let stdlibName = RT.FQFnName.stdlibName
+  let stdlibFnName = RT.FQFnName.stdlibFnName
+  let packageFqName = RT.FQFnName.packageFqName
+  let userFqName = RT.FQFnName.userFqName
+  let stdlibFqName = RT.FQFnName.stdlibFqName
 
   let parse (fnName : string) : T =
-    let owner, package, module_, function_, version =
-      match fnName with
-      | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
-              [ owner; package; module_; name; version ] ->
-          (owner, package, module_, name, int version)
-      | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
-              [ module_; name; version ] ->
-          ("dark", "stdlib", module_, name, int version)
-      | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
-          ("dark", "stdlib", module_, name, 0)
-      | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
-          ("dark", "stdlib", "", name, int version)
-      | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] ->
-          ("dark", "stdlib", "Date", name, 0)
-      | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> ("dark", "stdlib", "", name, 0)
-      | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
-          ("dark", "stdlib", "", name, int version)
-      | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> ("dark", "stdlib", "", name, 0)
-      | _ -> failwith $"Bad format in function name: \"{fnName}\""
+    match fnName with
+    | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
+            [ owner; package; module_; name; version ] ->
+        RT.FQFnName.packageFqName owner package module_ name (int version)
+    | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
+            [ module_; name; version ] ->
+        RT.FQFnName.stdlibFqName module_ name (int version)
+    | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
+            [ module_; name; version ] ->
+        RT.FQFnName.stdlibFqName module_ name (int version)
+    | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
+        RT.FQFnName.stdlibFqName module_ name 0
+    | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
+        RT.FQFnName.stdlibFqName "" name 0
+    | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] ->
+        RT.FQFnName.stdlibFqName "Date" name 0
+    | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0
+    | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
+        RT.FQFnName.stdlibFqName "" name (int version)
+    | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
+    | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
-    RT.FQFnName.packageName owner package module_ function_ version
 
 
 
@@ -400,16 +407,7 @@ module Shortcuts =
     (args : List<Expr>)
     (ster : SendToRail)
     : Expr =
-    EFnCall(
-      gid (),
-      { owner = "dark"
-        package = "stdlib"
-        module_ = module_
-        function_ = function_
-        version = version },
-      args,
-      ster
-    )
+    EFnCall(gid (), RT.FQFnName.stdlibFqName module_ function_ version, args, ster)
 
 
   let eFn
@@ -438,11 +436,7 @@ module Shortcuts =
     : Expr =
     EBinOp(
       gid (),
-      { owner = "dark"
-        package = "stdlib"
-        module_ = module_
-        function_ = function_
-        version = version },
+      RT.FQFnName.stdlibFqName module_ function_ version,
       arg1,
       arg2,
       ster
@@ -939,7 +933,7 @@ module PackageManager =
   type Parameter = { name : string; typ : DType; description : string }
 
   type Fn =
-    { name : FQFnName.T
+    { name : FQFnName.PackageFnName
       body : Expr
       parameters : List<Parameter>
       returnType : DType

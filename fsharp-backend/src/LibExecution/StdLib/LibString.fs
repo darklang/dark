@@ -29,7 +29,7 @@ module Errors = LibExecution.Errors
 
 // let error_result msg =
 //   DResult(ResError(DStr msg))
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Value(Dval.errStr str)
 

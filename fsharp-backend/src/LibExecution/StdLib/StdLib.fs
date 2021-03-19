@@ -52,8 +52,8 @@ let infixFnMapping =
     ("Bool", "or", 0), ("", "||") ]
   |> List.map
        (fun ((module_, name, version), (newMod, opName)) ->
-         FQFnName.stdlibName module_ name version,
-         FQFnName.stdlibName newMod opName 0)
+         FQFnName.stdlibFnName module_ name version,
+         FQFnName.stdlibFnName newMod opName 0)
   |> Map
 
 // set of infix names
@@ -61,7 +61,7 @@ let infixFnNames =
   infixFnMapping |> Map.toSeq |> Seq.map FSharpPlus.Operators.item1 |> Set
 
 // Is this the name of an infix function?
-let isInfixName (name : FQFnName.T) = infixFnNames.Contains name
+let isInfixName (name : FQFnName.StdlibFnName) = infixFnNames.Contains name
 
 let infixFns : List<BuiltInFn> =
   let fns =

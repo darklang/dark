@@ -100,7 +100,7 @@ let clearCanvasData (name : CanvasName.T) : Task<unit> =
 let fns =
   lazy
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
-     |> Map.fromListBy (fun fn -> fn.name))
+     |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
 
 

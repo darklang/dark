@@ -40,32 +40,51 @@ module J = Prelude.Json
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
 module FQFnName =
-  type T =
+  type StdlibFnName = { module_ : string; function_ : string; version : int }
+  type UserFnName = string
+
+  type PackageFnName =
     { owner : string
       package : string
       module_ : string
       function_ : string
       version : int }
 
-    override this.ToString() : string =
-      let module_ = if this.module_ = "" then "" else $"{this.module_}::"
-      let fn = $"{module_}{this.function_}_v{this.version}"
+  type T =
+    | User of UserFnName
+    | Stdlib of StdlibFnName
+    | Package of PackageFnName
 
-      if this.owner = "dark" && this.package = "stdlib" then fn
-      else if this.owner = "" && this.package = "" then fn
-      else $"{this.owner}/{this.package}/{fn}"
+    override this.ToString() : string =
+      match this with
+      | User name -> name
+      | Stdlib std ->
+          if std.module_ = "" then
+            $"{std.function_}_v{std.version}"
+          else
+            $"{std.module_}::{std.function_}_v{std.version}"
+      | Package pkg ->
+          $"{pkg.owner}/{pkg.package}/{pkg.module_}::{pkg.function_}_v{pkg.version}"
+
+    member this.isDBQueryFn() : bool =
+      match this with
+      | Stdlib std when
+        std.module_ = "DB"
+        && String.startsWith "query" std.function_
+        && not (String.includes "ExactFields" std.function_) -> true
+      | _ -> false
 
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
 
-  let packageName
+  let packageFnName
     (owner : string)
     (package : string)
     (module_ : string)
     (function_ : string)
     (version : int)
-    : T =
+    : PackageFnName =
     assertRe "owner must match" namePat owner
     assertRe "package must match" namePat package
     if module_ <> "" then assertRe "modName name must match" modNamePat module_
@@ -78,14 +97,33 @@ module FQFnName =
       function_ = function_
       version = version }
 
-  let userFnName (fnName : string) : T =
+  let packageFqName
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : T =
+    Package(packageFnName owner package module_ function_ version)
+
+  let userFnName (fnName : string) : UserFnName =
     assertRe "function name must match" fnnamePat fnName
-    { owner = ""; package = ""; module_ = ""; function_ = fnName; version = 0 }
+    fnName
 
-  let stdlibName (module_ : string) (function_ : string) (version : int) : T =
-    packageName "dark" "stdlib" module_ function_ version
+  let userFqName (fnName : string) = User(userFnName fnName)
 
-  let empty = { owner = ""; package = ""; module_ = ""; function_ = ""; version = 0 }
+  let stdlibFnName
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : StdlibFnName =
+    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    assertRe "function name must match" fnnamePat function_
+    assert_ "version can't be negative" (version >= 0)
+    { module_ = module_; function_ = function_; version = version }
+
+  let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
+    Stdlib(stdlibFnName module_ function_ version)
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
@@ -514,7 +552,7 @@ module Package =
   type Parameter = { name : string; typ : DType; description : string }
 
   type Fn =
-    { name : FQFnName.T
+    { name : FQFnName.PackageFnName
       body : Expr
       parameters : List<Parameter>
       returnType : DType
@@ -541,7 +579,7 @@ type Previewable =
 type Deprecation =
   | NotDeprecated
   // This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of FQFnName.T
+  | ReplacedBy of FQFnName.StdlibFnName
   // This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of string
 
@@ -580,7 +618,7 @@ type SqlSpec =
     | SqlCallback2 _ -> true
 
 type BuiltInFn =
-  { name : FQFnName.T
+  { name : FQFnName.StdlibFnName
     parameters : List<Param>
     returnType : DType
     description : string
@@ -640,7 +678,7 @@ and ExecutionState =
     secrets : List<Secret.T>
     trace : bool -> id -> Dval -> unit
     traceTLID : tlid -> unit
-    executingFnName : FQFnName.T
+    executingFnName : Option<FQFnName.T>
     // Used for recursion detection in the editor. In the editor, we call all
     // paths to show live values, but with recursion that causes infinite
     // recursion.
@@ -655,7 +693,7 @@ and ExecutionState =
     storeFnArguments : StoreFnArguments }
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
-  { name = fn.name
+  { name = FQFnName.Stdlib fn.name
     parameters = fn.parameters
     returnType = fn.returnType
     description = ""
@@ -668,7 +706,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
   let toParam (p : UserFunction.Parameter) : Param =
     { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
 
-  { name = FQFnName.userFnName fn.name
+  { name = FQFnName.userFqName fn.name
     parameters = fn.parameters |> List.map toParam
     returnType = fn.returnType
     description = ""
@@ -681,7 +719,7 @@ let packageFnToFn (fn : Package.Fn) : Fn =
   let toParam (p : Package.Parameter) : Param =
     { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
 
-  { name = fn.name
+  { name = FQFnName.Package fn.name
     parameters = fn.parameters |> List.map toParam
 
     returnType = fn.returnType

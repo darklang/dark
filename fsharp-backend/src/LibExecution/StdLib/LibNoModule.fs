@@ -5,7 +5,7 @@ open Prelude
 module DvalRepr = LibExecution.DvalRepr
 open LibExecution.RuntimeTypes
 
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Value(Dval.errStr str)
 

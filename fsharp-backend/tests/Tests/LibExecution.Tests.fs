@@ -262,11 +262,11 @@ let fqFnName =
   testMany
     "FQFnName.ToString"
     (fun (name : RT.FQFnName.T) -> name.ToString())
-    [ (RT.FQFnName.stdlibName "" "++" 0), "++_v0"
-      (RT.FQFnName.stdlibName "" "!=" 0), "!=_v0"
-      (RT.FQFnName.stdlibName "" "&&" 0), "&&_v0"
-      (RT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
-      (RT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+    [ (RT.FQFnName.stdlibFqName "" "++" 0), "++_v0"
+      (RT.FQFnName.stdlibFqName "" "!=" 0), "!=_v0"
+      (RT.FQFnName.stdlibFqName "" "&&" 0), "&&_v0"
+      (RT.FQFnName.stdlibFqName "" "toString" 0), "toString_v0"
+      (RT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 // TODO parsing function names from OCaml
 
@@ -274,18 +274,18 @@ let backendFqFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun (name : PT.FQFnName.T) -> name.ToString())
-    [ (PT.FQFnName.stdlibName "" "++" 0), "++_v0"
-      (PT.FQFnName.stdlibName "" "!=" 0), "!=_v0"
-      (PT.FQFnName.stdlibName "" "&&" 0), "&&_v0"
-      (PT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
-      (PT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++_v0"
+      (PT.FQFnName.stdlibFqName "" "!=" 0), "!=_v0"
+      (PT.FQFnName.stdlibFqName "" "&&" 0), "&&_v0"
+      (PT.FQFnName.stdlibFqName "" "toString" 0), "toString_v0"
+      (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 let equalsOCaml =
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany
     "equalsOCaml"
     (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
-    [ ((RT.FQFnName.stdlibName "List" "fold" 0,
+    [ ((RT.FQFnName.stdlibFqName "List" "fold" 0,
         [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0I) ]
           RT.DList []
           RT.DFnVal(

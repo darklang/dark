@@ -10,7 +10,7 @@ open FSharpPlus
 open LibExecution.RuntimeTypes
 open Prelude
 
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 

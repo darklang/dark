@@ -142,17 +142,8 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (pattern : Expr) =
   match pattern with
-  | EApply (_,
-            EFQFnValue (_,
-                        { owner = "dark"
-                          package = "stdlib"
-                          module_ = module_
-                          function_ = function_
-                          version = version }),
-            args,
-            _,
-            NoRail) when module_ = mName && function_ = fName && version = v ->
-      Some args
+  | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _, NoRail) when
+    std.module_ = mName && std.function_ = fName && std.version = v -> Some args
   | _ -> None
 
 // Generate SQL from an Expr. This expects that all the hard stuff has been
