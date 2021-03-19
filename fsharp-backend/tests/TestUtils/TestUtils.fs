@@ -16,6 +16,7 @@ module RT = LibExecution.RuntimeTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
+module S = LibExecution.Shortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
   lazy
@@ -96,6 +97,33 @@ let clearCanvasData (name : CanvasName.T) : Task<unit> =
 
     return ()
   }
+
+
+let testHttpRouteHandler (ast : RT.Expr) : RT.Handler.T =
+  S.httpRouteHandler "test/:username/:id/" "GET" ast
+
+let testCron (ast : RT.Expr) : RT.Handler.T = S.dailyCron "test" ast
+
+let testWorker (ast : RT.Expr) : RT.Handler.T = S.worker "test" ast
+
+
+// let hop h = Types.SetHandler (tlid, pos, h)
+
+let testUserFn
+  (name : string)
+  (parameters : List<string>)
+  (body : RT.Expr)
+  : RT.UserFunction.T =
+  S.userFn
+    name
+    "test fn"
+    (RT.TVariable "a")
+    (List.map
+      (fun (p : string) ->
+        { name = p; typ = RT.TVariable "b"; description = "test" })
+      parameters)
+    body
+
 
 let fns =
   lazy

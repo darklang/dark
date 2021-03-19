@@ -201,6 +201,15 @@ module Dictionary =
     d.Add(k, v)
     d
 
+  let toList (d : T<'k, 'v>) : List<'k * 'v> =
+    seq {
+      let mutable e = d.GetEnumerator()
+
+      while e.MoveNext() do
+        yield (e.Current.Key, e.Current.Value)
+    }
+    |> Seq.toList
+
 
 // ----------------------
 // TaskOrValue

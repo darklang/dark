@@ -11,27 +11,23 @@ open TestUtils
 open LibExecution.RuntimeTypes
 open LibExecution.Shortcuts
 
+module Exe = LibExecution.Execution
+
 module AT = LibExecution.AnalysisTypes
 
 let parse = FSharpToExpr.parseRTExpr
 
-let execSaveDvals (ast : Expr) : Task<AT.AnalysisResults> =
+let execSaveDvals
+  (userFns : List<UserFunction.T>)
+  (ast : Expr)
+  : Task<AT.AnalysisResults> =
+
   task {
-    let! state = executionStateFor "test" Map.empty Map.empty
+    let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
+    let! state = executionStateFor "test" Map.empty fns
     let inputVars = Map.empty
 
-    return
-      LibExecution.Execution.analyseExpr
-        state.accountID
-        state.canvasID
-        state.tlid
-        inputVars
-        state.packageFns
-        state.dbs
-        state.userFns
-        state.userTypes
-        state.secrets
-        ast
+    return Exe.analyseExpr state Exe.loadNoResults Exe.loadNoArguments inputVars ast
   }
 
 
@@ -126,7 +122,7 @@ let testListLiterals : Test =
   testTask "Blank in a list evaluates to Incomplete" {
     let id = gid ()
     let ast = eList [ eInt 1; EBlank id ]
-    let! (results : AT.AnalysisResults) = execSaveDvals ast
+    let! (results : AT.AnalysisResults) = execSaveDvals [] ast
 
     return
       match Dictionary.tryGetValue id results with
@@ -135,55 +131,52 @@ let testListLiterals : Test =
   }
 
 
-// let t_recursion_in_editor () =
-//   let caller_id = fid () in
-//   let skipped_caller_id = fid () in
-//   let open FluidShortcuts in
-//   let recurse =
-//     user_fn
-//       "recurse"
-//       ["i"]
-//       (* if it goes down all paths, it'll recurse forever *)
-//       (if'
-//          (binop "<" (var "i") (int 1))
-//          (int 0)
-//          (fn ~id:skipped_caller_id "recurse" [int 2]))
-//   in
-//   let ast = fn ~id:caller_id "recurse" [int 0] in
-//   let ops = [SetFunction recurse] in
-//   let dvalStore = exec_save_dvals' ~ops ast in
-//   check_execution_result
-//     "result is there as expected"
-//     (IDTable.find_exn dvalStore caller_id)
-//     (ExecutedResult (Dval.dint 0)) ;
-//   check_execution_result
-//     "result is incomplete for other path"
-//     (IDTable.find_exn dvalStore skipped_caller_id)
-//     (NonExecutedResult (DIncomplete (SourceId (id_of_int 7, skipped_caller_id)))) ;
-//   ()
-//
-//
-// let t_if_not_executed () =
-//   let trueid = fid () in
-//   let falseid = fid () in
-//   let ifid = fid () in
-//   let ast = if' ~id:ifid (bool true) (int ~id:trueid 5) (int ~id:falseid 6) in
-//   let dvalStore = exec_save_dvals ast in
-//   check_execution_result
-//     "if is ok"
-//     (IDTable.find_exn dvalStore ifid)
-//     (ExecutedResult (Dval.dint 5)) ;
-//   check_execution_result
-//     "truebody is ok"
-//     (IDTable.find_exn dvalStore trueid)
-//     (ExecutedResult (Dval.dint 5)) ;
-//   check_execution_result
-//     "elsebody is ok"
-//     (IDTable.find_exn dvalStore falseid)
-//     (NonExecutedResult (Dval.dint 6)) ;
-//   ()
-//
-//
+let testRecursionInEditor : Test =
+  testTask "results in recursion" {
+    let callerID = gid ()
+    let skippedCallerID = gid ()
+
+    let fnExpr =
+      (eIf
+        (eApply (eStdFnVal "" "<" 0) [ eVar "i"; eInt 1 ])
+        (eInt 0)
+        (EApply(skippedCallerID, eUserFnVal "recurse", [ eInt 2 ], NotInPipe, NoRail)))
+
+    let recurse = testUserFn "recurse" [ "i" ] fnExpr
+    let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
+    let! results = execSaveDvals [ recurse ] ast
+
+    Expect.equal
+      (Dictionary.tryGetValue callerID results)
+      (Some(AT.ExecutedResult(DInt 0I)))
+      "result is there as expected"
+
+    Expect.equal
+      (Dictionary.tryGetValue skippedCallerID results)
+      (Some(
+        AT.NonExecutedResult(DIncomplete(SourceID(recurse.tlid, skippedCallerID)))
+      ))
+      "result is incomplete for other path"
+  }
+
+
+let testIfNotIsEvaluated : Test =
+  testTask "test if else case is evaluated" {
+    let falseID = gid ()
+    let trueID = gid ()
+    let ifID = gid ()
+    let ast = EIf(ifID, eBool true, EInteger(trueID, 5I), EInteger(falseID, 6I))
+    let! results = execSaveDvals [] ast
+
+    let check id expected msg =
+      Expect.equal (Dictionary.tryGetValue id results) (Some expected) msg
+
+    check ifID (AT.ExecutedResult(DInt 5I)) "if is ok"
+    check trueID (AT.ExecutedResult(DInt 5I)) "truebody is ok"
+    check falseID (AT.NonExecutedResult(DInt 6I)) "falsebody is ok"
+  }
+
+
 // let t_match_evaluation () =
 //   let gid = Shared.gid in
 //   let open FluidShortcuts in
@@ -348,7 +341,10 @@ let testListLiterals : Test =
 //   (* TODO: constructor around a constructor around a value *)
 //   ()
 
-let tests = testList "Analysis" [ testListLiterals ]
+let tests =
+  testList
+    "Analysis"
+    [ testListLiterals; testRecursionInEditor; testIfNotIsEvaluated ]
 //
 //
 // let suite =

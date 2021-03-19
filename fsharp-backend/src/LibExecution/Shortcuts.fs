@@ -265,3 +265,33 @@ let pNull () : Pattern = PNull(gid ())
 let pBlank () : Pattern = PBlank(gid ())
 
 let eflag cond oldCode newCode = EFeatureFlag(gid (), cond, oldCode, newCode)
+
+
+
+let httpRouteHandler (route : string) (method : string) (ast : Expr) : Handler.T =
+  { tlid = gid (); ast = ast; spec = Handler.HTTP(route, method) }
+
+
+let dailyCron (name : string) (ast : Expr) : Handler.T =
+  { tlid = gid (); ast = ast; spec = Handler.Cron(name, "Daily") }
+
+let worker (name : string) (ast : Expr) : Handler.T =
+  { tlid = gid (); ast = ast; spec = Handler.Worker(name) }
+
+
+// let hop h = Types.SetHandler (tlid, pos, h)
+
+let userFn
+  (name : string)
+  (description : string)
+  (returnType : DType)
+  (parameters : UserFunction.Parameter list)
+  (body : Expr)
+  : UserFunction.T =
+  { tlid = gid ()
+    body = body
+    name = name
+    parameters = parameters
+    returnType = returnType
+    description = description
+    infix = false }

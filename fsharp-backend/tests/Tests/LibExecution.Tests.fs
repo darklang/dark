@@ -98,7 +98,7 @@ let fileTests () : Test =
          let emptyTest = { recording = false; name = ""; dbs = []; code = "" }
 
          let emptyFn =
-           { recording = false; name = ""; parameters = []; code = ""; tlid = id 0 }
+           { recording = false; name = ""; parameters = []; code = ""; tlid = id 7 }
 
          let emptyGroup = { name = ""; tests = []; dbs = [] }
 

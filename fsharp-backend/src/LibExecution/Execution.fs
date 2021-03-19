@@ -140,15 +140,10 @@ let run
 // Execution
 // --------------------
 let analyseExpr
-  (accountID : UserID)
-  (canvasID : CanvasID)
-  (tlid : tlid)
+  (state : RT.ExecutionState)
+  (loadFnResults : RT.LoadFnResult)
+  (loadFnArguments : RT.LoadFnArguments)
   (inputVars : RT.DvalMap)
-  (packageFns : Map<RT.FQFnName.T, RT.Package.Fn>)
-  (dbs : Map<string, RT.DB.T>)
-  (userFns : Map<string, RT.UserFunction.T>)
-  (userTypes : Map<string * int, RT.UserType.T>)
-  (secrets : List<RT.Secret.T>)
   (ast : RT.Expr)
   : AT.AnalysisResults =
   let results = Dictionary()
@@ -160,25 +155,13 @@ let analyseExpr
     results.Add(id, result)
 
   let state : RT.ExecutionState =
-    { functions = Map.empty
-      tlid = tlid
-      callstack = Set.empty
-      accountID = accountID
-      canvasID = canvasID
-      userFns = userFns
-      userTypes = userTypes
-      packageFns = packageFns
-      dbs = dbs
-      secrets = secrets
-      trace = trace
-      traceTLID = fun _ -> ()
-      onExecutionPath = true
-      context = RT.Preview
-      executingFnName = None
-      loadFnResult = loadNoResults
-      loadFnArguments = loadNoArguments
-      storeFnResult = storeNoResults
-      storeFnArguments = storeNoArguments }
+    { state with
+        context = RT.Preview
+        trace = trace
+        loadFnResult = loadFnResults
+        loadFnArguments = loadFnArguments
+        storeFnResult = storeNoResults
+        storeFnArguments = storeNoArguments }
 
   let symtable = Interpreter.withGlobals state inputVars
   let _ = Interpreter.eval state symtable ast

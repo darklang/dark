@@ -28,6 +28,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = Value(DIncomplete(SourceID(state.tlid, id)))
 
+  let preview st expr : TaskOrValue<unit> =
+    taskv {
+      if state.context = Preview then
+        let state = { state with onExecutionPath = false }
+        let! (result : Dval) = eval state st expr
+        ignore result
+    }
+
+
   taskv {
     match e with
     | EBlank id -> return! (incomplete id)
@@ -315,14 +324,20 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return! !matchResult
 
     | EIf (_id, cond, thenbody, elsebody) ->
-        let! cond = eval state st cond
-
-        match cond with
+        match! eval state st cond with
         | DBool (false)
-        | DNull -> return! eval state st elsebody
-        | _ when Dval.isFake cond -> return cond
+        | DNull ->
+            do! preview st thenbody
+            return! eval state st elsebody
+        | cond when Dval.isFake cond ->
+            do! preview st thenbody
+            do! preview st elsebody
+            return cond
         // CLEANUP: I dont know why I made these always true
-        | _ -> return! eval state st thenbody
+        | _ ->
+            let! result = eval state st thenbody
+            do! preview st elsebody
+            return result
     | EConstructor (id, name, args) ->
         match (name, args) with
         | "Nothing", [] -> return DOption None

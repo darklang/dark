@@ -864,13 +864,7 @@ let fns : List<BuiltInFn> =
               let! result =
                 map_s
                   (fun dv ->
-                    LibExecution.Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ dv ]
-                      NotInPipe
-                      NoRail)
+                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                   l
 
               return DList result
@@ -896,13 +890,7 @@ let fns : List<BuiltInFn> =
               let! result =
                 map_s
                   (fun dv ->
-                    LibExecution.Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ dv ]
-                      NotInPipe
-                      NoRail)
+                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                   l
 
               return Dval.list result
