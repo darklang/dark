@@ -25,7 +25,7 @@ let t
   : Test =
   let name = $"{comment} ({code})"
 
-  if matches @"^\s*//" code then
+  if matches @"^\s*$" code || matches @"^\s*//" code then
     ptestTask name { return (Expect.equal "skipped" "skipped" "") }
   else
     testTask name {
@@ -230,7 +230,8 @@ let fileTests () : Test =
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments
-                | Regex @"^\s*//.*$" [] -> ()
+                | Regex @"^\s*//.*$" [] when
+                  currentTest.recording || currentFn.recording -> ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
                     currentTest <-
