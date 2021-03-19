@@ -81,38 +81,37 @@ module FQFnName =
     static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
       { new Arbitrary<PT.FQFnName.T>() with
           member x.Generator =
-            gen {
-              let! owner = ownerName
-              let! package = packageName
-              let! module_ = modName
-              let! function_ = fnName
-              let! NonNegativeInt version = Arb.generate<NonNegativeInt>
+            let stdlib =
+              gen {
+                let! module_ = modName
+                let! function_ = fnName
+                let! NonNegativeInt version = Arb.generate<NonNegativeInt>
+                return PT.FQFnName.stdlibFqName module_ function_ version
+              }
 
-              return
-                { owner = owner
-                  package = package
-                  module_ = module_
-                  function_ = function_
-                  version = version }
-            } }
+            let user =
+              gen {
+                let! function_ = fnName
+                return PT.FQFnName.userFqName function_
+              }
+
+            let package =
+              gen {
+                let! owner = ownerName
+                let! package = packageName
+                let! module_ = modName
+                let! function_ = fnName
+                let! NonNegativeInt version = Arb.generate<NonNegativeInt>
+
+                return
+                  PT.FQFnName.packageFqName owner package module_ function_ version
+              }
+
+            Gen.oneof [ stdlib; user; package ] }
 
     static member RTFQFnName() : Arbitrary<RT.FQFnName.T> =
       { new Arbitrary<RT.FQFnName.T>() with
-          member x.Generator =
-            gen {
-              let! owner = ownerName
-              let! package = packageName
-              let! module_ = modName
-              let! function_ = fnName
-              let! NonNegativeInt version = Arb.generate<NonNegativeInt>
-
-              return
-                { owner = owner
-                  package = package
-                  module_ = module_
-                  function_ = function_
-                  version = version }
-            } }
+          member x.Generator = Generator.PTFQFnName().Generator }
 
   let ptRoundtrip (a : PT.FQFnName.T) : bool =
     a.ToString() |> PT.FQFnName.parse .=. a
@@ -491,7 +490,7 @@ module ExecutePureFunctions =
            | RT.DFloat f -> filterFloat f
            | _ -> true)
 
-    static member Fn() : Arbitrary<PT.FQFnName.T * List<RT.Dval>> =
+    static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
       let genDval(typ' : RT.DType) : Gen<RT.Dval> =
         let rec genDval' typ s =
           gen {
@@ -552,19 +551,21 @@ module ExecutePureFunctions =
 
         Gen.sized (genDval' typ')
 
-      { new Arbitrary<PT.FQFnName.T * List<RT.Dval>>() with
+      { new Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>>() with
           member x.Generator =
             gen {
               let fns =
                 LibExecution.StdLib.StdLib.fns
                 |> List.filter
-                     (fun fn ->
-                       fn.previewable = RT.Pure
-                       && fn.name.module_ <> "Http"
-                       && fn.name.function_ <> "slugify"
-                       && fn.name.function_ <> "sort"
-                       && fn.name.function_ <> "sortBy"
-                       && fn.name.function_ <> "base64Decode")
+                     (function
+                     | { name = { module_ = "Http" } } -> false
+                     | { name = { module_ = "String"; function_ = "slugify" } } ->
+                         false
+                     | { name = { module_ = "String"; function_ = "base64decode" } } ->
+                         false
+                     | { name = { module_ = "List"; function_ = "sort" } } -> false
+                     | { name = { module_ = "List"; function_ = "sortBy" } } -> false
+                     | fn -> fn.previewable = RT.Pure)
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
               let name = fns.[fnIndex].name
@@ -665,19 +666,13 @@ module ExecutePureFunctions =
         let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
         let st = Map.ofList args
 
-        // Just the LibExecution fns for now
-        let fns =
-          (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
-
         let ownerID = System.Guid.NewGuid()
         let canvasID = System.Guid.NewGuid()
 
         let expected = OCamlInterop.execute ownerID canvasID ast st [] []
         // debuG "ocaml (expected)" expected
 
-        let! state =
-          executionStateFor "execute_pure_function" Map.empty Map.empty fns
-
+        let! state = executionStateFor "executePure" Map.empty Map.empty
         let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
         // debuG "fsharp (actual) " actual
 

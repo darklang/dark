@@ -7,7 +7,7 @@ open Prelude
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 

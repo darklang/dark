@@ -10,7 +10,7 @@ open Prelude
 
 module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Value(Dval.errStr str)
 

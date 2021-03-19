@@ -183,7 +183,6 @@ module ToHashableRepr =
           [ DBytes [| 128uy |] ]
           "EYSh9xozHYAoaIUeS40e25VqvD1K7cA72JhEKbAmMtj6xhN02H7nouKqx4GCtvo_" ]
 
-
   let tests = testList "hashing" [ testToHashableRepr; testHashV0; testHashV1 ]
 
 

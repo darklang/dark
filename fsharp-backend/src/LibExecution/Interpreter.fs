@@ -423,12 +423,12 @@ and callFn
     let sourceID id = SourceID(state.tlid, id) in
 
     let fn =
-      match desc.owner, desc.package, desc.module_ with
-      | "dark", "stdlib", _ ->
+      match desc with
+      | FQFnName.Stdlib std ->
           state.functions.TryFind desc |> Option.map builtInFnToFn
-      | "", "", "" -> state.userFns.TryFind desc.function_ |> Option.map userFnToFn
-      // FSTODO
-      | _ -> state.packageFns.TryFind desc |> Option.map packageFnToFn
+      | FQFnName.User name -> state.userFns.TryFind name |> Option.map userFnToFn
+      | FQFnName.Package pkg ->
+          state.packageFns.TryFind desc |> Option.map packageFnToFn
 
     match List.tryFind Dval.isErrorRail argvals with
     | Some er -> return er
@@ -447,8 +447,7 @@ and callFn
               if state.context = Preview
                  (* The prefix might match too much but that's fixed by the
                     * match which is very specific *)
-                 && desc.module_ = "DB"
-                 && String.startsWith "DB::query" desc.function_ then
+                 && desc.isDBQueryFn () then
                 match argvals with
                 | [ DDB dbname; DFnVal (Lambda b) ] ->
                     let sample =
@@ -484,7 +483,7 @@ and callFn
                   DError(
                     sourceID id,
                     $"{desc} has {expectedLength} parameters, but here was called"
-                    + " with {actualLength} arguments."
+                    + $" with {actualLength} arguments."
                   )
                 )
 
@@ -532,7 +531,7 @@ and execFn
     else
       let state =
         { state with
-            executingFnName = fnDesc
+            executingFnName = Some fnDesc
             callstack = Set.add fnDesc state.callstack }
 
       let arglist =
@@ -547,8 +546,7 @@ and execFn
       let badArg =
         List.tryFind
           (function
-          | DError _ when fnDesc.module_ = "Bool" && fnDesc.function_ = "isError" ->
-              false
+          | DError _ when fnDesc = FQFnName.stdlibFqName "Bool" "isError" 0 -> false
           | DError _
           | DIncomplete _ -> true
           | _ -> false)

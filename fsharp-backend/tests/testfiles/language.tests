@@ -196,11 +196,6 @@ List.map_v0 [1;2;3;4] (fun x -> blank) = blank
 { x = (List.head_v1_ster []) } = Test.errorRailNothing_v0_ster
 Error (List.head_v1_ster []) = Test.errorRailNothing_v0_ster
 
-//[tests.returns]
-//// FSTODO
-////myGoodFn_v0 = "str" // Type checking for return types
-////myAnyFn_v0 = 5 // Type checking for return types
-
 [tests.shadowing]
 (let x = 5 in let x = 6 in x) = 6
 (let x = 35 in (match 6 with | x -> x)) = 6

@@ -51,3 +51,4 @@ gzipped_assets
 deploy-lock-manual-deploy
 
 .fake
+/fsharp-backend/.paket/load/

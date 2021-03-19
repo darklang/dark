@@ -8,11 +8,13 @@ open Prelude
 open Prelude.Tablecloth
 
 module Exe = LibExecution.Execution
-
+module RT = LibExecution.RuntimeTypes
 
 module Program =
   let fns =
-    lazy (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
+    lazy
+      (LibExecution.StdLib.StdLib.fns
+       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
   // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
   // or DotNet.invokeMethodAsync('Wasm', 'run', 8)

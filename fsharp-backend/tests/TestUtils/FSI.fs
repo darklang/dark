@@ -1,4 +1,4 @@
-module Tests.FSI
+module FSI
 
 // This isn't really for tests, it's for utilities to tests things in FSI. I
 // didn't have a better place for this.
@@ -18,15 +18,8 @@ open Prelude
 let execute (code : string) : RT.Dval =
   let t =
     task {
-      let! state =
-        TestUtils.executionStateFor
-          "fsi"
-          Map.empty
-          Map.empty
-          (Tests.LibExecution.fns.Force())
-
+      let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
       let prog = FSharpToExpr.parseRTExpr code
-
       return! Exe.run state Map.empty prog
     }
 
@@ -37,22 +30,8 @@ let executeOCaml (code : string) : RT.Dval =
   let t =
     task {
       let prog = FSharpToExpr.parsePTExpr code
-
-      let! state =
-        TestUtils.executionStateFor
-          "fsi"
-          Map.empty
-          Map.empty
-          (Tests.LibExecution.fns.Force())
-
-      return
-        LibBackend.OCamlInterop.execute
-          state.accountID
-          state.canvasID
-          prog
-          Map.empty
-          []
-          []
+      let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
+      return OCamlInterop.execute state.accountID state.canvasID prog Map.empty [] []
     }
 
   Task.WaitAll [| t :> Task |]

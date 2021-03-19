@@ -1,4 +1,4 @@
-module Tests.LibTest
+module LibTest
 
 // Functions which are not part of the Dark standard library, but which are
 // useful for testing
@@ -10,7 +10,7 @@ open FSharpPlus
 open LibExecution.RuntimeTypes
 open Prelude
 
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 

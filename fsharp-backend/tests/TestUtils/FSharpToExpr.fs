@@ -184,7 +184,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
             (Map.get name ops |> Option.unwrapUnsafe, 0, PT.NoRail)
         | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
 
-      let desc = PT.FQFnName.stdlibName modName.idText name version
+      let desc = PT.FQFnName.stdlibFqName modName.idText name version
       PT.EFnCall(gid (), desc, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
       let obj1 = eFieldAccess (eVar var.idText) f1.idText
@@ -286,7 +286,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       eflag label placeholder placeholder placeholder
   // Most functions are LongIdents, toString isn't
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString_v0" ->
-      let desc = PT.FQFnName.stdlibName "" "toString" 0
+      let desc = PT.FQFnName.stdlibFqName "" "toString" 0
       PT.EFnCall(gid (), desc, [ c arg ], PT.NoRail)
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
@@ -312,7 +312,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       | PT.EPipe (id, arg1, arg2, rest) as pipe ->
           PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
-          PT.EFnCall(id, PT.FQFnName.userFnName name, [ c arg ], PT.NoRail)
+          PT.EFnCall(id, PT.FQFnName.userFqName name, [ c arg ], PT.NoRail)
       | e ->
           failwith (
             $"Unsupported expression in app: full ast:\n{ast}\n\n"

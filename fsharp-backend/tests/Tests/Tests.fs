@@ -14,15 +14,17 @@ let main args =
   (LibBackend.Account.initTestAccounts ()).Wait()
 
   let tests =
-      [ Tests.LibExecution.tests.Force()
-        Tests.ProgramTypes.tests
-        Tests.OCamlInterop.tests
-        Tests.DvalRepr.tests
-        Tests.SqlCompiler.tests
-        Tests.FSharpToExpr.tests
-        Tests.Account.tests
-        Tests.BwdServer.tests
-        Tests.ApiServer.tests ]
+    [ Tests.LibExecution.tests.Force()
+      Tests.ProgramTypes.tests
+      Tests.OCamlInterop.tests
+      Tests.DvalRepr.tests
+      Tests.SqlCompiler.tests
+      Tests.FSharpToExpr.tests
+      Tests.Account.tests
+      Tests.Authorization.tests
+      Tests.TypeChecker.tests
+      Tests.BwdServer.tests
+      Tests.ApiServer.tests ]
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang

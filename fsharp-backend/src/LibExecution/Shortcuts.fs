@@ -20,8 +20,7 @@ let rec toStringRepr (e : Expr) : string =
   | ENull _ -> $"eNull ()"
   | EVariable (_, var) -> $"eVar {q var}"
   | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
-  | EApply (_, EFQFnValue (_, name), args, NotInPipe, ster) when
-    name.owner = "dark" && name.package = "stdlib" ->
+  | EApply (_, EFQFnValue (_, FQFnName.Stdlib name), args, NotInPipe, ster) ->
       let fn, suffix =
         match ster with
         | NoRail -> "eFn", ""
@@ -40,14 +39,12 @@ let rec toStringRepr (e : Expr) : string =
 
       let args = List.map r args |> String.concat "; "
       $"{fn} {pr expr} [{args}] {suffix}"
-  | EFQFnValue (_, name) ->
-      let fn, package =
-        if name.owner = "dark" && name.package = "stdlib" then
-          "eStdFnVal", ""
-        else
-          "eFnVal", " {q name.owner} {q name.package} "
-
-      $"{fn} {package} {q name.module_} {q name.function_} {name.version}"
+  | EFQFnValue (_, FQFnName.Stdlib std) ->
+      $"eStdFnVal {q std.module_} {q std.function_} {std.version}"
+  | EFQFnValue (_, FQFnName.Package pkg) ->
+      $"ePackageFnVal {q pkg.owner} {q pkg.package}"
+      + $" {q pkg.module_} {q pkg.function_} {pkg.version}"
+  | EFQFnValue (_, FQFnName.User name) -> $"eUserFnVal {q name}"
   | ELambda (_, vars, body) ->
       let vars = List.map (fun (_, y) -> q y) vars |> String.concat "; "
       $"eLambda [{vars}] {pr body}"
@@ -115,10 +112,22 @@ let eFnVal
   (function_ : string)
   (version : int)
   : Expr =
-  EFQFnValue(gid (), FQFnName.packageName owner package module_ function_ version)
+  EFQFnValue(gid (), FQFnName.packageFqName owner package module_ function_ version)
+
+let ePackageFnVal
+  (owner : string)
+  (package : string)
+  (module_ : string)
+  (function_ : string)
+  (version : int)
+  : Expr =
+  EFQFnValue(gid (), FQFnName.packageFqName owner package module_ function_ version)
 
 let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
-  eFnVal "dark" "stdlib" module_ function_ version
+  EFQFnValue(gid (), FQFnName.stdlibFqName module_ function_ version)
+
+let eUserFnVal (function_ : string) : Expr =
+  EFQFnValue(gid (), FQFnName.userFqName function_)
 
 let eFn'
   (module_ : string)

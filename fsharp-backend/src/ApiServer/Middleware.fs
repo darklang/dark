@@ -188,7 +188,7 @@ let withPermissionMiddleware
       let! ownerID = Account.userIDForUserName (ownerName.toUserName ())
       let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
       let canvasInfo = { name = canvasName; id = canvasID; owner = ownerID }
-      let! permission = Auth.permission ownerName ownerID user.username
+      let! permission = Auth.permission ownerName user.username
 
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then

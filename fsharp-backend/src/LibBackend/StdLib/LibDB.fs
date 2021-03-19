@@ -3,7 +3,7 @@ module LibBackend.StdLib.LibDB
 open Prelude
 open LibExecution.RuntimeTypes
 
-let fn = FQFnName.stdlibName
+let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Value(Dval.errStr str)
 

@@ -17,28 +17,6 @@ module Exe = LibExecution.Execution
 
 open TestUtils
 
-// Many OCaml errors use a bunch of different fields, which seemed smart at the
-// time but ultimately was pretty annoying. We can normalize by fetching the
-// "short" field (there are other fields but we'll ignore them)
-type OCamlError = { short : string }
-
-let parseOCamlError (str : string) : string =
-  try
-    (Json.AutoSerialize.deserialize<OCamlError> str).short
-  with _ -> str
-
-// Remove random things like IDs to make the tests stable
-let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
-  match dv with
-  | RT.DError (_, str) -> RT.DError(RT.SourceNone, parseOCamlError str)
-  | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
-  | dv -> dv
-
-let fns =
-  lazy
-    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
-     |> Map.fromListBy (fun fn -> fn.name))
-
 let t
   (comment : string)
   (code : string)
@@ -47,7 +25,7 @@ let t
   : Test =
   let name = $"{comment} ({code})"
 
-  if matches "^\s*//" code then
+  if matches @"^\s*$" code || matches @"^\s*//" code then
     ptestTask name { return (Expect.equal "skipped" "skipped" "") }
   else
     testTask name {
@@ -57,7 +35,7 @@ let t
 
         let rtFunctions = functions |> Map.map (fun f -> f.toRuntimeType ())
 
-        let! state = TestUtils.executionStateFor name rtDBs rtFunctions (fns.Force())
+        let! state = executionStateFor name rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
@@ -252,7 +230,8 @@ let fileTests () : Test =
                 // Skip whitespace lines
                 | Regex @"^\s*$" [] -> ()
                 // Skip whole-line comments
-                | Regex @"^\s*//.*$" [] -> ()
+                | Regex @"^\s*//.*$" [] when
+                  currentTest.recording || currentFn.recording -> ()
                 // Append to the current test string
                 | _ when currentTest.recording ->
                     currentTest <-
@@ -283,11 +262,11 @@ let fqFnName =
   testMany
     "FQFnName.ToString"
     (fun (name : RT.FQFnName.T) -> name.ToString())
-    [ (RT.FQFnName.stdlibName "" "++" 0), "++_v0"
-      (RT.FQFnName.stdlibName "" "!=" 0), "!=_v0"
-      (RT.FQFnName.stdlibName "" "&&" 0), "&&_v0"
-      (RT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
-      (RT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+    [ (RT.FQFnName.stdlibFqName "" "++" 0), "++_v0"
+      (RT.FQFnName.stdlibFqName "" "!=" 0), "!=_v0"
+      (RT.FQFnName.stdlibFqName "" "&&" 0), "&&_v0"
+      (RT.FQFnName.stdlibFqName "" "toString" 0), "toString_v0"
+      (RT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 // TODO parsing function names from OCaml
 
@@ -295,18 +274,18 @@ let backendFqFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun (name : PT.FQFnName.T) -> name.ToString())
-    [ (PT.FQFnName.stdlibName "" "++" 0), "++_v0"
-      (PT.FQFnName.stdlibName "" "!=" 0), "!=_v0"
-      (PT.FQFnName.stdlibName "" "&&" 0), "&&_v0"
-      (PT.FQFnName.stdlibName "" "toString" 0), "toString_v0"
-      (PT.FQFnName.stdlibName "String" "append" 1), "String::append_v1" ]
+    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++_v0"
+      (PT.FQFnName.stdlibFqName "" "!=" 0), "!=_v0"
+      (PT.FQFnName.stdlibFqName "" "&&" 0), "&&_v0"
+      (PT.FQFnName.stdlibFqName "" "toString" 0), "toString_v0"
+      (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 let equalsOCaml =
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany
     "equalsOCaml"
     (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
-    [ ((RT.FQFnName.stdlibName "List" "fold" 0,
+    [ ((RT.FQFnName.stdlibFqName "List" "fold" 0,
         [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0I) ]
           RT.DList []
           RT.DFnVal(
@@ -314,6 +293,17 @@ let equalsOCaml =
           ) ]),
        true) ]
 
+// FSTODO
+// let t_dark_internal_fns_are_internal () =
+//   let ast = fn "DarkInternal::checkAccess" [] in
+//   let check_access canvas_name =
+//     match exec_ast ~canvas_name ast with DError _ -> None | dval -> Some dval
+//   in
+//   AT.check
+//     (AT.list (AT.option at_dval))
+//     "DarkInternal:: functions are internal."
+//     [check_access "test"; check_access "test_admin"]
+//     [None; Some DNull]
 
 let tests =
   lazy

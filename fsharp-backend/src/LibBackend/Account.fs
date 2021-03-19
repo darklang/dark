@@ -120,11 +120,11 @@ let validateEmail (email : string) : Result<unit, string> =
   if FsRegEx.isMatch reString email then
     Ok()
   else
-    Error($"Invalid email '{email}, must match /{reString}/")
+    Error($"Invalid email '{email}'")
 
 
 let validateAccount (account : Account) : Result<unit, string> =
-  validateUserName (account.username.ToString())
+  validateUserName (toString account.username)
   |> Result.and_ (validateEmail account.email)
 
 // Passwords set here are only valid locally, production uses auth0 to check
@@ -151,7 +151,7 @@ let upsertAccount
                            email = EXCLUDED.email,
                            password = EXCLUDED.password"
           |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                              "username", Sql.string (account.username.ToString())
+                              "username", Sql.string (toString account.username)
                               "admin", Sql.bool admin
                               "name", Sql.string account.name
                               "email", Sql.string account.email
@@ -177,7 +177,7 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
       "SELECT id
        FROM accounts
        WHERE accounts.username = @username"
-    |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+    |> Sql.parameters [ "username", Sql.string (toString username) ]
     |> Sql.executeRowAsync (fun read -> read.uuid "id")
 
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
@@ -194,7 +194,7 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
     "SELECT name, email, admin, id
      FROM accounts
      WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.parameters [ "username", Sql.string (toString username) ]
   |> Sql.executeRowOptionAsync
        (fun read ->
          { username = username
@@ -208,7 +208,7 @@ let getUserCreatedAt (username : UserName.T) : Task<System.DateTime> =
     "SELECT created_at
      FROM accounts
      WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.parameters [ "username", Sql.string (toString username) ]
   |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
 
 let getUserAndCreatedAtAndAnalyticsMetadata
@@ -218,7 +218,7 @@ let getUserAndCreatedAtAndAnalyticsMetadata
     "SELECT name, email, admin, created_at, id, segment_metadata
      FROM accounts
      WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.parameters [ "username", Sql.string (toString username) ]
   |> Sql.executeRowOptionAsync
        (fun read ->
          { username = username
@@ -255,7 +255,7 @@ let isAdmin (username : UserName.T) : Task<bool> =
      FROM accounts
      WHERE accounts.username = @username
        AND admin = true"
-  |> Sql.parameters [ "username", Sql.string (username.ToString()) ]
+  |> Sql.parameters [ "username", Sql.string (toString username) ]
   |> Sql.executeExistsAsync
 
 let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
@@ -263,7 +263,7 @@ let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
     "UPDATE accounts
         SET admin = @admin where username = @username"
   |> Sql.parameters [ "admin", Sql.bool admin
-                      "username", Sql.string (username.ToString()) ]
+                      "username", Sql.string (toString username) ]
   |> Sql.executeStatementAsync
 
 // Returns None if no valid user, or Some username _from the db_ if valid.
@@ -300,9 +300,9 @@ let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
 // formerly called auth_domain_for
 let ownerNameFromCanvasName (host : CanvasName.T) : OwnerName.T =
-  match String.split "-" (host.ToString()) with
+  match String.split "-" (toString host) with
   | owner :: _ -> OwnerName.create owner
-  | _ -> OwnerName.create (host.ToString())
+  | _ -> OwnerName.create (toString host)
 
 // **********************
 // What user has access to

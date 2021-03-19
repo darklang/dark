@@ -108,7 +108,7 @@ let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
 let fns =
   lazy
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-     |> Map.fromListBy (fun fn -> fn.name))
+     |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
 
 let runHttp
@@ -175,7 +175,7 @@ let runHttp
       Interpreter.applyFnVal
         state
         (RT.Expr.toID expr)
-        (RT.FnName(RT.FQFnName.stdlibName "Http" "middleware" 0))
+        (RT.FnName(RT.FQFnName.stdlibFqName "Http" "middleware" 0))
         [ RT.DStr url
           RT.DBytes body
           RT.DObj Map.empty

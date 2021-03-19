@@ -4,28 +4,21 @@ open Expecto
 open Prelude
 open TestUtils
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 module PT = LibBackend.ProgramTypes
-module RT = LibExecution.RuntimeTypes
+open LibExecution.RuntimeTypes
+
+module C = LibBackend.SqlCompiler
+module S = LibExecution.Shortcuts
 
 
 // let t_sql_compiler_works () =
-//   let open Types in
-//   let open Prelude in
-//   let _, state, _ = Utils.test_execution_data [] in
-//   let check
-//       (msg : string)
-//       ?(paramName = "value")
-//       ?(dbFields = [])
-//       ?(symtable = [])
-//       (body : fluid_expr)
-//       (generated : string) : unit =
-//     let dbFields = StrDict.from_list dbFields in
-//     let symtable = StrDict.from_list symtable in
-//     let result =
-//       Sql_compiler.compile_lambda ~state symtable paramName dbFields body
-//     in
-//     AT.check AT.string msg result generated
-//   in
+//   checkError
+//     "no field gives error"
+//     field
+//     "The datastore does not have a field named: myfield" ;
 //   let checkError
 //       (msg : string)
 //       ?(paramName = "value")
@@ -35,75 +28,119 @@ module RT = LibExecution.RuntimeTypes
 //       (expectedError : string) : unit =
 //     try check msg ~paramName ~dbFields ~symtable body "<error expected>"
 //     with Db.DBQueryException e -> AT.check AT.string msg e expectedError
-//   in
-//   let true' = bool true in
-//   check "true is true" true' "(true)" ;
-//   let field = fieldAccess (var "value") "myfield" in
-//   check
-//     "correct SQL for field access"
-//     ~dbFields:[("myfield", TBool)]
-//     field
-//     "(CAST(data::jsonb->>'myfield' as bool))" ;
-//   checkError
-//     "no field gives error"
-//     field
-//     "The datastore does not have a field named: myfield" ;
-//   let injection = "'; select * from user_data ;'field" in
-//   let field = binop "==" (fieldAccess (var "value") injection) (str "x") in
-//   check
-//     "field accesses are escaped"
-//     ~dbFields:[(injection, TStr)]
-//     field
-//     "((CAST(data::jsonb->>'''; select * from user_data ;''field' as text)) = ('x'))" ;
-//   let variable = binop "==" (var "var") (fieldAccess (var "value") "name") in
-//   check
-//     "symtable escapes correctly"
-//     ~dbFields:[("name", TStr)]
-//     ~symtable:[("var", Dval.dstr_of_string_exn "';select * from user_data;'")]
-//     variable
-//     "((''';select * from user_data;''') = (CAST(data::jsonb->>'name' as text)))" ;
-//   let thread =
-//     pipe
-//       (fieldAccess (var "value") "age")
-//       [ binop "-" pipeTarget (int 2)
-//       ; binop "+" pipeTarget (fieldAccess (var "value") "age")
-//       ; binop "<" pipeTarget (int 3) ]
-//   in
-//   check
-//     ~dbFields:[("age", TInt)]
-//     "pipes expand correctly into nested functions"
-//     thread
-//     "((((CAST(data::jsonb->>'age' as integer)) - (2)) + (CAST(data::jsonb->>'age' as integer))) < (3))" ;
-//   check_fluid_expr
-//     "canonicalize works on pipes with targets"
-//     (Sql_compiler.canonicalize thread)
-//     (binop
-//        "<"
-//        (binop
-//           "+"
-//           (binop "-" (fieldAccess (var "value") "age") (int 2))
-//           (fieldAccess (var "value") "age"))
-//        (int 3)) ;
-//   check_fluid_expr
-//     "inline works (with nested inlines)"
-//     (let expr =
-//        let'
-//          "x"
-//          (int 5)
-//          (let' "x" (int 6) (binop "+" (int 3) (let' "x" (int 7) (var "x"))))
-//      in
-//      Sql_compiler.inline "value" StrDict.empty expr)
-//     (binop "+" (int 3) (int 7)) ;
-//   check_fluid_expr
-//     "inline works (def at root)"
-//     (let expr =
-//        let'
-//          "y"
-//          (int 5)
-//          (let' "x" (int 6) (binop "+" (int 3) (let' "x" (int 7) (var "y"))))
-//      in
-//      Sql_compiler.inline "value" StrDict.empty expr)
-//     (binop "+" (int 3) (int 5)) ;
-//   ()
 
-let tests = testList "SqlCompiler" []
+let compile
+  (symtable : DvalMap)
+  (paramName : string)
+  (dbFields : List<string * DType>)
+  (expr : Expr)
+  : Task<string * Map<string, SqlValue>> =
+  task {
+    let! state = executionStateFor "test" Map.empty Map.empty
+
+    try
+      let! sql, args =
+        C.compileLambda state symtable paramName (Map.ofList dbFields) expr
+
+      let args = Map.ofList args
+      return sql, args
+    with LibExecution.Errors.DBQueryException msg as e ->
+      raise e
+      return ("", Map.empty)
+  }
+
+let matchSql
+  (sql : string)
+  (pattern : string)
+  (args : Map<string, SqlValue>)
+  (expected : List<SqlValue>)
+  =
+  Expect.isMatchGroups
+    sql
+    pattern
+    (fun g ->
+      match g.Count with // implicit full match counts for 1
+      | 1 -> true
+      | 2 -> Map.find g.[1].Value args = expected.[0]
+      | _ -> failwith "not supported yet")
+    "compare sql"
+
+let compileTests =
+
+  let p code = FSharpToExpr.parseRTExpr code
+
+  testList
+    "compile tests"
+    [ testTask "compile true" {
+        let! sql, args = compile Map.empty "value" [] (p "true")
+        matchSql sql @"\(@([A-Z]+)\)" args [ Sql.bool true ]
+      }
+      testTask "compile field" {
+        let! sql, args =
+          compile Map.empty "value" [ "myfield", TBool ] (p "value.myfield")
+
+        matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
+      }
+      testTask "check escaped fields" {
+        let injection = "'; select * from user_data ;'field"
+
+        let expr =
+          S.eApply
+            (S.eStdFnVal "" "==" 0)
+            [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
+
+        let! sql, args = compile Map.empty "value" [ injection, TStr ] expr
+
+        matchSql
+          sql
+          @"\(CAST\(data::jsonb->>'''; select * from user_data ;''field' as text\)\) = \('x'\)\)"
+          args
+          []
+      }
+      testTask "symtable values escaped" {
+        let expr = p "var == value.name"
+        let symtable = Map.ofList [ "var", DStr "';select * from user_data;'" ]
+
+        let! sql, args = compile symtable "value" [ "name", TStr ] expr
+
+        matchSql
+          sql
+          @"\(\(''';select * from user_data;'''\) = \(CAST\(data::jsonb->>'name' as text\)\)\)"
+          args
+          []
+      }
+      testTask "pipes expand correctly into nested functions" {
+        let expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+        let! sql, args = compile Map.empty "value" [ "age", TInt ] expr
+
+        matchSql
+          sql
+          @"\(\(\(\(CAST\(data::jsonb->>'age' as integer\)\) - \(2\)\) + \(CAST\(data::jsonb->>'age' as integer\)\)\) < \(3\)\)"
+          args
+          []
+      } ]
+
+
+let inlineWorksAtRoot =
+  test "inlineWorksAtRoot" {
+    let expr =
+      FSharpToExpr.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
+
+    let expected = FSharpToExpr.parseRTExpr "3 + 5"
+    let result = C.inline' "value" Map.empty expr
+    Expect.equalExprIgnoringIDs result expected
+  }
+
+let inlineWorksWithNested =
+  test "inlineWorksWithNested" {
+    let expr =
+      FSharpToExpr.parseRTExpr "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
+
+    let expected = FSharpToExpr.parseRTExpr "3 + 7"
+    let result = C.inline' "value" Map.empty expr
+    Expect.equalExprIgnoringIDs result expected
+  }
+
+
+let tests =
+  testList "SqlCompiler" [ inlineWorksAtRoot; inlineWorksWithNested; compileTests ]

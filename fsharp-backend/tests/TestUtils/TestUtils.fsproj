@@ -11,7 +11,10 @@
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />
+    <Compile Include="FSharpToExpr.fs" />
+    <Compile Include="FSI.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
