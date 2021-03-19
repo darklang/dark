@@ -36,8 +36,7 @@ let compile
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
-    let! state =
-      executionStateFor "test" Map.empty Map.empty (Tests.LibExecution.fns.Force())
+    let! state = executionStateFor "test" Map.empty Map.empty
 
     printfn $"expr: {expr}"
 

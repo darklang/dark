@@ -17,28 +17,6 @@ module Exe = LibExecution.Execution
 
 open TestUtils
 
-// Many OCaml errors use a bunch of different fields, which seemed smart at the
-// time but ultimately was pretty annoying. We can normalize by fetching the
-// "short" field (there are other fields but we'll ignore them)
-type OCamlError = { short : string }
-
-let parseOCamlError (str : string) : string =
-  try
-    (Json.AutoSerialize.deserialize<OCamlError> str).short
-  with _ -> str
-
-// Remove random things like IDs to make the tests stable
-let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
-  match dv with
-  | RT.DError (_, str) -> RT.DError(RT.SourceNone, parseOCamlError str)
-  | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
-  | dv -> dv
-
-let fns =
-  lazy
-    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
-     |> Map.fromListBy (fun fn -> fn.name))
-
 let t
   (comment : string)
   (code : string)
@@ -47,7 +25,7 @@ let t
   : Test =
   let name = $"{comment} ({code})"
 
-  if matches "^\s*//" code then
+  if matches @"^\s*//" code then
     ptestTask name { return (Expect.equal "skipped" "skipped" "") }
   else
     testTask name {
@@ -57,7 +35,7 @@ let t
 
         let rtFunctions = functions |> Map.map (fun f -> f.toRuntimeType ())
 
-        let! state = TestUtils.executionStateFor name rtDBs rtFunctions (fns.Force())
+        let! state = executionStateFor name rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source

@@ -665,19 +665,13 @@ module ExecutePureFunctions =
         let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
         let st = Map.ofList args
 
-        // Just the LibExecution fns for now
-        let fns =
-          (LibExecution.StdLib.StdLib.fns |> Map.fromListBy (fun fn -> fn.name))
-
         let ownerID = System.Guid.NewGuid()
         let canvasID = System.Guid.NewGuid()
 
         let expected = OCamlInterop.execute ownerID canvasID ast st [] []
         // debuG "ocaml (expected)" expected
 
-        let! state =
-          executionStateFor "execute_pure_function" Map.empty Map.empty fns
-
+        let! state = executionStateFor "executePure" Map.empty Map.empty
         let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
         // debuG "fsharp (actual) " actual
 

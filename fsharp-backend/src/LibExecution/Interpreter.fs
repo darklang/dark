@@ -484,7 +484,7 @@ and callFn
                   DError(
                     sourceID id,
                     $"{desc} has {expectedLength} parameters, but here was called"
-                    + " with {actualLength} arguments."
+                    + $" with {actualLength} arguments."
                   )
                 )
 

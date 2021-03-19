@@ -22,6 +22,7 @@ let main args =
       Tests.FSharpToExpr.tests
       Tests.Account.tests
       Tests.Authorization.tests
+      Tests.TypeChecker.tests
       Tests.BwdServer.tests
       Tests.ApiServer.tests ]
 
