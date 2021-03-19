@@ -24,7 +24,7 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 
 
 // fsharplint:disable FL0039
-let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
+let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = Value(DIncomplete(SourceID(state.tlid, id)))
 
@@ -337,6 +337,13 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             return Dval.resultError dv
         | name, _ ->
             return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+  }
+
+and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
+  taskv {
+    let! (result : Dval) = eval' state st e
+    state.trace state.onExecutionPath (Expr.toID e) result
+    return result
   }
 
 // Unwrap the dval, which we expect to be a function, and error if it's not

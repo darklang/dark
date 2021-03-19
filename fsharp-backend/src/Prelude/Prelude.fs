@@ -193,7 +193,13 @@ module String =
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
+module Dictionary =
+  type T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
+  let tryGetValue = FSharpPlus.Dictionary.tryGetValue
 
+  let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : T<'k, 'v> =
+    d.Add(k, v)
+    d
 
 
 // ----------------------

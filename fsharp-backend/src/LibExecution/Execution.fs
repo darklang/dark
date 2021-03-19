@@ -3,6 +3,8 @@ module LibExecution.Execution
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
+
 open Prelude
 open Tablecloth
 
@@ -132,59 +134,52 @@ let run
 //   let result = Ast.execute_fn state fnname caller_id args in
 //   let touched_tlids = TLIDTable.keys tlid_store in
 //   (result, touched_tlids)
-//
-//
-// (* -------------------- *)
-// (* Execution *)
-// (* -------------------- *)
-// let analyse_ast
-//     ~tlid
-//     ~execution_id
-//     ~input_vars
-//     ~dbs
-//     ~user_fns
-//     ~user_tipes
-//     ~package_fns
-//     ~secrets
-//     ~account_id
-//     ~canvas_id
-//     ?(load_fn_result = load_no_results)
-//     ?(load_fn_arguments = load_no_arguments)
-//     (ast : fluid_expr) : analysis =
-//   let value_store = IDTable.create () in
-//   let trace ~on_execution_path id dval =
-//     Hashtbl.set
-//       value_store
-//       ~key:id
-//       ~data:
-//         ( if on_execution_path
-//         then ExecutedResult dval
-//         else NonExecutedResult dval )
-//   in
-//   let state : exec_state =
-//     { tlid
-//     ; callstack = Tc.StrSet.empty
-//     ; account_id
-//     ; canvas_id
-//     ; user_fns
-//     ; user_tipes
-//     ; package_fns
-//     ; dbs
-//     ; secrets
-//     ; trace
-//     ; trace_tlid = (fun _ -> ())
-//     ; on_execution_path = true
-//     ; exec =
-//         (fun ~state _ _ -> Exception.internal "invalid state.exec function")
-//     ; context = Preview
-//     ; execution_id
-//     ; fail_fn = None
-//     ; executing_fnname = ""
-//     ; load_fn_result
-//     ; load_fn_arguments
-//     ; store_fn_result = store_no_results
-//     ; store_fn_arguments = store_no_arguments }
-//   in
-//   let _ = Ast.execute_ast ~state ~input_vars ast in
-//   value_store
-//
+
+
+// --------------------
+// Execution
+// --------------------
+let analyseExpr
+  (accountID : UserID)
+  (canvasID : CanvasID)
+  (tlid : tlid)
+  (inputVars : RT.DvalMap)
+  (packageFns : Map<RT.FQFnName.T, RT.Package.Fn>)
+  (dbs : Map<string, RT.DB.T>)
+  (userFns : Map<string, RT.UserFunction.T>)
+  (userTypes : Map<string * int, RT.UserType.T>)
+  (secrets : List<RT.Secret.T>)
+  (ast : RT.Expr)
+  : AT.AnalysisResults =
+  let results = Dictionary()
+
+  let trace onExecutionPath (id : id) (dval : RT.Dval) =
+    let result =
+      (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
+
+    results.Add(id, result)
+
+  let state : RT.ExecutionState =
+    { functions = Map.empty
+      tlid = tlid
+      callstack = Set.empty
+      accountID = accountID
+      canvasID = canvasID
+      userFns = userFns
+      userTypes = userTypes
+      packageFns = packageFns
+      dbs = dbs
+      secrets = secrets
+      trace = trace
+      traceTLID = fun _ -> ()
+      onExecutionPath = true
+      context = RT.Preview
+      executingFnName = None
+      loadFnResult = loadNoResults
+      loadFnArguments = loadNoArguments
+      storeFnResult = storeNoResults
+      storeFnArguments = storeNoArguments }
+
+  let symtable = Interpreter.withGlobals state inputVars
+  let _ = Interpreter.eval state symtable ast
+  results

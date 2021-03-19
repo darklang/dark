@@ -1,10 +1,38 @@
 module Tests.Analysis
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Expecto
+
 open Prelude
 open TestUtils
 
-module Account = LibBackend.Account
+open LibExecution.RuntimeTypes
+open LibExecution.Shortcuts
+
+module AT = LibExecution.AnalysisTypes
+
+let parse = FSharpToExpr.parseRTExpr
+
+let execSaveDvals (ast : Expr) : Task<AT.AnalysisResults> =
+  task {
+    let! state = executionStateFor "test" Map.empty Map.empty
+    let inputVars = Map.empty
+
+    return
+      LibExecution.Execution.analyseExpr
+        state.accountID
+        state.canvasID
+        state.tlid
+        inputVars
+        state.packageFns
+        state.dbs
+        state.userFns
+        state.userTypes
+        state.secrets
+        ast
+  }
 
 
 // let t_trace_tlids_exec_fn () =
@@ -92,22 +120,21 @@ module Account = LibBackend.Account
 //             false)
 //   in
 //   Libs.filter_out_non_preview_safe_functions_for_tests ~f ()
-//
-//
-// let t_list_literals () =
-//   let blankId = fid () in
-//   let ast = list [int 1; EBlank blankId] in
-//   let dvalStore = exec_save_dvals ast in
-//   check_condition
-//     "Blank in a list evaluates to Incomplete"
-//     (IDTable.find_exn dvalStore blankId)
-//     ~f:(function
-//       | ExecutedResult (DIncomplete _) ->
-//           true
-//       | _ ->
-//           false)
-//
-//
+
+
+let testListLiterals : Test =
+  testTask "Blank in a list evaluates to Incomplete" {
+    let id = gid ()
+    let ast = eList [ eInt 1; EBlank id ]
+    let! (results : AT.AnalysisResults) = execSaveDvals ast
+
+    return
+      match Dictionary.tryGetValue id results with
+      | Some (AT.ExecutedResult (DIncomplete _)) -> Expect.isTrue true ""
+      | _ -> Expect.isTrue false ""
+  }
+
+
 // let t_recursion_in_editor () =
 //   let caller_id = fid () in
 //   let skipped_caller_id = fid () in
@@ -321,7 +348,7 @@ module Account = LibBackend.Account
 //   (* TODO: constructor around a constructor around a value *)
 //   ()
 
-let tests = testList "Analysis" []
+let tests = testList "Analysis" [ testListLiterals ]
 //
 //
 // let suite =

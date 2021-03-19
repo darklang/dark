@@ -10,28 +10,20 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-// module PReq = Parsed_request
 
-// (* -------------------- *)
-// (* Dval store - save per-tl analysis results *)
-// (* -------------------- *)
-// let ht_to_json_dict ds ~f =
-//   let alist = Hashtbl.to_alist ds in
-//   `Assoc (List.map ~f:(fun (id, v) -> (string_of_id id, f v)) alist)
-//
-//
-// type intermediate_result_store = execution_result IDTable.t
-//
-// let intermediate_result_store_to_yojson (ds : intermediate_result_store) :
-//     Yojson.Safe.t =
-//   ht_to_json_dict ds ~f:execution_result_to_yojson
+// --------------------
+// Dval store - save per-tl analysis results
+// --------------------
+type ExecutionResult =
+  | ExecutedResult of RT.Dval
+  | NonExecutedResult of RT.Dval
 
+// Dictionarys are mutable
+type AnalysisResults = System.Collections.Generic.Dictionary<id, ExecutionResult>
 
 // --------------------
 // Analysis result
 // --------------------
-// type analysis = intermediate_result_store [@@deriving to_yojson]
-
 type InputVars = List<string * RT.Dval>
 
 type FunctionArgHash = string
