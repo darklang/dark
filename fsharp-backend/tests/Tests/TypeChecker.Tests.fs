@@ -100,31 +100,3 @@ let tests =
   testList
     "typeChecker"
     [ testBasicTypecheckWorks; testErrorNotWrappedByErrorRail; testArguments ]
-
-
-// let t_dark_internal_fns_are_internal () =
-//   let ast = fn "DarkInternal::checkAccess" [] in
-//   let check_access canvas_name =
-//     match exec_ast ~canvas_name ast with DError _ -> None | dval -> Some dval
-//   in
-//   AT.check
-//     (AT.list (AT.option at_dval))
-//     "DarkInternal:: functions are internal."
-//     [check_access "test"; check_access "test_admin"]
-//     [None; Some DNull]
-//
-//
-// (* ---------------- *)
-// (* Dval hashing *)
-// (* ---------------- *)
-// let t_dval_hash_differs_for_version_0_and_1 () =
-//   let arglist =
-//     [ DBytes ("ab" |> Libtarget.bytes_from_base64url)
-//     ; DBytes ("c" |> Libtarget.bytes_from_base64url) ]
-//   in
-//   AT.check
-//     AT.bool
-//     "DVal.hash differs for version 0 and 1"
-//     false
-//     (Dval.hash 0 arglist = Dval.hash 1 arglist)
-//

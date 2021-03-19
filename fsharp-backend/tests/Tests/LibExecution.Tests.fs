@@ -293,6 +293,17 @@ let equalsOCaml =
           ) ]),
        true) ]
 
+// FSTODO
+// let t_dark_internal_fns_are_internal () =
+//   let ast = fn "DarkInternal::checkAccess" [] in
+//   let check_access canvas_name =
+//     match exec_ast ~canvas_name ast with DError _ -> None | dval -> Some dval
+//   in
+//   AT.check
+//     (AT.list (AT.option at_dval))
+//     "DarkInternal:: functions are internal."
+//     [check_access "test"; check_access "test_admin"]
+//     [None; Some DNull]
 
 let tests =
   lazy
