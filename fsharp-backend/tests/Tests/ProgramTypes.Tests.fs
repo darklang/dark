@@ -4,11 +4,14 @@ open Expecto
 open Prelude
 open TestUtils
 
+module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramTypes
 module S = LibExecution.Shortcuts
 
 let parseTests =
   let p = PT.FQFnName.parse
+  let User = RT.FQFnName.User
+  let Stdlib = RT.FQFnName.Stdlib
 
   testList
     "Parsing fn names"
@@ -18,11 +21,11 @@ let parseTests =
         [ ("", p "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3")
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
           ("", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1")
-          ("", p "toString_v0")
-          ("", p "someUserFn")
+          ("", Stdlib { module_ = ""; function_ = "toString"; version = 0 })
+          ("", User "someUserFn")
           ("", p "String::toInt_v1")
-          ("", p "++")
-          ("", p "+")
+          ("", Stdlib { module_ = ""; function_ = "++"; version = 0 })
+          ("", Stdlib { module_ = ""; function_ = "+"; version = 0 })
           ("", p "-")
           ("", p "^") ] ]
 
