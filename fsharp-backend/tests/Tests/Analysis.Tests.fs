@@ -23,22 +23,37 @@ let execSaveDvals
   (userFns : List<UserFunction.T>)
   (ast : Expr)
   : Task<AT.AnalysisResults> =
-
   task {
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
     let! state = executionStateFor "test" Map.empty fns
     let inputVars = Map.empty
 
-    return Exe.analyseExpr state Exe.loadNoResults Exe.loadNoArguments inputVars ast
+    return! Exe.analyseExpr state Exe.loadNoResults Exe.loadNoArguments inputVars ast
   }
 
 
-// let t_trace_tlids_exec_fn () =
-//   clear_test_data () ;
-//   let value, tlids = exec_userfn_trace_tlids (int 5) in
-//   check_dval "sanity check we executed the body" (Dval.dint 5) value ;
-//   AT.check (AT.list testable_id) "tlid of function is traced" [tlid] tlids
-//
+let testExecFunctionTLIDs : Test =
+  testTask "test that exec function returns the right tlids in the trace" {
+
+    let name = "testFunction"
+    let fn = testUserFn name [] (eInt 5)
+    let fns = Map.ofList [ (name, fn) ]
+    let! state = executionStateFor "test" Map.empty fns
+
+    let! (value, tlids) =
+      Exe.executeFunction
+        state
+        Exe.storeNoResults
+        Exe.storeNoArguments
+        (gid ())
+        []
+        name
+
+    Expect.equal tlids [ fn.tlid ] "tlid of function is traced"
+    Expect.equal value (DInt 5I) "sanity check"
+
+  }
+
 //
 // let t_on_the_rail () =
 //   (* When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly.   *)
@@ -378,4 +393,5 @@ let tests =
     [ testListLiterals
       testRecursionInEditor
       testIfNotIsEvaluated
-      testMatchEvaluation ]
+      testMatchEvaluation
+      testExecFunctionTLIDs ]

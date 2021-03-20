@@ -193,6 +193,24 @@ module String =
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
+module HashSet =
+  type T<'v> = System.Collections.Generic.HashSet<'v>
+
+  let add (v : 'v) (s : T<'v>) : T<'v> =
+    s.Add v |> ignore
+    s
+
+  let toList (d : T<'v>) : List<'v> =
+    seq {
+      let mutable e = d.GetEnumerator()
+
+      while e.MoveNext() do
+        yield e.Current
+    }
+    |> Seq.toList
+
+
+
 module Dictionary =
   type T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
   let tryGetValue = FSharpPlus.Dictionary.tryGetValue

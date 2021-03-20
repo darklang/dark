@@ -4,6 +4,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
+type HashSet<'k> = System.Collections.Generic.HashSet<'k>
 
 open Prelude
 open Tablecloth
@@ -81,59 +82,33 @@ let run
 //       f ()
 //   | Some parent ->
 //       Telemetry.with_span parent "execute_handler" (fun _parent -> f ())
-//
-//
-// let execute_function
-//     ~tlid
-//     ~execution_id
-//     ~trace_id
-//     ~dbs
-//     ~user_fns
-//     ~user_tipes
-//     ~package_fns
-//     ~secrets
-//     ~account_id
-//     ~canvas_id
-//     ~caller_id
-//     ~args
-//     ?(store_fn_result = store_no_results)
-//     ?(store_fn_arguments = store_no_arguments)
-//     fnname =
-//   let tlid_store = TLIDTable.create () in
-//   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-//   let state : exec_state =
-//     { tlid
-//     ; callstack = Tc.StrSet.empty
-//     ; account_id
-//     ; canvas_id
-//     ; user_fns
-//     ; user_tipes
-//     ; package_fns
-//     ; dbs
-//     ; secrets
-//     ; trace = (fun ~on_execution_path _ _ -> ())
-//     ; trace_tlid
-//     ; on_execution_path = true
-//     ; exec =
-//         (fun ~state _ _ -> Exception.internal "invalid state.exec function")
-//     ; context = Real
-//     ; execution_id
-//     ; fail_fn = None
-//     ; executing_fnname = fnname
-//     ; load_fn_result = load_no_results
-//     ; load_fn_arguments = load_no_arguments
-//     ; store_fn_result
-//     ; store_fn_arguments }
-//   in
-//   (* Note the order of the next couple of lines. We *must* actually execute the fn
-//    * before we grab the touched_tlids from the store. You might think that you could
-//    * write (execute_fn ..., TLIDTable.keys ...) as a tuple. you would be incorrect,
-//    * as this is undefined behaviour according to the OCaml specification
-//    *
-//    * http://caml.inria.fr/pub/docs/manual-ocaml/expr.html#sss:expr-products *)
-//   let result = Ast.execute_fn state fnname caller_id args in
-//   let touched_tlids = TLIDTable.keys tlid_store in
-//   (result, touched_tlids)
+
+
+let executeFunction
+  (state : RT.ExecutionState)
+  (storeFnResults : RT.StoreFnResult)
+  (storeFnArguments : RT.StoreFnArguments)
+  (callerID : tlid)
+  (args : List<RT.Dval>)
+  (name : string)
+  : Task<RT.Dval * List<tlid>> =
+  task {
+    let touchedTLIDs = HashSet()
+    let traceTLID tlid = touchedTLIDs.Add tlid |> ignore
+    let state = { state with traceTLID = traceTLID }
+
+    let! result =
+      Interpreter.callFn
+        state
+        (RT.FQFnName.User name)
+        callerID
+        args
+        RT.NoRail
+        RT.NotInPipe
+      |> TaskOrValue.toTask
+
+    return (result, HashSet.toList touchedTLIDs)
+  }
 
 
 // --------------------
@@ -145,24 +120,29 @@ let analyseExpr
   (loadFnArguments : RT.LoadFnArguments)
   (inputVars : RT.DvalMap)
   (ast : RT.Expr)
-  : AT.AnalysisResults =
-  let results = Dictionary()
+  : Task<AT.AnalysisResults> =
+  task {
+    let results = Dictionary()
 
-  let trace onExecutionPath (id : id) (dval : RT.Dval) =
-    let result =
-      (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
+    let trace onExecutionPath (id : id) (dval : RT.Dval) =
+      let result =
+        (if onExecutionPath then
+           AT.ExecutedResult dval
+         else
+           AT.NonExecutedResult dval)
 
-    results.Add(id, result)
+      results.Add(id, result)
 
-  let state : RT.ExecutionState =
-    { state with
-        context = RT.Preview
-        trace = trace
-        loadFnResult = loadFnResults
-        loadFnArguments = loadFnArguments
-        storeFnResult = storeNoResults
-        storeFnArguments = storeNoArguments }
+    let state : RT.ExecutionState =
+      { state with
+          context = RT.Preview
+          trace = trace
+          loadFnResult = loadFnResults
+          loadFnArguments = loadFnArguments
+          storeFnResult = storeNoResults
+          storeFnArguments = storeNoArguments }
 
-  let symtable = Interpreter.withGlobals state inputVars
-  let _ = Interpreter.eval state symtable ast
-  results
+    let symtable = Interpreter.withGlobals state inputVars
+    let! (_ : RT.Dval) = (Interpreter.eval state symtable ast) |> TaskOrValue.toTask
+    return results
+  }
