@@ -6,12 +6,14 @@ open FSharp.Control.Tasks
 open Expecto
 
 open Prelude
+open Tablecloth
 open TestUtils
 
 open LibExecution.RuntimeTypes
 open LibExecution.Shortcuts
 
 module Exe = LibExecution.Execution
+module Ast = LibExecution.Ast
 
 module AT = LibExecution.AnalysisTypes
 
@@ -246,26 +248,35 @@ let testMatchEvaluation : Test =
               (Some value)
               $"{msg}: {id}, {name}")
           expected
+
+
+        // Check all the other values are there and are NotExecutedResults
+        let argIDs = ref []
+
+        arg
+        |> Ast.postTraversal
+             (fun e ->
+               argIDs := (Expr.toID e) :: !argIDs
+               e)
+        |> ignore
+
+        let expectedIDs = (mid :: !argIDs) @ List.map Tuple3.first expected |> Set
+
+        results
+        |> Dictionary.keys
+        |> Seq.toList
+        |> List.iter
+             (fun id ->
+               if not (Set.contains id expectedIDs) then
+                 match Dictionary.tryGetValue id results with
+                 | Some (AT.ExecutedResult dv) ->
+                     Expect.isTrue
+                       false
+                       $"{msg}: found unexpected execution result ({id}: {dv})"
+                 | None -> Expect.isTrue false "missing value"
+                 | Some (AT.NonExecutedResult _) -> ())
       }
-    // Check all the other values are there and are NotExecutedResults
-//     let argIDs = E.filterMap arg ~f:(fun e -> Some (E.toID e)) in
-//     let ids = (mid :: argIDs) @ List.map expected ~f:Tc.Tuple3.first in
-//     IDTable.iteri dvalStore ~f:(fun ~key ~data ->
-//         if Tc.List.member ~value:key ids
-//         then ()
-//         else
-//           match data with
-//           | ExecutedResult dval ->
-//               AT.fail
-//                 ( msg
-//                 ^ ": found unexected executed result ("
-//                 ^ string_of_id key
-//                 ^ "): "
-//                 ^ Dval.show dval )
-//           | NonExecutedResult _ ->
-//               ()) ;
-//     ()
-//   in
+
     let er x = AT.ExecutedResult x in
 
     let ner x = AT.NonExecutedResult x in

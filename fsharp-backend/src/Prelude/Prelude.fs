@@ -201,6 +201,9 @@ module Dictionary =
     d.Add(k, v)
     d
 
+  let keys = FSharpPlus.Dictionary.keys
+  let values = FSharpPlus.Dictionary.values
+
   let toList (d : T<'k, 'v>) : List<'k * 'v> =
     seq {
       let mutable e = d.GetEnumerator()
