@@ -290,73 +290,87 @@ let testMatchEvaluation : Test =
           (intRhsId, "matching rhs", er (DInt 17I))
           (pVarId, "2nd matching pat", ner (DInt 5I))
           (varRhsId, "2nd matching rhs", ner (DInt 5I)) ]
+
+    do!
+      check
+        "non match"
+        (eInt 6)
+        [ (pIntId, "non matching pat", ner (DInt 5I))
+          (intRhsId, "non matching rhs", ner (DInt 17I))
+          (pFloatId, "float", ner (DFloat 5.6))
+          (floatRhsId, "float rhs", ner (DStr "float"))
+          (pBoolId, "bool", ner (DBool false))
+          (boolRhsId, "bool rhs", ner (DStr "bool"))
+          (pNullId, "null", ner DNull)
+          (nullRhsId, "null rhs", ner (DStr "null"))
+          (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
+          (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
+          (okVarRhsId, "ok rhs", ner (inc okVarRhsVarId))
+          (okVarRhsVarId, "ok rhs var", ner (inc okVarRhsVarId))
+          (okVarRhsStrId, "ok rhs str", ner (DStr "ok: "))
+          (pNothingId, "ok pat", ner (DOption None))
+          (nothingRhsId, "rhs", ner (DStr "constructor nothing"))
+          (pOkBlankOkId, "ok pat", ner (inc pOkBlankOkId))
+          (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
+          (okBlankRhsId, "rhs", ner (DStr "ok blank"))
+          (pVarId, "catch all pat", er (DInt 6I))
+          (varRhsId, "catch all rhs", er (DInt 6I)) ]
+
+    do!
+      check
+        "float"
+        (eFloat Positive 5I 6I)
+        [ (pFloatId, "pat", er (DFloat 5.6))
+          (floatRhsId, "rhs", er (DStr "float")) ]
+
+    do!
+      check
+        "bool"
+        (eBool false)
+        [ (pBoolId, "pat", er (DBool false)); (boolRhsId, "rhs", er (DStr "bool")) ]
+
+    do!
+      check
+        "null"
+        (eNull ())
+        [ (pNullId, "pat", er DNull); (nullRhsId, "rhs", er (DStr "null")) ]
+
+    do!
+      check
+        "ok: y"
+        (eConstructor "Ok" [ eStr "y" ])
+        [ (pOkBlankOkId, "ok pat", ner (inc pOkBlankOkId))
+          (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
+          (okBlankRhsId, "rhs", ner (DStr "ok blank"))
+          (pOkVarOkId, "ok pat", er (DResult(Ok(DStr "y"))))
+          (pOkVarVarId, "var pat", er (DStr "y"))
+          (okVarRhsId, "rhs", er (DStr "ok: y"))
+          (okVarRhsVarId, "rhs", er (DStr "y"))
+          (okVarRhsStrId, "str", er (DStr "ok: ")) ]
+
+    do!
+      check
+        "ok: blank"
+        (eConstructor "Ok" [ EBlank(gid ()) ])
+        [ (pOkBlankOkId, "blank pat", ner (inc pOkBlankOkId))
+          (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
+          (okBlankRhsId, "blank rhs", ner (DStr "ok blank"))
+          (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
+          (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
+          (okVarRhsId, "rhs", ner (inc okVarRhsVarId))
+          (okVarRhsVarId, "rhs var", ner (inc okVarRhsVarId))
+          (okVarRhsStrId, "str", ner (DStr "ok: ")) ]
+
+    do!
+      check
+        "nothing"
+        (eConstructor "Nothing" [])
+        [ (pNothingId, "ok pat", er (DOption None))
+          (nothingRhsId, "rhs", er (DStr "constructor nothing")) ]
+  // TODO: test constructor around a literal
+  // TODO: constructor around a variable
+  // TODO: constructor around a constructor around a value
   }
-//   check_match
-//     "non match"
-//     (int 6)
-//     [ (pIntId, "non matching pat", ner (Dval.dint 5))
-//     ; (intRhsId, "non matching rhs", ner (Dval.dint 17))
-//     ; (pFloatId, "float", ner (DFloat 5.6))
-//     ; (floatRhsId, "float rhs", ner (dstr "float"))
-//     ; (pBoolId, "bool", ner (DBool false))
-//     ; (boolRhsId, "bool rhs", ner (dstr "bool"))
-//     ; (pNullId, "null", ner DNull)
-//     ; (nullRhsId, "null rhs", ner (dstr "null"))
-//     ; (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
-//     ; (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
-//     ; (okVarRhsId, "ok rhs", ner (inc okVarRhsVarId))
-//     ; (okVarRhsVarId, "ok rhs var", ner (inc okVarRhsVarId))
-//     ; (okVarRhsStrId, "ok rhs str", ner (dstr "ok: "))
-//     ; (pNothingId, "ok pat", ner (DOption OptNothing))
-//     ; (nothingRhsId, "rhs", ner (dstr "constructor nothing"))
-//     ; (pOkBlankOkId, "ok pat", ner (inc pOkBlankOkId))
-//     ; (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
-//     ; (okBlankRhsId, "rhs", ner (dstr "ok blank"))
-//     ; (pVarId, "catch all pat", er (Dval.dint 6))
-//     ; (varRhsId, "catch all rhs", er (Dval.dint 6)) ] ;
-//   check_match
-//     "float"
-//     (float' 5 6)
-//     [(pFloatId, "pat", er (DFloat 5.6)); (floatRhsId, "rhs", er (dstr "float"))] ;
-//   check_match
-//     "bool"
-//     (bool false)
-//     [(pBoolId, "pat", er (DBool false)); (boolRhsId, "rhs", er (dstr "bool"))] ;
-//   check_match
-//     "null"
-//     null
-//     [(pNullId, "pat", er DNull); (nullRhsId, "rhs", er (dstr "null"))] ;
-//   check_match
-//     "ok: y"
-//     (constructor "Ok" [str "y"])
-//     [ (pOkBlankOkId, "ok pat", ner (inc pOkBlankOkId))
-//     ; (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
-//     ; (okBlankRhsId, "rhs", ner (dstr "ok blank"))
-//     ; (pOkVarOkId, "ok pat", er (DResult (ResOk (dstr "y"))))
-//     ; (pOkVarVarId, "var pat", er (dstr "y"))
-//     ; (okVarRhsId, "rhs", er (dstr "ok: y"))
-//     ; (okVarRhsVarId, "rhs", er (dstr "y"))
-//     ; (okVarRhsStrId, "str", er (dstr "ok: ")) ] ;
-//   check_match
-//     "ok: blank"
-//     (constructor "Ok" [EBlank (gid ())])
-//     [ (pOkBlankOkId, "blank pat", ner (inc pOkBlankOkId))
-//     ; (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
-//     ; (okBlankRhsId, "blank rhs", ner (dstr "ok blank"))
-//     ; (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
-//     ; (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
-//     ; (okVarRhsId, "rhs", ner (inc okVarRhsVarId))
-//     ; (okVarRhsVarId, "rhs var", ner (inc okVarRhsVarId))
-//     ; (okVarRhsStrId, "str", ner (dstr "ok: ")) ] ;
-//   check_match
-//     "nothing"
-//     (constructor "Nothing" [])
-//     [ (pNothingId, "ok pat", er (DOption OptNothing))
-//     ; (nothingRhsId, "rhs", er (dstr "constructor nothing")) ] ;
-//   (* TODO: test constructor around a literal *)
-//   (* TODO: constructor around a variable *)
-//   (* TODO: constructor around a constructor around a value *)
-//   ()
 
 let tests =
   testList
