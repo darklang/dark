@@ -177,76 +177,79 @@ let testIfNotIsEvaluated : Test =
   }
 
 
-// let t_match_evaluation () =
-//   let gid = Shared.gid in
-//   let open FluidShortcuts in
-//   let module E = FluidExpression in
-//   let mid = gid () in
-//   let pIntId = gid () in
-//   let pFloatId = gid () in
-//   let pBoolId = gid () in
-//   let pStrId = gid () in
-//   let pNullId = gid () in
-//   let pBlankId = gid () in
-//   let pOkVarOkId = gid () in
-//   let pOkVarVarId = gid () in
-//   let pOkBlankOkId = gid () in
-//   let pOkBlankBlankId = gid () in
-//   let pNothingId = gid () in
-//   let pVarId = gid () in
-//   let intRhsId = gid () in
-//   let floatRhsId = gid () in
-//   let boolRhsId = gid () in
-//   let strRhsId = gid () in
-//   let nullRhsId = gid () in
-//   let blankRhsId = gid () in
-//   let okVarRhsId = gid () in
-//   let okBlankRhsId = gid () in
-//   let nothingRhsId = gid () in
-//   let okVarRhsVarId = gid () in
-//   let okVarRhsStrId = gid () in
-//   let varRhsId = gid () in
-//   let astFor (arg : E.t) =
-//     match'
-//       ~id:mid
-//       arg
-//       [ (pInt ~mid ~id:pIntId 5, int ~id:intRhsId 17)
-//       ; (pFloat ~mid ~id:pFloatId 5 6, str ~id:floatRhsId "float")
-//       ; (pBool ~mid ~id:pBoolId false, str ~id:boolRhsId "bool")
-//       ; (pString ~mid ~id:pStrId "myStr", str ~id:strRhsId "str")
-//       ; (pNull ~mid ~id:pNullId (), str ~id:nullRhsId "null")
-//       ; (pBlank ~mid ~id:pBlankId (), str ~id:blankRhsId "blank")
-//       ; ( pConstructor
-//             ~mid
-//             ~id:pOkBlankOkId
-//             "Ok"
-//             [pBlank ~mid ~id:pOkBlankBlankId ()]
-//         , str ~id:okBlankRhsId "ok blank" )
-//       ; ( pConstructor ~mid ~id:pOkVarOkId "Ok" [pVar ~mid ~id:pOkVarVarId "x"]
-//         , fn
-//             ~id:okVarRhsId
-//             "++"
-//             [str ~id:okVarRhsStrId "ok: "; var ~id:okVarRhsVarId "x"] )
-//       ; ( pConstructor ~mid ~id:pNothingId "Nothing" []
-//         , str ~id:nothingRhsId "constructor nothing" )
-//       ; (pVar ~mid ~id:pVarId "name", var ~id:varRhsId "name") ]
-//   in
-//   let check_match
-//       (msg : string)
-//       (arg : E.t)
-//       (expected : (id * string * execution_result) list) =
-//     let ast = astFor arg in
-//     Log.inspecT "ast" ~f:E.show ast ;
-//     let dvalStore = exec_save_dvals' ast in
-//     (* check expected values *)
-//     List.iter expected ~f:(fun (id, name, value) ->
-//         check_execution_result
-//           (msg ^ "(" ^ string_of_id id ^ "): " ^ E.show arg ^ " " ^ name)
-//           value
-//           (IDTable.find_exn dvalStore id)) ;
+let testMatchEvaluation : Test =
+  testTask "test match evaluation" {
+    let mid = gid () in
+    let pIntId = gid () in
+    let pFloatId = gid () in
+    let pBoolId = gid () in
+    let pStrId = gid () in
+    let pNullId = gid () in
+    let pBlankId = gid () in
+    let pOkVarOkId = gid () in
+    let pOkVarVarId = gid () in
+    let pOkBlankOkId = gid () in
+    let pOkBlankBlankId = gid () in
+    let pNothingId = gid () in
+    let pVarId = gid () in
+    let intRhsId = gid () in
+    let floatRhsId = gid () in
+    let boolRhsId = gid () in
+    let strRhsId = gid () in
+    let nullRhsId = gid () in
+    let blankRhsId = gid () in
+    let okVarRhsId = gid () in
+    let okBlankRhsId = gid () in
+    let nothingRhsId = gid () in
+    let okVarRhsVarId = gid () in
+    let okVarRhsStrId = gid () in
+    let varRhsId = gid () in
+
+    let astFor (arg : Expr) =
+      EMatch(
+        mid,
+        arg,
+        [ (PInteger(pIntId, 5I), EInteger(intRhsId, 17I))
+          (PFloat(pFloatId, 5.6), EString(floatRhsId, "float"))
+          (PBool(pBoolId, false), EString(boolRhsId, "bool"))
+          (PString(pStrId, "myStr"), EString(strRhsId, "str"))
+          (PNull(pNullId), EString(nullRhsId, "null"))
+          (PBlank(pBlankId), EString(blankRhsId, "blank"))
+          (PConstructor(pOkBlankOkId, "Ok", [ PBlank pOkBlankBlankId ]),
+           EString(okBlankRhsId, "ok blank"))
+          (PConstructor(pOkVarOkId, "Ok", [ PVariable(pOkVarVarId, "x") ]),
+           EApply(
+             okVarRhsId,
+             eBinopFnVal "++",
+             [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
+             NotInPipe,
+             NoRail
+           ))
+          (PConstructor(pNothingId, "Nothing", []),
+           EString(nothingRhsId, "constructor nothing"))
+          (PVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
+      )
+
+    let check
+      (msg : string)
+      (arg : Expr)
+      (expected : List<id * string * AT.ExecutionResult>)
+      =
+      task {
+        let ast = astFor arg
+        let! results = execSaveDvals [] ast
+        // check expected values are there
+        List.iter
+          (fun (id, name, value) ->
+            Expect.equal
+              (Dictionary.tryGetValue id results)
+              (Some value)
+              $"{msg}: {id}, {name}")
+          expected
+      }
+    // Check all the other values are there and are NotExecutedResults
 //     let argIDs = E.filterMap arg ~f:(fun e -> Some (E.toID e)) in
 //     let ids = (mid :: argIDs) @ List.map expected ~f:Tc.Tuple3.first in
-//     (* Check all the other values are NotExecutedResults *)
 //     IDTable.iteri dvalStore ~f:(fun ~key ~data ->
 //         if Tc.List.member ~value:key ids
 //         then ()
@@ -263,17 +266,20 @@ let testIfNotIsEvaluated : Test =
 //               ()) ;
 //     ()
 //   in
-//   let er x = ExecutedResult x in
-//   let ner x = NonExecutedResult x in
-//   let dstr x = Dval.dstr_of_string_exn x in
-//   let inc id = DIncomplete (SourceId (id_of_int 7, id)) in
-//   check_match
-//     "int match"
-//     (int 5)
-//     [ (pIntId, "matching pat", er (Dval.dint 5))
-//     ; (intRhsId, "matching rhs", er (Dval.dint 17))
-//     ; (pVarId, "2nd matching pat", ner (Dval.dint 5))
-//     ; (varRhsId, "2nd matching rhs", ner (Dval.dint 5)) ] ;
+    let er x = AT.ExecutedResult x in
+
+    let ner x = AT.NonExecutedResult x in
+    let inc iid = DIncomplete(SourceID(id 7, iid)) in
+
+    do!
+      check
+        "int match"
+        (eInt 5)
+        [ (pIntId, "matching pat", er (DInt 5I))
+          (intRhsId, "matching rhs", er (DInt 17I))
+          (pVarId, "2nd matching pat", ner (DInt 5I))
+          (varRhsId, "2nd matching rhs", ner (DInt 5I)) ]
+  }
 //   check_match
 //     "non match"
 //     (int 6)
@@ -344,20 +350,7 @@ let testIfNotIsEvaluated : Test =
 let tests =
   testList
     "Analysis"
-    [ testListLiterals; testRecursionInEditor; testIfNotIsEvaluated ]
-//
-//
-// let suite =
-//   [ ( "Executing user function traces touched tlids"
-//     , `Quick
-//     , t_trace_tlids_exec_fn )
-//   ; ("Recursion only works in editor", `Quick, t_recursion_in_editor)
-//   ; ("Missing functions still check the rail", `Quick, t_on_the_rail)
-//   ; ("Filter / from /:rest", `Quick, t_test_filter_slash)
-//   ; ("Analysis on List listerals", `Quick, t_list_literals)
-//   ; ( "Analysis supports all the DB::query functions"
-//     , `Quick
-//     , t_other_db_query_functions_have_analysis )
-//   ; ("If branches are evaluated correctly", `Quick, t_if_not_executed)
-//   ; ("Matches are evaluated correctly", `Quick, t_match_evaluation) ]
-//
+    [ testListLiterals
+      testRecursionInEditor
+      testIfNotIsEvaluated
+      testMatchEvaluation ]

@@ -309,11 +309,9 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
                   taskv {
                     // Ensure the previous computation is done first
                     let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                    let accum = prev :: accum
+                    let! result = f arg
 
-                    let! result = (f arg)
-
-                    return (accum, result)
+                    return (prev :: accum, result)
                   })
                 firstComp
                 tail
@@ -322,6 +320,23 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
           }
 
     return (result |> Seq.toList)
+  }
+
+let iter_s (f : 'a -> TaskOrValue<unit>) (list : List<'a>) : TaskOrValue<unit> =
+  taskv {
+    match list with
+    | [] -> return ()
+    | head :: tail ->
+        return!
+          List.fold
+            (fun (prevcomp : TaskOrValue<unit>) (arg : 'a) ->
+              taskv {
+                // Ensure the previous computation is done first
+                let! (prev : unit) = prevcomp
+                return! f arg
+              })
+            (f head)
+            tail
   }
 
 

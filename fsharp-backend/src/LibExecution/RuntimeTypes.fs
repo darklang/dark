@@ -122,8 +122,12 @@ module FQFnName =
     assert_ "version can't be negative" (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
+  let binopFnName (op : string) : StdlibFnName = stdlibFnName "" op 0
+
   let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
     Stdlib(stdlibFnName module_ function_ version)
+
+  let binopFqName (op : string) : T = stdlibFqName "" op 0
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
@@ -330,6 +334,18 @@ module Expr =
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _) -> id
 
+module Pattern =
+  let toID (pat : Pattern) : id =
+    match pat with
+    | PInteger (id, _)
+    | PString (id, _)
+    | PCharacter (id, _)
+    | PBool (id, _)
+    | PNull id
+    | PFloat (id, _)
+    | PVariable (id, _)
+    | PBlank id
+    | PConstructor (id, _, _) -> id
 
 
 module Dval =

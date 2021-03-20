@@ -129,6 +129,8 @@ let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
 let eUserFnVal (function_ : string) : Expr =
   EFQFnValue(gid (), FQFnName.userFqName function_)
 
+let eBinopFnVal (op : string) : Expr = EFQFnValue(gid (), FQFnName.binopFqName op)
+
 let eFn'
   (module_ : string)
   (function_ : string)
