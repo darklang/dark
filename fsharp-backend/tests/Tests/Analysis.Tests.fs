@@ -54,21 +54,20 @@ let testExecFunctionTLIDs : Test =
 
   }
 
-//
-// let t_on_the_rail () =
-//   (* When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly.   *)
-//   clear_test_data () ;
-//   let prog = fn "fake_test_fn" ~ster:Rail [int 4; int 5] in
-//   let id = FluidExpression.toID prog in
-//   add_test_fn_result
-//     (tlid, "fake_test_fn", id)
-//     [Dval.dint 4; Dval.dint 5]
-//     (DOption (OptJust (Dval.dint 12345)), Time.now ()) ;
-//   check_dval
-//     "is on the error rail"
-//     (Dval.dint 12345)
-//     (execute_ops [hop (handler prog)])
-//
+
+let testErrorRailUsedInAnalysis : Test =
+  testTask "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
+
+    let! state = executionStateFor "test" Map.empty Map.empty
+    let loadTraceResults _ _ = Some(DOption(Some(DInt 12345I)), System.DateTime.Now)
+    let state = { state with loadFnResult = loadTraceResults }
+    let inputVars = Map.empty
+    let ast = eFnRail "" "fake_test_fn" 0 [ eInt 4; eInt 5 ]
+
+    let! result = Exe.run state inputVars ast
+
+    Expect.equal result (DInt 12345I) "is on the error rail"
+  }
 //
 // let t_test_filter_slash () =
 //   clear_test_data () ;
@@ -196,31 +195,32 @@ let testIfNotIsEvaluated : Test =
 
 let testMatchEvaluation : Test =
   testTask "test match evaluation" {
-    let mid = gid () in
-    let pIntId = gid () in
-    let pFloatId = gid () in
-    let pBoolId = gid () in
-    let pStrId = gid () in
-    let pNullId = gid () in
-    let pBlankId = gid () in
-    let pOkVarOkId = gid () in
-    let pOkVarVarId = gid () in
-    let pOkBlankOkId = gid () in
-    let pOkBlankBlankId = gid () in
-    let pNothingId = gid () in
-    let pVarId = gid () in
-    let intRhsId = gid () in
-    let floatRhsId = gid () in
-    let boolRhsId = gid () in
-    let strRhsId = gid () in
-    let nullRhsId = gid () in
-    let blankRhsId = gid () in
-    let okVarRhsId = gid () in
-    let okBlankRhsId = gid () in
-    let nothingRhsId = gid () in
-    let okVarRhsVarId = gid () in
-    let okVarRhsStrId = gid () in
-    let varRhsId = gid () in
+    let mid = gid ()
+    let pIntId = gid ()
+    let pFloatId = gid ()
+    let pBoolId = gid ()
+    let pStrId = gid ()
+    let pNullId = gid ()
+    let pBlankId = gid ()
+    let pOkVarOkId = gid ()
+    let pOkVarVarId = gid ()
+    let pOkBlankOkId = gid ()
+    let pOkBlankBlankId = gid ()
+    let pNothingId = gid ()
+    let pVarId = gid ()
+    let binopFnValId = gid ()
+    let intRhsId = gid ()
+    let floatRhsId = gid ()
+    let boolRhsId = gid ()
+    let strRhsId = gid ()
+    let nullRhsId = gid ()
+    let blankRhsId = gid ()
+    let okVarRhsId = gid ()
+    let okBlankRhsId = gid ()
+    let nothingRhsId = gid ()
+    let okVarRhsVarId = gid ()
+    let okVarRhsStrId = gid ()
+    let varRhsId = gid ()
 
     let astFor (arg : Expr) =
       EMatch(
@@ -237,7 +237,7 @@ let testMatchEvaluation : Test =
           (PConstructor(pOkVarOkId, "Ok", [ PVariable(pOkVarVarId, "x") ]),
            EApply(
              okVarRhsId,
-             eBinopFnVal "++",
+             EFQFnValue(binopFnValId, FQFnName.stdlibFqName "" "++" 0),
              [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
              NotInPipe,
              NoRail
@@ -276,6 +276,7 @@ let testMatchEvaluation : Test =
         |> ignore
 
         let expectedIDs = (mid :: !argIDs) @ List.map Tuple3.first expected |> Set
+        Expect.isGreaterThan results.Count (Set.count expectedIDs) "sanity check"
 
         results
         |> Dictionary.keys
@@ -358,6 +359,9 @@ let testMatchEvaluation : Test =
           (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
           (okBlankRhsId, "rhs", ner (DStr "ok blank"))
           (pOkVarOkId, "ok pat", er (DResult(Ok(DStr "y"))))
+          (binopFnValId,
+           "fnval",
+           er (DFnVal(FnName(FQFnName.stdlibFqName "" "++" 0))))
           (pOkVarVarId, "var pat", er (DStr "y"))
           (okVarRhsId, "rhs", er (DStr "ok: y"))
           (okVarRhsVarId, "rhs", er (DStr "y"))
@@ -394,4 +398,5 @@ let tests =
       testRecursionInEditor
       testIfNotIsEvaluated
       testMatchEvaluation
-      testExecFunctionTLIDs ]
+      testExecFunctionTLIDs
+      testErrorRailUsedInAnalysis ]

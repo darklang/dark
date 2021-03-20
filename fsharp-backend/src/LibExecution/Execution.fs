@@ -94,7 +94,10 @@ let executeFunction
   : Task<RT.Dval * List<tlid>> =
   task {
     let touchedTLIDs = HashSet()
-    let traceTLID tlid = touchedTLIDs.Add tlid |> ignore
+
+    let traceTLID tlid =
+      let (_set : HashSet<tlid>) = HashSet.add tlid touchedTLIDs in ()
+
     let state = { state with traceTLID = traceTLID }
 
     let! result =
