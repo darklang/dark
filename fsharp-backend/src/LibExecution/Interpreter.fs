@@ -486,7 +486,8 @@ and callFn
                           |> (fun (db : DB.T) -> db.cols)
                           |> List.map
                                (fun (field, _) -> (field, DIncomplete SourceNone))
-                          |> Dval.obj
+                          |> Map.ofList
+                          |> DObj
 
                     ignore (executeLambda state b [ sample ])
                 | _ -> ()

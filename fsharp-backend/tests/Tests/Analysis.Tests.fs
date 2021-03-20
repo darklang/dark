@@ -20,12 +20,14 @@ module AT = LibExecution.AnalysisTypes
 let parse = FSharpToExpr.parseRTExpr
 
 let execSaveDvals
+  (dbs : List<DB.T>)
   (userFns : List<UserFunction.T>)
   (ast : Expr)
   : Task<AT.AnalysisResults> =
   task {
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
-    let! state = executionStateFor "test" Map.empty fns
+    let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
+    let! state = executionStateFor "test" dbs fns
     let inputVars = Map.empty
 
     return! Exe.analyseExpr state Exe.loadNoResults Exe.loadNoArguments inputVars ast
@@ -92,53 +94,41 @@ let testErrorRailUsedInAnalysis : Test =
 //     "list ids"
 //     [Uuidm.v5 Uuidm.nil (string_of_id handler.tlid)]
 //     loaded
-//
-//
-// (* This test is failing because on the backend, the test is actually available *)
-// let t_other_db_query_functions_have_analysis () =
-//   let f () =
-//     (* The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends. *)
-//     let dbTLID = fid () in
-//     let declID = fid () in
-//     let faID = fid () in
-//     let lambdaID = fid () in
-//     let varID = fid () in
-//     let dbID = fid () in
-//     let colNameID = fid () in
-//     let colTypeID = fid () in
-//     let ast =
-//       fn
-//         "DB::queryOne_v4"
-//         [ var ~id:dbID "MyDB"
-//         ; ELambda
-//             ( lambdaID
-//             , [(declID, "value")]
-//             , fieldAccess ~id:faID (var ~id:varID "value") "age" ) ]
-//     in
-//     let ops =
-//       [ CreateDB (dbTLID, pos, "MyDB")
-//       ; AddDBCol (dbTLID, colNameID, colTypeID)
-//       ; SetDBColName (dbTLID, colNameID, "age")
-//       ; SetDBColType (dbTLID, colTypeID, "int") ]
-//     in
-//     let dvalStore = exec_save_dvals ~ops ast in
-//     check_condition
-//       "Find the age field"
-//       (IDTable.find_exn dvalStore varID)
-//       ~f:(function
-//         | ExecutedResult (DObj v) ->
-//             Option.is_some (DvalMap.get ~key:"age" v)
-//         | dobj ->
-//             false)
-//   in
-//   Libs.filter_out_non_preview_safe_functions_for_tests ~f ()
+
+
+let testOtherDbQueryFunctionsHaveAnalysis : Test =
+  testTask "The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends." {
+    let varID = gid ()
+
+    let (db : DB.T) =
+      { tlid = gid (); name = "MyDB"; version = 0; cols = [ "age", TInt ] }
+
+    let ast =
+      eFn
+        "DB"
+        "queryOne"
+        4
+        [ eVar "MyDB"
+          eLambda [ "value" ] (eFieldAccess (EVariable(varID, "value")) "age") ]
+
+    let! state = executionStateFor "test" (Map [ "MyDB", db ]) Map.empty
+    let state = { state with functions = Map.empty }
+
+    let! results =
+      Exe.analyseExpr state Exe.loadNoResults Exe.loadNoArguments Map.empty ast
+
+    Expect.equal
+      (Dictionary.tryGetValue varID results)
+      (Some(AT.ExecutedResult(DObj(Map.ofList [ "age", DIncomplete SourceNone ]))))
+      "Has an age field"
+  }
 
 
 let testListLiterals : Test =
   testTask "Blank in a list evaluates to Incomplete" {
     let id = gid ()
     let ast = eList [ eInt 1; EBlank id ]
-    let! (results : AT.AnalysisResults) = execSaveDvals [] ast
+    let! (results : AT.AnalysisResults) = execSaveDvals [] [] ast
 
     return
       match Dictionary.tryGetValue id results with
@@ -160,7 +150,7 @@ let testRecursionInEditor : Test =
 
     let recurse = testUserFn "recurse" [ "i" ] fnExpr
     let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
-    let! results = execSaveDvals [ recurse ] ast
+    let! results = execSaveDvals [] [ recurse ] ast
 
     Expect.equal
       (Dictionary.tryGetValue callerID results)
@@ -182,7 +172,7 @@ let testIfNotIsEvaluated : Test =
     let trueID = gid ()
     let ifID = gid ()
     let ast = EIf(ifID, eBool true, EInteger(trueID, 5I), EInteger(falseID, 6I))
-    let! results = execSaveDvals [] ast
+    let! results = execSaveDvals [] [] ast
 
     let check id expected msg =
       Expect.equal (Dictionary.tryGetValue id results) (Some expected) msg
@@ -254,7 +244,7 @@ let testMatchEvaluation : Test =
       =
       task {
         let ast = astFor arg
-        let! results = execSaveDvals [] ast
+        let! results = execSaveDvals [] [] ast
         // check expected values are there
         List.iter
           (fun (id, name, value) ->
@@ -399,4 +389,5 @@ let tests =
       testIfNotIsEvaluated
       testMatchEvaluation
       testExecFunctionTLIDs
-      testErrorRailUsedInAnalysis ]
+      testErrorRailUsedInAnalysis
+      testOtherDbQueryFunctionsHaveAnalysis ]
