@@ -883,6 +883,13 @@ type Toplevel =
     | TLFunction f -> RT.TLFunction(f.toRuntimeType ())
     | TLType t -> RT.TLType(t.toRuntimeType ())
 
+  member this.toDBTypeString() =
+    match this with
+    | TLDB _ -> "db"
+    | TLHandler _ -> "handler"
+    | TLFunction _ -> "user_function"
+    | TLType _ -> "user_tipe"
+
 module Secret =
   type T =
     { secretName : string

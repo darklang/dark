@@ -17,13 +17,16 @@ type CorsSetting =
   | AllOrigins
   | Origins of List<string>
 
+type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
+
+// This includes just a subset of the key program data. It is rare that all of
+// the data for a canvas will be loaded. In addition, there is other canvas
+// data which is meaningful, such as Cors info, oplists, creation date. These
+// can be fetched separately. (Oplists in particular are omitted as it can be
+// very tricky to pass this data around safely (esp in regards to loading and
+// saving).)
 type T =
-  { name : CanvasName.T
-    owner : UserID
-    id : CanvasID
-    creationDate : System.DateTime
-    ops : PT.TLIDOplists
-    corsSetting : Option<CorsSetting>
+  { meta : Meta
     handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
@@ -59,9 +62,9 @@ let toplevels (c : T) : Map<tlid, PT.Toplevel> =
   |> Map
 
 
-(* ------------------------- *)
-(* Toplevel *)
-(* ------------------------- *)
+// -------------------------
+// Toplevel
+// -------------------------
 
 let setDB (db : PT.DB.T) (c : T) : T =
   // if the db had been deleted, remove it from the deleted set. This handles
@@ -243,9 +246,7 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   let oldops = List.map (fun op -> (false, op)) oldops
   let newops = List.map (fun op -> (true, op)) newops
   let reducedOps = Undo.preprocess (oldops @ newops) in
-  let c = List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
-  let allops = oldops @ newops |> List.map Tuple2.second
-  { c with ops = Op.oplist2TLIDOplists allops }
+  List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
 let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
   Sql.query "SELECT cors_setting FROM canvases WHERE id = @canvasID"
@@ -268,39 +269,11 @@ let fetchCORSSetting (canvasID : CanvasID) : Task<Option<CorsSetting>> =
                  |> Some
              | _ -> failwith "invalid json in CorsSettings")
 
-let canvasCreationDate canvasID : Task<System.DateTime> =
+let canvasCreationDate (canvasID : CanvasID) : Task<System.DateTime> =
   Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.dateTime "created_at")
 
-// let init (host : string) (ops : Types.oplist) :
-//     (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let creation_date = canvas_creation_date canvas_id in
-//   let cors = fetch_cors_setting canvas_id in
-//   let c =
-//     ref
-//       { host
-//       ; owner
-//       ; id = canvas_id
-//       ; creation_date
-//       ; ops = []
-//       ; cors_setting = cors
-//       ; handlers = IDMap.empty
-//       ; dbs = IDMap.empty
-//       ; user_functions = IDMap.empty
-//       ; userTypes = IDMap.empty
-//       ; package_fns = []
-//       ; deleted_handlers = IDMap.empty
-//       ; deleted_dbs = IDMap.empty
-//       ; deleted_user_functions = IDMap.empty
-//       ; deletedUserTypes = IDMap.empty }
-//   in
-//   add_ops c [] ops ;
-//   c |> verify |> Result.map ~f:(fun _ -> c)
-//
-//
 // let name_for_id (id : Uuidm.t) : string =
 //   Db.fetch_one
 //     ~name:"fetch_canvas_name"
@@ -381,27 +354,14 @@ type OpsLoader = CanvasID -> Task<List<tlid * PT.Oplist>>
 type TLLoader =
   CanvasID -> List<tlid> -> Task<Result<tlid * PT.Toplevel, string list>>
 
-let loadEmpty
-  (canvasID : CanvasID)
-  (canvasName : CanvasName.T)
-  (owner : UserID)
-  : Task<T> =
+let loadEmpty (meta : Meta) : Task<T> =
   task {
-    // try
-    // TODO: combine into one query
-    let! cors = fetchCORSSetting canvasID
-    let! creationDate = canvasCreationDate canvasID
     // TODO optimization: can we get only the functions we need (based on
     // fnnames found in the canvas) and/or cache this like we do the oplist?
     let! packageFns = PackageManager.allFunctions ()
 
     return
-      { name = canvasName
-        owner = owner
-        id = canvasID
-        creationDate = creationDate
-        ops = []
-        corsSetting = cors
+      { meta = meta
         handlers = Map.empty
         dbs = Map.empty
         userFunctions = Map.empty
@@ -413,6 +373,11 @@ let loadEmpty
         deletedUserTypes = Map.empty
         secrets = Map.empty }
   }
+
+let fromOplist (meta : Meta) (oplist : PT.Oplist) : Task<T> =
+  loadEmpty meta |> Task.map (addOps [] oplist)
+
+
 
 
 // let loadFrom
@@ -529,22 +494,19 @@ let loadOplists
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync
        (fun read ->
-         (read.tlid "tlid",
-          read.bytea "data" |> OCamlInterop.oplistOfBinary))
+         (read.tlid "tlid", read.bytea "data" |> OCamlInterop.oplistOfBinary))
 
 
 let loadFrom
   (loadAmount : LoadAmount)
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  (owner : UserID)
+  (meta : Meta)
   (tlids : List<tlid>)
   : Task<Result<T, string list>> =
   task {
     // CLEANUP: rename "rendered" and "cached" to be consistent
 
     // load
-    let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs canvasName canvasID tlids ()
+    let! fastLoadedTLs = Serialize.loadOnlyRenderedTLIDs meta.id tlids ()
 
     let fastLoadedTLIDs =
       List.map (fun (tl : PT.Toplevel) -> tl.toTLID ()) fastLoadedTLs
@@ -554,51 +516,35 @@ let loadFrom
 
     // canvas initialized via the normal loading path with the non-fast loaded tlids
     // loaded traditionally via the oplist
-    let! uncachedOplists = loadOplists loadAmount canvasID notLoadedTLIDs
+    let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
     let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
-    let! c = loadEmpty canvasID canvasName owner
+    let! c = loadEmpty meta
 
-    return
-      c
-      |> addToplevels fastLoadedTLs
-      |> addOps uncachedOplists []
-      |> verify
-      // Empty out the oplist, this prevents anyone accidentally saving
-      // a canvas partially loaded from the cache.
-      // FSTODO: we don't always want to remove the oplist
-      |> Result.map (fun c -> { c with ops = [] })
+    return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
   }
 
-let loadAll
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  (ownerID : UserID)
-  : Task<Result<T, List<string>>> =
+let loadAll (meta : Meta) : Task<Result<T, List<string>>> =
   task {
-    let! tlids = Serialize.fetchAllTLIDs canvasID
-    return! loadFrom LiveToplevels canvasName canvasID ownerID tlids
+    let! tlids = Serialize.fetchAllTLIDs meta.id
+    return! loadFrom LiveToplevels meta tlids
   }
 
 
 let loadHttpHandlersFromCache
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  (ownerID : UserID)
+  (meta : Meta)
   (path : string)
   (method : string)
   : Task<Result<T, List<string>>> =
   task {
-    let! tlids = Serialize.fetchReleventTLIDsForHTTP canvasName canvasID path method
-    return! loadFrom LiveToplevels canvasName canvasID ownerID tlids
+    let! tlids = Serialize.fetchReleventTLIDsForHTTP meta.id path method
+    return! loadFrom LiveToplevels meta tlids
   }
 
 let loadTLIDsFromCache
+  (meta : Meta)
   (tlids : tlid list)
-  (canvasName : CanvasName.T)
-  (canvasID : CanvasID)
-  (ownerID : UserID)
   : Task<Result<T, List<string>>> =
-  loadFrom LiveToplevels canvasName canvasID ownerID tlids
+  loadFrom LiveToplevels meta tlids
 
 
 // let load_tlids_with_context_from_cache ~tlids host :
@@ -640,149 +586,144 @@ let loadTLIDsFromCache
 //     ~tlids:(Serialize.fetch_relevant_tlids_for_cron_checker ~canvas_id ())
 //     host
 //     owner
+
+type Deleted =
+  | Deleted
+  | NotDeleted
+
+let fetchProgramData (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel> =
+  let handler () =
+    Map.tryFind tlid c.handlers
+    |> Option.map (fun h -> (NotDeleted, PT.TLHandler h))
+
+  let deletedHandler () =
+    Map.tryFind tlid c.deletedHandlers
+    |> Option.map (fun h -> (Deleted, PT.TLHandler h))
+
+  let db () = Map.tryFind tlid c.dbs |> Option.map (fun h -> (NotDeleted, PT.TLDB h))
+
+  let deletedDB () =
+    Map.tryFind tlid c.deletedDBs |> Option.map (fun h -> (Deleted, PT.TLDB h))
+
+  let userFunction () =
+    Map.tryFind tlid c.userFunctions
+    |> Option.map (fun h -> (NotDeleted, PT.TLFunction h))
+
+  let deletedUserFunction () =
+    Map.tryFind tlid c.deletedUserFunctions
+    |> Option.map (fun h -> (Deleted, PT.TLFunction h))
+
+  let userType () =
+    Map.tryFind tlid c.userTypes |> Option.map (fun h -> (NotDeleted, PT.TLType h))
+
+  let deletedUserType () =
+    Map.tryFind tlid c.deletedUserTypes
+    |> Option.map (fun h -> (Deleted, PT.TLType h))
+
+  handler ()
+  |> Option.orElseWith deletedHandler
+  |> Option.orElseWith db
+  |> Option.orElseWith deletedDB
+  |> Option.orElseWith userFunction
+  |> Option.orElseWith deletedUserFunction
+  |> Option.orElseWith userType
+  |> Option.orElseWith deletedUserType
+
+
+// Save just the TLIDs listed (a canvas may load more tlids to support
+// calling/testing these TLs, even though those TLs do not need to be updated)
+let saveTLIDs
+  (meta : Meta)
+  (oplists : List<tlid * PT.Oplist * PT.Toplevel * Deleted>)
+  : Task =
+  try
+    // Use ops rather than just set of toplevels, because toplevels may
+    // have been deleted or undone, and therefore not appear, but it's
+    // important to record them.
+    oplists
+    |> List.map
+         (fun (tlid, oplist, tl, deleted) ->
+           let string2option (s : string) : Option<string> =
+             if s = "" then None else Some s
+
+           let deleted =
+             match deleted with
+             | Deleted -> true
+             | NotDeleted -> false
+
+           let routingNames =
+             match tl with
+             | PT.TLHandler ({ spec = spec }) ->
+                 match spec with
+                 | PT.Handler.HTTP (route, method, _ids) ->
+                     Some("HTTP", Routing.routeToPostgresPattern route, method)
+                 | PT.Handler.Worker (name, _ids) -> Some("WORKER", name, "_")
+                 | PT.Handler.OldWorker (modulename, name, _) ->
+                     Some(modulename, name, "_")
+                 | PT.Handler.Cron (name, interval, _ids) ->
+                     Some("CRON", name, interval)
+                 | PT.Handler.REPL (name, _ids) -> Some("REPL", name, "_")
+             | PT.TLDB _
+             | PT.TLType _
+             | PT.TLFunction _ -> None
+
+           let (module_, name, modifier) =
+             match routingNames with
+             | Some (module_, name, modifier) ->
+                 (string2option module_, string2option name, string2option modifier)
+             | None -> None, None, None
+
+           let pos =
+             match tl with
+             | PT.TLHandler ({ pos = pos })
+             | PT.TLDB { pos = pos } -> Some(Json.AutoSerialize.serialize pos)
+             | PT.TLType _ -> None
+             | PT.TLFunction _ -> None
+
+           Sql.query
+             "INSERT INTO toplevel_oplists
+              (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
+               rendered_oplist_cache, deleted, pos)
+              VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
+                      @module, @modifier, @data, @renderedOplistCache, @deleted, @pos)
+              ON CONFLICT (canvas_id, tlid) DO UPDATE
+              SET account_id = @accountID,
+                  digest = @digest,
+                  tipe = @typ::toplevel_type,
+                  name = @name,
+                  module = @module,
+                  modifier = @modifier,
+                  data = @data,
+                  rendered_oplist_cache = @renderedOplistCache,
+                  deleted = @deleted,
+                  pos = @pos"
+           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                               "accountID", Sql.uuid meta.owner
+                               "tlid", Sql.id tlid
+                               "digest", Sql.string (OCamlInterop.Binary.digest ())
+                               "typ", Sql.string (tl.toDBTypeString ())
+                               "name", Sql.stringOrNone name
+                               "module", Sql.stringOrNone module_
+                               "modifier", Sql.stringOrNone modifier
+                               "data", Sql.bytea (OCamlInterop.oplistToBinary oplist)
+                               "renderedOplistCache",
+                               Sql.bytea (OCamlInterop.toplevelToCachedBinary tl)
+                               "deleted", Sql.bool deleted
+                               "pos", Sql.jsonbOrNone pos ]
+           |> Sql.executeStatementAsync)
+    |> List.map (fun (t : Task<unit>) -> t :> Task)
+    |> Task.WhenAll
+  with e -> reraise () // pageable
+
+
+// let saveAll (c : T) : Task =
+//   let tlids = List.map Tuple2.first c.ops in
+//   saveTLIDs tlids c
 //
-//
-// let serialize_only (tlids : tlid list) (c T) : unit =
-//   try
-//     let munge_name module_ n =
-//       if Ast.blank_to_option module_ = Some "HTTP"
-//       then Http.route_to_postgres_pattern n
-//       else n
-//     in
-//     let handler_metadata (h : RTT.HandlerT.handler) =
-//       ( Ast.blank_to_option h.spec.name
-//         |> Option.map ~f:(munge_name h.spec.module_)
-//       , Ast.blank_to_option h.spec.module_
-//       , Ast.blank_to_option h.spec.modifier )
-//     in
-//     (* Use ops rather than just set of toplevels, because toplevels may
-//    * have been deleted or undone, and therefore not appear, but it's
-//    * important to record them. *)
-//     List.iter c.ops ~f:(fun (tlid, oplist) ->
-//         (* Only save oplists that have been used. *)
-//         if List.mem ~equal:( = ) tlids tlid
-//         then
-//           let name, module_, modifier =
-//             IDMap.find c.handlers tlid
-//             |> Option.bind ~f:TL.as_handler
-//             |> Option.map ~f:handler_metadata
-//             |> Option.value ~default:(None, None, None)
-//           in
-//           let handler () =
-//             IDMap.find c.handlers tlid
-//             |> Option.bind ~f:(fun tl ->
-//                    tl |> TL.as_handler |> Option.map ~f:(fun h -> (tl.pos, h)))
-//             |> Option.map ~f:(fun (pos, h) ->
-//                    ( Binary_serialization.handler_to_binary_string h
-//                    , false
-//                    , Some pos
-//                    , TL.TLHandler ))
-//           in
-//           let deleted_handler () =
-//             IDMap.find c.deleted_handlers tlid
-//             |> Option.bind ~f:(fun tl ->
-//                    tl |> TL.as_handler |> Option.map ~f:(fun h -> (tl.pos, h)))
-//             |> Option.map ~f:(fun (pos, h) ->
-//                    ( Binary_serialization.handler_to_binary_string h
-//                    , true
-//                    , Some pos
-//                    , TL.TLHandler ))
-//           in
-//           let db () =
-//             IDMap.find c.dbs tlid
-//             |> Option.bind ~f:(fun tl ->
-//                    tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
-//             |> Option.map ~f:(fun (pos, db) ->
-//                    ( Binary_serialization.db_to_binary_string db
-//                    , false
-//                    , Some pos
-//                    , TL.TLDB ))
-//           in
-//           let deleted_db () =
-//             IDMap.find c.deleted_dbs tlid
-//             |> Option.bind ~f:(fun tl ->
-//                    tl |> TL.as_db |> Option.map ~f:(fun db -> (tl.pos, db)))
-//             |> Option.map ~f:(fun (pos, db) ->
-//                    ( Binary_serialization.db_to_binary_string db
-//                    , true
-//                    , Some pos
-//                    , TL.TLDB ))
-//           in
-//           let user_function () =
-//             IDMap.find c.user_functions tlid
-//             |> Option.map ~f:(fun fn ->
-//                    ( Binary_serialization.user_fn_to_binary_string fn
-//                    , false
-//                    , None
-//                    , TL.TLUserFunction ))
-//           in
-//           let deleted_user_function () =
-//             IDMap.find c.deleted_user_functions tlid
-//             |> Option.map ~f:(fun fn ->
-//                    ( Binary_serialization.user_fn_to_binary_string fn
-//                    , true
-//                    , None
-//                    , TL.TLUserFunction ))
-//           in
-//           let user_tipe () =
-//             IDMap.find c.userTypes tlid
-//             |> Option.map ~f:(fun t ->
-//                    ( Binary_serialization.user_tipe_to_binary_string t
-//                    , false
-//                    , None
-//                    , TL.TLUserTipe ))
-//           in
-//           let deleted_user_tipe () =
-//             IDMap.find c.deletedUserTypes tlid
-//             |> Option.map ~f:(fun t ->
-//                    ( Binary_serialization.user_tipe_to_binary_string t
-//                    , true
-//                    , None
-//                    , TL.TLUserTipe ))
-//           in
-//           let binary_repr, deleted, pos, tipe =
-//             handler ()
-//             |> Tc.Option.or_else_lazy deleted_handler
-//             |> Tc.Option.or_else_lazy db
-//             |> Tc.Option.or_else_lazy deleted_handler
-//             |> Tc.Option.or_else_lazy deleted_db
-//             |> Tc.Option.or_else_lazy user_function
-//             |> Tc.Option.or_else_lazy deleted_user_function
-//             |> Tc.Option.or_else_lazy user_tipe
-//             |> Tc.Option.or_else_lazy deleted_user_tipe
-//             |> Option.map ~f:(fun (str, d, pos, t) ->
-//                    (Some str, Some d, pos, t))
-//             (* If the user calls Undo enough, we might not know
-//              * the tipe here. In that case, set to handler cause
-//              * it won't be used anyway *)
-//             |> Option.value ~default:(None, None, None, TL.TLHandler)
-//           in
-//           Serialize.save_toplevel_oplist
-//             oplist
-//             ~binary_repr
-//             ~tlid
-//             ~canvas_id:c.id
-//             ~account_id:c.owner
-//             ~name
-//             ~module_
-//             ~modifier
-//             ~deleted
-//             ~pos
-//             ~tipe
-//         else ())
-//   with e -> Libexecution.Exception.reraise_as_pageable e
-//
-//
-// let save_tlids (c T) (tlids : tlid list) : unit = serialize_only tlids c
-//
-// let save_all (c T) : unit =
-//   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
-//   save_tlids c tlids
-//
-//
-// (* ------------------------- *)
-// (* Testing/validation *)
-// (* ------------------------- *)
+
+// -------------------------
+// Testing/validation *)
+// -------------------------
 //
 // let json_filename name = name ^ "." ^ "json"
 //
@@ -1004,93 +945,3 @@ let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.
   |> Sql.parameters [ "host", Sql.string customDomain ]
   |> Sql.executeRowOptionAsync
        (fun read -> read.string "canvas" |> CanvasName.create)
-
-
-
-
-// ------------------------
-// Testing code
-// ------------------------
-
-open ProgramTypes
-
-// FSTODO This is for testing only as it blows away the old oplist, which is
-// needed for undos.
-let saveCachedToplevelForTestingOnly
-  (canvasID : CanvasID)
-  (ownerID : UserID)
-  (tl : PT.Toplevel)
-  : Task<unit> =
-  let module_, path, modifier =
-    match tl with
-    | TLDB _
-    | TLFunction _
-    | TLType _ -> None, None, None
-    | TLHandler h ->
-        // FSTODO munge path for postgres, see munge_name in canvas.ml
-        match h.spec with
-        | Handler.HTTP (path, modifier, _) ->
-            Some "HTTP", Some(LibBackend.Routing.routeToPostgresPattern path), Some modifier
-        | Handler.Worker (name, _) -> Some "Worker", Some name, Some "_"
-        | Handler.OldWorker (modulename, name, _) ->
-            Some modulename, Some name, Some "_"
-        | Handler.Cron (name, interval, _) -> Some "CRON", Some name, Some interval
-        | Handler.REPL (name, _) -> Some "REPL", Some name, Some "_"
-
-  let sqlType : string =
-    match tl with
-    | TLDB _ -> "db"
-    | TLHandler _ -> "handler"
-    | TLFunction _ -> "user_function"
-    | TLType _ -> "user_tipe"
-
-  let cacheBinary = OCamlInterop.toplevelToCachedBinary tl // FSTODO pos
-  let (oplistBinary : byte array) = [||] // FSTODO get an actual oplist
-  let digest = OCamlInterop.Binary.digest ()
-  let pos = Some "{ \"x\": 0, \"y\": 0 }"
-
-  Sql.query
-    "INSERT INTO toplevel_oplists
-       (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
-        data, rendered_oplist_cache, deleted, pos)
-     VALUES (@canvasID, @ownerID, @tlid, @digest, @tipe::toplevel_type,
-             @path, @module, @modifier, @oplistData, @cacheData, @deleted, @pos)
-     ON CONFLICT (canvas_id, tlid) DO UPDATE
-     SET account_id = @ownerID,
-         digest = @digest,
-         tipe = @tipe::toplevel_type,
-         name = @path,
-         module = @module,
-         modifier = @modifier,
-         data = @oplistData,
-         rendered_oplist_cache = @cacheData,
-         deleted = @deleted,
-         pos = @pos"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "ownerID", Sql.uuid ownerID
-                      "tlid", Sql.id (tl.toTLID ())
-                      "digest", Sql.string digest
-                      "tipe", Sql.string sqlType
-                      "path", Sql.stringOrNone path
-                      "module", Sql.stringOrNone module_
-                      "modifier", Sql.stringOrNone modifier
-                      "oplistData", Sql.bytea oplistBinary
-                      "@cacheData", Sql.bytea cacheBinary
-                      "deleted", Sql.bool false // FSTODO
-                      "pos", Sql.jsonbOrNone pos ] // FSTODO
-  |> Sql.executeStatementAsync
-
-let saveHttpHandlersToCache
-  (canvasID : CanvasID)
-  (ownerID : UserID)
-  (tls : List<Toplevel>)
-  : Task<unit> =
-  task {
-    let results =
-      tls
-      |> List.map
-           (fun tl -> (saveCachedToplevelForTestingOnly canvasID ownerID tl) :> Task)
-      |> List.toArray
-
-    return Task.WaitAll(results)
-  }

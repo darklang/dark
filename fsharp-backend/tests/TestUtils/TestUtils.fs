@@ -13,25 +13,25 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
+module PT = LibBackend.ProgramTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
 module S = LibExecution.Shortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy
-    (UserName.create "test"
-     |> LibBackend.Account.getUser
-     |> Task.map Option.unwrapUnsafe)
+  lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
+
+let testCanvasInfo (name : string) : Task<Canvas.Meta> =
+  task {
+    let name = CanvasName.create name
+    let! owner = testOwner.Force()
+    let! id = Canvas.canvasIDForCanvasName owner.id name
+    return { id = id; name = name; owner = owner.id }
+  }
 
 let testCanvasID : Lazy<Task<CanvasID>> =
-  lazy
-    (task {
-      let! owner = testOwner.Force()
-
-      return!
-        CanvasName.create "test" |> LibBackend.Canvas.canvasIDForCanvasName owner.id
-     })
+  lazy (testCanvasInfo "test" |> Task.map (fun i -> i.id))
 
 // delete test data for one canvas
 let clearCanvasData (name : CanvasName.T) : Task<unit> =
@@ -99,31 +99,50 @@ let clearCanvasData (name : CanvasName.T) : Task<unit> =
   }
 
 
-let testHttpRouteHandler (ast : RT.Expr) : RT.Handler.T =
-  S.httpRouteHandler "test/:username/:id/" "GET" ast
+let testHttpRouteHandler
+  (route : string)
+  (method : string)
+  (ast : PT.Expr)
+  : PT.Handler.T =
+  let ids : PT.Handler.ids = { moduleID = 105UL; nameID = 106UL; modifierID = 107UL }
 
-let testCron (ast : RT.Expr) : RT.Handler.T = S.dailyCron "test" ast
+  { pos = { x = 0; y = 0 }
+    tlid = gid ()
+    ast = ast
+    spec = PT.Handler.HTTP(route, method, ids) }
 
-let testWorker (ast : RT.Expr) : RT.Handler.T = S.worker "test" ast
+let testCron (name : string) (interval : string) (ast : PT.Expr) : PT.Handler.T =
+  let ids : PT.Handler.ids = { moduleID = 205UL; nameID = 206UL; modifierID = 207UL }
 
+  { pos = { x = 0; y = 0 }
+    tlid = gid ()
+    ast = ast
+    spec = PT.Handler.Cron(name, interval, ids) }
 
-// let hop h = Types.SetHandler (tlid, pos, h)
+let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
+  let ids : PT.Handler.ids = { moduleID = 305UL; nameID = 306UL; modifierID = 307UL }
+
+  { pos = { x = 0; y = 0 }
+    tlid = gid ()
+    ast = ast
+    spec = PT.Handler.Worker(name, ids) }
 
 let testUserFn
   (name : string)
-  (parameters : List<string>)
+  (parameters : string list)
   (body : RT.Expr)
   : RT.UserFunction.T =
-  S.userFn
-    name
-    "test fn"
-    (RT.TVariable "a")
-    (List.map
-      (fun (p : string) ->
-        { name = p; typ = RT.TVariable "b"; description = "test" })
-      parameters)
-    body
-
+  { tlid = gid ()
+    body = body
+    description = ""
+    infix = false
+    name = name
+    returnType = RT.TVariable "a"
+    parameters =
+      List.map
+        (fun (p : string) ->
+          { name = p; typ = RT.TVariable "b"; description = "test" })
+        parameters }
 
 let fns =
   lazy

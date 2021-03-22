@@ -315,8 +315,8 @@ module InitialLoad =
       let canvasInfo = Middleware.loadCanvasInfo ctx
 
       // t1
-      let! canvas =
-        LibBackend.Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
+      let! canvas = Canvas.loadAll canvasInfo
+      let! creationDate = Canvas.canvasCreationDate canvasInfo.id
 
       let canvas = Result.unwrapUnsafe canvas
 
@@ -328,28 +328,25 @@ module InitialLoad =
       // t2
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
 
-      let ocamlToplevels =
-        canvas
-        |> LibBackend.Canvas.toplevels
-        |> LibBackend.OCamlInterop.Convert.pt2ocamlToplevels
+      let ocamlToplevels = canvas |> Canvas.toplevels |> Convert.pt2ocamlToplevels
 
       // t3
       let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
 
       // t5
-      let! canvasList = LibBackend.Account.ownedCanvases user.id
+      let! canvasList = Account.ownedCanvases user.id
 
       // t6
-      let! orgCanvasList = LibBackend.Account.accessibleCanvases user.id
+      let! orgCanvasList = Account.accessibleCanvases user.id
 
       // t7
       let! orgList = LibBackend.Account.orgs user.id
 
       // t8
-      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.id
+      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.meta.id
 
       // t9
-      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.id
+      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id
 
       return
         { toplevels = Tuple3.first ocamlToplevels
@@ -372,7 +369,7 @@ module InitialLoad =
               email = user.email
               admin = user.admin
               id = user.id }
-          creation_date = canvas.creationDate
+          creation_date = creationDate
           secrets =
             List.map
               (fun (s : LibBackend.Secret.Secret) ->
@@ -413,11 +410,7 @@ module Traces =
       let! args = ctx.BindModelAsync<Params>()
 
       let! (c : LibBackend.Canvas.T) =
-        Canvas.loadTLIDsFromCache
-          [ args.tlid ]
-          canvasInfo.name
-          canvasInfo.id
-          canvasInfo.owner
+        Canvas.loadTLIDsFromCache canvasInfo [ args.tlid ]
         |> Task.map Result.unwrapUnsafe
 
       // TODO: we dont need the handlers or functions at all here, just for the sample
@@ -425,10 +418,10 @@ module Traces =
       let handler = c.handlers |> Map.get args.tlid
 
       match handler with
-      | Some h -> return! LibBackend.Analysis.handlerTrace c.id args.trace_id h
+      | Some h -> return! LibBackend.Analysis.handlerTrace c.meta.id args.trace_id h
       | None ->
           let userFn = c.userFunctions |> Map.get args.tlid |> Option.unwrapUnsafe
-          return! LibBackend.Analysis.userfnTrace c.id args.trace_id userFn
+          return! LibBackend.Analysis.userfnTrace c.meta.id args.trace_id userFn
 
     }
 
@@ -436,10 +429,8 @@ module Traces =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
 
-      let! (c : LibBackend.Canvas.T) =
-        // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
-        Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
-        |> Task.map Result.unwrapUnsafe
+      // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
+      let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
 
       let! hTraces =
         c.handlers
@@ -456,7 +447,7 @@ module Traces =
         |> Map.values
         |> List.map
              (fun uf ->
-               LibBackend.Analysis.traceIDsForUserFn c.id uf.tlid
+               LibBackend.Analysis.traceIDsForUserFn c.meta.id uf.tlid
                |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
         |> Task.flatten
         |> Task.map List.concat
