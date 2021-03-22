@@ -104,7 +104,8 @@ let testHttpRouteHandler
   (method : string)
   (ast : PT.Expr)
   : PT.Handler.T =
-  let ids : PT.Handler.ids = { moduleID = 105UL; nameID = 106UL; modifierID = 107UL }
+  let ids : PT.Handler.ids =
+    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
   { pos = { x = 0; y = 0 }
     tlid = gid ()
@@ -112,7 +113,8 @@ let testHttpRouteHandler
     spec = PT.Handler.HTTP(route, method, ids) }
 
 let testCron (name : string) (interval : string) (ast : PT.Expr) : PT.Handler.T =
-  let ids : PT.Handler.ids = { moduleID = 205UL; nameID = 206UL; modifierID = 207UL }
+  let ids : PT.Handler.ids =
+    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
   { pos = { x = 0; y = 0 }
     tlid = gid ()
@@ -120,7 +122,8 @@ let testCron (name : string) (interval : string) (ast : PT.Expr) : PT.Handler.T 
     spec = PT.Handler.Cron(name, interval, ids) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-  let ids : PT.Handler.ids = { moduleID = 305UL; nameID = 306UL; modifierID = 307UL }
+  let ids : PT.Handler.ids =
+    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
   { pos = { x = 0; y = 0 }
     tlid = gid ()

@@ -19,13 +19,15 @@ let main args =
       Tests.ApiServer.tests
       Tests.Authorization.tests
       Tests.BwdServer.tests
+      Tests.Canvas.tests
       Tests.DvalRepr.tests
       Tests.FSharpToExpr.tests
       Tests.LibExecution.tests.Force()
       Tests.OCamlInterop.tests
       Tests.ProgramTypes.tests
       Tests.SqlCompiler.tests
-      Tests.TypeChecker.tests ]
+      Tests.TypeChecker.tests
+      Tests.Undo.tests ]
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang
