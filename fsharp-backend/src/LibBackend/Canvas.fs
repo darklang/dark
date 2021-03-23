@@ -224,7 +224,6 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
 //
 // See `Op.RequiredContext` for how we determine which ops need what other
 // context to be loaded to appropriately verify.
-// FSTODO: tests
 let verify (c : T) : Result<T, string list> =
   let dupedNames =
     c.dbs
@@ -374,6 +373,7 @@ let loadEmpty (meta : Meta) : Task<T> =
         secrets = Map.empty }
   }
 
+// DOES NOT LOAD OPS FROM DB
 let fromOplist (meta : Meta) (oplist : PT.Oplist) : Task<T> =
   loadEmpty meta |> Task.map (addOps [] oplist)
 
@@ -436,9 +436,9 @@ let fromOplist (meta : Meta) (oplist : PT.Oplist) : Task<T> =
 // the `rendered_oplist_cache` column on `toplevel_oplists`. This column stores
 // a binary-serialized representation of the toplevel after the oplist is
 // applied. This should be much faster because we don't have to ship the full
-// oplist across the network from Postgres to the OCaml boxes, and similarly
-// they don't have to apply the full history of the canvas in memory before
-// they can execute the code.
+// oplist across the network from Postgres to the application servers, and
+// similarly they don't have to apply the full history of the canvas in memory
+// before they can execute the code.
 let loadOnlyRenderedTLIDs (canvasID : CanvasID) (tlids : List<tlid>) () =
   // Binary_serialization.rendered_oplist_cache_query_result =
   // We specifically only load where `deleted` IS FALSE (even though the column

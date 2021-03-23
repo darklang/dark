@@ -11,14 +11,16 @@ open TestUtils
 
 module Canvas = LibBackend.Canvas
 module PT = LibBackend.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module Exe = LibExecution.Execution
 module S = PT.Shortcuts
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
+let handler code = testHttpRouteHandler "" "GET" (FSharpToExpr.parsePTExpr code)
 
 let testUndoFns : Test =
-  testTask "test undo functions" {
-    let handler code = testHttpRouteHandler "" "GET" (FSharpToExpr.parsePTExpr code)
+  test "test undo functions" {
     let tlid = 7UL
     let n1 = PT.TLSavepoint tlid
     let n2 = hop (handler "blank - blank")
@@ -29,49 +31,72 @@ let testUndoFns : Test =
     Expect.equal (LibBackend.Undo.undoCount ops tlid) 3 "undocount"
   }
 
-//
-// let t_undo () =
-//   clear_test_data () ;
-//   let ha ast = hop (handler ast) in
-//   let sp = TLSavepoint tlid in
-//   let u = UndoTL tlid in
-//   let r = RedoTL tlid in
-//   let o1 = int 1 in
-//   let o2 = int 2 in
-//   let o3 = int 3 in
-//   let o4 = int 4 in
-//   let o5 = int 5 in
-//   let ops = [sp; ha o1; sp; ha o2; sp; ha o3; sp; ha o4; sp; ha o5] in
-//   (* Check assumptions *)
-//   execute_ops ops |> check_dval "t_undo_1" (Dval.dint 5) ;
-//   (* First undo *)
-//   execute_ops (List.concat [ops; [u]]) |> check_dval "t_undo_3" (Dval.dint 4) ;
-//   (* Second undo *)
-//   execute_ops (List.concat [ops; [u; u]]) |> check_dval "t_undo_4" (Dval.dint 3) ;
-//   (* First redo *)
-//   execute_ops (List.concat [ops; [u; u; r]])
-//   |> check_dval "t_undo_5" (Dval.dint 4) ;
-//   (* Second redo *)
-//   execute_ops (List.concat [ops; [u; u; r; r]])
-//   |> check_dval "t_undo_6" (Dval.dint 5) ;
-//   (* Another undo *)
-//   execute_ops (List.concat [ops; [u; u; r; r; u]])
-//   |> check_dval "t_undo_7" (Dval.dint 4) ;
-//   (* Another redo *)
-//   execute_ops (List.concat [ops; [u; u; r; r; u; r]])
-//   |> check_dval "t_undo_8" (Dval.dint 5)
-//
-// let t_canvas_verification_undo_rename_duped_name () =
-//   let ops1 =
-//     [ CreateDBWithBlankOr (dbid, pos, nameid, "Books")
-//     ; TLSavepoint dbid
-//     ; DeleteTL dbid
-//     ; CreateDBWithBlankOr (dbid2, pos, nameid2, "Books") ]
-//   in
-//   let c = ops2c "test-verify_undo_1" ops1 in
-//   AT.check AT.bool "should initially verify" true (Result.is_ok c) ;
-//   let ops2 = ops1 @ [UndoTL dbid] in
-//   let c2 = ops2c "test-verify_undo_2" ops2 in
-//   AT.check AT.bool "should then fail to verify" false (Result.is_ok c2)
 
-let tests = testList "canvas" [ testUndoFns ]
+let testUndo : Test =
+  testTask "test undo" {
+    do! clearCanvasData (CanvasName.create "test-undo")
+    let tlid = 7UL
+    let ha code = hop ({ handler code with tlid = tlid })
+    let sp = PT.TLSavepoint tlid
+    let u = PT.UndoTL tlid
+    let r = PT.RedoTL tlid
+    let ops = [ sp; ha "1"; sp; ha "2"; sp; ha "3"; sp; ha "4"; sp; ha "5" ]
+
+    let exe (ops : PT.Oplist) =
+      task {
+        let! meta = testCanvasInfo "test-undo"
+        let! c = Canvas.fromOplist meta ops
+        let! state = executionStateFor "test-undo" Map.empty Map.empty
+        let h = Map.get tlid c.handlers |> Option.unwrapUnsafe
+        return! Exe.run state Map.empty (h.ast.toRuntimeType ())
+      }
+
+    let! v = exe ops
+    Expect.equal v (RT.DInt 5I) "check assumptions"
+
+    let! v = exe (ops @ [ u ])
+    Expect.equal v (RT.DInt 4I) "first undo"
+
+    let! v = exe (ops @ [ u; u ])
+    Expect.equal v (RT.DInt 3I) "second undo"
+
+    let! v = exe (ops @ [ u; u; r ])
+    Expect.equal v (RT.DInt 4I) "2 undos and a redo"
+
+    let! v = exe (ops @ [ u; u; r; r ])
+    Expect.equal v (RT.DInt 5I) "2 undos and 2 redos"
+
+    let! v = exe (ops @ [ u; u; r; r; u ])
+    Expect.equal v (RT.DInt 4I) "2 undos and 2 redos, then another undo"
+
+    let! v = exe (ops @ [ u; u; r; r; u; r ])
+    Expect.equal v (RT.DInt 5I) "2 undos and 2 redos, then another undo + redo"
+  }
+
+let testCanvasVerificationUndoRenameDupedName : Test =
+  testTask "verification triggers in undo/redo case" {
+    let dbID = gid ()
+    let nameID = gid ()
+    let dbID2 = gid ()
+    let nameID2 = gid ()
+    let pos = { x = 0; y = 0 }
+    let! meta = testCanvasInfo "test-undo-verification"
+
+    let ops1 =
+      [ PT.CreateDBWithBlankOr(dbID, pos, nameID, "Books")
+        PT.TLSavepoint dbID
+        PT.DeleteTL dbID
+        PT.CreateDBWithBlankOr(dbID2, pos, nameID2, "Books") ]
+
+    let! c = Canvas.fromOplist meta ops1
+    Expect.isOk (Canvas.verify c) "should initially verify"
+
+    let ops2 = ops1 @ [ PT.UndoTL dbID ]
+    let! c = Canvas.fromOplist meta ops2
+    Expect.isError (Canvas.verify c) "should fail to verify"
+  }
+
+let tests =
+  testList
+    "undo"
+    [ testUndoFns; testUndo; testCanvasVerificationUndoRenameDupedName ]
