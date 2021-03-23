@@ -22,17 +22,17 @@ module RT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
-module Config = LibBackend.Config
-module Session = LibBackend.Session
 module Account = LibBackend.Account
+module Analysis = LibBackend.Analysis
 module Auth = LibBackend.Authorization
-module SA = LibBackend.StaticAssets
-module RT = LibExecution.RuntimeTypes
 module Canvas = LibBackend.Canvas
-module TI = LibBackend.TraceInputs
-module TFR = LibBackend.TraceFunctionResults
+module Config = LibBackend.Config
+module RT = LibExecution.RuntimeTypes
+module SA = LibBackend.StaticAssets
+module Session = LibBackend.Session
 module TFA = LibBackend.TraceFunctionArguments
-
+module TFR = LibBackend.TraceFunctionResults
+module TI = LibBackend.TraceInputs
 
 // type add_op_rpc_params =
 //   { ops : oplist
@@ -404,12 +404,12 @@ module Traces =
 
   type AllTraces = { traces : List<tlid * AT.TraceID> }
 
-  let getTraceData (ctx : HttpContext) : Task<AT.Trace> =
+  let getTraceData (ctx : HttpContext) : Task<T> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! args = ctx.BindModelAsync<Params>()
 
-      let! (c : LibBackend.Canvas.T) =
+      let! (c : Canvas.T) =
         Canvas.loadTLIDsFromCache canvasInfo [ args.tlid ]
         |> Task.map Result.unwrapUnsafe
 
@@ -417,12 +417,14 @@ module Traces =
       // values which we can do on the client instead
       let handler = c.handlers |> Map.get args.tlid
 
-      match handler with
-      | Some h -> return! LibBackend.Analysis.handlerTrace c.meta.id args.trace_id h
-      | None ->
-          let userFn = c.userFunctions |> Map.get args.tlid |> Option.unwrapUnsafe
-          return! LibBackend.Analysis.userfnTrace c.meta.id args.trace_id userFn
+      let! trace =
+        match handler with
+        | Some h -> Analysis.handlerTrace c.meta.id args.trace_id h
+        | None ->
+            let userFn = c.userFunctions |> Map.get args.tlid |> Option.unwrapUnsafe
+            Analysis.userfnTrace c.meta.id args.trace_id userFn
 
+      return { trace = trace }
     }
 
   let fetchAllTraces (ctx : HttpContext) : Task<AllTraces> =
@@ -437,7 +439,7 @@ module Traces =
         |> Map.values
         |> List.map
              (fun h ->
-               LibBackend.Analysis.traceIDsForHandler c h
+               Analysis.traceIDsForHandler c h
                |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
         |> Task.flatten
         |> Task.map List.concat
@@ -447,7 +449,7 @@ module Traces =
         |> Map.values
         |> List.map
              (fun uf ->
-               LibBackend.Analysis.traceIDsForUserFn c.meta.id uf.tlid
+               Analysis.traceIDsForUserFn c.meta.id uf.tlid
                |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
         |> Task.flatten
         |> Task.map List.concat
