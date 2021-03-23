@@ -15,27 +15,19 @@ module S = PT.Shortcuts
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
-
-// let t_db_oplist_roundtrip () =
-//   clear_test_data () ;
-//   let host = "test-db_oplist_roundtrip" in
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let oplist = [UndoTL tlid; RedoTL tlid; UndoTL tlid; RedoTL tlid] in
-//   Serialize.save_toplevel_oplist
-//     oplist
-//     ~binary_repr:None
-//     ~tlid
-//     ~deleted:None
-//     ~pos:None
-//     ~canvas_id
-//     ~account_id:owner
-//     ~tipe:TL.TLHandler
-//     ~name:None
-//     ~module_:None
-//     ~modifier:None ;
-//   let ops = Serialize.load_all_from_db ~canvas_id ~host () in
-//   check_tlid_oplists "db_oplist roundtrip" [(tlid, oplist)] ops
+// let testDBOplistRoundtrip : Test =
+//   testTask "db oplist roundtrip" {
+//     let host = "test-db_oplist_roundtrip"
+//     do! clearCanvasData (CanvasName.create host)
+//     let tlid = gid ()
+//     let! meta = testCanvasInfo host
+//     let oplist = [ PT.UndoTL tlid; PT.RedoTL tlid; PT.UndoTL tlid; PT.RedoTL tlid ]
+//
+//
+//     Serialize.save_toplevel_oplist oplist None tlid None None canvas_id account_id : owner TL.TLHandler None None None
+//     let ops = Serialize.load_all_from_db canvas_id host ()
+//     Expect.equal ops [ (tlid, oplist) ] "db oplist roundtrip"
+//   }
 //
 //
 // let t_http_oplist_roundtrip () =
