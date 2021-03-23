@@ -404,7 +404,7 @@ module Traces =
 
   type AllTraces = { traces : List<tlid * AT.TraceID> }
 
-  let getTraceData (ctx : HttpContext) : Task<T> =
+  let getTraceData (ctx : HttpContext) : Task<Option<T>> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! args = ctx.BindModelAsync<Params>()
@@ -419,12 +419,14 @@ module Traces =
 
       let! trace =
         match handler with
-        | Some h -> Analysis.handlerTrace c.meta.id args.trace_id h
+        | Some h -> Analysis.handlerTrace c.meta.id args.trace_id h |> Task.map Some
         | None ->
-            let userFn = c.userFunctions |> Map.get args.tlid |> Option.unwrapUnsafe
-            Analysis.userfnTrace c.meta.id args.trace_id userFn
+            match c.userFunctions |> Map.get args.tlid with
+            | Some u ->
+                Analysis.userfnTrace c.meta.id args.trace_id u |> Task.map Some
+            | None -> task { return None }
 
-      return { trace = trace }
+      return Option.map (fun t -> { trace = t }) trace
     }
 
   let fetchAllTraces (ctx : HttpContext) : Task<AllTraces> =
@@ -461,6 +463,7 @@ module Traces =
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
+  let oh = Middleware.apiOptionHandler
 
   [
     // TODO: why is this a POST?
@@ -468,7 +471,7 @@ let endpoints : Endpoint list =
            routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read)
            routef "/api/%s/get_unlocked_dbs" (h DB.getUnlockedDBs Auth.Read)
            routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
-           routef "/api/%s/get_trace_data" (h Traces.getTraceData Auth.Read)
+           routef "/api/%s/get_trace_data" (oh Traces.getTraceData Auth.Read)
            routef "/api/%s/all_traces" (h Traces.fetchAllTraces Auth.Read)
 
            // routef "/api/%s/save_test" (h Testing.saveTest Auth.ReadWrite)

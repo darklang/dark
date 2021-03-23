@@ -70,6 +70,17 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
         return! ctx.WriteJsonAsync result
       })
 
+let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
+  handleContext
+    (fun ctx ->
+      task {
+        match! f ctx with
+        | Some result -> return! ctx.WriteJsonAsync result
+        | None ->
+            ctx.Response.StatusCode <- 404
+            return! ctx.WriteTextAsync "Not found"
+      })
+
 // Either redirect to a login page, or apply the passed function if a
 // redirection is inappropriate (eg for the API)
 let redirectOr
@@ -256,6 +267,16 @@ let apiHandler
   : HttpHandler =
   canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonHandler f
+  >=> serverVersionMiddleware
+  >=> setStatusCode 200
+
+let apiOptionHandler
+  (f : HttpContext -> Task<Option<'a>>)
+  (neededPermission : Auth.Permission)
+  (canvasName : string)
+  : HttpHandler =
+  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  >=> jsonOptionHandler f
   >=> serverVersionMiddleware
   >=> setStatusCode 200
 
