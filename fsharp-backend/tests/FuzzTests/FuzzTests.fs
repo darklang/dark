@@ -558,11 +558,16 @@ module ExecutePureFunctions =
                 LibExecution.StdLib.StdLib.fns
                 |> List.filter
                      (function
+                     // FSTODO handle these cases
+                     // These are new functions (FSTODO: test allowed functions)
                      | { name = { module_ = "Http" } } -> false
+                     // FSTODO: Relies on some things that can't be compiled into a shared library in OCaml (RE)
                      | { name = { module_ = "String"; function_ = "slugify" } } ->
                          false
+                     // FSTODO: I don't remember what went wrong here
                      | { name = { module_ = "String"; function_ = "base64decode" } } ->
                          false
+                     // FSTODO: These use a different sort order in OCaml
                      | { name = { module_ = "List"; function_ = "sort" } } -> false
                      | { name = { module_ = "List"; function_ = "sortBy" } } -> false
                      | fn -> fn.previewable = RT.Pure)
