@@ -251,7 +251,7 @@ type OCamlError = { short : string }
 
 let parseOCamlError (str : string) : string =
   try
-    (Json.AutoSerialize.deserialize<OCamlError> str).short
+    (Json.Vanilla.deserialize<OCamlError> str).short
   with _ -> str
 
 // Remove random things like IDs to make the tests stable

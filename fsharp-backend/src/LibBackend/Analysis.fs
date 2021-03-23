@@ -160,8 +160,7 @@ let handlerTrace
 
     return
       (traceID,
-       Some
-         { input = input; timestamp = timestamp; function_results = functionResults })
+       { input = input; timestamp = timestamp; function_results = functionResults })
   }
 
 
@@ -182,8 +181,7 @@ let userfnTrace
 
     return
       (traceID,
-       Some
-         { input = ivs; timestamp = timestamp; function_results = functionResults })
+       { input = ivs; timestamp = timestamp; function_results = functionResults })
   }
 
 

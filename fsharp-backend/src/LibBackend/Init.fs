@@ -7,6 +7,10 @@ open Tablecloth
 
 let init () : unit =
   printfn "Initializing LibBackend"
-  Json.AutoSerialize.registerConverter (EventQueue.WorkerStates.JsonConverter.WorkerStateConverter())
+
+  Json.OCamlCompatible.registerConverter (
+    EventQueue.WorkerStates.JsonConverter.WorkerStateConverter()
+  )
+
   OCamlInterop.Binary.init ()
   ()

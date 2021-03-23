@@ -73,7 +73,7 @@ let configureServices (services : IServiceCollection) =
     .AddRouting()
     .AddGiraffe()
     .AddSingleton<Json.ISerializer>(NewtonsoftJson.Serializer
-                                      (Json.AutoSerialize._settings))
+                                      (Json.OCamlCompatible._settings))
   |> ignore
 
 [<EntryPoint>]

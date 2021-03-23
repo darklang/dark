@@ -676,7 +676,7 @@ let saveTLIDs
            let pos =
              match tl with
              | PT.TLHandler ({ pos = pos })
-             | PT.TLDB { pos = pos } -> Some(Json.AutoSerialize.serialize pos)
+             | PT.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
              | PT.TLType _ -> None
              | PT.TLFunction _ -> None
 

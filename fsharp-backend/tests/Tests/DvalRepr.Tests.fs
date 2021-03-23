@@ -330,15 +330,28 @@ module Password =
     }
 
   let testNoAutoSerialization =
-    test "no auto serialization of passwords" {
-      let mutable success = false
+    testList
+      "no auto serialization of passwords"
+      [ test "vanilla" {
+          let mutable success = false
 
-      try
-        Json.AutoSerialize.serialize (RT.DPassword(Password [||])) |> ignore
-      with e -> success <- true
+          try
+            Json.Vanilla.serialize (RT.DPassword(Password [||])) |> ignore
+          with e -> success <- true
 
-      Expect.equal success true "success should be true"
-    }
+          Expect.equal success true "success should be true"
+        }
+        test "ocamlcompatible" {
+          let mutable success = false
+
+          try
+            Json.OCamlCompatible.serialize (RT.DPassword(Password [||])) |> ignore
+          with e -> success <- true
+
+          Expect.equal success true "success should be true"
+        } ]
+
+
 
   let tests =
     testList

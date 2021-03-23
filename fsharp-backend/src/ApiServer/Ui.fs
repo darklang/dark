@@ -16,31 +16,32 @@ module Session = LibBackend.Session
 module Account = LibBackend.Account
 module Auth = LibBackend.Authorization
 
-let adminUiTemplate : Lazy<string> = lazy (LibBackend.File.readfile Config.Templates "ui.html")
+let adminUiTemplate : Lazy<string> =
+  lazy (LibBackend.File.readfile Config.Templates "ui.html")
 
 let appSupportFile : Lazy<string> =
   lazy (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js")
 
 let prodHashReplacements : Lazy<string> =
   lazy
-   ("etags.json"
-    |> LibBackend.File.readfile Config.Webroot
-    |> Prelude.Json.AutoSerialize.deserialize<Map<string, string>>
-    |> Map.remove "__date"
-    |> Map.remove ".gitkeep"
-    // Only hash our assets, not vendored assets
-    |> Map.filterWithIndex (fun k v -> not (String.includes "vendor/" k))
-    |> Map.toList
-    |> List.map
-         (fun (filename, hash) ->
-           let hashed =
-             match filename.Split '.' with
-             | [| name; extension |] -> $"/{name}-{hash}{extension}"
-             | _ -> failwith "incorrect hash name"
+    ("etags.json"
+     |> LibBackend.File.readfile Config.Webroot
+     |> Prelude.Json.Vanilla.deserialize<Map<string, string>>
+     |> Map.remove "__date"
+     |> Map.remove ".gitkeep"
+     // Only hash our assets, not vendored assets
+     |> Map.filterWithIndex (fun k v -> not (String.includes "vendor/" k))
+     |> Map.toList
+     |> List.map
+          (fun (filename, hash) ->
+            let hashed =
+              match filename.Split '.' with
+              | [| name; extension |] -> $"/{name}-{hash}{extension}"
+              | _ -> failwith "incorrect hash name"
 
-           ($"/{filename}", hashed))
-    |> Map.ofList
-    |> Prelude.Json.AutoSerialize.serialize)
+            ($"/{filename}", hashed))
+     |> Map.ofList
+     |> Json.Vanilla.serialize)
 
 
 

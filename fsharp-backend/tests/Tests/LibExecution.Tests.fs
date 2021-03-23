@@ -175,7 +175,7 @@ let fileTests () : Test =
                         version = 0
                         cols =
                           definition
-                          |> Json.AutoSerialize.deserialize<Map<string, string>>
+                          |> Json.Vanilla.deserialize<Map<string, string>>
                           |> Map.mapWithIndex
                                (fun k v ->
                                  ({ name = k

@@ -125,7 +125,7 @@ module FQFnName =
 module OCamlInterop =
   open OCamlInterop.Convert
   open OCamlInterop
-  open Json.AutoSerialize
+  open Json.OCamlCompatible
 
   let isInteroperable
     (ocamlToString : 'a -> string)
@@ -550,7 +550,6 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
-
       { new Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>>() with
           member x.Generator =
             gen {

@@ -573,7 +573,7 @@ module OCamlTypes =
 
 module Convert =
   // This module converts back-and-forth between the F# ProgramTypes and OCaml
-  // types. Prelude.Json.AutoSerialize generates JSON in the same format as
+  // types. Prelude.Json.OCamlCompatible generates JSON in the same format as
   // OCaml's Yojson so we can use these types directly to communicate with the
   // client (which also uses these types) and the OCaml libocaml
   // library.
@@ -1256,30 +1256,30 @@ let toplevelOfCachedBinary
   : PT.Toplevel =
   let pos =
     pos
-    |> Option.map Json.AutoSerialize.deserialize<pos>
+    |> Option.map Json.OCamlCompatible.deserialize<pos>
     |> Option.unwrap { x = 0; y = 0 }
 
   let toplevelOfCachedHandler () =
     Binary.handlerBin2Json data
-    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
+    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlHandler2PT pos
     |> PT.TLHandler
 
   let toplevelOfCachedDB () =
     Binary.dbBin2Json data
-    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
+    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlDB2PT pos
     |> PT.TLDB
 
   let toplevelOfCachedUserFunction () =
     Binary.userfnBin2Json data
-    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
+    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
     |> Convert.ocamlUserFunction2PT
     |> PT.TLFunction
 
   let toplevelOfCachedUserTipe () =
     Binary.usertipeBin2Json data
-    |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.user_tipe>
+    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_tipe>
     |> Convert.ocamlUserType2PT
     |> PT.TLType
 
@@ -1303,43 +1303,43 @@ let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
   | PT.TLHandler h ->
       h
       |> Convert.pt2ocamlHandler
-      |> Json.AutoSerialize.serialize
+      |> Json.OCamlCompatible.serialize
       |> Binary.handlerJson2Bin
 
   | PT.TLDB db ->
-      db |> Convert.pt2ocamlDB |> Json.AutoSerialize.serialize |> Binary.dbJson2Bin
+      db |> Convert.pt2ocamlDB |> Json.OCamlCompatible.serialize |> Binary.dbJson2Bin
   | PT.TLFunction db ->
       db
       |> Convert.pt2ocamlUserFunction
-      |> Json.AutoSerialize.serialize
+      |> Json.OCamlCompatible.serialize
       |> Binary.userfnJson2Bin
   | PT.TLType db ->
       db
       |> Convert.pt2ocamlUserType
-      |> Json.AutoSerialize.serialize
+      |> Json.OCamlCompatible.serialize
       |> Binary.usertipeJson2Bin
 
 
 let oplistOfBinary (data : byte array) : PT.Oplist =
   Binary.oplistBin2Json data
-  |> Json.AutoSerialize.deserialize<OCamlTypes.oplist<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Json.OCamlCompatible.deserialize<OCamlTypes.oplist<OCamlTypes.RuntimeT.fluidExpr>>
   |> Convert.ocamlOplist2PT
 
 let oplistToBinary (oplist : PT.Oplist) : byte array =
   oplist
   |> Convert.pt2ocamlOplist
-  |> Json.AutoSerialize.serialize
+  |> Json.OCamlCompatible.serialize
   |> Binary.oplistJson2Bin
 
 let exprTLIDPairOfCachedBinary (data : byte array) : PT.Expr * tlid =
   Binary.exprTLIDPairBin2Json data
-  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
+  |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
   |> Convert.ocamlexprTLIDPair2PT
 
 let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
   (expr, tlid)
   |> Convert.pt2ocamlexprTLIDPair
-  |> Json.AutoSerialize.serialize
+  |> Json.OCamlCompatible.serialize
   |> Binary.exprTLIDPairJson2Bin
 
 // ---------------------------
@@ -1353,12 +1353,12 @@ let startString2String (str : string) : System.IntPtr * byte array =
 
 let startDval2String (dv : RT.Dval) : System.IntPtr * byte array =
   Binary.registerThread ()
-  let str = dv |> Convert.rt2ocamlDval |> Json.AutoSerialize.serialize
+  let str = dv |> Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
   System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
 
 let startDvalList2String (l : List<RT.Dval>) : System.IntPtr * byte array =
   Binary.registerThread ()
-  let str = l |> List.map Convert.rt2ocamlDval |> Json.AutoSerialize.serialize
+  let str = l |> List.map Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
   System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
 
 
@@ -1372,7 +1372,7 @@ let finishString2String (outLength : int) (outBytes : System.IntPtr) : string =
 
 let finishString2Dval (outLength : int) (outBytes : System.IntPtr) : RT.Dval =
   finishString2String outLength outBytes
-  |> Json.AutoSerialize.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval>
   |> Convert.ocamlDval2rt
 
 
@@ -1466,7 +1466,7 @@ let execute
   let fns = List.map Convert.pt2ocamlUserFunction fns
 
   let str =
-    Json.AutoSerialize.serialize ((ownerID, canvasID, program, args, dbs, fns))
+    Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
 
   let mutable (out, bytes) = startString2String str
   let outLength = Binary.Internal.execute (bytes, bytes.Length, &out)
