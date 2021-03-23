@@ -20,7 +20,8 @@ Dict.empty_v0 = {}
 // Dict.fromList_v0 [[1;1]] = Test.typeError_v0 "Todo: Keys must be Strings"
 // Dict.fromList_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "Todo: It is of type Int instead of List"
 // Dict.fromList_v0 [] = Just {}
-// Dict.get_v1 { key1 = "val1" } "key1" = Just "val1"
+Dict.get_v0 { key1 = "val1" } "key1" = "val1"
+Dict.get_v1 { key1 = "val1" } "key1" = Just "val1"
 // Dict.isEmpty_v0 { a = 1 } = false
 // Dict.isEmpty_v0 {} = true
 // Dict.keys_v0 { key1 = "val1" } = [ "key1"]
