@@ -33,7 +33,7 @@ let testFilterSlash : Test =
     let d = Canvas.NotDeleted
     do! Canvas.saveTLIDs meta [ tlid, oplist, PT.TLHandler handler, d ]
 
-    let t1 = System.Guid.NewGuid() |> debug "t1"
+    let t1 = System.Guid.NewGuid()
     let desc = ("HTTP", "/", "GET")
     let! (_d : System.DateTime) = TI.storeEvent meta.id t1 desc (DStr "1")
     let! loaded = Analysis.traceIDsForHandler c handler
