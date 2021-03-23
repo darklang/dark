@@ -94,7 +94,7 @@ dig testing.builtwithdark.localhost@127.0.0.1
 ### Building and running for the first time
 
 - Run `scripts/builder --compile --watch --test`
-- Wait until the terminal says "Finished initial compile" - this means the
+- Wait until the terminal says "Initial compile succeeded" - this means the
   build server is ready. The `builder` script will sit open, waiting for file
   changes in order to recompile
 - If you see "initial compile failed", it may be a memory issue. Ensure you
