@@ -1,6 +1,7 @@
 module LibExecution.StdLib.LibNoModule
 
 open Prelude
+open System
 
 module DvalRepr = LibExecution.DvalRepr
 open LibExecution.RuntimeTypes
@@ -64,8 +65,8 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
-      deprecated = NotDeprecated } ]
-// ; { name = fn "" "assoc" 0
+      deprecated = NotDeprecated }
+    // ; { name = fn "" "assoc" 0
 //   ; parameters = [Param.make "obj" TObj ""; Param.make "key" TStr ""; Param.make "val" varA ""]
 //   ; returnType = TObj
 //   ; description = "Return a copy of `obj` with the `key` set to `val`."
@@ -157,19 +158,14 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 // ; previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "Twitter" "urlencode" 0
-//   ; parameters = [Param.make "s" TStr ""]
-//   ; returnType = TStr
-//   ; description = "Url encode a string per Twitter's requirements"
-//   ; fn =
-//         (function
-//         | _, [DStr s] ->
-//             s
-//             |> Unicode_string.to_string
-//             |> Uri.pct_encode `Userinfo
-//             |> DStr
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Twitter" "urlencode" 0
+      parameters = [ Param.make "s" TStr "" ]
+      returnType = TStr
+      description = "Url encode a string per Twitter's requirements"
+      fn =
+        (function
+        | _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
