@@ -26,7 +26,7 @@ let prodHashReplacements : Lazy<string> =
   lazy
     ("etags.json"
      |> LibBackend.File.readfile Config.Webroot
-     |> Prelude.Json.Vanilla.deserialize<Map<string, string>>
+     |> Json.Vanilla.deserialize<Map<string, string>>
      |> Map.remove "__date"
      |> Map.remove ".gitkeep"
      // Only hash our assets, not vendored assets
@@ -52,7 +52,7 @@ let uiHtml
   (csrfToken : string)
   (localhostAssets : string option)
   (accountCreated : System.DateTime)
-  (user : LibBackend.Account.UserInfo)
+  (user : Account.UserInfo)
   : string =
 
   let hashReplacements =

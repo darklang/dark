@@ -223,7 +223,7 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
   |> List.map
        (fun (fn : RT.BuiltInFn) ->
-         { name = fn.name.ToString()
+         { name = (RT.FQFnName.Stdlib fn.name).ToString()
            parameters =
              List.map
                (fun (p : RT.Param) ->
@@ -239,7 +239,7 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
            infix = LibExecution.StdLib.StdLib.isInfixName fn.name
            deprecated = fn.deprecated <> RT.NotDeprecated
            is_supported_in_query = fn.sqlSpec.isQueryable () })
-  |> Json.Vanilla.serialize
+  |> Json.Vanilla.prettySerialize
 
 let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)
 

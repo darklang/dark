@@ -684,21 +684,23 @@ module Json =
   module Vanilla =
     open Newtonsoft.Json
 
-    let _settings =
-      (let settings = JsonSerializerSettings()
-       // This might be a potential vulnerability, turn it off anyway
-       settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
-       // This is a potential vulnerability
-       settings.TypeNameHandling <- TypeNameHandling.None
-       // dont deserialize date-looking string as dates
-       settings.DateParseHandling <- DateParseHandling.None
-       settings.Converters.Add(AutoSerialize.BigIntConverter())
-       settings.Converters.Add(AutoSerialize.TLIDConverter())
-       settings.Converters.Add(AutoSerialize.PasswordConverter())
-       settings.Converters.Add(AutoSerialize.FSharpListConverter())
-       settings.Converters.Add(AutoSerialize.FSharpTupleConverter())
-       settings.Converters.Add(AutoSerialize.FSharpDuConverter())
-       settings)
+    let getSettings () =
+      let settings = JsonSerializerSettings()
+      // This might be a potential vulnerability, turn it off anyway
+      settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
+      // This is a potential vulnerability
+      settings.TypeNameHandling <- TypeNameHandling.None
+      // dont deserialize date-looking string as dates
+      settings.DateParseHandling <- DateParseHandling.None
+      settings.Converters.Add(AutoSerialize.BigIntConverter())
+      settings.Converters.Add(AutoSerialize.TLIDConverter())
+      settings.Converters.Add(AutoSerialize.PasswordConverter())
+      settings.Converters.Add(AutoSerialize.FSharpListConverter())
+      settings.Converters.Add(AutoSerialize.FSharpTupleConverter())
+      settings.Converters.Add(AutoSerialize.FSharpDuConverter())
+      settings
+
+    let _settings = getSettings ()
 
     let registerConverter (c : JsonConverter<'a>) =
       // insert in the front as the formatter will use the first converter that
@@ -706,6 +708,11 @@ module Json =
       _settings.Converters.Insert(0, c)
 
     let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
+
+    let prettySerialize (data : 'a) : string =
+      let settings = getSettings ()
+      settings.Formatting <- Formatting.Indented
+      JsonConvert.SerializeObject(data, settings)
 
     let deserialize<'a> (json : string) : 'a =
       JsonConvert.DeserializeObject<'a>(json, _settings)
