@@ -275,34 +275,27 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Int" "sum" 0
-    //   ; parameters = [Param.make "a" TList ""]
-    //   ; returnType = TInt
-    //   ; description = "Returns the sum of all the ints in the list"
-    //   ; fn =
-    //         (function
-    //         | _, [DList l] ->
-    //             l
-    //             |> list_coerce Dval.to_int
-    //             >>| List.fold_left Dint.( + ) Dint.zero
-    //             >>| (fun x -> DInt x)
-    //             |> Result.map_error (fun (result, example_value) ->
-    //                    RT.error
-    //                      (DList result)
-    //                      (DList result)
-    //
-    //                        ( "Int::sum requires all values to be integers, but "
-    //                        ^ Dval.to_developer_repr_v0 example_value
-    //                        ^ " is a "
-    //                        ^ Dval.pretty_tipename example_value )
-    //                      "every list item to be an int "
-    //                      "Sum expects you to pass a list of ints")
-    //             |> Result.ok_exn
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotQueryable
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Int" "sum" 0
+      parameters = [Param.make "a" (TList TInt) ""]
+      returnType = TInt
+      description = "Returns the sum of all the ints in the list"
+      fn =
+        (function
+        | _, [DList l] ->
+            let ints =
+              List.map
+                (fun i ->
+                  match i with
+                  | DInt it -> it
+                  | _ ->
+                      Errors.throw "Sum expects you to pass a list of ints")
+                l
+            let sum = List.fold (fun acc elem -> acc + elem) (bigint 0) ints
+            Value(DInt sum)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Int" "max" 0
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
