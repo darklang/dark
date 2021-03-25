@@ -16,7 +16,7 @@ let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Value(Dval.errStr str)
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 let varOk = TVariable "ok"
 let varErr = TVariable "err"
@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "Result" "map" 0
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
-          Param.make "fn" (TFn([ varOk ], varB)) "" ]
+          Param.makeWithArgs "f" (TFn([ varOk ], varB)) "" [ "val" ] ]
       returnType = TResult(varB, varErr)
       description =
         "If `result` is `Ok value`, returns `Ok (f value)` (the lambda `f` is applied to `value` and the result is wrapped in `Ok`). If `result` is `Error msg`, returns `result` unchanged."

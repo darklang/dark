@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TBool
-      description = "Returns <val true> if <param s> is the empty string <val \"\">."
+      description = "Returns `true` if `s` is the empty string \"\"."
       fn =
         (function
         | _, [ DStr s ] -> Value(DBool(s = ""))
@@ -52,11 +52,10 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "String" "foreach" 0
       parameters =
-        [ Param.make "s" TStr "string to iterate over"
-          Param.make
-            "f"
-            (TFn([ TChar ], TChar))
-            "function used to convert one character to another" ]
+        [ Param.make "s" TStr "" // CLEANUP "string to iterate over"
+          Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "char" ]
+          // CLEANUP "function used to convert one character to another"
+          ]
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
@@ -66,7 +65,8 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "String" "foreach" 1) }
     { name = fn "String" "foreach" 1
       parameters =
-        [ Param.make "s" TStr ""; Param.make "f" (TFn([ TChar ], TChar)) "" ]
+        [ Param.make "s" TStr ""
+          Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "character" ] ]
       returnType = TStr
       description =
         "Iterate over each Character (EGC, not byte) in the string, performing the operation in the block on each one."
@@ -144,12 +144,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "String" "replaceAll" 0
       parameters =
-        [ Param.make "s" TStr "The string to operate on"
-          Param.make "searchFor" TStr "The string to search for within <param s>"
-          Param.make
-            "replaceWith"
-            TStr
-            "The string to replace all instances of <param searchFor> with" ]
+        [ Param.make "s" TStr "" // CLEANUP "The string to operate on"
+          Param.make "searchFor" TStr "" // CLEANUP "The string to search for within <param s>"
+          Param.make "replaceWith" TStr "" ] // CLEANUP "The string to replace all instances of <param searchFor> with"
       returnType = TStr
       description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
       fn =
@@ -193,7 +190,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "String" "toInt" 1) }
     { name = fn "String" "toInt" 1
       parameters = [ Param.make "s" TStr "" ]
-      returnType = TInt
+      returnType = TResult(TInt, TStr)
       description =
         "Returns the int value of the string, wrapped in a `Ok`, or `Error <msg>` if the string contains characters other than numeric digits"
       fn =
@@ -259,7 +256,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        "Returns the string, uppercased (only ASCII characters are uppercased)"
+        // CLEANUP "Returns the string, uppercased (only ASCII characters are uppercased)"
+        "Returns the string, uppercased"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -290,7 +288,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        "Returns the string, lowercased (only ASCII characters are lowercased)"
+        // CLEANUP "Returns the string, lowercased (only ASCII characters are lowercased)"
+        "Returns the string, lowercased"
       fn =
         (function
         | _, [ DStr s ] ->
@@ -645,7 +644,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Take a string and hash it to a cryptographically-secure digest.
-Don't rely on either the size or the algorithm."
+         Don't rely on either the size or the algorithm."
       fn =
         (function
         | _, [ DStr s ] ->
@@ -665,7 +664,7 @@ Don't rely on either the size or the algorithm."
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
-        "Take a string and hash it using SHA. Please use Crypto::sha384 instead."
+        "Take a string and hash it using SHA384. Please use Crypto::sha384 instead."
       fn =
         (function
         | _, [ DStr s ] ->
@@ -731,7 +730,7 @@ Don't rely on either the size or the algorithm."
       deprecated = ReplacedBy(fn "String" "random" 1) }
     { name = fn "String" "random" 1
       parameters = [ Param.make "length" TInt "" ]
-      returnType = TStr
+      returnType = TResult(TStr, TStr)
       description = "Generate a string of length `length` from random characters."
       fn =
         (function
@@ -821,7 +820,7 @@ Don't rely on either the size or the algorithm."
       previewable = Impure
       deprecated = NotDeprecated }
     { name = fn "String" "toUUID" 0
-      parameters = [ Param.make "uuid" TStr "  " ]
+      parameters = [ Param.make "uuid" TStr "" ]
       returnType = TUuid
       description =
         "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
@@ -841,7 +840,7 @@ Don't rely on either the size or the algorithm."
       deprecated = ReplacedBy(fn "String" "toUUID" 1) }
     { name = fn "String" "toUUID" 1
       parameters = [ Param.make "uuid" TStr "" ]
-      returnType = TUuid
+      returnType = TResult(TUuid, TStr)
       description =
         "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from the input `uuid` string"
       fn =
@@ -1259,8 +1258,8 @@ Don't rely on either the size or the algorithm."
       deprecated = NotDeprecated }
     { name = fn "String" "endsWith" 0
       parameters =
-        [ Param.make "subject" TStr "String to test"
-          Param.make "suffix" TStr "Suffix we're testing for" ]
+        [ Param.make "subject" TStr "" // CLEANUP "String to test"
+          Param.make "suffix" TStr "" ] // CLEANUP "Suffix we're testing for"
       returnType = TBool
       description = "Checks if `subject` ends with `suffix`"
       fn =
