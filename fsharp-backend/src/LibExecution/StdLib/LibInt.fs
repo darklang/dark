@@ -112,9 +112,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] -> Value(DInt(a - b))
         | _ -> incorrectArgs ())
-      // CLEANUP: due to a typo, this didn't work in OCaml. Making this the same to make tests work
-      // sqlSpec = SqlBinOp "-"
-      sqlSpec = NotYetImplementedTODO
+      sqlSpec = SqlBinOp "-"
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "multiply" 0

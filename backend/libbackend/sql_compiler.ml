@@ -24,7 +24,7 @@ let compilerSupportedFns =
   ; "Date::add"
   ; "Int::mod"
   ; "Int::add"
-  ; "Int::substract"
+  ; "Int::subtract"
   ; "Int::multiply"
   ; "Int::power"
   ; "Int::divide"
