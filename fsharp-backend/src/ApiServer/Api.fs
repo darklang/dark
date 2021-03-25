@@ -218,27 +218,28 @@ let typToApiString (typ : RT.DType) : string =
 // | TDeprecated6 ->
 // Exception.internal "Deprecated type"
 
+let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
+  { name = (RT.FQFnName.Stdlib fn.name).ToString()
+    parameters =
+      List.map
+        (fun (p : RT.Param) ->
+          ({ name = p.name
+             tipe = typToApiString p.typ
+             block_args = []
+             optional = false
+             description = p.description } : ParamMetadata))
+        fn.parameters
+    description = fn.description
+    return_type = typToApiString fn.returnType
+    preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
+    infix = LibExecution.StdLib.StdLib.isInfixName fn.name
+    deprecated = fn.deprecated <> RT.NotDeprecated
+    is_supported_in_query = fn.sqlSpec.isQueryable () }
+
 
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
-  |> List.map
-       (fun (fn : RT.BuiltInFn) ->
-         { name = (RT.FQFnName.Stdlib fn.name).ToString()
-           parameters =
-             List.map
-               (fun (p : RT.Param) ->
-                 ({ name = p.name
-                    tipe = typToApiString p.typ
-                    block_args = []
-                    optional = false
-                    description = p.description } : ParamMetadata))
-               fn.parameters
-           description = fn.description
-           return_type = typToApiString fn.returnType
-           preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
-           infix = LibExecution.StdLib.StdLib.isInfixName fn.name
-           deprecated = fn.deprecated <> RT.NotDeprecated
-           is_supported_in_query = fn.sqlSpec.isQueryable () })
+  |> List.map convertFn
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize
 
