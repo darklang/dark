@@ -45,7 +45,7 @@ let compile
       let args = Map.ofList args
       return sql, args
     with LibExecution.Errors.DBQueryException msg as e ->
-      raise e
+      failwith msg
       return ("", Map.empty)
   }
 
