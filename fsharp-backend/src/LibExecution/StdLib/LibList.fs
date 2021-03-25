@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "List" "head" 2) }
     { name = fn "List" "head" 2
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = varA
+      returnType = TOption varA
       description =
         "Returns `Just` the head (first value) of a list. Returns `Nothing` if the list is empty."
       fn =
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "List" "tail" 0
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TList varA
+      returnType = TOption(TList varA)
       description =
         "If the list contains at least one value, returns `Just` a list of every value other than the first. Otherwise, returns `Nothing`."
       fn =
@@ -91,9 +91,9 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "push" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
-      description = "Add element {{val}} to front of list {{list}}"
+      description = "Add element `val` to front of list `list`"
       fn =
-        // fakeval handled by call *)
+        // fakeval handled by call
         (function
         | _, [ DList l; i ] -> Value(DList(i :: l))
         | _ -> incorrectArgs ())
@@ -280,12 +280,11 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "List" "fold" 0
       parameters =
-        [ Param.make "list" (TList varA) "The list of items to process one at a time"
-          Param.make "init" varB "The initial starting value"
-          Param.make
-            "f"
-            (TFn([ varB; varA ], varB))
-            "the function taking the accumulated value and the next list item, returning the next accumulated item." ]
+        [ Param.make "list" (TList varA) "" // CLEANUP add description "The list of items to process one at a time"
+          Param.make "init" varB "" // CLEANUP add description "The initial starting value"
+          Param.makeWithArgs "f" (TFn([ varB; varA ], varB)) "" [ "accum"; "curr" ] ]
+      // CLEANUP add description
+      //"the function taking the accumulated value and the next list item, returning the next accumulated item."
       returnType = varB
       description =
         "Folds `list` into a single value, by repeatedly applying `f` to any two pairs."
@@ -420,7 +419,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "sortBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.make "fn" (TFn([ varA ], varB)) "" ]
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varA
       description = "Returns a copy of `list`, sorted in ascending order, as if each value evaluated to `f val`.
            For example, `List::sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String::length val` returns `[ \"x\", \"ab\", \"jkl\" ]`.
@@ -531,10 +530,10 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "filter" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.make
-            "fn"
-            (TFn([ varA ], TBool))
-            "Function to be applied on all list elements; if the result it true then the element is kept" ]
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ]
+          // CLEANUP disabled to match OCaml for now
+          // "Function to be applied on all list elements; if the result it true then the element is kept"
+          ]
       returnType = TList varA
       description =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
@@ -853,10 +852,11 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "foreach" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.make "fn" (TFn([ varA ], varB)) "" ]
+          // CLEANUP rename these ares to "fn"
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varB
-      description =
-        "Call `f` on every `val` in the list, returning a list of the results of those calls"
+      description = "Call `f` on every `val` in the list, returning a list of the results of
+         those calls"
       fn =
         (function
         | state, [ DList l; DFnVal b ] ->
@@ -875,13 +875,13 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "List" "map" 0) }
     { name = fn "List" "map" 0
       parameters =
-        [ Param.make "list" (TList varA) "The list to be operated on"
-          Param.make
-            "fn"
-            (TFn([ varA ], varB))
-            "Function to be called on each member" ]
-      description =
-        "Returns a list created by the elements of `list` with `fn` called on each of them in order"
+        [ Param.make "list" (TList varA) "" // CLEANUP "The list to be operated on"
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ]
+          // CLEANUP
+          // "Function to be called on each member"
+          ]
+      description = "Calls `f` on every `val` in `list`, returning a list of the results of those calls.
+        Consider `List::filterMap` if you also want to drop some of the values."
       returnType = TList varB
       fn =
         (function

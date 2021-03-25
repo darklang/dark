@@ -15,7 +15,7 @@ let fn = FQFnName.stdlibFnName
 
 let err (str : string) = Value(Dval.errStr str)
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
