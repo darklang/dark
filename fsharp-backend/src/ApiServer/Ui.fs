@@ -62,7 +62,10 @@ let uiHtml
     if shouldHash then prodHashReplacements.Force() else "{}"
 
   let accountCreatedMsTs =
-    System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds().ToString()
+    System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds()
+    // CLEANUP strip milliseconds to make it identical to ocaml
+    |> fun x -> (x / 1000L) * 1000L
+    |> toString
 
   let staticHost =
     match localhostAssets with
@@ -102,9 +105,15 @@ let uiHtml
     .Replace("{{CSRF_TOKEN}}", csrfToken)
     .Replace("{{BUILD_HASH}}", Config.buildHash)
     // There isn't separate routing for static in ASP.NET
-    .Replace("http://static.darklang.localhost:8000", "darklang.localhost:9000")
+    .Replace(
+      "http://static.darklang.localhost:8000",
+      "darklang.localhost:9000"
+    )
     // FSTODO: Config is set up for OCaml right now
-    .Replace("http://darklang.localhost:8000", "darklang.localhost:9000")
+    .Replace(
+      "http://darklang.localhost:8000",
+      "darklang.localhost:9000"
+    )
     .Replace("http://builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
     .ToString()
 
