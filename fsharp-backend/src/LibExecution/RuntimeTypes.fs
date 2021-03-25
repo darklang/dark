@@ -313,6 +313,14 @@ and Param =
   static member make (name : string) (typ : DType) (description : string) : Param =
     { name = name; typ = typ; description = description; blockArgs = [] }
 
+  static member makeWithArgs
+    (name : string)
+    (typ : DType)
+    (description : string)
+    (blockArgs : List<string>)
+    : Param =
+    { name = name; typ = typ; description = description; blockArgs = blockArgs }
+
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
