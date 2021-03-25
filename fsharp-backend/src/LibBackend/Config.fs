@@ -203,9 +203,9 @@ let staticAssetsBucket = stringOption "DARK_CONFIG_STATIC_ASSETS_BUCKET"
 // config _files_ but as part of the production container build process.
 //
 let buildHash : string =
-  try
-    getEnv "GIT_COMMIT"
-  with _ -> envDisplayName
+  match getEnv "GIT_COMMIT" with
+  | Some s -> s
+  | None -> envDisplayName
 
 
 let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"
