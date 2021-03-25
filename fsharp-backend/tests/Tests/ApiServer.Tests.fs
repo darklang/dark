@@ -92,14 +92,20 @@ let testFunctionsReturnsTheSame =
     // shipping)
     let filtered (myFns : List<Api.FunctionMetadata>) : List<Api.FunctionMetadata> =
       List.filter
-        (fun fn -> Map.containsKey (PT.FQFnName.parse fn.name) (fns.Force()))
+        (fun fn ->
+          Map.containsKey (PT.FQFnName.parse fn.name) (fns.Force())
+          && not (Set.contains (fn.name.ToString()) (fsharpOnlyFns.Force())))
         myFns
 
     let fcfns = filtered fcfns
     let ocfns = filtered ocfns
 
     Expect.equal fc oc ""
-    Expect.equal fcfns ocfns ""
+
+    List.iter2
+      (fun (ffn : Api.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
+      fcfns
+      ocfns
   }
 
 let tests = testList "ApiServer" [ testFunctionsReturnsTheSame ]

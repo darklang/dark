@@ -152,6 +152,12 @@ let fns =
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
 
+let fsharpOnlyFns : Lazy<Set<string>> =
+  lazy
+    (LibExecution.StdLib.LibMiddleware.fns
+     |> List.map (fun (fn : RT.BuiltInFn) -> (fn.name).ToString())
+     |> Set)
+
 
 
 
