@@ -225,7 +225,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
         (fun (p : RT.Param) ->
           ({ name = p.name
              tipe = typToApiString p.typ
-             block_args = []
+             block_args = p.blockArgs
              optional = false
              description = p.description } : ParamMetadata))
         fn.parameters
