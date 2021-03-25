@@ -181,7 +181,14 @@ type FunctionMetadata =
     deprecated : bool
     is_supported_in_query : bool }
 
-let allFunctions = LibBackend.StdLib.StdLib.fns @ LibExecution.StdLib.StdLib.fns
+let allFunctions = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+
+let fsharpOnlyFns : Lazy<Set<string>> =
+  lazy
+    (LibExecution.StdLib.LibMiddleware.fns
+     |> List.map (fun (fn : RT.BuiltInFn) -> (fn.name).ToString())
+     |> Set)
+
 
 let typToApiString (typ : RT.DType) : string =
   match typ with
@@ -243,6 +250,8 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
 
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
+  |> List.filter
+       (fun fn -> not (Set.contains (toString fn.name) (fsharpOnlyFns.Force())))
   |> List.map convertFn
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize

@@ -94,7 +94,9 @@ let testFunctionsReturnsTheSame =
       List.filter
         (fun fn ->
           Map.containsKey (PT.FQFnName.parse fn.name) (fns.Force())
-          && not (Set.contains (fn.name.ToString()) (fsharpOnlyFns.Force())))
+          && not (
+            Set.contains (fn.name.ToString()) (ApiServer.Api.fsharpOnlyFns.Force())
+          ))
         myFns
 
     let fcfns = filtered fcfns
