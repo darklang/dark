@@ -40,7 +40,20 @@ module J = Prelude.Json
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
 module FQFnName =
-  type StdlibFnName = { module_ : string; function_ : string; version : int }
+  type StdlibFnName =
+    { module_ : string
+      function_ : string
+      version : int }
+
+    override this.ToString() : string =
+      let name =
+        if this.module_ = "" then
+          this.function_
+        else
+          $"{this.module_}::{this.function_}"
+
+      if this.version = 0 then name else $"{name}_v{this.version}"
+
   type UserFnName = string
 
   type PackageFnName =
@@ -50,6 +63,9 @@ module FQFnName =
       function_ : string
       version : int }
 
+    override this.ToString() : string =
+      $"{this.owner}/{this.package}/{this.module_}::{this.function_}_v{this.version}"
+
   type T =
     | User of UserFnName
     | Stdlib of StdlibFnName
@@ -58,16 +74,8 @@ module FQFnName =
     override this.ToString() : string =
       match this with
       | User name -> name
-      | Stdlib std ->
-          let name =
-            if std.module_ = "" then
-              std.function_
-            else
-              $"{std.module_}::{std.function_}"
-
-          if std.version = 0 then name else $"{name}_v{std.version}"
-      | Package pkg ->
-          $"{pkg.owner}/{pkg.package}/{pkg.module_}::{pkg.function_}_v{pkg.version}"
+      | Stdlib std -> std.ToString()
+      | Package pkg -> pkg.ToString()
 
     member this.isDBQueryFn() : bool =
       match this with

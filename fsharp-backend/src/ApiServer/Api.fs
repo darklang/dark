@@ -222,7 +222,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
   { name =
       // CLEANUP: this is difficult to change in OCaml, but is trivial in F# (we
       // should just be able to remove this line with no other change)
-      let n = (RT.FQFnName.Stdlib fn.name).ToString()
+      let n = fn.name.ToString()
       if n = "DB::add" then "DB::add_v0" else n
     parameters =
       List.map
