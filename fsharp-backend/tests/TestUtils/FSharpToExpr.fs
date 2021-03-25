@@ -145,7 +145,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       eBinOp "" op 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
       eFn "Int" "negate" 0 []
-  | SynExpr.Ident ident when ident.idText = "toString_v0" -> eFn "" "toString" 0 []
+  | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
+      eFn "" ident.idText 0 []
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
@@ -340,4 +341,4 @@ let convertToTest (ast : SynExpr) : PT.Expr * PT.Expr =
   | _ -> convert ast, PT.Shortcuts.eBool true
 
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
-let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType()
+let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType ()

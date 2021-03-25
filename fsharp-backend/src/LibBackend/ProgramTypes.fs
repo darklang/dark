@@ -34,6 +34,10 @@ module FQFnName =
   let userFqName = RT.FQFnName.userFqName
   let stdlibFqName = RT.FQFnName.stdlibFqName
 
+  let oneWordFunctions =
+    Set [ "toString"; "toRepr"; "equals"; "notEquals"; "assoc"; "dissoc"; "toForm"
+        ; "toString_v0"; "toRepr_v0"; "equals_v0"; "notEquals_v0"; "assoc_v0"; "dissoc_v0"; "toForm_v0" ]
+
   let parse (fnName : string) : T =
     match fnName with
     | Regex "^([a-z][a-z0-9_]*)/([a-z][a-z0-9A-Z]*)/([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)_v(\d+)$"
@@ -55,13 +59,7 @@ module FQFnName =
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
         RT.FQFnName.stdlibFqName "" name (int version)
     // don't accidentally parse these as userFns
-    | "toString"
-    | "toRepr"
-    | "equals"
-    | "notEquals"
-    | "assoc"
-    | "dissoc"
-    | "toForm" -> RT.FQFnName.stdlibFqName "" fnName 0
+    | v when Set.contains v oneWordFunctions -> RT.FQFnName.stdlibFqName "" fnName 0
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
@@ -177,7 +175,7 @@ type Expr =
 
 
   member this.toRuntimeType() : RT.Expr =
-    let r(v : Expr) = v.toRuntimeType ()
+    let r (v : Expr) = v.toRuntimeType ()
 
     match this with
     | EBlank id -> RT.EBlank id
@@ -281,7 +279,7 @@ and Pattern =
   | PBlank of id
 
   member this.toRuntimeType() : RT.Pattern =
-    let r(v : Pattern) = v.toRuntimeType ()
+    let r (v : Pattern) = v.toRuntimeType ()
 
     match this with
     | PVariable (id, str) -> RT.PVariable(id, str)
@@ -667,7 +665,7 @@ type DType =
     | "result" -> TResult(any, any)
     | "dict" -> TDict any
     | _ ->
-        let parseListTyp(listTyp : string) : DType =
+        let parseListTyp (listTyp : string) : DType =
           match String.toLower listTyp with
           | "str" -> TDbList TStr
           | "string" -> TDbList TStr
@@ -847,7 +845,7 @@ module UserFunction =
 
     member this.toRuntimeType() : RT.UserFunction.Parameter =
       { name = this.name
-        typ = (Option.unwrap (TVariable "a") this.typ).toRuntimeType()
+        typ = (Option.unwrap (TVariable "a") this.typ).toRuntimeType ()
         description = this.description }
 
   type T =
