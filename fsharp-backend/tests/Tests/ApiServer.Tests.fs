@@ -66,7 +66,17 @@ let testFunctionsReturnsTheSame =
 
     let! oc = o.Content.ReadAsStringAsync()
     let! fc = f.Content.ReadAsStringAsync()
-    Expect.equal (String.take 10000 oc) (String.take 10000 fc) ""
+
+    let parse (s : string) : string * string =
+      match oc with
+      | RegexAny "(.*const complete = \[)(.*)(\];\n.*)" [ before; fns; after ] ->
+          ($"{before}{after}", fns)
+      | _ -> failwith "doesn't match"
+
+    let oc, ocfns = parse oc
+    let fc, fcfns = parse fc
+
+    Expect.equal oc fc ""
   }
 
 let tests = testList "ApiServer" [ testFunctionsReturnsTheSame ]
