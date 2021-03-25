@@ -288,8 +288,8 @@ let fns : fn list =
     ; parameters = [par "spec" TObj; par "table" TDB]
     ; return_type = TList
     ; description =
-        "Fetch all the values from `table` which have the same fields and values that `spec` has
-        , returning a [[key, value]] list of lists"
+        "Fetch all the values from `table` which have the same fields and values that `spec` has,
+        returning a [[key, value]] list of lists"
     ; func =
         InProcess
           (function
