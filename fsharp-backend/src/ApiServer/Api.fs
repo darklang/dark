@@ -239,6 +239,7 @@ let functionsToString (fns : RT.BuiltInFn list) : string =
            infix = LibExecution.StdLib.StdLib.isInfixName fn.name
            deprecated = fn.deprecated <> RT.NotDeprecated
            is_supported_in_query = fn.sqlSpec.isQueryable () })
+  |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize
 
 let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)

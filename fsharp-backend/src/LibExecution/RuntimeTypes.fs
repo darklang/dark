@@ -59,10 +59,13 @@ module FQFnName =
       match this with
       | User name -> name
       | Stdlib std ->
-          if std.module_ = "" then
-            $"{std.function_}_v{std.version}"
-          else
-            $"{std.module_}::{std.function_}_v{std.version}"
+          let name =
+            if std.module_ = "" then
+              std.function_
+            else
+              $"{std.module_}::{std.function_}"
+
+          if std.version = 0 then name else $"{name}_v{std.version}"
       | Package pkg ->
           $"{pkg.owner}/{pkg.package}/{pkg.module_}::{pkg.function_}_v{pkg.version}"
 

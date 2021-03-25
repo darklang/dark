@@ -262,10 +262,10 @@ let fqFnName =
   testMany
     "FQFnName.ToString"
     (fun (name : RT.FQFnName.T) -> name.ToString())
-    [ (RT.FQFnName.stdlibFqName "" "++" 0), "++_v0"
-      (RT.FQFnName.stdlibFqName "" "!=" 0), "!=_v0"
-      (RT.FQFnName.stdlibFqName "" "&&" 0), "&&_v0"
-      (RT.FQFnName.stdlibFqName "" "toString" 0), "toString_v0"
+    [ (RT.FQFnName.stdlibFqName "" "++" 0), "++"
+      (RT.FQFnName.stdlibFqName "" "!=" 0), "!="
+      (RT.FQFnName.stdlibFqName "" "&&" 0), "&&"
+      (RT.FQFnName.stdlibFqName "" "toString" 0), "toString"
       (RT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 // TODO parsing function names from OCaml
@@ -274,10 +274,10 @@ let backendFqFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun (name : PT.FQFnName.T) -> name.ToString())
-    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++_v0"
-      (PT.FQFnName.stdlibFqName "" "!=" 0), "!=_v0"
-      (PT.FQFnName.stdlibFqName "" "&&" 0), "&&_v0"
-      (PT.FQFnName.stdlibFqName "" "toString" 0), "toString_v0"
+    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++"
+      (PT.FQFnName.stdlibFqName "" "!=" 0), "!="
+      (PT.FQFnName.stdlibFqName "" "&&" 0), "&&"
+      (PT.FQFnName.stdlibFqName "" "toString" 0), "toString"
       (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 let equalsOCaml =

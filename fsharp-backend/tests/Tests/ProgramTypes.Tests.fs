@@ -16,7 +16,7 @@ let parseTests =
   testList
     "Parsing fn names"
     [ testListUsingProperty
-        "FQFnName parse tests"
+        "FQFnName roundtrip tests"
         FuzzTests.All.FQFnName.ptRoundtrip
         [ ("", p "d6x3an030gugdr7t74k6k/s/F::pIi4tOCQujxl_v3")
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
@@ -27,7 +27,21 @@ let parseTests =
           ("", Stdlib { module_ = ""; function_ = "++"; version = 0 })
           ("", Stdlib { module_ = ""; function_ = "+"; version = 0 })
           ("", p "-")
-          ("", p "^") ] ]
+          ("", p "^") ]
+      testMany
+        "FQFnName parse tests"
+        PT.FQFnName.parse
+        [ ("toString", Stdlib { module_ = ""; function_ = "toString"; version = 0 })
+          ("toRepr", Stdlib { module_ = ""; function_ = "toRepr"; version = 0 })
+          ("equals", Stdlib { module_ = ""; function_ = "equals"; version = 0 })
+          ("notEquals", Stdlib { module_ = ""; function_ = "notEquals"; version = 0 })
+          ("assoc", Stdlib { module_ = ""; function_ = "assoc"; version = 0 })
+          ("dissoc", Stdlib { module_ = ""; function_ = "dissoc"; version = 0 })
+          ("toForm", Stdlib { module_ = ""; function_ = "toForm"; version = 0 })
+          ("++", Stdlib { module_ = ""; function_ = "++"; version = 0 })
+          ("+", Stdlib { module_ = ""; function_ = "+"; version = 0 }) ] ]
+
+
 
 let testPipesToRuntimeTypes =
   test "pipes to runtime types" {

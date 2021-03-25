@@ -54,6 +54,14 @@ module FQFnName =
     | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
         RT.FQFnName.stdlibFqName "" name (int version)
+    // don't accidentally parse these as userFns
+    | "toString"
+    | "toRepr"
+    | "equals"
+    | "notEquals"
+    | "assoc"
+    | "dissoc"
+    | "toForm" -> RT.FQFnName.stdlibFqName "" fnName 0
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
