@@ -102,6 +102,7 @@ let testFunctionsReturnsTheSame =
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
       |> Set
 
+    let mutable notImplementedCount = 0
 
     let filtered (myFns : List<Api.FunctionMetadata>) : List<Api.FunctionMetadata> =
       List.filter
@@ -110,6 +111,7 @@ let testFunctionsReturnsTheSame =
             true
           else
             printfn $"Not yet implemented: {fn.name}"
+            notImplementedCount <- notImplementedCount + 1
             false)
         myFns
 
@@ -117,17 +119,18 @@ let testFunctionsReturnsTheSame =
     // Since we don't yet support all the tests, we just filter to the ones we
     // do support for now. Before shipping, we obviously need to support them
     // all.
-    let ocfns = filtered ocfns
+    let filteredOCamlFns = filtered ocfns
 
-    printfn $"Total fns:         {List.length allBuiltins}"
+    printfn $"Implemented fns  : {List.length allBuiltins}"
     printfn $"Excluding F#-only: {Set.length builtins}"
-    printfn $"From OCaml api   : {List.length ocfns}"
-    printfn $"From F# api      : {List.length fcfns}"
+    printfn $"Missing fns      : {notImplementedCount}"
+    printfn $"Fns in OCaml api : {List.length ocfns}"
+    printfn $"Fns in F# api    : {List.length fcfns}"
 
     List.iter2
       (fun (ffn : Api.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
       fcfns
-      ocfns
+      filteredOCamlFns
   }
 
 let localOnlyTests =
