@@ -281,14 +281,14 @@ let fns : List<BuiltInFn> =
       description = "Returns the sum of all the ints in the list"
       fn =
         (function
-        | _, [DList l] ->
+        | _, [DList l as ldv] ->
             let ints =
               List.map
                 (fun i ->
                   match i with
                   | DInt it -> it
-                  | _ ->
-                      Errors.throw "Sum expects you to pass a list of ints")
+                  | t ->
+                      Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
                 l
             let sum = List.fold (fun acc elem -> acc + elem) (bigint 0) ints
             Value(DInt sum)
