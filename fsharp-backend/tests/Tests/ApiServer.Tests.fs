@@ -113,16 +113,16 @@ let testFunctionsReturnsTheSame =
             false)
         myFns
 
-    printfn $"Total fns:         {List.length allBuiltins}"
-    printfn $"Excluding F#-only: {Set.length builtins}"
-    printfn $"From OCaml api   : {List.length ocfns}"
-    printfn $"From F# api      : {List.length fcfns}"
-
     // FSTODO: Here we test that the metadata for all the APIs is the same.
     // Since we don't yet support all the tests, we just filter to the ones we
     // do support for now. Before shipping, we obviously need to support them
     // all.
     let ocfns = filtered ocfns
+
+    printfn $"Total fns:         {List.length allBuiltins}"
+    printfn $"Excluding F#-only: {Set.length builtins}"
+    printfn $"From OCaml api   : {List.length ocfns}"
+    printfn $"From F# api      : {List.length fcfns}"
 
     List.iter2
       (fun (ffn : Api.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
