@@ -86,23 +86,43 @@ let testFunctionsReturnsTheSame =
 
     let oc, ocfns = parse oc
     let fc, fcfns = parse fc
+    Expect.equal fc oc ""
 
-    // FSTODO We want the metadata for the functions we currently support to be
-    // the same, but we don't currently support the full set (we will before
-    // shipping)
+    let allBuiltins = (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
+
+    let builtins =
+      allBuiltins
+      |> List.filter
+           (fun fn ->
+             not (
+               Set.contains
+                 (fn.name.ToString())
+                 (ApiServer.Api.fsharpOnlyFns.Force())
+             ))
+      |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
+      |> Set
+
+
     let filtered (myFns : List<Api.FunctionMetadata>) : List<Api.FunctionMetadata> =
       List.filter
         (fun fn ->
-          Map.containsKey (PT.FQFnName.parse fn.name) (fns.Force())
-          && not (
-            Set.contains (fn.name.ToString()) (ApiServer.Api.fsharpOnlyFns.Force())
-          ))
+          if Set.contains (PT.FQFnName.parse fn.name) builtins then
+            true
+          else
+            printfn $"Not yet implemented: {fn.name}"
+            false)
         myFns
 
-    let fcfns = filtered fcfns
-    let ocfns = filtered ocfns
+    printfn $"Total fns:         {List.length allBuiltins}"
+    printfn $"Excluding F#-only: {Set.length builtins}"
+    printfn $"From OCaml api   : {List.length ocfns}"
+    printfn $"From F# api      : {List.length fcfns}"
 
-    Expect.equal fc oc ""
+    // FSTODO: Here we test that the metadata for all the APIs is the same.
+    // Since we don't yet support all the tests, we just filter to the ones we
+    // do support for now. Before shipping, we obviously need to support them
+    // all.
+    let ocfns = filtered ocfns
 
     List.iter2
       (fun (ffn : Api.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
