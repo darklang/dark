@@ -130,4 +130,17 @@ let testFunctionsReturnsTheSame =
       ocfns
   }
 
-let tests = testList "ApiServer" [ testFunctionsReturnsTheSame ]
+let localOnlyTests =
+  let tests =
+    if System.Environment.GetEnvironmentVariable "CI" = null then
+      // This test is hard to run in CI without moving a lot of things around.
+      // It calls the ocaml webserver which is not running in that job, and not
+      // compiled/available to be run either.
+      [ testFunctionsReturnsTheSame ]
+    else
+      []
+
+  testList "local" tests
+
+
+let tests = testList "ApiServer" [ localOnlyTests ]
