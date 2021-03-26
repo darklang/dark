@@ -284,7 +284,7 @@ String.slugify_v2 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 
 String.fromList_v1 [] = ""
 ("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "This function no longer exists.") // OCAMLONLY
-("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "String::fromList_v0 was removed from Dark") // FSHARPONLY
+("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "String::fromList was removed from Dark") // FSHARPONLY
 ("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
 ("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
 

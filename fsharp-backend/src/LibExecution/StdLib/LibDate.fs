@@ -141,7 +141,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DDate d; DInt s ] -> (Value(DDate(d.AddSeconds(float -s))))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "-"
+      sqlSpec = NotQueryable // As the OCaml one wasn't
       previewable = Pure
       deprecated = ReplacedBy(fn "Date" "subtract" 0) }
     { name = fn "Date" "subtract" 0

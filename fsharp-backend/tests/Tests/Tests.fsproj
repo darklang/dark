@@ -13,17 +13,21 @@
     <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FSharpToExpr.Tests.fs" />
-    <Compile Include="LibExecution.Tests.fs" />
-    <Compile Include="ProgramTypes.Tests.fs" />
-    <Compile Include="OCamlInterop.Tests.fs" />
-    <Compile Include="DvalRepr.Tests.fs" />
-    <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="Account.Tests.fs" />
+    <Compile Include="Analysis.Tests.fs" />
     <Compile Include="ApiServer.Tests.fs" />
     <Compile Include="Authorization.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
+    <Compile Include="Canvas.Tests.fs" />
+    <Compile Include="DvalRepr.Tests.fs" />
+    <Compile Include="Execution.Tests.fs" />
+    <Compile Include="FSharpToExpr.Tests.fs" />
+    <Compile Include="LibExecution.Tests.fs" />
+    <Compile Include="OCamlInterop.Tests.fs" />
+    <Compile Include="ProgramTypes.Tests.fs" />
+    <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />
+    <Compile Include="Undo.Tests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

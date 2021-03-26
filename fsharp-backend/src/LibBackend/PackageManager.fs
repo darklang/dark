@@ -310,7 +310,7 @@ let allFunctions () : Task<List<PT.PackageManager.Fn>> =
            returnType = PT.DType.parse (read.string "return_type")
            parameters =
              read.string "parameters"
-             |> Json.AutoSerialize.deserialize<List<OT.PackageManager.parameter>>
+             |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
              |> List.map Convert.ocamlPackageManagerParameter2PT
            description = read.string "description"
            author = read.string "author"

@@ -22,17 +22,17 @@ module RT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
-module Config = LibBackend.Config
-module Session = LibBackend.Session
 module Account = LibBackend.Account
+module Analysis = LibBackend.Analysis
 module Auth = LibBackend.Authorization
-module SA = LibBackend.StaticAssets
-module RT = LibExecution.RuntimeTypes
 module Canvas = LibBackend.Canvas
-module TI = LibBackend.TraceInputs
-module TFR = LibBackend.TraceFunctionResults
+module Config = LibBackend.Config
+module RT = LibExecution.RuntimeTypes
+module SA = LibBackend.StaticAssets
+module Session = LibBackend.Session
 module TFA = LibBackend.TraceFunctionArguments
-
+module TFR = LibBackend.TraceFunctionResults
+module TI = LibBackend.TraceInputs
 
 // type add_op_rpc_params =
 //   { ops : oplist
@@ -181,7 +181,14 @@ type FunctionMetadata =
     deprecated : bool
     is_supported_in_query : bool }
 
-let allFunctions = LibBackend.StdLib.StdLib.fns @ LibExecution.StdLib.StdLib.fns
+let allFunctions = LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+
+let fsharpOnlyFns : Lazy<Set<string>> =
+  lazy
+    (LibExecution.StdLib.LibMiddleware.fns
+     |> List.map (fun (fn : RT.BuiltInFn) -> (fn.name).ToString())
+     |> Set)
+
 
 let typToApiString (typ : RT.DType) : string =
   match typ with
@@ -218,28 +225,36 @@ let typToApiString (typ : RT.DType) : string =
 // | TDeprecated6 ->
 // Exception.internal "Deprecated type"
 
+let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
+  { name =
+      // CLEANUP: this is difficult to change in OCaml, but is trivial in F# (we
+      // should just be able to remove this line with no other change)
+      let n = fn.name.ToString()
+      if n = "DB::add" then "DB::add_v0" else n
+    parameters =
+      List.map
+        (fun (p : RT.Param) ->
+          ({ name = p.name
+             tipe = typToApiString p.typ
+             block_args = p.blockArgs
+             optional = false
+             description = p.description } : ParamMetadata))
+        fn.parameters
+    description = fn.description
+    return_type = typToApiString fn.returnType
+    preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
+    infix = LibExecution.StdLib.StdLib.isInfixName fn.name
+    deprecated = fn.deprecated <> RT.NotDeprecated
+    is_supported_in_query = fn.sqlSpec.isQueryable () }
+
 
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
-  |> List.map
-       (fun (fn : RT.BuiltInFn) ->
-         { name = fn.name.ToString()
-           parameters =
-             List.map
-               (fun (p : RT.Param) ->
-                 ({ name = p.name
-                    tipe = typToApiString p.typ
-                    block_args = []
-                    optional = false
-                    description = p.description } : ParamMetadata))
-               fn.parameters
-           description = fn.description
-           return_type = typToApiString fn.returnType
-           preview_safety = if fn.previewable = RT.Pure then Safe else Unsafe
-           infix = LibExecution.StdLib.StdLib.isInfixName fn.name
-           deprecated = fn.deprecated <> RT.NotDeprecated
-           is_supported_in_query = fn.sqlSpec.isQueryable () })
-  |> Prelude.Json.AutoSerialize.serialize
+  |> List.filter
+       (fun fn -> not (Set.contains (toString fn.name) (fsharpOnlyFns.Force())))
+  |> List.map convertFn
+  |> List.sortBy (fun fn -> fn.name)
+  |> Json.Vanilla.prettySerialize
 
 let adminFunctions : Lazy<string> = lazy (allFunctions |> functionsToString)
 
@@ -315,8 +330,8 @@ module InitialLoad =
       let canvasInfo = Middleware.loadCanvasInfo ctx
 
       // t1
-      let! canvas =
-        LibBackend.Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
+      let! canvas = Canvas.loadAll canvasInfo
+      let! creationDate = Canvas.canvasCreationDate canvasInfo.id
 
       let canvas = Result.unwrapUnsafe canvas
 
@@ -328,28 +343,25 @@ module InitialLoad =
       // t2
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
 
-      let ocamlToplevels =
-        canvas
-        |> LibBackend.Canvas.toplevels
-        |> LibBackend.OCamlInterop.Convert.pt2ocamlToplevels
+      let ocamlToplevels = canvas |> Canvas.toplevels |> Convert.pt2ocamlToplevels
 
       // t3
       let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
 
       // t5
-      let! canvasList = LibBackend.Account.ownedCanvases user.id
+      let! canvasList = Account.ownedCanvases user.id
 
       // t6
-      let! orgCanvasList = LibBackend.Account.accessibleCanvases user.id
+      let! orgCanvasList = Account.accessibleCanvases user.id
 
       // t7
       let! orgList = LibBackend.Account.orgs user.id
 
       // t8
-      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.id
+      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.meta.id
 
       // t9
-      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.id
+      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id
 
       return
         { toplevels = Tuple3.first ocamlToplevels
@@ -372,7 +384,7 @@ module InitialLoad =
               email = user.email
               admin = user.admin
               id = user.id }
-          creation_date = canvas.creationDate
+          creation_date = creationDate
           secrets =
             List.map
               (fun (s : LibBackend.Secret.Secret) ->
@@ -407,46 +419,44 @@ module Traces =
 
   type AllTraces = { traces : List<tlid * AT.TraceID> }
 
-  let getTraceData (ctx : HttpContext) : Task<AT.Trace> =
+  let getTraceData (ctx : HttpContext) : Task<Option<T>> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! args = ctx.BindModelAsync<Params>()
 
-      let! (c : LibBackend.Canvas.T) =
-        Canvas.loadTLIDsFromCache
-          [ args.tlid ]
-          canvasInfo.name
-          canvasInfo.id
-          canvasInfo.owner
+      let! (c : Canvas.T) =
+        Canvas.loadTLIDsFromCache canvasInfo [ args.tlid ]
         |> Task.map Result.unwrapUnsafe
 
       // TODO: we dont need the handlers or functions at all here, just for the sample
       // values which we can do on the client instead
       let handler = c.handlers |> Map.get args.tlid
 
-      match handler with
-      | Some h -> return! LibBackend.Analysis.handlerTrace c.id args.trace_id h
-      | None ->
-          let userFn = c.userFunctions |> Map.get args.tlid |> Option.unwrapUnsafe
-          return! LibBackend.Analysis.userfnTrace c.id args.trace_id userFn
+      let! trace =
+        match handler with
+        | Some h -> Analysis.handlerTrace c.meta.id args.trace_id h |> Task.map Some
+        | None ->
+            match c.userFunctions |> Map.get args.tlid with
+            | Some u ->
+                Analysis.userfnTrace c.meta.id args.trace_id u |> Task.map Some
+            | None -> task { return None }
 
+      return Option.map (fun t -> { trace = t }) trace
     }
 
   let fetchAllTraces (ctx : HttpContext) : Task<AllTraces> =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
 
-      let! (c : LibBackend.Canvas.T) =
-        // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
-        Canvas.loadAll canvasInfo.name canvasInfo.id canvasInfo.owner
-        |> Task.map Result.unwrapUnsafe
+      // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
+      let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
 
       let! hTraces =
         c.handlers
         |> Map.values
         |> List.map
              (fun h ->
-               LibBackend.Analysis.traceIDsForHandler c h
+               Analysis.traceIDsForHandler c h
                |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
         |> Task.flatten
         |> Task.map List.concat
@@ -456,7 +466,7 @@ module Traces =
         |> Map.values
         |> List.map
              (fun uf ->
-               LibBackend.Analysis.traceIDsForUserFn c.id uf.tlid
+               Analysis.traceIDsForUserFn c.meta.id uf.tlid
                |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
         |> Task.flatten
         |> Task.map List.concat
@@ -468,6 +478,7 @@ module Traces =
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
+  let oh = Middleware.apiOptionHandler
 
   [
     // TODO: why is this a POST?
@@ -475,7 +486,7 @@ let endpoints : Endpoint list =
            routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read)
            routef "/api/%s/get_unlocked_dbs" (h DB.getUnlockedDBs Auth.Read)
            routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
-           routef "/api/%s/get_trace_data" (h Traces.getTraceData Auth.Read)
+           routef "/api/%s/get_trace_data" (oh Traces.getTraceData Auth.Read)
            routef "/api/%s/all_traces" (h Traces.fetchAllTraces Auth.Read)
 
            // routef "/api/%s/save_test" (h Testing.saveTest Auth.ReadWrite)

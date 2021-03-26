@@ -125,7 +125,7 @@ module FQFnName =
 module OCamlInterop =
   open OCamlInterop.Convert
   open OCamlInterop
-  open Json.AutoSerialize
+  open Json.OCamlCompatible
 
   let isInteroperable
     (ocamlToString : 'a -> string)
@@ -491,7 +491,7 @@ module ExecutePureFunctions =
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
-      let genDval(typ' : RT.DType) : Gen<RT.Dval> =
+      let genDval (typ' : RT.DType) : Gen<RT.Dval> =
         let rec genDval' typ s =
           gen {
             match typ with
@@ -555,14 +555,23 @@ module ExecutePureFunctions =
           member x.Generator =
             gen {
               let fns =
-                LibExecution.StdLib.StdLib.fns
+                (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
+                |> List.filter
+                     (fun fn ->
+                       not (
+                         Set.contains
+                           (toString fn.name)
+                           (ApiServer.Api.fsharpOnlyFns.Force())
+                       ))
                 |> List.filter
                      (function
-                     | { name = { module_ = "Http" } } -> false
+                     // FSTODO: Relies on some things that can't be compiled into a shared library in OCaml (RE)
                      | { name = { module_ = "String"; function_ = "slugify" } } ->
                          false
+                     // FSTODO: I don't remember what went wrong here
                      | { name = { module_ = "String"; function_ = "base64decode" } } ->
                          false
+                     // FSTODO: These use a different sort order in OCaml
                      | { name = { module_ = "List"; function_ = "sort" } } -> false
                      | { name = { module_ = "List"; function_ = "sortBy" } } -> false
                      | fn -> fn.previewable = RT.Pure)
@@ -571,11 +580,11 @@ module ExecutePureFunctions =
               let name = fns.[fnIndex].name
               let signature = fns.[fnIndex].parameters
 
-              let unifiesWith(typ : RT.DType) =
+              let unifiesWith (typ : RT.DType) =
                 (fun dv ->
                   dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
 
-              let rec containsBytes(dv : RT.Dval) =
+              let rec containsBytes (dv : RT.Dval) =
                 match dv with
                 | RT.DDB _
                 | RT.DInt _

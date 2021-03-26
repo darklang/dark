@@ -21,7 +21,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "" "toString" 0
       description =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
-      parameters = [ Param.make "a" (TVariable "a") "" ]
+      parameters = [ Param.make "v" (TVariable "a") "" ]
       returnType = TStr
       fn =
         (function
@@ -30,20 +30,18 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "" "toRepr" 0
-//   ; parameters = [Param.make "v" varA ""]
-//   ; returnType = TStr
-//   ; description =
-//       "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
-//   ; fn =
-//         (function
-//         | _, [a] ->
-//             DStr (Dval.to_developer_repr_v0 a)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "" "toRepr" 0
+      parameters = [ Param.make "v" varA "" ]
+      returnType = TStr
+      description =
+        "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
+      fn =
+        (function
+        | _, [ a ] -> Value(DStr(DvalRepr.toDeveloperReprV0 a))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = DeprecatedBecause "Not intended for external use" }
     { name = fn "" "equals" 0
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool

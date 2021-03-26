@@ -145,7 +145,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       eBinOp "" op 0 placeholder placeholder
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
       eFn "Int" "negate" 0 []
-  | SynExpr.Ident ident when ident.idText = "toString_v0" -> eFn "" "toString" 0 []
+  | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
+      eFn "" ident.idText 0 []
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
@@ -175,17 +176,23 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   // Note to self: LongIdent = Ident list
   | SynExpr.LongIdent (_, LongIdentWithDots ([ modName; fnName ], _), _, _) when
     System.Char.IsUpper(modName.idText.[0]) ->
-      let name, version, ster =
+      let module_ = modName.idText
+
+      let name, ster =
         match fnName.idText with
-        | Regex "(.+)_v(\d+)_ster" [ name; version ] -> (name, int version, PT.Rail)
-        | Regex "(.+)_v(\d+)" [ name; version ] -> (name, int version, PT.NoRail)
+        | Regex "(.+)_v(\d+)_ster" [ name; version ] ->
+            ($"{module_}::{name}_v{int version}", PT.Rail)
+        | Regex "(.+)_v(\d+)" [ name; version ] ->
+            ($"{module_}::{name}_v{int version}", PT.NoRail)
         | Regex "(.*)" [ name ] when Map.containsKey name ops ->
             // Things like `Date::<`, written `Date.(<)`
-            (Map.get name ops |> Option.unwrapUnsafe, 0, PT.NoRail)
+            let name = Map.get name ops |> Option.unwrapUnsafe
+            ($"{module_}::{name}", PT.NoRail)
+        | Regex "(.+)_ster" [ name ] -> ($"{module_}::{name}", PT.Rail)
+        | Regex "(.+)" [ name ] -> ($"{module_}::{name}", PT.NoRail)
         | _ -> failwith $"Bad format in function name: \"{fnName.idText}\""
 
-      let desc = PT.FQFnName.stdlibFqName modName.idText name version
-      PT.EFnCall(gid (), desc, [], ster)
+      PT.EFnCall(gid (), PT.FQFnName.parse name, [], ster)
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
       let obj1 = eFieldAccess (eVar var.idText) f1.idText
       let obj2 = eFieldAccess obj1 f2.idText
@@ -284,10 +291,6 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                  SynExpr.Const (SynConst.String (label, _), _),
                  _) when name.idText = "flag" ->
       eflag label placeholder placeholder placeholder
-  // Most functions are LongIdents, toString isn't
-  | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when name.idText = "toString_v0" ->
-      let desc = PT.FQFnName.stdlibFqName "" "toString" 0
-      PT.EFnCall(gid (), desc, [ c arg ], PT.NoRail)
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
@@ -312,7 +315,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       | PT.EPipe (id, arg1, arg2, rest) as pipe ->
           PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
-          PT.EFnCall(id, PT.FQFnName.userFqName name, [ c arg ], PT.NoRail)
+          PT.EFnCall(id, PT.FQFnName.parse name, [ c arg ], PT.NoRail)
       | e ->
           failwith (
             $"Unsupported expression in app: full ast:\n{ast}\n\n"
@@ -338,4 +341,4 @@ let convertToTest (ast : SynExpr) : PT.Expr * PT.Expr =
   | _ -> convert ast, PT.Shortcuts.eBool true
 
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
-let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType()
+let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType ()

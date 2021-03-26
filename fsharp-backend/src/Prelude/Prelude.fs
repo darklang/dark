@@ -23,6 +23,13 @@ let (|Regex|_|) (pattern : string) (input : string) =
   let m = Regex.Match(input, pattern)
   if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
 
+let (|RegexAny|_|) (pattern : string) (input : string) =
+  let options = RegexOptions.Singleline
+  let m = Regex.Match(input, pattern, options)
+  if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ]) else None
+
+
+
 let matches (pattern : string) (input : string) : bool =
   let m = Regex.Match(input, pattern)
   m.Success
@@ -193,7 +200,43 @@ module String =
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
+module HashSet =
+  type T<'v> = System.Collections.Generic.HashSet<'v>
 
+  let add (v : 'v) (s : T<'v>) : T<'v> =
+    s.Add v |> ignore
+    s
+
+  let toList (d : T<'v>) : List<'v> =
+    seq {
+      let mutable e = d.GetEnumerator()
+
+      while e.MoveNext() do
+        yield e.Current
+    }
+    |> Seq.toList
+
+
+
+module Dictionary =
+  type T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
+  let tryGetValue = FSharpPlus.Dictionary.tryGetValue
+
+  let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : T<'k, 'v> =
+    d.Add(k, v)
+    d
+
+  let keys = FSharpPlus.Dictionary.keys
+  let values = FSharpPlus.Dictionary.values
+
+  let toList (d : T<'k, 'v>) : List<'k * 'v> =
+    seq {
+      let mutable e = d.GetEnumerator()
+
+      while e.MoveNext() do
+        yield (e.Current.Key, e.Current.Value)
+    }
+    |> Seq.toList
 
 
 // ----------------------
@@ -294,11 +337,9 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
                   taskv {
                     // Ensure the previous computation is done first
                     let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                    let accum = prev :: accum
+                    let! result = f arg
 
-                    let! result = (f arg)
-
-                    return (accum, result)
+                    return (prev :: accum, result)
                   })
                 firstComp
                 tail
@@ -307,6 +348,23 @@ let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> 
           }
 
     return (result |> Seq.toList)
+  }
+
+let iter_s (f : 'a -> TaskOrValue<unit>) (list : List<'a>) : TaskOrValue<unit> =
+  taskv {
+    match list with
+    | [] -> return ()
+    | head :: tail ->
+        return!
+          List.fold
+            (fun (prevcomp : TaskOrValue<unit>) (arg : 'a) ->
+              taskv {
+                // Ensure the previous computation is done first
+                let! (prev : unit) = prevcomp
+                return! f arg
+              })
+            (f head)
+            tail
   }
 
 
@@ -379,7 +437,6 @@ type Password = Password of byte array
 module Json =
   module AutoSerialize =
     open Newtonsoft.Json
-    open Newtonsoft.Json.Converters
     open Microsoft.FSharp.Reflection
 
     // Serialize bigints as strings
@@ -397,7 +454,7 @@ module Json =
         ) =
         writer.WriteRawValue(value.ToString())
 
-    type OCamlDuConverter() =
+    type FSharpDuConverter() =
       inherit JsonConverter()
 
       override _.WriteJson(writer, value, serializer) =
@@ -535,6 +592,47 @@ module Json =
         failwith "unsupported serialization of password"
         writer.WriteValue "<password should never be written here>"
 
+
+    // We don't use this at the moment
+    // type OCamlOptionConverter() =
+    //   inherit JsonConverter()
+    //
+    //   override _.CanConvert(t : System.Type) =
+    //     t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
+    //
+    //   override _.WriteJson(writer : JsonWriter, value, serializer : JsonSerializer) =
+    //     let value =
+    //       if value = null then
+    //         null
+    //       else
+    //         let _, fields = FSharpValue.GetUnionFields(value, value.GetType())
+    //         fields.[0]
+    //
+    //     serializer.Serialize(writer, value)
+    //
+    //   override x.ReadJson
+    //     (
+    //       reader : JsonReader,
+    //       t : System.Type,
+    //       existingValue,
+    //       serializer : JsonSerializer
+    //     ) =
+    //     let innerType = t.GetGenericArguments().[0]
+    //
+    //     let innerType =
+    //       if innerType.IsValueType then
+    //         (typedefof<System.Nullable<_>>).MakeGenericType([| innerType |])
+    //       else
+    //         innerType
+    //
+    //     let value = serializer.Deserialize(reader, innerType)
+    //     let cases = FSharpType.GetUnionCases(t)
+    //
+    //     if value = null then
+    //       FSharpValue.MakeUnion(cases.[0], [||])
+    //     else
+    //       FSharpValue.MakeUnion(cases.[1], [| value |])
+    //
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
@@ -585,6 +683,52 @@ module Json =
         |> base64ToUrlEncoded
         |> writer.WriteValue
 
+  // This is used for "normal" JSON conversion, such as converting Pos into
+  // json. It does not feature anything for conversion to OCaml-compatible
+  // stuff, such as may be required to communicate with the fuzzer or the
+  // frontend. It does handle F#-specific constructs, and prevents exposing
+  // passwords (just in case).
+  module Vanilla =
+    open Newtonsoft.Json
+
+    let getSettings () =
+      let settings = JsonSerializerSettings()
+      // This might be a potential vulnerability, turn it off anyway
+      settings.MetadataPropertyHandling <- MetadataPropertyHandling.Ignore
+      // This is a potential vulnerability
+      settings.TypeNameHandling <- TypeNameHandling.None
+      // dont deserialize date-looking string as dates
+      settings.DateParseHandling <- DateParseHandling.None
+      settings.Converters.Add(AutoSerialize.BigIntConverter())
+      settings.Converters.Add(AutoSerialize.TLIDConverter())
+      settings.Converters.Add(AutoSerialize.PasswordConverter())
+      settings.Converters.Add(AutoSerialize.FSharpListConverter())
+      settings.Converters.Add(AutoSerialize.FSharpTupleConverter())
+      settings.Converters.Add(AutoSerialize.FSharpDuConverter())
+      settings
+
+    let _settings = getSettings ()
+
+    let registerConverter (c : JsonConverter<'a>) =
+      // insert in the front as the formatter will use the first converter that
+      // supports the type, not the best one
+      _settings.Converters.Insert(0, c)
+
+    let serialize (data : 'a) : string = JsonConvert.SerializeObject(data, _settings)
+
+    let prettySerialize (data : 'a) : string =
+      let settings = getSettings ()
+      settings.Formatting <- Formatting.Indented
+      JsonConvert.SerializeObject(data, settings)
+
+    let deserialize<'a> (json : string) : 'a =
+      JsonConvert.DeserializeObject<'a>(json, _settings)
+
+
+
+  module OCamlCompatible =
+    open Newtonsoft.Json
+    open Newtonsoft.Json.Converters
 
     let _settings =
       (let settings = JsonSerializerSettings()
@@ -594,14 +738,14 @@ module Json =
        settings.TypeNameHandling <- TypeNameHandling.None
        // dont deserialize date-looking string as dates
        settings.DateParseHandling <- DateParseHandling.None
-       settings.Converters.Add(BigIntConverter())
-       settings.Converters.Add(TLIDConverter())
-       settings.Converters.Add(PasswordConverter())
-       settings.Converters.Add(FSharpListConverter())
-       settings.Converters.Add(FSharpTupleConverter())
-       settings.Converters.Add(OCamlRawBytesConverter())
-       settings.Converters.Add(OCamlFloatConverter())
-       settings.Converters.Add(OCamlDuConverter())
+       settings.Converters.Add(AutoSerialize.BigIntConverter())
+       settings.Converters.Add(AutoSerialize.TLIDConverter())
+       settings.Converters.Add(AutoSerialize.PasswordConverter())
+       settings.Converters.Add(AutoSerialize.FSharpListConverter())
+       settings.Converters.Add(AutoSerialize.FSharpTupleConverter())
+       settings.Converters.Add(AutoSerialize.OCamlRawBytesConverter())
+       settings.Converters.Add(AutoSerialize.OCamlFloatConverter())
+       settings.Converters.Add(AutoSerialize.FSharpDuConverter())
        settings)
 
     let registerConverter (c : JsonConverter<'a>) =

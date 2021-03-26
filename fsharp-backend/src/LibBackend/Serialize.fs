@@ -76,7 +76,6 @@ module PT = LibBackend.ProgramTypes
 // in memory before they can execute the code.
 
 let loadOnlyRenderedTLIDs
-  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (tlids : List<tlid>)
   ()
@@ -122,7 +121,6 @@ let loadOnlyRenderedTLIDs
 //
 
 let fetchReleventTLIDsForHTTP
-  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (path : string)
   (method : string)
@@ -297,65 +295,6 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //   with e -> Error (Exception.to_string e)
 //
 //
-// let save_toplevel_oplist
-//     ~(binary_repr : string option)
-//     ~(tlid : Types.tlid)
-//     ~(canvas_id : Uuidm.t)
-//     ~(account_id : Uuidm.t)
-//     ~tipe
-//     ~(deleted : bool option)
-//     ~(pos : Types.pos option)
-//     ~(name : string option)
-//     ~(module_ : string option)
-//     ~(modifier : string option)
-//     (ops : Types.oplist) : unit =
-//   let string_option o =
-//     match o with Some str -> Db.String str | None -> Db.Null
-//   in
-//   let binary_option o =
-//     match o with Some bin -> Db.Binary bin | None -> Db.Null
-//   in
-//   let bool_option o =
-//     match o with Some boolean -> Db.Bool boolean | None -> Db.Null
-//   in
-//   let tipe_str = Toplevel.tl_tipe_to_string tipe in
-//   let pos_option pos =
-//     match pos with
-//     | Some pos ->
-//         Db.String (pos |> Types.pos_to_yojson |> Yojson.Safe.to_string)
-//     | None ->
-//         Db.Null
-//   in
-//   Db.run
-//     ~name:"save per tlid oplist"
-//     "INSERT INTO toplevel_oplists
-//     (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data, rendered_oplist_cache, deleted, pos)
-//     VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9, $10, $11, $12)
-//     ON CONFLICT (canvas_id, tlid) DO UPDATE
-//     SET account_id = $2,
-//         digest = $4,
-//         tipe = $5::toplevel_type,
-//         name = $6,
-//         module = $7,
-//         modifier = $8,
-//         data = $9,
-//         rendered_oplist_cache = $10,
-//         deleted = $11,
-//         pos = $12;
-//         "
-//     ~params:
-//       [ Uuid canvas_id
-//       ; Uuid account_id
-//       ; ID tlid
-//       ; String Binary_serialization.digest
-//       ; String tipe_str
-//       ; string_option name
-//       ; string_option module_
-//       ; string_option modifier
-//       ; Binary (ops |> Binary_serialization.oplist_to_binary_string)
-//       ; binary_option binary_repr
-//       ; bool_option deleted
-//       ; pos_option pos ]
 //
 //
 // (* ------------------------- *)

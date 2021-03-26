@@ -13,24 +13,25 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
+module PT = LibBackend.ProgramTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
+module S = LibExecution.Shortcuts
 
 let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy
-    (UserName.create "test"
-     |> LibBackend.Account.getUser
-     |> Task.map Option.unwrapUnsafe)
+  lazy (UserName.create "test" |> Account.getUser |> Task.map Option.unwrapUnsafe)
+
+let testCanvasInfo (name : string) : Task<Canvas.Meta> =
+  task {
+    let name = CanvasName.create name
+    let! owner = testOwner.Force()
+    let! id = Canvas.canvasIDForCanvasName owner.id name
+    return { id = id; name = name; owner = owner.id }
+  }
 
 let testCanvasID : Lazy<Task<CanvasID>> =
-  lazy
-    (task {
-      let! owner = testOwner.Force()
-
-      return!
-        CanvasName.create "test" |> LibBackend.Canvas.canvasIDForCanvasName owner.id
-     })
+  lazy (testCanvasInfo "test" |> Task.map (fun i -> i.id))
 
 // delete test data for one canvas
 let clearCanvasData (name : CanvasName.T) : Task<unit> =
@@ -97,13 +98,59 @@ let clearCanvasData (name : CanvasName.T) : Task<unit> =
     return ()
   }
 
+
+let testHttpRouteHandler
+  (route : string)
+  (method : string)
+  (ast : PT.Expr)
+  : PT.Handler.T =
+  let ids : PT.Handler.ids =
+    { moduleID = gid (); nameID = gid (); modifierID = gid () }
+
+  { pos = { x = 0; y = 0 }
+    tlid = gid ()
+    ast = ast
+    spec = PT.Handler.HTTP(route, method, ids) }
+
+let testCron (name : string) (interval : string) (ast : PT.Expr) : PT.Handler.T =
+  let ids : PT.Handler.ids =
+    { moduleID = gid (); nameID = gid (); modifierID = gid () }
+
+  { pos = { x = 0; y = 0 }
+    tlid = gid ()
+    ast = ast
+    spec = PT.Handler.Cron(name, interval, ids) }
+
+let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
+  let ids : PT.Handler.ids =
+    { moduleID = gid (); nameID = gid (); modifierID = gid () }
+
+  { pos = { x = 0; y = 0 }
+    tlid = gid ()
+    ast = ast
+    spec = PT.Handler.Worker(name, ids) }
+
+let testUserFn
+  (name : string)
+  (parameters : string list)
+  (body : RT.Expr)
+  : RT.UserFunction.T =
+  { tlid = gid ()
+    body = body
+    description = ""
+    infix = false
+    name = name
+    returnType = RT.TVariable "a"
+    parameters =
+      List.map
+        (fun (p : string) ->
+          { name = p; typ = RT.TVariable "b"; description = "test" })
+        parameters }
+
 let fns =
   lazy
     (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
-
-
-
 
 let executionStateFor
   (name : string)
@@ -201,7 +248,7 @@ type OCamlError = { short : string }
 
 let parseOCamlError (str : string) : string =
   try
-    (Json.AutoSerialize.deserialize<OCamlError> str).short
+    (Json.Vanilla.deserialize<OCamlError> str).short
   with _ -> str
 
 // Remove random things like IDs to make the tests stable

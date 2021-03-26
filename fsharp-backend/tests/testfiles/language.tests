@@ -231,3 +231,7 @@ flag "test" (Test.typeError_v0 "test") "old" "new" = "old" // show old for error
 flag "test" (List.head_v1_ster []) "old" "new" = "old" // show old for errorrail
 flag "test" {x = true} "old" "new" = "old" // show old for object
 flag "test" [true] "old" "new" = "old" // show old for list
+
+
+[tests.fqfnname]
+toString 5 = "5"

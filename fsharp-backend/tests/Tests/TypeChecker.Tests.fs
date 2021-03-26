@@ -45,7 +45,7 @@ let testBasicTypecheckWorks : Test =
              { expectedType = RT.TInt; actualValue = RT.DBool true } ]
        ))
 
-      ("toString_v0", [ ("a", RT.DInt 5I) ]), Ok() ]
+      ("toString_v0", [ ("v", RT.DInt 5I) ]), Ok() ]
 
 let testErrorNotWrappedByErrorRail =
   testTask "error not wrapped by errorRail" {

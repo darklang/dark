@@ -21,6 +21,7 @@ open Prelude
 open Tablecloth
 
 
+module Canvas = LibBackend.Canvas
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
@@ -69,6 +70,17 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
         return! ctx.WriteJsonAsync result
       })
 
+let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
+  handleContext
+    (fun ctx ->
+      task {
+        match! f ctx with
+        | Some result -> return! ctx.WriteJsonAsync result
+        | None ->
+            ctx.Response.StatusCode <- 404
+            return! ctx.WriteTextAsync "Not found"
+      })
+
 // Either redirect to a login page, or apply the passed function if a
 // redirection is inappropriate (eg for the API)
 let redirectOr
@@ -115,23 +127,21 @@ let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
 
 let load'<'a> (id : dataID) (ctx : HttpContext) : 'a = ctx.Items.[$"{id}"] :?> 'a
 
-type CanvasInfo = { name : CanvasName.T; id : CanvasID; owner : UserID }
-
 let loadSessionData (ctx : HttpContext) : Session.T =
   load'<Session.T> SessionData ctx
 
 let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
   load'<Account.UserInfo> UserInfo ctx
 
-let loadCanvasInfo (ctx : HttpContext) : CanvasInfo =
-  load'<CanvasInfo> CanvasInfo ctx
+let loadCanvasInfo (ctx : HttpContext) : Canvas.Meta =
+  load'<Canvas.Meta> CanvasInfo ctx
 
 let loadPermission (ctx : HttpContext) : Option<Auth.Permission> =
   load'<Option<Auth.Permission>> Permission ctx
 
 let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
 let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
-let saveCanvasInfo (c : CanvasInfo) (ctx : HttpContext) = save' CanvasInfo c ctx
+let saveCanvasInfo (c : Canvas.Meta) (ctx : HttpContext) = save' CanvasInfo c ctx
 
 let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
   save' Permission p ctx
@@ -186,8 +196,11 @@ let withPermissionMiddleware
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
       let ownerName = Account.ownerNameFromCanvasName canvasName
       let! ownerID = Account.userIDForUserName (ownerName.toUserName ())
-      let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
-      let canvasInfo = { name = canvasName; id = canvasID; owner = ownerID }
+      let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
+
+      let canvasInfo : Canvas.Meta =
+        { name = canvasName; id = canvasID; owner = ownerID }
+
       let! permission = Auth.permission ownerName user.username
 
       // This is a precarious function call, be careful
@@ -254,6 +267,16 @@ let apiHandler
   : HttpHandler =
   canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonHandler f
+  >=> serverVersionMiddleware
+  >=> setStatusCode 200
+
+let apiOptionHandler
+  (f : HttpContext -> Task<Option<'a>>)
+  (neededPermission : Auth.Permission)
+  (canvasName : string)
+  : HttpHandler =
+  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  >=> jsonOptionHandler f
   >=> serverVersionMiddleware
   >=> setStatusCode 200
 

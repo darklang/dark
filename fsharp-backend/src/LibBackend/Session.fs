@@ -34,7 +34,7 @@ let getNoCSRF (key : string) : Task<Option<T>> =
        (fun read ->
          let serializedData = read.string "session_data"
          let date = read.dateTime "expire_date"
-         let data = Json.AutoSerialize.deserialize<JsonData> serializedData
+         let data = Json.Vanilla.deserialize<JsonData> serializedData
 
          { username = data.username
            expiry = date
@@ -58,7 +58,7 @@ let insert (username : string) : Task<AuthData> =
     let expiryDate = System.DateTime.Now
 
     let sessionData =
-      Json.AutoSerialize.serialize { username = username; csrf_token = csrfToken }
+      Json.Vanilla.serialize { username = username; csrf_token = csrfToken }
 
     do!
       Sql.query

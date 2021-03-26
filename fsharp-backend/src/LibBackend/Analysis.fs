@@ -74,6 +74,7 @@ module PT = LibBackend.ProgramTypes
 // Input vars
 // -------------------------
 let incomplete = RT.DIncomplete RT.SourceNone
+
 let sampleRequest : LibExecution.ParsedRequest.T =
   RT.Dval.obj [ ("body", incomplete)
                 ("jsonBody", incomplete)
@@ -107,8 +108,7 @@ let sampleInputVars (h : PT.Handler.T) : AT.InputVars =
   sampleModuleInputVars h @ sampleRouteInputVars h
 
 let sampleFunctionInputVars (f : PT.UserFunction.T) : AT.InputVars =
-  f.parameters
-  |> List.map (fun p -> (p.name, incomplete))
+  f.parameters |> List.map (fun p -> (p.name, incomplete))
 
 let savedInputVars
   (h : PT.Handler.T)
@@ -160,8 +160,7 @@ let handlerTrace
 
     return
       (traceID,
-       Some
-         { input = input; timestamp = timestamp; function_results = functionResults })
+       { input = input; timestamp = timestamp; function_results = functionResults })
   }
 
 
@@ -182,8 +181,7 @@ let userfnTrace
 
     return
       (traceID,
-       Some
-         { input = ivs; timestamp = timestamp; function_results = functionResults })
+       { input = ivs; timestamp = timestamp; function_results = functionResults })
   }
 
 
@@ -194,38 +192,47 @@ let traceIDofTLID (tlid : tlid) : AT.TraceID =
   System.GuidEx.op_Implicit (System.GuidEx(tlid.ToString(), nilNamespace))
 
 
-let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) :
-    Task<List<AT.TraceID>> =
+let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>> =
   task {
-    match h.spec.toDesc() with
+    match h.spec.toDesc () with
     | Some desc ->
-        let! events = TraceInputs.loadEventIDs c.id desc in
+        let! events = TraceInputs.loadEventIDs c.meta.id desc
+
         return
           events
-          |> List.filterMap (fun (traceID, path) ->
-               match h.spec with
-               | PT.Handler.Spec.HTTP _ ->
-                   // Ensure we only return trace_ids that would bind to this handler
-                   // if the trace was executed for real now
-                   c.handlers
-                   (* Filter and order the handlers that would match the trace's path *)
-                   |> Map.values
-                   |> Routing.filterMatchingHandlers path
-                   |> List.head
-                   |> Option.bind (fun matching ->
-                        if matching.tlid = h.tlid then Some traceID else None)
-               | _ ->
-                 // Don't use HTTP filtering stack for non-HTTP traces
-                 Some traceID)
-        // If there's no matching traces, add the default trace
-        |> (function [] -> [traceIDofTLID h.tlid] | x -> x)
+          |> List.filterMap
+               (fun (traceID, path) ->
+
+                 match h.spec with
+                 | PT.Handler.Spec.HTTP _ ->
+                     // Ensure we only return trace_ids that would bind to this
+                     // handler if the trace was executed for real now. (There
+                     // may be other handlers which also match the route)
+                     c.handlers
+                     // Filter and order the handlers that would match the trace's path
+                     |> Map.values
+                     |> Routing.filterMatchingHandlers path
+                     |> List.head
+                     |> Option.bind
+                          (fun matching ->
+                            if matching.tlid = h.tlid then Some traceID else None)
+                 | _ ->
+                     // Don't use HTTP filtering stack for non-HTTP traces
+                     Some traceID)
+          // If there's no matching traces, add the default trace
+          |> (function
+          | [] -> [ traceIDofTLID h.tlid ]
+          | x -> x)
     | None ->
-        (* If the event description isn't complete, add the default trace *)
-        return [traceIDofTLID h.tlid]
-    }
+        // If the event description isn't complete, add the default trace
+        return [ traceIDofTLID h.tlid ]
+  }
 
 
-let traceIDsForUserFn (canvasID : CanvasID) (fnTLID : tlid) : Task<List<AT.TraceID>> =
+let traceIDsForUserFn
+  (canvasID : CanvasID)
+  (fnTLID : tlid)
+  : Task<List<AT.TraceID>> =
   TraceFunctionArguments.loadTraceIDs canvasID fnTLID
 
 

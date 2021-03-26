@@ -24,13 +24,22 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
 
 
 // fsharplint:disable FL0039
-let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
+let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   let sourceID id = SourceID(state.tlid, id)
-  let incomplete id = Value(DIncomplete(SourceID(state.tlid, id)))
+  let incomplete id = DIncomplete(SourceID(state.tlid, id))
+
+  let preview st expr : TaskOrValue<unit> =
+    taskv {
+      if state.context = Preview then
+        let state = { state with onExecutionPath = false }
+        let! (result : Dval) = eval state st expr
+        ignore result
+    }
+
 
   taskv {
     match e with
-    | EBlank id -> return! (incomplete id)
+    | EBlank id -> return (incomplete id)
     | EPartial (_, expr) -> return! eval state st expr
     | ELet (_id, lhs, rhs, body) ->
         // FSTODO: match with ast.ml
@@ -65,7 +74,7 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             // variables they can lookup have been bound. However, we
             // shouldn't crash out here when running analysis because it gives
             // a horrible user experience
-            return! incomplete id
+            return incomplete id
         | None, Real ->
             return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
         | Some other, _ -> return other
@@ -165,164 +174,176 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ELambda (_id, parameters, body) ->
         return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
     | EMatch (id, matchExpr, cases) ->
-        let hasMatched = ref false
-        let matchResult = ref (incomplete id)
+        return!
+          (taskv {
+            let hasMatched = ref false
+            let matchResult = ref (incomplete id)
 
-        let executeMatch
-          (new_defs : (string * Dval) list)
-          (traces : (id * Dval) list)
-          (st : DvalMap)
-          (expr : Expr)
-          : unit =
-          (* Once a pattern is matched, this function is called to execute its
-           * `expr`. It tracks whether this is the first pattern to execute,
-           * and calls preview if it is not. Handles calling trace on the
-           * traces that have been collected by pattern matching. *)
-          let newVars = Map.ofList new_defs
+            let executeMatch
+              (newDefs : (string * Dval) list)
+              (traces : (id * Dval) list)
+              (st : DvalMap)
+              (expr : Expr)
+              : TaskOrValue<unit> =
+              taskv {
+                // Once a pattern is matched, this function is called to execute its
+                // `expr`. It tracks whether this is the first pattern to execute,
+                // and calls preview if it is not. Handles calling trace on the
+                // traces that have been collected by pattern matching.
 
-          let newSt = Map.union newVars st
+                let newVars = Map.ofList newDefs
 
-          if !hasMatched then
-            ()
-          // FSTODO
-          (* We matched, but we've already matched a pattern previously *)
-          // List.iter (fun (id, dval) -> trace false id dval) traces
-          // FSTODO
-          // preview newSt expr
-          else
-            // FSTODO
-            // List.iter (fun (id, dval) -> trace on_execution_path id dval) traces
-            hasMatched := true
-            matchResult := eval state newSt expr
+                let newSt = Map.union newVars st
 
-        let traceIncompletes traces = ()
-        // FSTODO
-        // List.iter traces (fun (id, _) -> trace false id (incomplete id))
+                if !hasMatched then
+                  // We matched, but we've already matched a pattern previously
+                  List.iter (fun (id, dval) -> state.trace false id dval) traces
+                  do! preview newSt expr
+                  return ()
+                else
+                  List.iter
+                    (fun (id, dval) -> state.trace state.onExecutionPath id dval)
+                    traces
 
-        let traceNonMatch
-          (st : DvalMap)
-          (expr : Expr)
-          (traces : (id * Dval) list)
-          (id : id)
-          (value : Dval)
-          : unit =
-          // FSTODO
-          // preview st expr
-          // FSTODO
-          // traceIncompletes traces
-          // FSTODO
-          // trace false id value
-          ()
+                  hasMatched := true
 
-        let rec matchAndExecute
-          dv
-          (builtUpTraces : (id * Dval) list)
-          (pattern, expr)
-          =
-          (* Compare `dv` to `pattern`, and execute the rhs `expr` of any
-           * matches. Tracks whether a branch has already been executed and
-           * will exceute later matches in preview mode.  Ensures all patterns
-           * and branches are properly traced.  Recurse on partial matches
-           * (constructors); builtUpTraces is the set of traces that have been
-           * built up by recursing: they can only be matched when the pattern
-           * is ready to match. *)
-          match pattern with
-          | PInteger (pid, i) ->
-              let v = DInt i
+                  let! result = eval state newSt expr
+                  matchResult := result
+                  return ()
+              }
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-          | PBool (pid, bool) ->
-              let v = DBool bool
+            let traceIncompletes traces =
+              List.iter (fun (id, _) -> state.trace false id (incomplete id)) traces
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-          | PCharacter (pid, c) ->
-              let v = DChar(c)
+            let traceNonMatch
+              (st : DvalMap)
+              (expr : Expr)
+              (traces : (id * Dval) list)
+              (id : id)
+              (value : Dval)
+              : TaskOrValue<unit> =
+              taskv {
+                do! preview st expr
+                traceIncompletes traces
+                state.trace false id value
+              }
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
+            let rec matchAndExecute
+              dv
+              (builtUpTraces : (id * Dval) list)
+              (pattern, expr)
+              : TaskOrValue<unit> =
+              // Compare `dv` to `pattern`, and execute the rhs `expr` of any
+              // matches. Tracks whether a branch has already been executed and
+              // will exceute later matches in preview mode.  Ensures all patterns
+              // and branches are properly traced.  Recurse on partial matches
+              // (constructors); builtUpTraces is the set of traces that have been
+              // built up by recursing: they can only be matched when the pattern
+              // is ready to match.
+              match pattern with
+              | PInteger (pid, i) ->
+                  let v = DInt i
 
-          | PString (pid, str) ->
-              let v = DStr(str)
+                  if v = dv then
+                    executeMatch [] ((pid, v) :: builtUpTraces) st expr
+                  else
+                    traceNonMatch st expr builtUpTraces pid v
+              | PBool (pid, bool) ->
+                  let v = DBool bool
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-          | PFloat (pid, v) ->
-              let v = DFloat v
+                  if v = dv then
+                    executeMatch [] ((pid, v) :: builtUpTraces) st expr
+                  else
+                    traceNonMatch st expr builtUpTraces pid v
+              | PCharacter (pid, c) ->
+                  let v = DChar(c)
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-          | PNull (pid) ->
-              let v = DNull
+                  if v = dv then
+                    executeMatch [] ((pid, v) :: builtUpTraces) st expr
+                  else
+                    traceNonMatch st expr builtUpTraces pid v
+              | PString (pid, str) ->
+                  let v = DStr(str)
 
-              if v = dv then
-                executeMatch [] ((pid, v) :: builtUpTraces) st expr
-              else
-                traceNonMatch st expr builtUpTraces pid v
-          | PVariable (pid, v) ->
-              (* only matches allowed values *)
-              if Dval.isFake dv then
-                traceNonMatch st expr builtUpTraces pid dv
-              else
-                executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
-          | PBlank (_pid) ->
-              (* never matches *)
-              // FSTODO: is this the same in the AST?
-              // traceNonMatch st expr builtUpTraces pid (incomplete pid)
-              ()
-          | PConstructor (pid, name, args) ->
-              (match (name, args, dv) with
-               | "Just", [ p ], DOption (Some v)
-               | "Ok", [ p ], DResult (Ok v)
-               | "Error", [ p ], DResult (Error v) ->
-                   matchAndExecute v ((pid, dv) :: builtUpTraces) (p, expr)
-               | "Nothing", [], DOption None ->
-                   executeMatch [] ((pid, dv) :: builtUpTraces) st expr
-               | "Nothing", [], _ ->
-                   traceNonMatch st expr builtUpTraces pid (DOption None)
-               | _ ->
-                   // let error =
-                   //   if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
-                   //     incomplete pid
-                   //   else
-                   //     Value(DError(UndefinedConstructor name))
-                   // FSTODO
-                   // traceNonMatch st expr builtUpTraces pid error
-                   // FSTODO
-                   (* Trace each argument too. TODO: recurse *)
-                   // List.iter args (fun pat ->
-                   //   let id = Libshared.FluidPattern.toID pat
-                   //   trace false id (incomplete id))
-                   ())
+                  if v = dv then
+                    executeMatch [] ((pid, v) :: builtUpTraces) st expr
+                  else
+                    traceNonMatch st expr builtUpTraces pid v
+              | PFloat (pid, v) ->
+                  let v = DFloat v
 
-        let! matchVal = eval state st matchExpr
+                  if v = dv then
+                    executeMatch [] ((pid, v) :: builtUpTraces) st expr
+                  else
+                    traceNonMatch st expr builtUpTraces pid v
+              | PNull (pid) ->
+                  let v = DNull
 
-        List.iter
-          (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
-          cases
+                  if v = dv then
+                    executeMatch [] ((pid, v) :: builtUpTraces) st expr
+                  else
+                    traceNonMatch st expr builtUpTraces pid v
+              | PVariable (pid, v) ->
+                  // only matches allowed values
+                  if Dval.isFake dv then
+                    traceNonMatch st expr builtUpTraces pid dv
+                  else
+                    executeMatch [ (v, dv) ] ((pid, dv) :: builtUpTraces) st expr
+              | PBlank (pid) ->
+                  // never matches
+                  traceNonMatch st expr builtUpTraces pid (incomplete pid)
+              | PConstructor (pid, name, args) ->
+                  (match (name, args, dv) with
+                   | "Just", [ p ], DOption (Some v)
+                   | "Ok", [ p ], DResult (Ok v)
+                   | "Error", [ p ], DResult (Error v) ->
+                       matchAndExecute v ((pid, dv) :: builtUpTraces) (p, expr)
+                   | "Nothing", [], DOption None ->
+                       executeMatch [] ((pid, dv) :: builtUpTraces) st expr
+                   | "Nothing", [], _ ->
+                       traceNonMatch st expr builtUpTraces pid (DOption None)
+                   | _ ->
+                       taskv {
+                         let error =
+                           if List.contains name [ "Just"; "Ok"; "Error"; "Nothing" ] then
+                             incomplete pid
+                           else
+                             DError(sourceID pid, $"Invalid constructor: {name}")
 
-        return! !matchResult
+                         do! traceNonMatch st expr builtUpTraces pid error
+                         // Trace each argument too. TODO: recurse
+                         List.iter
+                           (fun pat ->
+                             let id = Pattern.toID pat
+                             state.trace false id (incomplete id))
+                           args
+                       })
+
+            let! matchVal = eval state st matchExpr
+
+            do!
+              iter_s
+                (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
+                cases
+
+            return !matchResult
+           })
 
     | EIf (_id, cond, thenbody, elsebody) ->
-        let! cond = eval state st cond
-
-        match cond with
+        match! eval state st cond with
         | DBool (false)
-        | DNull -> return! eval state st elsebody
-        | _ when Dval.isFake cond -> return cond
+        | DNull ->
+            do! preview st thenbody
+            return! eval state st elsebody
+        | cond when Dval.isFake cond ->
+            do! preview st thenbody
+            do! preview st elsebody
+            return cond
         // CLEANUP: I dont know why I made these always true
-        | _ -> return! eval state st thenbody
+        | _ ->
+            let! result = eval state st thenbody
+            do! preview st elsebody
+            return result
     | EConstructor (id, name, args) ->
         match (name, args) with
         | "Nothing", [] -> return DOption None
@@ -337,6 +358,13 @@ let rec eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             return Dval.resultError dv
         | name, _ ->
             return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+  }
+
+and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
+  taskv {
+    let! (result : Dval) = eval' state st e
+    state.trace state.onExecutionPath (Expr.toID e) result
+    return result
   }
 
 // Unwrap the dval, which we expect to be a function, and error if it's not
@@ -458,7 +486,8 @@ and callFn
                           |> (fun (db : DB.T) -> db.cols)
                           |> List.map
                                (fun (field, _) -> (field, DIncomplete SourceNone))
-                          |> Dval.obj
+                          |> Map.ofList
+                          |> DObj
 
                     ignore (executeLambda state b [ sample ])
                 | _ -> ()

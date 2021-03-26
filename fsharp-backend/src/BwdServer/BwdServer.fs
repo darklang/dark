@@ -122,8 +122,8 @@ let runHttp
   (expr : RT.Expr)
   : Task<RT.Dval> =
   task {
-    let ownerID = c.owner
-    let canvasID = c.id
+    let ownerID = c.meta.owner
+    let canvasID = c.meta.id
     let fns = fns.Force()
     let packageFns = Map.empty // FSTODO: packageFns
 
@@ -239,16 +239,15 @@ let runDarkHandler : HttpHandler =
           let ownerUsername = UserName.create (ownerName.ToString())
           let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
           let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+
+          let meta : LibBackend.Canvas.Meta =
+            { id = canvasID; owner = ownerID; name = canvasName }
+
           let traceID = System.Guid.NewGuid()
           let method = ctx.Request.Method
 
           let! c =
-            LibBackend.Canvas.loadHttpHandlersFromCache
-              canvasName
-              canvasID
-              ownerID
-              requestPath
-              method
+            LibBackend.Canvas.loadHttpHandlersFromCache meta requestPath method
             |> Task.map Result.unwrapUnsafe
 
           match Map.values c.handlers with

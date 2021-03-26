@@ -40,7 +40,20 @@ module J = Prelude.Json
 // A function description: a fully-qualified function name, including package,
 // module, and version information.
 module FQFnName =
-  type StdlibFnName = { module_ : string; function_ : string; version : int }
+  type StdlibFnName =
+    { module_ : string
+      function_ : string
+      version : int }
+
+    override this.ToString() : string =
+      let name =
+        if this.module_ = "" then
+          this.function_
+        else
+          $"{this.module_}::{this.function_}"
+
+      if this.version = 0 then name else $"{name}_v{this.version}"
+
   type UserFnName = string
 
   type PackageFnName =
@@ -50,6 +63,9 @@ module FQFnName =
       function_ : string
       version : int }
 
+    override this.ToString() : string =
+      $"{this.owner}/{this.package}/{this.module_}::{this.function_}_v{this.version}"
+
   type T =
     | User of UserFnName
     | Stdlib of StdlibFnName
@@ -58,13 +74,8 @@ module FQFnName =
     override this.ToString() : string =
       match this with
       | User name -> name
-      | Stdlib std ->
-          if std.module_ = "" then
-            $"{std.function_}_v{std.version}"
-          else
-            $"{std.module_}::{std.function_}_v{std.version}"
-      | Package pkg ->
-          $"{pkg.owner}/{pkg.package}/{pkg.module_}::{pkg.function_}_v{pkg.version}"
+      | Stdlib std -> std.ToString()
+      | Package pkg -> pkg.ToString()
 
     member this.isDBQueryFn() : bool =
       match this with
@@ -122,8 +133,12 @@ module FQFnName =
     assert_ "version can't be negative" (version >= 0)
     { module_ = module_; function_ = function_; version = version }
 
+  let binopFnName (op : string) : StdlibFnName = stdlibFnName "" op 0
+
   let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
     Stdlib(stdlibFnName module_ function_ version)
+
+  let binopFqName (op : string) : T = stdlibFqName "" op 0
 
 // This Expr is the AST, expressing what the user sees in their editor.
 type Expr =
@@ -306,6 +321,14 @@ and Param =
   static member make (name : string) (typ : DType) (description : string) : Param =
     { name = name; typ = typ; description = description; blockArgs = [] }
 
+  static member makeWithArgs
+    (name : string)
+    (typ : DType)
+    (description : string)
+    (blockArgs : List<string>)
+    : Param =
+    { name = name; typ = typ; description = description; blockArgs = blockArgs }
+
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
@@ -330,6 +353,18 @@ module Expr =
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _) -> id
 
+module Pattern =
+  let toID (pat : Pattern) : id =
+    match pat with
+    | PInteger (id, _)
+    | PString (id, _)
+    | PCharacter (id, _)
+    | PBool (id, _)
+    | PNull id
+    | PFloat (id, _)
+    | PVariable (id, _)
+    | PBlank id
+    | PConstructor (id, _, _) -> id
 
 
 module Dval =

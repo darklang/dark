@@ -439,7 +439,5 @@ let compileLambda
       |> partiallyEvaluate state paramName symtable
       |> TaskOrValue.toTask
 
-    // printfn $"AST being compiled: {body} with {dbFields} and {symtable}"
-
     return lambdaToSql state.functions symtable paramName dbFields TBool body
   }

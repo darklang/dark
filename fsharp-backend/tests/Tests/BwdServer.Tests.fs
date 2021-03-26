@@ -12,13 +12,14 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramTypes
 module Routing = LibBackend.Routing
+module Canvas = LibBackend.Canvas
 
 open TestUtils
 
 let t name =
   testTask $"Httpfiles: {name}" {
-    let canvasName = CanvasName.create $"test-{name}"
-    do! TestUtils.clearCanvasData canvasName
+    let testName = $"test-{name}"
+    do! TestUtils.clearCanvasData (CanvasName.create testName)
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
     let toStr (bytes : byte array) = System.Text.Encoding.ASCII.GetString bytes
 
@@ -64,7 +65,7 @@ let t name =
        g.[4].Value |> toBytes |> setHeadersToCRLF,
        g.[2].Value)
 
-    let handlers =
+    let oplists =
       Regex.Matches(httpDefs, "\[http-handler (\S+) (\S+)\]\n(.*)\n")
       |> Seq.toList
       |> List.map
@@ -81,21 +82,20 @@ let t name =
              let ids : PT.Handler.ids =
                { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-             PT.TLHandler
+             let h : PT.Handler.T =
                { tlid = gid ()
                  pos = { x = 0; y = 0 }
                  ast = source
                  spec =
-                   PT.Handler.HTTP(route = httpRoute, method = httpMethod, ids = ids) })
+                   PT.Handler.HTTP(route = httpRoute, method = httpMethod, ids = ids) }
 
-    let! ownerID = LibBackend.Account.userIDForUserName (UserName.create "test")
+             (h.tlid,
+              [ PT.SetHandler(h.tlid, h.pos, h) ],
+              PT.TLHandler h,
+              Canvas.NotDeleted))
 
-    let! canvasID =
-      LibBackend.Canvas.canvasIDForCanvasName
-        ownerID
-        (CanvasName.create $"test-{name}")
-
-    do! LibBackend.Canvas.saveHttpHandlersToCache canvasID ownerID handlers
+    let! (meta : Canvas.Meta) = testCanvasInfo testName
+    do! Canvas.saveTLIDs meta oplists
 
     // Web server might not be loaded yet
     use client = new TcpClient()

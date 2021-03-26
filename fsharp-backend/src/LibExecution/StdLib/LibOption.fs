@@ -22,7 +22,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
 let optionA = Param.make "option" (TOption varA) ""
-let fnAToB = Param.make "f" (TFn([ varA ], varB)) ""
+let fnAToB = Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Option" "map" 0
@@ -71,7 +71,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "option1" (TOption varA) ""
           Param.make "option2" (TOption varB) ""
-          Param.make "f" (TFn([ varA; varB ], varC)) "" ]
+          Param.makeWithArgs "f" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
       returnType = TOption varC
       description =
         "If both arguments are {{Just}} (<param option1> is {{Just <var v1>}} and <param option2> is {{Just <var v2>}}), then return {{Just (f <var v1> <var v2>)}} -- The lambda <param f> should have two parameters, representing <var v1> and <var v2>. But if either <param option1> or <param option2> are {{Nothing}}, returns {{Nothing}} without applying <param f>."
@@ -99,7 +99,9 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Option" "andThen" 0
-      parameters = [ optionA; Param.make "f" (TFn([ TOption varA ], varB)) "" ]
+      parameters =
+        [ optionA
+          Param.makeWithArgs "f" (TFn([ TOption varA ], varB)) "" [ "val" ] ]
       returnType = TOption varB
       description =
         "If <param option> is {{Just <var input>}}, returns {{f <var input>}}. Where the lambda <param f> is applied to <var input> and must return {{Just <var output>}} or {{Nothing}}. Otherwise if <param option> is {{Nothing}}, returns {{Nothing}}."
