@@ -274,21 +274,18 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "member" 0
-    //   ; parameters = [Param.make "dict" TObj ""; Param.make "key" TStr ""]
-    //   ; returnType = TBool
-    //   ; description =
-    //       "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o; DStr s] ->
-    //             let key = Unicode_string.to_string s in
-    //             DBool (DvalMap.contains_key o ~key)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "member" 0
+      parameters = [Param.make "dict" (TDict varA) ""; Param.make "key" TStr ""]
+      returnType = TBool
+      description =
+        "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
+      fn =
+          (function
+          | _, [DObj o; DStr s] -> Value(DBool(Map.containsKey s o))
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Dict" "foreach" 0
     //   ; parameters = [Param.make "dict" TObj ""; func ["val"]]
     //   ; returnType = TObj
