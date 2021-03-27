@@ -462,21 +462,22 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "isEmpty" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TBool
-    //   ; description = "Returns `true` if the `dict` contains no entries."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | _ -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "merge" 0
-    //   ; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
-    //   ; returnType = TObj
-    //   ; description =
-    //       "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
+    { name = fn "Dict" "isEmpty" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = TBool
+      description = "Returns `true` if the `dict` contains no entries."
+      fn =
+          (function
+          | _, [DObj dict] -> Value(DBool(Map.isEmpty dict))
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //{ name = fn "Dict" "merge" 0
+    //; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
+    //; returnType = TObj
+    //; description =
+    //    "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
     //   ; fn =
     //         (function
     //         | _, [DObj l; DObj r] ->
