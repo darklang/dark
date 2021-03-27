@@ -26,17 +26,18 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   { name = fn "Dict" "size" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TInt
-    //   ; description =
-    //       "Returns the number of entries in `dict` (the number of key-value pairs)."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | _ -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "size" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = TInt
+      description =
+        "Returns the number of entries in `dict` (the number of key-value pairs)."
+      fn =
+          (function
+          | _, [DObj o] -> Value(DInt(bigint(Map.count o)))
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     //   { name = fn "Dict" "keys" 0
     //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
