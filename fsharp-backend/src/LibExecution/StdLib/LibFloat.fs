@@ -4,6 +4,8 @@ open LibExecution.RuntimeTypes
 open Prelude
 open System
 
+module Errors = LibExecution.Errors
+
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
@@ -222,36 +224,27 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<="
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Float" "sum" 0
-
-    //   ; parameters = [Param.make "a" TList ""]
-//   ; returnType = TFloat
-//   ; description = "Returns the sum of all the floats in the list"
-//   ; fn =
-
-    //         (function
-//         | _, [DList l] ->
-//             l
-//             |> list_coerce Dval.to_float
-//             >>| List.fold_left ( +. ) 0.0
-//             >>| (fun x -> DFloat x)
-//             |> Result.map_error (fun (result, example_value) ->
-//                    RT.error
-//                      (DList result)
-//                      (DList result)
-
-    //                        ( "Float::sum requires all values to be floats, but "
-//                        ^ Dval.to_developer_repr_v0 example_value
-//                        ^ " is a "
-//                        ^ Dval.pretty_tipename example_value )
-//                      "every list item to be an float "
-//                      "Sum expects you to pass a list of floats")
-//             |> Result.ok_exn
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Float" "sum" 0
+      parameters = [Param.make "a" (TList TFloat) ""]
+      returnType = TFloat
+      description = "Returns the sum of all the floats in the list"
+      fn =
+        (function
+        | _, [DList l as ldv] ->
+            let floats =
+              List.map
+                (fun f ->
+                  match f with
+                  | DFloat ft -> ft
+                  | t ->
+                      Errors.throw (Errors.argumentWasnt "a list of floats" "a" ldv))
+                l
+            let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats
+            Value(DFloat sum)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Float" "min" 0
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
