@@ -22,17 +22,17 @@ Dict.empty_v0 = {}
 // Dict.fromList_v0 [] = Just {}
 Dict.get_v0 { key1 = "val1" } "key1" = "val1"
 Dict.get_v1 { key1 = "val1" } "key1" = Just "val1"
-// Dict.isEmpty_v0 { a = 1 } = false
-// Dict.isEmpty_v0 {} = true
-// Dict.keys_v0 { key1 = "val1" } = [ "key1"]
+Dict.isEmpty_v0 { a = 1 } = false
+Dict.isEmpty_v0 {} = true
+Dict.keys_v0 { key1 = "val1" } = [ "key1"]
 // Dict.map_v0  { key1 = "val1"; key2 = "val2";  } (fun (k, x) -> k ++ x) = { key2 = "key2val2"; key1 = "key1val1" }
-// Dict.member_v0 { otherKey = 5; someKey = 5 } "someKey" = true
-// Dict.member_v0 { otherKey = 5 } "someKey" = false
+Dict.member_v0 { otherKey = 5; someKey = 5 } "someKey" = true
+Dict.member_v0 { otherKey = 5 } "someKey" = false
 // Dict.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
-// Dict.singleton_v0 "one" 1 = { one = 1 }
-// Dict.size_v0 { a = 3; b = 1; c = 1 } = 3
-// Dict.size_v0 {} = 0
+Dict.singleton_v0 "one" 1 = { one = 1 }
+Dict.size_v0 { a = 3; b = 1; c = 1 } = 3
+Dict.size_v0 {} = 0
 // Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }"
-// Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
-// Dict.toList_v0 {} = []
-// Dict.values_v0 { key1 = "val1" } = ["val1"]
+Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
+Dict.toList_v0 {} = []
+Dict.values_v0 { key1 = "val1" } = ["val1"]
