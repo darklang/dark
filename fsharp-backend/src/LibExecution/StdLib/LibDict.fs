@@ -71,23 +71,23 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "toList" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TList
-    //   ; description =
-    //       "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] ->
-    //             DvalMap.to_list o
-    //             |> List.map (fun (k, v) ->
-    //                    DList [DStr k; v])
-    //             |> Dval.to_list
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "toList" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = (TList varA)
+      description =
+        "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
+      fn =
+          (function
+          | _, [DObj o] ->
+              Map.toList o
+              |> List.map (fun (k, v) ->
+                     DList [DStr k; v])
+              |> DList
+              |> Value
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
     //   ; parameters = [Param.make "entries" TList ""]
     //   ; returnType = TObj
