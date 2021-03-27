@@ -35,4 +35,4 @@ Dict.size_v0 {} = 0
 // Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }"
 // Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
 // Dict.toList_v0 {} = []
-// Dict.values_v0 { key1 = "val1" } = ["val1"]
+Dict.values_v0 { key1 = "val1" } = ["val1"]
