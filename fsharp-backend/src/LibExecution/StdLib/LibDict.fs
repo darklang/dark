@@ -38,22 +38,23 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   { name = fn "Dict" "keys" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TList
-    //   ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] ->
-    //             o
-    //             |> DvalMap.keys
-    //             |> List.map (fun k -> DStr k)
-    //             |> fun l -> DList l
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "keys" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = (TList TStr)
+      description = "Returns `dict`'s keys in a list, in an arbitrary order."
+      fn =
+          (function
+          | _, [DObj o] ->
+              o
+              |> Map.keys
+              |> Seq.map (fun k -> DStr k)
+              |> Seq.toList
+              |> fun l -> DList l
+              |> Value
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Dict" "values" 0
     //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TList
