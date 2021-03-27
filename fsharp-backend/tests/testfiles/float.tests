@@ -116,4 +116,4 @@ Float.sqrt_v0 0.0 = 0.0
 
 Float.subtract_v0 1.0 0.2 = 0.8
 
-// Float.sum_v0 [1.0;0.2] = 1.2
+Float.sum_v0 [1.0;0.2] = 1.2
