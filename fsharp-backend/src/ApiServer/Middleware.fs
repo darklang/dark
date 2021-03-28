@@ -9,6 +9,7 @@ open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.StaticFiles
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
+open Microsoft.Extensions.Primitives
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
@@ -51,7 +52,7 @@ let unauthorized (ctx : HttpContext) : Task<HttpContext option> =
 let notFound (ctx : HttpContext) : Task<HttpContext option> =
   task {
     ctx.SetStatusCode 404
-    return! ctx.WriteTextAsync "Not Found"
+    return! ctx.WriteJsonAsync "Not Found"
   }
 
 let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
@@ -67,6 +68,7 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
     (fun ctx ->
       task {
         let! result = f ctx
+        ctx.Response.ContentType <- "application/json: charset=utf-8"
         return! ctx.WriteJsonAsync result
       })
 
@@ -74,11 +76,11 @@ let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
   handleContext
     (fun ctx ->
       task {
+        ctx.Response.ContentType <- "application/json: charset=utf-8"
+
         match! f ctx with
         | Some result -> return! ctx.WriteJsonAsync result
-        | None ->
-            ctx.Response.StatusCode <- 404
-            return! ctx.WriteTextAsync "Not found"
+        | None -> return! ctx.WriteJsonAsync "Not found"
       })
 
 // Either redirect to a login page, or apply the passed function if a
@@ -178,7 +180,12 @@ let userInfoMiddleware : HttpHandler =
 
       match! Account.getUser (UserName.create sessionData.username) with
       | None -> return! redirectOr notFound ctx
-      | Some user -> return! next (saveUserInfo user ctx)
+      | Some user ->
+          let header = StringValues([| toString user.username |])
+
+          ctx.Response.Headers.Append("x-dark-username", header)
+
+          return! next (saveUserInfo user ctx)
     })
 
 // checks permission on the canvas and continues. As a safety check, we add the
@@ -266,8 +273,8 @@ let apiHandler
   (canvasName : string)
   : HttpHandler =
   canvasMiddleware neededPermission (CanvasName.create canvasName)
-  >=> jsonHandler f
   >=> serverVersionMiddleware
+  >=> jsonHandler f
   >=> setStatusCode 200
 
 let apiOptionHandler
@@ -276,8 +283,8 @@ let apiOptionHandler
   (canvasName : string)
   : HttpHandler =
   canvasMiddleware neededPermission (CanvasName.create canvasName)
-  >=> jsonOptionHandler f
   >=> serverVersionMiddleware
+  >=> jsonOptionHandler f
   >=> setStatusCode 200
 
 let canvasHtmlHandler
@@ -286,6 +293,7 @@ let canvasHtmlHandler
   (canvasName : string)
   : HttpHandler =
   canvasMiddleware neededPermission (CanvasName.create canvasName)
+  >=> serverVersionMiddleware
   >=> htmlHandler f
   >=> htmlMiddleware
 

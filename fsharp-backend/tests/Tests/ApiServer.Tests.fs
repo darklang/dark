@@ -59,6 +59,22 @@ let getAsync (url : string) : Task<HttpResponseMessage> =
     return! client.SendAsync(message)
   }
 
+let postAsync (url : string) : Task<HttpResponseMessage> =
+  task {
+    let! csrfToken = login.Force()
+    use message = new HttpRequestMessage(HttpMethod.Post, url)
+    message.Headers.Add("X-CSRF-Token", csrfToken)
+
+    return! client.SendAsync(message)
+  }
+
+let massageDarkHeaders (r : HttpResponseMessage) : unit =
+  let (_ : bool) = r.Headers.Remove "Date" // different
+  let (_ : bool) = r.Headers.Remove "Server" // different
+  let (_ : bool) = r.Headers.Remove "x-darklang-execution-id" // not in new API
+  let (_ : bool) = r.Headers.Remove "Connection" // not useful, not in new API
+  ()
+
 
 let testFunctionsReturnsTheSame =
   testTask "functions returns the same" {
@@ -133,13 +149,59 @@ let testFunctionsReturnsTheSame =
       filteredOCamlFns
   }
 
+let requestPostApis
+  (api : string)
+  : Task<HttpResponseMessage * HttpResponseMessage> =
+  task {
+    let! o = postAsync $"http://darklang.localhost:8000/api/test/{api}"
+    let! f = postAsync $"http://darklang.localhost:9000/api/test/{api}"
+
+    massageDarkHeaders o
+    massageDarkHeaders f
+    return (o, f)
+  }
+
+
+let testInitialLoadReturnsTheSame =
+  testTask "initial_load returns same" {
+    let! (o, f) = requestPostApis "initial_load"
+
+    Expect.equal o f ""
+  }
+
+let testPackagesReturnsSame =
+  testTask "packages returns same" {
+    let! (o, f) = requestPostApis "packages"
+
+    Expect.equal o f ""
+  }
+
+let testAllTracesReturnsSame =
+  testTask "all_traces returns same" {
+    let! (o, f) = requestPostApis "all_traces"
+
+    Expect.equal o f ""
+  }
+
+let testGet404sReturnsSame =
+  testTask "get_404s returns same" {
+    let! (o, f) = requestPostApis "get_404s"
+
+    Expect.equal o f ""
+  }
+
 let localOnlyTests =
   let tests =
     if System.Environment.GetEnvironmentVariable "CI" = null then
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
-      [ testFunctionsReturnsTheSame ]
+      [ testFunctionsReturnsTheSame
+        // testGet404sReturnsSame
+        // testAllTracesReturnsSame
+        testInitialLoadReturnsTheSame
+        // testPackagesReturnsSame
+        ]
     else
       []
 
