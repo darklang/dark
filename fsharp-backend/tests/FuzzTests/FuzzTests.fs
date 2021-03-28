@@ -54,7 +54,6 @@ let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Tes
   testPropertyWithConfig (baseConfigWithGenerator typ) name x
 
 
-
 module FQFnName =
   let nameGenerator (first : char list) (other : char list) : Gen<string> =
     gen {
@@ -410,7 +409,7 @@ module Hashing =
     DvalRepr.hash 0 l .=. OCamlInterop.hashV0 l
 
   let equalsOCamlV1 (l : List<RT.Dval>) : bool =
-    let ocamlVersion = OCamlInterop.hashV1 l
+    let ocamlVersion = (OCamlInterop.hashV1 l).Result
     let fsharpVersion = DvalRepr.hash 1 l
     ocamlVersion .=. fsharpVersion
 

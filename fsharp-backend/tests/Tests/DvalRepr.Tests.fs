@@ -153,7 +153,7 @@ module ToHashableRepr =
   let testHashV1 =
     let t (l : List<Dval>) (expected : string) : Test =
       test $"hashV1: {l}" {
-        let ocamlVersion = LibBackend.OCamlInterop.hashV1 l
+        let ocamlVersion = (LibBackend.OCamlInterop.hashV1 l).Result
         let fsharpVersion = DvalRepr.hash 1 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then

@@ -104,3 +104,22 @@
   (flags (-warn-error +A -w +9))
   (libraries libserialize libtarget_fsharp)
 )
+
+(executable
+  (name legacyserver)
+  (modules legacyserver)
+  (modes native)
+  (preprocess (pps
+               lwt_ppx
+               ppx_bin_prot
+               ppx_deriving.std
+               ppx_deriving_yojson
+               ppx_fields_conv
+               ppx_sexp_conv
+               ppx_pipebang
+               ppx_let
+               ))
+
+  (flags (-warn-error +A -w +9))
+  (libraries libbackend libtarget_ocaml lwt cohttp-lwt)
+)

@@ -14,6 +14,9 @@ module LibBackend.OCamlInterop
 open System.Runtime.InteropServices
 open FSharpPlus
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
 
@@ -1444,10 +1447,35 @@ let hashV0 (l : List<RT.Dval>) : string =
   let outLength = Binary.Internal.hashV0 (bytes, bytes.Length, &out)
   finishString2String outLength out
 
-let hashV1 (l : List<RT.Dval>) : string =
-  let mutable (out, bytes) = startDvalList2String l
-  let outLength = Binary.Internal.hashV1 (bytes, bytes.Length, &out)
-  finishString2String outLength out
+  // FSTODO: this is not the right way I think
+let client = new System.Net.Http.HttpClient()
+
+let legacyReq (endpoint : string) (data : string): Task<string> =
+  // let postAsync (url : string) : Task<HttpResponseMessage> =
+  task {
+    // request
+    let url = $"http://localhost:5000/{endpoint}"
+    use message = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
+    message.Content <- new System.Net.Http.StringContent(data)
+
+    // make request
+    let! response = client.SendAsync(message)
+    // response
+    if response.StatusCode <> System.Net.HttpStatusCode.OK
+    then failwith "not a 200 respons to {endpoint}"
+    else ()
+    let! body = response.Content.ReadAsByteArrayAsync()
+    let body = ofBytes body
+    printfn $"got back body: {body}"
+    return body
+  }
+
+let hashV1 (l : List<RT.Dval>) : Task<string> =
+  task {
+    let str = l |> List.map Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
+    let! result = legacyReq "fuzzing/hash_v1" str
+    return result
+  }
 
 let execute
   (ownerID : UserID)

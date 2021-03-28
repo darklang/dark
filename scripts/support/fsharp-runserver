@@ -20,6 +20,7 @@ echo "Stopping servers"
 #FSTODO
 sudo pkill -f "dotnet ${API_SERVER_FILE}" || true
 sudo pkill -f "dotnet ${BWD_SERVER_FILE}" || true
+sudo pkill -f "legacyserver.exe" || true
 sudo pkill -f "dotnet ${API_SERVER_EXE}" || true
 sudo pkill -f "dotnet ${BWD_SERVER_EXE}" || true
 
@@ -83,6 +84,8 @@ echo "Done waiting for compiled servers"
 if [[ -f "${API_SERVER_FILE}" && -f "${BWD_SERVER_FILE}" ]]; then
   # msbuild won't compile onto files being run, so copy them first
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  cp "/home/dark/app/_build/default/backend/bin/legacyserver.exe" "${BINPATH}"
+  "${BINPATH}"/legacyserver.exe > rundir/logs/legacyserver.log 2>&1 &
   cp "/home/dark/app/_build/default/backend/bin/libocaml.so" "${BINPATH}"
   cp "${API_SERVER_FILE}" "${API_SERVER_EXE}"
   cp "${BINPATH}/ApiServer.deps.json" "${BINPATH}/ApiServer2.deps.json"
