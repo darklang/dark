@@ -36,3 +36,7 @@ Dict.get_v1 { key1 = "val1" } "key1" = Just "val1"
 // Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
 // Dict.toList_v0 {} = []
 // Dict.values_v0 { key1 = "val1" } = ["val1"]
+Dict.remove_v0 {key1 = "val1" ; key2 = "val2"} "key1" = {key2 = "val2"}
+Dict.remove_v0 {key1 = "val1"} "key1" = {}
+Dict.remove_v0 {key1 = "val1"} "key2" = {key1 = "val1"}
+Dict.remove_v0 {} "key1" = {}
