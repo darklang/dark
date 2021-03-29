@@ -31,7 +31,7 @@ let executeOCaml (code : string) : RT.Dval =
     task {
       let prog = FSharpToExpr.parsePTExpr code
       let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
-      return OCamlInterop.execute state.accountID state.canvasID prog Map.empty [] []
+      return! OCamlInterop.execute state.accountID state.canvasID prog Map.empty [] []
     }
 
   Task.WaitAll [| t :> Task |]

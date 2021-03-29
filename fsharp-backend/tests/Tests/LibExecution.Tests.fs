@@ -48,7 +48,7 @@ let t
           else (true, true)
 
         if testOCaml then
-          let ocamlActual =
+          let! ocamlActual =
             LibBackend.OCamlInterop.execute
               state.accountID
               state.canvasID
@@ -56,9 +56,8 @@ let t
               Map.empty
               dbs
               (Map.values functions)
-            |> normalizeDvalResult
 
-          Expect.equalDval ocamlActual expected $"OCaml: {msg}"
+          Expect.equalDval (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
 
         if testFSharp then
           let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())

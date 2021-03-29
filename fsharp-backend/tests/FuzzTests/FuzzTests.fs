@@ -127,8 +127,8 @@ module OCamlInterop =
   open Json.OCamlCompatible
 
   let isInteroperable
-    (ocamlToString : 'a -> string)
-    (ocamlOfString : string -> 'a)
+    (ocamlToString : 'a -> Task<string>)
+    (ocamlOfString : string -> Task<'a>)
     (fsToString : 'a -> string)
     (fsOfString : string -> 'a)
     (equality : 'a -> 'a -> bool)
@@ -144,8 +144,8 @@ module OCamlInterop =
       // the edge cases we've found. So really we just want to make sure that
       // whatever either side produces, both sides are able to read it and get
       // the same result.
-      let bothCanRead str = str |> ocamlOfString |> equality (fsOfString str)
-      let bothCanReadOCamlString = bothCanRead (ocamlToString v)
+      let bothCanRead str = (ocamlOfString str).Result |> equality (fsOfString str)
+      let bothCanReadOCamlString = bothCanRead (ocamlToString v).Result
       let bothCanReadFSharpString = bothCanRead (fsToString v)
 
       if bothCanReadFSharpString && bothCanReadOCamlString then
@@ -306,12 +306,12 @@ module Queryable =
     let dvm = (Map.ofList [ "field", dv ])
 
     OCamlInterop.isInteroperable
-      (OCamlInterop.toInternalQueryableV1)
-      (OCamlInterop.ofInternalQueryableV1)
+      OCamlInterop.toInternalQueryableV1
+      OCamlInterop.ofInternalQueryableV1
       (function
       | RT.DObj dvm -> DvalRepr.toInternalQueryableV1 dvm
       | _ -> failwith "not an obj")
-      (DvalRepr.ofInternalQueryableV1)
+      DvalRepr.ofInternalQueryableV1
       dvalEquality
       (RT.DObj dvm)
 
@@ -358,7 +358,7 @@ module DeveloperRepr =
 
 
   let equalsOCaml (dv : RT.Dval) : bool =
-    DvalRepr.toDeveloperReprV0 dv .=. OCamlInterop.toDeveloperRepr dv
+    DvalRepr.toDeveloperReprV0 dv .=. (OCamlInterop.toDeveloperRepr dv).Result
 
   let tests =
     testList
@@ -379,7 +379,7 @@ module EndUserReadable =
 
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
-    DvalRepr.toEnduserReadableTextV0 dv .=. OCamlInterop.toEnduserReadableTextV0 dv
+    DvalRepr.toEnduserReadableTextV0 dv .=. (OCamlInterop.toEnduserReadableTextV0 dv).Result
 
   let tests =
     testList
@@ -401,12 +401,12 @@ module Hashing =
 
   // The format here is used to get values from the DB, so this has to be 100% identical
   let equalsOCamlToHashable (dv : RT.Dval) : bool =
-    let ocamlVersion = OCamlInterop.toHashableRepr dv
+    let ocamlVersion = (OCamlInterop.toHashableRepr dv).Result
     let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> ofBytes
     ocamlVersion .=. fsharpVersion
 
   let equalsOCamlV0 (l : List<RT.Dval>) : bool =
-    DvalRepr.hash 0 l .=. OCamlInterop.hashV0 l
+    DvalRepr.hash 0 l .=. (OCamlInterop.hashV0 l).Result
 
   let equalsOCamlV1 (l : List<RT.Dval>) : bool =
     let ocamlVersion = (OCamlInterop.hashV1 l).Result
@@ -447,8 +447,7 @@ module PrettyMachineJson =
       |> toString
 
     let expected =
-      dv
-      |> OCamlInterop.toPrettyMachineJsonV1
+      (OCamlInterop.toPrettyMachineJsonV1 dv).Result
       |> Newtonsoft.Json.Linq.JToken.Parse
       |> toString
 
@@ -677,7 +676,7 @@ module ExecutePureFunctions =
         let ownerID = System.Guid.NewGuid()
         let canvasID = System.Guid.NewGuid()
 
-        let expected = OCamlInterop.execute ownerID canvasID ast st [] []
+        let! expected = OCamlInterop.execute ownerID canvasID ast st [] []
         // debuG "ocaml (expected)" expected
 
         let! state = executionStateFor "executePure" Map.empty Map.empty

@@ -23,6 +23,8 @@ open Tablecloth
 module PT = ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
+
+
 module Binary =
   module Internal =
     // These allow us to call C functions from serialization_stubs.c, which in
@@ -1254,6 +1256,27 @@ module Convert =
 // ----------------
 // Binary conversions
 // ----------------
+// FSTODO: this is not the right way I think
+let client = new System.Net.Http.HttpClient()
+
+let legacyReq (endpoint : string) (data : byte array): Task<string> =
+  task {
+    let url = $"http://localhost:5000/{endpoint}"
+    use message = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
+    message.Content <- new System.Net.Http.ByteArrayContent(data)
+
+    let! response = client.SendAsync(message)
+
+    if response.StatusCode <> System.Net.HttpStatusCode.OK
+    then failwith $"not a 200 response to {endpoint}: {response.StatusCode}"
+    else ()
+
+    return! response.Content.ReadAsStringAsync()
+  }
+
+
+
+
 let toplevelOfCachedBinary
   ((data, pos) : (byte array * string option))
   : PT.Toplevel =
@@ -1349,133 +1372,63 @@ let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
 // These are only here for fuzzing. We should not be fetching dvals via the
 // OCaml runtime, but always via HTTP or via the DB.
 // ---------------------------
-let startString2String (str : string) : System.IntPtr * byte array =
-  Binary.registerThread ()
-  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+let serialize (v : 'a) : byte array =
+  v |> Json.OCamlCompatible.serialize |> toBytes
+
+let stringToStringReq (endpoint : string) (str : string) : Task<string> =
+  str |> toBytes |> legacyReq endpoint
+
+let stringToDvalReq (endpoint : string) (str : string) : Task<RT.Dval> =
+  str |> toBytes |> legacyReq endpoint |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval> |> Task.map Convert.ocamlDval2rt
+
+let dvalToStringReq (endpoint : string) (dv : RT.Dval) : Task<string> =
+  dv |> Convert.rt2ocamlDval |> serialize |> legacyReq endpoint
+
+let dvalListToStringReq (endpoint : string) (l : List<RT.Dval>) : Task<string> =
+  l |> List.map Convert.rt2ocamlDval |> serialize |> legacyReq endpoint
 
 
-let startDval2String (dv : RT.Dval) : System.IntPtr * byte array =
-  Binary.registerThread ()
-  let str = dv |> Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
-  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+let ofInternalQueryableV0 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_internal_queryable_v0" str
 
-let startDvalList2String (l : List<RT.Dval>) : System.IntPtr * byte array =
-  Binary.registerThread ()
-  let str = l |> List.map Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
-  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+let ofInternalQueryableV1 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_internal_queryable_v1" str
 
+let ofInternalRoundtrippableV0 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_internal_roundtrippable_v0" str
 
+let ofUnknownJsonV1 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_unknown_json_v1" str
 
-let finishString2String (outLength : int) (outBytes : System.IntPtr) : string =
-  Binary.registerThread ()
-  let (resultBytes : byte array) = Array.zeroCreate outLength
-  Marshal.Copy(outBytes, resultBytes, 0, outLength)
-  let resultString = System.Text.Encoding.UTF8.GetString resultBytes
-  resultString
+let toDeveloperRepr (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_developer_repr_v0" dv
 
-let finishString2Dval (outLength : int) (outBytes : System.IntPtr) : RT.Dval =
-  finishString2String outLength outBytes
-  |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval>
-  |> Convert.ocamlDval2rt
+let toEnduserReadableTextV0 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_enduser_readable_text_v0" dv
 
+let toHashableRepr (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_hashable_repr" dv
 
-let ofInternalQueryableV0 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.ofInternalQueryableV0 (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
+let toInternalQueryableV0 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_internal_queryable_v0" dv
 
-let ofInternalQueryableV1 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.ofInternalQueryableV1 (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
+let toInternalQueryableV1 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_internal_queryable_v1" dv
 
-let ofInternalRoundtrippableV0 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
+let toInternalRoundtrippableV0 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_internal_roundtrippable_v0" dv
 
-  let outLength =
-    Binary.Internal.ofInternalRoundtrippableV0 (bytes, bytes.Length, &out)
+let toPrettyMachineJsonV1 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_pretty_machine_json_v1" dv
 
-  finishString2Dval outLength out
+let toUrlString (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_url_string" dv
 
-let ofUnknownJsonV1 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.ofUnknownJsonV1 (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
-
-let toDeveloperRepr (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toDeveloperRepr (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toEnduserReadableTextV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toEnduserReadableTextV0 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toHashableRepr (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toHashableRepr (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toInternalQueryableV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toInternalQueryableV0 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toInternalQueryableV1 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toInternalQueryableV1 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toInternalRoundtrippableV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let ol = Binary.Internal.toInternalRoundtrippableV0 (bytes, bytes.Length, &out)
-  finishString2String ol out
-
-let toPrettyMachineJsonV1 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toPrettyMachineJsonV1 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toUrlString (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toUrlString (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let hashV0 (l : List<RT.Dval>) : string =
-  let mutable (out, bytes) = startDvalList2String l
-  let outLength = Binary.Internal.hashV0 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-  // FSTODO: this is not the right way I think
-let client = new System.Net.Http.HttpClient()
-
-let legacyReq (endpoint : string) (data : string): Task<string> =
-  // let postAsync (url : string) : Task<HttpResponseMessage> =
-  task {
-    // request
-    let url = $"http://localhost:5000/{endpoint}"
-    use message = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
-    message.Content <- new System.Net.Http.StringContent(data)
-
-    // make request
-    let! response = client.SendAsync(message)
-    // response
-    if response.StatusCode <> System.Net.HttpStatusCode.OK
-    then failwith "not a 200 respons to {endpoint}"
-    else ()
-    let! body = response.Content.ReadAsByteArrayAsync()
-    let body = ofBytes body
-    printfn $"got back body: {body}"
-    return body
-  }
+let hashV0 (l : List<RT.Dval>) : Task<string> =
+  dvalListToStringReq "fuzzing/hash_v0" l
 
 let hashV1 (l : List<RT.Dval>) : Task<string> =
-  task {
-    let str = l |> List.map Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
-    let! result = legacyReq "fuzzing/hash_v1" str
-    return result
-  }
+  dvalListToStringReq "fuzzing/hash_v1" l
 
 let execute
   (ownerID : UserID)
@@ -1484,7 +1437,7 @@ let execute
   (symtable : Map<string, RT.Dval>)
   (dbs : List<PT.DB.T>)
   (fns : List<PT.UserFunction.T>)
-  : RT.Dval =
+  : Task<RT.Dval> =
   let program = Convert.pt2ocamlExpr program
 
   let args =
@@ -1496,6 +1449,4 @@ let execute
   let str =
     Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
 
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.execute (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
+  stringToDvalReq "execute" str
