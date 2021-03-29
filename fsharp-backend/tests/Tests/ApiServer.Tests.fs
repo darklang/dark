@@ -139,9 +139,9 @@ let testFunctionsReturnsTheSame =
 
     printfn $"Implemented fns  : {List.length allBuiltins}"
     printfn $"Excluding F#-only: {Set.length builtins}"
-    printfn $"Missing fns      : {notImplementedCount}"
     printfn $"Fns in OCaml api : {List.length ocfns}"
     printfn $"Fns in F# api    : {List.length fcfns}"
+    printfn $"Missing fns      : {notImplementedCount}"
 
     List.iter2
       (fun (ffn : Api.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
