@@ -23,7 +23,7 @@ let server () =
       (CResponse.t * Cl.Body.t) Lwt.t =
     let%lwt body_string = Cl.Body.to_string req_body in
     let uri = CRequest.uri req in
-    let verb = CRequest.meth req in
+    let meth = CRequest.meth req in
     let path =
       uri
       |> Uri.path
@@ -31,10 +31,50 @@ let server () =
       |> String.rstrip ~drop:(( = ) '/')
       |> String.split ~on:'/'
     in
+    let module F = Libserialize.Fuzzing in
+    let fn =
+      match path with
+      | ["execute"] ->
+          Some F.execute
+      | ["fuzzing"; fnname] ->
+        ( match fnname with
+        | "of_internal_queryable_v0" ->
+            Some F.of_internal_queryable_v0
+        | "of_internal_queryable_v1" ->
+            Some F.of_internal_queryable_v1
+        | "of_internal_roundtrippable_v0" ->
+            Some F.of_internal_roundtrippable_v0
+        | "of_unknown_json_v1" ->
+            Some F.of_unknown_json_v1
+        | "to_developer_repr_v0" ->
+            Some F.to_developer_repr_v0
+        | "to_enduser_readable_text_v0" ->
+            Some F.to_enduser_readable_text_v0
+        | "to_hashable_repr" ->
+            Some F.to_hashable_repr
+        | "to_internal_queryable_v0" ->
+            Some F.to_internal_queryable_v0
+        | "to_internal_queryable_v1" ->
+            Some F.to_internal_queryable_v1
+        | "to_internal_roundtrippable_v0" ->
+            Some F.to_internal_roundtrippable_v0
+        | "to_pretty_machine_json_v1" ->
+            Some F.to_pretty_machine_json_v1
+        | "to_url_string" ->
+            Some F.to_url_string
+        | "hash_v0" ->
+            Some F.hash_v0
+        | "hash_v1" ->
+            Some F.hash_v1
+        | _ ->
+            None )
+      | _ ->
+          None
+    in
 
-    match (verb, path) with
-    | `POST, ["fuzzing"; "hash_v1"] ->
-        body_string |> Libserialize.Fuzzing.hash_v1 |> respond_json_ok
+    match (meth, fn) with
+    | `POST, Some fn ->
+        body_string |> fn |> respond_json_ok
     | _ ->
         let headers = Header.init () in
         S.respond_string ~status:`Not_found ~body:"" ~headers ()
