@@ -61,6 +61,18 @@ let toplevels (c : T) : Map<tlid, PT.Toplevel> =
   |> Seq.concat
   |> Map
 
+let deletedToplevels (c : T) : Map<tlid, PT.Toplevel> =
+  let map f l = Map.map f l |> Map.toSeq
+
+  [ map PT.TLHandler c.deletedHandlers
+    map PT.TLDB c.deletedDBs
+    map PT.TLType c.deletedUserTypes
+    map PT.TLFunction c.deletedUserFunctions ]
+  |> Seq.concat
+  |> Map
+
+
+
 
 // -------------------------
 // Toplevel
@@ -534,9 +546,8 @@ let loadFrom
 let loadAll (meta : Meta) : Task<Result<T, List<string>>> =
   task {
     let! tlids = Serialize.fetchAllTLIDs meta.id
-    return! loadFrom LiveToplevels meta tlids
+    return! loadFrom IncludeDeletedToplevels meta tlids
   }
-
 
 let loadHttpHandlersFromCache
   (meta : Meta)

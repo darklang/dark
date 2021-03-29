@@ -18,7 +18,7 @@ open LibBackend.Db
 
 module PT = LibBackend.ProgramTypes
 module OT = LibBackend.OCamlInterop.OCamlTypes
-module RT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
+module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
@@ -306,13 +306,13 @@ module InitialLoad =
       status = d.status }
 
   type T =
-    { toplevels : RT.toplevels
-      deleted_toplevels : RT.toplevels
-      user_functions : RT.user_fn<RT.fluidExpr> list
-      deleted_user_functions : RT.user_fn<RT.fluidExpr> list
+    { toplevels : ORT.toplevels
+      deleted_toplevels : ORT.toplevels
+      user_functions : ORT.user_fn<ORT.fluidExpr> list
+      deleted_user_functions : ORT.user_fn<ORT.fluidExpr> list
       unlocked_dbs : tlid list
-      user_tipes : RT.user_tipe list
-      deleted_user_tipes : RT.user_tipe list
+      user_tipes : ORT.user_tipe list
+      deleted_user_tipes : ORT.user_tipe list
       assets : List<ApiStaticDeploy>
       op_ctrs : (System.Guid * int) list
       canvas_list : string list
@@ -345,6 +345,9 @@ module InitialLoad =
 
       let ocamlToplevels = canvas |> Canvas.toplevels |> Convert.pt2ocamlToplevels
 
+      let ocamlDeletedToplevels =
+        canvas |> Canvas.deletedToplevels |> Convert.pt2ocamlToplevels
+
       // t3
       let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
 
@@ -365,11 +368,11 @@ module InitialLoad =
 
       return
         { toplevels = Tuple3.first ocamlToplevels
-          deleted_toplevels = [] // FSTODO
+          deleted_toplevels = Tuple3.first ocamlDeletedToplevels
           user_functions = Tuple3.second ocamlToplevels
-          deleted_user_functions = [] // FSTODO
+          deleted_user_functions = Tuple3.second ocamlDeletedToplevels
           user_tipes = Tuple3.third ocamlToplevels
-          deleted_user_tipes = [] // FSTODO
+          deleted_user_tipes = Tuple3.third ocamlDeletedToplevels
           unlocked_dbs = unlocked
           assets = List.map toApiStaticDeploys staticAssets
           op_ctrs = opCtrs
@@ -448,7 +451,8 @@ module Traces =
     task {
       let canvasInfo = Middleware.loadCanvasInfo ctx
 
-      // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
+      // FSTODO we only need the HTTP handler paths here, so we can remove the loadAll
+      // FSTODO don't load traces for deleted handlers
       let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
 
       let! hTraces =
