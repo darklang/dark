@@ -197,30 +197,30 @@ let testInitialLoadReturnsTheSame =
     let oVal = oc |> deserialize |> canonicalize
     let fVal = fc |> deserialize |> canonicalize
 
-    Expect.equal oVal fVal "content"
+    Expect.equal fVal oVal "content"
 
-    Expect.equal o f "full message"
+    Expect.equal f o "full message"
   }
 
 let testPackagesReturnsSame =
   testTask "packages returns same" {
     let! (o, f) = requestPostApis "packages"
 
-    Expect.equal o f ""
+    Expect.equal f o ""
   }
 
 let testAllTracesReturnsSame =
   testTask "all_traces returns same" {
     let! (o, f) = requestPostApis "all_traces"
 
-    Expect.equal o f ""
+    Expect.equal f o ""
   }
 
 let testGet404sReturnsSame =
   testTask "get_404s returns same" {
     let! (o, f) = requestPostApis "get_404s"
 
-    Expect.equal o f ""
+    Expect.equal f o ""
   }
 
 let localOnlyTests =
