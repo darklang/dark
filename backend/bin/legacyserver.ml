@@ -48,6 +48,7 @@ let () =
     (* see https://github.com/mirage/ocaml-cohttp/issues/511 *)
     let () = Lwt.async_exception_hook := ignore in
     Libbackend.Init.init ~run_side_effects:false ;
+    Libexecution.Libs.init Libserialize.Fuzzing.fns ;
     Lwt_main.run (server ()) |> ignore
   with e ->
     let bt = Libexecution.Exception.get_backtrace () in
