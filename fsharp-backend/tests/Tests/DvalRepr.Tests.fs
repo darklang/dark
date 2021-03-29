@@ -84,8 +84,8 @@ module ToHashableRepr =
 
   let testToHashableRepr =
     let t (dv : Dval) (expected : string) : Test =
-      test $"toHashableRepr: {dv}" {
-        let ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
+      testTask $"toHashableRepr: {dv}" {
+        let! ocamlVersion = LibBackend.OCamlInterop.toHashableRepr dv
         let fsharpVersion = DvalRepr.toHashableRepr 0 false dv |> ofBytes
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
@@ -127,8 +127,8 @@ module ToHashableRepr =
 
   let testHashV0 =
     let t (l : List<Dval>) (expected : string) : Test =
-      test $"hashV0: {l}" {
-        let ocamlVersion = LibBackend.OCamlInterop.hashV0 l
+      testTask $"hashV0: {l}" {
+        let! ocamlVersion = LibBackend.OCamlInterop.hashV0 l
         let fsharpVersion = DvalRepr.hash 0 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
@@ -152,8 +152,8 @@ module ToHashableRepr =
 
   let testHashV1 =
     let t (l : List<Dval>) (expected : string) : Test =
-      test $"hashV1: {l}" {
-        let ocamlVersion = LibBackend.OCamlInterop.hashV1 l
+      testTask $"hashV1: {l}" {
+        let! ocamlVersion = LibBackend.OCamlInterop.hashV1 l
         let fsharpVersion = DvalRepr.hash 1 l
 
         if ocamlVersion <> expected || fsharpVersion <> expected then
@@ -195,7 +195,7 @@ let allRoundtrips =
 
   let all =
     // interoperable tests do not support passwords because it's very
-    // hard/risky to get libocaml to roundtrip them correctly without compromising
+    // hard/risky to get legacyserver to roundtrip them correctly without compromising
     // the redaction protections. We do password tests in the rest of the file
     // so lets not confuse these tests.
     TestUtils.sampleDvals

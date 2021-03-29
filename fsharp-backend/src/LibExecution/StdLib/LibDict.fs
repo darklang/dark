@@ -26,60 +26,68 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   { name = fn "Dict" "size" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TInt
-    //   ; description =
-    //       "Returns the number of entries in `dict` (the number of key-value pairs)."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] -> o |> DvalMap.size |> Dval.dint | _ -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    //   { name = fn "Dict" "keys" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TList
-    //   ; description = "Returns `dict`'s keys in a list, in an arbitrary order."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] ->
-    //             o
-    //             |> DvalMap.keys
-    //             |> List.map (fun k -> DStr k)
-    //             |> fun l -> DList l
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "values" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TList
-    //   ; description = "Returns `dict`'s values in a list, in an arbitrary order."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] -> DList (DvalMap.values o) | _ -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "toList" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TList
-    //   ; description =
-    //       "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] ->
-    //             DvalMap.to_list o
-    //             |> List.map (fun (k, v) ->
-    //                    DList [DStr k; v])
-    //             |> Dval.to_list
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "size" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = TInt
+      description =
+        "Returns the number of entries in `dict` (the number of key-value pairs)."
+      fn =
+          (function
+          | _, [DObj o] -> Value(DInt(bigint(Map.count o)))
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Dict" "keys" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = (TList TStr)
+      description = "Returns `dict`'s keys in a list, in an arbitrary order."
+      fn =
+          (function
+          | _, [DObj o] ->
+              o
+              |> Map.keys
+              |> Seq.map (fun k -> DStr k)
+              |> Seq.toList
+              |> fun l -> DList l
+              |> Value
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Dict" "values" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = (TList varA)
+      description = "Returns `dict`'s values in a list, in an arbitrary order."
+      fn =
+          (function
+          | _, [DObj o] ->
+              o
+              |> Map.values
+              |> Seq.toList
+              |> fun l -> DList l
+              |> Value
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Dict" "toList" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = (TList varA)
+      description =
+        "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
+      fn =
+          (function
+          | _, [DObj o] ->
+              Map.toList o
+              |> List.map (fun (k, v) ->
+                     DList [DStr k; v])
+              |> DList
+              |> Value
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
     //   ; parameters = [Param.make "entries" TList ""]
     //   ; returnType = TObj
@@ -272,21 +280,18 @@ let fns : List<BuiltInFn> =
     //   ; sqlSpec = NotYetImplementedTODO
     //   ; previewable = Pure
     //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "member" 0
-    //   ; parameters = [Param.make "dict" TObj ""; Param.make "key" TStr ""]
-    //   ; returnType = TBool
-    //   ; description =
-    //       "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o; DStr s] ->
-    //             let key = Unicode_string.to_string s in
-    //             DBool (DvalMap.contains_key o ~key)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "member" 0
+      parameters = [Param.make "dict" (TDict varA) ""; Param.make "key" TStr ""]
+      returnType = TBool
+      description =
+        "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
+      fn =
+          (function
+          | _, [DObj o; DStr s] -> Value(DBool(Map.containsKey s o))
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Dict" "foreach" 0
     //   ; parameters = [Param.make "dict" TObj ""; func ["val"]]
     //   ; returnType = TObj
@@ -461,21 +466,22 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "isEmpty" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TBool
-    //   ; description = "Returns `true` if the `dict` contains no entries."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj dict] -> DBool (DvalMap.is_empty dict) | _ -> incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "merge" 0
-    //   ; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
-    //   ; returnType = TObj
-    //   ; description =
-    //       "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
+    { name = fn "Dict" "isEmpty" 0
+      parameters = [Param.make "dict" (TDict varA) ""]
+      returnType = TBool
+      description = "Returns `true` if the `dict` contains no entries."
+      fn =
+          (function
+          | _, [DObj dict] -> Value(DBool(Map.isEmpty dict))
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //{ name = fn "Dict" "merge" 0
+    //; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
+    //; returnType = TObj
+    //; description =
+    //    "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
     //   ; fn =
     //         (function
     //         | _, [DObj l; DObj r] ->

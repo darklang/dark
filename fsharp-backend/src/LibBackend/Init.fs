@@ -11,6 +11,4 @@ let init () : unit =
   Json.OCamlCompatible.registerConverter (
     EventQueue.WorkerStates.JsonConverter.WorkerStateConverter()
   )
-
-  OCamlInterop.Binary.init ()
   ()
