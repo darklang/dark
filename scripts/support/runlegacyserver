@@ -6,7 +6,7 @@ BINPATH="_build/default/backend/bin"
 SERVER_EXE="$BINPATH/legacyserver.exe"
 
 echo "Stopping legacyserver"
-pkill -f legacyserver.exe || true
+sudo pkill -f legacyserver.exe || true
 
 if [[ -f "${SERVER_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"

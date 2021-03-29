@@ -21,6 +21,9 @@ module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalRepr = LibExecution.DvalRepr
 
+let result (t : Task<'a>) : 'a =
+  t.Result
+
 let (.=.) actual expected : bool =
   if actual = expected then
     Expect.equal actual expected ""
@@ -220,11 +223,11 @@ module OCamlInterop =
   let binaryHandlerRoundtrip (a : PT.Handler.T) : bool =
     let h = PT.TLHandler a
 
-    h |> toplevelToCachedBinary |> (fun bin -> bin, None) |> toplevelOfCachedBinary
+    h |> toplevelToCachedBinary |> result |> (fun bin -> bin, None) |> toplevelOfCachedBinary |> result
     .=. h
 
   let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
-    pair |> exprTLIDPairToCachedBinary |> exprTLIDPairOfCachedBinary .=. pair
+    pair |> exprTLIDPairToCachedBinary |> result |> exprTLIDPairOfCachedBinary |> result .=. pair
 
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
@@ -732,5 +735,4 @@ let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 
 [<EntryPoint>]
 let main args =
-  LibBackend.OCamlInterop.Binary.init ()
   runTestsWithCLIArgs [] args tests

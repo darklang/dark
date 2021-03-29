@@ -32,10 +32,49 @@ let server () =
       |> String.split ~on:'/'
     in
     let module F = Libserialize.Fuzzing in
+    let module BS = Libserialize.Binary_serialization in
     let fn =
       match path with
       | ["execute"] ->
           Some F.execute
+      | ["bs"; fnname] ->
+        ( match fnname with
+        | "user_fn_bin2json" ->
+            Some BS.user_fn_bin2json
+        | "user_tipe_bin2json" ->
+            Some BS.user_tipe_bin2json
+        | "handler_bin2json" ->
+            Some BS.handler_bin2json
+        | "db_bin2json" ->
+            Some BS.db_bin2json
+        | "oplist_bin2json" ->
+            Some BS.oplist_bin2json
+        | "pos_bin2json" ->
+            Some BS.pos_bin2json
+        | "expr_bin2json" ->
+            Some BS.expr_bin2json
+        | "expr_tlid_pair_bin2json" ->
+            Some BS.expr_tlid_pair_bin2json
+        | "user_fn_json2bin" ->
+            Some BS.user_fn_json2bin
+        | "user_tipe_json2bin" ->
+            Some BS.user_tipe_json2bin
+        | "handler_json2bin" ->
+            Some BS.handler_json2bin
+        | "db_json2bin" ->
+            Some BS.db_json2bin
+        | "oplist_json2bin" ->
+            Some BS.oplist_json2bin
+        | "pos_json2bin" ->
+            Some BS.pos_json2bin
+        | "expr_json2bin" ->
+            Some BS.expr_json2bin
+        | "expr_tlid_pair_json2bin" ->
+            Some BS.expr_tlid_pair_json2bin
+        | "digest" ->
+            Some (fun _ -> BS.digest)
+        | _ ->
+            None )
       | ["fuzzing"; fnname] ->
         ( match fnname with
         | "of_internal_queryable_v0" ->

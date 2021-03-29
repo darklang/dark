@@ -297,22 +297,40 @@ let allFunctions () : Task<List<PT.PackageManager.Fn>> =
   |> Sql.parameters []
   |> Sql.executeAsync
        (fun read ->
-         { name =
-             { owner = read.string "username"
-               package = read.string "package"
-               module_ = read.string "module"
-               function_ = read.string "fnname"
-               version = read.int "version" }
-           body =
-             read.bytea "body"
-             |> OCamlInterop.exprTLIDPairOfCachedBinary
-             |> fun (expr, _) -> expr
-           returnType = PT.DType.parse (read.string "return_type")
-           parameters =
-             read.string "parameters"
-             |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
-             |> List.map Convert.ocamlPackageManagerParameter2PT
-           description = read.string "description"
-           author = read.string "author"
-           deprecated = read.bool "deprecated"
-           tlid = read.int64 "tlid" |> uint64 })
+         ( read.string "username"
+         , read.string "package"
+         , read.string "module"
+         , read.string "fnname"
+         , read.int "version"
+         , read.bytea "body"
+         , read.string "return_type"
+         , read.string "parameters"
+         , read.string "description"
+         , read.string "author"
+         , read.bool "deprecated"
+         , read.int64 "tlid"))
+  |> Task.bind (fun fns ->
+       fns
+       |> List.map
+        (fun (username, package, module_, fnname, version, body, returnType, parameters, description, author, deprecated, tlid) ->
+          task {
+           let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
+           return ({ name =
+                       { owner = username
+                         package = package
+                         module_ = module_
+                         function_ = fnname
+                         version = version }
+                     body = expr
+                     returnType = PT.DType.parse returnType
+                     parameters =
+                       parameters
+                       |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
+                       |> List.map Convert.ocamlPackageManagerParameter2PT
+                     description = description
+                     author = author
+                     deprecated = deprecated
+                     tlid = tlid |> uint64 } : PT.PackageManager.Fn) })
+      |> Task.flatten
+    )
+

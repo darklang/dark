@@ -927,6 +927,12 @@ module Task =
       return f v
     }
 
+  let bind (f : 'a -> Task<'b>) (v : Task<'a>) : Task<'b> =
+    task {
+      let! v = v
+      return! f v
+    }
+
 
 
 
