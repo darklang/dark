@@ -595,45 +595,55 @@ module Json =
 
 
     // We don't use this at the moment
-    // type OCamlOptionConverter() =
-    //   inherit JsonConverter()
-    //
-    //   override _.CanConvert(t : System.Type) =
-    //     t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
-    //
-    //   override _.WriteJson(writer : JsonWriter, value, serializer : JsonSerializer) =
-    //     let value =
-    //       if value = null then
-    //         null
-    //       else
-    //         let _, fields = FSharpValue.GetUnionFields(value, value.GetType())
-    //         fields.[0]
-    //
-    //     serializer.Serialize(writer, value)
-    //
-    //   override x.ReadJson
-    //     (
-    //       reader : JsonReader,
-    //       t : System.Type,
-    //       existingValue,
-    //       serializer : JsonSerializer
-    //     ) =
-    //     let innerType = t.GetGenericArguments().[0]
-    //
-    //     let innerType =
-    //       if innerType.IsValueType then
-    //         (typedefof<System.Nullable<_>>).MakeGenericType([| innerType |])
-    //       else
-    //         innerType
-    //
-    //     let value = serializer.Deserialize(reader, innerType)
-    //     let cases = FSharpType.GetUnionCases(t)
-    //
-    //     if value = null then
-    //       FSharpValue.MakeUnion(cases.[0], [||])
-    //     else
-    //       FSharpValue.MakeUnion(cases.[1], [| value |])
-    //
+    type OCamlOptionConverter() =
+      inherit JsonConverter()
+
+      override _.CanConvert(t : System.Type) =
+        t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
+
+      override _.WriteJson(writer : JsonWriter, value, serializer : JsonSerializer) =
+        let value =
+          if value = null then
+            null
+          else
+            let _, fields = FSharpValue.GetUnionFields(value, value.GetType())
+            fields.[0]
+
+        serializer.Serialize(writer, value)
+
+      override x.ReadJson
+        (
+          reader : JsonReader,
+          t : System.Type,
+          existingValue,
+          serializer : JsonSerializer
+        ) =
+        let cases = FSharpType.GetUnionCases(t)
+        printfn $"type is {t}"
+
+        if reader.TokenType = JsonToken.Null && t.ToString() = "Option" then
+          FSharpValue.MakeUnion(cases.[0], [||])
+        else
+          let innerType = t.GetGenericArguments().[0]
+          printfn $"Innertype {innerType}"
+
+          let innerType =
+            if innerType.IsValueType then
+              (typedefof<System.Nullable<_>>).MakeGenericType([| innerType |])
+            else
+              innerType
+
+          printfn $"Innertype {innerType}"
+          let value = serializer.Deserialize(reader, innerType)
+
+          printfn $"value is {value}"
+          printfn $"cases are {cases}"
+
+          if value = null then
+            FSharpValue.MakeUnion(cases.[0], [||])
+          else
+            FSharpValue.MakeUnion(cases.[1], [| value |])
+
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
 
@@ -744,6 +754,7 @@ module Json =
        settings.Converters.Add(AutoSerialize.PasswordConverter())
        settings.Converters.Add(AutoSerialize.FSharpListConverter())
        settings.Converters.Add(AutoSerialize.FSharpTupleConverter())
+       settings.Converters.Add(AutoSerialize.OCamlOptionConverter())
        settings.Converters.Add(AutoSerialize.OCamlRawBytesConverter())
        settings.Converters.Add(AutoSerialize.OCamlFloatConverter())
        settings.Converters.Add(AutoSerialize.FSharpDuConverter())
