@@ -17,6 +17,8 @@ open TestUtils
 
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module OT = LibBackend.OCamlInterop.OCamlTypes
+module ORT = OT.RuntimeT
 
 open ApiServer
 
@@ -170,25 +172,35 @@ let testInitialLoadReturnsTheSame =
 
     let deserialize v = Json.OCamlCompatible.deserialize<Api.InitialLoad.T> v
 
+    let canonicalizeDate (d : System.DateTime) : System.DateTime =
+      d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
+
     let canonicalize (v : Api.InitialLoad.T) : Api.InitialLoad.T =
+      let clearTypes (tl : ORT.toplevel) =
+        match tl.data with
+        | ORT.DB _ -> tl
+        | ORT.Handler h ->
+            { tl with
+                data =
+                  ORT.Handler
+                    { h with
+                        spec =
+                          { h.spec with
+                              types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
+
       { v with
           toplevels =
-            v.toplevels
+            v.toplevels |> List.sortBy (fun tl -> tl.tlid) |> List.map clearTypes
+          deleted_toplevels =
+            v.deleted_toplevels
             |> List.sortBy (fun tl -> tl.tlid)
-            |> List.map
-                 (fun tl ->
-                   match tl.data with
-                   | OT.RuntimeT.DB _ -> tl
-                   | OT.RuntimeT.Handler h ->
-                       { tl with
-                           data =
-                             OT.RuntimeT.Handler
-                               { h with
-                                   spec =
-                                     { h.spec with
-                                         types =
-                                           { input = OT.Blank 0UL
-                                             output = OT.Blank 0UL } } } }) }
+            |> List.map clearTypes
+          canvas_list = v.canvas_list |> List.sort
+          creation_date =
+            v.creation_date
+            |> debug "nonCanonical"
+            |> canonicalizeDate
+            |> debug "canonicalized" }
 
     Expect.equal o.StatusCode f.StatusCode ""
 
