@@ -214,7 +214,7 @@ jobs:
             - _build/default/backend/bin/garbage_collector_worker.exe
             - _build/default/backend/bin/queue_worker.exe
             - _build/default/backend/bin/cron_checker.exe
-            - _build/default/backend/bin/libocaml.so
+            - _build/default/backend/bin/legacyserver.exe
             - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache

@@ -304,8 +304,7 @@ module Convert =
   // This module converts back-and-forth between the F# ProgramTypes and OCaml
   // types. Prelude.Json.OCamlCompatible generates JSON in the same format as
   // OCaml's Yojson so we can use these types directly to communicate with the
-  // client (which also uses these types) and the OCaml libocaml
-  // library.
+  // client (which also uses these types) and the legacyserver
   module OT = OCamlTypes
   module ORT = OT.RuntimeT
 

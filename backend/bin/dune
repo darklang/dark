@@ -98,14 +98,6 @@
 )
 
 (executable
-  (name libocaml)
-  (modes (native shared_object))
-  (modules libocaml)
-  (flags (-warn-error +A -w +9))
-  (libraries libserialize libtarget_fsharp)
-)
-
-(executable
   (name legacyserver)
   (modules legacyserver)
   (modes native)

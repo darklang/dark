@@ -195,7 +195,7 @@ let allRoundtrips =
 
   let all =
     // interoperable tests do not support passwords because it's very
-    // hard/risky to get libocaml to roundtrip them correctly without compromising
+    // hard/risky to get legacyserver to roundtrip them correctly without compromising
     // the redaction protections. We do password tests in the rest of the file
     // so lets not confuse these tests.
     TestUtils.sampleDvals
