@@ -492,9 +492,17 @@ let loadOplists
 
   Sql.query query
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync
-       (fun read ->
-         (read.tlid "tlid", read.bytea "data" |> OCamlInterop.oplistOfBinary))
+  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "data"))
+  |> Task.bind
+       (fun list ->
+         list
+         |> List.map
+              (fun (tlid, data) ->
+                task {
+                  let! oplist = OCamlInterop.oplistOfBinary data
+                  return (tlid, oplist)
+                })
+         |> Task.flatten)
 
 
 let loadFrom
@@ -643,74 +651,79 @@ let saveTLIDs
     oplists
     |> List.map
          (fun (tlid, oplist, tl, deleted) ->
-           let string2option (s : string) : Option<string> =
-             if s = "" then None else Some s
+           task {
+             let string2option (s : string) : Option<string> =
+               if s = "" then None else Some s
 
-           let deleted =
-             match deleted with
-             | Deleted -> true
-             | NotDeleted -> false
+             let deleted =
+               match deleted with
+               | Deleted -> true
+               | NotDeleted -> false
 
-           let routingNames =
-             match tl with
-             | PT.TLHandler ({ spec = spec }) ->
-                 match spec with
-                 | PT.Handler.HTTP (route, method, _ids) ->
-                     Some("HTTP", Routing.routeToPostgresPattern route, method)
-                 | PT.Handler.Worker (name, _ids) -> Some("WORKER", name, "_")
-                 | PT.Handler.OldWorker (modulename, name, _) ->
-                     Some(modulename, name, "_")
-                 | PT.Handler.Cron (name, interval, _ids) ->
-                     Some("CRON", name, interval)
-                 | PT.Handler.REPL (name, _ids) -> Some("REPL", name, "_")
-             | PT.TLDB _
-             | PT.TLType _
-             | PT.TLFunction _ -> None
+             let routingNames =
+               match tl with
+               | PT.TLHandler ({ spec = spec }) ->
+                   match spec with
+                   | PT.Handler.HTTP (route, method, _ids) ->
+                       Some("HTTP", Routing.routeToPostgresPattern route, method)
+                   | PT.Handler.Worker (name, _ids) -> Some("WORKER", name, "_")
+                   | PT.Handler.OldWorker (modulename, name, _) ->
+                       Some(modulename, name, "_")
+                   | PT.Handler.Cron (name, interval, _ids) ->
+                       Some("CRON", name, interval)
+                   | PT.Handler.REPL (name, _ids) -> Some("REPL", name, "_")
+               | PT.TLDB _
+               | PT.TLType _
+               | PT.TLFunction _ -> None
 
-           let (module_, name, modifier) =
-             match routingNames with
-             | Some (module_, name, modifier) ->
-                 (string2option module_, string2option name, string2option modifier)
-             | None -> None, None, None
+             let (module_, name, modifier) =
+               match routingNames with
+               | Some (module_, name, modifier) ->
+                   (string2option module_, string2option name, string2option modifier)
+               | None -> None, None, None
 
-           let pos =
-             match tl with
-             | PT.TLHandler ({ pos = pos })
-             | PT.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
-             | PT.TLType _ -> None
-             | PT.TLFunction _ -> None
+             let pos =
+               match tl with
+               | PT.TLHandler ({ pos = pos })
+               | PT.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
+               | PT.TLType _ -> None
+               | PT.TLFunction _ -> None
 
-           Sql.query
-             "INSERT INTO toplevel_oplists
-              (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
-               rendered_oplist_cache, deleted, pos)
-              VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                      @module, @modifier, @data, @renderedOplistCache, @deleted, @pos)
-              ON CONFLICT (canvas_id, tlid) DO UPDATE
-              SET account_id = @accountID,
-                  digest = @digest,
-                  tipe = @typ::toplevel_type,
-                  name = @name,
-                  module = @module,
-                  modifier = @modifier,
-                  data = @data,
-                  rendered_oplist_cache = @renderedOplistCache,
-                  deleted = @deleted,
-                  pos = @pos"
-           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                               "accountID", Sql.uuid meta.owner
-                               "tlid", Sql.id tlid
-                               "digest", Sql.string (OCamlInterop.Binary.digest ())
-                               "typ", Sql.string (tl.toDBTypeString ())
-                               "name", Sql.stringOrNone name
-                               "module", Sql.stringOrNone module_
-                               "modifier", Sql.stringOrNone modifier
-                               "data", Sql.bytea (OCamlInterop.oplistToBinary oplist)
-                               "renderedOplistCache",
-                               Sql.bytea (OCamlInterop.toplevelToCachedBinary tl)
-                               "deleted", Sql.bool deleted
-                               "pos", Sql.jsonbOrNone pos ]
-           |> Sql.executeStatementAsync)
+             let! oplist = OCamlInterop.oplistToBinary oplist
+             let! oplistCache = OCamlInterop.toplevelToCachedBinary tl
+
+             return!
+               Sql.query
+                 "INSERT INTO toplevel_oplists
+                  (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data,
+                   rendered_oplist_cache, deleted, pos)
+                  VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
+                          @module, @modifier, @data, @renderedOplistCache, @deleted, @pos)
+                  ON CONFLICT (canvas_id, tlid) DO UPDATE
+                  SET account_id = @accountID,
+                      digest = @digest,
+                      tipe = @typ::toplevel_type,
+                      name = @name,
+                      module = @module,
+                      modifier = @modifier,
+                      data = @data,
+                      rendered_oplist_cache = @renderedOplistCache,
+                      deleted = @deleted,
+                      pos = @pos"
+               |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+                                   "accountID", Sql.uuid meta.owner
+                                   "tlid", Sql.id tlid
+                                   "digest", Sql.string (OCamlInterop.digest ())
+                                   "typ", Sql.string (tl.toDBTypeString ())
+                                   "name", Sql.stringOrNone name
+                                   "module", Sql.stringOrNone module_
+                                   "modifier", Sql.stringOrNone modifier
+                                   "data", Sql.bytea oplist
+                                   "renderedOplistCache", Sql.bytea oplistCache
+                                   "deleted", Sql.bool deleted
+                                   "pos", Sql.jsonbOrNone pos ]
+               |> Sql.executeStatementAsync
+           })
     |> List.map (fun (t : Task<unit>) -> t :> Task)
     |> Task.WhenAll
   with e -> reraise () // pageable

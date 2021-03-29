@@ -1,14 +1,6 @@
 (library
   (name libserialize)
   (modes native)
-  (c_names serialization_stubs)
-  (library_flags (-cclib -udark_init_ocaml
-                  -cclib -uuser_fn_of_binary_string_to_json
-                  -cclib -uuser_tipe_of_binary_string_to_json
-                  -cclib -uhandler_of_binary_string_to_json
-                  -cclib -udb_of_binary_string_to_json
-                  -cclib -uoplist_of_binary_string_to_json
-                  -cclib -upos_of_binary_string_to_json))
   (flags (-warn-error +A -w +9))
   (preprocess (pps
                ppx_bin_prot

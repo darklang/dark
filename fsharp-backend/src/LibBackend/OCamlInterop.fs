@@ -11,8 +11,10 @@ module LibBackend.OCamlInterop
 // We also use these types to convert to the types the API uses, which are
 // typically direct deserializations of these types.
 
-open System.Runtime.InteropServices
 open FSharpPlus
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 open Prelude
 open Tablecloth
@@ -20,280 +22,7 @@ open Tablecloth
 module PT = ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-module Binary =
-  module Internal =
-    // These allow us to call C functions from serialization_stubs.c, which in
-    // turn call into the OCaml runtime.
-
-    // FSTODO if we have segfaults, we might need to use this:
-    // https://docs.microsoft.com/en-us/dotnet/standard/native-interop/best-practices#keeping-managed-objects-alive
-
-    // ----------------
-    // toplevels
-    // ----------------
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "handler_bin2json")>]
-    extern string handlerBin2Json(byte[] bytes, int length)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "handler_json2bin")>]
-    extern int handlerJson2Bin(string str, System.IntPtr& byteArray)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "db_bin2json")>]
-    extern string dbBin2Json(byte[] bytes, int length)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "db_json2bin")>]
-    extern int dbJson2Bin(string str, System.IntPtr& byteArray)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "user_fn_bin2json")>]
-    extern string userfnBin2Json(byte[] bytes, int length)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "user_fn_json2bin")>]
-    extern int userfnJson2Bin(string str, System.IntPtr& byteArray)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "user_tipe_bin2json")>]
-    extern string usertipeBin2Json(byte[] bytes, int length)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "user_tipe_json2bin")>]
-    extern int usertipeJson2Bin(string str, System.IntPtr& byteArray)
-
-    // ----------------
-    // expr/tlid pairs (used for packages)
-    // ----------------
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "expr_tlid_pair_bin2json")>]
-    extern string exprTLIDPairBin2Json(byte[] bytes, int length)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "expr_tlid_pair_json2bin")>]
-    extern int exprTLIDPairJson2Bin(string str, System.IntPtr& byteArray)
-
-    // ----------------
-    // oplists
-    // ----------------
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "oplist_bin2json")>]
-    extern string oplistBin2Json(byte[] bytes, int length)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "oplist_json2bin")>]
-    extern int oplistJson2Bin(string str, System.IntPtr& byteArray)
-
-    // ----------------
-    // dvals - we only need this for fuzzing, so we're just piggybacking on the
-    // code that's already here
-    //
-    // Dvals can have \0 bytes in them. This is fine for both dotnet strings
-    // and ocaml strings. However, when passing between the two we need
-    // explicit lengths both in and out to make sure we copy every byte.
-    // ----------------
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_internal_roundtrippable_v0")>]
-    extern int toInternalRoundtrippableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "of_internal_roundtrippable_v0")>]
-    extern int ofInternalRoundtrippableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_internal_queryable_v0")>]
-    extern int toInternalQueryableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_internal_queryable_v1")>]
-    extern int toInternalQueryableV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "of_internal_queryable_v0")>]
-    extern int ofInternalQueryableV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "of_internal_queryable_v1")>]
-    extern int ofInternalQueryableV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_developer_repr_v0")>]
-    extern int toDeveloperRepr(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_enduser_readable_text_v0")>]
-    extern int toEnduserReadableTextV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_pretty_machine_json_v1")>]
-    extern int toPrettyMachineJsonV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_url_string")>]
-    extern int toUrlString(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "to_hashable_repr")>]
-    extern int toHashableRepr(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "of_unknown_json_v1")>]
-    extern int ofUnknownJsonV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "hash_v0")>]
-    extern int hashV0(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "hash_v1")>]
-    extern int hashV1(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "execute")>]
-    extern int execute(byte[] bytesIn, int lengthIn, System.IntPtr& bytesOut)
-
-
-    // ----------------
-    // serialization digest
-    // ----------------
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "digest")>]
-    extern string digest()
-
-    // ----------------
-    // OCaml runtime
-    // ----------------
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "dark_init_ocaml")>]
-    extern string darkInitOcaml()
-
-    [<DllImport("./libocaml.so",
-                CallingConvention = CallingConvention.Cdecl,
-                EntryPoint = "register_thread")>]
-    extern void registerThread()
-
-
-
-
-  type OncePerThread private () =
-    static let initializedTLS = new System.Threading.ThreadLocal<_>(fun () -> false)
-    static member initialized : bool = initializedTLS.Value
-    static member markInitialized() : unit = initializedTLS.Value <- true
-
-  let registerThread () : unit =
-    if not OncePerThread.initialized then
-      OncePerThread.markInitialized ()
-      Internal.registerThread ()
-    else
-      ()
-
-  // Ideally we would pass in the actual internal function here, however F#
-  // doesn't allow type signatures with byref arguments, so  we do
-  let translateJson2Bin (internalFn : (System.IntPtr -> int)) : byte [] =
-    registerThread ()
-    let ptr = System.IntPtr()
-    let length = internalFn ptr
-    let (bytes : byte array) = Array.zeroCreate length
-    Marshal.Copy(ptr, bytes, 0, length)
-    bytes
-
-  let startTranslateJson2Bin () : System.IntPtr =
-    registerThread ()
-    System.IntPtr()
-
-  let finishTranslateJson2Bin (ptr : System.IntPtr) (length : int) : byte array =
-    let (bytes : byte array) = Array.zeroCreate length
-    Marshal.Copy(ptr, bytes, 0, length)
-    bytes
-
-  let translateBin2Json
-    (internalFn : ((byte array * int) -> string))
-    (bytes : byte [])
-    : string =
-    registerThread ()
-    internalFn (bytes, bytes.Length)
-
-  let handlerJson2Bin (json : string) : byte [] =
-    let mutable ptr = startTranslateJson2Bin ()
-    Internal.handlerJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
-
-  let handlerBin2Json (bytes : byte []) : string =
-    translateBin2Json Internal.handlerBin2Json bytes
-
-  let dbJson2Bin (json : string) : byte [] =
-    let mutable ptr = startTranslateJson2Bin ()
-    Internal.dbJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
-
-  let dbBin2Json (bytes : byte []) : string =
-    translateBin2Json Internal.dbBin2Json bytes
-
-  let userfnJson2Bin (json : string) : byte [] =
-    let mutable ptr = startTranslateJson2Bin ()
-    Internal.userfnJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
-
-  let userfnBin2Json (bytes : byte []) : string =
-    translateBin2Json Internal.userfnBin2Json bytes
-
-  let usertipeJson2Bin (json : string) : byte [] =
-    let mutable ptr = startTranslateJson2Bin ()
-    Internal.usertipeJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
-
-  let usertipeBin2Json (bytes : byte []) : string =
-    translateBin2Json Internal.usertipeBin2Json bytes
-
-  let exprTLIDPairJson2Bin (json : string) : byte [] =
-    let mutable ptr = startTranslateJson2Bin ()
-    Internal.exprTLIDPairJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
-
-  let exprTLIDPairBin2Json (bytes : byte []) : string =
-    translateBin2Json Internal.exprTLIDPairBin2Json bytes
-
-  let oplistJson2Bin (json : string) : byte [] =
-    let mutable ptr = startTranslateJson2Bin ()
-    Internal.oplistJson2Bin (json, &ptr) |> finishTranslateJson2Bin ptr
-
-  let oplistBin2Json (bytes : byte []) : string =
-    translateBin2Json Internal.oplistBin2Json bytes
-
-  let digest () =
-    registerThread ()
-    Internal.digest ()
-
-  let init () =
-    printfn "serialization_init"
-    let str = Internal.darkInitOcaml ()
-    printfn "serialization_inited: %s" str
-    ()
+let digest () = "0e91e490041f06fae012f850231eb6ab"
 
 module OCamlTypes =
   // These types come directly from OCaml, and are used for automatic json
@@ -575,8 +304,7 @@ module Convert =
   // This module converts back-and-forth between the F# ProgramTypes and OCaml
   // types. Prelude.Json.OCamlCompatible generates JSON in the same format as
   // OCaml's Yojson so we can use these types directly to communicate with the
-  // client (which also uses these types) and the OCaml libocaml
-  // library.
+  // client (which also uses these types) and the legacyserver
   module OT = OCamlTypes
   module ORT = OT.RuntimeT
 
@@ -1249,205 +977,241 @@ module Convert =
 
 
 // ----------------
-// Binary conversions
+// Getting values from OCaml
 // ----------------
+// FSTODO: this is not the right way I think
+let client = new System.Net.Http.HttpClient()
+
+let legacyReq
+  (endpoint : string)
+  (data : byte array)
+  : Task<System.Net.Http.HttpContent> =
+  task {
+    let url = $"http://localhost:5000/{endpoint}"
+
+    use message =
+      new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
+
+    message.Content <- new System.Net.Http.ByteArrayContent(data)
+
+    let! response = client.SendAsync(message)
+
+    if response.StatusCode <> System.Net.HttpStatusCode.OK then
+      failwith $"not a 200 response to {endpoint}: {response.StatusCode}"
+    else
+      ()
+
+    return response.Content
+  }
+
+let legacyStringReq (endpoint : string) (data : byte array) : Task<string> =
+  task {
+    let! content = legacyReq endpoint data
+    return! content.ReadAsStringAsync()
+  }
+
+let legacyBytesReq (endpoint : string) (data : byte array) : Task<byte array> =
+  task {
+    let! content = legacyReq endpoint data
+    return! content.ReadAsByteArrayAsync()
+  }
+
+let serialize (v : 'a) : byte array = v |> Json.OCamlCompatible.serialize |> toBytes
+
+let stringToBytesReq (endpoint : string) (str : string) : Task<byte array> =
+  str |> toBytes |> legacyBytesReq endpoint
+
+let bytesToStringReq (endpoint : string) (data : byte array) : Task<string> =
+  data |> legacyStringReq endpoint
+
+let stringToStringReq (endpoint : string) (str : string) : Task<string> =
+  str |> toBytes |> legacyStringReq endpoint
+
+let stringToDvalReq (endpoint : string) (str : string) : Task<RT.Dval> =
+  str
+  |> toBytes
+  |> legacyStringReq endpoint
+  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Task.map Convert.ocamlDval2rt
+
+let dvalToStringReq (endpoint : string) (dv : RT.Dval) : Task<string> =
+  dv |> Convert.rt2ocamlDval |> serialize |> legacyStringReq endpoint
+
+let dvalListToStringReq (endpoint : string) (l : List<RT.Dval>) : Task<string> =
+  l |> List.map Convert.rt2ocamlDval |> serialize |> legacyStringReq endpoint
+
+
+// Binary deserialization functions
+
+let oplistOfBinary (data : byte array) : Task<PT.Oplist> =
+  data
+  |> bytesToStringReq "bs/oplist_bin2json"
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.oplist<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map Convert.ocamlOplist2PT
+
+let oplistToBinary (oplist : PT.Oplist) : Task<byte array> =
+  oplist
+  |> Convert.pt2ocamlOplist
+  |> Json.OCamlCompatible.serialize
+  |> stringToBytesReq "bs/oplist_json2bin"
+
+let exprTLIDPairOfCachedBinary (data : byte array) : Task<PT.Expr * tlid> =
+  data
+  |> bytesToStringReq "bs/expr_tlid_pair_bin2json"
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
+  |> Task.map Convert.ocamlexprTLIDPair2PT
+
+let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : Task<byte array> =
+  (expr, tlid)
+  |> Convert.pt2ocamlexprTLIDPair
+  |> Json.OCamlCompatible.serialize
+  |> stringToBytesReq "bs/expr_tlid_pair_json2bin"
+
+let handlerBin2Json (data : byte array) (pos : pos) : Task<PT.Handler.T> =
+  data
+  |> bytesToStringReq "bs/handler_bin2json"
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map (Convert.ocamlHandler2PT pos)
+
+let dbBin2Json (data : byte array) (pos : pos) : Task<PT.DB.T> =
+  data
+  |> bytesToStringReq "bs/db_bin2json"
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map (Convert.ocamlDB2PT pos)
+
+let userFnBin2Json (data : byte array) : Task<PT.UserFunction.T> =
+  data
+  |> bytesToStringReq "bs/user_fn_bin2json"
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map Convert.ocamlUserFunction2PT
+
+let userTypeBin2Json (data : byte array) : Task<PT.UserType.T> =
+  data
+  |> bytesToStringReq "bs/user_tipe_bin2json"
+  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_tipe>
+  |> Task.map Convert.ocamlUserType2PT
+
+
 let toplevelOfCachedBinary
   ((data, pos) : (byte array * string option))
-  : PT.Toplevel =
+  : Task<PT.Toplevel> =
   let pos =
     pos
     |> Option.map Json.OCamlCompatible.deserialize<pos>
     |> Option.unwrap { x = 0; y = 0 }
 
-  let toplevelOfCachedHandler () =
-    Binary.handlerBin2Json data
-    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
-    |> Convert.ocamlHandler2PT pos
-    |> PT.TLHandler
-
-  let toplevelOfCachedDB () =
-    Binary.dbBin2Json data
-    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
-    |> Convert.ocamlDB2PT pos
-    |> PT.TLDB
-
-  let toplevelOfCachedUserFunction () =
-    Binary.userfnBin2Json data
-    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
-    |> Convert.ocamlUserFunction2PT
-    |> PT.TLFunction
-
-  let toplevelOfCachedUserTipe () =
-    Binary.usertipeBin2Json data
-    |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_tipe>
-    |> Convert.ocamlUserType2PT
-    |> PT.TLType
-
-  try
-    toplevelOfCachedHandler ()
-  with e1 ->
+  task {
     try
-      toplevelOfCachedDB ()
-    with e2 ->
+      return! handlerBin2Json data pos |> Task.map PT.TLHandler
+    with e1 ->
       try
-        toplevelOfCachedUserFunction ()
-      with e3 ->
+        return! dbBin2Json data pos |> Task.map PT.TLDB
+      with e2 ->
         try
-          toplevelOfCachedUserTipe ()
-        with e4 ->
-          failwith
-            $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
+          return! userFnBin2Json data |> Task.map PT.TLFunction
+        with e3 ->
+          try
+            return! userTypeBin2Json data |> Task.map PT.TLType
+          with e4 ->
+            failwith
+              $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
 
-let toplevelToCachedBinary (toplevel : PT.Toplevel) : byte array =
+            let (ids : PT.Handler.ids) =
+              { moduleID = id 0; nameID = id 0; modifierID = id 0 }
+
+            return
+              PT.TLHandler
+                { tlid = id 0
+                  pos = pos
+                  ast = PT.EBlank(id 0)
+                  spec = PT.Handler.REPL("somename", ids) }
+  }
+
+
+let handlerJson2Bin (h : PT.Handler.T) : Task<byte array> =
+  h
+  |> Convert.pt2ocamlHandler
+  |> Json.OCamlCompatible.serialize
+  |> stringToBytesReq "bs/handler_json2bin"
+
+let dbJson2Bin (db : PT.DB.T) : Task<byte array> =
+  db
+  |> Convert.pt2ocamlDB
+  |> Json.OCamlCompatible.serialize
+  |> stringToBytesReq "bs/db_json2bin"
+
+
+let userFnJson2Bin (userFn : PT.UserFunction.T) : Task<byte array> =
+  userFn
+  |> Convert.pt2ocamlUserFunction
+  |> Json.OCamlCompatible.serialize
+  |> stringToBytesReq "bs/user_fn_json2bin"
+
+
+let userTypeJson2Bin (userType : PT.UserType.T) : Task<byte array> =
+  userType
+  |> Convert.pt2ocamlUserType
+  |> Json.OCamlCompatible.serialize
+  |> stringToBytesReq "bs/user_tipe_json2bin"
+
+let toplevelToCachedBinary (toplevel : PT.Toplevel) : Task<byte array> =
   match toplevel with
-  | PT.TLHandler h ->
-      h
-      |> Convert.pt2ocamlHandler
-      |> Json.OCamlCompatible.serialize
-      |> Binary.handlerJson2Bin
+  | PT.TLHandler h -> handlerJson2Bin h
+  | PT.TLDB db -> dbJson2Bin db
+  | PT.TLFunction f -> userFnJson2Bin f
+  | PT.TLType t -> userTypeJson2Bin t
 
-  | PT.TLDB db ->
-      db |> Convert.pt2ocamlDB |> Json.OCamlCompatible.serialize |> Binary.dbJson2Bin
-  | PT.TLFunction db ->
-      db
-      |> Convert.pt2ocamlUserFunction
-      |> Json.OCamlCompatible.serialize
-      |> Binary.userfnJson2Bin
-  | PT.TLType db ->
-      db
-      |> Convert.pt2ocamlUserType
-      |> Json.OCamlCompatible.serialize
-      |> Binary.usertipeJson2Bin
-
-
-let oplistOfBinary (data : byte array) : PT.Oplist =
-  Binary.oplistBin2Json data
-  |> Json.OCamlCompatible.deserialize<OCamlTypes.oplist<OCamlTypes.RuntimeT.fluidExpr>>
-  |> Convert.ocamlOplist2PT
-
-let oplistToBinary (oplist : PT.Oplist) : byte array =
-  oplist
-  |> Convert.pt2ocamlOplist
-  |> Json.OCamlCompatible.serialize
-  |> Binary.oplistJson2Bin
-
-let exprTLIDPairOfCachedBinary (data : byte array) : PT.Expr * tlid =
-  Binary.exprTLIDPairBin2Json data
-  |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
-  |> Convert.ocamlexprTLIDPair2PT
-
-let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : byte array =
-  (expr, tlid)
-  |> Convert.pt2ocamlexprTLIDPair
-  |> Json.OCamlCompatible.serialize
-  |> Binary.exprTLIDPairJson2Bin
 
 // ---------------------------
 // These are only here for fuzzing. We should not be fetching dvals via the
 // OCaml runtime, but always via HTTP or via the DB.
 // ---------------------------
-let startString2String (str : string) : System.IntPtr * byte array =
-  Binary.registerThread ()
-  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+let ofInternalQueryableV0 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_internal_queryable_v0" str
 
+let ofInternalQueryableV1 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_internal_queryable_v1" str
 
-let startDval2String (dv : RT.Dval) : System.IntPtr * byte array =
-  Binary.registerThread ()
-  let str = dv |> Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
-  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+let ofInternalRoundtrippableV0 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_internal_roundtrippable_v0" str
 
-let startDvalList2String (l : List<RT.Dval>) : System.IntPtr * byte array =
-  Binary.registerThread ()
-  let str = l |> List.map Convert.rt2ocamlDval |> Json.OCamlCompatible.serialize
-  System.IntPtr(), System.Text.Encoding.UTF8.GetBytes str
+let ofUnknownJsonV1 (str : string) : Task<RT.Dval> =
+  stringToDvalReq "fuzzing/of_unknown_json_v1" str
 
+let toDeveloperRepr (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_developer_repr_v0" dv
 
+let toEnduserReadableTextV0 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_enduser_readable_text_v0" dv
 
-let finishString2String (outLength : int) (outBytes : System.IntPtr) : string =
-  Binary.registerThread ()
-  let (resultBytes : byte array) = Array.zeroCreate outLength
-  Marshal.Copy(outBytes, resultBytes, 0, outLength)
-  let resultString = System.Text.Encoding.UTF8.GetString resultBytes
-  resultString
+let toHashableRepr (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_hashable_repr" dv
 
-let finishString2Dval (outLength : int) (outBytes : System.IntPtr) : RT.Dval =
-  finishString2String outLength outBytes
-  |> Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval>
-  |> Convert.ocamlDval2rt
+let toInternalQueryableV0 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_internal_queryable_v0" dv
 
+let toInternalQueryableV1 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_internal_queryable_v1" dv
 
-let ofInternalQueryableV0 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.ofInternalQueryableV0 (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
+let toInternalRoundtrippableV0 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_internal_roundtrippable_v0" dv
 
-let ofInternalQueryableV1 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.ofInternalQueryableV1 (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
+let toPrettyMachineJsonV1 (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_pretty_machine_json_v1" dv
 
-let ofInternalRoundtrippableV0 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
+let toUrlString (dv : RT.Dval) : Task<string> =
+  dvalToStringReq "fuzzing/to_url_string" dv
 
-  let outLength =
-    Binary.Internal.ofInternalRoundtrippableV0 (bytes, bytes.Length, &out)
+let hashV0 (l : List<RT.Dval>) : Task<string> =
+  dvalListToStringReq "fuzzing/hash_v0" l
 
-  finishString2Dval outLength out
-
-let ofUnknownJsonV1 (str : string) : RT.Dval =
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.ofUnknownJsonV1 (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
-
-let toDeveloperRepr (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toDeveloperRepr (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toEnduserReadableTextV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toEnduserReadableTextV0 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toHashableRepr (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toHashableRepr (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toInternalQueryableV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toInternalQueryableV0 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toInternalQueryableV1 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toInternalQueryableV1 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toInternalRoundtrippableV0 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let ol = Binary.Internal.toInternalRoundtrippableV0 (bytes, bytes.Length, &out)
-  finishString2String ol out
-
-let toPrettyMachineJsonV1 (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toPrettyMachineJsonV1 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let toUrlString (dv : RT.Dval) : string =
-  let mutable (out, bytes) = startDval2String dv
-  let outLength = Binary.Internal.toUrlString (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let hashV0 (l : List<RT.Dval>) : string =
-  let mutable (out, bytes) = startDvalList2String l
-  let outLength = Binary.Internal.hashV0 (bytes, bytes.Length, &out)
-  finishString2String outLength out
-
-let hashV1 (l : List<RT.Dval>) : string =
-  let mutable (out, bytes) = startDvalList2String l
-  let outLength = Binary.Internal.hashV1 (bytes, bytes.Length, &out)
-  finishString2String outLength out
+let hashV1 (l : List<RT.Dval>) : Task<string> =
+  dvalListToStringReq "fuzzing/hash_v1" l
 
 let execute
   (ownerID : UserID)
@@ -1456,7 +1220,7 @@ let execute
   (symtable : Map<string, RT.Dval>)
   (dbs : List<PT.DB.T>)
   (fns : List<PT.UserFunction.T>)
-  : RT.Dval =
+  : Task<RT.Dval> =
   let program = Convert.pt2ocamlExpr program
 
   let args =
@@ -1468,6 +1232,4 @@ let execute
   let str =
     Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
 
-  let mutable (out, bytes) = startString2String str
-  let outLength = Binary.Internal.execute (bytes, bytes.Length, &out)
-  finishString2Dval outLength out
+  stringToDvalReq "execute" str

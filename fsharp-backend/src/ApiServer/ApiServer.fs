@@ -78,7 +78,7 @@ let configureServices (services : IServiceCollection) =
 
 [<EntryPoint>]
 let main args =
-  printfn "Starting BwdServer"
+  printfn "Starting ApiServer"
   LibBackend.Init.init ()
 
   WebHost.CreateDefaultBuilder(args)
