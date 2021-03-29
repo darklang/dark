@@ -196,11 +196,7 @@ let testInitialLoadReturnsTheSame =
             |> List.sortBy (fun tl -> tl.tlid)
             |> List.map clearTypes
           canvas_list = v.canvas_list |> List.sort
-          creation_date =
-            v.creation_date
-            |> debug "nonCanonical"
-            |> canonicalizeDate
-            |> debug "canonicalized" }
+          creation_date = v.creation_date |> canonicalizeDate }
 
     Expect.equal o.StatusCode f.StatusCode ""
 
@@ -210,8 +206,7 @@ let testInitialLoadReturnsTheSame =
     let fVal = fc |> deserialize |> canonicalize
 
     Expect.equal fVal oVal "content"
-
-    Expect.equal f o "full message"
+    Expect.equal f.Headers o.Headers "headers"
   }
 
 let testPackagesReturnsSame =
