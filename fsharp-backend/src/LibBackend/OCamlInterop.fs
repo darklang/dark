@@ -845,14 +845,14 @@ module Convert =
                let ocamlTL : ORT.toplevel =
                  { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
 
-               ocamlTL :: tls, ufns, uts
+               tls @ [ ocamlTL ], ufns, uts
            | PT.TLDB db ->
                let ocamlDB = pt2ocamlDB db
 
                let ocamlTL : ORT.toplevel =
                  { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
 
-               ocamlTL :: tls, ufns, uts
+               tls @ [ ocamlTL ], ufns, uts
            | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
            | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 
