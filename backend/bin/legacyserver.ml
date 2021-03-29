@@ -8,7 +8,7 @@ module CResponse = Clu.Response
 module Client = Clu.Client
 module Header = Cohttp.Header
 module F = Liblegacy.Fuzzing
-module BS = Libserialize.Binary_serialization
+module BS = Liblegacy.Serialization
 
 let respond_json_ok (body : string) : (CResponse.t * Cl.Body.t) Lwt.t =
   let headers =
@@ -71,8 +71,6 @@ let server () =
             Some BS.expr_json2bin
         | "expr_tlid_pair_json2bin" ->
             Some BS.expr_tlid_pair_json2bin
-        | "digest" ->
-            Some (fun _ -> BS.digest)
         | _ ->
             None )
       | ["fuzzing"; fnname] ->
