@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BINPATH="_build/default/backend/bin"
+SERVER_EXE="$BINPATH/legacyserver.exe"
+
+echo "Stopping legacyserver"
+pkill -f legacyserver.exe || true
+
+if [[ -f "${SERVER_EXE}" ]]; then
+  LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  echo "Running legacyserver"
+
+  # We set the DB to the test DB even in production. In production, the server
+  # should not be executing anything, just translating. In test mode, it should
+  # be connected to the test DB. In dev mode, it should also be connected to
+  # the test DB, as the F# server has the connection to the dev DB and the
+  # legacyserver just serves to translate text.
+
+  # shellcheck disable=SC2024
+  DARK_CONFIG_DB_HOST=localhost \
+  DARK_CONFIG_DB_DBNAME=testdb \
+  DARK_CONFIG_DB_USER=dark \
+  DARK_CONFIG_DB_PASSWORD=eapnsdc \
+  sudo --preserve-env "${SERVER_EXE}" > "$LOGS/legacyserver.log" 2>&1 &
+else
+  echo "Missing OCaml binaries"
+  exit 1
+fi
+
+echo "Finished loading legacyserver"

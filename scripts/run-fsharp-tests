@@ -22,7 +22,7 @@ do
   esac
 done
 
-
+sudo killall legacyserver.exe || true
 
 ./scripts/support/wait-for-background-services postgresql
 dropdb --if-exists testdb
@@ -30,6 +30,7 @@ createdb testdb
 
 BINPATH="fsharp-backend/Build/out/"
 cp "/home/dark/app/_build/default/backend/bin/libocaml.so" "${BINPATH}"
+./scripts/support/runlegacyserver
 
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the
