@@ -6,11 +6,6 @@ let of_internal_queryable_v0 (str : string) : string =
   dval |> Types.RuntimeT.dval_to_yojson |> Yojson.Safe.to_string
 
 
-let of_internal_queryable_v0 (str : string) : string =
-  let dval = Dval.of_internal_queryable_v0 str in
-  dval |> Types.RuntimeT.dval_to_yojson |> Yojson.Safe.to_string
-
-
 let of_internal_queryable_v1 (str : string) : string =
   let dval = Dval.of_internal_queryable_v1 str in
   dval |> Types.RuntimeT.dval_to_yojson |> Yojson.Safe.to_string
