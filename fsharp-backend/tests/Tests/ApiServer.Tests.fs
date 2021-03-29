@@ -161,12 +161,45 @@ let requestPostApis
     return (o, f)
   }
 
+module OT = LibBackend.OCamlInterop.OCamlTypes
 
 let testInitialLoadReturnsTheSame =
   testTask "initial_load returns same" {
-    let! (o, f) = requestPostApis "initial_load"
+    let! ((o, f) : (HttpResponseMessage * HttpResponseMessage)) =
+      requestPostApis "initial_load"
 
-    Expect.equal o f ""
+    let deserialize v = Json.OCamlCompatible.deserialize<Api.InitialLoad.T> v
+
+    let canonicalize (v : Api.InitialLoad.T) : Api.InitialLoad.T =
+      { v with
+          toplevels =
+            v.toplevels
+            |> List.sortBy (fun tl -> tl.tlid)
+            |> List.map
+                 (fun tl ->
+                   match tl.data with
+                   | OT.RuntimeT.DB _ -> tl
+                   | OT.RuntimeT.Handler h ->
+                       { tl with
+                           data =
+                             OT.RuntimeT.Handler
+                               { h with
+                                   spec =
+                                     { h.spec with
+                                         types =
+                                           { input = OT.Blank 0UL
+                                             output = OT.Blank 0UL } } } }) }
+
+    Expect.equal o.StatusCode f.StatusCode ""
+
+    let! oc = o.Content.ReadAsStringAsync()
+    let! fc = f.Content.ReadAsStringAsync()
+    let oVal = oc |> deserialize |> canonicalize
+    let fVal = fc |> deserialize |> canonicalize
+
+    Expect.equal oVal fVal "content"
+
+    Expect.equal o f "full message"
   }
 
 let testPackagesReturnsSame =
