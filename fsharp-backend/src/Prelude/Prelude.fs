@@ -480,7 +480,7 @@ module Json =
 
         let fields : System.Reflection.PropertyInfo [] = caseInfo.GetFields()
 
-        let readElements() =
+        let readElements () =
           let rec read index acc =
             match reader.TokenType with
             | JsonToken.EndArray -> acc
@@ -515,14 +515,15 @@ module Json =
         let itemType = t.GetGenericArguments().[0]
 
         let collectionType =
-          typedefof<System.Collections.Generic.IEnumerable<_>>
-            .MakeGenericType(itemType)
+          typedefof<System.Collections.Generic.IEnumerable<_>>.MakeGenericType
+            (itemType)
 
         let collection =
           serializer.Deserialize(reader, collectionType)
-          :?> System.Collections.Generic.IEnumerable<_>
+          :?> System.Collections.IEnumerable
+          |> Seq.cast
 
-        let listType = typedefof<list<_>>.MakeGenericType(itemType)
+        let listType = typedefof<list<_>>.MakeGenericType (itemType)
         let cases = FSharpType.GetUnionCases(listType)
 
         let rec make =
@@ -547,7 +548,7 @@ module Json =
         let deserialize t = serializer.Deserialize(reader, t)
         let itemTypes = FSharpType.GetTupleElements(t)
 
-        let readElements() =
+        let readElements () =
           let rec read index acc =
             match reader.TokenType with
             | JsonToken.EndArray -> acc
