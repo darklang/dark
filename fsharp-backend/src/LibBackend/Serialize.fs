@@ -100,13 +100,10 @@ let loadOnlyRenderedTLIDs
            OR tipe = 'user_tipe'::toplevel_type)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync
-       (fun read ->
-         (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
-  |> Task.bind (fun list ->
-      list
-      |> List.map OCamlInterop.toplevelOfCachedBinary
-      |> Task.flatten
-      )
+       (fun read -> (read.bytea "rendered_oplist_cache", read.stringOrNone "pos"))
+  |> Task.bind
+       (fun list ->
+         list |> List.map OCamlInterop.toplevelOfCachedBinary |> Task.flatten)
 
 
 // let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :

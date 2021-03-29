@@ -493,14 +493,16 @@ let loadOplists
   Sql.query query
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "data"))
-  |> Task.bind (fun list ->
-        list
-        |> List.map (fun (tlid, data) ->
-                       task {
-                         let! oplist = OCamlInterop.oplistOfBinary data
-                         return (tlid, oplist)
-                       })
-        |> Task.flatten)
+  |> Task.bind
+       (fun list ->
+         list
+         |> List.map
+              (fun (tlid, data) ->
+                task {
+                  let! oplist = OCamlInterop.oplistOfBinary data
+                  return (tlid, oplist)
+                })
+         |> Task.flatten)
 
 
 let loadFrom

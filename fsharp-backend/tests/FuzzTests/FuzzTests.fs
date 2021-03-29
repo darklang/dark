@@ -21,8 +21,7 @@ module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalRepr = LibExecution.DvalRepr
 
-let result (t : Task<'a>) : 'a =
-  t.Result
+let result (t : Task<'a>) : 'a = t.Result
 
 let (.=.) actual expected : bool =
   if actual = expected then
@@ -223,11 +222,21 @@ module OCamlInterop =
   let binaryHandlerRoundtrip (a : PT.Handler.T) : bool =
     let h = PT.TLHandler a
 
-    h |> toplevelToCachedBinary |> result |> (fun bin -> bin, None) |> toplevelOfCachedBinary |> result
+    h
+    |> toplevelToCachedBinary
+    |> result
+    |> (fun bin -> bin, None)
+    |> toplevelOfCachedBinary
+    |> result
     .=. h
 
   let binaryExprRoundtrip (pair : PT.Expr * tlid) : bool =
-    pair |> exprTLIDPairToCachedBinary |> result |> exprTLIDPairOfCachedBinary |> result .=. pair
+    pair
+    |> exprTLIDPairToCachedBinary
+    |> result
+    |> exprTLIDPairOfCachedBinary
+    |> result
+    .=. pair
 
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
@@ -382,7 +391,8 @@ module EndUserReadable =
 
   // The format here is used to show users so it has to be exact
   let equalsOCaml (dv : RT.Dval) : bool =
-    DvalRepr.toEnduserReadableTextV0 dv .=. (OCamlInterop.toEnduserReadableTextV0 dv).Result
+    DvalRepr.toEnduserReadableTextV0 dv
+    .=. (OCamlInterop.toEnduserReadableTextV0 dv).Result
 
   let tests =
     testList
@@ -734,5 +744,4 @@ let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 
 
 [<EntryPoint>]
-let main args =
-  runTestsWithCLIArgs [] args tests
+let main args = runTestsWithCLIArgs [] args tests

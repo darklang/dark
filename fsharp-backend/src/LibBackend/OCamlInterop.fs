@@ -982,35 +982,41 @@ module Convert =
 // FSTODO: this is not the right way I think
 let client = new System.Net.Http.HttpClient()
 
-let legacyReq (endpoint : string) (data : byte array): Task<System.Net.Http.HttpContent> =
+let legacyReq
+  (endpoint : string)
+  (data : byte array)
+  : Task<System.Net.Http.HttpContent> =
   task {
     let url = $"http://localhost:5000/{endpoint}"
-    use message = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
+
+    use message =
+      new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
+
     message.Content <- new System.Net.Http.ByteArrayContent(data)
 
     let! response = client.SendAsync(message)
 
-    if response.StatusCode <> System.Net.HttpStatusCode.OK
-    then failwith $"not a 200 response to {endpoint}: {response.StatusCode}"
-    else ()
+    if response.StatusCode <> System.Net.HttpStatusCode.OK then
+      failwith $"not a 200 response to {endpoint}: {response.StatusCode}"
+    else
+      ()
 
     return response.Content
   }
 
-let legacyStringReq (endpoint : string) (data : byte array): Task<string> =
+let legacyStringReq (endpoint : string) (data : byte array) : Task<string> =
   task {
     let! content = legacyReq endpoint data
     return! content.ReadAsStringAsync()
   }
 
-let legacyBytesReq (endpoint : string) (data : byte array): Task<byte array> =
+let legacyBytesReq (endpoint : string) (data : byte array) : Task<byte array> =
   task {
     let! content = legacyReq endpoint data
     return! content.ReadAsByteArrayAsync()
   }
 
-let serialize (v : 'a) : byte array =
-  v |> Json.OCamlCompatible.serialize |> toBytes
+let serialize (v : 'a) : byte array = v |> Json.OCamlCompatible.serialize |> toBytes
 
 let stringToBytesReq (endpoint : string) (str : string) : Task<byte array> =
   str |> toBytes |> legacyBytesReq endpoint
@@ -1022,7 +1028,11 @@ let stringToStringReq (endpoint : string) (str : string) : Task<string> =
   str |> toBytes |> legacyStringReq endpoint
 
 let stringToDvalReq (endpoint : string) (str : string) : Task<RT.Dval> =
-  str |> toBytes |> legacyStringReq endpoint |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval> |> Task.map Convert.ocamlDval2rt
+  str
+  |> toBytes
+  |> legacyStringReq endpoint
+  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.dval>
+  |> Task.map Convert.ocamlDval2rt
 
 let dvalToStringReq (endpoint : string) (dv : RT.Dval) : Task<string> =
   dv |> Convert.rt2ocamlDval |> serialize |> legacyStringReq endpoint
@@ -1036,7 +1046,8 @@ let dvalListToStringReq (endpoint : string) (l : List<RT.Dval>) : Task<string> =
 let oplistOfBinary (data : byte array) : Task<PT.Oplist> =
   data
   |> bytesToStringReq "bs/oplist_bin2json"
-  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.oplist<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.oplist<OCamlTypes.RuntimeT.fluidExpr>>
   |> Task.map Convert.ocamlOplist2PT
 
 let oplistToBinary (oplist : PT.Oplist) : Task<byte array> =
@@ -1048,7 +1059,8 @@ let oplistToBinary (oplist : PT.Oplist) : Task<byte array> =
 let exprTLIDPairOfCachedBinary (data : byte array) : Task<PT.Expr * tlid> =
   data
   |> bytesToStringReq "bs/expr_tlid_pair_bin2json"
-  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.fluidExpr * OCamlTypes.tlid>
   |> Task.map Convert.ocamlexprTLIDPair2PT
 
 let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : Task<byte array> =
@@ -1060,19 +1072,22 @@ let exprTLIDPairToCachedBinary ((expr, tlid) : (PT.Expr * tlid)) : Task<byte arr
 let handlerBin2Json (data : byte array) (pos : pos) : Task<PT.Handler.T> =
   data
   |> bytesToStringReq "bs/handler_bin2json"
-  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.HandlerT.handler<OCamlTypes.RuntimeT.fluidExpr>>
   |> Task.map (Convert.ocamlHandler2PT pos)
 
 let dbBin2Json (data : byte array) (pos : pos) : Task<PT.DB.T> =
   data
   |> bytesToStringReq "bs/db_bin2json"
-  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.DbT.db<OCamlTypes.RuntimeT.fluidExpr>>
   |> Task.map (Convert.ocamlDB2PT pos)
 
 let userFnBin2Json (data : byte array) : Task<PT.UserFunction.T> =
   data
   |> bytesToStringReq "bs/user_fn_bin2json"
-  |> Task.map Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
+  |> Task.map
+       Json.OCamlCompatible.deserialize<OCamlTypes.RuntimeT.user_fn<OCamlTypes.RuntimeT.fluidExpr>>
   |> Task.map Convert.ocamlUserFunction2PT
 
 let userTypeBin2Json (data : byte array) : Task<PT.UserType.T> =
@@ -1105,8 +1120,16 @@ let toplevelOfCachedBinary
           with e4 ->
             failwith
               $"could not parse binary toplevel {e1}\n\n{e2}\n\n{e3}\n\n{e4}\n\n"
-            let (ids : PT.Handler.ids) = { moduleID = id 0; nameID = id 0; modifierID = id 0 }
-            return PT.TLHandler { tlid = id 0; pos = pos; ast = PT.EBlank (id 0); spec = PT.Handler.REPL("somename", ids)}
+
+            let (ids : PT.Handler.ids) =
+              { moduleID = id 0; nameID = id 0; modifierID = id 0 }
+
+            return
+              PT.TLHandler
+                { tlid = id 0
+                  pos = pos
+                  ast = PT.EBlank(id 0)
+                  spec = PT.Handler.REPL("somename", ids) }
   }
 
 
