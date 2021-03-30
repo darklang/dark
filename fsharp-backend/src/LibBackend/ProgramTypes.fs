@@ -35,8 +35,20 @@ module FQFnName =
   let stdlibFqName = RT.FQFnName.stdlibFqName
 
   let oneWordFunctions =
-    Set [ "toString"; "toRepr"; "equals"; "notEquals"; "assoc"; "dissoc"; "toForm"
-        ; "toString_v0"; "toRepr_v0"; "equals_v0"; "notEquals_v0"; "assoc_v0"; "dissoc_v0"; "toForm_v0" ]
+    Set [ "toString"
+          "toRepr"
+          "equals"
+          "notEquals"
+          "assoc"
+          "dissoc"
+          "toForm"
+          "toString_v0"
+          "toRepr_v0"
+          "equals_v0"
+          "notEquals_v0"
+          "assoc_v0"
+          "dissoc_v0"
+          "toForm_v0" ]
 
   let parse (fnName : string) : T =
     match fnName with
