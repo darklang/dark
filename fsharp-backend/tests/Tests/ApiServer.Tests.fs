@@ -61,11 +61,14 @@ let getAsync (url : string) : Task<HttpResponseMessage> =
     return! client.SendAsync(message)
   }
 
-let postAsync (url : string) : Task<HttpResponseMessage> =
+let postAsync (url : string) (body : string) : Task<HttpResponseMessage> =
   task {
     let! csrfToken = login.Force()
     use message = new HttpRequestMessage(HttpMethod.Post, url)
     message.Headers.Add("X-CSRF-Token", csrfToken)
+
+    message.Content <-
+      new StringContent(body, System.Text.Encoding.UTF8, "application/json")
 
     return! client.SendAsync(message)
   }
@@ -144,24 +147,44 @@ let testFunctionsReturnsTheSame =
       filteredOCamlFns
   }
 
-let deserialize<'a> = Json.OCamlCompatible.deserialize<'a>
+let deserialize<'a> (str : string) : 'a =
+  try
+    Json.OCamlCompatible.deserialize<'a> str
+  with _ ->
+    printfn $"Error deserializing {str}"
+    reraise ()
 
-let testPostApi
+let serialize = Json.OCamlCompatible.serialize
+
+let noBody () = ""
+
+let postApiTestCases
   (api : string)
+  (body : string)
   (deserialize : string -> 'a)
   (canonicalizeBody : 'a -> 'a)
-  =
-  testTask $"{api} API returns same" {
+  : Task<unit> =
+  task {
     let! (o : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:8000/api/test/{api}"
+      postAsync $"http://darklang.localhost:8000/api/test/{api}" body
 
     let! (f : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:9000/api/test/{api}"
-
-    Expect.equal o.StatusCode f.StatusCode ""
+      postAsync $"http://darklang.localhost:9000/api/test/{api}" body
 
     let! oc = o.Content.ReadAsStringAsync()
     let! fc = f.Content.ReadAsStringAsync()
+
+    let () =
+      if (o.StatusCode <> f.StatusCode) then
+        printfn
+          "%s"
+          ($"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
+           + $"ocaml:\n{oc}\n\nfsharp:\n{fc}")
+
+
+
+    Expect.equal o.StatusCode f.StatusCode ""
+
     let oVal = oc |> deserialize |> canonicalizeBody
     let fVal = fc |> deserialize |> canonicalizeBody
 
@@ -181,6 +204,46 @@ let testPostApi
     Expect.equal fVal oVal "content"
     Expect.equal (headerMap f.Headers) (headerMap o.Headers) "headers"
   }
+
+let testPostApi
+  (api : string)
+  (body : string)
+  (deserialize : string -> 'a)
+  (canonicalizeBody : 'a -> 'a)
+  : Test =
+  testTask $"{api} API returns same" {
+    return! postApiTestCases api body deserialize canonicalizeBody }
+
+
+let testGetTraceData =
+  testTask "get_trace is the same" {
+    let! (o : HttpResponseMessage) =
+      postAsync $"http://darklang.localhost:8000/api/test/all_traces" ""
+
+    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
+    let! body = o.Content.ReadAsStringAsync()
+
+    do!
+      body
+      |> deserialize<Api.Traces.AllTraces>
+      |> fun ts -> ts.traces
+      |> List.take 5 // lets not get carried away
+      |> List.map
+           (fun (tlid, traceID) ->
+             task {
+               do!
+                 let (ps : Api.Traces.Params) = { tlid = tlid; trace_id = traceID }
+
+                 postApiTestCases
+                   "get_trace_data"
+                   (serialize ps)
+                   (deserialize<Api.Traces.T>)
+                   Fun.identity
+             })
+
+      |> Task.flatten
+  }
+
 
 
 let testInitialLoadReturnsTheSame =
@@ -212,7 +275,7 @@ let testInitialLoadReturnsTheSame =
         canvas_list = v.canvas_list |> List.sort
         creation_date = v.creation_date |> canonicalizeDate }
 
-  testPostApi "intial_load" deserialize canonicalize
+  testPostApi "initial_load" "" deserialize canonicalize
 
 let localOnlyTests =
   let tests =
@@ -221,15 +284,10 @@ let localOnlyTests =
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
       [ testFunctionsReturnsTheSame
-
-        testPostApi "packages" (deserialize<Api.Packages.T>) Fun.identity
-        testPostApi "get_404s" (deserialize<Api.F404.T>) Fun.identity
-        testPostApi "get_trace_data" (deserialize<Api.F404.T>) Fun.identity
-        // testGet404sReturnsSame
-        // testAllTracesReturnsSame
-        testInitialLoadReturnsTheSame
-        // testPackagesReturnsSame
-        ]
+        testPostApi "packages" "" (deserialize<Api.Packages.T>) Fun.identity
+        testPostApi "get_404s" "" (deserialize<Api.F404.T>) Fun.identity
+        testGetTraceData
+        testInitialLoadReturnsTheSame ]
     else
       []
 

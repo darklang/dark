@@ -441,11 +441,13 @@ module F404 =
 module Traces =
   type Params = { tlid : tlid; trace_id : AT.TraceID }
 
-  type T = { trace : AT.Trace }
+  type Trace = { trace : AT.Trace }
+
+  type T = Option<Trace>
 
   type AllTraces = { traces : List<tlid * AT.TraceID> }
 
-  let getTraceData (ctx : HttpContext) : Task<Option<T>> =
+  let getTraceData (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx

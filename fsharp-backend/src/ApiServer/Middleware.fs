@@ -49,7 +49,6 @@ let startTimer (ctx : HttpContext) : (string -> unit) =
     let result = (sw.Elapsed.TotalMilliseconds) |> decimal
     sw.Restart()
     let name = $"%03d{st.Metrics.Count}-{metricName}"
-    printfn $"Adding servertiming metric {name} {result}"
     st.Metrics.Add(ServerTimingMetric(name, result)))
 
 
@@ -124,7 +123,9 @@ let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
             let! newCtx = ctx.WriteJsonAsync result
             t "serializeToJson"
             return newCtx
-        | None -> return! ctx.WriteJsonAsync "Not found"
+        | None ->
+            ctx.SetStatusCode 404
+            return! ctx.WriteJsonAsync "Not found"
       })
 
 // Either redirect to a login page, or apply the passed function if a
