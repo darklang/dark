@@ -279,7 +279,9 @@ module Secrets =
   type ApiSecret = { secret_name : string; secret_value : string }
 
 module Packages =
-  let packages (ctx : HttpContext) : Task<List<OT.PackageManager.fn>> =
+  type T = List<OT.PackageManager.fn>
+
+  let packages (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
       let! fns = LibBackend.PackageManager.allFunctions ()

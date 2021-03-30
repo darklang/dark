@@ -70,13 +70,6 @@ let postAsync (url : string) : Task<HttpResponseMessage> =
     return! client.SendAsync(message)
   }
 
-let massageDarkHeaders (r : HttpResponseMessage) : unit =
-  let (_ : bool) = r.Headers.Remove "Date" // different
-  let (_ : bool) = r.Headers.Remove "Server" // different
-  let (_ : bool) = r.Headers.Remove "x-darklang-execution-id" // not in new API
-  let (_ : bool) = r.Headers.Remove "Connection" // not useful, not in new API
-  ()
-
 
 let testFunctionsReturnsTheSame =
   testTask "functions returns the same" {
@@ -151,84 +144,75 @@ let testFunctionsReturnsTheSame =
       filteredOCamlFns
   }
 
-let requestPostApis
+let deserialize<'a> = Json.OCamlCompatible.deserialize<'a>
+
+let testPostApi
   (api : string)
-  : Task<HttpResponseMessage * HttpResponseMessage> =
-  task {
-    let! o = postAsync $"http://darklang.localhost:8000/api/test/{api}"
-    let! f = postAsync $"http://darklang.localhost:9000/api/test/{api}"
+  (deserialize : string -> 'a)
+  (canonicalizeBody : 'a -> 'a)
+  =
+  testTask $"{api} API returns same" {
+    let! (o : HttpResponseMessage) =
+      postAsync $"http://darklang.localhost:8000/api/test/{api}"
 
-    massageDarkHeaders o
-    massageDarkHeaders f
-    return (o, f)
-  }
-
-module OT = LibBackend.OCamlInterop.OCamlTypes
-
-let testInitialLoadReturnsTheSame =
-  testTask "initial_load returns same" {
-    let! ((o, f) : (HttpResponseMessage * HttpResponseMessage)) =
-      requestPostApis "initial_load"
-
-    let deserialize v = Json.OCamlCompatible.deserialize<Api.InitialLoad.T> v
-
-    let canonicalizeDate (d : System.DateTime) : System.DateTime =
-      d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
-
-    let canonicalize (v : Api.InitialLoad.T) : Api.InitialLoad.T =
-      let clearTypes (tl : ORT.toplevel) =
-        match tl.data with
-        | ORT.DB _ -> tl
-        | ORT.Handler h ->
-            { tl with
-                data =
-                  ORT.Handler
-                    { h with
-                        spec =
-                          { h.spec with
-                              types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
-
-      { v with
-          toplevels =
-            v.toplevels |> List.sortBy (fun tl -> tl.tlid) |> List.map clearTypes
-          deleted_toplevels =
-            v.deleted_toplevels
-            |> List.sortBy (fun tl -> tl.tlid)
-            |> List.map clearTypes
-          canvas_list = v.canvas_list |> List.sort
-          creation_date = v.creation_date |> canonicalizeDate }
+    let! (f : HttpResponseMessage) =
+      postAsync $"http://darklang.localhost:9000/api/test/{api}"
 
     Expect.equal o.StatusCode f.StatusCode ""
 
     let! oc = o.Content.ReadAsStringAsync()
     let! fc = f.Content.ReadAsStringAsync()
-    let oVal = oc |> deserialize |> canonicalize
-    let fVal = fc |> deserialize |> canonicalize
+    let oVal = oc |> deserialize |> canonicalizeBody
+    let fVal = fc |> deserialize |> canonicalizeBody
+
+    let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
+      let clear str =
+        if h.Contains str then
+          (h.Remove str |> ignore
+           h.TryAddWithoutValidation(str, "XXX") |> ignore)
+
+      clear "Date"
+      clear "Server"
+      clear "ServerTiming"
+      let (_ : bool) = h.Remove "x-darklang-execution-id" // not in new API
+      let (_ : bool) = h.Remove "Connection" // not useful, not in new API
+      h |> Seq.toList |> List.map (fun (KeyValue (x, y)) -> x, y.ToString()) |> Map
 
     Expect.equal fVal oVal "content"
-    Expect.equal f.Headers o.Headers "headers"
+    Expect.equal (headerMap f.Headers) (headerMap o.Headers) "headers"
   }
 
-let testPackagesReturnsSame =
-  testTask "packages returns same" {
-    let! (o, f) = requestPostApis "packages"
 
-    Expect.equal f o ""
-  }
+let testInitialLoadReturnsTheSame =
+  let deserialize v = Json.OCamlCompatible.deserialize<Api.InitialLoad.T> v
 
-let testAllTracesReturnsSame =
-  testTask "all_traces returns same" {
-    let! (o, f) = requestPostApis "all_traces"
+  let canonicalizeDate (d : System.DateTime) : System.DateTime =
+    d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
 
-    Expect.equal f o ""
-  }
+  let canonicalize (v : Api.InitialLoad.T) : Api.InitialLoad.T =
+    let clearTypes (tl : ORT.toplevel) =
+      match tl.data with
+      | ORT.DB _ -> tl
+      | ORT.Handler h ->
+          { tl with
+              data =
+                ORT.Handler
+                  { h with
+                      spec =
+                        { h.spec with
+                            types = { input = OT.Blank 0UL; output = OT.Blank 0UL } } } }
 
-let testGet404sReturnsSame =
-  testTask "get_404s returns same" {
-    let! (o, f) = requestPostApis "get_404s"
+    { v with
+        toplevels =
+          v.toplevels |> List.sortBy (fun tl -> tl.tlid) |> List.map clearTypes
+        deleted_toplevels =
+          v.deleted_toplevels
+          |> List.sortBy (fun tl -> tl.tlid)
+          |> List.map clearTypes
+        canvas_list = v.canvas_list |> List.sort
+        creation_date = v.creation_date |> canonicalizeDate }
 
-    Expect.equal f o ""
-  }
+  testPostApi "intial_load" deserialize canonicalize
 
 let localOnlyTests =
   let tests =
@@ -237,6 +221,10 @@ let localOnlyTests =
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
       [ testFunctionsReturnsTheSame
+
+        testPostApi "packages" (deserialize<Api.Packages.T>) Fun.identity
+        testPostApi "get_404s" (deserialize<Api.F404.T>) Fun.identity
+        testPostApi "get_trace_data" (deserialize<Api.F404.T>) Fun.identity
         // testGet404sReturnsSame
         // testAllTracesReturnsSame
         testInitialLoadReturnsTheSame
