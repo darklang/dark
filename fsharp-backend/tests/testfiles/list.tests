@@ -218,3 +218,6 @@ List.length_v0 [1;2;3] = 3
 
 List.fold_v0 [1;2;3;4;5] [] (fun accum curr -> List.pushBack_v0 accum (curr + 1)) = [2;3;4;5;6]
 List.fold_v0 ["a"; "b"; "c"; "d"] "x" (fun accum curr -> accum ++ curr) = "xabcd"
+
+List.reverse_v0 [5; 4; 3; 2; 1] = [1;2;3;4;5]
+List.reverse_v0 ["a"; "b"; "c"; "d"] = ["d";"c";"b";"a"]
