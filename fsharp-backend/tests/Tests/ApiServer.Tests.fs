@@ -19,9 +19,11 @@ module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OT = LibBackend.OCamlInterop.OCamlTypes
 module ORT = OT.RuntimeT
+module Convert = LibBackend.OCamlInterop.Convert
 
 open ApiServer
 
+let ident = Fun.identity
 let client = new HttpClient()
 
 // login as test user and return the csrfToken (the cookies are stored in httpclient)
@@ -238,10 +240,28 @@ let testGetTraceData =
                    "get_trace_data"
                    (serialize ps)
                    (deserialize<Api.Traces.T>)
-                   Fun.identity
+                   ident
              })
 
       |> Task.flatten
+  }
+
+let testDbStats =
+  testTask "db_stats is the same" {
+    let! (o : HttpResponseMessage) =
+      postAsync $"http://darklang.localhost:8000/api/test/initial_load" ""
+
+    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
+    let! body = o.Content.ReadAsStringAsync()
+
+    let dbs =
+      body
+      |> deserialize<Api.InitialLoad.T>
+      |> fun ts -> ts.toplevels |> Convert.ocamlToplevel2PT
+      |> Tuple2.second
+
+    return!
+      postApiTestCases "db_stats" (serialize dbs) (deserialize<Api.DB.Stats.T>) ident
   }
 
 
@@ -279,13 +299,19 @@ let testInitialLoadReturnsTheSame =
 
 let localOnlyTests =
   let tests =
+
     if System.Environment.GetEnvironmentVariable "CI" = null then
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
       [ testFunctionsReturnsTheSame
-        testPostApi "packages" "" (deserialize<Api.Packages.T>) Fun.identity
-        testPostApi "get_404s" "" (deserialize<Api.F404.T>) Fun.identity
+        testPostApi "packages" "" (deserialize<Api.Packages.T>) ident
+        testPostApi "get_404s" "" (deserialize<Api.F404.T>) ident
+        testPostApi "get_unlocked_dbs" "" (deserialize<Api.DB.Unlocked.T>) ident
+        testPostApi "get_db_stats" "" (deserialize<Api.DB.Stats.T>) ident
+        // testPostApi "get_worker_stats" "" (deserialize<Api.DB.T>) ident
+        // testPostApi "worker_schedule" "" (deserialize<Api.DB.T>) ident
+        testPostApi "all_traces" "" (deserialize<Api.Traces.AllTraces>) ident
         testGetTraceData
         testInitialLoadReturnsTheSame ]
     else
