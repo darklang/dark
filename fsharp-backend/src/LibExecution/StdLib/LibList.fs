@@ -147,15 +147,17 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "reverse" 0
-//     ; parameters = [Param.make "list" TList ""]
-//     ; returnType = TList
-//     ; description = "Returns a reversed copy of `list`."
-//     ; fn =
-//           (function _, [DList l] -> DList (List.rev l) | _ -> incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "reverse" 0
+      parameters = [Param.make "list" (TList varA) ""]
+      returnType = TList varA
+      description = "Returns a reversed copy of `list`."
+      fn =
+        (function
+        |_, [DList l] -> Value(DList(List.rev l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "findFirst" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = varA
