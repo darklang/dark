@@ -2,7 +2,6 @@ module ApiServer.Middleware
 
 // Middlewares used by the API server. Includes middleware functions and middleware stacks
 
-open System
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -10,10 +9,14 @@ open Microsoft.AspNetCore.StaticFiles
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Primitives
+open System.Runtime.CompilerServices
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Giraffe.EndpointRouting
+
+type ServerTimingMetric = Lib.AspNetCore.ServerTiming.Http.Headers.ServerTimingMetric
+type ServerTiming = Lib.AspNetCore.ServerTiming.IServerTiming
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -31,8 +34,42 @@ module Auth = LibBackend.Authorization
 let (>=>) = Giraffe.Core.compose
 
 // --------------------
+// Server timing metrics
+// --------------------
+let getServerTiming (ctx : HttpContext) : Lib.AspNetCore.ServerTiming.IServerTiming =
+  ctx.RequestServices.GetService<Lib.AspNetCore.ServerTiming.IServerTiming>()
+
+// returns a function to be called which will record the elapsed time
+let startTimer (ctx : HttpContext) : (string -> unit) =
+  let st = getServerTiming ctx
+  let sw = System.Diagnostics.Stopwatch()
+  sw.Start()
+
+  (fun metricName ->
+    let result = (sw.Elapsed.TotalMilliseconds) |> decimal
+    sw.Restart()
+    let name = $"%03d{st.Metrics.Count}-{metricName}"
+    printfn $"Adding servertiming metric {name} {result}"
+    st.Metrics.Add(ServerTimingMetric(name, result)))
+
+
+// --------------------
 // Generic middlewares
 // --------------------
+
+// Copied from Giraffe HttpContextExtensions, and extended with timing info
+[<Extension>]
+type HttpContextExtensions() =
+  [<Extension>]
+  static member WriteJsonAsync<'T>(ctx : HttpContext, dataObj : 'T) =
+    let t = startTimer ctx
+    ctx.SetContentType "application/json; charset=utf-8"
+    // TODO: it's probably slower to have a separate serialization step, then
+    // written into the body, vs writing directly into the body.
+    let serialized = ctx.GetJsonSerializer().SerializeToBytes dataObj
+    t "serialized"
+    ctx.WriteBytesAsync serialized
+
 
 let queryString (queries : List<string * string>) : string =
   queries
@@ -60,7 +97,10 @@ let htmlHandler (f : HttpContext -> Task<string>) : HttpHandler =
     (fun ctx ->
       task {
         let! result = f ctx
-        return! ctx.WriteHtmlStringAsync result
+        let t = startTimer ctx
+        let! newCtx = ctx.WriteHtmlStringAsync result
+        t "writeResponse"
+        return newCtx
       })
 
 let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
@@ -68,18 +108,22 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
     (fun ctx ->
       task {
         let! result = f ctx
-        ctx.Response.ContentType <- "application/json: charset=utf-8"
-        return! ctx.WriteJsonAsync result
+        let t = startTimer ctx
+        let! newCtx = ctx.WriteJsonAsync result
+        t "serializeToJson"
+        return newCtx
       })
 
 let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
   handleContext
     (fun ctx ->
       task {
-        ctx.Response.ContentType <- "application/json: charset=utf-8"
-
         match! f ctx with
-        | Some result -> return! ctx.WriteJsonAsync result
+        | Some result ->
+            let t = startTimer ctx
+            let! newCtx = ctx.WriteJsonAsync result
+            t "serializeToJson"
+            return newCtx
         | None -> return! ctx.WriteJsonAsync "Not found"
       })
 
@@ -148,16 +192,14 @@ let saveCanvasInfo (c : Canvas.Meta) (ctx : HttpContext) = save' CanvasInfo c ct
 let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
   save' Permission p ctx
 
-
-
 // --------------------
 // APIServer Middlewares
 // --------------------
 
-
 let sessionDataMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      let t = startTimer ctx
       let sessionKey = ctx.Request.Cookies.Item Session.cookieKey
 
       let! session =
@@ -168,24 +210,31 @@ let sessionDataMiddleware : HttpHandler =
           Session.get sessionKey csrfToken
 
       match session with
-      | None -> return! redirectOr unauthorized ctx
-      | Some sessionData -> return! next (saveSessionData sessionData ctx)
+      | None ->
+          t "sessionDataMiddleware"
+          return! redirectOr unauthorized ctx
+      | Some sessionData ->
+          let newCtx = saveSessionData sessionData ctx
+          t "sessionDataMiddleware"
+          return! next newCtx
     })
 
 
 let userInfoMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      let t = startTimer ctx
       let sessionData = loadSessionData ctx
 
       match! Account.getUser (UserName.create sessionData.username) with
-      | None -> return! redirectOr notFound ctx
+      | None ->
+          t "userInfoMiddleware"
+          return! redirectOr notFound ctx
       | Some user ->
-          let header = StringValues([| toString user.username |])
-
-          ctx.Response.Headers.Append("x-dark-username", header)
-
-          return! next (saveUserInfo user ctx)
+          ctx.SetHttpHeader("x-dark-username", user.username)
+          let newCtx = saveUserInfo user ctx
+          t "userInfoMiddleware"
+          return! next newCtx
     })
 
 // checks permission on the canvas and continues. As a safety check, we add the
@@ -198,6 +247,7 @@ let withPermissionMiddleware
   : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      let t = startTimer ctx
       let user = loadUserInfo ctx
       // CLEANUP: reduce to one query
       // collect all the info up front so we don't spray these DB calls everywhere. We need them all anyway
@@ -213,10 +263,12 @@ let withPermissionMiddleware
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
         ctx |> saveCanvasInfo canvasInfo |> savePermission permission |> ignore // ignored as `save` is side-effecting
+        t "withPermissionMiddleware"
 
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
+        t "withPermissionMiddleware"
         return! unauthorized ctx
     })
 

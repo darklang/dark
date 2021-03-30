@@ -281,8 +281,12 @@ module Secrets =
 module Packages =
   let packages (ctx : HttpContext) : Task<List<OT.PackageManager.fn>> =
     task {
+      let t = Middleware.startTimer ctx
       let! fns = LibBackend.PackageManager.allFunctions ()
-      return List.map Convert.pt2ocamlPackageManagerFn fns
+      t "loadFunctions"
+      let result = List.map Convert.pt2ocamlPackageManagerFn fns
+      t "convertFunctions"
+      return result
     }
 
 module InitialLoad =
@@ -326,47 +330,53 @@ module InitialLoad =
 
   let initialLoad (ctx : HttpContext) : Task<T> =
     task {
+      let t = Middleware.startTimer ctx
       let user = Middleware.loadUserInfo ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
+      let permission = Middleware.loadPermission ctx
+      t "loadMiddleware"
 
-      // t1
-      let! canvas = Canvas.loadAll canvasInfo
+      let! canvas = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
+      t "loadCanvas"
+
       let! creationDate = Canvas.canvasCreationDate canvasInfo.id
+      t "loadCanvasCreationData"
 
-      let canvas = Result.unwrapUnsafe canvas
 
       let! opCtrs =
         Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
         |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
         |> Sql.executeAsync (fun read -> (read.uuid "browser_id", read.int "ctr"))
 
-      // t2
+      t "loadOpCtrs"
+
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+      t "getUnlocked"
+
+      let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
+      t "getStaticAssets"
+
+      let! canvasList = Account.ownedCanvases user.id
+      t "getCanvasList"
+
+      let! orgCanvasList = Account.accessibleCanvases user.id
+      t "getOrgCanvasList"
+
+      let! orgList = Account.orgs user.id
+      t "getOrgList"
+
+      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.meta.id
+      t "getWorkerSchedules"
+
+      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id
+      t "getSecrets"
 
       let ocamlToplevels = canvas |> Canvas.toplevels |> Convert.pt2ocamlToplevels
 
       let ocamlDeletedToplevels =
         canvas |> Canvas.deletedToplevels |> Convert.pt2ocamlToplevels
 
-      // t3
-      let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
-
-      // t5
-      let! canvasList = Account.ownedCanvases user.id
-
-      // t6
-      let! orgCanvasList = Account.accessibleCanvases user.id
-
-      // t7
-      let! orgList = LibBackend.Account.orgs user.id
-
-      // t8
-      let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.meta.id
-
-      // t9
-      let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id
-
-      return
+      let result =
         { toplevels = Tuple3.first ocamlToplevels
           deleted_toplevels = Tuple3.first ocamlDeletedToplevels
           user_functions = Tuple3.second ocamlToplevels
@@ -378,7 +388,7 @@ module InitialLoad =
           op_ctrs = opCtrs
           canvas_list = List.map toString canvasList
           org_canvas_list = List.map toString orgCanvasList
-          permission = Middleware.loadPermission ctx
+          permission = permission
           orgs = List.map toString orgList
           worker_schedules = workerSchedules
           account =
@@ -393,6 +403,9 @@ module InitialLoad =
               (fun (s : LibBackend.Secret.Secret) ->
                 { secret_name = s.name; secret_value = s.value })
               secrets }
+
+      t "buildResultObj"
+      return result
     }
 
 module DB =
@@ -400,8 +413,12 @@ module DB =
 
   let getUnlockedDBs (ctx : HttpContext) : Task<T> =
     task {
+      let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
+      t "loadCanvasInfo"
+
       let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+      t "getUnlocked"
       return { unlocked_dbs = unlocked }
     }
 
@@ -410,8 +427,12 @@ module F404 =
 
   let get404s (ctx : HttpContext) : Task<T> =
     task {
+      let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
+      t "loadCanvasInfo"
+
       let! f404s = TI.getRecent404s canvasInfo.id
+      t "getRecent404s"
       return { f404s = f404s }
     }
 
@@ -424,12 +445,18 @@ module Traces =
 
   let getTraceData (ctx : HttpContext) : Task<Option<T>> =
     task {
+      let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
+      t "loadCanvasInfo"
+
       let! args = ctx.BindModelAsync<Params>()
+      t "readBody"
 
       let! (c : Canvas.T) =
         Canvas.loadTLIDsFromCache canvasInfo [ args.tlid ]
         |> Task.map Result.unwrapUnsafe
+
+      t "loadCanvas"
 
       // TODO: we dont need the handlers or functions at all here, just for the sample
       // values which we can do on the client instead
@@ -444,16 +471,19 @@ module Traces =
                 Analysis.userfnTrace c.meta.id args.trace_id u |> Task.map Some
             | None -> task { return None }
 
+      t "loadTraces"
       return Option.map (fun t -> { trace = t }) trace
     }
 
   let fetchAllTraces (ctx : HttpContext) : Task<AllTraces> =
     task {
+      let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
 
       // FSTODO we only need the HTTP handler paths here, so we can remove the loadAll
       // FSTODO don't load traces for deleted handlers
       let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
+      t "loadCanvas"
 
       let! hTraces =
         c.handlers
@@ -465,6 +495,8 @@ module Traces =
         |> Task.flatten
         |> Task.map List.concat
 
+      t "fetchHandlerTraces"
+
       let! ufTraces =
         c.userFunctions
         |> Map.values
@@ -474,6 +506,8 @@ module Traces =
                |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
         |> Task.flatten
         |> Task.map List.concat
+
+      t "fetchUserFnTraces"
 
       return { traces = hTraces @ ufTraces }
     }
