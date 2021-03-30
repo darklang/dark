@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
                   keys
 
               let! result = UserDB.getMany state db skeys
-              return result |> List.map (fun (_, v) -> v) |> DList
+              return result |> List.map snd |> DList
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
 
               if List.length items = List.length skeys then
                 return
-                  items |> List.map (fun (_, v) -> v) |> DList |> Some |> DOption
+                  items |> List.map snd |> DList |> Some |> DOption
               else
                 return DOption None
             }
@@ -195,7 +195,7 @@ let fns : List<BuiltInFn> =
                   keys
 
               let! result = UserDB.getMany state db skeys
-              return result |> List.map (fun (_, v) -> v) |> DList
+              return result |> List.map snd |> DList
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -315,7 +315,7 @@ let fns : List<BuiltInFn> =
             taskv {
               let db = state.dbs.[dbname]
               let! results = UserDB.queryExactFields state db fields
-              return results |> List.map (fun (k, v) -> v) |> Dval.list
+              return results |> List.map snd |> Dval.list
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -332,7 +332,7 @@ let fns : List<BuiltInFn> =
             taskv {
               let db = state.dbs.[dbname]
               let! results = UserDB.queryExactFields state db fields
-              return results |> List.map (fun (k, v) -> v) |> Dval.list
+              return results |> List.map snd |> Dval.list
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -556,7 +556,7 @@ let fns : List<BuiltInFn> =
             taskv {
               let db = state.dbs.[dbname]
               let! results = UserDB.getAll state db
-              return results |> List.map (fun (_, v) -> v) |> DList
+              return results |> List.map snd |> DList
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -572,7 +572,7 @@ let fns : List<BuiltInFn> =
             taskv {
               let db = state.dbs.[dbname]
               let! results = UserDB.getAll state db
-              return results |> List.map (fun (_, v) -> v) |> Dval.list
+              return results |> List.map snd |> Dval.list
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

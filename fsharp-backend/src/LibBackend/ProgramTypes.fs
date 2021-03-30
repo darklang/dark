@@ -121,7 +121,7 @@ type Expr =
     | EBinOp (_, name, lhs, rhs, toRail), EBinOp (_, name', lhs', rhs', toRail') ->
         name = name' && eq lhs lhs' && eq rhs rhs' && toRail = toRail'
     | ERecord (_, pairs), ERecord (_, pairs') ->
-        let sort = List.sortBy (fun (k, _) -> k)
+        let sort = List.sortBy fst
 
         List.forall2
           (fun (k, v) (k', v') -> k = k' && eq v v')
