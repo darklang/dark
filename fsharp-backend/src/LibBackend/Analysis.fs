@@ -23,28 +23,28 @@ module PT = LibBackend.ProgramTypes
 // Non-execution analysis *)
 // -------------------------
 
-// type db_stat =
-//   { count : int
-//   ; example : (RTT.dval * string) option }
-// [@@deriving eq, show, yojson]
-//
-// type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
-//
-// let db_stats (c : Canvas.canvas) (tlids : tlid list) : db_stat_map =
-//   List.fold
-//     ~init:IDMap.empty
-//     ~f:(fun map tlid ->
-//       let db = IDMap.find c.dbs tlid |> Option.bind ~f:TL.as_db in
-//       match (db, IDMap.find map tlid) with
-//       | Some db, None ->
-//           let account_id, canvas_id = (c.owner, c.id) in
-//           let count = UserDB.stats_count ~account_id ~canvas_id db in
-//           let example = UserDB.stats_pluck ~account_id ~canvas_id db in
-//           IDMap.add_exn ~data:{count; example} ~key:tlid map
-//       | _ ->
-//           map)
-//     tlids
-//
+type DBStat = { count : int; example : Option<RT.Dval * string> }
+
+type DBStats = Map<tlid, DBStat>
+
+let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
+  let canvasID = c.meta.id
+  let ownerID = c.meta.owner
+
+  tlids
+  |> List.filterMap
+       (fun tlid -> Map.get tlid c.dbs |> Option.map (fun db -> (tlid, db)))
+  |> List.map
+       (fun (tlid, db) ->
+         task {
+           // CLEANUP this is a lot of reqs
+           let! count = UserDB.statsCount canvasID ownerID (db.toRuntimeType ())
+           let! example = UserDB.statsPluck canvasID ownerID (db.toRuntimeType ())
+           return (tlid, { count = count; example = example })
+         })
+  |> Task.flatten
+  |> Task.map Map.ofList
+
 //
 // type worker_stat = {count : int} [@@deriving show, yojson]
 //

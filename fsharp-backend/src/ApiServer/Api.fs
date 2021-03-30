@@ -411,18 +411,39 @@ module InitialLoad =
     }
 
 module DB =
-  type T = { unlocked_dbs : tlid list }
+  module Unlocked =
+    type T = { unlocked_dbs : tlid list }
 
-  let getUnlockedDBs (ctx : HttpContext) : Task<T> =
-    task {
-      let t = Middleware.startTimer ctx
-      let canvasInfo = Middleware.loadCanvasInfo ctx
-      t "loadCanvasInfo"
+    let getUnlockedDBs (ctx : HttpContext) : Task<T> =
+      task {
+        let t = Middleware.startTimer ctx
+        let canvasInfo = Middleware.loadCanvasInfo ctx
+        t "loadCanvasInfo"
 
-      let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
-      t "getUnlocked"
-      return { unlocked_dbs = unlocked }
-    }
+        let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+        t "getUnlocked"
+        return { unlocked_dbs = unlocked }
+      }
+
+  module Stats =
+    type Params = { tlids : tlid list }
+    type T = Analysis.DBStats
+
+    let getStats (ctx : HttpContext) : Task<T> =
+      task {
+        let t = Middleware.startTimer ctx
+        let canvasInfo = Middleware.loadCanvasInfo ctx
+        let! args = ctx.BindModelAsync<Params>()
+        t "readApiTLIDs"
+
+        let! c = Canvas.loadAllDBs canvasInfo |> Task.map Result.unwrapUnsafe
+        t "loadSavedOps"
+
+        let! result = Analysis.dbStats c args.tlids
+        t "analyse-db-stats"
+
+        return result
+      }
 
 module F404 =
   type T = { f404s : List<TI.F404> }
@@ -526,7 +547,8 @@ let endpoints : Endpoint list =
     // TODO: why is this a POST?
     POST [ routef "/api/%s/packages" (h Packages.packages Auth.Read)
            routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read)
-           routef "/api/%s/get_unlocked_dbs" (h DB.getUnlockedDBs Auth.Read)
+           routef "/api/%s/get_unlocked_dbs" (h DB.Unlocked.getUnlockedDBs Auth.Read)
+           routef "/api/%s/get_db_stats" (h DB.Stats.getStats Auth.Read)
            routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
            routef "/api/%s/get_trace_data" (oh Traces.getTraceData Auth.Read)
            routef "/api/%s/all_traces" (h Traces.fetchAllTraces Auth.Read)
@@ -550,9 +572,6 @@ let endpoints : Endpoint list =
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers
            //           (trigger_handler ~execution_id parent canvas body))
-           // | `POST, ["api"; canvas; "get_db_stats"] ->
-           //     when_can_view ~canvas (fun _ ->
-           //         wrap_editor_api_headers (db_stats ~execution_id parent canvas body))
            // | `POST, ["api"; canvas; "get_worker_stats"] ->
            //     when_can_view ~canvas (fun _ ->
            //         wrap_editor_api_headers

@@ -587,17 +587,14 @@ let loadTLIDsFromCache
 //     ~tlids:(Serialize.fetch_relevant_tlids_for_event ~event ~canvas_id ())
 //     event.host
 //     owner
-//
-//
-// let load_all_dbs_from_cache host : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   load_from_cache
-//     ~tlids:(Serialize.fetch_tlids_for_all_dbs ~canvas_id ())
-//     host
-//     owner
-//
-//
+
+
+let loadAllDBs (meta : Meta) : Task<Result<T, List<string>>> =
+  task {
+    let! tlids = Serialize.fetchTLIDsForAllDBs meta.id
+    return! loadFrom LiveToplevels meta tlids
+  }
+
 // let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
 //   let canvas_id = Serialize.fetch_canvas_id owner host in
