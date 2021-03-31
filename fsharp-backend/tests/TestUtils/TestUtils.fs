@@ -195,6 +195,28 @@ let executionStateFor
         Exe.storeNoArguments
   }
 
+// saves and reloads the canvas for the Toplevvel
+let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel>) : Task<Canvas.T> =
+  task {
+    let descs =
+      tls
+      |> List.map
+           (fun tl ->
+             let tlid = tl.toTLID ()
+
+             let op =
+               match tl with
+               | PT.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
+               | _ -> failwith "not yet supported in canvasForTLs"
+
+             (tlid, [ op ], tl, Canvas.NotDeleted))
+
+    do! Canvas.saveTLIDs meta descs
+    return! Canvas.loadAll meta |> Task.map Result.unwrapUnsafe
+  }
+
+
+
 
 
 

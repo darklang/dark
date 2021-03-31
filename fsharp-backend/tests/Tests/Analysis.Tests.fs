@@ -25,19 +25,14 @@ let testFilterSlash : Test =
     do! clearCanvasData (CanvasName.create "test-filter_slash")
     let route = "/:rest"
     let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
-    let tlid = handler.tlid
-    let oplist = [ PT.SetHandler(tlid, { x = 0; y = 0 }, handler) ]
     let! meta = testCanvasInfo "test-filter_slash"
-    let! c = Canvas.fromOplist meta oplist
-
-    let d = Canvas.NotDeleted
-    do! Canvas.saveTLIDs meta [ tlid, oplist, PT.TLHandler handler, d ]
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     let t1 = System.Guid.NewGuid()
     let desc = ("HTTP", "/", "GET")
     let! (_d : System.DateTime) = TI.storeEvent meta.id t1 desc (DStr "1")
     let! loaded = Analysis.traceIDsForHandler c handler
-    Expect.equal loaded [ Analysis.traceIDofTLID tlid ] "ids is the default"
+    Expect.equal loaded [ Analysis.traceIDofTLID handler.tlid ] "ids is the default"
 
     return ()
   }
@@ -53,16 +48,8 @@ let testRouteVariablesWorkWithStoredEvents : Test =
     let httpRoute = "/some/:vars/:and/such"
     let route = ("HTTP", httpRoute, "GET")
     let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
-
-    let canvasDesc =
-      (handler.tlid,
-       [ PT.SetHandler(handler.tlid, { x = 0; y = 0 }, handler) ],
-       PT.TLHandler handler,
-       Canvas.NotDeleted)
-
     let! meta = testCanvasInfo canvasName
-    do! Canvas.saveTLIDs meta [ canvasDesc ]
-    let! (c : Canvas.T) = Canvas.loadAll meta |> Task.map Result.unwrapUnsafe
+    let! (c : Canvas.T) = canvasForTLs meta [ PT.TLHandler handler ]
 
     // store an event and check it comes out
     let t1 = System.Guid.NewGuid()
