@@ -149,12 +149,7 @@ let testFunctionsReturnsTheSame =
       filteredOCamlFns
   }
 
-let deserialize<'a> (str : string) : 'a =
-  try
-    Json.OCamlCompatible.deserialize<'a> str
-  with _ ->
-    printfn $"Error deserializing {str}"
-    reraise ()
+let deserialize<'a> (str : string) : 'a = Json.OCamlCompatible.deserialize<'a> str
 
 let serialize = Json.OCamlCompatible.serialize
 
@@ -183,12 +178,21 @@ let postApiTestCases
           ($"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
            + $"ocaml:\n{oc}\n\nfsharp:\n{fc}")
 
-
-
     Expect.equal o.StatusCode f.StatusCode ""
 
-    let oVal = oc |> deserialize |> canonicalizeBody
-    let fVal = fc |> deserialize |> canonicalizeBody
+    let oVal =
+      try
+        oc |> deserialize |> canonicalizeBody
+      with e ->
+        printfn $"Error deserializing OCaml: \n{oc}"
+        reraise ()
+
+    let fVal =
+      try
+        fc |> deserialize |> canonicalizeBody
+      with e ->
+        printfn $"Error deserializing F#: \n{fc}"
+        reraise ()
 
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
       let clear str =
@@ -246,7 +250,7 @@ let testGetTraceData =
       |> Task.flatten
   }
 
-let testDbStats =
+let testDBStats =
   testTask "db_stats is the same" {
     let! (o : HttpResponseMessage) =
       postAsync $"http://darklang.localhost:8000/api/test/initial_load" ""
@@ -259,9 +263,15 @@ let testDbStats =
       |> deserialize<Api.InitialLoad.T>
       |> fun ts -> ts.toplevels |> Convert.ocamlToplevel2PT
       |> Tuple2.second
+      |> List.map (fun db -> db.tlid)
+      |> fun tlids -> ({ tlids = tlids } : Api.DB.Stats.Params)
 
     return!
-      postApiTestCases "db_stats" (serialize dbs) (deserialize<Api.DB.Stats.T>) ident
+      postApiTestCases
+        "get_db_stats"
+        (serialize dbs)
+        (deserialize<Api.DB.Stats.T>)
+        ident
   }
 
 
@@ -308,7 +318,7 @@ let localOnlyTests =
         testPostApi "packages" "" (deserialize<Api.Packages.T>) ident
         testPostApi "get_404s" "" (deserialize<Api.F404.T>) ident
         testPostApi "get_unlocked_dbs" "" (deserialize<Api.DB.Unlocked.T>) ident
-        testPostApi "get_db_stats" "" (deserialize<Api.DB.Stats.T>) ident
+        testDBStats
         // testPostApi "get_worker_stats" "" (deserialize<Api.DB.T>) ident
         // testPostApi "worker_schedule" "" (deserialize<Api.DB.T>) ident
         testPostApi "all_traces" "" (deserialize<Api.Traces.AllTraces>) ident
