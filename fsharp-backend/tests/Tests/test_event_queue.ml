@@ -178,15 +178,94 @@ let t_get_worker_schedules_for_canvas () =
   check "cherry" Running ;
   ()
 
+(* ------------------- *)
+(* event queue *)
+(* ------------------- *)
 
-let suite =
-  [ ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
-  ; ( "Cron should be able to fetch active crons"
-    , `Quick
-    , t_cron_fetch_active_crons )
-  ; ("Cron should run sanity", `Quick, t_cron_sanity)
-  ; ("Cron just ran", `Quick, t_cron_just_ran)
-  ; ("Event queue is FIFO per worker", `Quick, t_event_queue_is_fifo)
-  ; ( "get_worker_schedules_for_canvas"
-    , `Quick
-    , t_get_worker_schedules_for_canvas ) ]
+(* This doesn't actually test input, since it's a cron handler and not an actual
+ * event handler *)
+let t_event_queue_roundtrip () =
+  clear_test_data () ;
+  let h = daily_cron (let' "date" (fn "Date::now" []) (int 123)) in
+  let c = ops2c_exn "test-event_queue" [hop h] in
+  Canvas.save_all !c ;
+  Event_queue.enqueue
+    "CRON"
+    "test"
+    "Daily"
+    DNull (* I don't believe crons take inputs? *)
+    ~account_id:!c.owner
+    ~canvas_id:!c.id ;
+  Event_queue.schedule_all () ;
+  let result = Queue_worker.run execution_id in
+  ( match result with
+  | Ok (Some result_dval) ->
+      (* should have at least one trace *)
+      let trace_id =
+        Stored_event.load_event_ids ~canvas_id:!c.id ("CRON", "test", "Daily")
+        |> List.hd_exn
+        |> Tuple.T2.get1
+      in
+      AT.check
+        AT.int
+        "should have stored fn result"
+        ( Stored_function_result.load ~canvas_id:!c.id ~trace_id h.tlid
+        |> List.length )
+        1 ;
+      check_dval "Round tripped value" (Dval.dint 123) result_dval
+  | Ok None ->
+      AT.fail "Failed: expected Some, got None"
+  | Error e ->
+      AT.fail ("Failed: got error: " ^ Log.dump e) ) ;
+  ()
+
+
+(* ------------------- *)
+(* cron *)
+(* ------------------- *)
+
+let t_cron_sanity () =
+  clear_test_data () ;
+  let h = daily_cron (binop "+" (int 5) (int 3)) in
+  let c = ops2c_exn "test-cron_works" [hop h] in
+  let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
+    { canvas_id = !c.id
+    ; owner = Uuidm.nil
+    ; host = !c.host
+    ; tlid = h.tlid |> Int63.to_string
+    ; name = (match h.spec.name with Filled (_, s) -> s | _ -> "CAN'T HAPPEN")
+    ; modifier =
+        (match h.spec.modifier with Filled (_, s) -> s | _ -> "CAN'T HAPPEN") }
+  in
+  let ({should_execute; scheduled_run_at; interval}
+        : Libbackend.Cron.execution_check_type) =
+    Telemetry.with_root "test" (fun span ->
+        Cron.execution_check span cron_schedule_data)
+  in
+  AT.check AT.bool "should_execute should be true" should_execute true ;
+  ()
+
+
+let t_cron_just_ran () =
+  clear_test_data () ;
+  let h = daily_cron (binop "+" (int 5) (int 3)) in
+  let c = ops2c_exn "test-cron_works" [hop h] in
+  let cron_schedule_data : Libbackend.Cron.cron_schedule_data =
+    { canvas_id = !c.id
+    ; owner = Uuidm.nil
+    ; host = !c.host
+    ; tlid = h.tlid |> Int63.to_string
+    ; name = (match h.spec.name with Filled (_, s) -> s | _ -> "CAN'T HAPPEN")
+    ; modifier =
+        (match h.spec.modifier with Filled (_, s) -> s | _ -> "CAN'T HAPPEN") }
+  in
+  Cron.record_execution cron_schedule_data ;
+  let ({should_execute; scheduled_run_at; interval}
+        : Libbackend.Cron.execution_check_type) =
+    Telemetry.with_root "test" (fun span ->
+        Cron.execution_check span cron_schedule_data)
+  in
+  AT.check AT.bool "should_execute should be false" should_execute false ;
+  ()
+
+
