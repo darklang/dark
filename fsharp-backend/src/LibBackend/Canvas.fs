@@ -607,7 +607,7 @@ type Deleted =
   | Deleted
   | NotDeleted
 
-let fetchProgramData (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel> =
+let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel> =
   let handler () =
     Map.tryFind tlid c.handlers
     |> Option.map (fun h -> (NotDeleted, PT.TLHandler h))
