@@ -1,18 +1,3 @@
-open Core_kernel
-open Libcommon
-open Libexecution
-open Libbackend
-open Libshared.FluidShortcuts
-open Types
-open Types.RuntimeT
-open Lwt
-open Utils
-module Resp = Cohttp_lwt_unix.Response
-module Req = Cohttp_lwt_unix.Request
-module Header = Cohttp.Header
-module Code = Cohttp.Code
-module AT = Alcotest
-
 let t_should_use_https () =
   let custom_domain = "https.customdomain.com" in
   let canvas = "test" in
@@ -521,25 +506,3 @@ let t_is_service_name_valid () =
     (Some "test")
     service
 
-
-let suite =
-  [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
-  ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
-  ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
-  ; ( "authenticate_then_handle sets status codes and cookies correctly "
-    , `Quick
-    , t_authenticate_then_handle_code_and_cookie )
-  ; ( "check_csrf_then_handle checks CSRF authentication correctly  "
-    , `Quick
-    , t_check_csrf_then_handle )
-  ; ("UI routes in admin_handler work ", `Quick, t_admin_handler_ui)
-  ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
-  ; ( "head and get requests are coalsced"
-    , `Quick
-    , t_head_and_get_requests_are_coalesced )
-  ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
-  ; ("http requests redirect", `Quick, t_http_request_redirects)
-  ; ("canvas name validator works", `Quick, t_is_canvas_name_valid)
-  ; ("route_host
-works for hosts hardcoded or in the db", `Quick, t_route_host)
-  ; ("is_service_name_valid", `Quick, t_is_service_name_valid) ]
