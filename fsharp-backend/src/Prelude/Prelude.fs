@@ -543,7 +543,7 @@ module Json =
         let values = FSharpValue.GetTupleFields(value)
         serializer.Serialize(writer, values)
 
-      override _.ReadJson(reader, t, _, serializer) =
+      override _.ReadJson(reader, t, existingValue, serializer) =
         let advance = reader.Read >> ignore
         let deserialize t = serializer.Deserialize(reader, t)
         let itemTypes = FSharpType.GetTupleElements(t)
@@ -564,7 +564,7 @@ module Json =
         | JsonToken.StartArray ->
             let values = readElements ()
             FSharpValue.MakeTuple(values |> List.toArray, t)
-        | _ -> failwith "invalid token"
+        | _ -> failwith $"invalid token: {existingValue}"
 
 
     type TLIDConverter() =
@@ -615,25 +615,28 @@ module Json =
         (
           reader : JsonReader,
           t : System.Type,
-          existingValue,
+          _,
           serializer : JsonSerializer
         ) =
         let cases = FSharpType.GetUnionCases(t)
 
-        let innerType = t.GetGenericArguments().[0]
-
-        let innerType =
-          if innerType.IsValueType then
-            (typedefof<System.Nullable<_>>).MakeGenericType([| innerType |])
-          else
-            innerType
-
-        let value = serializer.Deserialize(reader, innerType)
-
-        if value = null then
+        if reader.TokenType = JsonToken.Null then
           FSharpValue.MakeUnion(cases.[0], [||])
         else
-          FSharpValue.MakeUnion(cases.[1], [| value |])
+          let innerType = t.GetGenericArguments().[0]
+
+          let innerType =
+            if innerType.IsValueType then
+              (typedefof<System.Nullable<_>>).MakeGenericType([| innerType |])
+            else
+              innerType
+
+          let value = serializer.Deserialize(reader, innerType)
+
+          if value = null then
+            FSharpValue.MakeUnion(cases.[0], [||])
+          else
+            FSharpValue.MakeUnion(cases.[1], [| value |])
 
     type OCamlFloatConverter() =
       inherit JsonConverter<double>()
@@ -705,8 +708,8 @@ module Json =
       settings.Converters.Add(AutoSerialize.TLIDConverter())
       settings.Converters.Add(AutoSerialize.PasswordConverter())
       settings.Converters.Add(AutoSerialize.FSharpListConverter())
-      settings.Converters.Add(AutoSerialize.FSharpTupleConverter())
       settings.Converters.Add(AutoSerialize.FSharpDuConverter())
+      settings.Converters.Add(AutoSerialize.FSharpTupleConverter()) // gets tripped up on null, so put this last
       settings
 
     let _settings = getSettings ()
@@ -744,11 +747,11 @@ module Json =
        settings.Converters.Add(AutoSerialize.TLIDConverter())
        settings.Converters.Add(AutoSerialize.PasswordConverter())
        settings.Converters.Add(AutoSerialize.FSharpListConverter())
-       settings.Converters.Add(AutoSerialize.FSharpTupleConverter())
        settings.Converters.Add(AutoSerialize.OCamlOptionConverter())
+       settings.Converters.Add(AutoSerialize.FSharpDuConverter())
        settings.Converters.Add(AutoSerialize.OCamlRawBytesConverter())
        settings.Converters.Add(AutoSerialize.OCamlFloatConverter())
-       settings.Converters.Add(AutoSerialize.FSharpDuConverter())
+       settings.Converters.Add(AutoSerialize.FSharpTupleConverter()) // gets tripped up so put last
        settings)
 
     let registerConverter (c : JsonConverter<'a>) =
