@@ -154,32 +154,32 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 //              (module_, path, modifier)
 //          | out ->
 //              Exception.internal "Bad DB format for stored_events")
-//
-//
-// let load_events ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc)
-//     : (string * Uuidm.t * RTT.time * RTT.dval) list =
-//   let route = Http.route_to_postgres_pattern route in
-//   Db.fetch
-//     ~name:"load_events"
-//     ~subject:(event_subject module_ route modifier)
-//     "SELECT path, value, timestamp, trace_id FROM stored_events_v2
-//     WHERE canvas_id = $1
-//       AND module = $2
-//       AND path LIKE $3
-//       AND modifier = $4
-//     ORDER BY timestamp DESC
-//     LIMIT 10"
-//     (* the number in the LIMIT is shared with Analysis.mergeTraces on the client *)
-//     ~params:[Uuid canvas_id; String module_; String route; String modifier]
-//   |> List.map ~f:(function
-//          | [request_path; dval; ts; trace_id] ->
-//              let trace_id = Util.uuid_of_string trace_id in
-//              ( request_path
-//              , trace_id
-//              , Util.date_of_isostring ts
-//              , Dval.of_internal_roundtrippable_v0 dval )
-//          | _ ->
-//              Exception.internal "Bad DB format for load_events")
+
+
+let loadEvents
+  (canvasID : CanvasID)
+  ((module_, route, modifier) : EventDesc)
+  : Task<List<string * AT.TraceID * System.DateTime * RT.Dval>> =
+  let route = Routing.routeToPostgresPattern route
+
+  Sql.query
+    "SELECT path, value, timestamp, trace_id FROM stored_events_v2
+      WHERE canvas_id = @canvasID
+        AND module = @module
+        AND path LIKE @route
+        AND modifier = @modifier
+     ORDER BY timestamp DESC
+     LIMIT 10"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "module", Sql.string module_
+                      "route", Sql.string route
+                      "modifier", Sql.string modifier ]
+  |> Sql.executeAsync
+       (fun read ->
+         (read.string "path",
+          read.uuid "trace_id",
+          read.dateTime "timestamp",
+          read.string "value" |> LibExecution.DvalRepr.ofInternalRoundtrippableV0))
 
 
 let loadEventForTrace
@@ -211,7 +211,6 @@ let mungePathForPostgres (module_ : string) (path : string) =
     (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
     path.Replace("%", "\\%").Replace("_", "\\_")
 
-
 let loadEventIDs
   (canvasID : CanvasID)
   ((module_, route, modifier) : EventDesc)
@@ -240,7 +239,6 @@ let get404s (limit : Limit) (canvasID : CanvasID) : Task<List<F404>> =
 
     let matchEvent h event : bool =
       let space, requestPath, modifier, _ts, _ = event in
-
       let hSpace, hName, hModifier = h in
 
       Routing.requestPathMatchesRoute hName requestPath

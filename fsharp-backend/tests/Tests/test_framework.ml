@@ -141,66 +141,6 @@ let t_trace_data_json_format_redacts_passwords () =
        expected
 
 
-let t_route_variables_work_with_stored_events () =
-  (* set up test *)
-  clear_test_data () ;
-  let host = "test-route_variables_works" in
-  let oplist = [SetHandler (tlid, pos, http_route_handler ())] in
-  let c = ops2c_exn host oplist in
-  Canvas.serialize_only [tlid] !c ;
-  let t1 = Util.create_uuid () in
-  let desc = ("HTTP", http_request_path, "GET") in
-  let route = ("HTTP", http_route, "GET") in
-  (* store an event and check it comes out *)
-  ignore
-    (SE.store_event
-       ~canvas_id:!c.id
-       ~trace_id:t1
-       desc
-       (Dval.dstr_of_string_exn "1")) ;
-  (* check we get back the path for a route with a variable in it *)
-  let loaded1 = SE.load_events ~canvas_id:!c.id route in
-  check_dval_list
-    "load GET events"
-    [Dval.dstr_of_string_exn "1"]
-    (loaded1 |> List.map ~f:t4_get4th) ;
-  AT.check
-    (AT.list AT.string)
-    "path returned correctly"
-    (loaded1 |> List.map ~f:t4_get1st)
-    [http_request_path] ;
-  (* check that the event is not in the 404s *)
-  let f404s = Analysis.get_recent_404s !c.id in
-  AT.check (AT.list (AT.of_pp Stored_event.pp_four_oh_four)) "no 404s" [] f404s ;
-  ()
-
-
-let t_route_variables_work_with_stored_events_and_wildcards () =
-  (* set up test *)
-  clear_test_data () ;
-  let host = "test-route_variables_works_with_wildcards" in
-  let route = "/api/create_token" in
-  let request_path = "/api/create-token" in
-  (* note hyphen vs undeerscore *)
-  let oplist = [SetHandler (tlid, pos, http_route_handler ~route ())] in
-  let c = ops2c_exn host oplist in
-  Canvas.serialize_only [tlid] !c ;
-  let t1 = Util.create_uuid () in
-  let desc = ("HTTP", request_path, "GET") in
-  let route = ("HTTP", route, "GET") in
-  (* store an event and check it comes out *)
-  ignore
-    (SE.store_event
-       ~canvas_id:!c.id
-       ~trace_id:t1
-       desc
-       (Dval.dstr_of_string_exn "1")) ;
-  (* check we get back the path for a route with a variable in it *)
-  let loaded1 = SE.load_events ~canvas_id:!c.id route in
-  check_dval_list "load GET events" [] (loaded1 |> List.map ~f:t4_get4th) ;
-  ()
-
-
 (* ------------------- *)
 (* event queue *)
 (* ------------------- *)
