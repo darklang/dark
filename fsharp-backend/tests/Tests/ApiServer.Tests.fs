@@ -178,7 +178,7 @@ let postApiTestCases
           ($"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
            + $"ocaml:\n{oc}\n\nfsharp:\n{fc}")
 
-    Expect.equal o.StatusCode f.StatusCode ""
+    Expect.equal f.StatusCode o.StatusCode ""
 
     let oVal =
       try

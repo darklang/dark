@@ -17,6 +17,19 @@ let t_trace_tlids_exec_fn () =
   AT.check (AT.list testable_id) "tlid of function is traced" [tlid] tlids
 
 
+let t_trace_ids_v3_match () =
+  AT.check
+    AT.string
+    "traceisasexpected"
+    "e170d0d5-14de-530e-8dd0-a445aee7ca81"
+    (Analysis.traceid_of_tlid (id_of_int 325970458) |> Uuidm.to_string) ;
+  AT.check
+    AT.string
+    "traceisasexpected"
+    "1d10dd39-9638-53c8-86ca-643c267efe44"
+    (Analysis.traceid_of_tlid (id_of_int 1539654774) |> Uuidm.to_string)
+
+
 let t_on_the_rail () =
   (* When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly.   *)
   clear_test_data () ;
@@ -336,5 +349,6 @@ let suite =
   ; ( "Analysis supports all the DB::query functions"
     , `Quick
     , t_other_db_query_functions_have_analysis )
+  ; ("TraceIDs for tlids are as expected", `Quick, t_trace_ids_v3_match)
   ; ("If branches are evaluated correctly", `Quick, t_if_not_executed)
   ; ("Matches are evaluated correctly", `Quick, t_match_evaluation) ]

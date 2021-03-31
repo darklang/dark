@@ -133,9 +133,7 @@ let userfnTrace
 
 let traceIDofTLID (tlid : tlid) : AT.TraceID =
   // This was what we originally used in OCaml, so I guess we're stuck with it.
-  let nilNamespace = "00000000-0000-0000-0000-000000000000"
-  // Literally the only package I could find that does v5 UUIDs
-  System.GuidEx.op_Implicit (System.GuidEx(tlid.ToString(), nilNamespace))
+  Uuid.uuidV5 (toString tlid) (Uuid.nilNamespace)
 
 
 let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>> =
