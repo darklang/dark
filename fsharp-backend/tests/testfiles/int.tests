@@ -19,6 +19,17 @@ Int.min_v0 -5 6 = -5
 Int.min_v0 -100 -20000 = -20000
 Int.min_v0 250 -26 = -26
 
+Int.clamp_v0 -100 0 0 = 0
+Int.clamp_v0 100 0 0 = 0
+Int.clamp_v0 -100 0 -1 = -1
+Int.clamp_v0 100 0 -1 = 0
+Int.clamp_v0 -100 -1 0 = -1
+Int.clamp_v0 100 -1 0 = 0
+Int.clamp_v0 -100 1 0 = 0
+Int.clamp_v0 100 1 0 = 1
+Int.clamp_v0 -2147483647 250 -26 = -26
+Int.clamp_v0 2147483647 250 -26 = 250
+
 Int.negate_v0 -5 = 5
 Int.negate_v0 5 = -5
 Int.negate_v0 0 = 0
