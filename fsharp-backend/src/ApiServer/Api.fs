@@ -357,7 +357,8 @@ module DB =
 
   module Stats =
     type Params = { tlids : tlid list }
-    type T = Stats.DBStats
+    type Stat = { count : int; example : Option<ORT.dval * string> }
+    type T = Map<tlid, Stat>
 
     let getStats (ctx : HttpContext) : Task<T> =
       task {
@@ -370,6 +371,16 @@ module DB =
         t "loadSavedOps"
 
         let! result = Stats.dbStats c args.tlids
+
+        // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
+        let (result : T) =
+          Map.map
+            (fun (s : Stats.DBStat) ->
+              { count = s.count
+                example =
+                  Option.map (fun (dv, s) -> (Convert.rt2ocamlDval dv, s)) s.example })
+            result
+
         t "analyse-db-stats"
 
         return result
@@ -392,9 +403,22 @@ module F404 =
 module Traces =
   type Params = { tlid : tlid; trace_id : AT.TraceID }
 
-  type Trace = { trace : AT.Trace }
+  // CLEANUP: this uses ORT.dval instead of RT.Dval
+  type InputVars = List<string * ORT.dval>
+  type FunctionArgHash = string
+  type HashVersion = int
+  type FnName = string
+  type FunctionResult = FnName * id * FunctionArgHash * HashVersion * ORT.dval
 
-  type T = Option<Trace>
+  type TraceData =
+    { input : InputVars
+      timestamp : System.DateTime
+      function_results : List<FunctionResult> }
+
+  type Trace = AT.TraceID * TraceData
+  type TraceResult = { trace : Trace }
+
+  type T = Option<TraceResult>
 
   type AllTraces = { traces : List<tlid * AT.TraceID> }
 
@@ -424,6 +448,25 @@ module Traces =
             match c.userFunctions |> Map.get args.tlid with
             | Some u -> Traces.userfnTrace c.meta.id args.trace_id u |> Task.map Some
             | None -> task { return None }
+
+      // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
+      let (trace : Option<Trace>) =
+        match trace with
+        | Some (id, (traceData : AT.TraceData)) ->
+            Some(
+              id,
+              { input =
+                  List.map
+                    (fun (s, dv) -> (s, Convert.rt2ocamlDval dv))
+                    traceData.input
+                timestamp = traceData.timestamp
+                function_results =
+                  List.map
+                    (fun (r1, r2, r3, r4, dv) ->
+                      (r1, r2, r3, r4, Convert.rt2ocamlDval dv))
+                    traceData.function_results }
+            )
+        | None -> None
 
       t "loadTraces"
       return Option.map (fun t -> { trace = t }) trace
