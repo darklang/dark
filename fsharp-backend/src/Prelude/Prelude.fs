@@ -146,7 +146,7 @@ module Uuid =
   open System.Linq
   let nilNamespace : System.Guid = System.Guid "00000000-0000-0000-0000-000000000000"
 
-  // Copied from https://github.com/Faithlife/FaithlifeUtility/blob/master/src/Faithlife.Utility/GuidUtility.cs and adapted to F#. TODO: license unclear
+  // Copied from https://github.com/Faithlife/FaithlifeUtility/blob/master/src/Faithlife.Utility/GuidUtility.cs and adapted to F#. MIT License
   let uuidV5 (data : string) (nameSpace : System.Guid) : System.Guid =
     // Literally the only package I could find that does v5 UUIDs
     // System.GuidEx.op_Implicit (System.GuidEx(tlid.ToString(), nilNamespace))
