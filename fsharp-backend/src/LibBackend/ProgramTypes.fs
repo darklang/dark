@@ -759,7 +759,7 @@ module Handler =
       | HTTP (route, method, _ids) -> "HTTP"
       | Worker (name, _ids) -> "Worker"
       | OldWorker (modulename, name, _ids) -> modulename
-      | Cron (name, interval, _ids) -> "Cron"
+      | Cron (name, interval, _ids) -> "CRON" // CLEANUP the DB relies on this
       | REPL (name, _ids) -> "REPL"
 
     member this.complete() : bool =
@@ -777,7 +777,7 @@ module Handler =
     // Same as a TraceInput.EventDesc
     member this.toDesc() : Option<string * string * string> =
       if this.complete () then
-        Some(this.name (), this.name (), this.modifier ())
+        Some(this.module' (), this.name (), this.modifier ())
       else
         None
 

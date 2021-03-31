@@ -205,7 +205,7 @@ let mungePathForPostgres (module_ : string) (path : string) =
   //
   // `split_uri_path` inside `Routing.routeToPostgresPattern` doesn't like that background
   // events don't have leading slashes
-  if String.toLowercase module_ = "HTTP" then
+  if String.toLowercase module_ = "http" then
     Routing.routeToPostgresPattern path
   else
     (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
