@@ -92,6 +92,18 @@ let t_cron_just_ran () =
 (* ------------------- *)
 (* httpclient *)
 (* ------------------- *)
+
+let t_bad_ssl_cert _ =
+  check_error_contains
+    "should get bad_ssl"
+    (exec_ast
+       (fn
+          "HttpClient::get"
+          [str "https://self-signed.badssl.com"; record []; record []; record []]))
+    "Internal HTTP-stack exception: Peer certificate cannot be authenticated with given CA certificates"
+
+
+
 let t_curl_file_urls () =
   AT.check
     (AT.option AT.string)
