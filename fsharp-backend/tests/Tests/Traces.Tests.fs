@@ -1,4 +1,4 @@
-module Tests.Analysis
+module Tests.Traces
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -11,12 +11,11 @@ open TestUtils
 
 open LibExecution.RuntimeTypes
 
-module Analysis = LibBackend.Analysis
+module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module AT = LibExecution.AnalysisTypes
 module PT = LibBackend.ProgramTypes
 module TI = LibBackend.TraceInputs
-module S = PT.Shortcuts
 
 
 let testFilterSlash : Test =
@@ -30,8 +29,8 @@ let testFilterSlash : Test =
     let t1 = System.Guid.NewGuid()
     let desc = ("HTTP", "/", "GET")
     let! (_d : System.DateTime) = TI.storeEvent meta.id t1 desc (DStr "1")
-    let! loaded = Analysis.traceIDsForHandler c handler
-    Expect.equal loaded [ Analysis.traceIDofTLID handler.tlid ] "ids is the default"
+    let! loaded = Traces.traceIDsForHandler c handler
+    Expect.equal loaded [ Traces.traceIDofTLID handler.tlid ] "ids is the default"
 
     return ()
   }

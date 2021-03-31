@@ -23,7 +23,8 @@ module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
 module Account = LibBackend.Account
-module Analysis = LibBackend.Analysis
+module Stats = LibBackend.Stats
+module Traces = LibBackend.Traces
 module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
 module Config = LibBackend.Config
@@ -427,7 +428,7 @@ module DB =
 
   module Stats =
     type Params = { tlids : tlid list }
-    type T = Analysis.DBStats
+    type T = Stats.DBStats
 
     let getStats (ctx : HttpContext) : Task<T> =
       task {
@@ -439,7 +440,7 @@ module DB =
         let! c = Canvas.loadAllDBs canvasInfo |> Task.map Result.unwrapUnsafe
         t "loadSavedOps"
 
-        let! result = Analysis.dbStats c args.tlids
+        let! result = Stats.dbStats c args.tlids
         t "analyse-db-stats"
 
         return result
@@ -489,11 +490,10 @@ module Traces =
 
       let! trace =
         match handler with
-        | Some h -> Analysis.handlerTrace c.meta.id args.trace_id h |> Task.map Some
+        | Some h -> Traces.handlerTrace c.meta.id args.trace_id h |> Task.map Some
         | None ->
             match c.userFunctions |> Map.get args.tlid with
-            | Some u ->
-                Analysis.userfnTrace c.meta.id args.trace_id u |> Task.map Some
+            | Some u -> Traces.userfnTrace c.meta.id args.trace_id u |> Task.map Some
             | None -> task { return None }
 
       t "loadTraces"
@@ -515,7 +515,7 @@ module Traces =
         |> Map.values
         |> List.map
              (fun h ->
-               Analysis.traceIDsForHandler c h
+               Traces.traceIDsForHandler c h
                |> Task.map (List.map (fun traceid -> (h.tlid, traceid))))
         |> Task.flatten
         |> Task.map List.concat
@@ -527,7 +527,7 @@ module Traces =
         |> Map.values
         |> List.map
              (fun uf ->
-               Analysis.traceIDsForUserFn c.meta.id uf.tlid
+               Traces.traceIDsForUserFn c.meta.id uf.tlid
                |> Task.map (List.map (fun traceID -> (uf.tlid, traceID))))
         |> Task.flatten
         |> Task.map List.concat
@@ -598,3 +598,225 @@ let endpoints : Endpoint list =
            //         wrap_editor_api_headers
            //           (insert_secret ~execution_id parent canvas body))
             ] ]
+
+
+// ------------------------
+// function execution
+// ------------------------
+// let execute_function
+//     (c : Canvas.canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
+//   Execution.execute_function
+//     ~tlid
+//     ~execution_id
+//     ~trace_id
+//     ~dbs:(TL.dbs c.dbs)
+//     ~user_fns:(c.user_functions |> IDMap.data)
+//     ~userTypes:(c.userTypes |> IDMap.data)
+//     ~package_fns:c.package_fns
+//     ~secrets:(Secret.secrets_in_canvas c.id)
+//     ~account_id:c.owner
+//     ~canvas_id:c.id
+//     ~caller_id
+//     ~args
+//     ~store_fn_arguments:
+//       (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
+//     ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
+//     fnname
+//
+//
+// (* --------------------- *)
+// (* JSONable response *)
+// (* --------------------- *)
+//
+// (* Response with miscellaneous stuff, and specific responses from tlids *)
+//
+// type fofs = SE.four_oh_four list [@@deriving to_yojson]
+//
+// type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
+//
+// let to_get_trace_data_rpc_result (c : Canvas.canvas) (trace : trace) : string =
+//   {trace}
+//   |> get_trace_data_rpc_result_to_yojson
+//   |> Yojson.Safe.to_string ~std:true
+//
+//
+// type get_unlocked_dbs_rpc_result = {unlocked_dbs : tlid list}
+// [@@deriving to_yojson]
+//
+// let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) : string =
+//   {unlocked_dbs}
+//   |> get_unlocked_dbs_rpc_result_to_yojson
+//   |> Yojson.Safe.to_string ~std:true
+//
+//
+// let to_db_stats_rpc_result (stats : db_stat_map) : string =
+//   stats |> db_stat_map_to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// let to_worker_stats_rpc_result (stats : worker_stat) : string =
+//   stats |> worker_stat_to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// type new_trace_push = traceid_tlids [@@deriving to_yojson]
+//
+// let to_new_trace_frontend (trace : traceid_tlids) : string =
+//   trace |> new_trace_push_to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// type new_404_push = SE.four_oh_four [@@deriving to_yojson]
+//
+// let to_new_404_frontend (fof : SE.four_oh_four) : string =
+//   fof |> new_404_push_to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// let to_new_static_deploy_frontend (asset : SA.static_deploy) : string =
+//   asset |> SA.static_deploy_to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// let to_worker_schedules_push (ws : Event_queue.Worker_states.t) : string =
+//   ws |> Event_queue.Worker_states.to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// (* Toplevel deletion:
+//  * The server announces that a toplevel is deleted by it appearing in
+//  * deleted_toplevels. The server announces it is no longer deleted by it
+//  * appearing in toplevels again. *)
+//
+// (* A subset of responses to be merged in *)
+// type add_op_rpc_result =
+//   { toplevels : TL.toplevel list (* replace *)
+//   ; deleted_toplevels : TL.toplevel list (* replace, see note above *)
+//   ; user_functions : RTT.user_fn list (* replace *)
+//   ; deleted_user_functions : RTT.user_fn list
+//   ; userTypes : RTT.user_tipe list
+//   ; deletedUserTypes : RTT.user_tipe list (* replace, see deleted_toplevels *)
+//   }
+// [@@deriving to_yojson]
+//
+// let empty_to_add_op_rpc_result =
+//   { toplevels = []
+//   ; deleted_toplevels = []
+//   ; user_functions = []
+//   ; deleted_user_functions = []
+//   ; userTypes = []
+//   ; deletedUserTypes = [] }
+//
+//
+// type add_op_stroller_msg =
+//   { result : add_op_rpc_result
+//   ; params : Api.add_op_rpc_params }
+// [@@deriving to_yojson]
+//
+// let to_add_op_rpc_result (c : Canvas.canvas) : add_op_rpc_result =
+//   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
+//   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
+//   ; user_functions = IDMap.data c.user_functions
+//   ; deleted_user_functions = IDMap.data c.deleted_user_functions
+//   ; userTypes = IDMap.data c.userTypes
+//   ; deletedUserTypes = IDMap.data c.deletedUserTypes }
+//
+//
+// type all_traces_result = {traces : tlid_traceid list} [@@deriving to_yojson]
+//
+// let to_all_traces_result (traces : tlid_traceid list) : string =
+//   {traces} |> all_traces_result_to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// type get_404s_result = {f404s : fofs} [@@deriving to_yojson]
+//
+// let to_get_404s_result (f404s : fofs) : string =
+//   {f404s} |> get_404s_result_to_yojson |> Yojson.Safe.to_string ~std:true
+//
+//
+// type time = Time.t
+//
+// (* Warning: both to_string and date_of_string might raise; we could use _option types instead, but since we are using  this for encoding/decoding typed data, I do not think that is necessary right now *)
+// let time_of_yojson (j : Yojson.Safe.t) : time =
+//   j
+//   (* NOTE: Safe.Util; this is "get a string from a (`String of string)", not "stringify an arbitrary Yojson object" *)
+//   |> Yojson.Safe.Util.to_string
+//   |> Util.date_of_isostring
+//
+//
+// let time_to_yojson (time : time) : Yojson.Safe.t =
+//   time |> Util.isostring_of_date |> fun s -> `String s
+//
+//
+// (* Initial load *)
+// type initial_load_rpc_result =
+//   { toplevels : TL.toplevel list
+//   ; deleted_toplevels : TL.toplevel list
+//   ; user_functions : RTT.user_fn list
+//   ; deleted_user_functions : RTT.user_fn list
+//   ; unlocked_dbs : tlid list
+//   ; assets : SA.static_deploy list
+//   ; userTypes : RTT.user_tipe list
+//   ; deletedUserTypes : RTT.user_tipe list
+//   ; op_ctrs : (string * int) list
+//   ; permission : Authorization.permission option
+//   ; account : Account.user_info
+//   ; canvas_list : string list
+//   ; orgs : string list
+//   ; org_canvas_list : string list
+//   ; worker_schedules : Event_queue.Worker_states.t
+//   ; secrets : RTT.secret list
+//   ; creation_date : time }
+// [@@deriving to_yojson]
+//
+// let to_initial_load_rpc_result
+//     (c : Canvas.canvas)
+//     (op_ctrs : (string * int) list)
+//     (permission : Authorization.permission option)
+//     (unlocked_dbs : tlid list)
+//     (assets : SA.static_deploy list)
+//     (account : Account.user_info)
+//     (canvas_list : string list)
+//     (orgs : string list)
+//     (org_canvas_list : string list)
+//     (worker_schedules : Event_queue.Worker_states.t)
+//     (secrets : RTT.secret list) : string =
+//   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
+//   ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
+//   ; user_functions = IDMap.data c.user_functions
+//   ; deleted_user_functions = IDMap.data c.deleted_user_functions
+//   ; userTypes = IDMap.data c.userTypes
+//   ; deletedUserTypes = IDMap.data c.deletedUserTypes
+//   ; unlocked_dbs
+//   ; assets
+//   ; op_ctrs
+//   ; permission
+//   ; account
+//   ; canvas_list
+//   ; orgs
+//   ; org_canvas_list
+//   ; worker_schedules
+//   ; secrets
+//   ; creation_date = c.creation_date }
+//   |> initial_load_rpc_result_to_yojson
+//   |> Yojson.Safe.to_string ~std:true
+//
+//
+// (* Execute function *)
+// type execute_function_rpc_result =
+//   { result : RTT.dval
+//   ; hash : string
+//   ; hashVersion : int
+//   ; touched_tlids : tlid list
+//   ; unlocked_dbs : tlid list }
+// [@@deriving to_yojson]
+//
+// let to_execute_function_rpc_result
+//     hash (hashVersion : int) touched_tlids unlocked_dbs dv : string =
+//   {result = dv; hash; hashVersion; touched_tlids; unlocked_dbs}
+//   |> execute_function_rpc_result_to_yojson
+//   |> Yojson.Safe.to_string ~std:true
+//
+//
+// type trigger_handler_rpc_result = {touched_tlids : tlid list}
+// [@@deriving to_yojson]
+//
+// let to_trigger_handler_rpc_result touched_tlids : string =
+//   {touched_tlids}
+//   |> trigger_handler_rpc_result_to_yojson
+//   |> Yojson.Safe.to_string ~std:true
+//
