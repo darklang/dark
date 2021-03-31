@@ -143,54 +143,10 @@ let toString (v : 'a) : string = v.ToString()
 
 
 module Uuid =
-  open System.Linq
   let nilNamespace : System.Guid = System.Guid "00000000-0000-0000-0000-000000000000"
 
-  // Copied from https://github.com/Faithlife/FaithlifeUtility/blob/master/src/Faithlife.Utility/GuidUtility.cs and adapted to F#. MIT License
   let uuidV5 (data : string) (nameSpace : System.Guid) : System.Guid =
-    // Literally the only package I could find that does v5 UUIDs
-    // System.GuidEx.op_Implicit (System.GuidEx(tlid.ToString(), nilNamespace))
-    let nameBytes = data |> toBytes
-    let version = 5
-
-    let swapBytes (guid : byte array) (left : int) (right : int) : unit =
-      let temp = guid.[left]
-      guid.[left] <- guid.[right]
-      guid.[right] <- temp
-      ()
-
-    let swapByteOrder (guid : byte array) : unit =
-      swapBytes guid 0 3
-      swapBytes guid 1 2
-      swapBytes guid 4 5
-      swapBytes guid 6 7
-
-    // convert the namespace UUID to network order (step 3)
-    let namespaceBytes = nameSpace.ToByteArray()
-    swapByteOrder (namespaceBytes)
-
-    // compute the hash of the namespace ID concatenated with the name (step 4)
-    let data = namespaceBytes.Concat(nameBytes).ToArray()
-
-    let (hash : byte array) =
-      System.Security.Cryptography.SHA1.Create().ComputeHash(data)
-
-    // most bytes from the hash are copied straight to the bytes of the new GUID (steps 5-7, 9, 11-12)
-    let (newGuid : byte array) = Array.init 16 (fun _ -> byte 0)
-    System.Array.Copy(hash, 0, newGuid, 0, 16)
-
-    // set the four most significant bits (bits 12 through 15) of the time_hi_and_version field to the appropriate 4-bit version number from Section 4.1.3 (step 8)
-    newGuid.[6] <- (byte) ((newGuid.[6] &&& byte 0x0F) ||| (byte version <<< 4))
-
-    // set the two most significant bits (bits 6 and 7) of the clock_seq_hi_and_reserved to zero and one, respectively (step 10)
-    newGuid.[8] <- (byte) ((newGuid.[8] &&& byte 0x3F) ||| byte 0x80)
-
-    // convert the resulting UUID to local byte order (step 13)
-    swapByteOrder (newGuid)
-    System.Guid(newGuid)
-
-
-
+    Faithlife.Utility.GuidUtility.Create(nilNamespace, data, 5)
 
 type System.DateTime with
 
