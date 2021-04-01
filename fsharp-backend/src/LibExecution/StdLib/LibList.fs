@@ -732,19 +732,17 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "drop" 0
-//     ; parameters = [Param.make "list" TList ""; Param.make "count" TInt ""]
-//     ; returnType = TList
-//     ; description = "Drops the first `count` values from `list`."
-//     ; fn =
-//           (function
-//           | _, [DList l; DInt c] ->
-//               DList (List.drop l (Dint.to_int_exn c))
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "drop" 0
+      parameters = [Param.make "list" (TList varA) ""; Param.make "count" TInt ""]
+      returnType = TList varA
+      description = "Drops the first `count` values from `list`."
+      fn =
+        (function
+        | _, [DList l; DInt c] -> DList (List.skip c l)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "dropWhile" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
