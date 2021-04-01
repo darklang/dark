@@ -9,7 +9,16 @@
     <None Include="paket.references" />
     <Compile Include="Middleware.fs" />
     <Compile Include="Login.fs" />
-    <Compile Include="Api.fs" />
+    <Compile Include="Api/AddOps.fs" />
+    <Compile Include="Api/DBs.fs" />
+    <Compile Include="Api/Execution.fs" />
+    <Compile Include="Api/F404.fs" />
+    <Compile Include="Api/Functions.fs" />
+    <Compile Include="Api/Packages.fs" />
+    <Compile Include="Api/Secrets.fs" />
+    <Compile Include="Api/Traces.fs" />
+    <Compile Include="Api/Workers.fs" />
+    <Compile Include="Api/InitialLoad.fs" />
     <Compile Include="Ui.fs" />
     <Compile Include="ApiServer.fs" />
   </ItemGroup>

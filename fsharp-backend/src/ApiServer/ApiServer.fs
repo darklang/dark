@@ -24,7 +24,18 @@ module Config = LibBackend.Config
 // --------------------
 // Handlers
 // --------------------
-let endpoints : Endpoint list = Login.endpoints ++ Ui.endpoints ++ Api.endpoints
+let endpoints : Endpoint list =
+  List.concat [ Login.endpoints
+                Ui.endpoints
+                AddOps.endpoints
+                DBs.endpoints
+                Execution.endpoints
+                F404s.endpoints
+                InitialLoad.endpoints
+                Packages.endpoints
+                Secrets.endpoints
+                Traces.endpoints
+                Workers.endpoints ]
 
 // --------------------
 // Standard handlers

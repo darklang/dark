@@ -85,7 +85,7 @@ let uiHtml
 
   t
     .Replace("{{ENVIRONMENT_NAME}}", Config.envDisplayName)
-    .Replace("{{ALLFUNCTIONS}}", (Api.functions user.admin).Force())
+    .Replace("{{ALLFUNCTIONS}}", (Functions.functions user.admin).Force())
     .Replace("{{LIVERELOADJS}}", liveReloadJs)
     .Replace("{{STATIC}}", staticHost)
     .Replace("{{HEAPIO_ID}}", Config.heapioId)

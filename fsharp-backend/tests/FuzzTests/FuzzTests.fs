@@ -572,7 +572,7 @@ module ExecutePureFunctions =
                        not (
                          Set.contains
                            (toString fn.name)
-                           (ApiServer.Api.fsharpOnlyFns.Force())
+                           (ApiServer.Functions.fsharpOnlyFns.Force())
                        ))
                 |> List.filter
                      (function

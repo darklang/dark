@@ -87,7 +87,7 @@ let testFunctionsReturnsTheSame =
     let! oc = o.Content.ReadAsStringAsync()
     let! fc = f.Content.ReadAsStringAsync()
 
-    let parse (s : string) : string * List<Api.FunctionMetadata> =
+    let parse (s : string) : string * List<Functions.FunctionMetadata> =
       match s with
       | RegexAny "(.*const complete = )(\[.*\])(;\n.*)" [ before; fns; after ] ->
           let text = $"{before}{after}"
@@ -95,7 +95,7 @@ let testFunctionsReturnsTheSame =
           let fns =
             fns
             |> FsRegEx.replace "\\s+" " " // ignore differences in string spacing in docstrings
-            |> Json.Vanilla.deserialize<List<Api.FunctionMetadata>>
+            |> Json.Vanilla.deserialize<List<Functions.FunctionMetadata>>
 
           (text, fns)
       | _ -> failwith "doesn't match"
@@ -113,14 +113,16 @@ let testFunctionsReturnsTheSame =
              not (
                Set.contains
                  (fn.name.ToString())
-                 (ApiServer.Api.fsharpOnlyFns.Force())
+                 (ApiServer.Functions.fsharpOnlyFns.Force())
              ))
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
       |> Set
 
     let mutable notImplementedCount = 0
 
-    let filtered (myFns : List<Api.FunctionMetadata>) : List<Api.FunctionMetadata> =
+    let filtered
+      (myFns : List<Functions.FunctionMetadata>)
+      : List<Functions.FunctionMetadata> =
       List.filter
         (fun fn ->
           if Set.contains (PT.FQFnName.parse fn.name) builtins then
@@ -144,7 +146,7 @@ let testFunctionsReturnsTheSame =
     printfn $"Missing fns      : {notImplementedCount}"
 
     List.iter2
-      (fun (ffn : Api.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
+      (fun (ffn : Functions.FunctionMetadata) ofn -> Expect.equal ffn ofn ffn.name)
       fcfns
       filteredOCamlFns
   }
@@ -231,19 +233,20 @@ let testGetTraceData =
 
     do!
       body
-      |> deserialize<Api.Traces.AllTraces>
+      |> deserialize<Traces.AllTraces.T>
       |> fun ts -> ts.traces
       |> List.take 5 // lets not get carried away
       |> List.map
            (fun (tlid, traceID) ->
              task {
                do!
-                 let (ps : Api.Traces.Params) = { tlid = tlid; trace_id = traceID }
+                 let (ps : Traces.TraceData.Params) =
+                   { tlid = tlid; trace_id = traceID }
 
                  postApiTestCases
                    "get_trace_data"
                    (serialize ps)
-                   (deserialize<Api.Traces.T>)
+                   (deserialize<Traces.TraceData.T>)
                    ident
              })
 
@@ -260,23 +263,23 @@ let testDBStats =
 
     let dbs =
       body
-      |> deserialize<Api.InitialLoad.T>
+      |> deserialize<InitialLoad.T>
       |> fun ts -> ts.toplevels |> Convert.ocamlToplevel2PT
       |> Tuple2.second
       |> List.map (fun db -> db.tlid)
-      |> fun tlids -> ({ tlids = tlids } : Api.DB.Stats.Params)
+      |> fun tlids -> ({ tlids = tlids } : DBs.DBStats.Params)
 
     return!
       postApiTestCases
         "get_db_stats"
         (serialize dbs)
-        (deserialize<Api.DB.Stats.T>)
+        (deserialize<DBs.DBStats.T>)
         ident
   }
 
 let testExecuteFunction =
   testTask "execute_function behaves the same" {
-    let (body : Api.ExecuteFunction.Params) =
+    let (body : Execution.ExecuteFunction.Params) =
       { tlid = gid ()
         trace_id = System.Guid.NewGuid()
         caller_id = gid ()
@@ -287,7 +290,7 @@ let testExecuteFunction =
       postApiTestCases
         "execute_function"
         (serialize body)
-        (deserialize<Api.ExecuteFunction.T>)
+        (deserialize<Execution.ExecuteFunction.T>)
         ident
   }
 
@@ -301,7 +304,7 @@ let testWorkerStats =
 
     do!
       body
-      |> deserialize<Api.InitialLoad.T>
+      |> deserialize<InitialLoad.T>
       |> fun ts -> ts.toplevels |> Convert.ocamlToplevel2PT
       |> Tuple2.first
       |> List.filterMap
@@ -313,8 +316,8 @@ let testWorkerStats =
            (fun tlid ->
              postApiTestCases
                "get_worker_stats"
-               (serialize ({ tlid = tlid } : Api.Worker.Params))
-               (deserialize<Api.Worker.T>)
+               (serialize ({ tlid = tlid } : Workers.WorkerStats.Params))
+               (deserialize<Workers.WorkerStats.T>)
                ident)
       |> Task.flatten
   }
@@ -323,12 +326,12 @@ let testWorkerStats =
 
 
 let testInitialLoadReturnsTheSame =
-  let deserialize v = Json.OCamlCompatible.deserialize<Api.InitialLoad.T> v
+  let deserialize v = Json.OCamlCompatible.deserialize<InitialLoad.T> v
 
   let canonicalizeDate (d : System.DateTime) : System.DateTime =
     d.AddTicks(-d.Ticks % System.TimeSpan.TicksPerSecond)
 
-  let canonicalize (v : Api.InitialLoad.T) : Api.InitialLoad.T =
+  let canonicalize (v : InitialLoad.T) : InitialLoad.T =
     let clearTypes (tl : ORT.toplevel) =
       match tl.data with
       | ORT.DB _ -> tl
@@ -361,13 +364,13 @@ let localOnlyTests =
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
       [ testFunctionsReturnsTheSame
-        testPostApi "packages" "" (deserialize<Api.Packages.T>) ident
-        testPostApi "get_404s" "" (deserialize<Api.F404.T>) ident
-        testPostApi "get_unlocked_dbs" "" (deserialize<Api.DB.Unlocked.T>) ident
+        testPostApi "packages" "" (deserialize<Packages.Packages.T>) ident
+        testPostApi "get_404s" "" (deserialize<F404s.Get404s.T>) ident
+        testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
         testDBStats
         testWorkerStats
-        // testPostApi "worker_schedule" "" (deserialize<Api.DB.T>) ident
-        testPostApi "all_traces" "" (deserialize<Api.Traces.AllTraces>) ident
+        // testPostApi "worker_schedule" "" (deserialize<DBs.WorkerSchedule.T>) ident
+        testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
         testGetTraceData
         testExecuteFunction
         testInitialLoadReturnsTheSame ]
