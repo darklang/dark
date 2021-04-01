@@ -44,13 +44,6 @@ module TI = LibBackend.TraceInputs
 //
 // type db_stats_rpc_params = {tlids : tlid list}
 //
-// type execute_function_rpc_params =
-//   { tlid : tlid
-//   ; trace_id : RuntimeT.uuid
-//   ; caller_id : id
-//   ; args : RuntimeT.dval list
-//   ; fnname : string }
-//
 // type upload_function_rpc_params = {fn : RuntimeT.user_fn}
 //
 // type trigger_handler_rpc_params =
@@ -206,9 +199,9 @@ module Packages =
   let packages (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
-      let! fns = LibBackend.PackageManager.allFunctions ()
+      let! fns = LibBackend.PackageManager.cachedForAPI.Force()
       t "loadFunctions"
-      let result = List.map Convert.pt2ocamlPackageManagerFn fns
+      let result = fns |> List.map Convert.pt2ocamlPackageManagerFn
       t "convertFunctions"
       return result
     }
@@ -519,6 +512,132 @@ module Traces =
       return { traces = hTraces @ ufTraces }
     }
 
+module ExecuteFunction =
+  let fns =
+    lazy
+      (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
+
+  module Exe = LibExecution.Execution
+  module TraceFunctionArguments = LibBackend.TraceFunctionArguments
+  module TraceFunctionResults = LibBackend.TraceFunctionResults
+  module DvalRepr = LibExecution.DvalRepr
+
+  type Params =
+    { tlid : tlid
+      trace_id : AT.TraceID
+      caller_id : id
+      args : ORT.dval list
+      fnname : string }
+
+  type T =
+    { result : ORT.dval
+      hash : string
+      hashVersion : int
+      touched_tlids : tlid list
+      unlocked_dbs : tlid list }
+
+  let execute (ctx : HttpContext) : Task<T> =
+    task {
+      let t = Middleware.startTimer ctx
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! body = ctx.BindModelAsync<Params>()
+      t "loadCanvasInfo"
+
+      let! c = Canvas.loadTLIDsWithContext canvasInfo [ body.tlid ]
+      let c = Result.unwrapUnsafe c
+      t "load-canvas"
+
+      let dbs =
+        c.dbs
+        |> Map.values
+        |> List.map (fun db -> (db.name, PT.DB.toRuntimeType db))
+        |> Map.ofList
+
+      let userFns =
+        c.userFunctions
+        |> Map.values
+        |> List.map (fun f -> (f.name, PT.UserFunction.toRuntimeType f))
+        |> Map.ofList
+
+      let userTypes =
+        c.userTypes
+        |> Map.values
+        |> List.map (fun t -> ((t.name, t.version), PT.UserType.toRuntimeType t))
+        |> Map.ofList
+
+      let secrets =
+        (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
+
+      let args = List.map Convert.ocamlDval2rt body.args
+      let! packageFns = LibBackend.PackageManager.cachedForExecution.Force()
+
+      let storeFnResult = TraceFunctionResults.store canvasInfo.id body.trace_id
+      let storeFnArguments = TraceFunctionArguments.store canvasInfo.id body.trace_id
+
+      let state =
+        Exe.createState
+          canvasInfo.owner
+          canvasInfo.id
+          body.tlid
+          (fns.Force())
+          packageFns
+          dbs
+          userFns
+          userTypes
+          secrets
+          Exe.loadNoResults
+          storeFnResult
+          Exe.loadNoArguments
+          storeFnArguments
+
+      t "load-execution-state"
+
+      let! (result, tlids) =
+        Exe.executeFunction state body.caller_id args body.fnname
+
+      t "execute-function"
+
+      let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+      t "get-unlocked"
+
+      let hashVersion = DvalRepr.currentHashVersion
+      let hash = DvalRepr.hash hashVersion args
+
+      let result =
+        { result = Convert.rt2ocamlDval result
+          hash = hash
+          hashVersion = hashVersion
+          touched_tlids = tlids
+          unlocked_dbs = unlocked }
+
+      t "create-result"
+      return result
+    }
+
+
+// let execute_function
+//     (c : Canvas.canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
+//   Execution.execute_function
+//     ~tlid
+//     ~execution_id
+//     ~trace_id
+//     ~dbs:(TL.dbs c.dbs)
+//     ~user_fns:(c.user_functions |> IDMap.data)
+//     ~userTypes:(c.userTypes |> IDMap.data)
+//     ~package_fns:c.package_fns
+//     ~secrets:(Secret.secrets_in_canvas c.id)
+//     ~account_id:c.owner
+//     ~canvas_id:c.id
+//     ~caller_id
+//     ~args
+//     ~store_fn_arguments:
+//       (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
+//     ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
+//     fnname
+//
+
+
 
 
 let endpoints : Endpoint list =
@@ -535,6 +654,7 @@ let endpoints : Endpoint list =
            routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
            routef "/api/%s/get_trace_data" (oh Traces.getTraceData Auth.Read)
            routef "/api/%s/all_traces" (h Traces.fetchAllTraces Auth.Read)
+           routef "/api/%s/execute_function" (h ExecuteFunction.execute Auth.Read)
 
            // routef "/api/%s/save_test" (h Testing.saveTest Auth.ReadWrite)
            //    when Config.allow_test_routes ->
@@ -543,10 +663,6 @@ let endpoints : Endpoint list =
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers
            //           (admin_add_op_handler ~execution_id ~user parent canvas body))
-           // | `POST, ["api"; canvas; "execute_function"] ->
-           //     when_can_edit ~canvas (fun _ ->
-           //         wrap_editor_api_headers
-           //           (execute_function ~execution_id parent canvas body))
            // | `POST, ["api"; canvas; "packages"; "upload_function"] when user.admin ->
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers
@@ -579,29 +695,6 @@ let endpoints : Endpoint list =
             ] ]
 
 
-// ------------------------
-// function execution
-// ------------------------
-// let execute_function
-//     (c : Canvas.canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
-//   Execution.execute_function
-//     ~tlid
-//     ~execution_id
-//     ~trace_id
-//     ~dbs:(TL.dbs c.dbs)
-//     ~user_fns:(c.user_functions |> IDMap.data)
-//     ~userTypes:(c.userTypes |> IDMap.data)
-//     ~package_fns:c.package_fns
-//     ~secrets:(Secret.secrets_in_canvas c.id)
-//     ~account_id:c.owner
-//     ~canvas_id:c.id
-//     ~caller_id
-//     ~args
-//     ~store_fn_arguments:
-//       (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
-//     ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
-//     fnname
-//
 //
 // (* --------------------- *)
 // (* JSONable response *)
@@ -681,19 +774,6 @@ let endpoints : Endpoint list =
 //
 // let time_to_yojson (time : time) : Yojson.Safe.t =
 //   time |> Util.isostring_of_date |> fun s -> `String s
-//
-// type execute_function_rpc_result =
-//   { result : RTT.dval
-//   ; hash : string
-//   ; hashVersion : int
-//   ; touched_tlids : tlid list
-//   ; unlocked_dbs : tlid list }
-//
-// let to_execute_function_rpc_result
-//     hash (hashVersion : int) touched_tlids unlocked_dbs dv : string =
-//   {result = dv; hash; hashVersion; touched_tlids; unlocked_dbs}
-//   |> execute_function_rpc_result_to_yojson
-//   |> Yojson.Safe.to_string ~std:true
 //
 //
 // type trigger_handler_rpc_result = {touched_tlids : tlid list}

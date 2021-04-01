@@ -803,26 +803,33 @@ module DB =
       version : int
       cols : List<Col> }
 
-    member this.toRuntimeType() : RT.DB.T =
-      { tlid = this.tlid
-        name = this.name
-        version = this.version
-        cols =
-          List.filterMap
-            (fun c ->
-              match c.typ with
-              | Some t -> Some(c.name, t.toRuntimeType ())
-              | None -> None)
-            this.cols }
+  let toRuntimeType (db : T) : RT.DB.T =
+    { tlid = db.tlid
+      name = db.name
+      version = db.version
+      cols =
+        List.filterMap
+          (fun c ->
+            match c.typ with
+            | Some t -> Some(c.name, t.toRuntimeType ())
+            | None -> None)
+          db.cols }
 
 module UserType =
   type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
 
-  type Definition =
-    | Record of List<RecordField>
+  type Definition = Record of List<RecordField>
 
-    member this.toRuntimeType() : RT.UserType.Definition =
-      match this with
+  type T =
+    { tlid : tlid
+      name : string
+      nameID : id
+      version : int
+      definition : Definition }
+
+  let toRuntimeType (t : T) : RT.UserType.T =
+    let defToRuntimeType (d : Definition) : RT.UserType.Definition =
+      match d with
       | Record fields ->
           RT.UserType.UTRecord(
             List.filterMap
@@ -833,19 +840,10 @@ module UserType =
               fields
           )
 
-
-  type T =
-    { tlid : tlid
-      name : string
-      nameID : id
-      version : int
-      definition : Definition }
-
-    member this.toRuntimeType() : RT.UserType.T =
-      { tlid = this.tlid
-        name = this.name
-        version = this.version
-        definition = this.definition.toRuntimeType () }
+    { tlid = t.tlid
+      name = t.name
+      version = t.version
+      definition = defToRuntimeType t.definition }
 
 module UserFunction =
   type Parameter =
@@ -871,15 +869,14 @@ module UserFunction =
       infix : bool
       body : Expr }
 
-    member this.toRuntimeType() : RT.UserFunction.T =
-      { tlid = this.tlid
-        name = this.name
-        parameters =
-          List.map (fun (p : Parameter) -> p.toRuntimeType ()) this.parameters
-        returnType = this.returnType.toRuntimeType ()
-        description = this.description
-        infix = this.infix
-        body = this.body.toRuntimeType () }
+  let toRuntimeType (f : T) : RT.UserFunction.T =
+    { tlid = f.tlid
+      name = f.name
+      parameters = List.map (fun (p : Parameter) -> p.toRuntimeType ()) f.parameters
+      returnType = f.returnType.toRuntimeType ()
+      description = f.description
+      infix = f.infix
+      body = f.body.toRuntimeType () }
 
 type Toplevel =
   | TLHandler of Handler.T
@@ -897,9 +894,9 @@ type Toplevel =
   member this.toRuntimeType() : RT.Toplevel =
     match this with
     | TLHandler h -> RT.TLHandler(h.toRuntimeType ())
-    | TLDB db -> RT.TLDB(db.toRuntimeType ())
-    | TLFunction f -> RT.TLFunction(f.toRuntimeType ())
-    | TLType t -> RT.TLType(t.toRuntimeType ())
+    | TLDB db -> RT.TLDB(DB.toRuntimeType db)
+    | TLFunction f -> RT.TLFunction(UserFunction.toRuntimeType f)
+    | TLType t -> RT.TLType(UserType.toRuntimeType t)
 
   member this.toDBTypeString() =
     match this with
@@ -954,7 +951,7 @@ type Op =
 type Oplist = List<Op>
 type TLIDOplists = List<tlid * Oplist>
 
-module PackageManager =
+module Package =
   type Parameter = { name : string; typ : DType; description : string }
 
   type Fn =
@@ -966,6 +963,20 @@ module PackageManager =
       author : string
       deprecated : bool
       tlid : tlid }
+
+  let toRuntimeType (f : Fn) : RT.Package.Fn =
+    let paramToRuntimeType (p : Parameter) : RT.Package.Parameter =
+      { name = p.name; typ = p.typ.toRuntimeType (); description = p.description }
+
+    { name = f.name
+      body = f.body.toRuntimeType ()
+      parameters = List.map paramToRuntimeType f.parameters
+      returnType = f.returnType.toRuntimeType ()
+      description = f.description
+      author = f.author
+      deprecated = f.deprecated
+      tlid = f.tlid }
+
 
 
 let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =

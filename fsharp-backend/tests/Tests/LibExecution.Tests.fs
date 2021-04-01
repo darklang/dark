@@ -31,9 +31,9 @@ let t
     testTask name {
       try
         let rtDBs =
-          (dbs |> List.map (fun db -> db.name, db.toRuntimeType ()) |> Map.ofList)
+          (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
 
-        let rtFunctions = functions |> Map.map (fun f -> f.toRuntimeType ())
+        let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
 
         let! state = executionStateFor name rtDBs rtFunctions
 

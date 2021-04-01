@@ -32,9 +32,10 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
   |> List.map
        (fun (tlid, db) ->
          task {
+           let db = PT.DB.toRuntimeType db
            // CLEANUP this is a lot of reqs
-           let! count = UserDB.statsCount canvasID ownerID (db.toRuntimeType ())
-           let! example = UserDB.statsPluck canvasID ownerID (db.toRuntimeType ())
+           let! count = UserDB.statsCount canvasID ownerID db
+           let! example = UserDB.statsPluck canvasID ownerID db
            return (tlid, { count = count; example = example })
          })
   |> Task.flatten

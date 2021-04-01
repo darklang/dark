@@ -86,8 +86,6 @@ let run
 
 let executeFunction
   (state : RT.ExecutionState)
-  (storeFnResults : RT.StoreFnResult)
-  (storeFnArguments : RT.StoreFnArguments)
   (callerID : tlid)
   (args : List<RT.Dval>)
   (name : string)

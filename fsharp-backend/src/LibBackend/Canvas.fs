@@ -31,7 +31,7 @@ type T =
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
-    packageFns : List<PT.PackageManager.Fn>
+    packageFns : List<PT.Package.Fn>
     // TODO CLEANUP: no separate fields for deleted, combine them
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
@@ -566,19 +566,17 @@ let loadTLIDsFromCache
   loadFrom LiveToplevels meta tlids
 
 
-// let load_tlids_with_context_from_cache ~tlids host :
-//     (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   let tlids =
-//     let context =
-//       Serialize.fetch_relevant_tlids_for_execution ~host ~canvas_id ()
-//     in
-//     tlids @ context
-//   in
-//   load_from_cache ~tlids host owner
-//
-//
+let loadTLIDsWithContext
+  (meta : Meta)
+  (tlids : List<tlid>)
+  : Task<Result<T, List<string>>> =
+  task {
+    let! context = Serialize.fetchRelevantTLIDsForExecution meta.id
+    let tlids = tlids @ context
+    return! loadFrom LiveToplevels meta tlids
+  }
+
+
 // let load_for_event_from_cache (event : Event_queue.t) :
 //     (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn event.host in

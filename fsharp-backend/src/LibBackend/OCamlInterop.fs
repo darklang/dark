@@ -872,11 +872,11 @@ module Convert =
 
   let ocamlPackageManagerParameter2PT
     (o : OT.PackageManager.parameter)
-    : PT.PackageManager.Parameter =
+    : PT.Package.Parameter =
     { name = o.name; description = o.description; typ = ocamlTipe2PT o.tipe }
 
   let pt2ocamlPackageManagerParameter
-    (p : PT.PackageManager.Parameter)
+    (p : PT.Package.Parameter)
     : OT.PackageManager.parameter =
     { name = p.name; description = p.description; tipe = pt2ocamlTipe p.typ }
 
@@ -895,7 +895,7 @@ module Convert =
   //     deprecated = fn.deprecated
   //     tlid = fn.tlid }
   //
-  let pt2ocamlPackageManagerFn (p : PT.PackageManager.Fn) : OT.PackageManager.fn =
+  let pt2ocamlPackageManagerFn (p : PT.Package.Fn) : OT.PackageManager.fn =
     { user = p.name.owner
       package = p.name.package
       ``module`` = p.name.module_

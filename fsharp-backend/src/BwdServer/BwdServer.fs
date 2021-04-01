@@ -125,24 +125,24 @@ let runHttp
     let ownerID = c.meta.owner
     let canvasID = c.meta.id
     let fns = fns.Force()
-    let packageFns = Map.empty // FSTODO: packageFns
+    let! packageFns = LibBackend.PackageManager.cachedForExecution.Force()
 
     let dbs =
       c.dbs
       |> Map.values
-      |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
+      |> List.map (fun db -> (db.name, PT.DB.toRuntimeType db))
       |> Map.ofList
 
     let userFns =
       c.userFunctions
       |> Map.values
-      |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
+      |> List.map (fun f -> (f.name, PT.UserFunction.toRuntimeType f))
       |> Map.ofList
 
     let userTypes =
       c.userTypes
       |> Map.values
-      |> List.map (fun pt -> ((pt.name, pt.version), pt.toRuntimeType ()))
+      |> List.map (fun t -> ((t.name, t.version), PT.UserType.toRuntimeType t))
       |> Map.ofList
 
     let secrets =
