@@ -2,15 +2,6 @@ module LibBackend.ProgramTypes
 
 // These are the types that are serialized for the program.
 
-// The purpose of having this format is that it's easier to work with than the
-// serialized formats (which have to handle legacy). So we transform any
-// serialized formats into this one for running. We remove any "syntactic
-// sugar" (editor/display only features).
-
-// This format should never be serialized/deserialized, that defeats the purpose (convert it into a
-// different format if you must, or track the other code along-side this and
-// use the ID to find it).
-
 open FSharpPlus
 
 open Prelude

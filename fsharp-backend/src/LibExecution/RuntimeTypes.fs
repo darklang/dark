@@ -24,6 +24,7 @@ module LibExecution.RuntimeTypes
 // These formats should never be serialized/deserialized, that defeats the
 // purpose. If you need to save data of this format, create a set of new types
 // and convert this type into them. (even if they are identical).
+// CLEANUP: we probably do serialize Dvals though :(
 
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
