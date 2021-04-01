@@ -289,7 +289,7 @@ let equalsOCaml =
   testMany
     "equalsOCaml"
     (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
-    [ ((RT.FQFnName.stdlibFqName "List" "fold" 0,
+    [ ((RT.FQFnName.stdlibFnName "List" "fold" 0,
         [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0I) ]
           RT.DList []
           RT.DFnVal(
