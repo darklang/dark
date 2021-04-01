@@ -440,8 +440,8 @@ let fns : List<BuiltInFn> =
 
               return
                 withKeys
-                |> List.sortBy (fun (k, _v) -> k)
-                |> List.map (fun (_, v) -> v)
+                |> List.sortBy fst
+                |> List.map snd
                 |> DList
             }
         | _ -> incorrectArgs ())

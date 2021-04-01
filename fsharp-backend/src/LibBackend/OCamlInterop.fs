@@ -573,6 +573,20 @@ module Convert =
     : tlid * PT.Oplist =
     Tuple2.mapItem2 ocamlOplist2PT tlidOplist
 
+
+  let ocamlToplevel2PT
+    (list : List<ORT.toplevel>)
+    : List<PT.Handler.T> * List<PT.DB.T> =
+    list
+    |> List.fold
+         ([], [])
+         (fun (hs, dbs) tl ->
+           match tl.data with
+           | ORT.Handler h -> (hs @ [ ocamlHandler2PT tl.pos h ], dbs)
+           | ORT.DB db -> (hs, dbs @ [ ocamlDB2PT tl.pos db ]))
+
+
+
   // ----------------
   // ProgramTypes to OCaml
   // ----------------
@@ -845,14 +859,14 @@ module Convert =
                let ocamlTL : ORT.toplevel =
                  { tlid = h.tlid; pos = h.pos; data = ORT.Handler ocamlHandler }
 
-               ocamlTL :: tls, ufns, uts
+               tls @ [ ocamlTL ], ufns, uts
            | PT.TLDB db ->
                let ocamlDB = pt2ocamlDB db
 
                let ocamlTL : ORT.toplevel =
                  { tlid = db.tlid; pos = db.pos; data = ORT.DB ocamlDB }
 
-               ocamlTL :: tls, ufns, uts
+               tls @ [ ocamlTL ], ufns, uts
            | PT.TLFunction f -> (tls, pt2ocamlUserFunction f :: ufns, uts)
            | PT.TLType t -> (tls, ufns, pt2ocamlUserType t :: uts))
 

@@ -7,6 +7,8 @@ module CRequest = Clu.Request
 module CResponse = Clu.Response
 module Client = Clu.Client
 module Header = Cohttp.Header
+module F = Liblegacy.Fuzzing
+module BS = Liblegacy.Serialization
 
 let respond_json_ok (body : string) : (CResponse.t * Cl.Body.t) Lwt.t =
   let headers =
@@ -31,8 +33,6 @@ let server () =
       |> String.rstrip ~drop:(( = ) '/')
       |> String.split ~on:'/'
     in
-    let module F = Libserialize.Fuzzing in
-    let module BS = Libserialize.Binary_serialization in
     let fn =
       match path with
       | ["execute"] ->
@@ -71,8 +71,6 @@ let server () =
             Some BS.expr_json2bin
         | "expr_tlid_pair_json2bin" ->
             Some BS.expr_tlid_pair_json2bin
-        | "digest" ->
-            Some (fun _ -> BS.digest)
         | _ ->
             None )
       | ["fuzzing"; fnname] ->
@@ -113,7 +111,24 @@ let server () =
 
     match (meth, fn) with
     | `POST, Some fn ->
-        body_string |> fn |> respond_json_ok
+      ( try
+          let result = body_string |> fn |> respond_json_ok in
+          print_endline ("success calling " ^ Uri.to_string uri) ;
+          result
+        with e ->
+          let headers = Header.init () in
+          let message =
+            "failed to run function at: "
+            ^ Uri.to_string uri
+            ^ "\n"
+            ^ Libexecution.Exception.to_string e
+          in
+          print_endline message ;
+          S.respond_string
+            ~status:`Internal_server_error
+            ~body:message
+            ~headers
+            () )
     | _ ->
         let headers = Header.init () in
         S.respond_string ~status:`Not_found ~body:"" ~headers ()
@@ -127,7 +142,7 @@ let () =
     (* see https://github.com/mirage/ocaml-cohttp/issues/511 *)
     let () = Lwt.async_exception_hook := ignore in
     Libbackend.Init.init ~run_side_effects:false ;
-    Libexecution.Libs.init Libserialize.Fuzzing.fns ;
+    Libexecution.Libs.init F.fns ;
     Lwt_main.run (server ()) |> ignore
   with e ->
     let bt = Libexecution.Exception.get_backtrace () in

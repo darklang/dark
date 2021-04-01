@@ -1,18 +1,3 @@
-open Core_kernel
-open Libcommon
-open Libexecution
-open Libbackend
-open Libshared.FluidShortcuts
-open Types
-open Types.RuntimeT
-open Lwt
-open Utils
-module Resp = Cohttp_lwt_unix.Response
-module Req = Cohttp_lwt_unix.Request
-module Header = Cohttp.Header
-module Code = Cohttp.Code
-module AT = Alcotest
-
 let t_sanitize_uri_path_with_repeated_slashes () =
   AT.check
     AT.string
@@ -345,57 +330,3 @@ let t_parsed_request_bodies () =
     (parse jsonHeader "{ \"field1\": \"value1\" }") ;
   ()
 
-
-let suite =
-  [ ( "t_sanitize_uri_path_with_repeated_slashes"
-    , `Quick
-    , t_sanitize_uri_path_with_repeated_slashes )
-  ; ( "t_sanitize_uri_path_with_trailing_slash"
-    , `Quick
-    , t_sanitize_uri_path_with_trailing_slash )
-  ; ( "t_sanitize_uri_path_with_root_noops"
-    , `Quick
-    , t_sanitize_uri_path_with_root_noops )
-  ; ( "t_sanitize_uri_path_with_repeated_root"
-    , `Quick
-    , t_sanitize_uri_path_with_repeated_root )
-  ; ("Route variables work", `Quick, t_route_variables_work)
-  ; ("concrete is more specific than wild", `Quick, t_concrete_over_wild)
-  ; ("wild is more specific than nothing", `Quick, t_wild_over_nothing)
-  ; ("differing size wildcard routes", `Quick, t_differing_wildcards)
-  ; ("lengthy a/b/c/d/e/f wildcard", `Quick, t_lengthy_abcdef_wildcard)
-  ; ( "same length a/b/c with different # wildcards "
-    , `Quick
-    , t_same_length_abc_diff_wildcards )
-  ; ( "same length a/b/c with same # wildcards "
-    , `Quick
-    , t_same_length_abc_same_wildcards )
-  ; ("same specificity are returned", `Quick, t_same_specificity_are_returned)
-  ; ("route /:a results in 404 for /", `Quick, t_mismatch_is_filtered)
-  ; ( "root handler is not filtered out"
-    , `Quick
-    , t_mismatch_filtering_leaves_root )
-  ; ("route = path", `Quick, t_route_equals_path)
-  ; ("route < path", `Quick, t_route_lt_path_with_wildcard)
-  ; ("route < path not wildcard", `Quick, t_route_lt_path_without_wildcard)
-  ; ("route > path", `Quick, t_route_gt_path)
-  ; ( "route = path but concrete mismatch"
-    , `Quick
-    , t_route_eq_path_mismatch_concrete )
-  ; ( "route = path solely concrete match"
-    , `Quick
-    , t_route_eq_path_match_concrete )
-  ; ( "apparent route variable that's not a prefix does not match"
-    , `Quick
-    , t_route_non_prefix_colon_does_not_denote_variable )
-  ; ( "path > route with root handler does not crash"
-    , `Quick
-    , t_path_gt_route_does_not_crash )
-  ; ( "Query strings behave properly given multiple duplicate keys"
-    , `Quick
-    , t_query_params_with_duplicate_keys )
-  ; ("Cookies are parsed correctly", `Quick, t_parsed_request_cookies)
-  ; ("Bodies are parsed correctly", `Quick, t_parsed_request_bodies)
-  ; ( "Incomplete handler is filtered out safely"
-    , `Quick
-    , t_incomplete_handler_doesnt_throw ) ]

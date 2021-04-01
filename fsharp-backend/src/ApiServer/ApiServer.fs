@@ -12,6 +12,8 @@ open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Giraffe.EndpointRouting
 
+open Lib.AspNetCore.ServerTiming
+
 open FSharpPlus
 
 open Prelude
@@ -47,6 +49,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
+  |> fun app -> app.UseServerTiming()
   |> fun app ->
        // FSTODO: use a Config value
        if LibBackend.Config.staticHost.Contains "localhost:8000" then
@@ -70,10 +73,12 @@ let configureApp (appBuilder : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) =
   services
+    .AddServerTiming()
     .AddRouting()
     .AddGiraffe()
-    .AddSingleton<Json.ISerializer>(NewtonsoftJson.Serializer
-                                      (Json.OCamlCompatible._settings))
+    .AddSingleton<Json.ISerializer>(
+      NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
+    )
   |> ignore
 
 [<EntryPoint>]

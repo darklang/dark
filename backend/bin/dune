@@ -113,5 +113,5 @@
                ))
 
   (flags (-warn-error +A -w +9))
-  (libraries libbackend libtarget_ocaml lwt cohttp-lwt)
+  (libraries liblegacy lwt cohttp-lwt)
 )

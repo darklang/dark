@@ -67,7 +67,7 @@ let load
                       "tlid", Sql.id tlid ]
   |> Sql.executeAsync
        (fun read ->
-         (read.string "fnnale",
+         (read.string "fnname",
           read.tlid "id",
           read.string "hash",
           read.intOrNone "hash_version" |> Option.unwrap 0,

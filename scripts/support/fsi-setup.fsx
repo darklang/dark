@@ -15,6 +15,7 @@ printfn
 #r "LibBackend.dll"
 #r "ApiServer.dll"
 #r "BwdServer.dll"
+#r "TestUtils.dll"
 #r "Tests.dll"
 #r "FuzzTests.dll"
 
@@ -25,6 +26,6 @@ module DvalRepr = LibExecution.DvalRepr
 module OCamlInterop = LibBackend.OCamlInterop
 
 open Prelude
-open Tests.FSI
+open FSI
 
 printfn "Loaded and ready to go"

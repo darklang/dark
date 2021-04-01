@@ -29,7 +29,7 @@ let domain (ctx : HttpContext) : string =
   // dot is ignored, but .darklang.localhost doesn't work and
   // darklang.localhost does, so ... no leading dot works better for
   // us.
-  ctx.GetRequestHeader("host")
+  ctx.GetRequestHeader "host"
   |> Result.unwrap "darklang.com"
   // Host: darklang.localhost:8000 is properly set in-cookie as
   // "darklang.localhost", the cookie domain doesn't want the
@@ -85,12 +85,12 @@ let loginPage : HttpHandler =
 let loginHandler : HttpHandler =
   (fun _ (ctx : HttpContext) ->
     task {
-      let usernameOrEmail = ctx.Request.Form.Item "username" |> toString
-      let password = ctx.Request.Form.Item "password" |> toString
+      let usernameOrEmail = ctx.GetFormValue "username" |> Option.unwrapUnsafe
+      let password = ctx.GetFormValue "password" |> Option.unwrapUnsafe
 
       let redirect =
-        ctx.Request.Form.Item "redirect"
-        |> toString
+        ctx.GetFormValue "redirect"
+        |> Option.unwrapUnsafe
         |> System.Web.HttpUtility.UrlDecode
 
       match! Account.authenticate usernameOrEmail password with

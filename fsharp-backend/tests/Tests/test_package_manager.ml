@@ -1,11 +1,3 @@
-open Core_kernel
-open Libexecution
-open Libbackend
-open Types
-open Types.RuntimeT
-open Utils
-module AT = Alcotest
-
 let t_parsefnname () =
   let account, package, module_, fnname, version =
     Package_manager.parse_fnname "dark/stdlib/Twitter::sendText_v0"
@@ -24,6 +16,3 @@ let t_parsefnname () =
   AT.check AT.string "fnname" fnname "string20" ;
   AT.check AT.int "version" version 57 ;
   ()
-
-
-let suite = [("Function names parses correctly", `Quick, t_parsefnname)]
