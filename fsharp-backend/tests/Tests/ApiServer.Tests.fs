@@ -274,6 +274,35 @@ let testDBStats =
         ident
   }
 
+let testWorkerStats =
+  testTask "worker_stats is the same" {
+    let! (o : HttpResponseMessage) =
+      postAsync $"http://darklang.localhost:8000/api/test/initial_load" ""
+
+    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
+    let! body = o.Content.ReadAsStringAsync()
+
+    do!
+      body
+      |> deserialize<Api.InitialLoad.T>
+      |> fun ts -> ts.toplevels |> Convert.ocamlToplevel2PT
+      |> Tuple2.first
+      |> List.filterMap
+           (fun h ->
+             match h.spec with
+             | PT.Handler.Worker _ -> Some h.tlid
+             | _ -> None)
+      |> List.map
+           (fun tlid ->
+             postApiTestCases
+               "get_worker_stats"
+               (serialize ({ tlid = tlid } : Api.Worker.Params))
+               (deserialize<Api.Worker.T>)
+               ident)
+      |> Task.flatten
+  }
+
+
 
 
 let testInitialLoadReturnsTheSame =
@@ -319,7 +348,7 @@ let localOnlyTests =
         testPostApi "get_404s" "" (deserialize<Api.F404.T>) ident
         testPostApi "get_unlocked_dbs" "" (deserialize<Api.DB.Unlocked.T>) ident
         testDBStats
-        // testPostApi "get_worker_stats" "" (deserialize<Api.DB.T>) ident
+        testWorkerStats
         // testPostApi "worker_schedule" "" (deserialize<Api.DB.T>) ident
         testPostApi "all_traces" "" (deserialize<Api.Traces.AllTraces>) ident
         testGetTraceData

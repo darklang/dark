@@ -3,6 +3,10 @@ module LibBackend.Stats
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open Npgsql.FSharp.Tasks
+open Npgsql
+open Db
+
 open Prelude
 open Tablecloth
 
@@ -36,27 +40,17 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
   |> Task.flatten
   |> Task.map Map.ofList
 
-//
-// type worker_stat = {count : int} [@@deriving show, yojson]
-//
-// let worker_stats (canvas_id : Uuidm.t) (tlid : tlid) : worker_stat =
-//   let count =
-//     Db.fetch_one
-//       ~name:"count_workers"
-//       ~subject:(show_tlid tlid)
-//       "SELECT COUNT(1) AS num
-//       FROM events E
-//       INNER JOIN toplevel_oplists TL
-//         ON TL.canvas_id = E.canvas_id
-//         AND TL.module = E.space
-//         AND TL.name = E.name
-//       WHERE TL.tlid = $1
-//       AND TL.canvas_id = $2
-//       AND E.status IN('new', 'scheduled')"
-//       ~params:[Db.ID tlid; Db.Uuid canvas_id]
-//     |> List.hd_exn
-//     |> int_of_string
-//   in
-//   {count}
-//
-//
+
+let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
+  Sql.query
+    "SELECT COUNT(1) AS num
+     FROM events E
+     INNER JOIN toplevel_oplists TL
+        ON TL.canvas_id = E.canvas_id
+       AND TL.module = E.space
+       AND TL.name = E.name
+     WHERE TL.tlid = @tlid
+       AND TL.canvas_id = @canvasID
+       AND E.status IN ('new', 'scheduled')"
+  |> Sql.parameters [ "tlid", Sql.tlid tlid; "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeRowAsync (fun read -> read.int "num")

@@ -63,14 +63,6 @@ module TI = LibBackend.TraceInputs
 //   ; path : string
 //   ; modifier : string }
 //
-// type worker_stats_rpc_params = {tlid : tlid}
-//
-// let to_worker_stats_rpc_params (payload : string) : worker_stats_rpc_params =
-//   payload
-//   |> Yojson.Safe.from_string
-//   |> worker_stats_rpc_params_of_yojson
-//   |> Result.ok_or_failwith
-//
 // type worker_schedule_update_rpc_params =
 //   { name : string
 //   ; schedule : string }
@@ -220,6 +212,24 @@ module Packages =
       t "convertFunctions"
       return result
     }
+
+module Worker =
+  type Params = { tlid : tlid }
+  type T = { count : int }
+
+  let getStats (ctx : HttpContext) : Task<T> =
+    task {
+      let t = Middleware.startTimer ctx
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! args = ctx.BindModelAsync<Params>()
+      t "read-api"
+
+      let! result = Stats.workerStats canvasInfo.id args.tlid
+      t "analyse-worker-stats"
+
+      return { count = result }
+    }
+
 
 module InitialLoad =
   type ApiUserInfo =
@@ -521,6 +531,7 @@ let endpoints : Endpoint list =
            routef "/api/%s/initial_load" (h InitialLoad.initialLoad Auth.Read)
            routef "/api/%s/get_unlocked_dbs" (h DB.Unlocked.getUnlockedDBs Auth.Read)
            routef "/api/%s/get_db_stats" (h DB.Stats.getStats Auth.Read)
+           routef "/api/%s/get_worker_stats" (h Worker.getStats Auth.Read)
            routef "/api/%s/get_404s" (h F404.get404s Auth.Read)
            routef "/api/%s/get_trace_data" (oh Traces.getTraceData Auth.Read)
            routef "/api/%s/all_traces" (h Traces.fetchAllTraces Auth.Read)
@@ -544,10 +555,6 @@ let endpoints : Endpoint list =
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers
            //           (trigger_handler ~execution_id parent canvas body))
-           // | `POST, ["api"; canvas; "get_worker_stats"] ->
-           //     when_can_view ~canvas (fun _ ->
-           //         wrap_editor_api_headers
-           //           (worker_stats ~execution_id parent canvas body))
            // | `POST, ["api"; canvas; "worker_schedule"] ->
            //     when_can_edit ~canvas (fun _ ->
            //         wrap_editor_api_headers
