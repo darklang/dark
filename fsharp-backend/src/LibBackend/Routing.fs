@@ -104,52 +104,46 @@ let requestPathMatchesRoute (route : string) (requestPath : string) : bool =
 // `/` matching `/%%` via LIKE logic`. This cleans this edge case from the
 // set.
 let filterInvalidHandlerMatches
-    (path : string) (handlers : List<PT.Handler.T>) :
-    PT.Handler.T list =
+  (path : string)
+  (handlers : List<PT.Handler.T>)
+  : PT.Handler.T list =
   List.filter
     (fun h ->
-      let route = h.spec.name() in
+      let route = h.spec.name () in
       requestPathMatchesRoute route path)
     handlers
 
 
 // From left-to-right segment-wise, we say that concrete is more specific
 // than wild is more specific than empty *)
-let rec compareRouteSpecificity (left : string list) (right : string list) :
-    int =
+let rec compareRouteSpecificity (left : string list) (right : string list) : int =
   let isWild s = String.startsWith ":" s in
   let isConcrete s = not (isWild s) in
+
   match (left, right) with
-  | [], [] ->
-      0
-  | _l, [] ->
-      1
-  | [], _r ->
-      -1
-  | l :: _, r :: _ when isConcrete l && isWild r ->
-      1
-  | l :: _, r :: _ when isWild l && isConcrete r ->
-      -1
-  | _ :: ls, _ :: rs ->
-      compareRouteSpecificity ls rs
+  | [], [] -> 0
+  | _l, [] -> 1
+  | [], _r -> -1
+  | l :: _, r :: _ when isConcrete l && isWild r -> 1
+  | l :: _, r :: _ when isWild l && isConcrete r -> -1
+  | _ :: ls, _ :: rs -> compareRouteSpecificity ls rs
 
 
-let comparePageRouteSpecificity
-    (left : PT.Handler.T) (right : PT.Handler.T) : int =
+let comparePageRouteSpecificity (left : PT.Handler.T) (right : PT.Handler.T) : int =
   compareRouteSpecificity
-    (left.spec.name() |> splitUriPath |> Array.toList)
-    (right.spec.name() |> splitUriPath |> Array.toList)
+    (left.spec.name () |> splitUriPath |> Array.toList)
+    (right.spec.name () |> splitUriPath |> Array.toList)
 
 
 // Takes a list of handlers that match a request's path, and filters the list
 // down to the list of handlers that match the request most specifically.
 // It looks purely at the handler's definition for its specificity relation.
-let filterMatchingHandlersBySpecificity (pages : List<PT.Handler.T>) :
-    List<PT.Handler.T> =
+let filterMatchingHandlersBySpecificity
+  (pages : List<PT.Handler.T>)
+  : List<PT.Handler.T> =
   let orderedPages =
     pages
-    |> List.sortWith (fun left right ->
-           comparePageRouteSpecificity left right)
+    |> List.sortWith (fun left right -> comparePageRouteSpecificity left right)
     // we intentionally sort in least specific to most specific order
     // because it's much easier to define orderings from 'least-to-most'.
     //
@@ -159,25 +153,23 @@ let filterMatchingHandlersBySpecificity (pages : List<PT.Handler.T>) :
     // in our comparison function) but my brain really didn't like that and found
     // it confusing.
     |> List.rev
-  in
   // orderedPages is ordered most-specific to least-specific, so pluck the
   // most specific and return it along with all others of its specificity *)
   match orderedPages with
-  | [] ->
-      []
-  | [a] ->
-      [a]
+  | [] -> []
+  | [ a ] -> [ a ]
   | a :: rest ->
       let sameSpecificity =
         List.filter (fun b -> comparePageRouteSpecificity a b = 0) rest
-      in
+
       a :: sameSpecificity
 
 
-let filterMatchingHandlers (path : string) (pages : List<PT.Handler.T>)
-    : List<PT.Handler.T> =
+let filterMatchingHandlers
+  (path : string)
+  (pages : List<PT.Handler.T>)
+  : List<PT.Handler.T> =
   pages
-  |> List.filter (fun h -> h.spec.complete())
+  |> List.filter (fun h -> h.spec.complete ())
   |> filterInvalidHandlerMatches path
   |> filterMatchingHandlersBySpecificity
-

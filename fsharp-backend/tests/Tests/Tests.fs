@@ -3,9 +3,7 @@ module Tests.All
 // Main entry point for tests being run
 
 open Expecto
-open System.Threading
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 [<EntryPoint>]
 let main args =
@@ -15,7 +13,6 @@ let main args =
 
   let tests =
     [ Tests.Account.tests
-      Tests.Analysis.tests
       Tests.ApiServer.tests
       Tests.Authorization.tests
       Tests.BwdServer.tests
@@ -26,6 +23,7 @@ let main args =
       Tests.OCamlInterop.tests
       Tests.ProgramTypes.tests
       Tests.SqlCompiler.tests
+      Tests.Traces.tests
       Tests.TypeChecker.tests
       Tests.Undo.tests ]
 

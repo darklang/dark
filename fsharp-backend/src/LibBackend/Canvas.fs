@@ -61,6 +61,18 @@ let toplevels (c : T) : Map<tlid, PT.Toplevel> =
   |> Seq.concat
   |> Map
 
+let deletedToplevels (c : T) : Map<tlid, PT.Toplevel> =
+  let map f l = Map.map f l |> Map.toSeq
+
+  [ map PT.TLHandler c.deletedHandlers
+    map PT.TLDB c.deletedDBs
+    map PT.TLType c.deletedUserTypes
+    map PT.TLFunction c.deletedUserFunctions ]
+  |> Seq.concat
+  |> Map
+
+
+
 
 // -------------------------
 // Toplevel
@@ -534,9 +546,8 @@ let loadFrom
 let loadAll (meta : Meta) : Task<Result<T, List<string>>> =
   task {
     let! tlids = Serialize.fetchAllTLIDs meta.id
-    return! loadFrom LiveToplevels meta tlids
+    return! loadFrom IncludeDeletedToplevels meta tlids
   }
-
 
 let loadHttpHandlersFromCache
   (meta : Meta)
@@ -576,17 +587,14 @@ let loadTLIDsFromCache
 //     ~tlids:(Serialize.fetch_relevant_tlids_for_event ~event ~canvas_id ())
 //     event.host
 //     owner
-//
-//
-// let load_all_dbs_from_cache host : (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   let canvas_id = Serialize.fetch_canvas_id owner host in
-//   load_from_cache
-//     ~tlids:(Serialize.fetch_tlids_for_all_dbs ~canvas_id ())
-//     host
-//     owner
-//
-//
+
+
+let loadAllDBs (meta : Meta) : Task<Result<T, List<string>>> =
+  task {
+    let! tlids = Serialize.fetchTLIDsForAllDBs meta.id
+    return! loadFrom LiveToplevels meta tlids
+  }
+
 // let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
 //   let canvas_id = Serialize.fetch_canvas_id owner host in
@@ -599,7 +607,7 @@ type Deleted =
   | Deleted
   | NotDeleted
 
-let fetchProgramData (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel> =
+let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel> =
   let handler () =
     Map.tryFind tlid c.handlers
     |> Option.map (fun h -> (NotDeleted, PT.TLHandler h))

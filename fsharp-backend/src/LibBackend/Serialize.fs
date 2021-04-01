@@ -192,23 +192,16 @@ let fetchReleventTLIDsForHTTP
 //              Types.id_of_string data
 //          | _ ->
 //              Exception.internal "Shape of per_tlid oplists")
-//
-//
-// let fetch_tlids_for_all_dbs ~(canvas_id : Uuidm.t) () : Types.tlid list =
-//   Db.fetch
-//     ~name:"fetch_tlids_for_all_dbs"
-//     "SELECT tlid FROM toplevel_oplists
-//       WHERE canvas_id = $1
-//         AND tipe = 'db'::toplevel_type"
-//     ~params:[Db.Uuid canvas_id]
-//   |> List.map ~f:(fun l ->
-//          match l with
-//          | [data] ->
-//              Types.id_of_string data
-//          | _ ->
-//              Exception.internal "Shape of per_tlid oplists")
-//
-//
+
+
+let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
+  Sql.query
+    "SELECT tlid FROM toplevel_oplists
+     WHERE canvas_id = @canvasID
+       AND tipe = 'db'::toplevel_type"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
 let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevel_oplists

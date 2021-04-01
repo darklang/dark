@@ -1,3 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
 
 dotnet fsi --use:scripts/support/fsi-setup.fsx "${@}"

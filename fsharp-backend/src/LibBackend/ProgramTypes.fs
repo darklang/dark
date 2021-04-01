@@ -35,8 +35,20 @@ module FQFnName =
   let stdlibFqName = RT.FQFnName.stdlibFqName
 
   let oneWordFunctions =
-    Set [ "toString"; "toRepr"; "equals"; "notEquals"; "assoc"; "dissoc"; "toForm"
-        ; "toString_v0"; "toRepr_v0"; "equals_v0"; "notEquals_v0"; "assoc_v0"; "dissoc_v0"; "toForm_v0" ]
+    Set [ "toString"
+          "toRepr"
+          "equals"
+          "notEquals"
+          "assoc"
+          "dissoc"
+          "toForm"
+          "toString_v0"
+          "toRepr_v0"
+          "equals_v0"
+          "notEquals_v0"
+          "assoc_v0"
+          "dissoc_v0"
+          "toForm_v0" ]
 
   let parse (fnName : string) : T =
     match fnName with
@@ -121,7 +133,7 @@ type Expr =
     | EBinOp (_, name, lhs, rhs, toRail), EBinOp (_, name', lhs', rhs', toRail') ->
         name = name' && eq lhs lhs' && eq rhs rhs' && toRail = toRail'
     | ERecord (_, pairs), ERecord (_, pairs') ->
-        let sort = List.sortBy (fun (k, _) -> k)
+        let sort = List.sortBy fst
 
         List.forall2
           (fun (k, v) (k', v') -> k = k' && eq v v')
@@ -747,7 +759,7 @@ module Handler =
       | HTTP (route, method, _ids) -> "HTTP"
       | Worker (name, _ids) -> "Worker"
       | OldWorker (modulename, name, _ids) -> modulename
-      | Cron (name, interval, _ids) -> "Cron"
+      | Cron (name, interval, _ids) -> "CRON" // CLEANUP the DB relies on this
       | REPL (name, _ids) -> "REPL"
 
     member this.complete() : bool =
@@ -765,7 +777,7 @@ module Handler =
     // Same as a TraceInput.EventDesc
     member this.toDesc() : Option<string * string * string> =
       if this.complete () then
-        Some(this.name (), this.name (), this.modifier ())
+        Some(this.module' (), this.name (), this.modifier ())
       else
         None
 

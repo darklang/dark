@@ -348,7 +348,7 @@ let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
 
 let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
-    "SELECT count(*)
+    "SELECT COUNT(*)
      FROM user_data
      WHERE table_tlid = @tlid
        AND account_id = @accountID
@@ -399,54 +399,44 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 // -------------------------
 // stats/locked/unlocked (not _locking_)
 // -------------------------
-// let stats_pluck ~account_id ~canvas_id (db : RT.DB.T) : (dval * string) option =
-//   let latest =
-//     Db.fetch
-//       ~name:"stats_pluck"
-//       "SELECT data, key
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5
-//      ORDER BY created_at DESC
-//      LIMIT 1"
-//       ~params:
-//         [ ID db.tlid
-//         ; Uuid account_id
-//         ; Uuid canvas_id
-//         ; Int db.version
-//         ; Int current_dark_version ]
-//     |> List.hd
-//   in
-//   match latest with
-//   | Some [data; key] ->
-//       Some (to_obj db [data], key)
-//   | _ ->
-//       None
-//
-//
-// let stats_count ~account_id ~canvas_id (db : RT.DB.T) : int =
-//   Db.fetch
-//     ~name:"stats_count"
-//     "SELECT count(*)
-//      FROM user_data
-//      WHERE table_tlid = $1
-//      AND account_id = $2
-//      AND canvas_id = $3
-//      AND user_version = $4
-//      AND dark_version = $5"
-//     ~params:
-//       [ ID db.tlid
-//       ; Uuid account_id
-//       ; Uuid canvas_id
-//       ; Int db.version
-//       ; Int current_dark_version ]
-//   |> List.hd_exn
-//   |> List.hd_exn
-//   |> int_of_string
+let statsPluck
+  (canvasID : CanvasID)
+  (ownerID : UserID)
+  (db : RT.DB.T)
+  : Task<Option<RT.Dval * string>> =
+  Sql.query
+    "SELECT data, key
+     FROM user_data
+     WHERE table_tlid = @tlid
+       AND account_id = @accountID
+       AND canvas_id = @canvasID
+       AND user_version = @userVersion
+       AND dark_version = @darkVersion
+     ORDER BY created_at DESC
+     LIMIT 1"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid ownerID
+                      "canvasID", Sql.uuid canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.executeRowOptionAsync
+       (fun read -> toObj db (read.string "data"), read.string "key")
 
+let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<int> =
+  Sql.query
+    "SELECT COUNT(*)
+     FROM user_data
+     WHERE table_tlid = @tlid
+       AND account_id = @accountID
+       AND canvas_id = @canvasID
+       AND user_version = @userVersion
+       AND dark_version = @darkVersion"
+  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
+                      "accountID", Sql.uuid ownerID
+                      "canvasID", Sql.uuid canvasID
+                      "userVersion", Sql.int db.version
+                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.executeRowAsync (fun read -> read.int "count")
 
 // Given a [canvasID] and an [accountID], return tlids for all unlocked databases -
 // a database is unlocked if it has no records, and thus its schema can be

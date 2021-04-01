@@ -16,9 +16,10 @@ nuget FSharp.Compiler.Service = 38.0.2
 // Web servers
 nuget Giraffe = 5.0.0-rc-6
 nuget Microsoft.AspNetCore.Mvc.NewtonsoftJson = 5.0.3
+nuget Lib.AspNetCore.ServerTiming = 4.0.0
 
 // LibExecution
-nuget GuidEx.Standard = 1.0.2
+nuget Faithlife.Utility = 0.11.2
 nuget Newtonsoft.Json = 12.0.3
 nuget Ply = 0.3.1
 nuget FSharpPlus = 1.2.0-CI01665

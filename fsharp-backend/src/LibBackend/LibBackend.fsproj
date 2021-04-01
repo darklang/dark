@@ -34,7 +34,8 @@
     <Compile Include="Op.fs" />
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
-    <Compile Include="Analysis.fs" />
+    <Compile Include="Traces.fs" />
+    <Compile Include="Stats.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="StdLib/LibCrypto.fs" />
     <Compile Include="StdLib/LibDB.fs" />
