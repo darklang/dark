@@ -738,7 +738,7 @@ let fns : List<BuiltInFn> =
       description = "Drops the first `count` values from `list`."
       fn =
         (function
-        | _, [DList l; DInt c] -> DList (List.skip c l)
+        | _, [DList l; DInt c] -> Value(DList(List.skip (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
