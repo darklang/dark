@@ -166,7 +166,7 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
 let functionsToString (fns : RT.BuiltInFn list) : string =
   fns
   |> List.filter
-       (fun fn -> not (Set.contains (toString fn.name) (fsharpOnlyFns.Force())))
+       (fun fn -> not (Set.contains (toString fn.name) (Lazy.force fsharpOnlyFns)))
   |> List.map convertFn
   |> List.sortBy (fun fn -> fn.name)
   |> Json.Vanilla.prettySerialize
@@ -199,7 +199,7 @@ module Packages =
   let packages (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
-      let! fns = LibBackend.PackageManager.cachedForAPI.Force()
+      let! fns = Lazy.force LibBackend.PackageManager.cachedForAPI
       t "loadFunctions"
       let result = fns |> List.map Convert.pt2ocamlPackageManagerFn
       t "convertFunctions"
@@ -570,7 +570,7 @@ module ExecuteFunction =
         (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
 
       let args = List.map Convert.ocamlDval2rt body.args
-      let! packageFns = LibBackend.PackageManager.cachedForExecution.Force()
+      let! packageFns = Lazy.force LibBackend.PackageManager.cachedForExecution
 
       let storeFnResult = TraceFunctionResults.store canvasInfo.id body.trace_id
       let storeFnArguments = TraceFunctionArguments.store canvasInfo.id body.trace_id
@@ -580,7 +580,7 @@ module ExecuteFunction =
           canvasInfo.owner
           canvasInfo.id
           body.tlid
-          (fns.Force())
+          (Lazy.force fns)
           packageFns
           dbs
           userFns

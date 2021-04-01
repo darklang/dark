@@ -351,7 +351,7 @@ let cachedForAPI : Lazy<Task<List<PT.Package.Fn>>> = lazy (allFunctions ())
 let cachedForExecution : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
   lazy
     (task {
-      let! fns = cachedForAPI.Force()
+      let! fns = Lazy.force cachedForAPI
 
       return
         fns
