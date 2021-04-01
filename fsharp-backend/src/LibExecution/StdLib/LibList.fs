@@ -240,20 +240,17 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "repeat" 0
-//     ; parameters = [Param.make "times" TInt ""; Param.make "val" varA ""]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a new list containing `val` repeated `times` times."
-//     ; fn =
-//           (function
-//           | _, [DInt t; dv] ->
-//               DList (List.init (Dint.to_int_exn t) (fun _ -> dv))
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "repeat" 0
+      parameters = [Param.make "times" TInt ""; Param.make "val" varA ""]
+      returnType = TList varA
+      description = "Returns a new list containing `val` repeated `times` times."
+      fn =
+        (function
+        | _, [DInt t; v] ->  Value(DList(List.replicate (int t) v))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "length" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TInt

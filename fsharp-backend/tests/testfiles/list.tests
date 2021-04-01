@@ -221,3 +221,7 @@ List.fold_v0 ["a"; "b"; "c"; "d"] "x" (fun accum curr -> accum ++ curr) = "xabcd
 
 List.reverse_v0 [5; 4; 3; 2; 1] = [1;2;3;4;5]
 List.reverse_v0 ["a"; "b"; "c"; "d"] = ["d";"c";"b";"a"]
+
+List.repeat_v0 3 3 = [3; 3; 3]
+List.repeat_v0 5 "a" = ["a"; "a"; "a"; "a"; "a"]
+List.repeat_v0 0 1 = []
