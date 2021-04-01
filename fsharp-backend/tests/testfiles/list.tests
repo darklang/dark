@@ -39,8 +39,8 @@ List.foreach_v0 [Test.typeError_v0 "test"] (fun x -> x) = [Test.typeError_v0 "te
 //List.flatten_v0 [[]] = []
 //List.flatten_v0 [] = []
 
-//List.getAt_v0 [1;2;3;4] 0 = Just 1
-//List.getAt_v0 [1;2;3;4] 4 = Nothing
+List.getAt_v0 [1;2;3;4] 0 = Just 1
+List.getAt_v0 [1;2;3;4] 4 = Nothing
 
 //List.indexedMap_v0 [3;2;1] (fun i v -> v - i) = [ 3, 1, -1 ]
 //List.indexedMap_v0 [] (fun i v -> v - i) = []

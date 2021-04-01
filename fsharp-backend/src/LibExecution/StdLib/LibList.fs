@@ -1078,22 +1078,21 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "getAt" 0
-//     ; parameters = [Param.make "list" TList ""; Param.make "index" TInt ""]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
-//     ; fn =
-//           (function
-//           | _, [DList l; DInt index] ->
-//               List.nth l (Dint.to_int_exn index)
-//               |> Option.map (fun a -> DOption (OptJust a))
-//               |> Option.value (DOption OptNothing)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "getAt" 0
+      parameters = [Param.make "list" (TList varA) ""; Param.make "index" TInt ""]
+      returnType = TOption varA
+      description =
+        "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
+      fn =
+        (function
+        | _, [ DList l; DInt index ] ->
+            (match List.tryItem (int index) l with
+             | Some d -> Value(Dval.optionJust d)
+             | None -> Value(DOption None))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "getAt" 1
 //     ; parameters = [Param.make "list" TList ""; Param.make "index" TInt ""]
 //     ; returnType = TOption
