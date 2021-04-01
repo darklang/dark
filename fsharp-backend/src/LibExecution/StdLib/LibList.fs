@@ -788,19 +788,17 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "take" 0
-//     ; parameters = [Param.make "list" TList ""; Param.make "count" TInt ""]
-//     ; returnType = TList
-//     ; description = "Drops all but the first `count` values from `list`."
-//     ; fn =
-//           (function
-//           | _, [DList l; DInt c] ->
-//               DList (List.take l (Dint.to_int_exn c))
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "take" 0
+      parameters = [Param.make "list" (TList varA) ""; Param.make "count" TInt ""]
+      returnType = TList varA
+      description = "Drops all but the first `count` values from `list`."
+      fn =
+        (function
+        | _, [DList l; DInt c] -> Value(DList(List.take (int c) l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "takeWhile" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList

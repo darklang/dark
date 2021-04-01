@@ -229,3 +229,7 @@ List.repeat_v0 0 1 = []
 List.drop_v0 ["a"; "b"; "c"; "d"] 3 = ["d"]
 List.drop_v0 [5; 4; 3; 2; 1]  5 = []
 List.drop_v0 [3; 3; 3] 0 = [3; 3; 3]
+
+List.take_v0 ["a"; "b"; "c"; "d"] 3 = ["a"; "b"; "c"]
+List.take_v0 [5; 4; 3; 2; 1]  5 = [5; 4; 3; 2; 1]
+List.take_v0 [3; 3; 3] 0 = []
