@@ -1,6 +1,6 @@
 module ApiServer.Workers
 
-// API endpoint for Workers
+// API endpoints for Workers
 
 open Microsoft.AspNetCore.Http
 open Giraffe
@@ -8,7 +8,7 @@ open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
+
 open Prelude
 open Tablecloth
 

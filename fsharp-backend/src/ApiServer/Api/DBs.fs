@@ -1,6 +1,6 @@
 module ApiServer.DBs
 
-// Functions and API endpoints for the API
+// DB-related API endpoints
 
 open Microsoft.AspNetCore.Http
 open Giraffe
@@ -34,7 +34,6 @@ module Session = LibBackend.Session
 module TFA = LibBackend.TraceFunctionArguments
 module TFR = LibBackend.TraceFunctionResults
 module TI = LibBackend.TraceInputs
-// type db_stats_rpc_params = {tlids : tlid list}
 
 module Unlocked =
   type T = { unlocked_dbs : tlid list }

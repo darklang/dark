@@ -8,7 +8,7 @@ open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
+
 open Prelude
 open Tablecloth
 

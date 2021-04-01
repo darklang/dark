@@ -1,39 +1,15 @@
 module ApiServer.Functions
 
-// Functions and API endpoints for the API
-
-open Microsoft.AspNetCore.Http
-open Giraffe
-open Giraffe.EndpointRouting
+// Functions
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
+
 open Prelude
 open Tablecloth
 
-open Npgsql.FSharp.Tasks
-open Npgsql
-open LibBackend.Db
-
 module PT = LibBackend.ProgramTypes
-module OT = LibBackend.OCamlInterop.OCamlTypes
-module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
-module AT = LibExecution.AnalysisTypes
-module Convert = LibBackend.OCamlInterop.Convert
-
-module Account = LibBackend.Account
-module Stats = LibBackend.Stats
-module Traces = LibBackend.Traces
-module Auth = LibBackend.Authorization
-module Canvas = LibBackend.Canvas
-module Config = LibBackend.Config
 module RT = LibExecution.RuntimeTypes
-module SA = LibBackend.StaticAssets
-module Session = LibBackend.Session
-module TFA = LibBackend.TraceFunctionArguments
-module TFR = LibBackend.TraceFunctionResults
-module TI = LibBackend.TraceInputs
 
 // FSCLEANUP
 // These types are to match the existing OCaml serializations that the frontend

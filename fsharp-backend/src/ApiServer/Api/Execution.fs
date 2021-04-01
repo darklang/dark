@@ -1,6 +1,6 @@
 module ApiServer.Execution
 
-// Functions and API endpoints for the API
+// Execution API endpoints
 
 open Microsoft.AspNetCore.Http
 open Giraffe
@@ -25,11 +25,6 @@ module TraceFunctionArguments = LibBackend.TraceFunctionArguments
 module TraceFunctionResults = LibBackend.TraceFunctionResults
 module DvalRepr = LibExecution.DvalRepr
 
-
-// type trigger_handler_rpc_params =
-//   { tlid : tlid
-//   ; trace_id : RuntimeT.uuid
-//   ; input : input_vars }
 
 module ExecuteFunction =
   let fns =
@@ -134,6 +129,11 @@ let endpoints : Endpoint list =
   let h = Middleware.apiHandler
 
   [ POST [ routef "/api/%s/execute_function" (h ExecuteFunction.execute Auth.Read) ] ]
+// type trigger_handler_rpc_params =
+//   { tlid : tlid
+//   ; trace_id : RuntimeT.uuid
+//   ; input : input_vars }
+
 
 // | `POST, ["api"; canvas; "trigger_handler"] ->
 //     when_can_edit ~canvas (fun _ ->
