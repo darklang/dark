@@ -42,13 +42,16 @@ module FQFnName =
           "assoc"
           "dissoc"
           "toForm"
+          "emit"
           "toString_v0"
           "toRepr_v0"
           "equals_v0"
           "notEquals_v0"
           "assoc_v0"
           "dissoc_v0"
-          "toForm_v0" ]
+          "toForm_v0"
+          "emit_v0"
+          "emit_v1" ]
 
   let parse (fnName : string) : T =
     match fnName with
@@ -64,7 +67,7 @@ module FQFnName =
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
         RT.FQFnName.stdlibFqName module_ name 0
     | Regex "^([a-z][a-z0-9A-Z_]*)_v(\d+)$" [ name; version ] ->
-        RT.FQFnName.stdlibFqName "" name 0
+        RT.FQFnName.stdlibFqName "" name (int version)
     | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] ->
         RT.FQFnName.stdlibFqName "Date" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> RT.FQFnName.stdlibFqName "" name 0

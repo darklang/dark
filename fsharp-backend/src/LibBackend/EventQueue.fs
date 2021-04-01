@@ -200,31 +200,36 @@ module WorkerStates =
 //         ("queue_canvas_name", host) :: params
 //   in
 //   Log.infO "queue size" ~params ~jsonparams
-//
-//
-// let enqueue
-//     ~account_id
-//     ~canvas_id
-//     (space : string)
-//     (name : string)
-//     (modifier : string)
-//     (data : dval) : unit =
-//   log_queue_size Enqueue (canvas_id |> Uuidm.to_string) space name modifier ;
-//   Db.run
-//     ~name:"enqueue"
-//     "INSERT INTO events
-//      (status, dequeued_by, canvas_id, account_id,
-//       space, name, modifier, value, delay_until, enqueued_at)
-//      VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
-//     ~params:
-//       [ Uuid canvas_id
-//       ; Uuid account_id
-//       ; String space
-//       ; String name
-//       ; String modifier
-//       ; RoundtrippableDval data ]
-//
-//
+
+
+let enqueue
+  (canvasID : CanvasID)
+  (accountID : UserID)
+  (space : string)
+  (name : string)
+  (modifier : string)
+  (data : RT.Dval)
+  : Task<unit> =
+  // FSTODO
+  // log_queue_size Enqueue (canvas_id |> Uuidm.to_string) space name modifier ;
+  Sql.query
+    "INSERT INTO events
+     (status, dequeued_by, canvas_id, account_id,
+      space, name, modifier, value, delay_until, enqueued_at)
+     VALUES ('new', NULL, @canvasID, @accountID, @space, @name, @modifier,
+             @data, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "accountID", Sql.uuid accountID
+                      "space", Sql.string space
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier
+                      "data",
+                      Sql.string (
+                        LibExecution.DvalRepr.toInternalRoundtrippableV0 data
+                      ) ]
+  |> Sql.executeStatementAsync
+
+
 // let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
 //   Telemetry.with_span parent "dequeue" (fun parent ->
 //       let fetched =
