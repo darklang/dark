@@ -88,7 +88,7 @@ let executeFunction
   (state : RT.ExecutionState)
   (callerID : tlid)
   (args : List<RT.Dval>)
-  (name : string)
+  (name : RT.FQFnName.T)
   : Task<RT.Dval * List<tlid>> =
   task {
     let touchedTLIDs = HashSet()
@@ -99,13 +99,7 @@ let executeFunction
     let state = { state with traceTLID = traceTLID }
 
     let! result =
-      Interpreter.callFn
-        state
-        (RT.FQFnName.User name)
-        callerID
-        args
-        RT.NoRail
-        RT.NotInPipe
+      Interpreter.callFn state name callerID args RT.NoRail RT.NotInPipe
       |> TaskOrValue.toTask
 
     return (result, HashSet.toList touchedTLIDs)

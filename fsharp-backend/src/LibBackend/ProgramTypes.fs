@@ -10,8 +10,6 @@ open Tablecloth
 // Used for conversion functions
 module RT = LibExecution.RuntimeTypes
 
-// Expressions - the main part of the language.
-
 module FQFnName =
   type T = RT.FQFnName.T
   type StdlibFnName = RT.FQFnName.StdlibFnName
@@ -72,6 +70,7 @@ module FQFnName =
 
 
 
+// Expressions - the main part of the language.
 type Expr =
   | EInteger of id * bigint
   | EBool of id * bool
@@ -106,11 +105,11 @@ type Expr =
     let eqList l1 l2 = List.length l1 = List.length l2 && List.forall2 eq l1 l2
 
     match this, other with
-    (* expressions with no values *)
+    // expressions with no values
     | ENull _, ENull _
     | EBlank _, EBlank _
     | EPipeTarget _, EPipeTarget _ -> true
-    (* expressions with single string values *)
+    // expressions with single string values
     | EString (_, v), EString (_, v')
     | ECharacter (_, v), ECharacter (_, v')
     | EVariable (_, v), EVariable (_, v') -> v = v'

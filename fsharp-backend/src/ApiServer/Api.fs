@@ -593,8 +593,9 @@ module ExecuteFunction =
 
       t "load-execution-state"
 
-      let! (result, tlids) =
-        Exe.executeFunction state body.caller_id args body.fnname
+      let fnname = body.fnname |> PT.FQFnName.parse
+
+      let! (result, tlids) = Exe.executeFunction state body.caller_id args fnname
 
       t "execute-function"
 
@@ -614,31 +615,6 @@ module ExecuteFunction =
       t "create-result"
       return result
     }
-
-
-// let execute_function
-//     (c : Canvas.canvas) ~execution_id ~tlid ~trace_id ~caller_id ~args fnname =
-//   Execution.execute_function
-//     ~tlid
-//     ~execution_id
-//     ~trace_id
-//     ~dbs:(TL.dbs c.dbs)
-//     ~user_fns:(c.user_functions |> IDMap.data)
-//     ~userTypes:(c.userTypes |> IDMap.data)
-//     ~package_fns:c.package_fns
-//     ~secrets:(Secret.secrets_in_canvas c.id)
-//     ~account_id:c.owner
-//     ~canvas_id:c.id
-//     ~caller_id
-//     ~args
-//     ~store_fn_arguments:
-//       (Stored_function_arguments.store ~canvas_id:c.id ~trace_id)
-//     ~store_fn_result:(Stored_function_result.store ~canvas_id:c.id ~trace_id)
-//     fnname
-//
-
-
-
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler

@@ -42,7 +42,7 @@ let testExecFunctionTLIDs : Test =
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor "test" Map.empty fns
 
-    let! (value, tlids) = Exe.executeFunction state (gid ()) [] name
+    let! (value, tlids) = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
 
     Expect.equal tlids [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5I) "sanity check"

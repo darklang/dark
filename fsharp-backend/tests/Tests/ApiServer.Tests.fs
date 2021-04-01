@@ -274,6 +274,23 @@ let testDBStats =
         ident
   }
 
+let testExecuteFunction =
+  testTask "execute_function behaves the same" {
+    let (body : Api.ExecuteFunction.Params) =
+      { tlid = gid ()
+        trace_id = System.Guid.NewGuid()
+        caller_id = gid ()
+        args = [ ORT.DInt 5L; ORT.DInt 6L ]
+        fnname = "Int::add" }
+
+    return!
+      postApiTestCases
+        "execute_function"
+        (serialize body)
+        (deserialize<Api.ExecuteFunction.T>)
+        ident
+  }
+
 let testWorkerStats =
   testTask "worker_stats is the same" {
     let! (o : HttpResponseMessage) =
@@ -352,6 +369,7 @@ let localOnlyTests =
         // testPostApi "worker_schedule" "" (deserialize<Api.DB.T>) ident
         testPostApi "all_traces" "" (deserialize<Api.Traces.AllTraces>) ident
         testGetTraceData
+        testExecuteFunction
         testInitialLoadReturnsTheSame ]
     else
       []
