@@ -1,0 +1,5 @@
+AWS.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A//google.com%3Fq%3Dleft%20shark%26l%3Den" // Test fails without a comment here
+AWS.urlencode_v0 "%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+AWS.urlencode_v0 "%%" = "" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+AWS.urlencode_v0 "%A" = "A" // Edge case bug(?) in OCaml implementation that F# needs to replicate
+AWS.urlencode_v0 "%AA" = "%AA"
