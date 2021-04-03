@@ -233,6 +233,8 @@ List.drop_v0 [3; 3; 3] 0 = [3; 3; 3]
 List.take_v0 ["a"; "b"; "c"; "d"] 3 = ["a"; "b"; "c"]
 List.take_v0 [5; 4; 3; 2; 1]  5 = [5; 4; 3; 2; 1]
 List.take_v0 [3; 3; 3] 0 = []
+List.take_v0 [5] 4 = [5]
+List.take_v0 ["a"; "b"; "c"; "d"] -1 = []
 
 List.getAt_v1 [1;2;3;4] 0 = Just 1
 List.getAt_v1 [0] 1 = Nothing
