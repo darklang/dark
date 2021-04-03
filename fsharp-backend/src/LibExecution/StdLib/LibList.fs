@@ -1097,7 +1097,7 @@ let fns : List<BuiltInFn> =
       parameters = [Param.make "list" (TList varA) ""; Param.make "index" TInt ""]
       returnType = TOption varA
       description =
-      "Returns `Just value` at `index` in `list` if `index` is less than the length of the list otherwise returns `Nothing`."
+        "Returns `Just value` at `index` in `list` if `index` is less than the length of the list otherwise returns `Nothing`."
       fn =
         (function
         | _, [ DList l; DInt index ] -> (List.tryItem (int index) l) |> Dval.option |> Value
