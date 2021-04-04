@@ -41,6 +41,8 @@ List.foreach_v0 [Test.typeError_v0 "test"] (fun x -> x) = [Test.typeError_v0 "te
 
 List.getAt_v0 [1;2;3;4] 0 = Just 1
 List.getAt_v0 [1;2;3;4] 4 = Nothing
+List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
+List.getAt_v0 [3; 3; 3] -5 = Nothing
 
 //List.indexedMap_v0 [3;2;1] (fun i v -> v - i) = [ 3, 1, -1 ]
 //List.indexedMap_v0 [] (fun i v -> v - i) = []
@@ -244,3 +246,5 @@ List.take_v0 ["a"; "b"; "c"; "d"] -1 = []
 
 List.getAt_v1 [1;2;3;4] 0 = Just 1
 List.getAt_v1 [0] 1 = Nothing
+List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
+List.getAt_v1 [3; 3; 3] -5 = Nothing

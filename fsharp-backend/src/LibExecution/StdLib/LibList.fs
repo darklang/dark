@@ -1103,10 +1103,7 @@ let fns : List<BuiltInFn> =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
       fn =
         (function
-        | _, [ DList l; DInt index ] ->
-            (match List.tryItem (int index) l with
-             | Some d -> Value(Dval.optionJust d)
-             | None -> Value(DOption None))
+        | _, [ DList l; DInt index ] -> Value(DOption(List.tryItem (int index) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
