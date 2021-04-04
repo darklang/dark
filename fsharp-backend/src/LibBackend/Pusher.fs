@@ -8,12 +8,19 @@ open Tablecloth
 
 let mutable initialized = false
 
+// PusherClient has own internal serializer which matches this interface.
+type Serializer() =
+  interface PusherServer.ISerializeObjectsToJson with
+    member this.Serialize(x : obj) : string = Json.OCamlCompatible.serialize x
+
+
 let pusherClient : Lazy<PusherServer.Pusher> =
   lazy
     ((fun () ->
       printfn "Configuring rollbar"
       let options = PusherServer.PusherOptions()
       options.Cluster <- Config.pusherCluster
+      options.set_JsonSerializer (Serializer())
 
       let client =
         PusherServer.Pusher(
@@ -29,7 +36,7 @@ let pusherClient : Lazy<PusherServer.Pusher> =
 
 // Send an event to pusher. Note: this is fired in the backgroup, and does not
 // take any time from the current thread. You cannot wait for it, by design.
-let push (canvasID : CanvasID) (eventName : string) (payload : string) : unit =
+let push (canvasID : CanvasID) (eventName : string) (payload : 'x) : unit =
   let client = Lazy.force pusherClient
   assert initialized
 
@@ -37,9 +44,10 @@ let push (canvasID : CanvasID) (eventName : string) (payload : string) : unit =
     task {
       try
         printfn $"Sending push to Pusher {eventName}: {canvasID}"
+        let channel = $"canvas_{canvasID}"
 
         let! (_ : PusherServer.ITriggerResult) =
-          client.TriggerAsync(toString canvasID, eventName, payload)
+          client.TriggerAsync(channel, eventName, payload)
 
         return ()
       with e ->
@@ -90,8 +98,7 @@ let push (canvasID : CanvasID) (eventName : string) (payload : string) : unit =
 //   push ~execution_id ~canvas_id ~event payload
 
 let pushWorkerStates (canvasID : CanvasID) (ws : EventQueue.WorkerStates.T) : unit =
-  let payload = Json.OCamlCompatible.serialize ws
-  push canvasID "worker_state" payload
+  push canvasID "worker_state" ws
 
 type JsConfig = { enabled : bool; key : string; cluster : string }
 
