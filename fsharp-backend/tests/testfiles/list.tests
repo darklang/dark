@@ -227,6 +227,8 @@ List.repeat_v0 5 "a" = ["a"; "a"; "a"; "a"; "a"]
 List.repeat_v0 0 1 = []
 List.repeat_v0 -1 "a" = Test.typeError_v0 "Expected the argument `t` to be positive, but it was `-1`" // FSHARPONLY
 // List.repeat_v0 -1 "a" = test throws an uncaught exception (Bad status: Internal Server Error - Dark Internal Error..) in the ocaml implementation
+List.repeat_v0 -4 5 = Test.typeError_v0 "Expected the argument `t` to be positive, but it was `-4`" // FSHARPONLY
+// List.repeat_v0 -4 5 = test throws an uncaught exception (Bad status: Internal Server Error - Dark Internal Error..) in the ocaml implementation
 
 List.drop_v0 ["a"; "b"; "c"; "d"] 3 = ["d"]
 List.drop_v0 [5; 4; 3; 2; 1]  5 = []

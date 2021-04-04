@@ -249,10 +249,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [DInt t; v] ->
-            (try
-                (List.replicate (int t) v) |> DList |> Value
-             with e ->
-               err ( Errors.argumentWasnt "positive" "t" (DInt t)))
+              if (int t) < 0 then
+                err (Errors.argumentWasnt "positive" "t" (DInt t))
+              else
+                List.replicate (int t) v |> DList |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
