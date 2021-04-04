@@ -15,24 +15,23 @@ type Serializer() =
 
 
 let pusherClient : Lazy<PusherServer.Pusher> =
-  lazy
-    ((fun () ->
-      printfn "Configuring rollbar"
-      let options = PusherServer.PusherOptions()
-      options.Cluster <- Config.pusherCluster
-      options.set_JsonSerializer (Serializer())
+  let create () : PusherServer.Pusher =
+    let options = PusherServer.PusherOptions()
+    options.Cluster <- Config.pusherCluster
+    options.set_JsonSerializer (Serializer())
 
-      let client =
-        PusherServer.Pusher(
-          Config.pusherID,
-          Config.pusherKey,
-          Config.pusherSecret,
-          options
-        )
+    let client =
+      PusherServer.Pusher(
+        Config.pusherID,
+        Config.pusherKey,
+        Config.pusherSecret,
+        options
+      )
 
-      initialized <- true
-      client)
-       ()) // this awkward pattern is to prevent fantomas from breaking the code
+    initialized <- true
+    client
+
+  lazy (create ())
 
 // Send an event to pusher. Note: this is fired in the backgroup, and does not
 // take any time from the current thread. You cannot wait for it, by design.
