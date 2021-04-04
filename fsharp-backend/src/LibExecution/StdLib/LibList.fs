@@ -745,13 +745,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [DList l; DInt c] ->
-            if int c > 0 then
-              if int c < List.length l then
-                Value(DList(List.skip (int c) l))
-              else
-                Value(DList [])
+            if (int c) < 0 then
+              Value(DList l)
+            elif int c > List.length l then
+              Value(DList [])
             else
-                Value(DList l)
+              Value(DList(List.skip (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
