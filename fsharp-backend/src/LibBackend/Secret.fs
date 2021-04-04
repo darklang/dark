@@ -26,12 +26,12 @@ let getCanvasSecrets (canvasID : CanvasID) : Task<List<Secret>> =
        (fun read ->
          { name = read.string "secret_name"; value = read.string "secret_value" })
 
-// let insert (canvasID : CanvasID) (name : string) (value : string) : unit
-//     =
-//   Db.run
-//     "INSERT INTO secrets
-//     (canvas_id, secret_name, secret_value)
-//     VALUES ($1, $2, $3)"
-//     ~params:[Uuid canvas_id; String name; String value]
-//     ~name:"insert secret for canvas"
-//
+let insert (canvasID : CanvasID) (name : string) (value : string) : Task<unit> =
+  Sql.query
+    "INSERT INTO secrets
+    (canvas_id, secret_name, secret_value)
+    VALUES (@canvasID, @secretName, @secretValue)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "secretName", Sql.string name
+                      "secretValue", Sql.string value ]
+  |> Sql.executeStatementAsync

@@ -18,18 +18,50 @@ module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
-// type insert_secret_params = RuntimeT.secret
-//
-// type secrets_list_results = {secrets : RuntimeT.secret list}
+module Auth = LibBackend.Authorization
+
+type Secret = { secret_name : string; secret_value : string }
+
+type Params = Secret
+
+type T = { secrets : List<Secret> }
+
+let insertSecret (ctx : HttpContext) : Task<T> =
+  task {
+    try
+      let t = Middleware.startTimer ctx
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! p = ctx.BindModelAsync<Params>()
+      t "read-api"
+
+      do! LibBackend.Secret.insert canvasInfo.id p.secret_name p.secret_value
+      t "insert-secret"
+
+      let! secrets = LibBackend.Secret.getCanvasSecrets canvasInfo.id
+      t "get-secrets"
+
+      return
+        { secrets =
+            List.map
+              (fun (s : LibBackend.Secret.Secret) ->
+                { secret_name = s.name; secret_value = s.value })
+              secrets }
+
+    with e ->
+      let msg = e.ToString()
+
+      if String.includes "duplicate key value violates unique constraint" msg then
+        failwith "The secret's name is already defined for this canvas"
+      else
+        raise e
+
+      return { secrets = [] }
+  }
+
 
 
 let endpoints : Endpoint list =
   let h = Middleware.apiHandler
   let oh = Middleware.apiOptionHandler
 
-  [ POST [] ]
-// routef "/api/%s/execute_function" (h ExecuteFunction.execute Auth.Read)
-// | `POST, ["api"; canvas; "insert_secret"] ->
-//     when_can_edit ~canvas (fun _ ->
-//         wrap_editor_api_headers
-//           (insert_secret ~execution_id parent canvas body))
+  [ POST [ routef "/api/%s/insert_secret" (h insertSecret Auth.ReadWrite) ] ]
