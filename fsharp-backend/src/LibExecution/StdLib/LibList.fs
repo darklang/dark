@@ -11,6 +11,8 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
+let err (str : string) = Value(Dval.errStr str)
+
 let varA = TVariable "a"
 let varB = TVariable "b"
 
@@ -246,7 +248,11 @@ let fns : List<BuiltInFn> =
       description = "Returns a new list containing `val` repeated `times` times."
       fn =
         (function
-        | _, [DInt t; v] ->  Value(DList(List.replicate (int t) v))
+        | _, [DInt t; v] ->
+            (try
+                (List.replicate (int t) v) |> DList |> Value
+             with e ->
+               err ( Errors.argumentWasnt "positive" "t" (DInt t)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
