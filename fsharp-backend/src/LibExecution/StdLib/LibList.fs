@@ -807,13 +807,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [DList l; DInt c] ->
-              if int c > 0 then
-                if int c < List.length l then
-                  Value(DList(List.take (int c) l))
-                else
-                  Value(DList l)
+              if int c < 0 then
+                Value(DList [])
+              elif int c > List.length l then
+                Value(DList l)
               else
-                  Value(DList [])
+                Value(DList(List.take (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
