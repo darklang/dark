@@ -39,8 +39,10 @@ List.foreach_v0 [Test.typeError_v0 "test"] (fun x -> x) = [Test.typeError_v0 "te
 //List.flatten_v0 [[]] = []
 //List.flatten_v0 [] = []
 
-//List.getAt_v0 [1;2;3;4] 0 = Just 1
-//List.getAt_v0 [1;2;3;4] 4 = Nothing
+List.getAt_v0 [1;2;3;4] 0 = Just 1
+List.getAt_v0 [1;2;3;4] 4 = Nothing
+List.getAt_v0 ["a"; "b"; "c"; "d"] -1 = Nothing
+List.getAt_v0 [3; 3; 3] -5 = Nothing
 
 //List.indexedMap_v0 [3;2;1] (fun i v -> v - i) = [ 3, 1, -1 ]
 //List.indexedMap_v0 [] (fun i v -> v - i) = []
@@ -221,3 +223,28 @@ List.fold_v0 ["a"; "b"; "c"; "d"] "x" (fun accum curr -> accum ++ curr) = "xabcd
 
 List.reverse_v0 [5; 4; 3; 2; 1] = [1;2;3;4;5]
 List.reverse_v0 ["a"; "b"; "c"; "d"] = ["d";"c";"b";"a"]
+
+List.repeat_v0 3 3 = [3; 3; 3]
+List.repeat_v0 5 "a" = ["a"; "a"; "a"; "a"; "a"]
+List.repeat_v0 0 1 = []
+List.repeat_v0 -1 "a" = Test.typeError_v0 "Expected the argument `t` to be positive, but it was `-1`" // FSHARPONLY
+// List.repeat_v0 -1 "a" = test throws an uncaught exception (Bad status: Internal Server Error - Dark Internal Error..) in the ocaml implementation
+List.repeat_v0 -4 5 = Test.typeError_v0 "Expected the argument `t` to be positive, but it was `-4`" // FSHARPONLY
+// List.repeat_v0 -4 5 = test throws an uncaught exception (Bad status: Internal Server Error - Dark Internal Error..) in the ocaml implementation
+
+List.drop_v0 ["a"; "b"; "c"; "d"] 3 = ["d"]
+List.drop_v0 [5; 4; 3; 2; 1]  5 = []
+List.drop_v0 [3; 3; 3] 0 = [3; 3; 3]
+List.drop_v0 [5] 4 = []
+List.drop_v0 ["a"; "b"; "c"; "d"] -3 = ["a"; "b"; "c"; "d"]
+
+List.take_v0 ["a"; "b"; "c"; "d"] 3 = ["a"; "b"; "c"]
+List.take_v0 [5; 4; 3; 2; 1]  5 = [5; 4; 3; 2; 1]
+List.take_v0 [3; 3; 3] 0 = []
+List.take_v0 [5] 4 = [5]
+List.take_v0 ["a"; "b"; "c"; "d"] -1 = []
+
+List.getAt_v1 [1;2;3;4] 0 = Just 1
+List.getAt_v1 [0] 1 = Nothing
+List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
+List.getAt_v1 [3; 3; 3] -5 = Nothing
