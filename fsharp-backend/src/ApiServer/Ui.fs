@@ -90,7 +90,7 @@ let uiHtml
     .Replace("{{STATIC}}", staticHost)
     .Replace("{{HEAPIO_ID}}", Config.heapioId)
     .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
-    .Replace("{{PUSHERCONFIG}}", Config.pusherJs)
+    .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
     .Replace("{{USER_CONTENT_HOST}}", Config.userContentHost)
     .Replace("{{USER_USERNAME}}", user.username.ToString())
     .Replace("{{USER_EMAIL}}", user.email)

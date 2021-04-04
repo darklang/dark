@@ -9,17 +9,15 @@ let rollbarServerAccessToken =
   string "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
 
 
-let rollbarUrl = "https://api.rollbar.com/api/1/item/"
-
 let rollbarEnabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
 
 let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 
 let healthCheckPort = int "DARK_CONFIG_HEALTH_CHECK_PORT"
 
-(* -------------------- *)
-(* db *)
-(* -------------------- *)
+// --------------------
+// db
+// --------------------
 
 type PostgresConfig =
   { host : string
