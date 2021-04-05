@@ -325,12 +325,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] ->
-          let f a b =
-            match (a, b) with
-            | DList a, DList b -> DList (List.append a b)
+          let f acc i =
+            match i with
+            | DList l -> List.append acc l
             | _ -> Errors.throw "Flattening non-lists"
           in
-          Value(List.fold f (DList []) l)
+          List.fold f [] l |> DList |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
