@@ -1,0 +1,11 @@
+Char.toASCIICode "a" = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
+Char.toASCIICode "a" = Test.typeError_v0 "Char::toASCIICode was removed from Dark" // FSHARPONLY
+
+Char.toASCIIChar 1 = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
+Char.toASCIIChar 1 = Test.typeError_v0 "Char::toASCIIChar was removed from Dark" // FSHARPONLY
+
+Char.toLowercase "A" = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
+Char.toLowercase "A" = Test.typeError_v0 "Char::toLowercase was removed from Dark" // FSHARPONLY
+
+Char.toUppercase "A" = Test.typeError_v0 "This function no longer exists." // OCAMLONLY
+Char.toUppercase "A" = Test.typeError_v0 "Char::toUppercase was removed from Dark" // FSHARPONLY
