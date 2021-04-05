@@ -318,27 +318,23 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "flatten" 0
-//     ; parameters = [Param.make "list" TList ""]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
-//     ; fn =
-//           (function
-//           | _, [DList l] ->
-//               let f a b =
-//                 match (a, b) with
-//                 | DList a, DList b ->
-//                     DList (List.append a b)
-//                 | _ ->
-//                     RT.error (DList [a; b]) "Flattening non-lists"
-//               in
-//               List.fold (DList []) ~f l
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "flatten" 0
+      parameters = [Param.make "list" (TList (TList varA)) ""]
+      returnType = TList varA
+      description = "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
+      fn =
+        (function
+        | _, [ DList l ] ->
+          let f acc i =
+            match i with
+            | DList l -> List.append acc l
+            | _ -> Errors.throw "Flattening non-lists"
+          in
+          List.fold f [] l |> DList |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "interpose" 0
 //     ; parameters = [Param.make "list" TList ""; Param.make "sep" varA ""]
 //     ; returnType = TList
