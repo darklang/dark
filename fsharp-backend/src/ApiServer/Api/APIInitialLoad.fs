@@ -143,8 +143,3 @@ let initialLoad (ctx : HttpContext) : Task<T> =
     t "buildResultObj"
     return result
   }
-
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
-
-  [ POST [ routef "/api/%s/initial_load" (h initialLoad Auth.Read) ] ]

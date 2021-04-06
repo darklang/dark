@@ -17,9 +17,7 @@ module RT = LibExecution.RuntimeTypes
 module OT = LibBackend.OCamlInterop.OCamlTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
-module Auth = LibBackend.Authorization
-
-module Packages =
+module List =
   type T = List<OT.PackageManager.fn>
 
   let packages (ctx : HttpContext) : Task<T> =
@@ -32,10 +30,7 @@ module Packages =
       return result
     }
 
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
 
-  [ POST [ routef "/api/%s/packages" (h Packages.packages Auth.Read) ] ]
 
 // | `POST, ["api"; canvas; "packages"; "upload_function"] when user.admin ->
 //     when_can_edit ~canvas (fun _ ->

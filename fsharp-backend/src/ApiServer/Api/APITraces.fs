@@ -17,7 +17,6 @@ module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 
 module Traces = LibBackend.Traces
-module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
 module Convert = LibBackend.OCamlInterop.Convert
 
@@ -131,10 +130,3 @@ module AllTraces =
 
       return { traces = hTraces @ ufTraces }
     }
-
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
-  let oh = Middleware.apiOptionHandler
-
-  [ POST [ routef "/api/%s/get_trace_data" (oh TraceData.getTraceData Auth.Read)
-           routef "/api/%s/all_traces" (h AllTraces.fetchAllTraces Auth.Read) ] ]

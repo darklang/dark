@@ -19,7 +19,6 @@ module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
 module Stats = LibBackend.Stats
-module Auth = LibBackend.Authorization
 module EQ = LibBackend.EventQueue
 
 module WorkerStats =
@@ -67,12 +66,3 @@ module Scheduler =
 
       return ws
     }
-
-
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
-
-  [ POST [ routef "/api/%s/get_worker_stats" (h WorkerStats.getStats Auth.Read)
-           routef
-             "/api/%s/worker_schedule"
-             (h Scheduler.updateSchedule Auth.ReadWrite) ] ]

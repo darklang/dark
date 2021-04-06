@@ -18,10 +18,7 @@ module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
-module Account = LibBackend.Account
 module Stats = LibBackend.Stats
-module Traces = LibBackend.Traces
-module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
 module RT = LibExecution.RuntimeTypes
 module TI = LibBackend.TraceInputs
@@ -29,7 +26,7 @@ module TI = LibBackend.TraceInputs
 module Unlocked =
   type T = { unlocked_dbs : tlid list }
 
-  let getUnlockedDBs (ctx : HttpContext) : Task<T> =
+  let get (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
@@ -70,9 +67,3 @@ module DBStats =
 
       return result
     }
-
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
-
-  [ POST [ routef "/api/%s/get_unlocked_dbs" (h Unlocked.getUnlockedDBs Auth.Read)
-           routef "/api/%s/get_db_stats" (h DBStats.getStats Auth.Read) ] ]

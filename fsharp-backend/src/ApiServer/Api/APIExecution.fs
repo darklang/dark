@@ -4,10 +4,10 @@ module ApiServer.Execution
 
 open Microsoft.AspNetCore.Http
 open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
 open Prelude
 open Tablecloth
 
@@ -19,14 +19,11 @@ module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
 module Canvas = LibBackend.Canvas
-module Auth = LibBackend.Authorization
 module RealExe = LibBackend.RealExecution
 module Exe = LibExecution.Execution
-module TraceFunctionArguments = LibBackend.TraceFunctionArguments
-module TraceFunctionResults = LibBackend.TraceFunctionResults
 module DvalRepr = LibExecution.DvalRepr
 
-module ExecuteFunction =
+module Function =
   type Params =
     { tlid : tlid
       trace_id : AT.TraceID
@@ -80,7 +77,7 @@ module ExecuteFunction =
       return result
     }
 
-module TriggerHandler =
+module Handler =
   type Params =
     { tlid : tlid
       trace_id : AT.TraceID
@@ -122,16 +119,6 @@ module TriggerHandler =
 
       return result
     }
-
-
-
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
-
-  [ POST [ routef
-             "/api/%s/execute_function"
-             (h ExecuteFunction.execute Auth.ReadWrite)
-           routef "/api/%s/trigger_handler" (h TriggerHandler.trigger Auth.ReadWrite) ] ]
 
 // type trigger_handler_rpc_result = {touched_tlids : tlid list}
 //

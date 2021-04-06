@@ -279,7 +279,7 @@ let testDBStats =
 
 let testExecuteFunction =
   testTask "execute_function behaves the same" {
-    let (body : Execution.ExecuteFunction.Params) =
+    let (body : Execution.Function.Params) =
       { tlid = gid ()
         trace_id = System.Guid.NewGuid()
         caller_id = gid ()
@@ -290,7 +290,7 @@ let testExecuteFunction =
       postApiTestCases
         "execute_function"
         (serialize body)
-        (deserialize<Execution.ExecuteFunction.T>)
+        (deserialize<Execution.Function.T>)
         ident
   }
 
@@ -364,7 +364,7 @@ let localOnlyTests =
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
       [ testFunctionsReturnsTheSame
-        testPostApi "packages" "" (deserialize<Packages.Packages.T>) ident
+        testPostApi "packages" "" (deserialize<Packages.List.T>) ident
         testPostApi "get_404s" "" (deserialize<F404s.Get404s.T>) ident
         testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
         testDBStats

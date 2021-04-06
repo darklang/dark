@@ -4,7 +4,6 @@ open System
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
-open Microsoft.AspNetCore.Mvc.NewtonsoftJson
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
 open Microsoft.AspNetCore.Http
@@ -12,9 +11,7 @@ open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Giraffe.EndpointRouting
 
-open Lib.AspNetCore.ServerTiming
-
-open FSharpPlus
+module Auth = LibBackend.Authorization
 
 open Prelude
 open Tablecloth
@@ -25,17 +22,39 @@ module Config = LibBackend.Config
 // Handlers
 // --------------------
 let endpoints : Endpoint list =
-  List.concat [ Login.endpoints
-                Ui.endpoints
-                AddOps.endpoints
-                DBs.endpoints
-                Execution.endpoints
-                F404s.endpoints
-                InitialLoad.endpoints
-                Packages.endpoints
-                Secrets.endpoints
-                Traces.endpoints
-                Workers.endpoints ]
+  let h = Middleware.apiHandler
+  let oh = Middleware.apiOptionHandler
+
+  let R = Auth.Read
+  let RW = Auth.ReadWrite
+
+  let api (name : string) fn =
+    routef (PrintfFormat<_, _, _, _, _>("/api/%s/" + name)) fn
+
+  [ GET [ route "/login" Login.loginPage
+          route "/logout" Login.logout
+          routef "/a/%s" (Middleware.canvasHtmlHandler Ui.uiHandler R) ]
+
+    POST [ route "/login" Login.loginHandler
+           route "/logout" Login.logout
+           api "get_unlocked_dbs" (h DBs.Unlocked.get R)
+           api "get_db_stats" (h DBs.DBStats.getStats R)
+           api "execute_function" (h Execution.Function.execute RW)
+           api "trigger_handler" (h Execution.Handler.trigger RW)
+           api "get_404s" (h F404s.Get404s.get404s R)
+           api "initial_load" (h InitialLoad.initialLoad R)
+           api "packages" (h Packages.List.packages R)
+           api "insert_secret" (h Secrets.insertSecret RW)
+           api "get_trace_data" (oh Traces.TraceData.getTraceData R)
+           api "all_traces" (h Traces.AllTraces.fetchAllTraces R)
+           api "get_worker_stats" (h Workers.WorkerStats.getStats R)
+           api "worker_schedule" (h Workers.Scheduler.updateSchedule RW) ] ]
+
+// TODO AddOps.endpoints
+// | `POST, ["api"; canvas; "delete_404"] ->
+//     when_can_edit ~canvas (fun _ ->
+//         wrap_editor_api_headers (delete_404 ~execution_id parent canvas body))
+
 
 // --------------------
 // Standard handlers

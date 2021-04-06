@@ -33,7 +33,6 @@ let endpoints : Endpoint list =
   let oh = Middleware.apiOptionHandler
 
   [ POST [] ]
-// routef "/api/%s/packages" (h Packages.packages Auth.Read)
 // | `POST, ["api"; canvas; "add_op"] ->
 //     when_can_edit ~canvas (fun _ ->
 //         wrap_editor_api_headers

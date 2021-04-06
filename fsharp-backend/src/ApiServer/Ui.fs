@@ -1,9 +1,7 @@
 module ApiServer.Ui
 
-open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Http
 open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -14,7 +12,6 @@ open Tablecloth
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
-module Auth = LibBackend.Authorization
 
 let adminUiTemplate : Lazy<string> =
   lazy (LibBackend.File.readfile Config.Templates "ui.html")
@@ -134,6 +131,3 @@ let uiHandler (ctx : HttpContext) : Task<string> =
         createdAt
         user
   }
-
-let endpoints : Endpoint list =
-  [ GET [ routef "/a/%s" (Middleware.canvasHtmlHandler uiHandler Auth.Read) ] ]

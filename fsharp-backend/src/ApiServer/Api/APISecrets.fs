@@ -4,7 +4,6 @@ module ApiServer.Secrets
 
 open Microsoft.AspNetCore.Http
 open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -17,8 +16,6 @@ module OT = LibBackend.OCamlInterop.OCamlTypes
 module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 module Convert = LibBackend.OCamlInterop.Convert
-
-module Auth = LibBackend.Authorization
 
 type Secret = { secret_name : string; secret_value : string }
 
@@ -57,11 +54,3 @@ let insertSecret (ctx : HttpContext) : Task<T> =
 
       return { secrets = [] }
   }
-
-
-
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
-  let oh = Middleware.apiOptionHandler
-
-  [ POST [ routef "/api/%s/insert_secret" (h insertSecret Auth.ReadWrite) ] ]
