@@ -30,10 +30,10 @@ module WorkerStats =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! args = ctx.BindModelAsync<Params>()
+      let! p = ctx.BindModelAsync<Params>()
       t "read-api"
 
-      let! result = Stats.workerStats canvasInfo.id args.tlid
+      let! result = Stats.workerStats canvasInfo.id p.tlid
       t "analyse-worker-stats"
 
       return { count = result }
@@ -47,12 +47,12 @@ module Scheduler =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! args = ctx.BindModelAsync<Params>()
+      let! p = ctx.BindModelAsync<Params>()
       t "read-api"
 
-      match args.schedule with
-      | "pause" -> do! EQ.pauseWorker canvasInfo.id args.name
-      | "run" -> do! EQ.unpauseWorker canvasInfo.id args.name
+      match p.schedule with
+      | "pause" -> do! EQ.pauseWorker canvasInfo.id p.name
+      | "run" -> do! EQ.unpauseWorker canvasInfo.id p.name
       | _ -> failwith "Invalid schedule"
 
       t "schedule-worker"
@@ -63,6 +63,7 @@ module Scheduler =
       // CLEANUP: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
       LibBackend.Pusher.pushWorkerStates canvasInfo.id ws
+      t "update-pusher"
 
       return ws
     }

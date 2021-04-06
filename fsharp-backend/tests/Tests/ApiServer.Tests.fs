@@ -365,7 +365,7 @@ let localOnlyTests =
       // compiled/available to be run either.
       [ testFunctionsReturnsTheSame
         testPostApi "packages" "" (deserialize<Packages.List.T>) ident
-        testPostApi "get_404s" "" (deserialize<F404s.Get404s.T>) ident
+        testPostApi "get_404s" "" (deserialize<F404s.List.T>) ident
         testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
         testDBStats
         testWorkerStats

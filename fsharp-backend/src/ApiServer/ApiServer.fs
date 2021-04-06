@@ -41,19 +41,17 @@ let endpoints : Endpoint list =
            api "get_db_stats" (h DBs.DBStats.getStats R)
            api "execute_function" (h Execution.Function.execute RW)
            api "trigger_handler" (h Execution.Handler.trigger RW)
-           api "get_404s" (h F404s.Get404s.get404s R)
+           api "get_404s" (h F404s.List.get R)
+           api "delete_404" (h F404s.Delete.delete RW)
            api "initial_load" (h InitialLoad.initialLoad R)
            api "packages" (h Packages.List.packages R)
            api "insert_secret" (h Secrets.insertSecret RW)
            api "get_trace_data" (oh Traces.TraceData.getTraceData R)
-           api "all_traces" (h Traces.AllTraces.fetchAllTraces R)
+           api "all_traces" (h Traces.AllTraces.fetchAll R)
            api "get_worker_stats" (h Workers.WorkerStats.getStats R)
            api "worker_schedule" (h Workers.Scheduler.updateSchedule RW) ] ]
 
 // TODO AddOps.endpoints
-// | `POST, ["api"; canvas; "delete_404"] ->
-//     when_can_edit ~canvas (fun _ ->
-//         wrap_editor_api_headers (delete_404 ~execution_id parent canvas body))
 
 
 // --------------------

@@ -44,28 +44,28 @@ module TraceData =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      t "loadCanvasInfo"
-
-      let! args = ctx.BindModelAsync<Params>()
-      t "readBody"
+      let! p = ctx.BindModelAsync<Params>()
+      t "read-api"
 
       let! (c : Canvas.T) =
-        Canvas.loadTLIDsFromCache canvasInfo [ args.tlid ]
+        Canvas.loadTLIDsFromCache canvasInfo [ p.tlid ]
         |> Task.map Result.unwrapUnsafe
 
-      t "loadCanvas"
+      t "load-canvas"
 
       // TODO: we dont need the handlers or functions at all here, just for the sample
       // values which we can do on the client instead
-      let handler = c.handlers |> Map.get args.tlid
+      let handler = c.handlers |> Map.get p.tlid
 
       let! trace =
         match handler with
-        | Some h -> Traces.handlerTrace c.meta.id args.trace_id h |> Task.map Some
+        | Some h -> Traces.handlerTrace c.meta.id p.trace_id h |> Task.map Some
         | None ->
-            match c.userFunctions |> Map.get args.tlid with
-            | Some u -> Traces.userfnTrace c.meta.id args.trace_id u |> Task.map Some
+            match c.userFunctions |> Map.get p.tlid with
+            | Some u -> Traces.userfnTrace c.meta.id p.trace_id u |> Task.map Some
             | None -> task { return None }
+
+      t "load-trace"
 
       // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
       let (trace : Option<Trace>) =
@@ -86,7 +86,7 @@ module TraceData =
             )
         | None -> None
 
-      t "loadTraces"
+      t "write-api"
       return Option.map (fun t -> { trace = t }) trace
     }
 
@@ -94,15 +94,16 @@ module AllTraces =
 
   type T = { traces : List<tlid * AT.TraceID> }
 
-  let fetchAllTraces (ctx : HttpContext) : Task<T> =
+  let fetchAll (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
+      t "read-api"
 
-      // FSTODO we only need the HTTP handler paths here, so we can remove the loadAll
-      // FSTODO don't load traces for deleted handlers
+      // CLEANUP we only need the HTTP handler paths here, so we can remove the loadAll
+      // CLEANUP don't load traces for deleted handlers
       let! (c : Canvas.T) = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
-      t "loadCanvas"
+      t "load-canvas"
 
       let! hTraces =
         c.handlers
@@ -114,7 +115,7 @@ module AllTraces =
         |> Task.flatten
         |> Task.map List.concat
 
-      t "fetchHandlerTraces"
+      t "fetch-handler-traces"
 
       let! ufTraces =
         c.userFunctions
@@ -126,7 +127,7 @@ module AllTraces =
         |> Task.flatten
         |> Task.map List.concat
 
-      t "fetchUserFnTraces"
+      t "fetch-userfn-traces"
 
       return { traces = hTraces @ ufTraces }
     }

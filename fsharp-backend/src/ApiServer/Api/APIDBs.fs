@@ -46,13 +46,14 @@ module DBStats =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      let! args = ctx.BindModelAsync<Params>()
-      t "readApiTLIDs"
+      let! p = ctx.BindModelAsync<Params>()
+      t "read-api"
 
       let! c = Canvas.loadAllDBs canvasInfo |> Task.map Result.unwrapUnsafe
-      t "loadSavedOps"
+      t "load-canvas"
 
-      let! result = Stats.dbStats c args.tlids
+      let! result = Stats.dbStats c p.tlids
+      t "load-db-stats"
 
       // CLEANUP, this is shimming an RT.Dval into an ORT.dval. Nightmare.
       let (result : T) =
@@ -63,7 +64,7 @@ module DBStats =
                 Option.map (fun (dv, s) -> (Convert.rt2ocamlDval dv, s)) s.example })
           result
 
-      t "analyse-db-stats"
+      t "write-api"
 
       return result
     }

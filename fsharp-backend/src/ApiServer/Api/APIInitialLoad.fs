@@ -70,42 +70,41 @@ let initialLoad (ctx : HttpContext) : Task<T> =
     let user = Middleware.loadUserInfo ctx
     let canvasInfo = Middleware.loadCanvasInfo ctx
     let permission = Middleware.loadPermission ctx
-    t "loadMiddleware"
+    t "read-api"
 
     let! canvas = Canvas.loadAll canvasInfo |> Task.map Result.unwrapUnsafe
-    t "loadCanvas"
+    t "load-canvas"
 
     let! creationDate = Canvas.canvasCreationDate canvasInfo.id
-    t "loadCanvasCreationData"
-
+    t "load-canvas-creation-data"
 
     let! opCtrs =
       Sql.query "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = @canvasID"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasInfo.id ]
       |> Sql.executeAsync (fun read -> (read.uuid "browser_id", read.int "ctr"))
 
-    t "loadOpCtrs"
+    t "load-op-ctrs"
 
     let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
-    t "getUnlocked"
+    t "get-unlocked-dbs"
 
     let! staticAssets = SA.allDeploysInCanvas canvasInfo.name canvasInfo.id
-    t "getStaticAssets"
+    t "get-static-assets"
 
     let! canvasList = Account.ownedCanvases user.id
-    t "getCanvasList"
+    t "get-canvas-list"
 
     let! orgCanvasList = Account.accessibleCanvases user.id
-    t "getOrgCanvasList"
+    t "get-org-canvas-list"
 
     let! orgList = Account.orgs user.id
-    t "getOrgList"
+    t "get-org-list"
 
     let! workerSchedules = LibBackend.EventQueue.getWorkerSchedules canvas.meta.id
-    t "getWorkerSchedules"
+    t "get-worker-schedules"
 
     let! secrets = LibBackend.Secret.getCanvasSecrets canvas.meta.id
-    t "getSecrets"
+    t "get-secrets"
 
     let ocamlToplevels = canvas |> Canvas.toplevels |> Convert.pt2ocamlToplevels
 
@@ -140,6 +139,6 @@ let initialLoad (ctx : HttpContext) : Task<T> =
               { secret_name = s.name; secret_value = s.value })
             secrets }
 
-    t "buildResultObj"
+    t "write-api"
     return result
   }

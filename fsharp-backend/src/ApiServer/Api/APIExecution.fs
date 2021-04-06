@@ -44,7 +44,7 @@ module Function =
       let canvasInfo = Middleware.loadCanvasInfo ctx
       let! p = ctx.BindModelAsync<Params>()
       let args = List.map Convert.ocamlDval2rt p.args
-      t "load-api"
+      t "read-api"
 
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
       let c = Result.unwrapUnsafe c
@@ -73,7 +73,7 @@ module Function =
           touched_tlids = HashSet.toList touchedTLIDs
           unlocked_dbs = unlocked }
 
-      t "create-result"
+      t "write-api"
       return result
     }
 
@@ -96,7 +96,7 @@ module Handler =
         |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
         |> Map.ofList
 
-      t "load-api"
+      t "read-api"
 
       let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
       let c = Result.unwrapUnsafe c
@@ -111,19 +111,11 @@ module Handler =
 
       // since this ignores the result, it doesn't go through the error rail
       // handling function. This might not matter
-      let! _result = Exe.executeHttpHandler state inputVars expr
+      let! (_result : RT.Dval) = Exe.executeHttpHandler state inputVars expr
       t "execute-handler"
 
       let result = { touched_tlids = HashSet.toList touchedTLIDs }
-      t "create-result"
+      t "write-api"
 
       return result
     }
-
-// type trigger_handler_rpc_result = {touched_tlids : tlid list}
-//
-// let to_trigger_handler_rpc_result touched_tlids : string =
-//   {touched_tlids}
-//   |> trigger_handler_rpc_result_to_yojson
-//   |> Yojson.Safe.to_string ~std:true
-//

@@ -255,19 +255,26 @@ let getRecent404s (canvasID : CanvasID) : Task<F404 list> =
   get404s (After(System.DateTime.Now.AddDays(-7.0))) canvasID
 
 
-// let delete_404s
-//     (cid : Uuidm.t) (space : string) (path : string) (modifier : string) : unit
-//     =
-//   Db.run
-//     ~name:"delete_404s"
-//     "DELETE FROM stored_events_v2
-//       WHERE canvas_id = $1
-//       AND module = $2
-//       AND path = $3
-//       AND modifier = $4"
-//     ~params:[Db.Uuid cid; Db.String space; Db.String path; Db.String modifier]
-//
-//
+let delete404s
+  (canvasID : CanvasID)
+  (space : string)
+  (path : string)
+  (modifier : string)
+  : Task<unit> =
+  Sql.query
+    "DELETE FROM stored_events_v2
+     WHERE canvas_id = @canvasID
+     AND module = @module
+     AND path = @path
+     AND modifier = @modifier"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "module", Sql.string space
+                      "path", Sql.string path
+                      "modifier", Sql.string modifier ]
+  |> Sql.executeStatementAsync
+
+
+
 // (* Cut back version of get_404s which hits the index. *)
 // let get_404_descs ~limit (canvas_id : Uuidm.t) : event_desc list =
 //   let events = list_event_descs ~limit ~canvas_id () in

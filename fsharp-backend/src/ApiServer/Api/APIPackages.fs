@@ -23,10 +23,13 @@ module List =
   let packages (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
+      t "read-api"
+
       let! fns = Lazy.force LibBackend.PackageManager.cachedForAPI
-      t "loadFunctions"
+      t "load-functions"
+
       let result = fns |> List.map Convert.pt2ocamlPackageManagerFn
-      t "convertFunctions"
+      t "write-api"
       return result
     }
 

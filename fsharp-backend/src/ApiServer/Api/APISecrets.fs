@@ -37,12 +37,16 @@ let insertSecret (ctx : HttpContext) : Task<T> =
       let! secrets = LibBackend.Secret.getCanvasSecrets canvasInfo.id
       t "get-secrets"
 
-      return
+      let result =
         { secrets =
             List.map
               (fun (s : LibBackend.Secret.Secret) ->
                 { secret_name = s.name; secret_value = s.value })
               secrets }
+
+      t "write-api"
+
+      return result
 
     with e ->
       let msg = e.ToString()

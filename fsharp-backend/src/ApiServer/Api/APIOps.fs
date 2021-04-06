@@ -28,11 +28,6 @@ module Convert = LibBackend.OCamlInterop.Convert
 // let causes_any_changes (ps : add_op_rpc_params) : bool =
 //   List.exists ~f:Op.has_effect ps.ops
 
-let endpoints : Endpoint list =
-  let h = Middleware.apiHandler
-  let oh = Middleware.apiOptionHandler
-
-  [ POST [] ]
 // | `POST, ["api"; canvas; "add_op"] ->
 //     when_can_edit ~canvas (fun _ ->
 //         wrap_editor_api_headers

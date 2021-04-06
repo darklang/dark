@@ -12,17 +12,34 @@ open Tablecloth
 
 module TI = LibBackend.TraceInputs
 
-module Get404s =
+module List =
 
   type T = { f404s : List<TI.F404> }
 
-  let get404s (ctx : HttpContext) : Task<T> =
+  let get (ctx : HttpContext) : Task<T> =
     task {
       let t = Middleware.startTimer ctx
       let canvasInfo = Middleware.loadCanvasInfo ctx
-      t "loadCanvasInfo"
+      t "read-api"
 
       let! f404s = TI.getRecent404s canvasInfo.id
-      t "getRecent404s"
+      t "get-recent-404s"
       return { f404s = f404s }
+    }
+
+module Delete =
+  type T = { result : string }
+  type Params = { space : string; path : string; modifier : string }
+
+  let delete (ctx : HttpContext) : Task<T> =
+    task {
+      let t = Middleware.startTimer ctx
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! p = ctx.BindModelAsync<Params>()
+      t "read-api"
+
+      do! TI.delete404s canvasInfo.id p.space p.path p.modifier
+      t "delete-404"
+
+      return { result = "deleted" }
     }
