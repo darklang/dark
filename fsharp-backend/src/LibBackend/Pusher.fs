@@ -30,7 +30,6 @@ let pusherClient : Lazy<PusherServer.Pusher> =
 
     initialized <- true
     client
-
   lazy (create ())
 
 // Send an event to pusher. Note: this is fired in the backgroup, and does not
@@ -102,5 +101,5 @@ let pushWorkerStates (canvasID : CanvasID) (ws : EventQueue.WorkerStates.T) : un
 type JsConfig = { enabled : bool; key : string; cluster : string }
 
 let jsConfigString =
-  let p = { enabled = true; key = Config.pusherKey; cluster = Config.pusherCluster }
-  Json.Vanilla.serialize p
+  // CLEANUP use JSON serialization
+  $"{{enabled: true, key: '{Config.pusherKey}', cluster: '{Config.pusherCluster}'}}"
