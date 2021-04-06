@@ -75,6 +75,26 @@ let postAsync (url : string) (body : string) : Task<HttpResponseMessage> =
     return! client.SendAsync(message)
   }
 
+let deserialize<'a> (str : string) : 'a = Json.OCamlCompatible.deserialize<'a> str
+
+let serialize = Json.OCamlCompatible.serialize
+
+let noBody () = ""
+
+
+
+let getInitialLoad () : Task<InitialLoad.T> =
+  task {
+    let! (o : HttpResponseMessage) =
+      postAsync $"http://darklang.localhost:8000/api/test/initial_load" ""
+
+    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
+    let! body = o.Content.ReadAsStringAsync()
+    return deserialize<InitialLoad.T> body
+  }
+
+
+
 
 let testFunctionsReturnsTheSame =
   testTask "functions returns the same" {
@@ -150,12 +170,6 @@ let testFunctionsReturnsTheSame =
       fcfns
       filteredOCamlFns
   }
-
-let deserialize<'a> (str : string) : 'a = Json.OCamlCompatible.deserialize<'a> str
-
-let serialize = Json.OCamlCompatible.serialize
-
-let noBody () = ""
 
 let postApiTestCases
   (api : string)
@@ -255,16 +269,11 @@ let testGetTraceData =
 
 let testDBStats =
   testTask "db_stats is the same" {
-    let! (o : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:8000/api/test/initial_load" ""
-
-    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
-    let! body = o.Content.ReadAsStringAsync()
+    let! (initialLoad : InitialLoad.T) = getInitialLoad ()
 
     let dbs =
-      body
-      |> deserialize<InitialLoad.T>
-      |> fun ts -> ts.toplevels |> Convert.ocamlToplevel2PT
+      initialLoad.toplevels
+      |> Convert.ocamlToplevel2PT
       |> Tuple2.second
       |> List.map (fun db -> db.tlid)
       |> fun tlids -> ({ tlids = tlids } : DBs.DBStats.Params)
@@ -294,18 +303,42 @@ let testExecuteFunction =
         ident
   }
 
+let testTriggerHandler =
+  testTask "trigger_handler behaves the same" {
+    let! (initialLoad : InitialLoad.T) = getInitialLoad ()
+
+    let handlerTLID =
+      initialLoad.toplevels
+      |> Convert.ocamlToplevel2PT
+      |> Tuple2.first
+      |> List.filterMap
+           (fun h ->
+             match h.spec with
+             | PT.Handler.HTTP ("/a-test-handler/:user", "POST", _) -> Some h.tlid
+             | _ -> None)
+      |> List.head
+      |> Option.unwrapUnsafe
+
+    let (body : Execution.Handler.Params) =
+      { tlid = handlerTLID; input_vars = []; trace_id = System.Guid.NewGuid() }
+
+    return!
+      postApiTestCases
+        "trigger_handler"
+        (serialize body)
+        (deserialize<Execution.Handler.T>)
+        ident
+  }
+
+
+
 let testWorkerStats =
   testTask "worker_stats is the same" {
-    let! (o : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:8000/api/test/initial_load" ""
-
-    Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
-    let! body = o.Content.ReadAsStringAsync()
+    let! (initialLoad : InitialLoad.T) = getInitialLoad ()
 
     do!
-      body
-      |> deserialize<InitialLoad.T>
-      |> fun ts -> ts.toplevels |> Convert.ocamlToplevel2PT
+      initialLoad.toplevels
+      |> Convert.ocamlToplevel2PT
       |> Tuple2.first
       |> List.filterMap
            (fun h ->
@@ -364,16 +397,22 @@ let localOnlyTests =
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
       [ testFunctionsReturnsTheSame
-        testPostApi "packages" "" (deserialize<Packages.List.T>) ident
-        testPostApi "get_404s" "" (deserialize<F404s.List.T>) ident
-        testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
-        testDBStats
-        testWorkerStats
-        // testPostApi "worker_schedule" "" (deserialize<DBs.WorkerSchedule.T>) ident
+        // FSTODO add_ops
         testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
-        testGetTraceData
+        // FSTODO delete_404
         testExecuteFunction
-        testInitialLoadReturnsTheSame ]
+        testPostApi "get_404s" "" (deserialize<F404s.List.T>) ident
+        testDBStats
+        testGetTraceData
+        testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
+        testWorkerStats
+        testInitialLoadReturnsTheSame
+        // FSTODO insert_secret
+        testPostApi "packages" "" (deserialize<Packages.List.T>) ident
+        // FSTODO upload_package
+        testTriggerHandler
+        // FSTODO worker_schedule
+        ]
     else
       []
 
