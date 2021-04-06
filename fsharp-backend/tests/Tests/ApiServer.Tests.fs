@@ -20,6 +20,7 @@ module RT = LibExecution.RuntimeTypes
 module OT = LibBackend.OCamlInterop.OCamlTypes
 module ORT = OT.RuntimeT
 module Convert = LibBackend.OCamlInterop.Convert
+module TI = LibBackend.TraceInputs
 
 open ApiServer
 
@@ -95,7 +96,6 @@ let getInitialLoad () : Task<InitialLoad.T> =
 
 
 
-
 let testFunctionsReturnsTheSame =
   testTask "functions returns the same" {
 
@@ -130,11 +130,7 @@ let testFunctionsReturnsTheSame =
       allBuiltins
       |> List.filter
            (fun fn ->
-             not (
-               Set.contains
-                 (fn.name.ToString())
-                 (ApiServer.Functions.fsharpOnlyFns.Force())
-             ))
+             not (Set.contains (toString fn.name) (Functions.fsharpOnlyFns.Force())))
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
       |> Set
 
@@ -175,13 +171,15 @@ type Server =
   | FSharp
   | OCaml
 
+type ApiResponse<'a> = Task<'a * System.Net.HttpStatusCode * Map<string, string>>
+
 let postApiTestCase
   (server : Server)
   (api : string)
   (body : string)
   (deserialize : string -> 'a)
   (canonicalizeBody : 'a -> 'a)
-  : Task<'a * System.Net.HttpStatusCode * Map<string, string>> =
+  : ApiResponse<'a> =
   task {
     let port =
       match server with
@@ -378,10 +376,10 @@ let testInsertDeleteSecrets =
     let secretName = $"MY_SPECIAL_SECRET_{randomString 5}"
     let secretVal = randomString 32
 
-    let insertParam : ApiServer.Secrets.Insert.Params =
+    let insertParam : Secrets.Insert.Params =
       { secret_name = secretName; secret_value = secretVal }
 
-    let deleteParam : ApiServer.Secrets.Delete.Params = { secret_name = secretName }
+    let deleteParam : Secrets.Delete.Params = { secret_name = secretName }
 
     let getSecret () : Task<Option<string>> =
       task {
@@ -411,45 +409,109 @@ let testInsertDeleteSecrets =
         Expect.equal secret None "initial"
       }
 
+    let insertSecret server : ApiResponse<Secrets.Insert.T> =
+      task {
+        let! result =
+          postApiTestCase
+            server
+            "insert_secret"
+            (serialize insertParam)
+            (deserialize<Secrets.Insert.T>)
+            ident
+
+        // assert secret added
+        let! secret = getSecret ()
+        Expect.equal secret (Some secretVal) $"added by {server}"
+        return result
+      }
+
     // assert secret initially missing
     let! secret = getSecret ()
     Expect.equal secret None "initial"
 
-    // add a secret in ocaml
-    let! oResponse =
-      postApiTestCase
-        OCaml
-        "insert_secret"
-        (serialize insertParam)
-        (deserialize<Secrets.Insert.T>)
-        ident
-
-    // assert secret added
-    let! secret = getSecret ()
-    Expect.equal secret (Some secretVal) "added by ocaml"
-
+    let! oResponse = insertSecret OCaml
     do! deleteSecret ()
 
-    // add a secret in F#
-    let! fResponse =
-      postApiTestCase
-        FSharp
-        "insert_secret"
-        (serialize insertParam)
-        (deserialize<Secrets.Insert.T>)
-        ident
-
-    // assert secret added
-    let! secret = getSecret ()
-    Expect.equal secret (Some secretVal) "added by f#"
-
-    // delete the secret in F#
+    let! fResponse = insertSecret FSharp
     do! deleteSecret ()
 
     Expect.equal fResponse oResponse "compare responses"
   }
 
+let testDelete404s =
+  testTask "delete_404s is the same" {
 
+    let get404s () : Task<List<TI.F404>> =
+      task {
+        let! (o : HttpResponseMessage) =
+          postAsync $"http://darklang.localhost:8000/api/test/get_404s" ""
+
+        Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
+        let! body = o.Content.ReadAsStringAsync()
+        debuG "404s body" body
+        return (deserialize<F404s.List.T> body).f404s
+      }
+
+    let path = $"/some-missing-handler-{randomString 5}"
+
+    let deleteParam : F404s.Delete.Params =
+      { space = "HTTP"; path = path; modifier = "GET" }
+
+    let get404 () : Task<Option<TI.F404>> =
+      task {
+        let! (f404s : List<TI.F404>) = get404s ()
+
+        return
+          f404s
+          |> debug "f404s"
+          |> List.filter
+               (fun ((space, name, modifier, _, _) : TI.F404) ->
+                 space = "HTTP" && name = path && modifier = "GET")
+          |> debug "filtered"
+          |> List.head
+      }
+
+    let delete404 (server : Server) : ApiResponse<F404s.Delete.T> =
+      postApiTestCase
+        server
+        "delete_404"
+        (serialize deleteParam)
+        (deserialize<F404s.Delete.T>)
+        ident
+
+    let insert404 server : Task<unit> =
+      task {
+        // FSTODO: change to 9000 to test traces are being saved
+        let url = $"http://test.builtwithdark.localhost:8000{path}"
+        let! result = getAsync url
+        Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
+
+        // assert 404 added
+        match! get404 () with
+        | Some (space, thisPath, modifier, date, traceID) ->
+            Expect.equal space "HTTP" "inserted space correctly"
+            Expect.equal thisPath path "inserted path correctly"
+            Expect.equal modifier "GET" "inserted modifier correctly"
+        | v -> failwith $"Unexpected value: {v}"
+      }
+
+    // assert secret initially missing
+    let! f404 = get404 ()
+    Expect.equal f404 None "initial"
+    printfn "initial_check"
+
+    do! insert404 ()
+    printfn "insert"
+    let! oResponse = delete404 OCaml
+    printfn "ocaml delete"
+
+    do! insert404 ()
+    printfn "insert"
+    let! fResponse = delete404 FSharp
+    printfn "fsharp_delete"
+
+    Expect.equal fResponse oResponse "compare responses"
+  }
 
 
 
@@ -495,7 +557,7 @@ let localOnlyTests =
       [ testFunctionsReturnsTheSame
         // FSTODO add_ops
         testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
-        // FSTODO delete_404
+        testDelete404s
         testExecuteFunction
         testPostApi "get_404s" "" (deserialize<F404s.List.T>) ident
         testDBStats
