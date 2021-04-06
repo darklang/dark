@@ -81,7 +81,7 @@ module Handler =
   type Params =
     { tlid : tlid
       trace_id : AT.TraceID
-      input_vars : List<string * ORT.dval> }
+      input : List<string * ORT.dval> }
 
   type T = { touched_tlids : tlid list }
 
@@ -92,7 +92,7 @@ module Handler =
       let! p = ctx.BindModelAsync<Params>()
 
       let inputVars =
-        p.input_vars
+        p.input
         |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
         |> Map.ofList
 
@@ -112,9 +112,12 @@ module Handler =
       // since this ignores the result, it doesn't go through the error rail
       // handling function. This might not matter
       let! (_result : RT.Dval) = Exe.executeHttpHandler state inputVars expr
+
       t "execute-handler"
 
-      let result = { touched_tlids = HashSet.toList touchedTLIDs }
+      let result =
+        { touched_tlids = touchedTLIDs |> HashSet.add p.tlid |> HashSet.toList }
+
       t "write-api"
 
       return result

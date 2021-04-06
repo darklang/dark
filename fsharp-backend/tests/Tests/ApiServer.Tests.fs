@@ -320,7 +320,9 @@ let testTriggerHandler =
       |> Option.unwrapUnsafe
 
     let (body : Execution.Handler.Params) =
-      { tlid = handlerTLID; input_vars = []; trace_id = System.Guid.NewGuid() }
+      { tlid = handlerTLID
+        input = [ "user", ORT.DStr "test" ]
+        trace_id = System.Guid.NewGuid() }
 
     return!
       postApiTestCases
