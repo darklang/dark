@@ -60,7 +60,7 @@ module Insert =
 
 module Delete =
   type Secret = { secret_name : string; secret_value : string }
-  type Params = Secret
+  type Params = { secret_name : string }
   type T = { secrets : List<Secret> }
 
   let delete (ctx : HttpContext) : Task<T> =

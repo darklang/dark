@@ -171,43 +171,33 @@ let testFunctionsReturnsTheSame =
       filteredOCamlFns
   }
 
-let postApiTestCases
+type Server =
+  | FSharp
+  | OCaml
+
+let postApiTestCase
+  (server : Server)
   (api : string)
   (body : string)
   (deserialize : string -> 'a)
   (canonicalizeBody : 'a -> 'a)
-  : Task<unit> =
+  : Task<'a * System.Net.HttpStatusCode * Map<string, string>> =
   task {
-    let! (o : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:8000/api/test/{api}" body
+    let port =
+      match server with
+      | OCaml -> 8000
+      | FSharp -> 9000
 
-    let! (f : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:9000/api/test/{api}" body
+    let! (response : HttpResponseMessage) =
+      postAsync $"http://darklang.localhost:{port}/api/test/{api}" body
 
-    let! oc = o.Content.ReadAsStringAsync()
-    let! fc = f.Content.ReadAsStringAsync()
+    let! content = response.Content.ReadAsStringAsync()
 
-    let () =
-      if (o.StatusCode <> f.StatusCode) then
-        printfn
-          "%s"
-          ($"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
-           + $"ocaml:\n{oc}\n\nfsharp:\n{fc}")
-
-    Expect.equal f.StatusCode o.StatusCode ""
-
-    let oVal =
+    let (body : 'a) =
       try
-        oc |> deserialize |> canonicalizeBody
+        content |> deserialize |> canonicalizeBody
       with e ->
-        printfn $"Error deserializing OCaml: \n{oc}"
-        reraise ()
-
-    let fVal =
-      try
-        fc |> deserialize |> canonicalizeBody
-      with e ->
-        printfn $"Error deserializing F#: \n{fc}"
+        printfn $"Error deserializing {server}: \n{content}"
         reraise ()
 
     let headerMap (h : Headers.HttpResponseHeaders) : Map<string, string> =
@@ -223,8 +213,34 @@ let postApiTestCases
       let (_ : bool) = h.Remove "Connection" // not useful, not in new API
       h |> Seq.toList |> List.map (fun (KeyValue (x, y)) -> x, y.ToString()) |> Map
 
-    Expect.equal fVal oVal "content"
-    Expect.equal (headerMap f.Headers) (headerMap o.Headers) "headers"
+    let headers = headerMap response.Headers
+    return (body, response.StatusCode, headers)
+
+  }
+
+let postApiTestCases
+  (api : string)
+  (body : string)
+  (deserialize : string -> 'a)
+  (canonicalizeBody : 'a -> 'a)
+  : Task<unit> =
+  task {
+    let! (oContent, oStatus, oHeaders) as o =
+      postApiTestCase OCaml api body deserialize canonicalizeBody
+
+    let! (fContent, fStatus, fHeaders) as f =
+      postApiTestCase FSharp api body deserialize canonicalizeBody
+
+    let () =
+      if oStatus <> fStatus then
+        printfn
+          "%s"
+          ($"Non-matching status codes: {api}\n\nbody:\n{body}\n\n"
+           + $"ocaml:\n{o}\n\nfsharp:\n{f}")
+
+    Expect.equal fStatus oStatus "status"
+    Expect.equal fContent oContent "content"
+    Expect.equal fHeaders oHeaders "headers"
   }
 
 let testPostApi
@@ -357,6 +373,84 @@ let testWorkerStats =
       |> Task.flatten
   }
 
+let testInsertDeleteSecrets =
+  testTask "insert_secrets is the same" {
+    let secretName = $"MY_SPECIAL_SECRET_{randomString 5}"
+    let secretVal = randomString 32
+
+    let insertParam : ApiServer.Secrets.Insert.Params =
+      { secret_name = secretName; secret_value = secretVal }
+
+    let deleteParam : ApiServer.Secrets.Delete.Params = { secret_name = secretName }
+
+    let getSecret () : Task<Option<string>> =
+      task {
+        let! (initialLoad : InitialLoad.T) = getInitialLoad ()
+
+        return
+          initialLoad.secrets
+          |> List.filter
+               (fun (s : InitialLoad.ApiSecret) -> s.secret_name = secretName)
+          |> List.map (fun (s : InitialLoad.ApiSecret) -> s.secret_value)
+          |> List.head
+      }
+
+    let deleteSecret () : Task<unit> =
+      task {
+        let! (_, status, _) =
+          postApiTestCase
+            FSharp
+            "delete_secret"
+            (serialize deleteParam)
+            (deserialize<Secrets.Delete.T>)
+            ident
+
+        Expect.equal status System.Net.HttpStatusCode.OK "delete secret"
+
+        let! secret = getSecret ()
+        Expect.equal secret None "initial"
+      }
+
+    // assert secret initially missing
+    let! secret = getSecret ()
+    Expect.equal secret None "initial"
+
+    // add a secret in ocaml
+    let! oResponse =
+      postApiTestCase
+        OCaml
+        "insert_secret"
+        (serialize insertParam)
+        (deserialize<Secrets.Insert.T>)
+        ident
+
+    // assert secret added
+    let! secret = getSecret ()
+    Expect.equal secret (Some secretVal) "added by ocaml"
+
+    do! deleteSecret ()
+
+    // add a secret in F#
+    let! fResponse =
+      postApiTestCase
+        FSharp
+        "insert_secret"
+        (serialize insertParam)
+        (deserialize<Secrets.Insert.T>)
+        ident
+
+    // assert secret added
+    let! secret = getSecret ()
+    Expect.equal secret (Some secretVal) "added by f#"
+
+    // delete the secret in F#
+    do! deleteSecret ()
+
+    Expect.equal fResponse oResponse "compare responses"
+  }
+
+
+
 
 
 
@@ -409,7 +503,7 @@ let localOnlyTests =
         testPostApi "get_unlocked_dbs" "" (deserialize<DBs.Unlocked.T>) ident
         testWorkerStats
         testInitialLoadReturnsTheSame
-        // FSTODO insert_secret
+        testInsertDeleteSecrets
         testPostApi "packages" "" (deserialize<Packages.List.T>) ident
         // FSTODO upload_package
         testTriggerHandler
