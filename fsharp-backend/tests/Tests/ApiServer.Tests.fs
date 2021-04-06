@@ -481,8 +481,7 @@ let testDelete404s =
 
     let insert404 server : Task<unit> =
       task {
-        // FSTODO: change to 9000 to test traces are being saved
-        let url = $"http://test.builtwithdark.localhost:8000{path}"
+        let url = $"http://test.builtwithdark.localhost:9001{path}"
         let! result = getAsync url
         Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
 
