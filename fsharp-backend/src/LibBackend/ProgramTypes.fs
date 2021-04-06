@@ -750,9 +750,9 @@ module Handler =
     member this.module'() =
       match this with
       | HTTP (route, method, _ids) -> "HTTP"
-      | Worker (name, _ids) -> "Worker"
+      | Worker (name, _ids) -> "WORKER" // CLEANUP the DB relies on the casing
       | OldWorker (modulename, name, _ids) -> modulename
-      | Cron (name, interval, _ids) -> "CRON" // CLEANUP the DB relies on this
+      | Cron (name, interval, _ids) -> "CRON" // CLEANUP the DB relies on the casing
       | REPL (name, _ids) -> "REPL"
 
     member this.complete() : bool =
