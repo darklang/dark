@@ -112,7 +112,9 @@ module TriggerHandler =
       let state = Exe.updateTraceTLID traceTLIDFn state
       t "load-execution-state"
 
-      let! _result = Exe.executeExpr state inputVars expr
+      // since this ignores the result, it doesn't go through the error rail
+      // handling function. This might not matter
+      let! _result = Exe.executeHttpHandler state inputVars expr
       t "execute-handler"
 
       let result = { touched_tlids = HashSet.toList touchedTLIDs }

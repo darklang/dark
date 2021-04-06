@@ -27,6 +27,7 @@ open FSharpx
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module RealExe = LibBackend.RealExecution
+module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 
 // This boilerplate is copied from Giraffe. I elected not to use Giraffe
@@ -106,21 +107,6 @@ let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
     | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
   }
 
-let extractErrorRail (result : RT.Dval) : RT.Dval =
-  match result with
-  | RT.DErrorRail (RT.DOption None)
-  | RT.DErrorRail (RT.DResult (Error _)) ->
-      (RT.DHttpResponse(
-        RT.Response(404, [ "Content-length", "9"; "server", "darklang" ]),
-        RT.DBytes(toBytes "Not found")
-      ))
-  | RT.DErrorRail _ ->
-      (RT.DHttpResponse(
-        RT.Response(500, [ "Content-length", "32"; "server", "darklang" ]),
-        RT.DBytes(toBytes "Invalid conversion from errorrail")
-      ))
-  | dv -> dv
-
 
 let runHttp
   (c : LibBackend.Canvas.T)
@@ -154,7 +140,7 @@ let runHttp
         RT.NoRail
       |> TaskOrValue.toTask
 
-    return extractErrorRail result
+    return Exe.extractHttpErrorRail result
 
   }
 
