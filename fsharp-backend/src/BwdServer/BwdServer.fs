@@ -94,6 +94,15 @@ let normalizeRequest : HttpHandler =
     ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
     next ctx
 
+
+let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+  ctx.Response.Headers.Add(
+    name,
+    Microsoft.Extensions.Primitives.StringValues([| value |])
+  )
+
+
+
 let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
   task {
     match host.Split [| '.' |] with
@@ -107,6 +116,22 @@ let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
     | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
   }
 
+let favicon : Lazy<byte array> =
+  lazy (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png")
+
+let faviconResponse (ctx : HttpContext) : Task<Option<HttpContext>> =
+  task {
+    // NB: we're sending back a png, not an ico - this is deliberate,
+    // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
+    let bytes = Lazy.force favicon
+    addHeader ctx "server" "darklang"
+    ctx.Response.ContentType <- "image/png"
+    ctx.Response.ContentLength <- int64 bytes.Length
+    ctx.Response.StatusCode <- 200
+    do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+    return Some ctx
+  }
+
 
 let runHttp
   (c : LibBackend.Canvas.T)
@@ -118,6 +143,7 @@ let runHttp
   (expr : RT.Expr)
   : Task<RT.Dval> =
   task {
+
     let program = LibBackend.Canvas.toProgram c
     let! state = RealExe.createState traceID tlid program
     let symtable = Interpreter.withGlobals state inputVars
@@ -147,19 +173,13 @@ let runHttp
 let runDarkHandler : HttpHandler =
   fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
-      let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-        ctx.Response.Headers.Add(
-          name,
-          Microsoft.Extensions.Primitives.StringValues([| value |])
-        )
-
       let msg (code : int) (msg : string) =
         task {
           let bytes = System.Text.Encoding.UTF8.GetBytes msg
           ctx.Response.StatusCode <- code
           addHeader ctx "server" "darklang"
-          if bytes.Length > 0 then addHeader ctx "Content-Type" "text/plain"
-          addHeader ctx "Content-Length" (bytes.Length.ToString())
+          if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
+          ctx.Response.ContentLength <- int64 bytes.Length
           do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
           return Some ctx
         }
@@ -172,7 +192,6 @@ let runDarkHandler : HttpHandler =
 
       match! canvasNameFromHost ctx.Request.Host.Host with
       | Some canvasName ->
-
           let ownerName = LibBackend.Account.ownerNameFromCanvasName canvasName
           let ownerUsername = UserName.create (ownerName.ToString())
           let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
@@ -228,6 +247,8 @@ let runDarkHandler : HttpHandler =
                     msg
                       500
                       $"The request ({requestPath}) does not match the route ({route})"
+          | [] when toString ctx.Request.Path = "/favicon.ico" ->
+              return! faviconResponse ctx
           | [] -> return! msg 404 "No handler was found for this URL"
           | _ -> return! msg 500 "More than one handler found for this URL"
       | None -> return! msg 404 "No handler was found for this URL"
