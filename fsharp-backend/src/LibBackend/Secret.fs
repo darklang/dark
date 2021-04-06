@@ -35,3 +35,11 @@ let insert (canvasID : CanvasID) (name : string) (value : string) : Task<unit> =
                       "secretName", Sql.string name
                       "secretValue", Sql.string value ]
   |> Sql.executeStatementAsync
+
+let delete (canvasID : CanvasID) (name : string) : Task<unit> =
+  Sql.query
+    "DELETE FROM secrets
+      WHERE canvas_id = @canvasID
+        AND secret_name = @secretName"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "secretName", Sql.string name ]
+  |> Sql.executeStatementAsync

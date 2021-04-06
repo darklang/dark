@@ -40,6 +40,7 @@ let endpoints : Endpoint list =
            // FSTODO: add_op
            api "all_traces" (h Traces.AllTraces.fetchAll R)
            api "delete_404" (h F404s.Delete.delete RW)
+           api "delete_secret" (h Secrets.Delete.delete RW)
            api "execute_function" (h Execution.Function.execute RW)
            api "get_404s" (h F404s.List.get R)
            api "get_db_stats" (h DBs.DBStats.getStats R)
@@ -47,7 +48,7 @@ let endpoints : Endpoint list =
            api "get_unlocked_dbs" (h DBs.Unlocked.get R)
            api "get_worker_stats" (h Workers.WorkerStats.getStats R)
            api "initial_load" (h InitialLoad.initialLoad R)
-           api "insert_secret" (h Secrets.insertSecret RW)
+           api "insert_secret" (h Secrets.Insert.insert RW)
            api "packages" (h Packages.List.packages R)
            // FSTODO: packages/upload_function
            api "trigger_handler" (h Execution.Handler.trigger RW)
