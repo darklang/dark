@@ -439,5 +439,5 @@ let compileLambda
       |> partiallyEvaluate state paramName symtable
       |> TaskOrValue.toTask
 
-    return lambdaToSql state.functions symtable paramName dbFields TBool body
+    return lambdaToSql state.libraries.stdlib symtable paramName dbFields TBool body
   }

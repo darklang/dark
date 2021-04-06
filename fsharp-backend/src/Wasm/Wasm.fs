@@ -8,40 +8,39 @@ open Prelude
 open Prelude.Tablecloth
 
 module Exe = LibExecution.Execution
+module Interpreter = LibExecution.Interpreter
 module RT = LibExecution.RuntimeTypes
 
 module Program =
-  let fns =
-    lazy
-      (LibExecution.StdLib.StdLib.fns
-       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
+  let stdlib =
+    LibExecution.StdLib.StdLib.fns
+    |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+
 
   // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
   // or DotNet.invokeMethodAsync('Wasm', 'run', 8)
   [<Microsoft.JSInterop.JSInvokable>]
   let run (arg : int) : Task<string> =
     task {
-      let prog = LibExecution.Shortcuts.eInt arg
-      let tlid = id 7
+      let expr = LibExecution.Shortcuts.eInt arg
+      // FSTODO: get packages from caller
+      let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
+      let tracing = LibExecution.Execution.noTracing RT.Preview
+
       let uuid = System.Guid.NewGuid()
 
-      let state =
-        Exe.createState
-          uuid
-          uuid
-          tlid
-          (fns.Force())
-          Map.empty
-          Map.empty
-          Map.empty
-          Map.empty
-          []
-          Exe.loadNoResults
-          Exe.storeNoResults
-          Exe.loadNoArguments
-          Exe.storeNoArguments
+      // FSTODO: get all this info from the caller
+      let program : RT.ProgramContext =
+        { accountID = uuid
+          canvasID = uuid
+          userFns = Map.empty
+          userTypes = Map.empty
+          dbs = Map.empty
+          secrets = [] }
 
-      let! result = Exe.run state Map.empty prog
+      let tlid = id 7
+      let state = Exe.createState libraries tracing tlid program
+      let! result = Exe.executeExpr state Map.empty expr
 
       return result.ToString()
     }

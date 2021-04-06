@@ -20,7 +20,7 @@ let execute (code : string) : RT.Dval =
     task {
       let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
       let prog = FSharpToExpr.parseRTExpr code
-      return! Exe.run state Map.empty prog
+      return! Exe.executeExpr state Map.empty prog
     }
 
   Task.WaitAll [| t :> Task |]
@@ -31,7 +31,9 @@ let executeOCaml (code : string) : RT.Dval =
     task {
       let prog = FSharpToExpr.parsePTExpr code
       let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
-      return! OCamlInterop.execute state.accountID state.canvasID prog Map.empty [] []
+      let accountID = state.program.accountID
+      let canvasID =  state.program.canvasID
+      return! OCamlInterop.execute accountID canvasID prog Map.empty [] []
     }
 
   Task.WaitAll [| t :> Task |]

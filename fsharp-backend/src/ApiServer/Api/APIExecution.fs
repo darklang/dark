@@ -1,0 +1,140 @@
+module ApiServer.Execution
+
+// Execution API endpoints
+
+open Microsoft.AspNetCore.Http
+open Giraffe
+open Giraffe.EndpointRouting
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+open Prelude
+open Tablecloth
+
+module PT = LibBackend.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module OT = LibBackend.OCamlInterop.OCamlTypes
+module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
+module AT = LibExecution.AnalysisTypes
+module Convert = LibBackend.OCamlInterop.Convert
+
+module Canvas = LibBackend.Canvas
+module Auth = LibBackend.Authorization
+module RealExe = LibBackend.RealExecution
+module Exe = LibExecution.Execution
+module TraceFunctionArguments = LibBackend.TraceFunctionArguments
+module TraceFunctionResults = LibBackend.TraceFunctionResults
+module DvalRepr = LibExecution.DvalRepr
+
+module ExecuteFunction =
+  type Params =
+    { tlid : tlid
+      trace_id : AT.TraceID
+      caller_id : id
+      args : ORT.dval list
+      fnname : string }
+
+  type T =
+    { result : ORT.dval
+      hash : string
+      hashVersion : int
+      touched_tlids : tlid list
+      unlocked_dbs : tlid list }
+
+  let execute (ctx : HttpContext) : Task<T> =
+    task {
+      let t = Middleware.startTimer ctx
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! p = ctx.BindModelAsync<Params>()
+      let args = List.map Convert.ocamlDval2rt p.args
+      t "load-api"
+
+      let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
+      let c = Result.unwrapUnsafe c
+      t "load-canvas"
+
+      let program = Canvas.toProgram c
+      let! state = RealExe.createState p.trace_id p.tlid program
+      let (touchedTLIDs, traceTLIDFn) = Exe.traceTLIDs ()
+      let state = Exe.updateTraceTLID traceTLIDFn state
+      t "load-execution-state"
+
+      let fnname = p.fnname |> PT.FQFnName.parse
+      let! result = Exe.executeFunction state p.caller_id args fnname
+      t "execute-function"
+
+      let! unlocked = LibBackend.UserDB.unlocked canvasInfo.owner canvasInfo.id
+      t "get-unlocked"
+
+      let hashVersion = DvalRepr.currentHashVersion
+      let hash = DvalRepr.hash hashVersion args
+
+      let result =
+        { result = Convert.rt2ocamlDval result
+          hash = hash
+          hashVersion = hashVersion
+          touched_tlids = HashSet.toList touchedTLIDs
+          unlocked_dbs = unlocked }
+
+      t "create-result"
+      return result
+    }
+
+module TriggerHandler =
+  type Params =
+    { tlid : tlid
+      trace_id : AT.TraceID
+      input_vars : List<string * ORT.dval> }
+
+  type T = { touched_tlids : tlid list }
+
+  let trigger (ctx : HttpContext) : Task<T> =
+    task {
+      let t = Middleware.startTimer ctx
+      let canvasInfo = Middleware.loadCanvasInfo ctx
+      let! p = ctx.BindModelAsync<Params>()
+
+      let inputVars =
+        p.input_vars
+        |> List.map (fun (name, var) -> (name, Convert.ocamlDval2rt var))
+        |> Map.ofList
+
+      t "load-api"
+
+      let! c = Canvas.loadTLIDsWithContext canvasInfo [ p.tlid ]
+      let c = Result.unwrapUnsafe c
+      let program = Canvas.toProgram c
+      let expr = c.handlers.[p.tlid].ast.toRuntimeType ()
+      t "load-canvas"
+
+      let! state = RealExe.createState p.trace_id p.tlid program
+      let (touchedTLIDs, traceTLIDFn) = Exe.traceTLIDs ()
+      let state = Exe.updateTraceTLID traceTLIDFn state
+      t "load-execution-state"
+
+      let! _result = Exe.executeExpr state inputVars expr
+      t "execute-handler"
+
+      let result = { touched_tlids = HashSet.toList touchedTLIDs }
+      t "create-result"
+
+      return result
+    }
+
+
+
+let endpoints : Endpoint list =
+  let h = Middleware.apiHandler
+
+  [ POST [ routef
+             "/api/%s/execute_function"
+             (h ExecuteFunction.execute Auth.ReadWrite)
+           routef "/api/%s/trigger_handler" (h TriggerHandler.trigger Auth.ReadWrite) ] ]
+
+// type trigger_handler_rpc_result = {touched_tlids : tlid list}
+//
+// let to_trigger_handler_rpc_result touched_tlids : string =
+//   {touched_tlids}
+//   |> trigger_handler_rpc_result_to_yojson
+//   |> Yojson.Safe.to_string ~std:true
+//

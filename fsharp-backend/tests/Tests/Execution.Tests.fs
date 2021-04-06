@@ -28,9 +28,13 @@ let execSaveDvals
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
     let! state = executionStateFor "test" dbs fns
-    let inputVars = Map.empty
+    let results, traceFn = Exe.traceDvals ()
+    let state = Exe.updateTraceDval traceFn state
 
-    return! Exe.analyseExpr state Exe.loadNoResults Exe.loadNoArguments inputVars ast
+    let inputVars = Map.empty
+    let! _result = Exe.executeExpr state inputVars ast
+
+    return results
   }
 
 
@@ -42,11 +46,13 @@ let testExecFunctionTLIDs : Test =
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor "test" Map.empty fns
 
-    let! (value, tlids) = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
+    let tlids, traceFn = Exe.traceTLIDs ()
+    let state = Exe.updateTraceTLID traceFn state
 
-    Expect.equal tlids [ fn.tlid ] "tlid of function is traced"
+    let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
+
+    Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5I) "sanity check"
-
   }
 
 
@@ -54,12 +60,16 @@ let testErrorRailUsedInAnalysis : Test =
   testTask "When a function which isn't available on the client has analysis data, we need to make sure we process the errorrail functions correctly" {
 
     let! state = executionStateFor "test" Map.empty Map.empty
+
     let loadTraceResults _ _ = Some(DOption(Some(DInt 12345I)), System.DateTime.Now)
-    let state = { state with loadFnResult = loadTraceResults }
+
+    let state =
+      { state with tracing = { state.tracing with loadFnResult = loadTraceResults } }
+
     let inputVars = Map.empty
     let ast = eFnRail "" "fake_test_fn" 0 [ eInt 4; eInt 5 ]
 
-    let! result = Exe.run state inputVars ast
+    let! result = Exe.executeExpr state inputVars ast
 
     Expect.equal result (DInt 12345I) "is on the error rail"
   }
@@ -80,10 +90,14 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
           eLambda [ "value" ] (eFieldAccess (EVariable(varID, "value")) "age") ]
 
     let! state = executionStateFor "test" (Map [ "MyDB", db ]) Map.empty
-    let state = { state with functions = Map.empty }
 
-    let! results =
-      Exe.analyseExpr state Exe.loadNoResults Exe.loadNoArguments Map.empty ast
+    let state =
+      { state with libraries = { state.libraries with stdlib = Map.empty } }
+
+    let results, traceFn = Exe.traceDvals ()
+    let state = Exe.updateTraceDval traceFn state
+
+    let! _value = Exe.executeExpr state Map.empty ast
 
     Expect.equal
       (Dictionary.tryGetValue varID results)

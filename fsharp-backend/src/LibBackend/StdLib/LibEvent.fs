@@ -36,8 +36,8 @@ let fns : List<BuiltInFn> =
             Task(
               task {
                 // See client/src/Entry.ml for the "_"
-                let canvasID = state.canvasID
-                let accountID = state.accountID
+                let canvasID = state.program.canvasID
+                let accountID = state.program.accountID
                 do! EventQueue.enqueue canvasID accountID space name "_" data
                 return data
               }
@@ -55,8 +55,8 @@ let fns : List<BuiltInFn> =
         | state, [ data; DStr name ] ->
             taskv {
               // See client/src/Entry.ml for the "_"
-              let canvasID = state.canvasID
-              let accountID = state.accountID
+              let canvasID = state.program.canvasID
+              let accountID = state.program.accountID
 
               do! EventQueue.enqueue canvasID accountID "WORKER" name "_" data
 

@@ -12,6 +12,7 @@ open Prelude
 open Tablecloth
 
 module PT = ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 type CorsSetting =
   | AllOrigins
@@ -31,7 +32,6 @@ type T =
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
-    packageFns : List<PT.Package.Fn>
     // TODO CLEANUP: no separate fields for deleted, combine them
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
@@ -369,7 +369,6 @@ let loadEmpty (meta : Meta) : Task<T> =
   task {
     // TODO optimization: can we get only the functions we need (based on
     // fnnames found in the canvas) and/or cache this like we do the oplist?
-    let! packageFns = PackageManager.allFunctions ()
 
     return
       { meta = meta
@@ -377,7 +376,6 @@ let loadEmpty (meta : Meta) : Task<T> =
         dbs = Map.empty
         userFunctions = Map.empty
         userTypes = Map.empty
-        packageFns = packageFns
         deletedHandlers = Map.empty
         deletedDBs = Map.empty
         deletedUserFunctions = Map.empty
@@ -964,3 +962,34 @@ let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.
   |> Sql.parameters [ "host", Sql.string customDomain ]
   |> Sql.executeRowOptionAsync
        (fun read -> read.string "canvas" |> CanvasName.create)
+
+let toProgram (c : T) : RT.ProgramContext =
+  let ownerID = c.meta.owner
+  let canvasID = c.meta.id
+
+  let dbs =
+    c.dbs
+    |> Map.values
+    |> List.map (fun db -> (db.name, PT.DB.toRuntimeType db))
+    |> Map.ofList
+
+  let userFns =
+    c.userFunctions
+    |> Map.values
+    |> List.map (fun f -> (f.name, PT.UserFunction.toRuntimeType f))
+    |> Map.ofList
+
+  let userTypes =
+    c.userTypes
+    |> Map.values
+    |> List.map (fun t -> ((t.name, t.version), PT.UserType.toRuntimeType t))
+    |> Map.ofList
+
+  let secrets = (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
+
+  { accountID = c.meta.owner
+    canvasID = c.meta.id
+    userFns = userFns
+    userTypes = userTypes
+    dbs = dbs
+    secrets = secrets }

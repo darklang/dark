@@ -13,6 +13,8 @@
     <Compile Include="TypeChecker.fs" />
     <Compile Include="Ast.fs" />
     <Compile Include="Interpreter.fs" />
+    <Compile Include="AnalysisTypes.fs" />
+    <Compile Include="Execution.fs" />
     <Compile Include="StdLib/LibBool.fs" />
     <Compile Include="StdLib/LibBytes.fs" />
     <Compile Include="StdLib/LibChar.fs" />
@@ -33,9 +35,7 @@
     <Compile Include="StdLib/LibString.fs" />
     <Compile Include="StdLib/LibUuid.fs" />
     <Compile Include="StdLib/StdLib.fs" />
-    <Compile Include="AnalysisTypes.fs" />
     <Compile Include="ParsedRequest.fs" />
-    <Compile Include="Execution.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

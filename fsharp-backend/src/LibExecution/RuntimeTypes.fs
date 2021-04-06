@@ -688,11 +688,15 @@ and FnImpl =
   | UserFunction of tlid * Expr
   | PackageFunction of tlid * Expr
 
-and Context =
+and RealOrPreview =
   | Real
   | Preview
 
 and FunctionRecord = tlid * FQFnName.T * id
+
+and TraceDval = bool -> id -> Dval -> unit
+
+and TraceTLID = tlid -> unit
 
 and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * System.DateTime>
 
@@ -702,31 +706,45 @@ and LoadFnArguments = tlid -> List<DvalMap * System.DateTime>
 
 and StoreFnArguments = tlid -> DvalMap -> Task<unit>
 
-and ExecutionState =
-  { functions : Map<FQFnName.T, BuiltInFn>
-    tlid : tlid
-    canvasID : CanvasID
+// Every part of a user's program except the actual code to run (types, fns, secrets, etc)
+and ProgramContext =
+  { canvasID : CanvasID
     accountID : UserID
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
     userTypes : Map<string * int, UserType.T>
-    packageFns : Map<FQFnName.T, Package.Fn>
-    secrets : List<Secret.T>
-    trace : bool -> id -> Dval -> unit
-    traceTLID : tlid -> unit
+    secrets : List<Secret.T> }
+
+// Set of callbacks used to trace the interpreter
+and Tracing =
+  { traceDval : TraceDval
+    traceTLID : TraceTLID
+    loadFnResult : LoadFnResult
+    storeFnResult : StoreFnResult
+    loadFnArguments : LoadFnArguments
+    storeFnArguments : StoreFnArguments
+    realOrPreview : RealOrPreview }
+
+// Non-user-specific functionality needed to run code
+and Libraries =
+  { stdlib : Map<FQFnName.T, BuiltInFn>
+    packageFns : Map<FQFnName.T, Package.Fn> }
+
+// All state used while running a program
+and ExecutionState =
+  { libraries : Libraries
+    tracing : Tracing
+    program : ProgramContext
+    // TLID of the currently executing handler/fn
+    tlid : tlid
     executingFnName : Option<FQFnName.T>
     // Used for recursion detection in the editor. In the editor, we call all
     // paths to show live values, but with recursion that causes infinite
     // recursion.
     callstack : Set<FQFnName.T>
-    context : Context
     // Whether the currently executing code is really being executed (as
     // opposed to being executed for traces)
-    onExecutionPath : bool
-    loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult
-    loadFnArguments : LoadFnArguments
-    storeFnArguments : StoreFnArguments }
+    onExecutionPath : bool }
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
@@ -764,33 +782,3 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     deprecated = NotDeprecated
     sqlSpec = NotQueryable
     fn = PackageFunction(fn.tlid, fn.body) }
-
-
-// let toFn (uf : T) : Option<BuiltInFn> =
-//   let parameters = List.filterMap paramToBuiltinParam uf.parameters in
-//   let paramsAllFilled = List.length parameters = List.length uf.parameters
-//
-//   if uf.name = "" || (not paramsAllFilled) then
-//     None
-//   else
-//     Some
-//       { name = FQFnName.name "" "" "" uf.name 0
-//         parameters = parameters
-//         returnType = uf.returnType
-//         description = uf.description
-//         previewable = Impure
-//         deprecated = NotDeprecated
-//         sqlSpec = NotQueryable
-//         fn = UserCreated(uf.tlid, uf.ast) }
-
-// Some parts of the execution need to call AST.exec, but cannot call
-// AST.exec without a cyclic dependency. This function enables that, and it
-// is safe to do so because all of the state is in the exec_state
-// structure.
-// exec: ExecutionState -> Symtable -> Expr -> DvalTask
-// ; load_fn_result : load_fn_result_type
-// ; store_fn_result : store_fn_result_type
-// ; load_fn_arguments : load_fn_arguments_type
-// ; store_fn_arguments : store_fn_arguments_type
-// ; executing_fnname : string
-// ; fail_fn : fail_fn_type

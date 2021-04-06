@@ -50,6 +50,7 @@
     <Compile Include="StdLib/LibTwilio.fs" />
     <Compile Include="StdLib/LibX509.fs" />
     <Compile Include="StdLib/StdLib.fs" />
+    <Compile Include="RealExecution.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

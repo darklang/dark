@@ -147,10 +147,13 @@ let testUserFn
           { name = p; typ = RT.TVariable "b"; description = "test" })
         parameters }
 
-let fns =
+let libraries : Lazy<RT.Libraries> =
   lazy
-    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
-     |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
+    ({ stdlib =
+         (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns @ LibTest.fns
+          |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
+
+       packageFns = Map.empty })
 
 let executionStateFor
   (name : string)
@@ -178,21 +181,17 @@ let executionStateFor
 
     let tlid = id 7
 
+    let program : RT.ProgramContext =
+      { canvasID = canvasID
+        accountID = ownerID
+        userFns = userFunctions
+        dbs = dbs
+        userTypes = Map.empty
+        secrets = [] }
+
     return
-      Exe.createState
-        ownerID
-        canvasID
-        tlid
-        (fns.Force())
-        Map.empty
-        dbs
-        userFunctions
-        Map.empty
-        []
-        Exe.loadNoResults
-        Exe.storeNoResults
-        Exe.loadNoArguments
-        Exe.storeNoArguments
+      Exe.createState (Lazy.force libraries) (Exe.noTracing RT.Real) tlid program
+
   }
 
 // saves and reloads the canvas for the Toplevvel

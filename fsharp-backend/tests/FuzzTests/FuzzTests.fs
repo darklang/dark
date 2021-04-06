@@ -688,7 +688,9 @@ module ExecutePureFunctions =
         let! expected = OCamlInterop.execute ownerID canvasID ast st [] []
 
         let! state = executionStateFor "executePure" Map.empty Map.empty
-        let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
+
+        let! actual =
+          LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())
 
         let differentErrorsAllowed =
           // Error messages are not required to be directly the same between

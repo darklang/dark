@@ -6,10 +6,10 @@ module BwdServer
 
 (* open Microsoft.AspNetCore.Http *)
 open FSharp.Control.Tasks
+open System.Threading.Tasks
 
 open System
 (* open System.Security.Claims *)
-open System.Threading.Tasks
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -19,13 +19,14 @@ open Microsoft.AspNetCore.Http.Extensions
 (* open Microsoft.Extensions.Configuration *)
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
+
 open Prelude
 open Tablecloth
 open FSharpx
 
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module Exe = LibExecution.Execution
+module RealExe = LibBackend.RealExecution
 module Interpreter = LibExecution.Interpreter
 
 // This boilerplate is copied from Giraffe. I elected not to use Giraffe
@@ -105,14 +106,23 @@ let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
     | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
   }
 
-let fns =
-  lazy
-    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-     |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
+let extractErrorRail (result : RT.Dval) : RT.Dval =
+  match result with
+  | RT.DErrorRail (RT.DOption None)
+  | RT.DErrorRail (RT.DResult (Error _)) ->
+      (RT.DHttpResponse(
+        RT.Response(404, [ "Content-length", "9"; "server", "darklang" ]),
+        RT.DBytes(toBytes "Not found")
+      ))
+  | RT.DErrorRail _ ->
+      (RT.DHttpResponse(
+        RT.Response(500, [ "Content-length", "32"; "server", "darklang" ]),
+        RT.DBytes(toBytes "Invalid conversion from errorrail")
+      ))
+  | dv -> dv
 
 
 let runHttp
-  //     ?(parent = (None : Span.t option))
   (c : LibBackend.Canvas.T)
   (tlid : tlid)
   (traceID : LibExecution.AnalysisTypes.TraceID)
@@ -122,54 +132,9 @@ let runHttp
   (expr : RT.Expr)
   : Task<RT.Dval> =
   task {
-    let ownerID = c.meta.owner
-    let canvasID = c.meta.id
-    let fns = fns.Force()
-    let! packageFns = LibBackend.PackageManager.cachedForExecution.Force()
-
-    let dbs =
-      c.dbs
-      |> Map.values
-      |> List.map (fun db -> (db.name, PT.DB.toRuntimeType db))
-      |> Map.ofList
-
-    let userFns =
-      c.userFunctions
-      |> Map.values
-      |> List.map (fun f -> (f.name, PT.UserFunction.toRuntimeType f))
-      |> Map.ofList
-
-    let userTypes =
-      c.userTypes
-      |> Map.values
-      |> List.map (fun t -> ((t.name, t.version), PT.UserType.toRuntimeType t))
-      |> Map.ofList
-
-    let secrets =
-      (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
-
-    let loadFnResult = Exe.loadNoResults
-    let storeFnResult = LibBackend.TraceFunctionResults.store canvasID traceID
-    let loadFnArguments = Exe.loadNoArguments
-    let storeFnArguments = LibBackend.TraceFunctionArguments.store canvasID traceID
-
-    let state =
-      Exe.createState
-        ownerID
-        canvasID
-        tlid
-        fns
-        packageFns
-        dbs
-        userFns
-        userTypes
-        secrets
-        loadFnResult
-        storeFnResult
-        loadFnArguments
-        storeFnArguments
-
-    let symtable = LibExecution.Interpreter.withGlobals state inputVars
+    let program = LibBackend.Canvas.toProgram c
+    let! state = RealExe.createState traceID tlid program
+    let symtable = Interpreter.withGlobals state inputVars
 
     let! result =
       Interpreter.applyFnVal
@@ -189,21 +154,8 @@ let runHttp
         RT.NoRail
       |> TaskOrValue.toTask
 
-    match result with
-    | RT.DErrorRail (RT.DOption None)
-    | RT.DErrorRail (RT.DResult (Error _)) ->
-        return
-          (RT.DHttpResponse(
-            RT.Response(404, [ "Content-length", "9"; "server", "darklang" ]),
-            RT.DBytes(toBytes "Not found")
-          ))
-    | RT.DErrorRail _ ->
-        return
-          (RT.DHttpResponse(
-            RT.Response(500, [ "Content-length", "32"; "server", "darklang" ]),
-            RT.DBytes(toBytes "Invalid conversion from errorrail")
-          ))
-    | dv -> return dv
+    return extractErrorRail result
+
   }
 
 let runDarkHandler : HttpHandler =

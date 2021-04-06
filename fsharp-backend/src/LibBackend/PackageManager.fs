@@ -343,20 +343,3 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
 // functions need to be loaded for the API, when this becomes a problem we want
 // to look at breaking it up into different packages
 let cachedForAPI : Lazy<Task<List<PT.Package.Fn>>> = lazy (allFunctions ())
-
-
-// CLEANUP: this keeps a cached version so we're not loading them all the time.
-// Of course, this won't be up to date if we add more functions. This should be
-// some sort of LRU cache.
-let cachedForExecution : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
-  lazy
-    (task {
-      let! fns = Lazy.force cachedForAPI
-
-      return
-        fns
-        |> List.map
-             (fun (f : PT.Package.Fn) ->
-               (RT.FQFnName.Package f.name, PT.Package.toRuntimeType f))
-        |> Map.ofList
-     })

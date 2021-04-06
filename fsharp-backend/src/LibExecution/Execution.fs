@@ -11,133 +11,91 @@ open Tablecloth
 
 module RT = RuntimeTypes
 module AT = AnalysisTypes
-module PReq = ParsedRequest
 
-// --------------------
-// For ExecutionState
-// --------------------
+let traceNoDvals : RT.TraceDval = fun _ _ _ -> ()
+let traceNoTLIDs : RT.TraceTLID = fun _ -> ()
+let loadNoFnResults : RT.LoadFnResult = fun _ _ -> None
+let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> task { return () }
+let loadNoFnArguments : RT.LoadFnArguments = fun _ -> []
+let storeNoFnArguments : RT.StoreFnArguments = fun _ _ -> task { return () }
 
-let loadNoResults _ _ = None
-
-let storeNoResults _ _ _ = task { return () }
-let loadNoArguments _ = []
-let storeNoArguments _ _ = task { return () }
-
-// --------------------
-// Execution
-// --------------------
+let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
+  { traceDval = traceNoDvals
+    traceTLID = traceNoTLIDs
+    loadFnResult = loadNoFnResults
+    storeFnResult = storeNoFnResults
+    loadFnArguments = loadNoFnArguments
+    storeFnArguments = storeNoFnArguments
+    realOrPreview = realOrPreview }
 
 let createState
-  (accountID : UserID)
-  (canvasID : CanvasID)
+  (libraries : RT.Libraries)
+  (tracing : RT.Tracing)
   (tlid : tlid)
-  (functions : Map<RT.FQFnName.T, RT.BuiltInFn>)
-  (packageFns : Map<RT.FQFnName.T, RT.Package.Fn>)
-  (dbs : Map<string, RT.DB.T>)
-  (userFns : Map<string, RT.UserFunction.T>)
-  (userTypes : Map<string * int, RT.UserType.T>)
-  (secrets : List<RT.Secret.T>)
-  (loadFnResult : RT.LoadFnResult)
-  (storeFnResult : RT.StoreFnResult)
-  (loadFnArguments : RT.LoadFnArguments)
-  (storeFnArguments : RT.StoreFnArguments)
+  (program : RT.ProgramContext)
   : RT.ExecutionState =
-  { tlid = tlid
-    functions = functions
+  { libraries = libraries
+    tracing = tracing
+    program = program
+    tlid = tlid
     callstack = Set.empty
-    accountID = accountID
-    canvasID = canvasID
-    userFns = userFns
-    userTypes = userTypes
-    packageFns = packageFns
-    dbs = dbs
-    secrets = secrets
-    trace = (fun on_execution_path _ _ -> ())
-    traceTLID = fun _ -> ()
     onExecutionPath = true
-    context = RT.Real
-    executingFnName = None
-    loadFnResult = loadFnResult
-    loadFnArguments = loadFnArguments
-    storeFnResult = storeFnResult
-    storeFnArguments = storeFnArguments }
+    executingFnName = None }
 
-let run
+let executeExpr
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
-  //     ?(parent = (None : Span.t option))
   : Task<RT.Dval> =
-  // FSTODO: get the list of tlids some other way
-  // let tlidStore = new System.Collections.Generic.HashSet<tlid>()
-  // let traceTLID (tlid : tlid) = tlidStore.Add tlid |> ignore
-  // let state = { state with traceTLID = traceTLID }
   let symtable = Interpreter.withGlobals state inputVars
   Interpreter.eval state symtable expr |> TaskOrValue.toTask
-
-
-// FSTODO
-//   match parent with
-//   | None ->
-//       f ()
-//   | Some parent ->
-//       Telemetry.with_span parent "execute_handler" (fun _parent -> f ())
-
 
 let executeFunction
   (state : RT.ExecutionState)
   (callerID : tlid)
   (args : List<RT.Dval>)
   (name : RT.FQFnName.T)
-  : Task<RT.Dval * List<tlid>> =
-  task {
-    let touchedTLIDs = HashSet()
-
-    let traceTLID tlid =
-      let (_set : HashSet<tlid>) = HashSet.add tlid touchedTLIDs in ()
-
-    let state = { state with traceTLID = traceTLID }
-
-    let! result =
-      Interpreter.callFn state name callerID args RT.NoRail RT.NotInPipe
-      |> TaskOrValue.toTask
-
-    return (result, HashSet.toList touchedTLIDs)
-  }
+  : Task<RT.Dval> =
+  Interpreter.callFn state name callerID args RT.NoRail RT.NotInPipe
+  |> TaskOrValue.toTask
 
 
-// --------------------
-// Execution
-// --------------------
-let analyseExpr
+
+// Return a function to trace TLIDs (add it to state via
+// state.tracing.traceTLID), and a mutable set which updates when the traceFn
+// is used
+let traceTLIDs () : HashSet<tlid> * RT.TraceTLID =
+  let touchedTLIDs = HashSet()
+
+  let traceTLID tlid : unit =
+    let (_set : HashSet<tlid>) = HashSet.add tlid touchedTLIDs in ()
+
+  (touchedTLIDs, traceTLID)
+
+let updateTraceTLID
+  (traceTLID : RT.TraceTLID)
   (state : RT.ExecutionState)
-  (loadFnResults : RT.LoadFnResult)
-  (loadFnArguments : RT.LoadFnArguments)
-  (inputVars : RT.DvalMap)
-  (ast : RT.Expr)
-  : Task<AT.AnalysisResults> =
-  task {
-    let results = Dictionary()
+  : RT.ExecutionState =
+  { state with tracing = { state.tracing with traceTLID = traceTLID } }
 
-    let trace onExecutionPath (id : id) (dval : RT.Dval) =
-      let result =
-        (if onExecutionPath then
-           AT.ExecutedResult dval
-         else
-           AT.NonExecutedResult dval)
 
-      results.Add(id, result)
 
-    let state : RT.ExecutionState =
-      { state with
-          context = RT.Preview
-          trace = trace
-          loadFnResult = loadFnResults
-          loadFnArguments = loadFnArguments
-          storeFnResult = storeNoResults
-          storeFnArguments = storeNoArguments }
+// Return a function to trace Dvals (add it to state via
+// state.tracing.traceDval), and a mutable dictionary which updates when the
+// traceFn is used
+let traceDvals () : Dictionary<id, AT.ExecutionResult> * RT.TraceDval =
+  let results = Dictionary()
 
-    let symtable = Interpreter.withGlobals state inputVars
-    let! (_ : RT.Dval) = (Interpreter.eval state symtable ast) |> TaskOrValue.toTask
-    return results
-  }
+  let trace onExecutionPath (id : id) (dval : RT.Dval) =
+    let result =
+      (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
+
+    results.Add(id, result)
+
+  (results, trace)
+
+let updateTraceDval
+  (traceDval : RT.TraceDval)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with tracing = { state.tracing with traceDval = traceDval } }

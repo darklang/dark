@@ -12,10 +12,6 @@ open FSharpPlus
 open Prelude
 open Tablecloth
 
-open Npgsql.FSharp.Tasks
-open Npgsql
-open LibBackend.Db
-
 module PT = LibBackend.ProgramTypes
 module OT = LibBackend.OCamlInterop.OCamlTypes
 module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
@@ -27,12 +23,7 @@ module Stats = LibBackend.Stats
 module Traces = LibBackend.Traces
 module Auth = LibBackend.Authorization
 module Canvas = LibBackend.Canvas
-module Config = LibBackend.Config
 module RT = LibExecution.RuntimeTypes
-module SA = LibBackend.StaticAssets
-module Session = LibBackend.Session
-module TFA = LibBackend.TraceFunctionArguments
-module TFR = LibBackend.TraceFunctionResults
 module TI = LibBackend.TraceInputs
 
 module Unlocked =
