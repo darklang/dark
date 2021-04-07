@@ -31,21 +31,19 @@ let fns : List<BuiltInFn> =
         | _ ->  incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "response" 0) } ]
-// ; { name = fn "Http" "response" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp (Response (Dint.to_int_exn code, []), dv)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Http" "response" 0) }
+    { name = fn "Http" "response" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
+      fn =
+        (function
+        | _, [dv; DInt code] -> Value(DHttpResponse(Response(int code, []), dv))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 //   (* TODO(ian): merge Http::respond with Http::respond_with_headers
 //  * -- need to figure out how to deprecate functions w/o breaking
 //  * user code
