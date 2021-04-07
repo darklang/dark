@@ -100,6 +100,52 @@ let t name =
     let! (meta : Canvas.Meta) = testCanvasInfo testName
     do! Canvas.saveTLIDs meta oplists
 
+    let split (response : byte array) : (byte array * string array * byte array) =
+      // read a single line of bytes (a line ends with \r\n)
+      let rec consume
+        (existing : byte list)
+        (l : byte list)
+        : byte list * byte list =
+        match l with
+        | [] -> [], []
+        | 13uy :: 10uy :: tail -> existing, tail
+        | head :: tail -> consume (existing @ [ head ]) tail
+
+      // read all headers (ends when we get two \r\n in a row), return headers
+      // and remaining byte string (the body). Assumes the status line is not present
+      let rec consumeHeaders
+        (headers : string list)
+        (l : byte list)
+        : string list * byte list =
+        let (line, remaining) = consume [] l
+
+        if line = [] then
+          (headers, remaining)
+        else
+          let str = line |> Array.ofList |> ofBytes
+          consumeHeaders (str :: headers) remaining
+
+      let bytes = Array.toList response
+
+      // read the status like (eg HTTP 200 OK)
+      let status, bytes = consume [] bytes
+
+      let headers, body = consumeHeaders [] bytes
+
+      (List.toArray status, List.toArray headers, List.toArray body)
+
+    let normalizeHeaders (hs : string list) : string list =
+      hs
+      |> List.map
+           (fun h ->
+             h
+             |> FsRegEx.replace
+                  "Date: ..., .. ... .... ..:..:.. ..."
+                  "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
+             |> String.toLowercase)
+      |> List.sort
+
+
     let callServer (port : int) : Task<unit> =
       task {
         // Web server might not be loaded yet
@@ -126,20 +172,28 @@ let t name =
         let! byteCount = stream.ReadAsync(response, 0, length)
         let response = Array.take byteCount response
 
-        let response =
-          FsRegEx.replace
-            "Date: ..., .. ... .... ..:..:.. ..."
-            "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
-            (toStr response)
+        let (aStatus, aHeaders, aBody) =
+          split response |> debug $"split actual {name}"
 
-        Expect.equal response (toStr expectedResponse) ""
+        let (eStatus, eHeaders, eBody) =
+          split expectedResponse |> debug $"split expected {name}"
+
+        Expect.equal aStatus eStatus "status line"
+
+        Expect.equal
+          (aHeaders |> Array.toList |> normalizeHeaders)
+          (eHeaders |> Array.toList |> normalizeHeaders)
+          "headers"
+
+        Expect.equal aBody eBody "body"
       }
 
     if String.startsWith "_" name then
       skiptest $"underscore test - {name}"
     else
       do! callServer 10001
-  // do! callServer 8001
+      do! callServer 8001
+
   }
 
 let testsFromFiles =
