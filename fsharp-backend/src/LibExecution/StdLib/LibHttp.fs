@@ -230,18 +230,19 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "unauthorized" 0
+      parameters = []
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
+      fn =
+        (function
+        | _, [] -> Value(DHttpResponse(Response(401, []), DNull))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
-// ; { name = fn "Http" "unauthorized" 0
-//   ; parameters = []
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
-//   ; fn =
-//         (function
-//         | _, [] -> DResp (Response (401, []), DNull) | _ -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
 // ; { name = fn "Http" "forbidden" 0
 //   ; parameters = []
 //   ; returnType = TResp
