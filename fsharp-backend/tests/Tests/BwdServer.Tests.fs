@@ -3,11 +3,14 @@ module Tests.BwdServer
 open Expecto
 
 open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open System.Net.Sockets
 open System.Text.RegularExpressions
 open FSharpPlus
 
 open Prelude
+open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramTypes
@@ -49,7 +52,7 @@ let t name =
 
     let request, expectedResponse, httpDefs =
       // TODO: use FsRegex instead
-      let options = System.Text.RegularExpressions.RegexOptions.Singleline
+      let options = RegexOptions.Singleline
 
       let m =
         Regex.Match(
@@ -97,38 +100,46 @@ let t name =
     let! (meta : Canvas.Meta) = testCanvasInfo testName
     do! Canvas.saveTLIDs meta oplists
 
-    // Web server might not be loaded yet
-    use client = new TcpClient()
+    let callServer (port : int) : Task<unit> =
+      task {
+        // Web server might not be loaded yet
+        use client = new TcpClient()
 
-    let mutable connected = false
+        let mutable connected = false
 
-    for i in 1 .. 10 do
-      try
-        if not connected then
-          do! client.ConnectAsync("127.0.0.1", 10001)
-          connected <- true
-      with _ -> do! System.Threading.Tasks.Task.Delay 1000
+        for i in 1 .. 10 do
+          try
+            if not connected then
+              do! client.ConnectAsync("127.0.0.1", port)
+              connected <- true
+          with _ when i <> 10 ->
+            printfn $"Server not ready on port {port}, maybe retry"
+            do! System.Threading.Tasks.Task.Delay 1000
 
-    use stream = client.GetStream()
-    stream.ReadTimeout <- 1000 // responses should be instant, right?
+        use stream = client.GetStream()
+        stream.ReadTimeout <- 1000 // responses should be instant, right?
 
-    do! stream.WriteAsync(request, 0, request.Length)
+        do! stream.WriteAsync(request, 0, request.Length)
 
-    let length = 10000
-    let response = Array.zeroCreate length
-    let! byteCount = stream.ReadAsync(response, 0, length)
-    let response = Array.take byteCount response
+        let length = 10000
+        let response = Array.zeroCreate length
+        let! byteCount = stream.ReadAsync(response, 0, length)
+        let response = Array.take byteCount response
 
-    let response =
-      FsRegEx.replace
-        "Date: ..., .. ... .... ..:..:.. ..."
-        "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
-        (toStr response)
+        let response =
+          FsRegEx.replace
+            "Date: ..., .. ... .... ..:..:.. ..."
+            "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
+            (toStr response)
+
+        Expect.equal response (toStr expectedResponse) ""
+      }
 
     if String.startsWith "_" name then
       skiptest $"underscore test - {name}"
     else
-      Expect.equal response (toStr expectedResponse) ""
+      do! callServer 10001
+  // do! callServer 8001
   }
 
 let testsFromFiles =
