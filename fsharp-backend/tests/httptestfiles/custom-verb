@@ -3,7 +3,7 @@
 
 [request]
 CUSTOM_VERB / HTTP/1.1
-Host: test-custom_verb.builtwithdark.localhost:10001
+Host: test-custom-verb.builtwithdark.localhost:10001
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
 
