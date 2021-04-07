@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
 //   (* TODO(ian): merge Http::respond with Http::respond_with_headers
 //  * -- need to figure out how to deprecate functions w/o breaking
 //  * user code
@@ -207,20 +207,18 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "badRequest" 0
-//   ; parameters = [Param.make "error" TStr ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
-//   ; fn =
-//         (function
-//         | _, [DStr msg] ->
-//             DResp (Response (400, []), DStr msg)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "badRequest" 0
+      parameters = [Param.make "error" TStr ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
+      fn =
+        (function
+        | _, [msg] -> Value(DHttpResponse (Response(400, []), msg))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 // ; { name = fn "Http" "notFound" 0
 //   ; parameters = []
 //   ; returnType = TResp
