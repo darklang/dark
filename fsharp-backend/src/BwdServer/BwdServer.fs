@@ -32,7 +32,11 @@ module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 
-let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+  // There's an exception thrown for duplicate test name. We just want the last
+  // header to win, especially since the user can add the same headers we add
+  let (_ : bool) = ctx.Response.Headers.Remove name
+
   ctx.Response.Headers.Add(
     name,
     Microsoft.Extensions.Primitives.StringValues([| value |])
@@ -104,7 +108,7 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     // NB: we're sending back a png, not an ico - this is deliberate,
     // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
     let bytes = Lazy.force favicon
-    addHeader ctx "Access-Control-Allow-Origin" "*"
+    setHeader ctx "Access-Control-Allow-Origin" "*"
     ctx.Response.ContentType <- "image/png"
     ctx.Response.ContentLength <- int64 bytes.Length
     ctx.Response.StatusCode <- 200
@@ -122,7 +126,7 @@ let standardResponse
   : Task<HttpContext> =
   task {
     let bytes = System.Text.Encoding.UTF8.GetBytes msg
-    addHeader ctx "Access-Control-Allow-Origin" "*"
+    setHeader ctx "Access-Control-Allow-Origin" "*"
 
     match contentType with
     | None -> ()
@@ -166,19 +170,15 @@ exception LoadException of string * int
 let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<'b> =
   task {
     try
-      printfn $"trying something that would be caught with {msg}"
       return! fn value
-    with _ ->
-      printfn $"caught it: {msg}"
-      return! raise (LoadException(msg, code))
+    with _ -> return! raise (LoadException(msg, code))
   }
 
 
 
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    printfn "gettin0"
-    addHeader ctx "Server" "Darklang"
+    setHeader ctx "Server" "Darklang"
 
     let msg (code : int) (msg : string) =
       task {
@@ -198,7 +198,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     | Some canvasName ->
         // CLEANUP: move up
         let executionID = gid ()
-        addHeader ctx "x-darklang-execution-id" (toString executionID)
+        setHeader ctx "x-darklang-execution-id" (toString executionID)
         let ownerName = Account.ownerNameFromCanvasName canvasName
         let ownerUsername = UserName.create (toString ownerName)
 
@@ -242,7 +242,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
                     ctx.Response.StatusCode <- status
                     // FSTODO content type of application/json for dobj and dlist
-                    List.iter (fun (k, v) -> addHeader ctx k v) headers
+                    List.iter (fun (k, v) -> setHeader ctx k v) headers
                     do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
                     return ctx
                 | RT.DIncomplete _ -> return! dincompleteResponse ctx
@@ -269,14 +269,18 @@ let configureApp (app : IApplicationBuilder) =
     (task {
       try
         return! runDarkHandler ctx
-      with LoadException (msg, code) ->
-        // FSTODO log/honeycomb, rollbar
-        let bytes = System.Text.Encoding.UTF8.GetBytes msg
-        ctx.Response.StatusCode <- code
-        if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
-        ctx.Response.ContentLength <- int64 bytes.Length
-        do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
-        return ctx
+      with
+      | LoadException (msg, code) ->
+          // FSTODO log/honeycomb, rollbar
+          let bytes = System.Text.Encoding.UTF8.GetBytes msg
+          ctx.Response.StatusCode <- code
+          if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
+          ctx.Response.ContentLength <- int64 bytes.Length
+          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+          return ctx
+      | e ->
+          printfn "%s" (toString e)
+          return raise e
      })
     :> Task
 
