@@ -160,7 +160,7 @@ let t name =
       let serverHeader = if server = OCaml then [ "server: darklang" ] else []
 
       let date =
-        if server = OCaml then [ "date: XXX, XX XXX XXXX XX:XX:XX XXX" ] else []
+        if server = OCaml then [ "Date: xxx, xx xxx xxxx xx:xx:xx xxx" ] else []
 
       // All kestrel responses have
       //  - a content-type if they have content

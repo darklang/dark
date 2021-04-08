@@ -9,7 +9,7 @@ Content-Length: 0
 
 [response]
 HTTP/1.1 404 Not Found
-Date: XXX, XX XXX XXXX XX:XX:XX XXX
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Server: darklang
 Content-Length: 9
 

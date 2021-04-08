@@ -9,5 +9,11 @@ Content-Length: 0
 
 [response]
 HTTP/1.1 404 Not Found
-x-darklang-execution-id: 1695555918
-Content-Length: 0
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+x-darklang-execution-id: 0123456789
+Access-Control-Allow-Origin: *
+Content-Length: 31
+Content-Type: text/plain
+Server: darklang
+
+404 Not Found: No route matches
