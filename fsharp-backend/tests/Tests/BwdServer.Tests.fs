@@ -240,7 +240,9 @@ let t name =
         let aHeaders = normalizeHeaders server aHeaders eBody
 
         // Test as bytes, json, or strings
-        if eBody |> Array.any (fun b -> not (Char.isPrintable (char b))) then
+        if eBody
+           |> Array.any
+                (fun b -> b <> 10uy && b <> 13uy && not (Char.isPrintable (char b))) then
           // print as bytes for better readability
           Expect.equal
             (aStatus, aHeaders, aBody)
