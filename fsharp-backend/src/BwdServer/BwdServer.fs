@@ -42,6 +42,11 @@ let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
     Microsoft.Extensions.Primitives.StringValues([| value |])
   )
 
+let getHeader (ctx : HttpContext) (name : string) : string option =
+  match ctx.Request.Headers.TryGetValue name with
+  | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
+  | false, _ -> None
+
 let sanitizeUrlPath (path : string) : string =
   path
   |> FsRegEx.replace "//+" "/"
@@ -174,7 +179,41 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
     with _ -> return! raise (LoadException(msg, code))
   }
 
+// FSTODO: for now, we'll read the CORS settings and write the response headers. This is probably wrong but we'll see
+let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
+  task {
+    let! corsSetting = Canvas.fetchCORSSetting canvasID
+    let originHeader = getHeader ctx "Origin"
 
+    let defaultOrigins =
+      [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
+
+    let header =
+      match (originHeader, corsSetting) with
+      // if there's no explicit canvas setting, allow common localhosts
+      | Some origin, None when List.contains origin defaultOrigins -> Some origin
+      // if there's no explicit canvas setting and no default match, fall back to "*"
+      | _, None -> Some "*"
+      // If there's a "*" in the setting, always use it.
+      // This is help as a debugging aid since users will always see
+      //   Access-Control-Allow-Origin: * in their browsers, even if the
+      //   request has no Origin.
+      | _, Some Canvas.AllOrigins -> Some "*"
+      // if there's no supplied origin, don't set the header at all.
+      | None, _ -> None
+      // Return the origin if and only if it's in the setting
+      | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
+          Some origin
+      // Otherwise: there was a supplied origin and it's not in the setting.
+      // return "null" explicitly
+      | Some _, Some _ -> Some "null"
+
+    match header with
+    | Some v -> setHeader ctx "Access-Control-Allow-Origin" v
+    | None -> ()
+
+    return ()
+  }
 
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
@@ -196,7 +235,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
     match! canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
-        // CLEANUP: move up
+        // CLEANUP: move execution ID header up
         let executionID = gid ()
         setHeader ctx "x-darklang-execution-id" (toString executionID)
         let ownerName = Account.ownerNameFromCanvasName canvasName
@@ -234,6 +273,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 let expr = expr.toRuntimeType ()
 
                 let! result = runHttp c tlid traceID url body symtable expr
+                do! getCORS ctx canvasID
 
                 match result with
                 | RT.DHttpResponse (RT.Redirect url, _) ->
