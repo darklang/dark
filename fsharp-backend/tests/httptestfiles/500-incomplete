@@ -14,6 +14,6 @@ Content-Type: text/plain
 Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
 Server: darklang
-Content-Length: 129
+Content-Length: 142
 
-Error calling server code: Handler returned an incomplete result. Please inform the owner of this site that their code is broken.
+Application error: the executed code was not complete. This error can be resolved by the application author by completing the incomplete code.
