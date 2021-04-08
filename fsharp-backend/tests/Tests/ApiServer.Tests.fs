@@ -481,7 +481,8 @@ let testDelete404s =
 
     let insert404 server : Task<unit> =
       task {
-        let url = $"http://test.builtwithdark.localhost:9001{path}"
+        // FSTODO switch test to use F#, which doesn't yet add traces
+        let url = $"http://test.builtwithdark.localhost:8000{path}"
         let! result = getAsync url
         Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
 
@@ -497,17 +498,12 @@ let testDelete404s =
     // assert secret initially missing
     let! f404 = get404 ()
     Expect.equal f404 None "initial"
-    printfn "initial_check"
 
     do! insert404 ()
-    printfn "insert"
     let! oResponse = delete404 OCaml
-    printfn "ocaml delete"
 
     do! insert404 ()
-    printfn "insert"
     let! fResponse = delete404 FSharp
-    printfn "fsharp_delete"
 
     Expect.equal fResponse oResponse "compare responses"
   }

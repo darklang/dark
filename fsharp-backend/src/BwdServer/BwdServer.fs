@@ -31,6 +31,7 @@ module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
+module TI = LibBackend.TraceInputs
 
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
   // There's an exception thrown for duplicate test name. We just want the last
@@ -298,7 +299,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                     $"The request ({requestPath}) does not match the route ({route})"
         | [] when toString ctx.Request.Path = "/favicon.ico" ->
             return! faviconResponse ctx
-        | [] -> return! noHandlerResponse ctx
+        | [] ->
+            // FSTODO: save trace
+            return! noHandlerResponse ctx
         | _ -> return! moreThanOneHandlerResponse ctx
     | None -> return! canvasNotFoundResponse ctx
   }
