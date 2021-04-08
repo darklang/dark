@@ -142,7 +142,7 @@ let t name =
     let normalizeHeaders
       (server : Server)
       (hs : string list)
-      (body : string)
+      (body : byte array)
       : string list =
       let headerMap =
         hs
@@ -152,7 +152,7 @@ let t name =
 
       let ct =
         if (server = OCaml
-            && (not (Set.contains "content-type" headerMap) && body <> "")) then
+            && (not (Set.contains "content-type" headerMap) && body.Length <> 0)) then
           [ "content-type: text/plain" ]
         else
           []
@@ -180,8 +180,15 @@ let t name =
                   "x-darklang-execution-id: 0123456789")
       |> List.sort // FSTODO ocaml headers are sorted, inexplicably
 
-    let normalizeExpectedHeaders (hs : string list) : string list =
-      hs |> List.map String.toLowercase |> List.sort
+    let normalizeExpectedHeaders
+      (hs : string list)
+      (bodyLength : int)
+      : string list =
+      hs
+      |> List.map (fun h -> FsRegEx.replace "LENGTH" (toString bodyLength) h)
+      |> List.map String.toLowercase
+      // Json can be different lengths, this plugs in the expected length
+      |> List.sort
 
 
     let callServer (server : Server) : Task<unit> =
@@ -220,20 +227,47 @@ let t name =
         let request = request |> Array.toList |> replaceHost |> Array.ofList
         do! stream.WriteAsync(request, 0, request.Length)
 
+        // Read the response
         let length = 10000
         let response = Array.zeroCreate length
         let! byteCount = stream.ReadAsync(response, 0, length)
         let response = Array.take byteCount response
 
+        // Parse and normalize the response
         let (aStatus, aHeaders, aBody) = split response
         let (eStatus, eHeaders, eBody) = split expectedResponse
-        let aBody = ofBytes aBody
-        let eBody = ofBytes eBody
+        let eHeaders = normalizeExpectedHeaders eHeaders aBody.Length
+        let aHeaders = normalizeHeaders server aHeaders eBody
 
-        Expect.equal
-          (aStatus, normalizeHeaders server aHeaders aBody, aBody)
-          (eStatus, normalizeExpectedHeaders eHeaders, eBody)
-          $"({server})"
+        // Test as bytes, json, or strings
+        if eBody |> Array.any (fun b -> not (Char.isPrintable (char b))) then
+          // print as bytes for better readability
+          Expect.equal
+            (aStatus, aHeaders, aBody)
+            (eStatus, eHeaders, eBody)
+            $"({server} as bytes)"
+        else
+          // Json can be different shapes but equally valid
+          let asJson =
+            try
+              Some(
+                LibExecution.DvalRepr.parseJson (ofBytes aBody),
+                LibExecution.DvalRepr.parseJson (ofBytes eBody)
+              )
+            with e -> None
+
+          match asJson with
+          | Some (aJson, eJson) ->
+              Expect.equal
+                (aStatus, aHeaders, toString aJson)
+                (eStatus, eHeaders, toString eJson)
+                $"({server} as json)"
+          | None ->
+              Expect.equal
+                (aStatus, aHeaders, ofBytes aBody)
+                (eStatus, eHeaders, ofBytes eBody)
+                $"({server} as string)"
+
       }
 
     if String.startsWith "_" name then
