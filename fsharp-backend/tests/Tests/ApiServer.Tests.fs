@@ -448,7 +448,6 @@ let testDelete404s =
 
         Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
         let! body = o.Content.ReadAsStringAsync()
-        debuG "404s body" body
         return (deserialize<F404s.List.T> body).f404s
       }
 
@@ -463,11 +462,9 @@ let testDelete404s =
 
         return
           f404s
-          |> debug "f404s"
           |> List.filter
                (fun ((space, name, modifier, _, _) : TI.F404) ->
                  space = "HTTP" && name = path && modifier = "GET")
-          |> debug "filtered"
           |> List.head
       }
 
