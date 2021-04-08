@@ -19,6 +19,10 @@ module Canvas = LibBackend.Canvas
 
 open TestUtils
 
+type Server =
+  | OCaml
+  | FSharp
+
 let t name =
   testTask $"Httpfiles: {name}" {
     let testName = $"test-{name}"
@@ -100,7 +104,7 @@ let t name =
     let! (meta : Canvas.Meta) = testCanvasInfo testName
     do! Canvas.saveTLIDs meta oplists
 
-    let split (response : byte array) : (byte array * string array * byte array) =
+    let split (response : byte array) : (string * string list * byte array) =
       // read a single line of bytes (a line ends with \r\n)
       let rec consume
         (existing : byte list)
@@ -112,7 +116,8 @@ let t name =
         | head :: tail -> consume (existing @ [ head ]) tail
 
       // read all headers (ends when we get two \r\n in a row), return headers
-      // and remaining byte string (the body). Assumes the status line is not present
+      // and remaining byte string (the body). Assumes the status line is not
+      // present. Headers are returned reversed
       let rec consumeHeaders
         (headers : string list)
         (l : byte list)
@@ -132,26 +137,64 @@ let t name =
 
       let headers, body = consumeHeaders [] bytes
 
-      (List.toArray status, List.toArray headers, List.toArray body)
+      (status |> List.toArray |> ofBytes, List.reverse headers, List.toArray body)
 
-    let normalizeHeaders (hs : string list) : string list =
-      hs
+    let normalizeHeaders
+      (server : Server)
+      (hs : string list)
+      (body : string)
+      : string list =
+      let headerMap =
+        hs
+        |> List.map (fun s -> s |> String.toLowercase |> String.split ":")
+        |> List.filterMap List.head
+        |> Set.ofList
+
+      let ct =
+        if (server = OCaml
+            && (not (Set.contains "content-type" headerMap) && body <> "")) then
+          [ "content-type: text/plain" ]
+        else
+          []
+
+      let serverHeader = if server = OCaml then [ "server: darklang" ] else []
+
+      let date =
+        if server = OCaml then [ "date: XXX, XX XXX XXXX XX:XX:XX XXX" ] else []
+
+      // All kestrel responses have
+      //  - a content-type if they have content
+      //  - a server-darklang
+      // So add these to the ocaml responses
+      // Meanwhile all ocaml responses are sorted and lowercase
+      ct @ date @ serverHeader @ hs
       |> List.map
            (fun h ->
              h
+             |> String.toLowercase // FSTODO ocaml responses are lowercase
              |> FsRegEx.replace
-                  "Date: ..., .. ... .... ..:..:.. ..."
-                  "Date: XXX, XX XXX XXXX XX:XX:XX XXX"
-             |> String.toLowercase)
-      |> List.sort
+                  "date: ..., .. ... .... ..:..:.. ..."
+                  "date: xxx, xx xxx xxxx xx:xx:xx xxx"
+             |> FsRegEx.replace
+                  "x-darklang-execution-id: \\d+"
+                  "x-darklang-execution-id: 0123456789")
+      |> List.sort // FSTODO ocaml headers are sorted, inexplicably
+
+    let normalizeExpectedHeaders (hs : string list) : string list =
+      hs |> List.map String.toLowercase |> List.sort
 
 
-    let callServer (port : int) : Task<unit> =
+    let callServer (server : Server) : Task<unit> =
       task {
         // Web server might not be loaded yet
         use client = new TcpClient()
 
         let mutable connected = false
+
+        let port =
+          match server with
+          | OCaml -> 8001
+          | FSharp -> 10001
 
         for i in 1 .. 10 do
           try
@@ -164,7 +207,17 @@ let t name =
 
         use stream = client.GetStream()
         stream.ReadTimeout <- 1000 // responses should be instant, right?
+        let host = $"test-{name}.builtwithdark.localhost:{port}"
 
+        let rec replaceHost (bytes : byte list) : byte list =
+          match bytes with
+          // 'H' :: 'O' :: 'S' :: 'T'
+          | 72uy :: 79uy :: 83uy :: 84uy :: tail ->
+              (host |> toBytes |> Array.toList) @ tail
+          | h :: tail -> h :: replaceHost tail
+          | [] -> []
+
+        let request = request |> Array.toList |> replaceHost |> Array.ofList
         do! stream.WriteAsync(request, 0, request.Length)
 
         let length = 10000
@@ -172,27 +225,22 @@ let t name =
         let! byteCount = stream.ReadAsync(response, 0, length)
         let response = Array.take byteCount response
 
-        let (aStatus, aHeaders, aBody) =
-          split response |> debug $"split actual {name}"
-
-        let (eStatus, eHeaders, eBody) =
-          split expectedResponse |> debug $"split expected {name}"
-
-        Expect.equal aStatus eStatus "status line"
+        let (aStatus, aHeaders, aBody) = split response
+        let (eStatus, eHeaders, eBody) = split expectedResponse
+        let aBody = ofBytes aBody
+        let eBody = ofBytes eBody
 
         Expect.equal
-          (aHeaders |> Array.toList |> normalizeHeaders)
-          (eHeaders |> Array.toList |> normalizeHeaders)
-          "headers"
-
-        Expect.equal aBody eBody "body"
+          (aStatus, normalizeHeaders server aHeaders aBody, aBody)
+          (eStatus, normalizeExpectedHeaders eHeaders, eBody)
+          $"({server})"
       }
 
     if String.startsWith "_" name then
       skiptest $"underscore test - {name}"
     else
-      do! callServer 10001
-      do! callServer 8001
+      do! callServer OCaml // check OCaml to see if we got the right answer
+      do! callServer FSharp // test F# impl
 
   }
 
