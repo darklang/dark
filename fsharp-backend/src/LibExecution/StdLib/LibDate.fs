@@ -72,32 +72,35 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
-    //   { name = fn "Date" "toStringISO8601BasicDateTime" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TStr
-//     description =
-//       "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
-//     fn =
-//         //       (function
-//       | _, [ DDate d ] ->
-//           DStr (Stdlib_util.isostring_of_date_basic_datetime d)
-//       | _ -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "toStringISO8601BasicDate" 0
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TStr
-//     description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
-//     fn =
-//         //       (function
-//       | _, [ DDate d ] ->
-//           DStr (Stdlib_util.isostring_of_date_basic_date d)
-//       | _ -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
+    { name = fn "Date" "toStringISO8601BasicDateTime" 0
+      parameters = [ Param.make "date" TDate ""]
+      returnType = TStr
+      description =
+        "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
+      fn =
+        (function
+        | _, [ DDate d ] -> 
+          d.ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+          |> DStr
+          |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "toStringISO8601BasicDate" 0
+      parameters = [ Param.make "date" TDate ""]
+      returnType = TStr
+      description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
+      fn =
+        (function
+        | _, [ DDate d ] ->
+            d.ToUniversalTime().ToString("yyyyMMdd")
+          |> DStr
+          |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Date" "now" 0
       parameters = []
       returnType = TDate
@@ -199,44 +202,45 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp("<=")
       previewable = Pure
       deprecated = NotDeprecated }
-    //   { name = fn "Date" "toSeconds" 0
-//
-//     parameters = [ Param.make "date" TDate ]
-//     returnType = TInt
-//     description =
-//       "Converts a Date `date` to an integer representing seconds since the Unix epoch"
-//     fn =
-//
-//       (function
-//       | _, [ DDate d ] ->
-//           d
-//           |> Time.to_span_since_epoch
-//           |> Time.Span.to_sec
-//           |> Float.iround_exn
-//           |> Dval.dint
-//       | _ -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
-//   { name = fn "Date" "fromSeconds" 0
-//
-//     parameters = [ Param.make "seconds" TInt ]
-//     returnType = TDate
-//     description =
-//       "Converts an integer representing seconds since the Unix epoch into a Date"
-//     fn =
-//
-//       (function
-//       | _, [ DInt s ] ->
-//           s
-//           |> Dint.to_int63
-//           |> Time.Span.of_int63_seconds
-//           |> Time.of_span_since_epoch
-//           |> DDate
-//       | _ -> incorrectArgs ())
-//     sqlSpec = NotQueryable
-//     previewable = Pure
-//     deprecated = NotDeprecated }
+    { name = fn "Date" "toSeconds" 0
+ 
+      parameters = [ Param.make "date" TDate ""]
+      returnType = TInt
+      description =
+        "Converts a Date `date` to an integer representing seconds since the Unix epoch"
+      fn =
+        (function
+        | _, [ DDate d ] ->
+            d
+            |> System.DateTimeOffset
+            |> (fun dto -> dto.ToUnixTimeSeconds())
+            |> int
+            |> Dval.int
+            |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Date" "fromSeconds" 0
+ 
+      parameters = [ Param.make "seconds" TInt ""]
+      returnType = TDate
+      description =
+        "Converts an integer representing seconds since the Unix epoch into a Date"
+      fn =
+ 
+        (function
+        | _, [ DInt s ] ->
+            s
+            |> int64
+            |> System.DateTimeOffset.FromUnixTimeSeconds
+            |> (fun dto -> dto.DateTime)
+            |> DDate
+            |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   { name = fn "Date" "toHumanReadable" 0
 //
 //     parameters = [ Param.make "date" TDate ]
