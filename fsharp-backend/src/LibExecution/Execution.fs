@@ -66,7 +66,12 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
       ))
   | RT.DErrorRail _ ->
       (RT.DHttpResponse(
-        RT.Response(500, [ "Content-Length", "32"; "Server", "darklang" ]),
+        RT.Response(
+          500,
+          [ "Content-Length", "33"
+            "Server", "darklang"
+            "Content-Type", "text/plain; charset=utf-8" ]
+        ),
         RT.DBytes(toBytes "Invalid conversion from errorrail")
       ))
   | dv -> dv
