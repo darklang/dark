@@ -18,6 +18,7 @@ if [[ -f "${TESTSERVER_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
   echo "Running ocaml test server"
+  # shellcheck disable=SC2024
   DARK_CONFIG_DB_HOST=localhost \
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
