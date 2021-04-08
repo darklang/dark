@@ -9,5 +9,7 @@ Content-Length: 0
 
 [response]
 HTTP/1.1 404 Not Found
+Access-Control-Allow-Origin: *
+x-darklang-execution-id: 0123456789
 x-darklang-execution-id: 1695555918
 Content-Length: 0

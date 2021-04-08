@@ -12,5 +12,7 @@ HTTP/1.1 404 Not Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Server: darklang
 Content-Length: 9
+Access-Control-Allow-Origin: *
+x-darklang-execution-id: 0123456789
 
 Not found

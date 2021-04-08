@@ -16,5 +16,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain
 Server: darklang
 Content-Length: 40
+Access-Control-Allow-Origin: *
+x-darklang-execution-id: 0123456789
 
 More than one handler found for this URL

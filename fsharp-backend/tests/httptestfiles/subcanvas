@@ -10,6 +10,8 @@ Content-Length: 0
 [response]
 HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Access-Control-Allow-Origin: *
+x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
 Server: darklang
 Content-Length: 13
