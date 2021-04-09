@@ -33,7 +33,8 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
          || f.EndsWith "//" |> debug "double slash"
          (* check for irregular file *)
          || (mode = Read
-             && (System.IO.File.GetAttributes(f) <> System.IO.FileAttributes.Normal))
+             && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
+             && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
             |> debug "irreg") then
     printfn $"SECURITY_VIOLATION: {f}"
     failwith "FILE SECURITY VIOLATION"
@@ -43,7 +44,7 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
   else
     f
 
-//
+
 // let file_exists root f : bool =
 //   let f = check_filename root Check f in
 //   Sys.file_exists f = Yes
@@ -52,18 +53,15 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
 // let mkdir root dir : unit =
 //   let dir = check_filename root Dir dir in
 //   Unix.mkdir_p dir
-//
-//
+
+
 let lsdir (root : Config.Root) (dir : string) : string list =
   let absoluteDir = checkFilename root Dir dir
 
   absoluteDir
-  |> debug "checked"
   |> System.IO.Directory.EnumerateFileSystemEntries
   |> Seq.toList
-  |> debug "listed"
   |> List.map (String.dropLeft absoluteDir.Length)
-  |> debug "dropped"
 
 
 // let rm root file : unit =

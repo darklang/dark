@@ -250,7 +250,7 @@ let fns : List<BuiltInFn> =
                 let contentType =
                   match response with
                   | DObj _
-                  | DList _ -> "application/json; charset-utf-8"
+                  | DList _ -> "application/json; charset=utf-8"
                   | _ -> "text/plain; charset=utf-8"
 
                 let bytified =

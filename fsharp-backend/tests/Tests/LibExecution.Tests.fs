@@ -31,16 +31,18 @@ let t
     testTask name {
       try
         let rtDBs =
-          (dbs |> List.map (fun db -> db.name, db.toRuntimeType ()) |> Map.ofList)
+          (dbs |> List.map (fun db -> db.name, PT.DB.toRuntimeType db) |> Map.ofList)
 
-        let rtFunctions = functions |> Map.map (fun f -> f.toRuntimeType ())
+        let rtFunctions = functions |> Map.map PT.UserFunction.toRuntimeType
 
         let! state = executionStateFor name rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
         let actualProg, expectedResult = FSharpToExpr.convertToTest source
         let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
-        let! expected = Exe.run state Map.empty (expectedResult.toRuntimeType ())
+
+        let! expected =
+          Exe.executeExpr state Map.empty (expectedResult.toRuntimeType ())
 
         let testOCaml, testFSharp =
           if String.includes "FSHARPONLY" comment then (false, true)
@@ -48,24 +50,26 @@ let t
           else (true, true)
 
         if testOCaml then
-            try
-              let! ocamlActual =
-                LibBackend.OCamlInterop.execute
-                  state.accountID
-                  state.canvasID
-                  actualProg
-                  Map.empty
-                  dbs
-                  (Map.values functions)
+          try
+            let! ocamlActual =
+              LibBackend.OCamlInterop.execute
+                state.program.accountID
+                state.program.canvasID
+                actualProg
+                Map.empty
+                dbs
+                (Map.values functions)
 
-              Expect.equalDval
-                (normalizeDvalResult ocamlActual)
-                expected
-                $"OCaml: {msg}"
-            with _ -> Expect.isTrue false "Exception executing OCaml code"
+            Expect.equalDval
+              (normalizeDvalResult ocamlActual)
+              expected
+              $"OCaml: {msg}"
+          with _ -> Expect.isTrue false "Exception executing OCaml code"
 
         if testFSharp then
-          let! fsharpActual = Exe.run state Map.empty (actualProg.toRuntimeType ())
+          let! fsharpActual =
+            Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
+
           let fsharpActual = normalizeDvalResult fsharpActual
           Expect.equalDval fsharpActual expected $"FSharp: {msg}"
 
@@ -289,7 +293,7 @@ let equalsOCaml =
   testMany
     "equalsOCaml"
     (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
-    [ ((RT.FQFnName.stdlibFqName "List" "fold" 0,
+    [ ((RT.FQFnName.stdlibFnName "List" "fold" 0,
         [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0I) ]
           RT.DList []
           RT.DFnVal(

@@ -6,10 +6,10 @@ module BwdServer
 
 (* open Microsoft.AspNetCore.Http *)
 open FSharp.Control.Tasks
+open System.Threading.Tasks
 
 open System
 (* open System.Security.Claims *)
-open System.Threading.Tasks
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -19,67 +19,34 @@ open Microsoft.AspNetCore.Http.Extensions
 (* open Microsoft.Extensions.Configuration *)
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
+
 open Prelude
 open Tablecloth
 open FSharpx
 
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module RealExe = LibBackend.RealExecution
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
+module Account = LibBackend.Account
+module Canvas = LibBackend.Canvas
+module TI = LibBackend.TraceInputs
 
-// This boilerplate is copied from Giraffe. I elected not to use Giraffe
-// because we don't need any of its feature, but the types it uses are very
-// nice.
-// https://github.com/giraffe-fsharp/Giraffe/blob/9598682f4f68e23217c4199a48f30ca3457b037e/src/Giraffe/Core.fs
+let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
+  // There's an exception thrown for duplicate test name. We just want the last
+  // header to win, especially since the user can add the same headers we add
+  let (_ : bool) = ctx.Response.Headers.Remove name
 
-type HttpFuncResult = Task<HttpContext option>
+  ctx.Response.Headers.Add(
+    name,
+    Microsoft.Extensions.Primitives.StringValues([| value |])
+  )
 
-type HttpFunc = HttpContext -> HttpFuncResult
-type HttpHandler = HttpFunc -> HttpContext -> HttpFuncResult
-
-let compose (handler1 : HttpHandler) (handler2 : HttpHandler) : HttpHandler =
-  fun (final : HttpFunc) ->
-    let func = final |> handler2 |> handler1
-
-    fun (ctx : HttpContext) ->
-      match ctx.Response.HasStarted with
-      | true -> final ctx
-      | false -> func ctx
-
-let (>=>) = compose
-
-type BwdMiddleware(next : RequestDelegate, handler : HttpHandler) =
-  let earlyReturn = Some >> Task.FromResult
-  let func : HttpFunc = handler earlyReturn
-
-  member __.Invoke(ctx : HttpContext) =
-    task {
-      let! result = func ctx
-      if (result.IsNone) then return! next.Invoke ctx
-    }
-
-// End stuff copied from Giraffe
-
-let recordEventMiddleware : HttpHandler =
-  fun next ctx ->
-    // FSTODO
-    next ctx
-
-let record404Middleware : HttpHandler =
-  fun next ctx ->
-    // FSTODO
-    next ctx
-
-let recordHeapioMiddleware : HttpHandler =
-  fun next ctx ->
-    // FSTODO
-    next ctx
-
-let recordHoneycombMiddleware : HttpHandler =
-  fun next ctx ->
-    // FSTODO
-    next ctx
+let getHeader (ctx : HttpContext) (name : string) : string option =
+  match ctx.Request.Headers.TryGetValue name with
+  | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
+  | false, _ -> None
 
 let sanitizeUrlPath (path : string) : string =
   path
@@ -87,33 +54,9 @@ let sanitizeUrlPath (path : string) : string =
   |> String.trimEnd [| '/' |]
   |> fun str -> if str = "" then "/" else str
 
-let normalizeRequest : HttpHandler =
-  fun next ctx ->
-    ctx.Request.Path <- ctx.Request.Path.Value |> sanitizeUrlPath |> PathString
-    next ctx
-
-let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
-  task {
-    match host.Split [| '.' |] with
-    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
-    // just another load balancer
-    | [| a; "darkcustomdomain"; "com" |]
-    | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
-    | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
-    | _ -> return! LibBackend.Canvas.canvasNameFromCustomDomain host
-  }
-
-let fns =
-  lazy
-    (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
-     |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name))
-
 
 let runHttp
-  //     ?(parent = (None : Span.t option))
-  (c : LibBackend.Canvas.T)
+  (c : Canvas.T)
   (tlid : tlid)
   (traceID : LibExecution.AnalysisTypes.TraceID)
   (url : string)
@@ -122,54 +65,10 @@ let runHttp
   (expr : RT.Expr)
   : Task<RT.Dval> =
   task {
-    let ownerID = c.meta.owner
-    let canvasID = c.meta.id
-    let fns = fns.Force()
-    let packageFns = Map.empty // FSTODO: packageFns
 
-    let dbs =
-      c.dbs
-      |> Map.values
-      |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
-      |> Map.ofList
-
-    let userFns =
-      c.userFunctions
-      |> Map.values
-      |> List.map (fun pt -> (pt.name, pt.toRuntimeType ()))
-      |> Map.ofList
-
-    let userTypes =
-      c.userTypes
-      |> Map.values
-      |> List.map (fun pt -> ((pt.name, pt.version), pt.toRuntimeType ()))
-      |> Map.ofList
-
-    let secrets =
-      (c.secrets |> Map.map (fun pt -> pt.toRuntimeType ()) |> Map.values)
-
-    let loadFnResult = Exe.loadNoResults
-    let storeFnResult = LibBackend.TraceFunctionResults.store canvasID traceID
-    let loadFnArguments = Exe.loadNoArguments
-    let storeFnArguments = LibBackend.TraceFunctionArguments.store canvasID traceID
-
-    let state =
-      Exe.createState
-        ownerID
-        canvasID
-        tlid
-        fns
-        packageFns
-        dbs
-        userFns
-        userTypes
-        secrets
-        loadFnResult
-        storeFnResult
-        loadFnArguments
-        storeFnArguments
-
-    let symtable = LibExecution.Interpreter.withGlobals state inputVars
+    let program = Canvas.toProgram c
+    let! state = RealExe.createState traceID tlid program
+    let symtable = Interpreter.withGlobals state inputVars
 
     let! result =
       Interpreter.applyFnVal
@@ -189,123 +88,246 @@ let runHttp
         RT.NoRail
       |> TaskOrValue.toTask
 
-    match result with
-    | RT.DErrorRail (RT.DOption None)
-    | RT.DErrorRail (RT.DResult (Error _)) ->
-        return
-          (RT.DHttpResponse(
-            RT.Response(404, [ "Content-length", "9"; "server", "darklang" ]),
-            RT.DBytes(toBytes "Not found")
-          ))
-    | RT.DErrorRail _ ->
-        return
-          (RT.DHttpResponse(
-            RT.Response(500, [ "Content-length", "32"; "server", "darklang" ]),
-            RT.DBytes(toBytes "Invalid conversion from errorrail")
-          ))
-    | dv -> return dv
+    return Exe.extractHttpErrorRail result
+
   }
 
-let runDarkHandler : HttpHandler =
-  fun (next : HttpFunc) (ctx : HttpContext) ->
-    task {
-      let addHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-        ctx.Response.Headers.Add(
-          name,
-          Microsoft.Extensions.Primitives.StringValues([| value |])
-        )
 
-      let msg (code : int) (msg : string) =
-        task {
-          let bytes = System.Text.Encoding.UTF8.GetBytes msg
-          ctx.Response.StatusCode <- code
-          addHeader ctx "server" "darklang"
-          if bytes.Length > 0 then addHeader ctx "Content-Type" "text/plain"
-          addHeader ctx "Content-Length" (bytes.Length.ToString())
-          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
-          return Some ctx
-        }
+let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
+  task {
+    match host.Split [| '.' |] with
+    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
+    // just another load balancer
+    | [| a; "darkcustomdomain"; "com" |]
+    | [| a; "builtwithdark"; "localhost" |]
+    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
+    | [| "builtwithdark"; "localhost" |]
+    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
+    | _ -> return! Canvas.canvasNameFromCustomDomain host
+  }
 
-      let requestPath = ctx.Request.Path.Value
+let favicon : Lazy<byte array> =
+  lazy (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png")
 
-      let loggerFactory = ctx.RequestServices.GetService<ILoggerFactory>()
-      let logger = loggerFactory.CreateLogger("logger")
-      let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
+let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
+  task {
+    // NB: we're sending back a png, not an ico - this is deliberate,
+    // favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico
+    let bytes = Lazy.force favicon
+    setHeader ctx "Access-Control-Allow-Origin" "*"
+    ctx.Response.ContentType <- "image/png"
+    ctx.Response.ContentLength <- int64 bytes.Length
+    ctx.Response.StatusCode <- 200
+    do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+    return ctx
+  }
 
-      match! canvasNameFromHost ctx.Request.Host.Host with
-      | Some canvasName ->
+let textPlain = Some "text/plain"
 
-          let ownerName = LibBackend.Account.ownerNameFromCanvasName canvasName
-          let ownerUsername = UserName.create (ownerName.ToString())
-          let! ownerID = LibBackend.Account.userIDForUserName ownerUsername
-          let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+let standardResponse
+  (ctx : HttpContext)
+  (msg : string)
+  (contentType : Option<string>)
+  (code : int)
+  : Task<HttpContext> =
+  task {
+    let bytes = System.Text.Encoding.UTF8.GetBytes msg
+    setHeader ctx "Access-Control-Allow-Origin" "*"
 
-          let meta : LibBackend.Canvas.Meta =
-            { id = canvasID; owner = ownerID; name = canvasName }
+    match contentType with
+    | None -> ()
+    | Some typ -> ctx.Response.ContentType <- typ
 
-          let traceID = System.Guid.NewGuid()
-          let method = ctx.Request.Method
+    ctx.Response.ContentLength <- int64 bytes.Length
+    ctx.Response.StatusCode <- code
+    do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+    return ctx
+  }
 
-          let! c =
-            LibBackend.Canvas.loadHttpHandlersFromCache meta requestPath method
-            |> Task.map Result.unwrapUnsafe
+let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
+  // cors
+  standardResponse ctx "404 Not Found: No route matches" textPlain 404
 
-          match Map.values c.handlers with
-          | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-              let url = ctx.Request.GetEncodedUrl()
-              let vars = LibBackend.Routing.routeInputVars route requestPath
+let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
+  standardResponse ctx "user not found" textPlain 404
 
-              match vars with
-              | Some vars ->
-                  let symtable = Map.ofList vars
+let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
+  let path = ctx.Request.Path.Value
+  let message = $"500 Internal Server Error: More than one handler for route: {path}"
+  standardResponse ctx message textPlain 500
 
-                  let ms = new IO.MemoryStream()
-                  do! ctx.Request.Body.CopyToAsync(ms)
-                  let body = ms.ToArray()
-                  let expr = expr.toRuntimeType ()
+let dincompleteResponse (ctx : HttpContext) : Task<HttpContext> =
+  // maybe cors, no ct
+  let message =
+    "Application error: the executed code was not complete. This error can be resolved by the application author by completing the incomplete code."
 
-                  let! result = runHttp c tlid traceID url body symtable expr
+  standardResponse ctx message textPlain 500
 
-                  match result with
-                  | RT.DHttpResponse (RT.Redirect url, _) ->
-                      ctx.Response.Redirect(url, false)
-                      return! next ctx
-                  | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
-                      ctx.Response.StatusCode <- status
-                      List.iter (fun (k, v) -> addHeader ctx k v) headers
-                      do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-                      return! next ctx
-                  | RT.DIncomplete _ ->
-                      return!
-                        msg
-                          500
-                          "Error calling server code: Handler returned an \
-                           incomplete result. Please inform the owner of this \
-                           site that their code is broken."
-                  | other ->
-                      printfn $"Not a HTTP response: {other}"
-                      return! msg 500 "body is not a HttpResponse"
-              | None -> // vars didnt parse
-                  return!
-                    msg
-                      500
-                      $"The request ({requestPath}) does not match the route ({route})"
-          | [] -> return! msg 404 "No handler was found for this URL"
-          | _ -> return! msg 500 "More than one handler found for this URL"
-      | None -> return! msg 404 "No handler was found for this URL"
-    }
+let derrorResponse (ctx : HttpContext) : Task<HttpContext> =
+  // maybe cors, no ct
+  let message =
+    "Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error)."
 
-let webApp : HttpHandler =
-  // FSTODO use giraffe's builtin httpsRedirect
-  normalizeRequest
-  >=> recordEventMiddleware
-  >=> record404Middleware
-  >=> recordHeapioMiddleware
-  >=> recordHoneycombMiddleware
-  >=> runDarkHandler
+  standardResponse ctx message textPlain 500
+
+exception LoadException of string * int
+
+// runs a function and upon error, catches and rethrows the passed exception
+let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<'b> =
+  task {
+    try
+      return! fn value
+    with _ -> return! raise (LoadException(msg, code))
+  }
+
+// FSTODO: for now, we'll read the CORS settings and write the response headers. This is probably wrong but we'll see
+let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
+  task {
+    let! corsSetting = Canvas.fetchCORSSetting canvasID
+    let originHeader = getHeader ctx "Origin"
+
+    let defaultOrigins =
+      [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
+
+    let header =
+      match (originHeader, corsSetting) with
+      // if there's no explicit canvas setting, allow common localhosts
+      | Some origin, None when List.contains origin defaultOrigins -> Some origin
+      // if there's no explicit canvas setting and no default match, fall back to "*"
+      | _, None -> Some "*"
+      // If there's a "*" in the setting, always use it.
+      // This is help as a debugging aid since users will always see
+      //   Access-Control-Allow-Origin: * in their browsers, even if the
+      //   request has no Origin.
+      | _, Some Canvas.AllOrigins -> Some "*"
+      // if there's no supplied origin, don't set the header at all.
+      | None, _ -> None
+      // Return the origin if and only if it's in the setting
+      | Some origin, Some (Canvas.Origins origins) when List.contains origin origins ->
+          Some origin
+      // Otherwise: there was a supplied origin and it's not in the setting.
+      // return "null" explicitly
+      | Some _, Some _ -> Some "null"
+
+    match header with
+    | Some v -> setHeader ctx "Access-Control-Allow-Origin" v
+    | None -> ()
+
+    return ()
+  }
+
+let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
+  task {
+    setHeader ctx "Server" "Darklang"
+
+    let msg (code : int) (msg : string) =
+      task {
+        let bytes = System.Text.Encoding.UTF8.GetBytes msg
+        ctx.Response.StatusCode <- code
+        if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
+        ctx.Response.ContentLength <- int64 bytes.Length
+        do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+        return ctx
+      }
+
+    let loggerFactory = ctx.RequestServices.GetService<ILoggerFactory>()
+    let logger = loggerFactory.CreateLogger("logger")
+    let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
+
+    match! canvasNameFromHost ctx.Request.Host.Host with
+    | Some canvasName ->
+        // CLEANUP: move execution ID header up
+        let executionID = gid ()
+        setHeader ctx "x-darklang-execution-id" (toString executionID)
+        let ownerName = Account.ownerNameFromCanvasName canvasName
+        let ownerUsername = UserName.create (toString ownerName)
+
+        let! ownerID =
+          catch "user not found" 404 Account.userIDForUserName ownerUsername
+
+        // No error checking as this will create a canvas if none exists
+        let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
+
+        let meta : Canvas.Meta =
+          { id = canvasID; owner = ownerID; name = canvasName }
+
+        let traceID = System.Guid.NewGuid()
+        let method = ctx.Request.Method
+        let requestPath = ctx.Request.Path.Value |> sanitizeUrlPath
+
+        let! c =
+          Canvas.loadHttpHandlersFromCache meta requestPath method
+          |> Task.map Result.unwrapUnsafe
+
+        match Map.values c.handlers with
+        | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
+            let url = ctx.Request.GetEncodedUrl()
+            let vars = LibBackend.Routing.routeInputVars route requestPath
+
+            match vars with
+            | Some vars ->
+                let symtable = Map.ofList vars
+
+                let ms = new IO.MemoryStream()
+                do! ctx.Request.Body.CopyToAsync(ms)
+                let body = ms.ToArray()
+                let expr = expr.toRuntimeType ()
+
+                let! result = runHttp c tlid traceID url body symtable expr
+                do! getCORS ctx canvasID
+
+                match result with
+                | RT.DHttpResponse (RT.Redirect url, _) ->
+                    ctx.Response.Redirect(url, false)
+                    return ctx
+                | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
+                    ctx.Response.StatusCode <- status
+                    // FSTODO content type of application/json for dobj and dlist
+                    List.iter (fun (k, v) -> setHeader ctx k v) headers
+                    do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
+                    return ctx
+                | RT.DIncomplete _ -> return! dincompleteResponse ctx
+                | RT.DError _ -> return! derrorResponse ctx
+                | other ->
+                    // all other cases should be handled in middleware
+                    printfn $"Not a HTTP response: {other}"
+                    return! msg 500 "body is not a HttpResponse"
+            | None -> // vars didnt parse
+                return!
+                  msg
+                    500
+                    $"The request ({requestPath}) does not match the route ({route})"
+        | [] when toString ctx.Request.Path = "/favicon.ico" ->
+            return! faviconResponse ctx
+        | [] ->
+            // FSTODO: save trace
+            return! noHandlerResponse ctx
+        | _ -> return! moreThanOneHandlerResponse ctx
+    | None -> return! canvasNotFoundResponse ctx
+  }
+
 
 let configureApp (app : IApplicationBuilder) =
-  app.UseDeveloperExceptionPage().UseMiddleware<BwdMiddleware>(webApp) |> ignore
+  let handler ctx =
+    (task {
+      try
+        return! runDarkHandler ctx
+      with
+      | LoadException (msg, code) ->
+          // FSTODO log/honeycomb, rollbar
+          let bytes = System.Text.Encoding.UTF8.GetBytes msg
+          ctx.Response.StatusCode <- code
+          if bytes.Length > 0 then ctx.Response.ContentType <- "text/plain"
+          ctx.Response.ContentLength <- int64 bytes.Length
+          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+          return ctx
+      | e ->
+          printfn "%s" (toString e)
+          return raise e
+     })
+    :> Task
+
+  app.Run(RequestDelegate handler)
 
 let configureLogging (shouldLog : bool) (builder : ILoggingBuilder) =
   // We want to disable this by default for tests because it clogs the output

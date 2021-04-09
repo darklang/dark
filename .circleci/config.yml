@@ -251,6 +251,8 @@ jobs:
             - v0-fsharp-backend
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      # so the ocamltestserver will load
+      - run: scripts/support/generate-etags
       - run: scripts/support/compile --test fsharp-backend/global.json
       # FSTODO: a core is being left behind
       # - assert-clean-worktree

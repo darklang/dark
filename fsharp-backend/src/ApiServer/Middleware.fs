@@ -13,7 +13,6 @@ open System.Runtime.CompilerServices
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
-open Giraffe.EndpointRouting
 
 type ServerTimingMetric = Lib.AspNetCore.ServerTiming.Http.Headers.ServerTimingMetric
 type ServerTiming = Lib.AspNetCore.ServerTiming.IServerTiming

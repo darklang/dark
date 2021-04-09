@@ -23,12 +23,15 @@ do
 done
 
 sudo killall legacyserver.exe || true
+sudo killall ocamltestserver.exe || true
 
 ./scripts/support/wait-for-background-services postgresql
 dropdb --if-exists testdb
 createdb testdb
 
+./scripts/support/runserver
 ./scripts/support/runlegacyserver
+./scripts/support/run-ocaml-test-server
 
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the

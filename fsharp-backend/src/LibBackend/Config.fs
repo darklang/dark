@@ -147,9 +147,9 @@ let shouldWriteShapeData = bool "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST"
 
 let showStacktrace = bool "DARK_CONFIG_SHOW_STACKTRACE"
 
-(* ------------------------- *)
-(* Rollbar *)
-(* ------------------------- *)
+// -------------------------
+// Rollbar
+// -------------------------
 
 let rollbarClientAccessToken =
   (* This is what the rollbar UI calls it *)
@@ -173,19 +173,28 @@ let rollbarJs =
   | _ -> "{enabled:false}"
 
 
-let pusherKey = stringOption "DARK_CONFIG_PUSHER_KEY"
+// -------------------------
+// Pusher
+// -------------------------
+
+let pusherID = string "DARK_CONFIG_PUSHER_APP_ID"
+
+let pusherKey = string "DARK_CONFIG_PUSHER_KEY"
+
+let pusherSecret = string "DARK_CONFIG_PUSHER_SECRET"
 
 let pusherCluster = string "DARK_CONFIG_PUSHER_CLUSTER"
 
-let pusherJs =
-  match pusherKey with
-  | Some key ->
-      Printf.sprintf "{enabled: true, key: '%s', cluster: '%s'}" key pusherCluster
-  | _ -> "{enabled: false}"
 
-
+// -------------------------
+// Heap
+// -------------------------
 let heapioId = string "DARK_CONFIG_HEAPIO_ID"
 
+
+// -------------------------
+// Infra
+// -------------------------
 let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"
 
 let browserReloadEnabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"

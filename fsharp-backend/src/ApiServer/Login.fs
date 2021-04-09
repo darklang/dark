@@ -2,9 +2,7 @@ module ApiServer.Login
 
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Http
-open Microsoft.Extensions.Primitives
 open Giraffe
-open Giraffe.EndpointRouting
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -14,7 +12,6 @@ open Tablecloth
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
-module Auth = LibBackend.Authorization
 
 // --------------------
 // Cookie stuff
@@ -116,6 +113,3 @@ let loginHandler : HttpHandler =
 // --------------------
 // endpoints
 // --------------------
-let endpoints : Endpoint list =
-  [ GET [ route "/login" loginPage; route "/logout" logout ]
-    POST [ route "/login" loginHandler; route "/logout" logout ] ]

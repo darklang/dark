@@ -48,7 +48,7 @@ let testUndo : Test =
         let! c = Canvas.fromOplist meta ops
         let! state = executionStateFor "test-undo" Map.empty Map.empty
         let h = Map.get tlid c.handlers |> Option.unwrapUnsafe
-        return! Exe.run state Map.empty (h.ast.toRuntimeType ())
+        return! Exe.executeExpr state Map.empty (h.ast.toRuntimeType ())
       }
 
     let! v = exe ops
