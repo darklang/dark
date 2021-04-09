@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] -> 
-          d.ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+          d.ToString("yyyyMMddTHHmmssZ")
           |> DStr
           |> Value
         | _ -> incorrectArgs ())
@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDate d ] ->
-            d.ToUniversalTime().ToString("yyyyMMdd")
+            d.ToString("yyyyMMdd")
           |> DStr
           |> Value
         | _ -> incorrectArgs ())
