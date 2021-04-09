@@ -215,6 +215,7 @@ jobs:
             - _build/default/backend/bin/queue_worker.exe
             - _build/default/backend/bin/cron_checker.exe
             - _build/default/backend/bin/legacyserver.exe
+            - _build/default/backend/bin/ocamltestserver.exe
             - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
