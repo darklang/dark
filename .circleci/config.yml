@@ -215,7 +215,6 @@ jobs:
             - _build/default/backend/bin/queue_worker.exe
             - _build/default/backend/bin/cron_checker.exe
             - _build/default/backend/bin/legacyserver.exe
-            - _build/default/backend/bin/ocamltestserver.exe
             - backend/static/analysis.js
       - run:
           name: Reduce size of esy cache
@@ -252,6 +251,8 @@ jobs:
             - v0-fsharp-backend
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      # so the ocamltestserver will load
+      - run: scripts/support/generate-etags
       - run: scripts/support/compile --test fsharp-backend/global.json
       # FSTODO: a core is being left behind
       # - assert-clean-worktree
