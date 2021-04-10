@@ -207,8 +207,8 @@ let fns : List<BuiltInFn> =
             d
             |> System.DateTimeOffset
             |> (fun dto -> dto.ToUnixTimeSeconds())
-            |> int
-            |> Dval.int
+            |> bigint
+            |> DInt
             |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
