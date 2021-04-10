@@ -73,30 +73,24 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "toStringISO8601BasicDateTime" 0
-      parameters = [ Param.make "date" TDate ""]
+      parameters = [ Param.make "date" TDate "" ]
       returnType = TStr
       description =
         "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
       fn =
         (function
-        | _, [ DDate d ] -> 
-          d.ToString("yyyyMMddTHHmmssZ")
-          |> DStr
-          |> Value
+        | _, [ DDate d ] -> d.ToString("yyyyMMddTHHmmssZ") |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "toStringISO8601BasicDate" 0
-      parameters = [ Param.make "date" TDate ""]
+      parameters = [ Param.make "date" TDate "" ]
       returnType = TStr
       description = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
       fn =
         (function
-        | _, [ DDate d ] ->
-            d.ToString("yyyyMMdd")
-          |> DStr
-          |> Value
+        | _, [ DDate d ] -> d.ToString("yyyyMMdd") |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -203,8 +197,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "toSeconds" 0
- 
-      parameters = [ Param.make "date" TDate ""]
+      parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
       description =
         "Converts a Date `date` to an integer representing seconds since the Unix epoch"
@@ -222,13 +215,13 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Date" "fromSeconds" 0
- 
-      parameters = [ Param.make "seconds" TInt ""]
+
+      parameters = [ Param.make "seconds" TInt "" ]
       returnType = TDate
       description =
         "Converts an integer representing seconds since the Unix epoch into a Date"
       fn =
- 
+
         (function
         | _, [ DInt s ] ->
             s
@@ -241,7 +234,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
-//   { name = fn "Date" "toHumanReadable" 0
+    //   { name = fn "Date" "toHumanReadable" 0
 //
 //     parameters = [ Param.make "date" TDate ]
 //     returnType = TStr
