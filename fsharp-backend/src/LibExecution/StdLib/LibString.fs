@@ -55,11 +55,14 @@ let fns : List<BuiltInFn> =
         [ Param.make "s" TStr "" // CLEANUP "string to iterate over"
           Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "char" ]
           // CLEANUP "function used to convert one character to another"
-          ]
+         ]
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ s; f ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "foreach" 1) }
@@ -121,7 +124,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TList TChar
       description = "Returns the list of characters (byte, not EGC) in the string"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ s ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toList" 1) }
@@ -146,7 +152,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "s" TStr "" // CLEANUP "The string to operate on"
           Param.make "searchFor" TStr "" // CLEANUP "The string to search for within <param s>"
-          Param.make "replaceWith" TStr "" ] // CLEANUP "The string to replace all instances of <param searchFor> with"
+          Param.make "replaceWith" TStr "" ]
       returnType = TStr
       description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
       fn =
@@ -546,7 +552,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TStr
       description = "Returns the list of characters as a string"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ l ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromList" 1) }
@@ -574,7 +583,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description = "Converts a char to a string"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ c ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromChar" 1) }
@@ -1259,7 +1271,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "endsWith" 0
       parameters =
         [ Param.make "subject" TStr "" // CLEANUP "String to test"
-          Param.make "suffix" TStr "" ] // CLEANUP "Suffix we're testing for"
+          Param.make "suffix" TStr "" ]
       returnType = TBool
       description = "Checks if `subject` ends with `suffix`"
       fn =

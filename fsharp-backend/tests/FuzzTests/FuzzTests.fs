@@ -504,7 +504,7 @@ module ExecutePureFunctions =
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
-      let genDval (typ' : RT.DType) : Gen<RT.Dval> =
+      let genDval(typ' : RT.DType) : Gen<RT.Dval> =
         let rec genDval' typ s =
           gen {
             match typ with
@@ -587,11 +587,11 @@ module ExecutePureFunctions =
               let name = fns.[fnIndex].name
               let signature = fns.[fnIndex].parameters
 
-              let unifiesWith (typ : RT.DType) =
+              let unifiesWith(typ : RT.DType) =
                 (fun dv ->
                   dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
 
-              let rec containsBytes (dv : RT.Dval) =
+              let rec containsBytes(dv : RT.Dval) =
                 match dv with
                 | RT.DDB _
                 | RT.DInt _
@@ -634,6 +634,7 @@ module ExecutePureFunctions =
                          (e ** (int i) >= (2I ** 62))
                          || (e ** (int i) <= -(2I ** 62)) -> false // overflow
                        | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false // exception
+                       | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false // exception
                        | 0, _, _, "", "toString", 0 -> not (containsBytes dv) // exception
                        | _ -> true)
 

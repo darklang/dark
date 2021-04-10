@@ -19,37 +19,52 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fns : List<BuiltInFn> = 
+let fns : List<BuiltInFn> =
   [ { name = fn "Char" "toASCIICode" 0
-      parameters = [Param.make "c" TChar ""]
+      parameters = [ Param.make "c" TChar "" ]
       returnType = TInt
       description = "Return `c`'s ASCII code"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ c ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = DeprecatedBecause("used an old Character type that no longer exists") }
+      deprecated =
+        DeprecatedBecause("used an old Character type that no longer exists") }
     { name = fn "Char" "toASCIIChar" 0
-      parameters = [Param.make "i" TInt ""]
+      parameters = [ Param.make "i" TInt "" ]
       returnType = TChar
       description = "convert an int to an ASCII character"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ i ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = DeprecatedBecause("used an old Character type that no longer exists") }
+      deprecated =
+        DeprecatedBecause("used an old Character type that no longer exists") }
     { name = fn "Char" "toLowercase" 0
-      parameters = [Param.make "c" TChar ""]
+      parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description = "Return the lowercase value of `c`"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ c ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = DeprecatedBecause("used an old Character type that no longer exists") }
+      deprecated =
+        DeprecatedBecause("used an old Character type that no longer exists") }
     { name = fn "Char" "toUppercase" 0
-      parameters = [Param.make "c" TChar ""]
+      parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description = "Return the uppercase value of `c`"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ c ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("used an old Character type that no longer exists") }
-  ]
+      deprecated =
+        DeprecatedBecause("used an old Character type that no longer exists") } ]
