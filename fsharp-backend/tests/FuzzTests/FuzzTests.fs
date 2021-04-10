@@ -241,10 +241,12 @@ module OCamlInterop =
   let tests =
     let tp f = testPropertyWithGenerator typeof<Generator> f
 
-    [ tp "roundtripping OCamlInteropBinaryHandler" binaryHandlerRoundtrip
-      tp "roundtripping OCamlInteropBinaryExpr" binaryExprRoundtrip
-      tp "roundtripping OCamlInteropYojsonHandler" yojsonHandlerRoundtrip
-      tp "roundtripping OCamlInteropYojsonExpr" yojsonExprRoundtrip ]
+    testList
+      "OcamlInterop"
+      [ tp "roundtripping OCamlInteropBinaryHandler" binaryHandlerRoundtrip
+        tp "roundtripping OCamlInteropBinaryExpr" binaryExprRoundtrip
+        tp "roundtripping OCamlInteropYojsonHandler" yojsonHandlerRoundtrip
+        tp "roundtripping OCamlInteropYojsonExpr" yojsonExprRoundtrip ]
 
 module Roundtrippable =
   type Generator =
@@ -724,13 +726,12 @@ module ExecutePureFunctions =
       [ testPropertyWithGenerator typeof<Generator> "equalsOCaml" equalsOCaml ]
 
 
-let stillBuggy = testList "still buggy" (List.concat [ OCamlInterop.tests ])
+let stillBuggy = testList "still buggy" [ OCamlInterop.tests; FQFnName.tests ]
 
 let knownGood =
   testList
     "known good"
-    ([ FQFnName.tests
-       Roundtrippable.tests
+    ([ Roundtrippable.tests
        Queryable.tests
        DeveloperRepr.tests
        EndUserReadable.tests
