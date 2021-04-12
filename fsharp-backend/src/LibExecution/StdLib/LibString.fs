@@ -406,7 +406,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let toRemove = @"[^-a-zA-Z0-9\s$*_+~.()'""!:@]"
+            let toRemove = "[^-a-zA-Z0-9\\s\\$\\*_+~\\.\\(\\)'\"!:@]|\x0b"
             let trim = @"^\s+|\s+$"
             let spaces = @"[-\s]+"
 
@@ -432,8 +432,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-
-            let toRemove = @"[^a-zA-Z0-9\s_-]"
+            let toRemove = "[^a-zA-Z0-9\\s_-]|\x0b"
             let trim = @"^\s+|\s+$"
             let newSpaces = @"[-_\s]+"
 
@@ -460,9 +459,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             // Should work the same as https://blog.tersmitten.nl/slugify/
-
             // explicitly limit to (roman) alphanumeric for pretty urls
-            let toRemove = @"[^a-z0-9\s_-]+"
+            let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
             let toBeHyphenated = @"[-_\s]+"
 
             let replace (pattern : string) (replacement : string) (input : string) =
@@ -651,6 +649,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      // CLEANUP: this shouldnt return a string and should be deprecated
       deprecated = NotDeprecated }
     { name = fn "String" "digest" 0
       parameters = [ Param.make "s" TStr "" ]
