@@ -583,23 +583,30 @@ let interestingFloats : List<string * float> =
        (fun (doc, v) ->
          [ ($"{doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
 
+let interestingInts : List<string * bigint> =
+  [ ("int0", 0I)
+    ("int1", 1I)
+    ("int-1", -1I)
+    ("int_max_31_bits", 1073741824I)
+    ("int_above_31_bits", 1073741825I)
+    ("int_max_32_bits", 2147483647I)
+    ("int_above_32_bits", 2147483648I)
+    ("int_max_53_bits", 4503599627370496I)
+    ("int_above_53_bits", 4503599627370497I)
+    ("int_max_63_bits", 4611686018427387903I) ]
+  |> List.flatMap
+       (fun (doc, v) ->
+         [ ($"{doc} - 1", v - 1I); ($"{doc} + 0", v); ($"{doc} + 1", v + 1I) ])
+
 let sampleDvals : List<string * Dval> =
-  [ ("int0", Dval.int 0)
-    ("int-1", Dval.int (-1))
-    ("int5", Dval.int 5)
-    ("int_max_31_bits", DInt 1073741824I)
-    ("int_above_31_bits", DInt 1073741825I)
-    ("int_max_32_bits", DInt 2147483647I)
-    ("int_above_32_bits", DInt 2147483648I)
-    ("int_max_53_bits", DInt 4503599627370496I)
-    ("int_above_53_bits", DInt 4503599627370497I)
-    ("int_max_63_bits", DInt 4611686018427387903I)
-    ("float", DFloat 7.2)
-    ("float2", DFloat -7.2)
-    ("float3", DFloat 15.0)
-    ("float4", DFloat -15.0) ]
-  @ (List.map (fun (doc, float) -> ($"float {doc}", DFloat float)) interestingFloats)
-    @ [ ("true", DBool true)
+  (List.map (fun (doc, i) -> ($"int {doc}", DInt i)) interestingInts)
+  @ (List.map (fun (doc, f) -> ($"float {doc}", DFloat f)) interestingFloats)
+    @ [ ("float", DFloat 7.2)
+        ("float2", DFloat -7.2)
+        ("float3", DFloat 15.0)
+        ("float4", DFloat -15.0)
+        ("int5", RT.DInt 5I)
+        ("true", DBool true)
         ("false", DBool false)
         ("null", DNull)
         ("datastore", DDB "Visitors")
