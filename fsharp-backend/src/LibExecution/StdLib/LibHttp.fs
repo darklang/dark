@@ -78,17 +78,18 @@ let fns : List<BuiltInFn> =
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "success" 0
-//   ; parameters = [Param.make "response" varA ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
-//   ; fn =
-//         (function
-//         | _, [dv] -> DResp (Response (200, []), dv) | _ -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "success" 0
+      parameters = [Param.make "response" varA ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
+      fn =
+        (function
+        | _, [dv] -> Value(DHttpResponse(Response (200, []), dv))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 // ; { name = fn "Http" "respondWithHtml" 0
 //   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
 //   ; returnType = TResp
