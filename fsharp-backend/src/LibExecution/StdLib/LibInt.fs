@@ -132,16 +132,13 @@ let fns : List<BuiltInFn> =
       description = "Raise `base` to the power of `exponent`"
       fn =
         (function
-        | state, [ DInt number; DInt exp as expdv ] ->
+        | _, [ DInt number; DInt exp as expdv ] ->
             (try
-              Value(DInt(number ** (int exp)))
-             with e ->
-               if exp < bigint 0 then
-                 err (Errors.argumentWasnt "positive" "exponent" expdv)
-               else
-                 // FSTODO
-                 // In case there's another failure mode, rollbar
-                 failwith "mod error")
+              if exp < bigint 0 then
+                err (Errors.argumentWasnt "positive" "exponent" expdv)
+              else
+                Value(DInt(number ** (int exp)))
+             with _ -> err "Error raising to exponent")
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -276,20 +273,20 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Int" "sum" 0
-      parameters = [Param.make "a" (TList TInt) ""]
+      parameters = [ Param.make "a" (TList TInt) "" ]
       returnType = TInt
       description = "Returns the sum of all the ints in the list"
       fn =
         (function
-        | _, [DList l as ldv] ->
+        | _, [ DList l as ldv ] ->
             let ints =
               List.map
                 (fun i ->
                   match i with
                   | DInt it -> it
-                  | t ->
-                      Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
+                  | t -> Errors.throw (Errors.argumentWasnt "a list of ints" "a" ldv))
                 l
+
             let sum = List.fold (fun acc elem -> acc + elem) (bigint 0) ints
             Value(DInt sum)
         | _ -> incorrectArgs ())
