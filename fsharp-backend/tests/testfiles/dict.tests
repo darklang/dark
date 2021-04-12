@@ -8,11 +8,11 @@ Dict.empty_v0 = {}
 // Dict.filter_v1 { key1 = "val1"; key2 = "val2" } (fun (k, v) -> v == "val1") = { key1 = "val1"}
 // Dict.filter_v1 { key1 = 1; key2 = blank; key3 = 3 }  (fun (k, v) -> v > 0) = { key3 = 3; key1 = 1}
 // Dict.foreach_v0 { key1 = "val1"; key2 = "val2" } (fun x -> x ++ "_append") = { key2 = "val2_append"; key1 = "val1_append"}
-// Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["a";3]] = { b = 2 ; a = 3 }
-// Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3]] = { c = 3 ; b = 2 ; a= 1 }
-// Dict.fromListOverwritingDuplicates_v0 [] = {}
+Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["a";3]] = { b = 2 ; a = 3 }
+Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3]] = { c = 3 ; b = 2 ; a= 1 }
+Dict.fromListOverwritingDuplicates_v0 [] = {}
 // Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "Todo: It has length 3 but must have length 2"
-// Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Todo: Keys must be Strings"
+Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Expected the argument `key` to be String`s, but it was `1`" // FSHARPONLY
 // Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "Todo: It is of type Int instead of List"
 // Dict.fromList_v0 [["a";1];["b";2];["a";3]] = Nothing // duplicate key
 // Dict.fromList_v0 [["a";1];["b";2];["c";3]] = Just { c = 3; b = 2; a = 1 }

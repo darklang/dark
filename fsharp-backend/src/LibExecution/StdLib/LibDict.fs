@@ -6,6 +6,8 @@ open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
+module Errors = LibExecution.Errors
+
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
@@ -85,6 +87,29 @@ let fns : List<BuiltInFn> =
               |> DList
               |> Value
           | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Dict" "fromListOverwritingDuplicates" 0
+      parameters = [Param.make "entries" (TList varA) ""]
+      returnType = TDict varA
+      description =
+        "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+        If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
+        This function is the opposite of `Dict::toList`."
+      fn =
+        (function
+        | state, [DList l] ->
+          let f acc e =
+            match e with
+              | DList [DStr k; value] when Map.containsKey k acc -> Map.remove k acc |> Map.add k value
+              | DList [DStr k; value] -> Map.add k value acc
+              | DList [k; value] -> Errors.throw(Errors.argumentWasnt "String`s" "key" k)
+              | _ -> Errors.throw "All list items must be `[key, value]`"
+
+          let result = List.fold f Map.empty l
+          Value((DObj(result)))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
