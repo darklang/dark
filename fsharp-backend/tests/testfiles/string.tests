@@ -614,6 +614,7 @@ String.first_v0 "abcd" 0 = ""
 String.first_v0 "abcd" 1 = "a"
 String.first_v0 "abcd" 2 = "ab"
 String.first_v0 "abcd" 3 = "abc"
+String.first_v0 "abcd" 300000000000000000000000000000000I = "abcd" // FSHARPONLY
 String.first_v0 "" 7 = ""
 String.first_v0 "🍊🍍🍏" 1 = "🍊"
 String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"

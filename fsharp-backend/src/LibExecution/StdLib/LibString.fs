@@ -964,7 +964,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let n = String.lengthInEgcs s |> min (int n) |> max 0
+            let n = String.lengthInEgcs s |> bigint |> min n |> max 0I |> int
 
             String.toEgcSeq s
             |> List.take n
