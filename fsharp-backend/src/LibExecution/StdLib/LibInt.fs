@@ -136,6 +136,16 @@ let fns : List<BuiltInFn> =
             (try
               if exp < bigint 0 then
                 err (Errors.argumentWasnt "positive" "exponent" expdv)
+              // Handle some edge cases around 1. We want to make this match
+              // OCaml, so we have to support an exponent above int32, but
+              // below int63. This only matters for 1 or -1, and otherwise a
+              // number raised to an int63 exponent wouldn't fit in an int63
+              else if number = 1I then
+                Value(DInt(1I))
+              else if number = -1I && exp.IsEven then
+                Value(DInt(1I))
+              else if number = -1I then
+                Value(DInt(-1I))
               else
                 Value(DInt(number ** (int exp)))
              with _ -> err "Error raising to exponent")
