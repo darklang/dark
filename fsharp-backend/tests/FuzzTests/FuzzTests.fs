@@ -599,6 +599,7 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
+
       { new Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>>() with
           member x.Generator =
             gen {
@@ -688,16 +689,19 @@ module ExecutePureFunctions =
                               name.module_,
                               name.function_,
                               name.version) with
-                       // Specific OCaml exception
-                       | 1, RT.DInt i, _, "Int", "divide", 0 -> i <> 0I
-                       | 0, RT.DInt i, _, "List", "repeat", 0 -> i >= 0I
-                       // Int Overflow
+                       // Specific OCaml exception (use `when`s here)
+                       | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false
+                       | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false
                        | 1, RT.DInt i, _, "Int", "power", 0
-                       | 1, RT.DInt i, _, "", "^", 0 -> i >= 0I && isValidOCamlInt i
+                       | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false
+                       // Int Overflow
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
-                       | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 when
-                         (e ** (int i) >= (2I ** 62))
-                         || (e ** (int i) <= -(2I ** 62)) -> false
+                       | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
+                           i <> 1I
+                           && i <> (-1I)
+                           && isValidOCamlInt i
+                           && i <= 2147483647I
+                           && isValidOCamlInt (e ** (int i))
                        | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
                            isValidOCamlInt (e * i)
@@ -713,6 +717,7 @@ module ExecutePureFunctions =
                        | 0, RT.DFloat f, _, "Float", "truncate", 0 ->
                            f |> bigint |> isValidOCamlInt
                        // gmtime out of range
+                       | 1, RT.DInt i, _, "Date", "sub", 0
                        | 1, RT.DInt i, _, "Date", "subtract", 0
                        | 1, RT.DInt i, _, "Date", "add", 0
                        | 0, RT.DInt i, _, "Date", "fromSeconds", 0 -> i < 10000000I
@@ -799,8 +804,9 @@ module ExecutePureFunctions =
           | "Int::mod" ->
               e2
                 "Expected the argument `b` to be positive, but it was"
-                "Expected the argument `b` argument passed to `%` to be positive"
-          | "Int::remainder" -> e "`divisor` cannot be zero"
+                "Expected the argument `b` argument passed to `Int::mod` to be positive, but it was"
+          | "Int::remainder" ->
+              e2 "`divisor` cannot be zero" "`divisor` must be non-zero"
           | "Date::parse" -> e "Invalid date format"
           | "String::toFloat" ->
               e2
