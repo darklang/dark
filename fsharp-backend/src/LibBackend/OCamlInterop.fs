@@ -1011,7 +1011,8 @@ let legacyReq
     let! response = client.SendAsync(message)
 
     if response.StatusCode <> System.Net.HttpStatusCode.OK then
-      failwith $"not a 200 response to {endpoint}: {response.StatusCode}"
+      let! content = response.Content.ReadAsStringAsync()
+      failwith $"not a 200 response to {endpoint}: {response.StatusCode}, {content}"
     else
       ()
 
