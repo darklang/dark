@@ -113,154 +113,34 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "fromListOverwritingDuplicates" 0
-    //   ; parameters = [Param.make "entries" TList ""]
-    //   ; returnType = TObj
-    //   ; description =
-    //       "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
-    //       If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
-    //       This function is the opposite of `Dict::toList`."
-    //   ; fn =
-    //         (function
-    //         | state, [DList l] ->
-    //             let fold_fn
-    //                 (idx : int)
-    //                 (acc : (dval DvalMap.t, dval (* type error *)) result)
-    //                 (dv : dval) : (dval DvalMap.t, dval (* type error *)) result =
-    //               Result.bind acc (fun acc ->
-    //                   match dv with
-    //                   | DList [DStr k; value] ->
-    //                       Ok
-    //                         ( acc
-    //                         |> DvalMap.insert
-    //                              (Unicode_string.to_string k)
-    //                              ~value )
-    //                   | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-    //                       Error dv
-    //                   | v ->
-    //                       let err_details =
-    //                         match v with
-    //                         | DList [k; _] ->
-    //                             let tipe =
-    //                               k
-    //                               |> Dval.tipe_of
-    //                               |> Dval.tipe_to_developer_repr_v0
-    //                             in
-    //                             Printf.sprintf
-    //                               "Keys must be `String`s but the type of `%s` is `%s`."
-    //                               (Dval.to_developer_repr_v0 k)
-    //                               tipe
-    //                         | DList l ->
-    //                             Printf.sprintf
-    //                               "It has length %i but must have length 2."
-    //                               (List.length l)
-    //                         | non_list ->
-    //                             let tipe =
-    //                               non_list
-    //                               |> Dval.tipe_of
-    //                               |> Dval.tipe_to_developer_repr_v0
-    //                             in
-    //                             Printf.sprintf
-    //                               "It is of type `%s` instead of `List`."
-    //                               tipe
-    //                       in
-    //                       Error
-    //                         (DError
-    //                            ( SourceNone
-    //                            , Printf.sprintf
-    //                                "Expected every value within the `entries` argument passed to `%s` to be a `[key, value]` list. However, that is not the case for the value at index %i: `%s`. %s"
-    //                                state.executing_fnname
-    //                                idx
-    //                                (Dval.to_developer_repr_v0 v)
-    //                                err_details )))
-    //             in
-    //             let result =
-    //               l |> List.foldi (Ok DvalMap.empty) fold_fn
-    //             in
-    //             (match result with Ok res -> DObj res | Error v -> v)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "fromList" 0
-    //   ; parameters = [Param.make "entries" TList ""]
-    //   ; returnType = TOption
-    //   ; description =
-    //       "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
-    //       If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
-    //       Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
-    //   ; fn =
-    //         (function
-    //         | state, [DList l] ->
-    //             let fold_fn
-    //                 (idx : int) (acc : (dval DvalMap.t, dval) result) (dv : dval)
-    //                 : (dval DvalMap.t, dval) result =
-    //               (* The dval for the result error could either be [Error DError] (in case of a type error)
-    //                * or an [Error (DOption OptNothing)] (in case there is a duplicate) *)
-    //               Result.bind acc (fun acc ->
-    //                   match dv with
-    //                   | DList [DStr k; value] ->
-    //                     ( match
-    //                         DvalMap.insert_fail_override
-    //                           (Unicode_string.to_string k)
-    //                           ~value
-    //                           acc
-    //                       with
-    //                     | `Ok dict ->
-    //                         Ok dict
-    //                     | `Duplicate ->
-    //                         Error (DOption OptNothing) )
-    //                   | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-    //                       Error dv
-    //                   | v ->
-    //                       let err_details =
-    //                         match v with
-    //                         | DList [k; _] ->
-    //                             let tipe =
-    //                               k
-    //                               |> Dval.tipe_of
-    //                               |> Dval.tipe_to_developer_repr_v0
-    //                             in
-    //                             Printf.sprintf
-    //                               "Keys must be `String`s but the type of `%s` `%s`."
-    //                               (Dval.to_developer_repr_v0 k)
-    //                               tipe
-    //                         | DList l ->
-    //                             Printf.sprintf
-    //                               "It has length %i but must have length 2."
-    //                               (List.length l)
-    //                         | non_list ->
-    //                             let tipe =
-    //                               non_list
-    //                               |> Dval.tipe_of
-    //                               |> Dval.tipe_to_developer_repr_v0
-    //                             in
-    //                             Printf.sprintf
-    //                               "It is of type `%s` instead of `List`."
-    //                               tipe
-    //                       in
-    //                       Error
-    //                         (DError
-    //                            ( SourceNone
-    //                            , Printf.sprintf
-    //                                "Expected every value within the `entries` argument passed to `%s` to be a `[key, value]` list. However, that is not the case for the value at index %i: `%s`. %s"
-    //                                state.executing_fnname
-    //                                idx
-    //                                (Dval.to_developer_repr_v0 v)
-    //                                err_details )))
-    //             in
-    //             let result =
-    //               l
-    //               |> List.foldi (Ok DvalMap.empty) fold_fn
-    //               |> Result.map (fun o -> DOption (OptJust (DObj o)))
-    //             in
-    //             (match result with Ok res -> res | Error v -> v)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "fromList" 0
+      parameters = [Param.make "entries" (TList varA) ""]
+      returnType = TOption(TDict varA)
+      description =
+        "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+         If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
+         Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
+      fn =
+        (function
+        | state, [ DList l ] ->
+
+          let f acc e =
+            match acc, e with
+              | Some acc, DList [DStr k; value] when Map.containsKey k acc -> None
+              | Some acc, DList [DStr k; value] -> Some(Map.add k value acc)
+              | Some acc, DList [k; value] -> Errors.throw(Errors.argumentWasnt "String`s" "key" k)
+              | Some acc, v -> Errors.throw  "All list items must be `[key, value]`"
+              | None, _ -> None
+
+          let result = List.fold f (Some Map.empty) l
+
+          match result with
+            | Some map -> Value(DOption(Some(DObj(map))))
+            | None -> Value(DOption None)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Dict" "get" 0
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = varA
