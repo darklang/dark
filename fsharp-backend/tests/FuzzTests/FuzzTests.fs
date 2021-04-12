@@ -530,14 +530,14 @@ module ExecutePureFunctions =
                   |> List.map Gen.constant
                   |> Gen.oneof
 
-                let v = Gen.frequency [ (9, specials); (1, Arb.generate<bigint>) ]
+                let v = Gen.frequency [ (1, specials); (1, Arb.generate<bigint>) ]
                 return! Gen.filter isValidOCamlInt v |> Gen.map RT.DInt
 
             | RT.TStr ->
                 let naughty =
                   naughtyStrings |> Lazy.force |> List.map Gen.constant |> Gen.oneof
 
-                let! v = Gen.frequency [ (9, naughty); (1, Arb.generate<string>) ]
+                let! v = Gen.frequency [ (7, naughty); (3, Arb.generate<string>) ]
                 return RT.DStr v
             | RT.TVariable _ -> return! Arb.generate<RT.Dval>
             | RT.TFloat ->
@@ -548,7 +548,7 @@ module ExecutePureFunctions =
                   |> List.map Gen.constant
                   |> Gen.oneof
 
-                let v = Gen.frequency [ (9, specials); (1, Arb.generate<float>) ]
+                let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
                 return! Gen.filter filterFloat v |> Gen.map RT.DFloat
             | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
             | RT.TNull -> return RT.DNull
@@ -688,22 +688,41 @@ module ExecutePureFunctions =
                               name.module_,
                               name.function_,
                               name.version) with
+                       // Specific OCaml exception
+                       | 1, RT.DInt i, _, "Int", "divide", 0 -> i <> 0I
+                       | 0, RT.DInt i, _, "List", "repeat", 0 -> i >= 0I
+                       // Int Overflow
                        | 1, RT.DInt i, _, "Int", "power", 0
-                       | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false // exception
+                       | 1, RT.DInt i, _, "", "^", 0 -> i >= 0I && isValidOCamlInt i
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 when
                          (e ** (int i) >= (2I ** 62))
-                         || (e ** (int i) <= -(2I ** 62)) -> false // overflow
+                         || (e ** (int i) <= -(2I ** 62)) -> false
                        | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
                            isValidOCamlInt (e * i)
                        | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
                            isValidOCamlInt (e + i)
-                       | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false // exception
-                       | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false // exception
-                       | _, RT.DInt i, _, "List", "range", 0 when i > 10000I -> false // OOM
-                       | 0, _, _, "", "toString", 0 -> not (containsBytes dv) // exception
+                       // Int overflow converting from Floats
+                       | 0, RT.DFloat f, _, "Float", "floor", 0
+                       | 0, RT.DFloat f, _, "Float", "roundDown", 0
+                       | 0, RT.DFloat f, _, "Float", "round", 0
+                       | 0, RT.DFloat f, _, "Float", "ceiling", 0
+                       | 0, RT.DFloat f, _, "Float", "roundUp", 0
+                       | 0, RT.DFloat f, _, "Float", "truncate", 0 ->
+                           f |> bigint |> isValidOCamlInt
+                       // gmtime out of range
+                       | 1, RT.DInt i, _, "Date", "subtract", 0
+                       | 1, RT.DInt i, _, "Date", "add", 0
+                       | 0, RT.DInt i, _, "Date", "fromSeconds", 0 -> i < 10000000I
+                       // Out of memory
+                       | _, RT.DInt i, _, "List", "range", 0
+                       | 0, RT.DInt i, _, "List", "repeat", 0
+                       | 2, RT.DInt i, _, "String", "padEnd", 0
+                       | 2, RT.DInt i, _, "String", "padStart", 0 -> i < 10000I
+                       // Exception
+                       | 0, _, _, "", "toString", 0 -> not (containsBytes dv)
                        | _ -> true)
 
               match List.length signature with
@@ -754,11 +773,17 @@ module ExecutePureFunctions =
         let! actual =
           LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())
 
-        let errorAllowed msg =
-          let e pat = System.Text.RegularExpressions.Regex.IsMatch(msg, pat)
-          // Error messages are not required to be directly the same between
-          // old and new implementations. However, this can hide errors, so we
-          // manually verify them all to make sure we didn't miss any.
+        // Error messages are not required to be directly the same between
+        // old and new implementations. However, this can hide errors, so we
+        // manually verify them all to make sure we didn't miss any.
+        let errorAllowed actualMsg expectedMsg =
+
+          let e2 actualPat expectedPat =
+            System.Text.RegularExpressions.Regex.IsMatch(actualMsg, actualPat)
+            && System.Text.RegularExpressions.Regex.IsMatch(expectedMsg, expectedPat)
+
+          let e pat = e2 pat pat
+
           match fn.ToString() with
           // Removed
           | "String::fromChar"
@@ -771,8 +796,16 @@ module ExecutePureFunctions =
           | "String::foreach" -> true
           // Messages are close-enough
           | "%"
-          | "Int::mod" -> e "Expected the argument `b` to be positive, but it was"
+          | "Int::mod" ->
+              e2
+                "Expected the argument `b` to be positive, but it was"
+                "Expected the argument `b` argument passed to `%` to be positive"
           | "Int::remainder" -> e "`divisor` cannot be zero"
+          | "Date::parse" -> e "Invalid date format"
+          | "String::toFloat" ->
+              e2
+                "Expected the argument `s` to be a string representation of an IEEE float, but it was"
+                "Expected a string representation of an IEEE float"
           | _ -> false
 
         if dvalEquality actual expected then
@@ -784,7 +817,7 @@ module ExecutePureFunctions =
 
           match actual, expected with
           | RT.DError (_, msg1), RT.DError (_, msg2) ->
-              let allowed = errorAllowed msg1
+              let allowed = errorAllowed msg1 msg2
 
               if not allowed then
                 debugFn ()
@@ -793,7 +826,7 @@ module ExecutePureFunctions =
               // FSTODO make false
               return true
           | RT.DResult (Error (RT.DStr msg1)), RT.DResult (Error (RT.DStr msg2)) ->
-              let allowed = errorAllowed msg1
+              let allowed = errorAllowed msg1 msg2
 
               if not allowed then
                 debugFn ()
