@@ -495,8 +495,12 @@ module ExecutePureFunctions =
     | f when f >= 1e+308 -> false
     | _ -> true
 
-  let filterInt (i : bigint) : bool =
-    i < 4611686018427387904I && i > -4611686018427387904I
+  let ocamlIntUpperLimit = 4611686018427387903I
+
+  let ocamlIntLowerLimit = -4611686018427387904I
+
+  let isValidOCamlInt (i : bigint) : bool =
+    i < ocamlIntUpperLimit && i > ocamlIntLowerLimit
 
 
   type Generator =
@@ -522,12 +526,12 @@ module ExecutePureFunctions =
                 let specials =
                   TestUtils.interestingInts
                   |> List.map Tuple2.second
-                  |> List.filter filterInt
+                  |> List.filter isValidOCamlInt
                   |> List.map Gen.constant
                   |> Gen.oneof
 
                 let v = Gen.frequency [ (9, specials); (1, Arb.generate<bigint>) ]
-                return! Gen.filter filterInt v |> Gen.map RT.DInt
+                return! Gen.filter isValidOCamlInt v |> Gen.map RT.DInt
 
             | RT.TStr ->
                 let naughty =
@@ -690,8 +694,15 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 when
                          (e ** (int i) >= (2I ** 62))
                          || (e ** (int i) <= -(2I ** 62)) -> false // overflow
+                       | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
+                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
+                           isValidOCamlInt (e * i)
+                       | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
+                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
+                           isValidOCamlInt (e + i)
                        | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false // exception
                        | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false // exception
+                       | _, RT.DInt i, _, "List", "range", 0 when i > 10000I -> false // OOM
                        | 0, _, _, "", "toString", 0 -> not (containsBytes dv) // exception
                        | _ -> true)
 
