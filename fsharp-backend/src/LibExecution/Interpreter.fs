@@ -9,11 +9,11 @@ open RuntimeTypes
 
 let globalsFor (state : ExecutionState) : Symtable =
   let secrets =
-    state.secrets
+    state.program.secrets
     |> List.map (fun (s : Secret.T) -> (s.secretName, DStr s.secretValue))
     |> Map.ofList
 
-  let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.dbs
+  let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
   Map.union secrets dbs
 
 
@@ -30,7 +30,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   let preview st expr : TaskOrValue<unit> =
     taskv {
-      if state.context = Preview then
+      if state.tracing.realOrPreview = Preview then
         let state = { state with onExecutionPath = false }
         let! (result : Dval) = eval state st expr
         ignore result
@@ -68,7 +68,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | EVariable (id, name) ->
         // FSTODO: match ast.ml
-        match (st.TryFind name, state.context) with
+        match (st.TryFind name, state.tracing.realOrPreview) with
         | None, Preview ->
             // The trace is wrong/we have a bug -- we guarantee to users that
             // variables they can lookup have been bound. However, we
@@ -197,12 +197,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
                 if !hasMatched then
                   // We matched, but we've already matched a pattern previously
-                  List.iter (fun (id, dval) -> state.trace false id dval) traces
+                  List.iter
+                    (fun (id, dval) -> state.tracing.traceDval false id dval)
+                    traces
+
                   do! preview newSt expr
                   return ()
                 else
                   List.iter
-                    (fun (id, dval) -> state.trace state.onExecutionPath id dval)
+                    (fun (id, dval) ->
+                      state.tracing.traceDval state.onExecutionPath id dval)
                     traces
 
                   hasMatched := true
@@ -213,7 +217,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               }
 
             let traceIncompletes traces =
-              List.iter (fun (id, _) -> state.trace false id (incomplete id)) traces
+              List.iter
+                (fun (id, _) -> state.tracing.traceDval false id (incomplete id))
+                traces
 
             let traceNonMatch
               (st : DvalMap)
@@ -225,7 +231,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               taskv {
                 do! preview st expr
                 traceIncompletes traces
-                state.trace false id value
+                state.tracing.traceDval false id value
               }
 
             let rec matchAndExecute
@@ -315,7 +321,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                          List.iter
                            (fun pat ->
                              let id = Pattern.toID pat
-                             state.trace false id (incomplete id))
+                             state.tracing.traceDval false id (incomplete id))
                            args
                        })
 
@@ -363,7 +369,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   taskv {
     let! (result : Dval) = eval' state st e
-    state.trace state.onExecutionPath (Expr.toID e) result
+    state.tracing.traceDval state.onExecutionPath (Expr.toID e) result
     return result
   }
 
@@ -430,7 +436,7 @@ and executeLambda
         )
       else
         List.iter
-          (fun ((id, _), dv) -> state.trace state.onExecutionPath id dv)
+          (fun ((id, _), dv) -> state.tracing.traceDval state.onExecutionPath id dv)
           (List.zip l.parameters args)
 
         let paramSyms = List.zip parameters args |> Map
@@ -442,7 +448,7 @@ and executeLambda
 and callFn
   (state : ExecutionState)
   (desc : FQFnName.T)
-  (id : id)
+  (callerID : id)
   (argvals : Dval list)
   (sendToRail : SendToRail)
   (isInPipe : IsInPipe)
@@ -453,10 +459,11 @@ and callFn
     let fn =
       match desc with
       | FQFnName.Stdlib std ->
-          state.functions.TryFind desc |> Option.map builtInFnToFn
-      | FQFnName.User name -> state.userFns.TryFind name |> Option.map userFnToFn
+          state.libraries.stdlib.TryFind desc |> Option.map builtInFnToFn
+      | FQFnName.User name ->
+          state.program.userFns.TryFind name |> Option.map userFnToFn
       | FQFnName.Package pkg ->
-          state.packageFns.TryFind desc |> Option.map packageFnToFn
+          state.libraries.packageFns.TryFind desc |> Option.map packageFnToFn
 
     match List.tryFind Dval.isErrorRail argvals with
     | Some er -> return er
@@ -466,23 +473,20 @@ and callFn
           // Functions which aren't implemented in the client may have results
           // available, otherwise they just return incomplete.
           | None ->
-              let fnRecord = (state.tlid, desc, id) in
-              let fnResult = state.loadFnResult fnRecord argvals in
+              let fnRecord = (state.tlid, desc, callerID) in
+              let fnResult = state.tracing.loadFnResult fnRecord argvals in
               // In the case of DB::query (and friends), we want to backfill
               // the lambda's livevalues, as the lambda was never actually
               // executed. We hack this is here as we have no idea what this
               // abstraction might look like in the future.
-              if state.context = Preview
-                 (* The prefix might match too much but that's fixed by the
-                    * match which is very specific *)
-                 && desc.isDBQueryFn () then
+              if state.tracing.realOrPreview = Preview && desc.isDBQueryFn () then
                 match argvals with
                 | [ DDB dbname; DFnVal (Lambda b) ] ->
                     let sample =
                       match fnResult with
                       | Some (DList (sample :: _), _) -> sample
                       | _ ->
-                          Map.find dbname state.dbs
+                          Map.find dbname state.program.dbs
                           |> (fun (db : DB.T) -> db.cols)
                           |> List.map
                                (fun (field, _) -> (field, DIncomplete SourceNone))
@@ -494,7 +498,7 @@ and callFn
 
               match fnResult with
               | Some (result, _ts) -> Value(result)
-              | _ -> Value(DIncomplete(sourceID id))
+              | _ -> Value(DIncomplete(sourceID callerID))
           | Some fn ->
               // equalize length
               let expectedLength = List.length fn.parameters in
@@ -506,11 +510,11 @@ and callFn
                   |> List.map2 (fun dv p -> (p.name, dv)) argvals
                   |> Map.ofList
 
-                execFn state desc id fn args isInPipe
+                execFn state desc callerID fn args isInPipe
               else
                 Value(
                   DError(
-                    sourceID id,
+                    sourceID callerID,
                     $"{desc} has {expectedLength} parameters, but here was called"
                     + $" with {actualLength} arguments."
                   )
@@ -551,7 +555,7 @@ and execFn
             $"Type error(s) in return type: {TypeChecker.Error.listToString errs}"
           )
 
-    if state.context = Preview
+    if state.tracing.realOrPreview = Preview
        && not state.onExecutionPath
        && Set.contains fnDesc state.callstack then
       // Don't recurse (including transitively!) when previewing unexecuted paths
@@ -596,8 +600,8 @@ and execFn
           try
             match fn.fn with
             | StdLib f ->
-                if state.context = Preview && fn.previewable = Pure then
-                  match state.loadFnResult fnRecord arglist with
+                if state.tracing.realOrPreview = Preview && fn.previewable = Pure then
+                  match state.tracing.loadFnResult fnRecord arglist with
                   | Some (result, _ts) -> return result
                   | None -> return DIncomplete sourceID
                 else
@@ -606,7 +610,7 @@ and execFn
                   // there's no point storing data we'll never ask for
                   let! () =
                     if fn.previewable <> Pure then
-                      state.storeFnResult fnRecord arglist result
+                      state.tracing.storeFnResult fnRecord arglist result
                     else
                       task { return () }
 
@@ -616,7 +620,8 @@ and execFn
                 match TypeChecker.checkFunctionCall Map.empty fn args with
                 | Ok () ->
                     let! result =
-                      match (state.context, state.loadFnResult fnRecord arglist) with
+                      match (state.tracing.realOrPreview,
+                             state.tracing.loadFnResult fnRecord arglist) with
                       | Preview, Some (result, _ts) ->
                           Value(Dval.unwrapFromErrorRail result)
                       | Preview, None when fn.previewable <> Pure ->
@@ -636,7 +641,7 @@ and execFn
                             // handler/call site.
                             let! result = eval state argsWithGlobals body
 
-                            do! state.storeFnResult fnRecord arglist result
+                            do! state.tracing.storeFnResult fnRecord arglist result
 
                             return
                               result
@@ -646,7 +651,7 @@ and execFn
                     // there's no point storing data we'll never ask for *)
                     let! () =
                       if fn.previewable <> Pure then
-                        state.storeFnResult fnRecord arglist result
+                        state.tracing.storeFnResult fnRecord arglist result
                       else
                         task { return () }
 
@@ -659,26 +664,27 @@ and execFn
                          + TypeChecker.Error.listToString errs)
                       )
             | UserFunction (tlid, body) ->
-                match TypeChecker.checkFunctionCall state.userTypes fn args with
+                match TypeChecker.checkFunctionCall state.program.userTypes fn args with
                 | Ok () ->
-                    state.traceTLID tlid
+                    state.tracing.traceTLID tlid
                     // Don't execute user functions if it's preview mode and we have a result
-                    match (state.context, state.loadFnResult fnRecord arglist) with
+                    match (state.tracing.realOrPreview,
+                           state.tracing.loadFnResult fnRecord arglist) with
                     | Preview, Some (result, _ts) ->
                         return Dval.unwrapFromErrorRail result
                     | _ ->
                         // It's okay to execute user functions in both Preview and Real contexts,
                         // But in Preview we might not have all the data we need
-                        do! state.storeFnArguments tlid args
+                        do! state.tracing.storeFnArguments tlid args
 
                         let state = { state with tlid = tlid }
                         let! result = eval state argsWithGlobals body
-                        do! state.storeFnResult fnRecord arglist result
+                        do! state.tracing.storeFnResult fnRecord arglist result
 
                         return
                           result
                           |> Dval.unwrapFromErrorRail
-                          |> typeErrorOrValue state.userTypes
+                          |> typeErrorOrValue state.program.userTypes
                 | Error errs ->
                     return
                       DError(

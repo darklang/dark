@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+BINPATH="_build/default/backend/bin"
+SERVER_EXE="$BINPATH/server.exe"
+TESTSERVER_EXE="$BINPATH/ocamltestserver.exe"
+
+echo "Stopping ocaml test server"
+sudo pkill -9 ocamltestserver.exe || true
+
+cp -f "${SERVER_EXE}" "${TESTSERVER_EXE}"
+
+
+
+if [[ -f "${TESTSERVER_EXE}" ]]; then
+  LOGS="${DARK_CONFIG_RUNDIR}/logs"
+
+  echo "Running ocaml test server"
+  # shellcheck disable=SC2024
+  DARK_CONFIG_DB_HOST=localhost \
+  DARK_CONFIG_DB_DBNAME=testdb \
+  DARK_CONFIG_DB_USER=dark \
+  DARK_CONFIG_DB_PASSWORD=eapnsdc \
+  DARK_CONFIG_HEALTH_CHECK_PORT=8082 \
+  DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8001 \
+  DARK_CONFIG_COOKIE_DOMAIN=.darklang.localhost \
+  DARK_CONFIG_USER_CONTENT_HOST=builtwithdark.localhost:8001 \
+  DARK_CONFIG_HTTP_PORT=8001 \
+  sudo --preserve-env "${TESTSERVER_EXE}" > "$LOGS/test-server.log" 2>&1 &
+
+else
+  echo "Missing OCaml binaries"
+  exit 1
+fi
+
+echo "Finished loading ocaml test server"

@@ -28,7 +28,9 @@ let testBasicTypecheckWorks : Test =
     let args = Map.ofList args in
 
     let fn =
-      fns.Force()
+      libraries
+      |> Lazy.force
+      |> fun l -> l.stdlib
       |> Map.get (PT.FQFnName.parse fn)
       |> Option.unwrapUnsafe
       |> RT.builtInFnToFn
@@ -53,7 +55,7 @@ let testErrorNotWrappedByErrorRail =
 
     let! state = executionStateFor "error" Map.empty Map.empty
 
-    let! result = Exe.run state Map.empty expr
+    let! result = Exe.executeExpr state Map.empty expr
 
     Expect.isTrue
       (match result with
@@ -78,7 +80,7 @@ let testArguments : Test =
       let expr = S.eApply (S.eUserFnVal name) []
       let fns = Map.ofList [ name, userFn ]
       let! state = executionStateFor "error" Map.empty fns
-      let! result = Exe.run state Map.empty expr
+      let! result = Exe.executeExpr state Map.empty expr
       return normalizeDvalResult result
     }
 

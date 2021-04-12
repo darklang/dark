@@ -80,6 +80,7 @@ module SchedulingRule =
 
 module WorkerStates =
 
+  // This is used in a number of APIs - be careful of updating it
   type State =
     | Running
     | Blocked
@@ -98,6 +99,7 @@ module WorkerStates =
     | "pause" -> Paused
     | _ -> failwith "invalid WorkerState: {str}"
 
+  // This is used in a number of APIs - be careful of updating it
   type T = Map<string, State>
 
   let empty = Map.empty
@@ -200,31 +202,36 @@ module WorkerStates =
 //         ("queue_canvas_name", host) :: params
 //   in
 //   Log.infO "queue size" ~params ~jsonparams
-//
-//
-// let enqueue
-//     ~account_id
-//     ~canvas_id
-//     (space : string)
-//     (name : string)
-//     (modifier : string)
-//     (data : dval) : unit =
-//   log_queue_size Enqueue (canvas_id |> Uuidm.to_string) space name modifier ;
-//   Db.run
-//     ~name:"enqueue"
-//     "INSERT INTO events
-//      (status, dequeued_by, canvas_id, account_id,
-//       space, name, modifier, value, delay_until, enqueued_at)
-//      VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
-//     ~params:
-//       [ Uuid canvas_id
-//       ; Uuid account_id
-//       ; String space
-//       ; String name
-//       ; String modifier
-//       ; RoundtrippableDval data ]
-//
-//
+
+
+let enqueue
+  (canvasID : CanvasID)
+  (accountID : UserID)
+  (space : string)
+  (name : string)
+  (modifier : string)
+  (data : RT.Dval)
+  : Task<unit> =
+  // FSTODO
+  // log_queue_size Enqueue (canvas_id |> Uuidm.to_string) space name modifier ;
+  Sql.query
+    "INSERT INTO events
+     (status, dequeued_by, canvas_id, account_id,
+      space, name, modifier, value, delay_until, enqueued_at)
+     VALUES ('new', NULL, @canvasID, @accountID, @space, @name, @modifier,
+             @data, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "accountID", Sql.uuid accountID
+                      "space", Sql.string space
+                      "name", Sql.string name
+                      "modifier", Sql.string modifier
+                      "data",
+                      Sql.string (
+                        LibExecution.DvalRepr.toInternalRoundtrippableV0 data
+                      ) ]
+  |> Sql.executeStatementAsync
+
+
 // let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
 //   Telemetry.with_span parent "dequeue" (fun parent ->
 //       let fetched =
@@ -370,51 +377,70 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
   }
 
 
-// (* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
-//  * Then, un-schedules any currently schedules events for this handler to keep
-//  * them from being processed.
-//  * 'pause' rules are developer-controlled whereas 'block' rules are accessible
-//  * only as DarkInternal functions and cannot be removed by developers. *)
-// let add_scheduling_rule rule_type canvas_id handler_name : unit =
-//   Db.run
-//     ~name:"add_scheduling_block"
-//     ~params:[String rule_type; Uuid canvas_id; String handler_name]
-//     "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
-//     VALUES ( $1, $2, $3, 'WORKER')
-//     ON CONFLICT DO NOTHING" ;
-//   Db.run
-//     ~name:"unschedule_events"
-//     ~params:[Uuid canvas_id; String handler_name]
-//     "UPDATE events
-//     SET status = 'new'
-//     WHERE space = 'WORKER'
-//       AND status = 'scheduled'
-//       AND canvas_id = $1
-//       AND name = $2"
-//
-//
-// (* Removes a scheduling rule of the passed type if one exists.
-//  * See also: add_scheduling_rule. *)
-// let remove_scheduling_rule rule_type canvas_id handler_name : unit =
-//   Db.run
-//     ~name:"remove_scheduling_block"
-//     ~params:[Uuid canvas_id; String handler_name; String rule_type]
-//     "DELETE FROM scheduling_rules
-//     WHERE canvas_id = $1
-//     AND handler_name = $2
-//     AND event_space = 'WORKER'
-//     AND rule_type = $3"
-//
-//
+// Keeps the given worker from executing by inserting a scheduling rule of the passed type.
+// Then, un-schedules any currently schedules events for this handler to keep
+// them from being processed.
+// 'pause' rules are user-controlled whereas 'block' rules are accessible
+// only as DarkInternal functions and cannot be removed by users
+let addSchedulingRule
+  (ruleType : string)
+  (canvasID : CanvasID)
+  (workerName : string)
+  : Task<unit> =
+  task {
+    do!
+      Sql.query
+        "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
+         VALUES ( @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
+         ON CONFLICT DO NOTHING"
+      |> Sql.parameters [ "ruleType", Sql.string ruleType
+                          "canvasID", Sql.uuid canvasID
+                          "workerName", Sql.string workerName ]
+      |> Sql.executeStatementAsync
+
+    do!
+      Sql.query
+        "UPDATE events
+            SET status = 'new'
+            WHERE space = 'WORKER'
+              AND status = 'scheduled'
+              AND canvas_id = @canvasID
+              AND name = @workerName"
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                          "workerName", Sql.string workerName ]
+      |> Sql.executeStatementAsync
+  }
+
+
+// Removes a scheduling rule of the passed type if one exists.
+// See also: addSchedulingRule.
+let removeSchedulingRule
+  (ruleType : string)
+  (canvasID : CanvasID)
+  (workerName : string)
+  : Task<unit> =
+  Sql.query
+    "DELETE FROM scheduling_rules
+     WHERE canvas_id = @canvasID
+       AND handler_name = @workerName
+       AND event_space = 'WORKER'
+       AND rule_type = @ruleType::scheduling_rule_type"
+  |> Sql.parameters [ "ruleType", Sql.string ruleType
+                      "canvasID", Sql.uuid canvasID
+                      "workerName", Sql.string workerName ]
+  |> Sql.executeStatementAsync
+
+
+
 // (* DARK INTERNAL FN *)
 // let block_worker = add_scheduling_rule "block"
 //
 // (* DARK INTERNAL FN *)
 // let unblock_worker = remove_scheduling_rule "block"
 //
-// let pause_worker = add_scheduling_rule "pause"
-//
-// let unpause_worker = remove_scheduling_rule "pause"
+let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
+
+let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"
 //
 // let begin_transaction () =
 //   let id = Util.create_id () in

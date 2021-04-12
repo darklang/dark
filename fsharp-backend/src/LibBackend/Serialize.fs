@@ -141,21 +141,14 @@ let fetchReleventTLIDsForHTTP
                       "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-// let fetch_relevant_tlids_for_execution ~host ~canvas_id () : Types.tlid list =
-//   Db.fetch
-//     ~name:"fetch_relevant_tlids_for_execution"
-//     "SELECT tlid FROM toplevel_oplists
-//       WHERE canvas_id = $1
-//       AND tipe <> 'handler'::toplevel_type"
-//     ~params:[Db.Uuid canvas_id]
-//   |> List.map ~f:(fun l ->
-//          match l with
-//          | [data] ->
-//              Types.id_of_string data
-//          | _ ->
-//              Exception.internal "Shape of per_tlid oplists")
-//
-//
+let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
+  Sql.query
+    "SELECT tlid FROM toplevel_oplists
+      WHERE canvas_id = @canvasID
+      AND tipe <> 'handler'::toplevel_type"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
 // let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
 //     Types.tlid list =
 //   Db.fetch

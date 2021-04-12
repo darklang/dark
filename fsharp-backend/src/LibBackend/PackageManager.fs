@@ -14,6 +14,7 @@ open Tablecloth
 open Db
 
 module PT = LibBackend.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 module OT = LibBackend.OCamlInterop.OCamlTypes
 module Convert = LibBackend.OCamlInterop.Convert
 
@@ -282,11 +283,11 @@ module Convert = LibBackend.OCamlInterop.Convert
 //              Error ("Unknown error: " ^ Exception.to_string e))
 
 
-(* ------------------ *)
-(* Fetching functions *)
-(* ------------------ *)
+// ------------------
+// Fetching functions
+// ------------------
 
-let allFunctions () : Task<List<PT.PackageManager.Fn>> =
+let allFunctions () : Task<List<PT.Package.Fn>> =
   Sql.query
     "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
             P.body, P.description, P.return_type, P.parameters, P.deprecated,
@@ -297,40 +298,48 @@ let allFunctions () : Task<List<PT.PackageManager.Fn>> =
   |> Sql.parameters []
   |> Sql.executeAsync
        (fun read ->
-         ( read.string "username"
-         , read.string "package"
-         , read.string "module"
-         , read.string "fnname"
-         , read.int "version"
-         , read.bytea "body"
-         , read.string "return_type"
-         , read.string "parameters"
-         , read.string "description"
-         , read.string "author"
-         , read.bool "deprecated"
-         , read.int64 "tlid"))
-  |> Task.bind (fun fns ->
-       fns
-       |> List.map
-        (fun (username, package, module_, fnname, version, body, returnType, parameters, description, author, deprecated, tlid) ->
-          task {
-           let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
-           return ({ name =
-                       { owner = username
-                         package = package
-                         module_ = module_
-                         function_ = fnname
-                         version = version }
-                     body = expr
-                     returnType = PT.DType.parse returnType
-                     parameters =
-                       parameters
-                       |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
-                       |> List.map Convert.ocamlPackageManagerParameter2PT
-                     description = description
-                     author = author
-                     deprecated = deprecated
-                     tlid = tlid |> uint64 } : PT.PackageManager.Fn) })
-      |> Task.flatten
-    )
+         (read.string "username",
+          read.string "package",
+          read.string "module",
+          read.string "fnname",
+          read.int "version",
+          read.bytea "body",
+          read.string "return_type",
+          read.string "parameters",
+          read.string "description",
+          read.string "author",
+          read.bool "deprecated",
+          read.int64 "tlid"))
+  |> Task.bind
+       (fun fns ->
+         fns
+         |> List.map
+              (fun (username, package, module_, fnname, version, body, returnType, parameters, description, author, deprecated, tlid) ->
+                task {
+                  let! (expr, _) = OCamlInterop.exprTLIDPairOfCachedBinary body
 
+                  return
+                    ({ name =
+                         { owner = username
+                           package = package
+                           module_ = module_
+                           function_ = fnname
+                           version = version }
+                       body = expr
+                       returnType = PT.DType.parse returnType
+                       parameters =
+                         parameters
+                         |> Json.OCamlCompatible.deserialize<List<OT.PackageManager.parameter>>
+                         |> List.map Convert.ocamlPackageManagerParameter2PT
+                       description = description
+                       author = author
+                       deprecated = deprecated
+                       tlid = tlid |> uint64 } : PT.Package.Fn)
+                })
+         |> Task.flatten)
+
+// CLEANUP: this keeps a cached version so we're not loading them all the time.
+// Of course, this won't be up to date if we add more functions. Given that all
+// functions need to be loaded for the API, when this becomes a problem we want
+// to look at breaking it up into different packages
+let cachedForAPI : Lazy<Task<List<PT.Package.Fn>>> = lazy (allFunctions ())

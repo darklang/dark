@@ -572,16 +572,10 @@ module ExecutePureFunctions =
                        not (
                          Set.contains
                            (toString fn.name)
-                           (ApiServer.Api.fsharpOnlyFns.Force())
+                           (ApiServer.Functions.fsharpOnlyFns.Force())
                        ))
                 |> List.filter
                      (function
-                     // FSTODO: Relies on some things that can't be compiled into a shared library in OCaml (RE)
-                     | { name = { module_ = "String"; function_ = "slugify" } } ->
-                         false
-                     // FSTODO: I don't remember what went wrong here
-                     | { name = { module_ = "String"; function_ = "base64decode" } } ->
-                         false
                      // FSTODO: These use a different sort order in OCaml
                      | { name = { module_ = "List"; function_ = "sort" } } -> false
                      | { name = { module_ = "List"; function_ = "sortBy" } } -> false
@@ -678,23 +672,25 @@ module ExecutePureFunctions =
     | _ -> v.ToString()
 
 
-  let equalsOCaml ((fn, args) : (PT.FQFnName.T * List<RT.Dval>)) : bool =
+  let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
-        let ast = PT.EFnCall(gid (), fn, fnArgList, PT.NoRail)
+
+        let ast = PT.EFnCall(gid (), RT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
+
         let st = Map.ofList args
 
         let ownerID = System.Guid.NewGuid()
         let canvasID = System.Guid.NewGuid()
 
         let! expected = OCamlInterop.execute ownerID canvasID ast st [] []
-        // debuG "ocaml (expected)" expected
 
         let! state = executionStateFor "executePure" Map.empty Map.empty
-        let! actual = LibExecution.Execution.run state st (ast.toRuntimeType ())
-        // debuG "fsharp (actual) " actual
+
+        let! actual =
+          LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())
 
         let differentErrorsAllowed =
           // Error messages are not required to be directly the same between
@@ -713,7 +709,10 @@ module ExecutePureFunctions =
           | RT.DResult (Error msg1), RT.DResult (Error msg2) ->
               debuG "ignoring different error msgs" (msg1, msg2)
               return differentErrorsAllowed
-          | _ -> return false
+          | _ ->
+              debuG "ocaml (expected)" expected
+              debuG "fsharp (actual) " actual
+              return false
       }
 
     Task.WaitAll [| t :> Task |]
