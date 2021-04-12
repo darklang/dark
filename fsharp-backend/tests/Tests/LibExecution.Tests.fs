@@ -69,7 +69,11 @@ let t
             Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
 
           let fsharpActual = normalizeDvalResult fsharpActual
-          Expect.equalDval fsharpActual expected $"FSharp: {msg}"
+
+          Expect.equalDval
+            fsharpActual
+            expected
+            $"FSharp: {msg}, {debugDval fsharpActual}"
 
         return ()
       with e ->

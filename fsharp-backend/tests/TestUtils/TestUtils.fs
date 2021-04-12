@@ -550,6 +550,14 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
 
 let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
 
+let debugDval (v : Dval) : string =
+  match v with
+  | DStr s ->
+      $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+  | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
+  | _ -> v.ToString()
+
+
 let interestingFloats : List<string * float> =
   let initial =
     // interesting cause OCaml uses 31 bit ints
