@@ -479,6 +479,13 @@ module PrettyMachineJson =
 module ExecutePureFunctions =
   open LibBackend.ProgramTypes.Shortcuts
 
+  // https://github.com/minimaxir/big-list-of-naughty-strings
+  let naughtyStrings : Lazy<List<string>> =
+    lazy
+      (LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
+       |> String.splitOnNewline
+       |> List.filter (String.startsWith "#" >> not))
+
   let filterFloat (f : float) : bool =
     match f with
     | System.Double.PositiveInfinity -> false
@@ -487,6 +494,9 @@ module ExecutePureFunctions =
     | f when f <= -1e+308 -> false
     | f when f >= 1e+308 -> false
     | _ -> true
+
+  let filterInt (i : bigint) : bool =
+    i < 4611686018427387904I && i > -4611686018427387904I
 
 
   type Generator =
@@ -508,12 +518,34 @@ module ExecutePureFunctions =
         let rec genDval' typ s =
           gen {
             match typ with
-            | RT.TInt -> return! Gen.map RT.DInt Arb.generate<bigint>
-            | RT.TStr -> return! Gen.map RT.DStr Arb.generate<string>
+            | RT.TInt ->
+                let specials =
+                  TestUtils.interestingInts
+                  |> List.map Tuple2.second
+                  |> List.filter filterInt
+                  |> List.map Gen.constant
+                  |> Gen.oneof
+
+                let v = Gen.frequency [ (9, specials); (1, Arb.generate<bigint>) ]
+                return! Gen.filter filterInt v |> Gen.map RT.DInt
+
+            | RT.TStr ->
+                let naughty =
+                  naughtyStrings |> Lazy.force |> List.map Gen.constant |> Gen.oneof
+
+                let! v = Gen.frequency [ (9, naughty); (1, Arb.generate<string>) ]
+                return RT.DStr v
             | RT.TVariable _ -> return! Arb.generate<RT.Dval>
             | RT.TFloat ->
-                return!
-                  Gen.map RT.DFloat (Arb.generate<float> |> Gen.filter filterFloat)
+                let specials =
+                  TestUtils.interestingFloats
+                  |> List.map Tuple2.second
+                  |> List.filter filterFloat
+                  |> List.map Gen.constant
+                  |> Gen.oneof
+
+                let v = Gen.frequency [ (9, specials); (1, Arb.generate<float>) ]
+                return! Gen.filter filterFloat v |> Gen.map RT.DFloat
             | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
             | RT.TNull -> return RT.DNull
             | RT.TList typ ->
@@ -563,7 +595,6 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
-
       { new Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>>() with
           member x.Generator =
             gen {
@@ -581,6 +612,8 @@ module ExecutePureFunctions =
                      // FSTODO: These use a different sort order in OCaml
                      | { name = { module_ = "List"; function_ = "sort" } } -> false
                      | { name = { module_ = "List"; function_ = "sortBy" } } -> false
+                     | { name = { module_ = "String"; function_ = "base64Decode" } } ->
+                         false
                      | fn -> fn.previewable = RT.Pure)
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
@@ -617,7 +650,31 @@ module ExecutePureFunctions =
                 | RT.DBytes _ -> true
 
               let arg (i : int) (prevArgs : List<RT.Dval>) =
-                genDval signature.[i].typ
+                // If the parameters need to be in a particular format to get
+                // meaningful testing, generate them here.
+                let specific =
+                  gen {
+                    match toString name, i with
+                    | "String::toInt_v1", 0
+                    | "String::toInt", 0 ->
+                        let! v = Arb.generate<bigint>
+                        return v |> toString |> RT.DStr
+                    | "String::toFloat", 0 ->
+                        let! v = Arb.generate<float>
+                        return v |> toString |> RT.DStr
+                    | "String::toUUID", 0 ->
+                        let! v = Arb.generate<System.Guid>
+                        return v |> toString |> RT.DStr
+                    | "String::padStart", 1
+                    | "String::padEnd", 1 ->
+                        // FSTODO: allow more than just chars
+                        let! v = Arb.generate<char>
+                        return RT.DStr(System.String([| v |]))
+                    | _ -> return! genDval signature.[i].typ
+                  }
+                // Still throw in random data 10% of the time to test errors, edge-cases, etc.
+                // FSTODO: re-enable the random data
+                Gen.frequency [ (0, genDval signature.[i].typ); (9, specific) ]
                 |> Gen.filter
                      (fun dv ->
                        // Avoid triggering known errors in OCaml
@@ -637,8 +694,6 @@ module ExecutePureFunctions =
                        | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false // exception
                        | 0, _, _, "", "toString", 0 -> not (containsBytes dv) // exception
                        | _ -> true)
-
-
 
               match List.length signature with
               | 0 -> return (name, [])
@@ -667,17 +722,10 @@ module ExecutePureFunctions =
                   return (name, [])
             } }
 
-  let debugDval (_, v) : string =
-    match v with
-    | RT.DStr s ->
-        $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
-    | RT.DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
-    | _ -> v.ToString()
-
-
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
+        let origArgs = args
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
 
@@ -695,23 +743,53 @@ module ExecutePureFunctions =
         let! actual =
           LibExecution.Execution.executeExpr state st (ast.toRuntimeType ())
 
-        let differentErrorsAllowed =
+        let errorAllowed msg =
+          let e pat = System.Text.RegularExpressions.Regex.IsMatch(msg, pat)
           // Error messages are not required to be directly the same between
-          // old and new implementations, but we do prefer them to be the same
-          // if possible. this is a list of error messages which have been
-          // manually verified to be "close-enough"
-          true
+          // old and new implementations. However, this can hide errors, so we
+          // manually verify them all to make sure we didn't miss any.
+          match fn.ToString() with
+          // Removed
+          | "String::fromChar"
+          | "String::toList"
+          | "String::fromList"
+          | "Char::toUppercase"
+          | "Char::toLowercase"
+          | "Char::toASCIICode"
+          | "Char::toASCIIChar"
+          | "String::foreach" -> true
+          // Messages are close-enough
+          | "%"
+          | "Int::mod" -> e "Expected the argument `b` to be positive, but it was"
+          | "Int::remainder" -> e "`divisor` cannot be zero"
+          | _ -> false
 
         if dvalEquality actual expected then
           return true
         else
+          let debugFn () =
+            debuG "fn" fn
+            debuG "args" (List.map (fun (_, v) -> debugDval v) args)
+
           match actual, expected with
           | RT.DError (_, msg1), RT.DError (_, msg2) ->
-              debuG "ignoring different error msgs" (msg1, msg2)
-              return differentErrorsAllowed
-          | RT.DResult (Error msg1), RT.DResult (Error msg2) ->
-              debuG "ignoring different error msgs" (msg1, msg2)
-              return differentErrorsAllowed
+              let allowed = errorAllowed msg1
+
+              if not allowed then
+                debugFn ()
+                printfn $"Got different error msgs: \"{msg1}\" vs \"{msg2}\""
+
+              // FSTODO make false
+              return true
+          | RT.DResult (Error (RT.DStr msg1)), RT.DResult (Error (RT.DStr msg2)) ->
+              let allowed = errorAllowed msg1
+
+              if not allowed then
+                debugFn ()
+                printfn $"Got different Results msgs: \"{msg1}\" vs \"{msg2}\""
+
+              // FSTODO make false
+              return true
           | _ ->
               debuG "ocaml (expected)" expected
               debuG "fsharp (actual) " actual
