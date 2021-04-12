@@ -929,18 +929,17 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DInt first; DInt last ] ->
 
             let chars = String.toEgcSeq s
-            let length = length chars
+            let length = length chars |> bigint
 
-            let normalize i =
+            let normalize (i : bigint) =
               i
-              |> int
-              |> fun i -> if i < 0 then length + i else i // account for - values
+              |> fun i -> if i < 0I then length + i else i // account for - values
               |> min length
-              |> max 0
+              |> max 0I
 
 
-            let f = normalize first
-            let l = normalize last
+            let f = normalize first |> int
+            let l = normalize last |> int
             let l = if f > l then f else l // return empty string when start is less than end
 
             chars
