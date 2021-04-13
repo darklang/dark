@@ -100,11 +100,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [DList l] ->
+
           let f acc e =
             match e with
-              | DList [DStr k; value] when Map.containsKey k acc -> Map.remove k acc |> Map.add k value
               | DList [DStr k; value] -> Map.add k value acc
-              | DList [k; value] -> Errors.throw(Errors.argumentWasnt "String`s" "key" k)
+              | DList [k; value] -> Errors.throw(Errors.argumentWasnt "a string" "key" k)
+              | (DIncomplete _ | DErrorRail _ | DError _) as dv -> Errors.foundFakeDval(dv)
               | _ -> Errors.throw "All list items must be `[key, value]`"
 
           let result = List.fold f Map.empty l
