@@ -248,11 +248,13 @@ let fns : List<BuiltInFn> =
       description = "Returns a new list containing `val` repeated `times` times."
       fn =
         (function
-        | _, [ DInt t; v ] ->
-            if (int t) < 0 then
-              err (Errors.argumentWasnt "positive" "t" (DInt t))
+        | _, [ DInt times; v ] ->
+            if times < 0I then
+              err (Errors.argumentWasnt "positive" "times" (DInt times))
+            else if times > 2147483647I then
+              err (Errors.argumentWasnt "less than 2147483647" "times" (DInt times))
             else
-              List.replicate (int t) v |> DList |> Value
+              List.replicate (int times) v |> DList |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

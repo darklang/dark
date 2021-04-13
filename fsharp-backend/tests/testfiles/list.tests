@@ -147,13 +147,12 @@ List.range_v0 -1 0 = [-1; 0]
 List.range_v0 -5 5 = [-5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5;]
 List.range_v0 5 0 = []
 
-List.repeat_v0 -1 "a" = Test.typeError_v0 "Expected the argument `t` to be positive, but it was `-1`" // FSHARPONLY
-List.repeat_v0 -118446744073709551616I 1 = [] //FSHARPONLY
-List.repeat_v0 -4 5 = Test.typeError_v0 "Expected the argument `t` to be positive, but it was `-4`" // FSHARPONLY
+List.repeat_v0 -1 "a" = Test.typeError_v0 "Expected the argument `times` to be positive, but it was `-1`" // FSHARPONLY
+List.repeat_v0 -4 5 = Test.typeError_v0 "Expected the argument `times` to be positive, but it was `-4`" // FSHARPONLY
 List.repeat_v0 0 1 = []
 List.repeat_v0 1 "a" = ["a"]
 List.repeat_v0 1 1 = [1]
-List.repeat_v0 118446744073709551616I 1 = Error "Expected the argument `times` to be less than 2147483647, but it was `118446744073709551616`" //FSHARPONLY
+List.repeat_v0 118446744073709551616I 1 = Test.typeError_v0 "Expected the argument `times` to be less than 2147483647, but it was `118446744073709551616`" //FSHARPONLY
 List.repeat_v0 3 1 = [1, 1, 1]
 List.repeat_v0 3 3 = [3; 3; 3]
 List.repeat_v0 5 "a" = ["a"; "a"; "a"; "a"; "a"]
