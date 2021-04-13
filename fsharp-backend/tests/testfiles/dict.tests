@@ -15,12 +15,12 @@ Dict.empty_v0 = {}
 Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["a";3]] = { b = 2 ; a = 3 }
 Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3]] = { c = 3 ; b = 2 ; a= 1 }
 Dict.fromListOverwritingDuplicates_v0 [] = {}
-//Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "Todo: It has length 3 but must have length 2"
+Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "Expected every value within the `entries` argument passed to `Dict::fromListOverwritingDuplicates` to be a `[key, value]` list. However, that is not the case for the value at index 2: `[ \n  \"c\", 3, 3\n]`. It has length 3 but must have length 2." // OCAMLONLY
+Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "All list items must be `[key, value]`" // FSHARPONLY
+Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Expected every value within the `entries` argument passed to `Dict::fromListOverwritingDuplicates` to be a `[key, value]` list. However, that is not the case for the value at index 0: `[ \n  1, 1\n]`. Keys must be `String`s but the type of `1` is `Int`." // OCAMLONLY
 Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Expected the argument `key` to be a string, but it was `1`" // FSHARPONLY
-
-// Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Keys must be `String`s but the type of `1` is Int." // OCAMLONLY this needs to be checked, it raises an Exception
-// Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Todo: Keys must be Strings" // OCAMLONLY this needs to be checked, it raises an Exception too
-// Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "Todo: It is of type Int instead of List"
+Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "Expected every value within the `entries` argument passed to `Dict::fromListOverwritingDuplicates` to be a `[key, value]` list. However, that is not the case for the value at index 1: `2`. It is of type `Int` instead of `List`."" // OCAMLONLY
+Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "All list items must be `[key, value]`" // FSHARPONLY
 
 Dict.fromList_v0 [["a";1];["b";2];["a";3]] = Nothing // duplicate key
 Dict.fromList_v0 [["a";1];["b";2];["c";3]] = Just { c = 3; b = 2; a = 1 }
