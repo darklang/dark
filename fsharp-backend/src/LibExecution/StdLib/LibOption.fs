@@ -101,7 +101,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Option" "andThen" 0
       parameters =
         [ optionA
-          Param.makeWithArgs "f" (TFn([ TOption varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "f" (TFn([ TOption varA ], TOption varB)) "" [ "val" ] ]
       returnType = TOption varB
       description =
         "If <param option> is {{Just <var input>}}, returns {{f <var input>}}. Where the lambda <param f> is applied to <var input> and must return {{Just <var output>}} or {{Nothing}}. Otherwise if <param option> is {{Nothing}}, returns {{Nothing}}."
