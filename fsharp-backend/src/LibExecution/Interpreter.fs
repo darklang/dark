@@ -593,9 +593,10 @@ and execFn
           return List.head arglist
       | Some (DIncomplete src) -> return DIncomplete src
       | Some (DError (src, _) as err) ->
-          // FSTODO: this is a far nicer error. Should we ship it?
-          // return DError(src, "Fn called with an error as an argument")
-          return err
+          // CLEANUP: kept old error to make testing easier, but this is an
+          // easy and safe change to make
+          return DError(src, "Fn called with an error as an argument")
+      // return err
       | _ ->
           try
             match fn.fn with

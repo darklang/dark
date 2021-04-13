@@ -10,7 +10,7 @@ List.drop_v0 [1;2;3;4] 4 = []
 List.drop_v0 [1;2;3;4] 5 = []
 List.drop_v0 [1;2;3;4] 0 = [ 1, 2, 3, 4 ]
 List.drop_v0 [1;2;3;4] -1 = [ 1, 2, 3, 4 ]
-//List.drop_v0 [1;2;3;4] 118446744073709551616I = [] //FSHARPONLY
+List.drop_v0 [1;2;3;4] 118446744073709551616I = [] //FSHARPONLY
 
 //List.dropWhile_v0 [1;2;3;4] (fun item -> item < 3) = [ 3, 4 ]
 //List.dropWhile_v0 [1;2;3;4] (fun item -> item >= 1) = []
@@ -51,6 +51,16 @@ List.getAt_v0 [1;2;3;4] 0 = Just 1
 List.getAt_v0 [1;2;3;4] 4 = Nothing
 List.getAt_v0 ["a"; "b"; "c"; "d"] -1 = Nothing
 List.getAt_v0 [3; 3; 3] -5 = Nothing
+List.getAt_v0 [3; 3; 3] 2147483648I = Nothing
+List.getAt_v0 [1; 2; 3; 4] 4611686018427387902I = Nothing
+
+List.getAt_v1 [1;2;3;4] 0 = Just 1
+List.getAt_v1 [0] 1 = Nothing
+List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
+List.getAt_v1 [3; 3; 3] -5 = Nothing
+List.getAt_v1 [3; 3; 3] 2147483648I = Nothing
+List.getAt_v1 [1; 2; 3; 4] 4611686018427387902I = Nothing // FSHARPONLY
+
 
 //List.indexedMap_v0 [3;2;1] (fun i v -> v - i) = [ 3, 1, -1 ]
 //List.indexedMap_v0 [] (fun i v -> v - i) = []
@@ -258,8 +268,5 @@ List.take_v0 [5; 4; 3; 2; 1]  5 = [5; 4; 3; 2; 1]
 List.take_v0 [3; 3; 3] 0 = []
 List.take_v0 [5] 4 = [5]
 List.take_v0 ["a"; "b"; "c"; "d"] -1 = []
+List.take_v0 ["a"; "b"; "c"; "d"] 2147483648I = ["a"; "b"; "c"; "d"]
 
-List.getAt_v1 [1;2;3;4] 0 = Just 1
-List.getAt_v1 [0] 1 = Nothing
-List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
-List.getAt_v1 [3; 3; 3] -5 = Nothing

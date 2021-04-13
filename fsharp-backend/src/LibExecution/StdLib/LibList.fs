@@ -9,7 +9,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let incorrectArgs = Errors.incorrectArgs
 
 let err (str : string) = Value(Dval.errStr str)
 
@@ -150,17 +150,17 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "List" "reverse" 0
-      parameters = [Param.make "list" (TList varA) ""]
+      parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description = "Returns a reversed copy of `list`."
       fn =
         (function
-        |_, [DList l] -> Value(DList(List.rev l))
+        | _, [ DList l ] -> Value(DList(List.rev l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "findFirst" 0
+    //   ; { name = fn "List" "findFirst" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = varA
 //     ; description =
@@ -243,16 +243,16 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "List" "repeat" 0
-      parameters = [Param.make "times" TInt ""; Param.make "val" varA ""]
+      parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
       returnType = TList varA
       description = "Returns a new list containing `val` repeated `times` times."
       fn =
         (function
-        | _, [DInt t; v] ->
-              if (int t) < 0 then
-                err (Errors.argumentWasnt "positive" "t" (DInt t))
-              else
-                List.replicate (int t) v |> DList |> Value
+        | _, [ DInt t; v ] ->
+            if (int t) < 0 then
+              err (Errors.argumentWasnt "positive" "t" (DInt t))
+            else
+              List.replicate (int t) v |> DList |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -319,23 +319,24 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "List" "flatten" 0
-      parameters = [Param.make "list" (TList (TList varA)) ""]
+      parameters = [ Param.make "list" (TList(TList varA)) "" ]
       returnType = TList varA
-      description = "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
+      description =
+        "Returns a single list containing the values of every list directly in `list` (does not recursively flatten nested lists)."
       fn =
         (function
         | _, [ DList l ] ->
-          let f acc i =
-            match i with
-            | DList l -> List.append acc l
-            | _ -> Errors.throw "Flattening non-lists"
-          in
-          List.fold f [] l |> DList |> Value
+            let f acc i =
+              match i with
+              | DList l -> List.append acc l
+              | _ -> Errors.throw "Flattening non-lists"
+
+            List.fold f [] l |> DList |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "interpose" 0
+    //   ; { name = fn "List" "interpose" 0
 //     ; parameters = [Param.make "list" TList ""; Param.make "sep" varA ""]
 //     ; returnType = TList
 //     ; description =
@@ -440,11 +441,7 @@ let fns : List<BuiltInFn> =
                          return (key, v)
                        })
 
-              return
-                withKeys
-                |> List.sortBy fst
-                |> List.map snd
-                |> DList
+              return withKeys |> List.sortBy fst |> List.map snd |> DList
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -531,10 +528,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "filter" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ]
-          // CLEANUP disabled to match OCaml for now
-          // "Function to be applied on all list elements; if the result it true then the element is kept"
-          ]
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Return only values in `list` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
@@ -735,23 +729,20 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "drop" 0
-      parameters = [Param.make "list" (TList varA) ""; Param.make "count" TInt ""]
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
       description = "Drops the first `count` values from `list`."
       fn =
         (function
-        | _, [DList l; DInt c] ->
-            if (int c) < 0 then
-              Value(DList l)
-            elif int c > List.length l then
-              Value(DList [])
-            else
-              Value(DList(List.skip (int c) l))
+        | _, [ DList l; DInt c ] ->
+            if c < 0I then Value(DList l)
+            elif c > bigint (List.length l) then Value(DList [])
+            else Value(DList(List.skip (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "dropWhile" 0
+    //   ; { name = fn "List" "dropWhile" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -797,23 +788,20 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "take" 0
-      parameters = [Param.make "list" (TList varA) ""; Param.make "count" TInt ""]
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
       description = "Drops all but the first `count` values from `list`."
       fn =
         (function
-        | _, [DList l; DInt c] ->
-              if int c < 0 then
-                Value(DList [])
-              elif int c > List.length l then
-                Value(DList l)
-              else
-                Value(DList(List.take (int c) l))
+        | _, [ DList l; DInt c ] ->
+            if c < 0I then Value(DList [])
+            elif c >= bigint (List.length l) then Value(DList l)
+            else Value(DList(List.take (int c) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "takeWhile" 0
+    //   ; { name = fn "List" "takeWhile" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -885,10 +873,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "map" 0
       parameters =
         [ Param.make "list" (TList varA) "" // CLEANUP "The list to be operated on"
-          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ]
-          // CLEANUP
-          // "Function to be called on each member"
-          ]
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
       description = "Calls `f` on every `val` in `list`, returning a list of the results of those calls.
         Consider `List::filterMap` if you also want to drop some of the values."
       returnType = TList varB
@@ -1093,29 +1078,37 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "getAt" 0
-      parameters = [Param.make "list" (TList varA) ""; Param.make "index" TInt ""]
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA
       description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list. Otherwise returns `Nothing`."
       fn =
         (function
-        | _, [ DList l; DInt index ] -> Value(DOption(List.tryItem (int index) l))
+        | _, [ DList l; DInt index ] ->
+            if index > bigint (List.length l) then
+              Value(DOption None)
+            else
+              Value(DOption(List.tryItem (int index) l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "getAt" 1) }
     { name = fn "List" "getAt" 1
-      parameters = [Param.make "list" (TList varA) ""; Param.make "index" TInt ""]
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA
       description =
         "Returns `Just value` at `index` in `list` if `index` is less than the length of the list otherwise returns `Nothing`."
       fn =
         (function
-        | _, [ DList l; DInt index ] -> (List.tryItem (int index) l) |> Dval.option |> Value
+        | _, [ DList l; DInt index ] ->
+            if index > bigint (List.length l) then
+              Value(DOption None)
+            else
+              (List.tryItem (int index) l) |> Dval.option |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated =  NotDeprecated }
+      deprecated = NotDeprecated }
     { name = fn "List" "randomElement" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA

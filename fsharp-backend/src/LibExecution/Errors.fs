@@ -87,7 +87,7 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
 
 
 // When a function has been removed (rarely happens but does happen occasionally)
-let removedFunction (_ : 'a) : 'b = raise (StdlibException FunctionRemoved)
+let removedFunction () : 'b = raise (StdlibException FunctionRemoved)
 
 // When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (StdlibException(FakeDvalFound dv))

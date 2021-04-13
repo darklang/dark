@@ -101,6 +101,10 @@ String.base64Decode_v0 "Zm9v" = "foo"
 String.base64Decode_v0 "Zm9vYg" = "foob"
 String.base64Decode_v0 "Zm9vYmE" = "fooba"
 String.base64Decode_v0 "Zm9vYmFy" = "foobar"
+//String.base64Decode_v0 "-p" = "" // FSHARPONLY
+//String.base64Decode_v0 "lI" = "" // FSHARPONLY
+//String.base64Decode_v0 "5Sk" = "\xEF\xBF\xBD\x29" // FSHARPONLY
+
 
 String.base64Encode_v0 "+" = "Kw"
 String.base64Encode_v0 "Ⱥ" = "yLo"
@@ -241,8 +245,6 @@ String.replaceAll_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" "🧑🏽‍�
 String.replaceAll_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.replaceAll_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" "🧟‍♂️"= "żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿"
 
-// slugify tests are fsharponly because libtarget_fsharp has a bad regex
-// engine. Expected values here were created using ocaml via the editor.
 String.slugify_v0 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭! " = "m@y-'super'-really-excellent-*uber_-amazing*-~very-~-\"clever\"-thing:-coffee!" // FSHARPONLY
 String.slugify_v0 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "m@y-'super'-really-exce+llent-*uber_-ama\"zing*-~very-5x5-~-\"clever\"-thing:-coffee!" // FSHARPONLY
 String.slugify_v0 "" = "" // FSHARPONLY
@@ -255,6 +257,12 @@ String.slugify_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo" 
 String.slugify_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "" // FSHARPONLY
 String.slugify_v0 "🧟‍♀️🧟‍♂️" = "" // FSHARPONLY
 String.slugify_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "" // FSHARPONLY
+String.slugify_v0 "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
+String.slugify_v0 "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
+String.slugify_v0 "!\"#$%&'()*+,-./" = "!\"$'()*+-."
+String.slugify_v0 ":;<=>?@" = ":@"
+String.slugify_v0 "[\\]^_`" = "_"
+String.slugify_v0 "{|}~\x7F" = "~"
 
 String.slugify_v1 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee" // FSHARPONLY
 String.slugify_v1 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee" // FSHARPONLY
@@ -268,6 +276,12 @@ String.slugify_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo" 
 String.slugify_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "" // FSHARPONLY
 String.slugify_v1 "🧟‍♀️🧟‍♂️" = "" // FSHARPONLY
 String.slugify_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "" // FSHARPONLY
+String.slugify_v1 "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
+String.slugify_v1 "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
+String.slugify_v1 "!\"#$%&'()*+,-./" = "-"
+String.slugify_v1 ":;<=>?@" = ""
+String.slugify_v1 "[\\]^_`" = "-"
+String.slugify_v1 "{|}~\x7F" = ""
 
 String.slugify_v2 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee" // FSHARPONLY
 String.slugify_v2 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee" // FSHARPONLY
@@ -281,6 +295,12 @@ String.slugify_v2 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo" 
 String.slugify_v2 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "" // FSHARPONLY
 String.slugify_v2 "🧟‍♀️🧟‍♂️" = "" // FSHARPONLY
 String.slugify_v2 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "" // FSHARPONLY
+String.slugify_v2 "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
+String.slugify_v2 "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
+String.slugify_v2 "!\"#$%&'()*+,-./" = "-"
+String.slugify_v2 ":;<=>?@" = ""
+String.slugify_v2 "[\\]^_`" = "-"
+String.slugify_v2 "{|}~\x7F" = ""
 
 String.fromList_v1 [] = ""
 ("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "This function no longer exists.") // OCAMLONLY
@@ -371,6 +391,7 @@ String.toFloat_v0 "-0.5" = -0.5
 String.toFloat_v0 "+0.5" = 0.5
 String.toFloat_v0 ".5" = 0.5
 String.toFloat_v0 "-9999999999999999999999999998.9" = -9999999999999999999999999998.9
+
 String.toFloat_v1 "1.5" = Ok 1.5
 String.toFloat_v1 "0.0" = Ok 0.0
 String.toFloat_v1 "-0.5" = Ok -0.5
@@ -379,6 +400,7 @@ String.toFloat_v1 ".5" = Ok 0.5
 String.toFloat_v1 "-55555555555555555555555555555.5" = Ok -55555555555555555555555555555.5
 String.toFloat_v1 "-141s" = Error "Expected a string representation of an IEEE float"
 String.toFloat_v1 "" = Error "Expected a string representation of an IEEE float"
+//String.toFloat_v1 "0xffffffffffffffff" = Ok 1.844674407e+19
 
 String.toList_v1 "" = []
 String.toList_v1 "abc" = [ 'a'; 'b'; 'c']
@@ -436,6 +458,7 @@ String.toUppercase_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️
 String.toUppercase_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toUppercase_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 //String.toUppercase_v0 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇Lͮ̒ͫǧ̗͚̚O̙̔ͮ̇͐̇"
+//String.toUppercase_v0 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢H͏͓̮̻E̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅA͏͓͔̹̼̣L̴͔̰̤̟͔ḽ̫.͕"
 
 String.toUppercase_v1 "" = ""
 String.toUppercase_v1 "hello😄world" = "HELLO😄WORLD"
@@ -452,6 +475,7 @@ String.toUppercase_v1 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️
 String.toUppercase_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toUppercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.toUppercase_v1 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
+//String.toUppercase_v1 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢H͏͓̮̻E̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅA͏͓͔̹̼̣L̴͔̰̤̟͔ḽ̫.͕"
 
 String.trimEnd_v0 "      " = ""
 String.trimEnd_v0 "" = ""
@@ -470,7 +494,7 @@ String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
 String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
 String.trimEnd_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-
+String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" // FSHARPONLY
 String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
 String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
 String.trimStart_v0 "      " = ""
@@ -592,12 +616,14 @@ String.slice_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 6 = "﷽﷽
 String.slice_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 6 = "👱🏼👱🏽👱🏾👱🏿"
 String.slice_v0 "🧟‍♀️🧟‍♂️" 2 4 = ""
 String.slice_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 10 = "🏳️‍⚧️‍️🇵🇷"
+String.slice_v0 "abc" 0 4503599627370498I = "abc"
 
 String.first_v0 "abcd" -3 = ""
 String.first_v0 "abcd" 0 = ""
 String.first_v0 "abcd" 1 = "a"
 String.first_v0 "abcd" 2 = "ab"
 String.first_v0 "abcd" 3 = "abc"
+String.first_v0 "abcd" 300000000000000000000000000000000I = "abcd" // FSHARPONLY
 String.first_v0 "" 7 = ""
 String.first_v0 "🍊🍍🍏" 1 = "🍊"
 String.first_v0 "🍊🍍🍏" 2 = "🍊🍍"

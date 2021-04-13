@@ -50,8 +50,8 @@ let t
           else (true, true)
 
         if testOCaml then
-          try
-            let! ocamlActual =
+          let! ocamlActual =
+            try
               LibBackend.OCamlInterop.execute
                 state.program.accountID
                 state.program.canvasID
@@ -59,19 +59,21 @@ let t
                 Map.empty
                 dbs
                 (Map.values functions)
+            with e ->
+              failwith "When calling OCaml code, OCaml server failed: {msg}, {e}"
 
-            Expect.equalDval
-              (normalizeDvalResult ocamlActual)
-              expected
-              $"OCaml: {msg}"
-          with _ -> Expect.isTrue false "Exception executing OCaml code"
+          Expect.equalDval (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
 
         if testFSharp then
           let! fsharpActual =
             Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
 
           let fsharpActual = normalizeDvalResult fsharpActual
-          Expect.equalDval fsharpActual expected $"FSharp: {msg}"
+
+          Expect.equalDval
+            fsharpActual
+            expected
+            $"FSharp: {msg}, {debugDval fsharpActual}"
 
         return ()
       with e ->

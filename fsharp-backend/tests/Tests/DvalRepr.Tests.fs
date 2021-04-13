@@ -186,22 +186,22 @@ module ToHashableRepr =
   let tests = testList "hashing" [ testToHashableRepr; testHashV0; testHashV1 ]
 
 
-
-
 module F = FuzzTests.All
 
 let allRoundtrips =
   let t = testListUsingProperty
 
   let all =
-    // interoperable tests do not support passwords because it's very
-    // hard/risky to get legacyserver to roundtrip them correctly without compromising
-    // the redaction protections. We do password tests in the rest of the file
-    // so lets not confuse these tests.
     TestUtils.sampleDvals
     |> List.filter
          (function
+         // interoperable tests do not support passwords because it's very
+         // hard/risky to get legacyserver to roundtrip them correctly without
+         // compromising the redaction protections. We do password tests in the
+         // rest of the file so lets not confuse these tests.
          | (_, RT.DPassword _) -> false
+         // These can't be parsed by the roundtrip tests so skip
+         | (_, RT.DInt i) -> i > -4611686018427387904I && i < 4611686018427387904I
          | _ -> true)
 
   let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all

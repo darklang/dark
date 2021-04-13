@@ -55,11 +55,14 @@ let fns : List<BuiltInFn> =
         [ Param.make "s" TStr "" // CLEANUP "string to iterate over"
           Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "char" ]
           // CLEANUP "function used to convert one character to another"
-          ]
+         ]
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ s; f ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "foreach" 1) }
@@ -121,7 +124,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TStr "" ]
       returnType = TList TChar
       description = "Returns the list of characters (byte, not EGC) in the string"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ s ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "toList" 1) }
@@ -146,7 +152,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "s" TStr "" // CLEANUP "The string to operate on"
           Param.make "searchFor" TStr "" // CLEANUP "The string to search for within <param s>"
-          Param.make "replaceWith" TStr "" ] // CLEANUP "The string to replace all instances of <param searchFor> with"
+          Param.make "replaceWith" TStr "" ]
       returnType = TStr
       description = "Replace all instances on `searchFor` in `s` with `replaceWith`"
       fn =
@@ -400,7 +406,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            let toRemove = @"[^-a-zA-Z0-9\s$*_+~.()'""!:@]"
+            let toRemove = "[^-a-zA-Z0-9\\s\\$\\*_+~\\.\\(\\)'\"!:@]|\x0b"
             let trim = @"^\s+|\s+$"
             let spaces = @"[-\s]+"
 
@@ -426,8 +432,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-
-            let toRemove = @"[^a-zA-Z0-9\s_-]"
+            let toRemove = "[^a-zA-Z0-9\\s_-]|\x0b"
             let trim = @"^\s+|\s+$"
             let newSpaces = @"[-_\s]+"
 
@@ -454,9 +459,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             // Should work the same as https://blog.tersmitten.nl/slugify/
-
             // explicitly limit to (roman) alphanumeric for pretty urls
-            let toRemove = @"[^a-z0-9\s_-]+"
+            let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
             let toBeHyphenated = @"[-_\s]+"
 
             let replace (pattern : string) (replacement : string) (input : string) =
@@ -546,7 +550,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TStr
       description = "Returns the list of characters as a string"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ l ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromList" 1) }
@@ -574,7 +581,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description = "Converts a char to a string"
-      fn = Errors.removedFunction
+      fn =
+        function
+        | state, [ c ] -> Errors.removedFunction ()
+        | _ -> incorrectArgs ()
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "String" "fromChar" 1) }
@@ -639,6 +649,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      // CLEANUP: this shouldnt return a string and should be deprecated
       deprecated = NotDeprecated }
     { name = fn "String" "digest" 0
       parameters = [ Param.make "s" TStr "" ]
@@ -918,18 +929,17 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DInt first; DInt last ] ->
 
             let chars = String.toEgcSeq s
-            let length = length chars
+            let length = length chars |> bigint
 
-            let normalize i =
+            let normalize (i : bigint) =
               i
-              |> int
-              |> fun i -> if i < 0 then length + i else i // account for - values
+              |> fun i -> if i < 0I then length + i else i // account for - values
               |> min length
-              |> max 0
+              |> max 0I
 
 
-            let f = normalize first
-            let l = normalize last
+            let f = normalize first |> int
+            let l = normalize last |> int
             let l = if f > l then f else l // return empty string when start is less than end
 
             chars
@@ -953,7 +963,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s; DInt n ] ->
-            let n = String.lengthInEgcs s |> min (int n) |> max 0
+            let n = String.lengthInEgcs s |> bigint |> min n |> max 0I |> int
 
             String.toEgcSeq s
             |> List.take n
@@ -1259,7 +1269,7 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "endsWith" 0
       parameters =
         [ Param.make "subject" TStr "" // CLEANUP "String to test"
-          Param.make "suffix" TStr "" ] // CLEANUP "Suffix we're testing for"
+          Param.make "suffix" TStr "" ]
       returnType = TBool
       description = "Checks if `subject` ends with `suffix`"
       fn =

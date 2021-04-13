@@ -75,6 +75,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
         pBlank ()
     | SynPat.Named (SynPat.Wild (_), name, _, _, _) -> pVar name.idText
     | SynPat.Const (SynConst.Int32 n, _) -> pInt n
+    | SynPat.Const (SynConst.Int64 n, _) -> PT.PInteger(gid (), bigint n)
     | SynPat.Const (SynConst.UserNum (n, "I"), _) ->
         PT.PInteger(gid (), parseBigint n)
     | SynPat.Const (SynConst.Char c, _) -> pChar c
@@ -131,6 +132,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   match ast with
   | SynExpr.Const (SynConst.Int32 n, _) -> eInt n
+  | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(gid (), bigint n)
   | SynExpr.Const (SynConst.UserNum (n, "I"), _) ->
       PT.EInteger(gid (), parseBigint n)
   | SynExpr.Null _ -> eNull ()
