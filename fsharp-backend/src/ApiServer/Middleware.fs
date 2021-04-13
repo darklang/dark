@@ -108,7 +108,7 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
         let! result = f ctx
         let t = startTimer ctx
         let! newCtx = ctx.WriteJsonAsync result
-        t "serializeToJson"
+        t "serialize-to-json"
         return newCtx
       })
 
@@ -120,7 +120,7 @@ let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
         | Some result ->
             let t = startTimer ctx
             let! newCtx = ctx.WriteJsonAsync result
-            t "serializeToJson"
+            t "serialize-to-json"
             return newCtx
         | None ->
             ctx.SetStatusCode 404
@@ -228,12 +228,12 @@ let userInfoMiddleware : HttpHandler =
 
       match! Account.getUser (UserName.create sessionData.username) with
       | None ->
-          t "userInfoMiddleware"
+          t "user-info-middleware"
           return! redirectOr notFound ctx
       | Some user ->
           ctx.SetHttpHeader("x-dark-username", user.username)
           let newCtx = saveUserInfo user ctx
-          t "userInfoMiddleware"
+          t "user-info-middleware"
           return! next newCtx
     })
 
@@ -263,12 +263,12 @@ let withPermissionMiddleware
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
         ctx |> saveCanvasInfo canvasInfo |> savePermission permission |> ignore // ignored as `save` is side-effecting
-        t "withPermissionMiddleware"
+        t "with-permission-middleware"
 
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
-        t "withPermissionMiddleware"
+        t "with-permission-middleware"
         return! unauthorized ctx
     })
 
