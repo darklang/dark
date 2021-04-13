@@ -19,35 +19,31 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fns : List<BuiltInFn> = []
-// [ { name = fn "Http" "respond" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp (Response (Dint.to_int_exn code, []), dv)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Http" "response" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp (Response (Dint.to_int_exn code, []), dv)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+let fns : List<BuiltInFn> =
+  [ { name = fn "Http" "respond" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
+      fn =
+        (function
+        | _, [dv; DInt code] -> Value(DHttpResponse (Response(int code, []), dv))
+        | _ ->  incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Http" "response" 0) }
+    { name = fn "Http" "response" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
+      fn =
+        (function
+        | _, [dv; DInt code] -> Value(DHttpResponse(Response(int code, []), dv))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   (* TODO(ian): merge Http::respond with Http::respond_with_headers
 //  * -- need to figure out how to deprecate functions w/o breaking
 //  * user code
@@ -82,17 +78,18 @@ let fns : List<BuiltInFn> = []
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "success" 0
-//   ; parameters = [Param.make "response" varA ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
-//   ; fn =
-//         (function
-//         | _, [dv] -> DResp (Response (200, []), dv) | _ -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "success" 0
+      parameters = [Param.make "response" varA ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
+      fn =
+        (function
+        | _, [dv] -> Value(DHttpResponse(Response (200, []), dv))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 // ; { name = fn "Http" "respondWithHtml" 0
 //   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
 //   ; returnType = TResp
@@ -211,53 +208,54 @@ let fns : List<BuiltInFn> = []
 //   ; sqlSpec = NotYetImplementedTODO
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "badRequest" 0
-//   ; parameters = [Param.make "error" TStr ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
-//   ; fn =
-//         (function
-//         | _, [DStr msg] ->
-//             DResp (Response (400, []), DStr msg)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "notFound" 0
-//   ; parameters = []
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
-//   ; fn =
-//         (function
-//         | _, [] -> DResp (Response (404, []), DNull) | _ -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "unauthorized" 0
-//   ; parameters = []
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
-//   ; fn =
-//         (function
-//         | _, [] -> DResp (Response (401, []), DNull) | _ -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "forbidden" 0
-//   ; parameters = []
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
-//   ; fn =
-//         (function
-//         | _, [] -> DResp (Response (403, []), DNull) | _ -> incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "badRequest" 0
+      parameters = [Param.make "error" TStr ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
+      fn =
+        (function
+        | _, [msg] -> Value(DHttpResponse (Response(400, []), msg))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "notFound" 0
+      parameters = []
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
+      fn =
+        (function
+        | _, [] ->  Value(DHttpResponse(Response (404, []), DNull))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "unauthorized" 0
+      parameters = []
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
+      fn =
+        (function
+        | _, [] -> Value(DHttpResponse(Response(401, []), DNull))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "forbidden" 0
+      parameters = []
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
+      fn =
+        (function
+        | _, [] ->  Value(DHttpResponse(Response(403, []), DNull))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 // ; { name = fn "Http" "setCookie" 0
 //   ; parameters = [Param.make "name" TStr ""; Param.make "value" TStr ""; Param.make "params" TObj ""]
 //   ; returnType = TObj

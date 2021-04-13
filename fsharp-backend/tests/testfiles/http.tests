@@ -13,3 +13,15 @@
 //Http.setCookie_v2 "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected the Set-Cookie parameter `HttpOnly` passed to `Http::setCookie_v2` to have the value `true` or `false`, but it had the value `5` instead."
 //Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0  "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `5` instead."
 //Http.setCookie_v2 "myCookie" "myVal" { SameSite = "allthesecures" } = Test.typeError_v0 "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `\"allthesecures\"` instead."
+
+Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
+
+Http.notFound_v0 = Http.response_v0 null 404
+
+Http.unauthorized_v0 = Http.response_v0 null 401
+
+Http.forbidden_v0 = Http.response_v0 null 403
+
+Http.success_v0 {test = "test1"} = Http.response_v0 {test = "test1"} 200
+Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 {``Content-Length`` = 0; Server = "darklang"} 200
+Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 (Dict.fromList_ster ([ ["Content-Length";0]; ["Server"; "darklang"] ])) 200
