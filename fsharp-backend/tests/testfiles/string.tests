@@ -391,6 +391,7 @@ String.toFloat_v0 "-0.5" = -0.5
 String.toFloat_v0 "+0.5" = 0.5
 String.toFloat_v0 ".5" = 0.5
 String.toFloat_v0 "-9999999999999999999999999998.9" = -9999999999999999999999999998.9
+
 String.toFloat_v1 "1.5" = Ok 1.5
 String.toFloat_v1 "0.0" = Ok 0.0
 String.toFloat_v1 "-0.5" = Ok -0.5
@@ -399,6 +400,7 @@ String.toFloat_v1 ".5" = Ok 0.5
 String.toFloat_v1 "-55555555555555555555555555555.5" = Ok -55555555555555555555555555555.5
 String.toFloat_v1 "-141s" = Error "Expected a string representation of an IEEE float"
 String.toFloat_v1 "" = Error "Expected a string representation of an IEEE float"
+//String.toFloat_v1 "0xffffffffffffffff" = Ok 1.844674407e+19
 
 String.toList_v1 "" = []
 String.toList_v1 "abc" = [ 'a'; 'b'; 'c']
@@ -456,6 +458,7 @@ String.toUppercase_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️
 String.toUppercase_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toUppercase_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 //String.toUppercase_v0 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇Lͮ̒ͫǧ̗͚̚O̙̔ͮ̇͐̇"
+//String.toUppercase_v0 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢H͏͓̮̻E̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅA͏͓͔̹̼̣L̴͔̰̤̟͔ḽ̫.͕"
 
 String.toUppercase_v1 "" = ""
 String.toUppercase_v1 "hello😄world" = "HELLO😄WORLD"
@@ -472,6 +475,7 @@ String.toUppercase_v1 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️
 String.toUppercase_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toUppercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.toUppercase_v1 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
+//String.toUppercase_v1 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢H͏͓̮̻E̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅA͏͓͔̹̼̣L̴͔̰̤̟͔ḽ̫.͕"
 
 String.trimEnd_v0 "      " = ""
 String.trimEnd_v0 "" = ""

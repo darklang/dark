@@ -725,6 +725,10 @@ module ExecutePureFunctions =
                      | { name = { module_ = "List"; function_ = "sort" } } -> false
                      | { name = { module_ = "List"; function_ = "sortBy" } } -> false
                      | { name = { module_ = "String"; function_ = "base64Decode" } } ->
+                         // Don't know what the bug is
+                         false
+                     | { name = { module_ = "AWS"; function_ = "urlencode" } } ->
+                         // Bug in unicode probably
                          false
                      | fn -> fn.previewable = RT.Pure)
 
@@ -800,6 +804,8 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false
                        | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false
                        | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
+                       | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" ->
+                           false
                        | 1, RT.DInt i, _, "Int", "power", 0
                        | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false
                        // Int Overflow
@@ -816,6 +822,14 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
                            isValidOCamlInt (e + i)
+                       | 0, RT.DList l, [ RT.DInt e ], "Int", "sum", 0 ->
+                           l
+                           |> List.map
+                                (function
+                                | RT.DInt i -> i
+                                | _ -> failwith "should be an int")
+                           |> List.fold 0I (+)
+                           |> isValidOCamlInt
                        // Int overflow converting from Floats
                        | 0, RT.DFloat f, _, "Float", "floor", 0
                        | 0, RT.DFloat f, _, "Float", "roundDown", 0
@@ -919,7 +933,7 @@ module ExecutePureFunctions =
           | "Option::andThen" ->
               e2
                 "Expecting the function to return Option, but the result was"
-                "Expecting `f` to return an option"
+                "Expected `f` to return an option"
           | "List::filter" ->
               e2
                 "Expecting the function to return Bool, but the result was"
