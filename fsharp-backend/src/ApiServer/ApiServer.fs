@@ -6,10 +6,18 @@ open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
-open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.Hosting
 open Giraffe
 open Giraffe.EndpointRouting
+
+
+open Grpc.Core
+open Grpc.Net.Client
+open OpenTelemetry.Resources
+open OpenTelemetry.Trace
+open OpenTelemetry.Extensions.Hosting
 
 module Auth = LibBackend.Authorization
 
@@ -102,12 +110,24 @@ let configureApp (appBuilder : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) =
   services
+    .AddOpenTelemetryTracing(fun (builder : TracerProviderBuilder) ->
+      builder
+        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("apiserver"))
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter(fun options ->
+          let apiKey = "" // Config.honeycombApiKey
+          let dataset = "backend"
+          options.Endpoint <- Uri "https://api.honeycomb.io:443"
+
+          options.Headers <-
+            $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
+        .Build()
+      |> ignore)
     .AddServerTiming()
     .AddRouting()
     .AddGiraffe()
-    .AddSingleton<Json.ISerializer>(
-      NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
-    )
+    .AddSingleton(NewtonsoftJson.Serializer(Json.OCamlCompatible._settings))
   |> ignore
 
 [<EntryPoint>]
