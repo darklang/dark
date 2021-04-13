@@ -18,6 +18,7 @@ let main args =
       Tests.BwdServer.tests
       Tests.Canvas.tests
       Tests.DvalRepr.tests
+      Tests.EventQueue.tests
       Tests.FSharpToExpr.tests
       Tests.LibExecution.tests.Force()
       Tests.OCamlInterop.tests

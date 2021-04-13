@@ -323,14 +323,14 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //     |> Option.value_exn
 //
 //
-// type cron_schedule_data =
-//   { canvas_id : Uuidm.t
-//   ; owner : Uuidm.t
-//   ; host : string
-//   ; tlid : string
-//   ; name : string
-//   ; modifier : string }
-//
+type CronScheduleData =
+  { canvas_id : CanvasID
+    owner : UserID
+    host : string
+    tlid : string
+    name : string
+    modifier : string }
+
 // (** Fetch cron handlers from the DB. Active here means:
 //  * - a non-null interval field in the spec
 //  * - not deleted (When a CRON handler is deleted, we set (module, modifier,

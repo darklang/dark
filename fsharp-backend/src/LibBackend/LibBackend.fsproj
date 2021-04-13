@@ -31,6 +31,8 @@
     <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="StaticAssets.fs" />
     <Compile Include="EventQueue.fs" />
+    <Compile Include="Cron.fs" />
+    <Compile Include="QueueWorker.fs" />
     <Compile Include="Pusher.fs" />
     <Compile Include="Secret.fs" />
     <Compile Include="Op.fs" />
