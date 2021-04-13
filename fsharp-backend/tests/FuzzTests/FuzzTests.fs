@@ -518,6 +518,107 @@ module ExecutePureFunctions =
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
+      let genExpr(typ' : RT.DType) : Gen<RT.Expr> =
+        let rec genExpr' typ s =
+          gen {
+            match typ with
+            | RT.TInt ->
+                let specials =
+                  TestUtils.interestingInts
+                  |> List.map Tuple2.second
+                  |> List.filter isValidOCamlInt
+                  |> List.map Gen.constant
+                  |> Gen.oneof
+
+                let v = Gen.frequency [ (1, specials); (1, Arb.generate<bigint>) ]
+                let! v = Gen.filter isValidOCamlInt v
+                return RT.EInteger(gid (), v)
+
+            | RT.TStr ->
+                let naughty =
+                  naughtyStrings |> Lazy.force |> List.map Gen.constant |> Gen.oneof
+
+                let! v = Gen.frequency [ (7, naughty); (3, Arb.generate<string>) ]
+                return RT.EString(gid (), v)
+            | RT.TChar ->
+                // We don't have a construct for characters, so create code to generate the character
+                let! str =
+                  Arb.generate<string> |> Gen.filter (fun s -> String.length s > 0)
+
+                let charAsString = String.take 1 str
+
+                let call =
+                  RT.EFQFnValue(
+                    gid (),
+                    RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName "String" "toChar" 0)
+                  )
+
+                return
+                  RT.EApply(
+                    gid (),
+                    call,
+                    [ RT.EString(gid (), charAsString) ],
+                    RT.NotInPipe,
+                    RT.NoRail
+                  )
+            // Don't generate a random value as some random values are invalid
+            // (eg constructor outside certain names). Ints should be fine for
+            // whatever purpose there is here
+            | RT.TVariable _ -> return! genExpr' RT.TInt s
+            | RT.TFloat ->
+                let specials =
+                  TestUtils.interestingFloats
+                  |> List.map Tuple2.second
+                  |> List.filter filterFloat
+                  |> List.map Gen.constant
+                  |> Gen.oneof
+
+                let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
+                let! v = Gen.filter filterFloat v
+                return RT.EFloat(gid (), v)
+            | RT.TBool ->
+                let! v = Arb.generate<bool>
+                return RT.EBool(gid (), v)
+            | RT.TNull -> return RT.ENull(gid ())
+            | RT.TList typ ->
+                let! v = (Gen.listOfLength s (genExpr' typ (s / 2)))
+                return RT.EList(gid (), v)
+            | RT.TDict typ ->
+                return!
+                  Gen.map
+                    (fun l -> RT.ERecord(gid (), l))
+                    (Gen.listOfLength
+                      s
+                      (Gen.zip Arb.generate<string> (genExpr' typ (s / 2))))
+            | RT.TOption typ ->
+                match! Gen.optionOf (genExpr' typ s) with
+                | Some v -> return RT.EConstructor(gid (), "Just", [ v ])
+                | None -> return RT.EConstructor(gid (), "Nothing", [])
+            | RT.TResult (okType, errType) ->
+                let! v =
+                  Gen.oneof [ Gen.map Ok (genExpr' okType s)
+                              Gen.map Error (genExpr' errType s) ]
+
+                match v with
+                | Ok v -> return RT.EConstructor(gid (), "Ok", [ v ])
+                | Error v -> return RT.EConstructor(gid (), "Error", [ v ])
+
+            | RT.TFn (paramTypes, returnType) ->
+                let parameters =
+                  List.mapi
+                    (fun i v -> (id i, $"{DvalRepr.dtypeToString v}_{i}"))
+                    paramTypes
+
+                let! body = genExpr' returnType s
+                return RT.ELambda(gid (), parameters, body)
+
+            | _ -> return failwith $"Not supported yet: {typ}"
+
+          }
+
+        Gen.sized (genExpr' typ')
+
+
       let genDval(typ' : RT.DType) : Gen<RT.Dval> =
         let rec genDval' typ s =
           gen {
@@ -589,17 +690,22 @@ module ExecutePureFunctions =
                     (Gen.oneof [ Gen.map Ok (genDval' okType s)
                                  Gen.map Error (genDval' errType s) ])
             | RT.TFn (paramTypes, returnType) ->
+                let parameters =
+                  List.mapi
+                    (fun i v -> (id i, $"{DvalRepr.dtypeToString v}_{i}"))
+                    paramTypes
+
+                let! body = genExpr returnType
+
                 return
                   (RT.DFnVal(
                     RT.Lambda
-                      { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+                      { parameters = parameters; symtable = Map.empty; body = body }
                   ))
-            // | RT.TRecord of List<string * DType> -> return! Gen.map RT.TRecord  Arb.generate<record >
             | _ -> return failwith $"Not supported yet: {typ}"
           }
 
         Gen.sized (genDval' typ')
-
       { new Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>>() with
           member x.Generator =
             gen {
@@ -804,7 +910,7 @@ module ExecutePureFunctions =
           | "Int::mod" ->
               e2
                 "Expected the argument `b` to be positive, but it was"
-                "Expected the argument `b` argument passed to `Int::mod` to be positive, but it was"
+                "Expected the argument `b` argument passed to"
           | "Int::remainder" ->
               e2 "`divisor` cannot be zero" "`divisor` must be non-zero"
           | "Date::parse" -> e "Invalid date format"

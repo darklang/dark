@@ -615,10 +615,36 @@ module Convert =
     | PT.PNull (id) -> ORT.FPNull(mid, id)
     | PT.PBlank (id) -> ORT.FPBlank(mid, id)
 
+  let rec rt2ocamlPattern (mid : id) (p : RT.Pattern) : ORT.fluidPattern =
+    let r = rt2ocamlPattern mid
+
+    match p with
+    | RT.PVariable (id, str) -> ORT.FPVariable(mid, id, str)
+    | RT.PConstructor (id, name, pats) ->
+        ORT.FPConstructor(mid, id, name, List.map r pats)
+    | RT.PInteger (id, i) -> ORT.FPInteger(mid, id, i.ToString())
+    | RT.PCharacter (id, c) -> failwith "Character patterns not supported"
+    | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
+    | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
+    | RT.PFloat (id, d) ->
+        let asStr = d.ToString().Split "."
+        ORT.FPFloat(mid, id, asStr.[0], asStr.[1])
+    | RT.PNull (id) -> ORT.FPNull(mid, id)
+    | RT.PBlank (id) -> ORT.FPBlank(mid, id)
+
+
+
   let rec pt2ocamlSter (p : PT.SendToRail) : ORT.sendToRail =
     match p with
     | PT.Rail -> ORT.Rail
     | PT.NoRail -> ORT.NoRail
+
+  let rec rt2ocamlSter (p : RT.SendToRail) : ORT.sendToRail =
+    match p with
+    | RT.Rail -> ORT.Rail
+    | RT.NoRail -> ORT.NoRail
+
+
 
   let rec pt2ocamlExpr (p : PT.Expr) : ORT.fluidExpr =
     let r = pt2ocamlExpr
@@ -673,6 +699,46 @@ module Convert =
     | PT.EPipeTarget id -> ORT.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
         ORT.EFeatureFlag(id, name, r cond, r caseA, r caseB)
+
+  let rec rt2ocamlExpr (e : RT.Expr) : ORT.fluidExpr =
+    let r = rt2ocamlExpr
+
+    match e with
+    | RT.EBlank id -> ORT.EBlank id
+    | RT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
+    | RT.ECharacter (id, num) -> failwith "Characters not supported"
+    | RT.EString (id, str) -> ORT.EString(id, str)
+    | RT.EFloat (id, d) ->
+        let asStr = d.ToString().Split "."
+        ORT.EFloat(id, asStr.[0], asStr.[1])
+    | RT.EBool (id, b) -> ORT.EBool(id, b)
+    | RT.ENull id -> ORT.ENull id
+    | RT.EVariable (id, var) -> ORT.EVariable(id, var)
+    | RT.EFieldAccess (id, obj, fieldname) -> ORT.EFieldAccess(id, r obj, fieldname)
+    | RT.ELambda (id, vars, body) -> ORT.ELambda(id, vars, r body)
+    | RT.ELet (id, lhs, rhs, body) -> ORT.ELet(id, lhs, r rhs, r body)
+    | RT.EIf (id, cond, thenExpr, elseExpr) ->
+        ORT.EIf(id, r cond, r thenExpr, r elseExpr)
+    | RT.EPartial (id, oldExpr) -> ORT.EPartial(id, "partial", r oldExpr)
+    | RT.EList (id, exprs) -> ORT.EList(id, List.map r exprs)
+    | RT.ERecord (id, pairs) -> ORT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
+    | RT.EConstructor (id, name, exprs) ->
+        ORT.EConstructor(id, name, List.map r exprs)
+    | RT.EMatch (id, mexpr, pairs) ->
+        ORT.EMatch(
+          id,
+          r mexpr,
+          List.map
+            ((Tuple2.mapItem1 (rt2ocamlPattern id)) << (Tuple2.mapItem2 r))
+            pairs
+        )
+    | RT.EFeatureFlag (id, cond, caseA, caseB) ->
+        ORT.EFeatureFlag(id, "flag", r cond, r caseA, r caseB)
+    | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.NotInPipe, rail) ->
+        ORT.EFnCall(id, toString name, List.map r args, rt2ocamlSter rail)
+    | _ -> failwith "TODO: add more cases to rt2ocamlExpr"
+
+
 
   let pt2ocamlexprTLIDPair
     ((expr, tlid) : (PT.Expr * tlid))
@@ -925,7 +991,7 @@ module Convert =
         ORT.DBlock
           { ``params`` = args.parameters
             symtable = Map.map c args.symtable
-            body = ORT.EBlank 1UL }
+            body = rt2ocamlExpr args.body }
     | RT.DIncomplete RT.SourceNone -> ORT.DIncomplete ORT.SourceNone
     | RT.DIncomplete (RT.SourceID (tlid, id)) ->
         ORT.DIncomplete(ORT.SourceId(tlid, id))
@@ -964,7 +1030,7 @@ module Convert =
           RT.Lambda
             { parameters = args.``params``
               symtable = Map.map c args.symtable
-              body = RT.EBlank 1UL }
+              body = args.body |> ocamlExpr2PT |> fun x -> x.toRuntimeType () }
         )
     | ORT.DIncomplete ORT.SourceNone -> RT.DIncomplete RT.SourceNone
     | ORT.DIncomplete (ORT.SourceId (tlid, id)) ->
