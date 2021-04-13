@@ -129,8 +129,9 @@ let fns : List<BuiltInFn> =
             match acc, e with
               | Some acc, DList [DStr k; value] when Map.containsKey k acc -> None
               | Some acc, DList [DStr k; value] -> Some(Map.add k value acc)
-              | Some acc, DList [k; value] -> Errors.throw(Errors.argumentWasnt "String`s" "key" k)
+              | Some acc, DList [k; value] -> Errors.throw(Errors.argumentWasnt "a string" "key" k)
               | Some acc, v -> Errors.throw  "All list items must be `[key, value]`"
+              | _, ( (DIncomplete _ | DErrorRail _ | DError _) as dv) -> Errors.foundFakeDval(dv)
               | None, _ -> None
 
           let result = List.fold f (Some Map.empty) l
