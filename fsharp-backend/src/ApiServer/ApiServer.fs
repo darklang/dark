@@ -110,24 +110,33 @@ let configureApp (appBuilder : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) =
   services
-    .AddOpenTelemetryTracing(fun (builder : TracerProviderBuilder) ->
-      builder
-        .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("apiserver"))
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter(fun options ->
-          let apiKey = "" // Config.honeycombApiKey
-          let dataset = "backend"
-          options.Endpoint <- Uri "https://api.honeycomb.io:443"
+  |> fun s ->
+       s.AddOpenTelemetryTracing
+         (fun (builder : TracerProviderBuilder) ->
+           builder
+           |> fun b ->
+                b.SetResourceBuilder(
+                  ResourceBuilder.CreateDefault().AddService("apiserver")
+                )
+           |> fun b -> b.AddAspNetCoreInstrumentation()
+           |> fun b -> b.AddHttpClientInstrumentation()
+           |> fun b ->
+                match LibService.Config.honeycombKey with
+                | Some apiKey ->
+                    b.AddOtlpExporter
+                      (fun options ->
+                        let dataset = LibService.Config.honeycombDataset
+                        options.Endpoint <- Uri LibService.Config.honeycombEndpoint
 
-          options.Headers <-
-            $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
-        .Build()
-      |> ignore)
-    .AddServerTiming()
-    .AddRouting()
-    .AddGiraffe()
-    .AddSingleton(NewtonsoftJson.Serializer(Json.OCamlCompatible._settings))
+                        options.Headers <-
+                          $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
+                | None -> b // FSTODO: console logger
+           |> fun b -> b.Build() |> ignore)
+  |> fun s -> s.AddServerTiming()
+  |> fun s -> s.AddRouting()
+  |> fun s -> s.AddGiraffe()
+  |> fun s ->
+       s.AddSingleton(NewtonsoftJson.Serializer(Json.OCamlCompatible._settings))
   |> ignore
 
 [<EntryPoint>]
