@@ -4,12 +4,12 @@ open System
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
+open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
-open Microsoft.AspNetCore.Http
 open Giraffe
 open Giraffe.EndpointRouting
 
@@ -111,7 +111,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseGiraffe(endpoints)
   |> fun app -> app.UseGiraffe(notFoundHandler)
 
-let configureServices (services : IServiceCollection) =
+let configureServices (services : IServiceCollection) : unit =
   services
   |> fun s ->
        s.AddOpenTelemetryTracing

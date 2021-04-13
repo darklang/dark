@@ -4,21 +4,28 @@ module BwdServer
 // instead of a web framework, so we can tuen the exact behaviour of headers
 // and such.
 
-(* open Microsoft.AspNetCore.Http *)
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 
 open System
-(* open System.Security.Claims *)
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Http.Extensions
-(* open Microsoft.AspNetCore.Http.Features *)
-(* open Microsoft.Extensions.Configuration *)
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.Hosting
+
+open System.Diagnostics
+open Grpc.Core
+open Grpc.Net.Client
+open OpenTelemetry
+open OpenTelemetry.Trace
+open OpenTelemetry.Resources
+open OpenTelemetry.Extensions.Hosting
+
 
 open Prelude
 open Tablecloth
@@ -329,26 +336,35 @@ let configureApp (app : IApplicationBuilder) =
 
   app.Run(RequestDelegate handler)
 
-let configureLogging (shouldLog : bool) (builder : ILoggingBuilder) =
-  // We want to disable this by default for tests because it clogs the output
-  let filter (l : LogLevel) : bool = shouldLog
+let configureServices (services : IServiceCollection) : unit =
+  services.AddOpenTelemetryTracing
+    (fun (builder : TracerProviderBuilder) ->
+      builder
+      |> fun b ->
+           b.SetResourceBuilder(
+             ResourceBuilder.CreateDefault().AddService("bwdserver")
+           )
+      |> fun b -> b.AddAspNetCoreInstrumentation()
+      |> fun b -> b.AddHttpClientInstrumentation()
+      |> fun b ->
+           match LibService.Config.honeycombKey with
+           | Some apiKey ->
+               b.AddOtlpExporter
+                 (fun options ->
+                   let dataset = LibService.Config.honeycombDataset
+                   options.Endpoint <- Uri LibService.Config.honeycombEndpoint
 
-  // Configure the logging factory
-  builder
-    .AddFilter(filter) // Optional filter
-    .AddConsole() // Set up the Console logger
-    .AddDebug() // Set up the Debug logger
-  // Add additional loggers if wanted...
+                   options.Headers <-
+                     $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
+           | None -> b.AddConsoleExporter()
+      |> fun b -> b.Build() |> ignore)
   |> ignore
-
-let configureServices (services : IServiceCollection) = ()
 
 let webserver (shouldLog : bool) (port : int) =
   WebHost.CreateDefaultBuilder()
   |> fun wh -> wh.UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
-  |> fun wh -> wh.ConfigureLogging(configureLogging shouldLog)
   |> fun wh -> wh.UseUrls($"http://*:{port}")
   |> fun wh -> wh.Build()
 
