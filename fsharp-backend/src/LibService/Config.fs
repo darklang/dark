@@ -21,7 +21,7 @@ let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 // --------------------
 let honeycombKey = stringOption "DARK_CONFIG_HONEYCOMB_API_KEY"
 
-let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET"
+let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET_NAME"
 let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 
 

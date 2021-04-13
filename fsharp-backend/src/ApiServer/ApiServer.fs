@@ -13,10 +13,12 @@ open Giraffe
 open Giraffe.EndpointRouting
 
 
+open System.Diagnostics
 open Grpc.Core
 open Grpc.Net.Client
-open OpenTelemetry.Resources
+open OpenTelemetry
 open OpenTelemetry.Trace
+open OpenTelemetry.Resources
 open OpenTelemetry.Extensions.Hosting
 
 module Auth = LibBackend.Authorization
@@ -130,7 +132,7 @@ let configureServices (services : IServiceCollection) =
 
                         options.Headers <-
                           $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
-                | None -> b // FSTODO: console logger
+                | None -> b.AddConsoleExporter()
            |> fun b -> b.Build() |> ignore)
   |> fun s -> s.AddServerTiming()
   |> fun s -> s.AddRouting()

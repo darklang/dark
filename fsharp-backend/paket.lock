@@ -184,6 +184,8 @@ NUGET
     OpenTelemetry.Api (1.1.0-beta1)
       System.Diagnostics.DiagnosticSource (>= 5.0.1)
       System.Reflection.Emit.Lightweight (>= 4.7)
+    OpenTelemetry.Exporter.Console (1.1.0-beta1)
+      OpenTelemetry (>= 1.1.0-beta1)
     OpenTelemetry.Exporter.OpenTelemetryProtocol (1.1.0-beta1)
       Google.Protobuf (>= 3.6.1 < 4.0)
       Grpc.Net.Client (>= 2.32 < 3.0)

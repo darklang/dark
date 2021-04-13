@@ -24,6 +24,7 @@ nuget Rollbar = 4.0.3
 nuget System.Diagnostics.DiagnosticSource = 5.0.1
 nuget OpenTelemetry 1.1.0-beta1
 nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.1.0-beta1
+nuget OpenTelemetry.Exporter.Console = 1.1.0-beta1
 nuget OpenTelemetry.Instrumentation.AspNetCore = 1.0.0-rc3
 nuget OpenTelemetry.Extensions.Hosting = 1.0.0-rc3
 nuget OpenTelemetry.Instrumentation.Http = 1.0.0-rc3

@@ -6,6 +6,7 @@ Microsoft.AspNetCore.Mvc.NewtonsoftJson
 Lib.AspNetCore.ServerTiming
 OpenTelemetry
 OpenTelemetry.Exporter.OpenTelemetryProtocol
+OpenTelemetry.Exporter.Console
 OpenTelemetry.Instrumentation.AspNetCore
 OpenTelemetry.Extensions.Hosting
 OpenTelemetry.Instrumentation.Http
