@@ -9,6 +9,7 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
+open Microsoft.AspNetCore.Http
 open Giraffe
 open Giraffe.EndpointRouting
 
@@ -138,7 +139,11 @@ let configureServices (services : IServiceCollection) =
   |> fun s -> s.AddRouting()
   |> fun s -> s.AddGiraffe()
   |> fun s ->
-       s.AddSingleton(NewtonsoftJson.Serializer(Json.OCamlCompatible._settings))
+       // this should say `s.AddSingleton<Json.ISerializer>(`. Fantomas has a habit of stripping
+       // the `<Json.ISerializer>` part, which causes the serializer not to load.
+       s.AddSingleton<Json.ISerializer>(
+         NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
+       )
   |> ignore
 
 [<EntryPoint>]
