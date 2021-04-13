@@ -706,6 +706,7 @@ module ExecutePureFunctions =
           }
 
         Gen.sized (genDval' typ')
+
       { new Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>>() with
           member x.Generator =
             gen {
@@ -798,6 +799,7 @@ module ExecutePureFunctions =
                        // Specific OCaml exception (use `when`s here)
                        | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false
                        | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false
+                       | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
                        | 1, RT.DInt i, _, "Int", "power", 0
                        | 1, RT.DInt i, _, "", "^", 0 when i < 0I -> false
                        // Int Overflow
@@ -806,7 +808,7 @@ module ExecutePureFunctions =
                            i <> 1I
                            && i <> (-1I)
                            && isValidOCamlInt i
-                           && i <= 2147483647I
+                           && i <= 2000I
                            && isValidOCamlInt (e ** (int i))
                        | 1, RT.DInt i, [ RT.DInt e ], "", "*", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "multiply", 0 ->
@@ -914,6 +916,14 @@ module ExecutePureFunctions =
           | "Int::remainder" ->
               e2 "`divisor` cannot be zero" "`divisor` must be non-zero"
           | "Date::parse" -> e "Invalid date format"
+          | "Option::andThen" ->
+              e2
+                "Expecting the function to return Option, but the result was"
+                "Expecting `f` to return an option"
+          | "List::filter" ->
+              e2
+                "Expecting the function to return Bool, but the result was"
+                "Expecting fn to return bool"
           | "String::toFloat" ->
               e2
                 "Expected the argument `s` to be a string representation of an IEEE float, but it was"
