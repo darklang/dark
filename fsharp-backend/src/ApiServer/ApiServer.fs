@@ -149,7 +149,7 @@ let configureServices (services : IServiceCollection) : unit =
 [<EntryPoint>]
 let main args =
   printfn "Starting ApiServer"
-  LibBackend.Init.init ()
+  LibBackend.Init.init "ApiServer"
 
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel()

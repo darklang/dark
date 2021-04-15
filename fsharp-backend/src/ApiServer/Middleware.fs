@@ -159,6 +159,7 @@ type dataID =
   | SessionData
   | CanvasInfo
   | Permission
+  | ExecutionID
 
   override this.ToString() : string =
     match this with
@@ -166,6 +167,7 @@ type dataID =
     | SessionData -> "sessionData"
     | CanvasInfo -> "canvasName"
     | Permission -> "permission"
+    | ExecutionID -> "executionID"
 
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx.Items.[id.ToString()] <- value
@@ -182,12 +184,15 @@ let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
 let loadCanvasInfo (ctx : HttpContext) : Canvas.Meta =
   load'<Canvas.Meta> CanvasInfo ctx
 
+let loadExecutionID (ctx : HttpContext) : id = load'<id> ExecutionID ctx
+
 let loadPermission (ctx : HttpContext) : Option<Auth.Permission> =
   load'<Option<Auth.Permission>> Permission ctx
 
 let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
 let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
 let saveCanvasInfo (c : Canvas.Meta) (ctx : HttpContext) = save' CanvasInfo c ctx
+let saveExecutionID (id : id) (ctx : HttpContext) = save' ExecutionID id ctx
 
 let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
   save' Permission p ctx
@@ -270,6 +275,16 @@ let withPermissionMiddleware
         // Note that by design, canvasName is not saved if there is not permission
         t "with-permission-middleware"
         return! unauthorized ctx
+    })
+
+let executionIDMiddleware : HttpHandler =
+  (fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let executionID = gid ()
+      let newCtx = saveExecutionID executionID ctx
+      let headerValue = StringValues([| toString executionID |])
+      ctx.Response.Headers.Add("x-darklang-execution-id", headerValue)
+      return! next newCtx
     })
 
 

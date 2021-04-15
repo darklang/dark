@@ -62,7 +62,8 @@ module Scheduler =
 
       // CLEANUP: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
-      LibBackend.Pusher.pushWorkerStates canvasInfo.id ws
+      let executionID = Middleware.loadExecutionID ctx
+      LibBackend.Pusher.pushWorkerStates executionID canvasInfo.id ws
       t "update-pusher"
 
       return ws

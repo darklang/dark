@@ -138,7 +138,7 @@ let traceIDofTLID (tlid : tlid) : AT.TraceID =
 
 let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID>> =
   task {
-    match h.spec.toDesc () with
+    match h.spec.toEventDesc () with
     | Some desc ->
         let! events = TraceInputs.loadEventIDs c.meta.id desc
 

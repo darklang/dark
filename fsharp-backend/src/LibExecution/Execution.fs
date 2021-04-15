@@ -76,7 +76,7 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
       ))
   | dv -> dv
 
-let executeHttpHandler
+let executeHandler
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
@@ -86,9 +86,18 @@ let executeHttpHandler
 
   let symtable = Interpreter.withGlobals state inputVars
 
-  Interpreter.eval state symtable expr
-  |> TaskOrValue.toTask
-  |> Task.map extractHttpErrorRail
+  Interpreter.eval state symtable expr |> TaskOrValue.toTask
+
+let executeHttpHandler
+  (state : RT.ExecutionState)
+  (inputVars : RT.Symtable)
+  (expr : RT.Expr)
+  : Task<RT.Dval> =
+  // CLEANUP: we should make some sort of effort to put this through the same
+  // HTTP pipeline as BWDServer uses
+  executeHandler state inputVars expr |> Task.map extractHttpErrorRail
+
+
 
 
 

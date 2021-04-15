@@ -8,54 +8,48 @@ open TestUtils
 
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module E = LibBackend.EventQueue
+module EQ = LibBackend.EventQueue
 module Cron = LibBackend.Cron
 module Canvas = LibBackend.Canvas
-// module QW = LibBackend.QueueWorker
+module QW = LibBackend.QueueWorker
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
+let p (code : string) = FSharpToExpr.parsePTExpr code
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 
-// let testEventQueueRoundtrip =
-//   testTask "event queue roundtrip" {
-//     let! (c : Canvas.Meta) = testCanvasInfo "test-queueRoundTrip"
-//     do! clearCanvasData c.name
-//
-//     let h = daily_cron (let' "date" (fn "Date::now" []) (int 123))
-//     let c = ops2c_exn "test-event_queue" [ hop h ]
-//     Canvas.saveAll c
-//
-//     E.enqueue
-//       "CRON"
-//       "test"
-//       "Daily"
-//       RT.DNull // I don't believe crons take inputs?
-//       c.owner
-//       c.id
-//
-//     E.scheduleAll ()
-//     let result = QW.run execution_id
-//
-//     match result with
-//     | Ok (Some resultDval) ->
-//         (* should have at least one trace *)
-//         let traceID =
-//           TI.loadEventIDs c.id ("CRON", "test", "Daily")
-//           |> List.hd_exn
-//           |> Tuple2.first
-//
-//         Expect.equal
-//           (TFR.load c.id traceID h.tlid |> List.length)
-//           1
-//           "should have stored fn result"
-//
-//         Expect.equal (RT.DInt 123I) resultDval "Round tripped value"
-//     | Ok None -> failwith "Failed: expected Some, got None"
-//     | Error e -> failwith $"Failed: got error: {e}"
-//   }
-//
+let testEventQueueRoundtrip =
+  testTask "event queue roundtrip" {
+    let! (meta : Canvas.Meta) = testCanvasInfo "test-event_queue"
+    do! clearCanvasData meta.name
+    let executionID = gid ()
+
+    let h = testCron "test" "Daily" (p "let data = Date.now_v0 in 123")
+    let oplists = [ hop h ]
+
+    do!
+      Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
+
+    do! EQ.enqueue meta.id meta.owner "CRON" "test" "Daily" RT.DNull // I don't believe crons take inputs?
+
+    do! EQ.testingScheduleAll ()
+    let! result = QW.run executionID
+
+    match result with
+    | Ok (Some resultDval) ->
+        // should have at least one trace
+        let! eventIDs = TI.loadEventIDs meta.id ("CRON", "test", "Daily")
+        let traceID = eventIDs |> List.head |> Option.unwrapUnsafe |> Tuple2.first
+
+        let! functionResults = TFR.load meta.id traceID h.tlid
+
+        Expect.equal (List.length functionResults) 1 "should have stored fn result"
+        Expect.equal (RT.DInt 123I) resultDval "Round tripped value"
+    | Ok None -> failwith "Failed: expected Some, got None"
+    | Error e -> failwith $"Failed: got error: {e}"
+  }
+
 //
 // let testEventQueueIsFifo =
 //   testTask "event queue is fifo" {
@@ -215,14 +209,10 @@ module TFR = LibBackend.TraceFunctionResults
 //     check "banana" Blocked
 //     check "cherry" Running
 //   }
-//
-// let tests =
-//   testList
-//     "eventQueue"
-//     [ testEventQueueRoundtrip
-//       testEventQueueIsFifo
-//       testCronJustRan
-//       testCronFetchActiveCrons
-//       testCronSanity
-//       testGetWorkerSchedulesForCanvas ]
-let tests = testList "eventQueue" []
+
+let tests = testList "eventQueue" [ testEventQueueRoundtrip ]
+// testEventQueueIsFifo
+// testCronJustRan
+// testCronFetchActiveCrons
+// testCronSanity
+// testGetWorkerSchedulesForCanvas

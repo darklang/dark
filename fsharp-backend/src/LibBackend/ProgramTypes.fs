@@ -768,7 +768,7 @@ module Handler =
       | _ -> true
 
     // Same as a TraceInput.EventDesc
-    member this.toDesc() : Option<string * string * string> =
+    member this.toEventDesc() : Option<string * string * string> =
       if this.complete () then
         Some(this.module' (), this.name (), this.modifier ())
       else
