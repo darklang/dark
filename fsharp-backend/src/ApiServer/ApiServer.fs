@@ -116,6 +116,8 @@ let configureApp (appBuilder : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) : unit =
   services
+  // https://jsnelders.com/Blog/2989/adding-rollbar-to-asp-net-core-2-some-services-are-not-able-to-be-constructed-and-unable-to-resolve-service-for-type-microsoft-aspnetcore-http-ihttpcontextaccessor/
+  |> fun s -> s.AddHttpContextAccessor()
   |> fun s -> s.AddRollbarLogger()
   |> fun s ->
        s.AddOpenTelemetryTracing
