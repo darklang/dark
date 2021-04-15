@@ -103,15 +103,15 @@ let uiHtml
     .Replace("{{BUILD_HASH}}", Config.buildHash)
     // There isn't separate routing for static in ASP.NET
     .Replace(
-      "http://static.darklang.localhost:8000",
+      "static.darklang.localhost:8000",
       "darklang.localhost:9000"
     )
     // FSTODO: Config is set up for OCaml right now
     .Replace(
-      "http://darklang.localhost:8000",
+      "darklang.localhost:8000",
       "darklang.localhost:9000"
     )
-    .Replace("http://builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
+    .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
     .ToString()
 
 let uiHandler (ctx : HttpContext) : Task<string> =
