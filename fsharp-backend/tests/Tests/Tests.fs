@@ -10,7 +10,7 @@ let main args =
   let (_ : Task) = Tests.BwdServer.init ()
   LibBackend.Init.init "Tests"
   LibBackend.Migrations.init ()
-  LibService.Telemetry.loadTelemetryForConsoleApps ()
+  LibService.Telemetry.Console.loadTelemetry ()
   (LibBackend.Account.initTestAccounts ()).Wait()
 
   let tests =

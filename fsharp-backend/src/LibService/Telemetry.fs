@@ -84,19 +84,55 @@ let init (serviceName : string) =
       version
     )
 
-open System.Diagnostics
-open OpenTelemetry
-open OpenTelemetry.Trace
-open OpenTelemetry.Logs
+module Console =
+  open System.Diagnostics
+  open OpenTelemetry
+  open OpenTelemetry.Trace
+  open OpenTelemetry.Logs
 
-// For webservers, tracing is added by middlewares. For non-webservers, we also
-// need to add tracing. This does that.
-let loadTelemetryForConsoleApps () : unit =
-  let (_ : TracerProvider) =
-    Sdk
-      .CreateTracerProviderBuilder()
-      .SetSampler(new AlwaysOnSampler())
-      .AddSource("Dark.*")
-      .Build()
+  // For webservers, tracing is added by middlewares. For non-webservers, we also
+  // need to add tracing. This does that.
+  let loadTelemetry () : unit =
+    let (_ : TracerProvider) =
+      Sdk
+        .CreateTracerProviderBuilder()
+        .SetSampler(new AlwaysOnSampler())
+        .AddSource("Dark.*")
+        .Build()
 
-  ()
+    ()
+
+module AspNet =
+  open Microsoft.Extensions.DependencyInjection
+  open Microsoft.AspNetCore.Builder
+  open Microsoft.AspNetCore.Http.Abstractions
+  open OpenTelemetry.Trace
+  open OpenTelemetry.Resources
+
+  let addTelemetryToServices
+    (serviceName : string)
+    (services : IServiceCollection)
+    : IServiceCollection =
+    services.AddOpenTelemetryTracing
+      (fun (builder : TracerProviderBuilder) ->
+        builder
+        |> fun b ->
+             b.SetResourceBuilder(
+               ResourceBuilder.CreateDefault().AddService(serviceName)
+             )
+        |> fun b -> b.AddAspNetCoreInstrumentation()
+        |> fun b -> b.AddHttpClientInstrumentation()
+        |> fun b ->
+             match LibService.Config.honeycombKey with
+             | Some apiKey ->
+                 b.AddOtlpExporter
+                   (fun options ->
+                     let dataset = LibService.Config.honeycombDataset
+
+                     options.Endpoint <-
+                       System.Uri LibService.Config.honeycombEndpoint
+
+                     options.Headers <-
+                       $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
+             | None -> b.AddConsoleExporter()
+        |> fun b -> b.Build() |> ignore)

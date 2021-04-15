@@ -13,14 +13,6 @@ open Microsoft.Extensions.Hosting
 open Giraffe
 open Giraffe.EndpointRouting
 
-open System.Diagnostics
-open Grpc.Core
-open Grpc.Net.Client
-open OpenTelemetry
-open OpenTelemetry.Trace
-open OpenTelemetry.Resources
-open OpenTelemetry.Extensions.Hosting
-
 module Auth = LibBackend.Authorization
 
 open Prelude
@@ -112,40 +104,21 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseGiraffe(notFoundHandler)
 
 let configureServices (services : IServiceCollection) : unit =
-  services
-  |> LibService.Rollbar.AspNet.addRollbarToServices
-  |> fun s ->
-       s.AddOpenTelemetryTracing
-         (fun (builder : TracerProviderBuilder) ->
-           builder
-           |> fun b ->
-                b.SetResourceBuilder(
-                  ResourceBuilder.CreateDefault().AddService("apiserver")
-                )
-           |> fun b -> b.AddAspNetCoreInstrumentation()
-           |> fun b -> b.AddHttpClientInstrumentation()
-           |> fun b ->
-                match LibService.Config.honeycombKey with
-                | Some apiKey ->
-                    b.AddOtlpExporter
-                      (fun options ->
-                        let dataset = LibService.Config.honeycombDataset
-                        options.Endpoint <- Uri LibService.Config.honeycombEndpoint
+  let (_ : IServiceCollection) =
+    services
+    |> LibService.Rollbar.AspNet.addRollbarToServices
+    |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
+    |> fun s -> s.AddServerTiming()
+    |> fun s -> s.AddRouting()
+    |> fun s -> s.AddGiraffe()
+    |> fun s ->
+         // this should say `s.AddSingleton<Json.ISerializer>(`. Fantomas has a habit of stripping
+         // the `<Json.ISerializer>` part, which causes the serializer not to load.
+         s.AddSingleton<Json.ISerializer>(
+           NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
+         )
 
-                        options.Headers <-
-                          $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
-                | None -> b.AddConsoleExporter()
-           |> fun b -> b.Build() |> ignore)
-  |> fun s -> s.AddServerTiming()
-  |> fun s -> s.AddRouting()
-  |> fun s -> s.AddGiraffe()
-  |> fun s ->
-       // this should say `s.AddSingleton<Json.ISerializer>(`. Fantomas has a habit of stripping
-       // the `<Json.ISerializer>` part, which causes the serializer not to load.
-       s.AddSingleton<Json.ISerializer>(
-         NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
-       )
-  |> ignore
+  ()
 
 [<EntryPoint>]
 let main args =
