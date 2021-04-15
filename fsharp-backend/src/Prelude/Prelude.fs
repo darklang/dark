@@ -61,15 +61,20 @@ let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
 // Asserts are problematic because they don't run in prod, and if they did they
 // wouldn't be caught by the webserver
 
-let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
+let assert_ (msg : string) (cond : bool) : unit =
+  if cond then () else failwith $"Assertion failure, expected: {msg}"
 
 let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
   if expected <> actual then
-    assert_ $"assertion failure: {msg} (expected {expected}, got {actual})" false
+    failwith $"Assertion failure: {msg} (expected {expected}, got {actual})"
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
-  if m.Success then () else assert_ $"{msg} (\"{input}\" ~= /{pattern}/)" false
+
+  if m.Success then
+    ()
+  else
+    failwith $"Assertion failure: {msg} (but \"{input}\" ~= /{pattern}/)"
 
 // ----------------------
 // Standard conversion functions
