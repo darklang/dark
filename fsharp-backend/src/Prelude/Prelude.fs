@@ -233,6 +233,8 @@ module Dictionary =
     d.Add(k, v)
     d
 
+  let empty () : T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>()
+
   let keys = FSharpPlus.Dictionary.keys
   let values = FSharpPlus.Dictionary.values
 
@@ -244,6 +246,12 @@ module Dictionary =
         yield (e.Current.Key, e.Current.Value)
     }
     |> Seq.toList
+
+  let fromList (l : List<'k * 'v>) : T<'k, 'v> =
+    let result = System.Collections.Generic.Dictionary<'k, 'v>()
+    List.iter (fun (k, v) -> result.Add(k, v)) l
+    result
+
 
 
 // ----------------------

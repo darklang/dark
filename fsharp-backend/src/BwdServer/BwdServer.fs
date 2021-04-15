@@ -372,6 +372,6 @@ let webserver (shouldLog : bool) (port : int) =
 [<EntryPoint>]
 let main _ =
   printfn "Starting BwdServer"
-  LibBackend.Init.init ()
+  LibBackend.Init.init "Bwdserver"
   (webserver true 9001).Run()
   0

@@ -2,17 +2,15 @@ module LibService.Rollbar
 
 let mutable initialized = false
 
-let init () : unit =
+open Prelude
+open Tablecloth
+
+let init (serviceName : string) : unit =
   printfn "Configuring rollbar"
   // FSTODO: include host, ip address, canvas, person, serviceName, honeycomb url, execution_id, in requests
   let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
   config.Environment <- Config.rollbarEnvironment
   config.Enabled <- Config.rollbarEnabled
-
-  printfn
-    $"Starting rollbarConfig: {Config.rollbarServerAccessToken}, {
-                                                                    Config.rollbarEnvironment
-    }, {Config.rollbarEnabled}"
 
   let (_ : Rollbar.IRollbar) =
     Rollbar.RollbarLocator.RollbarInstance.Configure config
@@ -20,53 +18,52 @@ let init () : unit =
   initialized <- true
   ()
 
-let send (e : exn) : unit =
+// "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
+// The escaping on this is a bit overkill - it'll do a layer of url-escaping
+// beyond the example above, which we don't need - but the link works
+type HoneycombFilter = { column : string; op : string; value : string }
+
+type HoneycombJson =
+  { filters : List<HoneycombFilter>
+    limit : int
+    time_range : int }
+
+let honeycombLinkOfExecutionID (executionID : id) : string =
+  let query =
+    { filters =
+        [ { column = "execution_id"; op = "="; value = toString executionID } ]
+      limit = 100
+      // 604800 is 7 days
+      time_range = 604800 }
+
+  let queryStr = Json.Vanilla.serialize query
+
+  let uri =
+    System.Uri(
+      $"https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={queryStr}"
+    )
+
+  toString uri
+
+let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit =
   assert initialized
 
   try
     printfn "sending exception to rollbar"
-    let (_ : Rollbar.ILogger) = Rollbar.RollbarLocator.RollbarInstance.Error e
+    let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
+    state.Add("message.honeycomb", honeycombLinkOfExecutionID executionID)
+    List.iter (fun (k, v) -> Dictionary.add k (v :> obj) state |> ignore) metadata
+
+    let (_ : Rollbar.ILogger) =
+      Rollbar.RollbarLocator.RollbarInstance.Error(e, state)
+
     ()
   with e -> printfn "Exception when calling rollbar"
 // FSTODO: log failure
 
-// (* "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
-//  *)
-// (* The escaping on this is a bit overkill - it'll do a layer of url-escaping
-//  * beyond the example above, which we don't need - but the link works *)
-// let honeycomb_link_of_execution_id (execution_id : string) : string =
-//   let (query : Yojson.Safe.t) =
-//     `Assoc
-//       [ ( "filters"
-//         , `List
-//             [ `Assoc
-//                 [ ("column", `String "execution_id")
-//                 ; ("op", `String "=")
-//                 ; ("value", `String execution_id) ] ] )
-//       ; ("limit", `Int 100)
-//       ; ("time_range", `Int 604800) ]
-//     (* 604800 is 7 days *)
-//   in
-//   Uri.make
-//     ~scheme:"https"
-//     ~host:"ui.honeycomb.io"
-//     ~path:"/dark/datasets/kubernetes-bwd-ocaml"
-//     ~query:[("query", [query |> Yojson.Safe.to_string])]
-//     ()
-//   |> Uri.to_string
 
-
+// FSTODO enrich this
 // let error_to_payload =
-//   let message =
-//     let interior =
-//       [ ("body", `String (pp e))
-//       ; ("raw_trace", `String (Caml.Printexc.raw_backtrace_to_string bt))
-//       ; ("honeycomb", `String (honeycomb_link_of_execution_id execution_id))
-//       ; ("raw_info", inspect e) ]
-//       |> fun b -> `Assoc b
-//     in
-//     `Assoc [("message", interior)]
-//   in
 //   let context =
 //     match ctx with
 //     | Remote _ ->

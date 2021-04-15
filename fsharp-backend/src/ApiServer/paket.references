@@ -4,6 +4,7 @@ FSharpPlus
 Newtonsoft.Json
 Microsoft.AspNetCore.Mvc.NewtonsoftJson
 Lib.AspNetCore.ServerTiming
+Rollbar.NetCore.AspNet
 OpenTelemetry
 OpenTelemetry.Exporter.OpenTelemetryProtocol
 OpenTelemetry.Exporter.Console
