@@ -25,3 +25,6 @@ Http.forbidden_v0 = Http.response_v0 null 403
 Http.success_v0 {test = "test1"} = Http.response_v0 {test = "test1"} 200
 Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 {``Content-Length`` = 0; Server = "darklang"} 200
 Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 (Dict.fromList_ster ([ ["Content-Length";0]; ["Server"; "darklang"] ])) 200
+
+Http.respondWithHtml_v0 {test = "test1"}  200 = Http.responseWithHeaders_v0 {test = "test1"}  {``Content-Type`` = "text/html"} 200
+Http.respondWithHtml_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromList_ster ([ ["Content-Length";0]; ["Server";"darklang"] ])) {``Content-Type`` = "text/html"} 200
