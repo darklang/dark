@@ -1,7 +1,5 @@
 module LibBackend.Telemetry
 
-open System.Diagnostics
-
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
@@ -16,16 +14,21 @@ module Span =
   // Spans created here should use `use` instead of `let` so that they are
   // promptly ended. Forgetting to use `use` will cause the end time to be
   // incorrectly delayed
-  let root (name : string) : T = Internal._source.StartActivity(name)
+  let root (name : string) : T =
+    let result = Internal._source.StartActivity(name)
+    assert_ "Telemetry must be initialized before creating root" (result <> null)
+    result
 
   // Spans created here should use `use` instead of `let` so that they are
   // promptly ended. Forgetting to use `use` will cause the end time to be
   // incorrectly delayed
   let child (name : string) (parent : T) : T =
-    Internal._source.StartActivity(name).SetParentId parent.Id
+    let result = Internal._source.StartActivity(name).SetParentId parent.Id
+    assert_ "Telemetry must be initialized before creating child" (result <> null)
+    result
 
   let addEvent (name : string) (span : T) : unit =
-    let (_ : Activity) = span.AddEvent(ActivityEvent name)
+    let (_ : T) = span.AddEvent(System.Diagnostics.ActivityEvent name)
     ()
 
   let addTag (name : string) (value : string) (span : T) : T =
@@ -75,4 +78,7 @@ let init (serviceName : string) =
   let version = LibBackend.Config.buildHash
 
   Internal._source <-
-    new ActivitySource($"Dark.FSharpBackend.{serviceName}", version)
+    new System.Diagnostics.ActivitySource(
+      $"Dark.FSharpBackend.{serviceName}",
+      version
+    )
