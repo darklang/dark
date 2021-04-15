@@ -8,6 +8,7 @@ open System.Threading.Tasks
 [<EntryPoint>]
 let main args =
   let (_ : Task) = Tests.BwdServer.init ()
+  LibBackend.Init.init "Tests"
   LibBackend.Migrations.init ()
   (LibBackend.Account.initTestAccounts ()).Wait()
 
