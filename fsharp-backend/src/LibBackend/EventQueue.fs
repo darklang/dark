@@ -17,7 +17,7 @@ module RT = LibExecution.RuntimeTypes
 module Account = LibBackend.Account
 
 
-open Telemetry
+open LibService.Telemetry
 
 type Status =
   | OK
@@ -255,7 +255,7 @@ let dequeue (parent : Span.T) : Task<Option<T>> =
   Span.addEvent "dequeue" parent
 
   Sql.query
-    "SELECT e.id, e.value, e.retries, e.canvas_id, e.account_id, c.name, e.space, e.name, e.modifier,
+    "SELECT e.id, e.value, e.retries, e.canvas_id, e.account_id, c.name as canvas_name, e.space, e.name as event_name, e.modifier,
      (extract(epoch from (CURRENT_TIMESTAMP - enqueued_at)) * 1000) as queue_delay_ms
      FROM events AS e
      JOIN canvases AS c ON e.canvas_id = c.id
@@ -265,15 +265,15 @@ let dequeue (parent : Span.T) : Task<Option<T>> =
      LIMIT 1"
   |> Sql.executeRowOptionAsync
        (fun read ->
-         let id = read.id "e.id"
-         let value = read.string "e.value"
-         let retries = read.int "e.retries"
-         let canvasID = read.uuid "e.canvas_id"
-         let ownerID = read.uuid "e.account_id"
-         let canvasName = read.string "c.name"
-         let space = read.string "e.space"
-         let name = read.string "e.name"
-         let modifier = read.string "e.modifier"
+         let id = read.id "id"
+         let value = read.string "value"
+         let retries = read.int "retries"
+         let canvasID = read.uuid "canvas_id"
+         let ownerID = read.uuid "account_id"
+         let canvasName = read.string "canvas_name"
+         let space = read.string "space"
+         let name = read.string "event_name"
+         let modifier = read.string "modifier"
          let delay = read.doubleOrNone "queue_delay_ms" |> Option.defaultValue 0.0
 
          (id,
