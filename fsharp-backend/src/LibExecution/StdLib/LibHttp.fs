@@ -48,21 +48,28 @@ let fns : List<BuiltInFn> =
 //  * -- need to figure out how to deprecate functions w/o breaking
 //  * user code
 //  *)
-// ; { name = fn "Http" "respondWithHeaders" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "headers" TObj ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
-//   ; fn =
-//         (function
-//         | _, [dv; (DObj _ as obj); DInt code] ->
-//             let pairs = Dval.to_string_pairs_exn obj in
-//             DResp (Response (Dint.to_int_exn code, pairs), dv)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "Http" "respondWithHeaders" 0
+      parameters = [Param.make "response" varA ""; Param.make "headers" (TDict varA) ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
+      fn =
+        (function
+        | _, [dv; DObj o; DInt code] ->
+          let pairs =
+            Map.toList o
+              |> List.map
+                  (fun (k, v) ->
+                    match k, v with
+                    | k, DStr v  -> k, string v
+                    | k, v  ->
+                        Errors.throw (Errors.argumentWasnt "a string" "value" v))
+
+          Value ( DHttpResponse (Response (int code, pairs), dv) )
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Http" "responseWithHeaders" 0) }
 // ; { name = fn "Http" "responseWithHeaders" 0
 //   ; parameters = [Param.make "response" varA ""; Param.make "headers" TObj ""; Param.make "code" TInt ""]
 //   ; returnType = TResp
