@@ -76,7 +76,7 @@ let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
 
                 try
                   let! eventTimestamp =
-                    TI.storeEvent traceID canvasID desc event.value
+                    TI.storeEvent canvasID traceID desc event.value
 
                   let h =
                     c.handlers
