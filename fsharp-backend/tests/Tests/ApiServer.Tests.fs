@@ -96,8 +96,8 @@ let getInitialLoad () : Task<InitialLoad.T> =
 
 
 
-let testFunctionsReturnsTheSame =
-  testTask "functions returns the same" {
+let testUiReturnsTheSame =
+  testTask "ui returns the same" {
 
     let! (o : HttpResponseMessage) = getAsync "http://darklang.localhost:8000/a/test"
     let! (f : HttpResponseMessage) = getAsync "http://darklang.localhost:9000/a/test"
@@ -122,6 +122,18 @@ let testFunctionsReturnsTheSame =
 
     let oc, ocfns = parse oc
     let fc, fcfns = parse fc
+
+    let oc =
+      oc
+        // a couple of specific ones
+        .Replace("static.darklang.localhost:8000", "darklang.localhost:9000")
+        .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
+        // get the rest
+        .Replace(
+          "localhost:8000",
+          "localhost:9000"
+        )
+
     Expect.equal fc oc ""
 
     let allBuiltins = (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
@@ -546,7 +558,7 @@ let localOnlyTests =
       // This test is hard to run in CI without moving a lot of things around.
       // It calls the ocaml webserver which is not running in that job, and not
       // compiled/available to be run either.
-      [ testFunctionsReturnsTheSame
+      [ testUiReturnsTheSame
         // FSTODO add_ops
         testPostApi "all_traces" "" (deserialize<Traces.AllTraces.T>) ident
         testDelete404s

@@ -149,28 +149,23 @@ let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-// let fetch_relevant_tlids_for_event ~(event : Event_queue.t) ~canvas_id () :
-//     Types.tlid list =
-//   Db.fetch
-//     ~name:"fetch_relevant_tlids_for_event"
-//     "SELECT tlid FROM toplevel_oplists
-//       WHERE canvas_id = $1
-//         AND ((module = $2
-//               AND name = $3
-//               AND modifier = $4)
-//               OR tipe <> 'handler'::toplevel_type)"
-//     ~params:
-//       [ Db.Uuid canvas_id
-//       ; String event.space
-//       ; String event.name
-//       ; String event.modifier ]
-//   |> List.map ~f:(fun l ->
-//          match l with
-//          | [data] ->
-//              Types.id_of_string data
-//          | _ ->
-//              Exception.internal "Shape of per_tlid oplists")
-//
+let fetchRelevantTLIDsForEvent
+  (canvasID : CanvasID)
+  (event : EventQueue.T)
+  : Task<List<tlid>> =
+  Sql.query
+    "SELECT tlid FROM toplevel_oplists
+      WHERE canvas_id = @canvasID
+        AND ((module = @space
+              AND name = @name
+              AND modifier = @modifier)
+              OR tipe <> 'handler'::toplevel_type)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "space", Sql.string event.space
+                      "name", Sql.string event.name
+                      "modifier", Sql.string event.modifier ]
+  |> Sql.executeAsync (fun read -> read.id "tlid")
+
 //
 // let fetch_relevant_tlids_for_cron_checker ~canvas_id () : Types.tlid list =
 //   Db.fetch
@@ -323,14 +318,14 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //     |> Option.value_exn
 //
 //
-// type cron_schedule_data =
-//   { canvas_id : Uuidm.t
-//   ; owner : Uuidm.t
-//   ; host : string
-//   ; tlid : string
-//   ; name : string
-//   ; modifier : string }
-//
+type CronScheduleData =
+  { canvas_id : CanvasID
+    owner : UserID
+    host : string
+    tlid : string
+    name : string
+    modifier : string }
+
 // (** Fetch cron handlers from the DB. Active here means:
 //  * - a non-null interval field in the spec
 //  * - not deleted (When a CRON handler is deleted, we set (module, modifier,

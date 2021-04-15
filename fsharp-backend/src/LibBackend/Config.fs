@@ -51,8 +51,6 @@ let cookieDomain = string "DARK_CONFIG_COOKIE_DOMAIN"
 
 let userContentHost = string "DARK_CONFIG_USER_CONTENT_HOST"
 
-let envDisplayName = LibService.Config.envDisplayName
-
 // -------------------------
 // Kubernetes *)
 // -------------------------
@@ -204,17 +202,6 @@ let hashStaticFilenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
 let checkTierOneHosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
 
 let staticAssetsBucket = stringOption "DARK_CONFIG_STATIC_ASSETS_BUCKET"
-
-// If the GIT_COMMIT is in the environment, use that as the build hash.
-// Otherwise, set it to the env name so that it's constant.
-//
-// We intentionally bypass our DSL here as `GIT_COMMIT` is not set by the
-// config _files_ but as part of the production container build process.
-//
-let buildHash : string =
-  match getEnv "GIT_COMMIT" with
-  | Some s -> s
-  | None -> envDisplayName
 
 
 let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"

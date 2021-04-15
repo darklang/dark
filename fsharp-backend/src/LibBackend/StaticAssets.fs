@@ -58,7 +58,7 @@ type StaticDeploy =
 
 let appHash (canvasName : CanvasName.T) (canvasID : CanvasID) : string =
   // enough of a hash to make this not easily discoverable
-  $"{canvasName}SOME SALT HERE{Config.envDisplayName}"
+  $"{canvasName}SOME SALT HERE{LibService.Config.envDisplayName}"
   |> sha1digest
   |> System.Convert.ToBase64String
   |> String.removeSuffix "="

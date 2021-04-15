@@ -348,9 +348,7 @@ let tests =
 
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
-let init () : Task =
-  LibBackend.Init.init ()
-  (BwdServer.webserver false 10001).RunAsync()
+let init () : Task = (BwdServer.webserver false 10001).RunAsync()
 
 
 // FSTODO

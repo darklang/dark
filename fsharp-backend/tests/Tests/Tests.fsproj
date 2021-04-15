@@ -20,6 +20,7 @@
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
+    <Compile Include="EventQueue.Tests.fs" />
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="FSharpToExpr.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />

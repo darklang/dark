@@ -5,10 +5,11 @@ open System
 open Prelude
 open Tablecloth
 
-let init () : unit =
+let init (serviceName : string) : unit =
   printfn "Initializing LibBackend"
 
-  LibService.Rollbar.init ()
+  LibService.Telemetry.init serviceName
+  LibService.Rollbar.init serviceName
 
   Json.OCamlCompatible.registerConverter (
     EventQueue.WorkerStates.JsonConverter.WorkerStateConverter()

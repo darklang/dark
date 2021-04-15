@@ -108,7 +108,7 @@ let jsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
         let! result = f ctx
         let t = startTimer ctx
         let! newCtx = ctx.WriteJsonAsync result
-        t "serializeToJson"
+        t "serialize-to-json"
         return newCtx
       })
 
@@ -120,7 +120,7 @@ let jsonOptionHandler (f : HttpContext -> Task<Option<'a>>) : HttpHandler =
         | Some result ->
             let t = startTimer ctx
             let! newCtx = ctx.WriteJsonAsync result
-            t "serializeToJson"
+            t "serialize-to-json"
             return newCtx
         | None ->
             ctx.SetStatusCode 404
@@ -159,6 +159,7 @@ type dataID =
   | SessionData
   | CanvasInfo
   | Permission
+  | ExecutionID
 
   override this.ToString() : string =
     match this with
@@ -166,6 +167,7 @@ type dataID =
     | SessionData -> "sessionData"
     | CanvasInfo -> "canvasName"
     | Permission -> "permission"
+    | ExecutionID -> "executionID"
 
 let save' (id : dataID) (value : 'a) (ctx : HttpContext) : HttpContext =
   ctx.Items.[id.ToString()] <- value
@@ -182,12 +184,15 @@ let loadUserInfo (ctx : HttpContext) : Account.UserInfo =
 let loadCanvasInfo (ctx : HttpContext) : Canvas.Meta =
   load'<Canvas.Meta> CanvasInfo ctx
 
+let loadExecutionID (ctx : HttpContext) : id = load'<id> ExecutionID ctx
+
 let loadPermission (ctx : HttpContext) : Option<Auth.Permission> =
   load'<Option<Auth.Permission>> Permission ctx
 
 let saveSessionData (s : Session.T) (ctx : HttpContext) = save' SessionData s ctx
 let saveUserInfo (u : Account.UserInfo) (ctx : HttpContext) = save' UserInfo u ctx
 let saveCanvasInfo (c : Canvas.Meta) (ctx : HttpContext) = save' CanvasInfo c ctx
+let saveExecutionID (id : id) (ctx : HttpContext) = save' ExecutionID id ctx
 
 let savePermission (p : Option<Auth.Permission>) (ctx : HttpContext) =
   save' Permission p ctx
@@ -228,12 +233,12 @@ let userInfoMiddleware : HttpHandler =
 
       match! Account.getUser (UserName.create sessionData.username) with
       | None ->
-          t "userInfoMiddleware"
+          t "user-info-middleware"
           return! redirectOr notFound ctx
       | Some user ->
           ctx.SetHttpHeader("x-dark-username", user.username)
           let newCtx = saveUserInfo user ctx
-          t "userInfoMiddleware"
+          t "user-info-middleware"
           return! next newCtx
     })
 
@@ -263,13 +268,23 @@ let withPermissionMiddleware
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
         ctx |> saveCanvasInfo canvasInfo |> savePermission permission |> ignore // ignored as `save` is side-effecting
-        t "withPermissionMiddleware"
+        t "with-permission-middleware"
 
         return! next ctx
       else
         // Note that by design, canvasName is not saved if there is not permission
-        t "withPermissionMiddleware"
+        t "with-permission-middleware"
         return! unauthorized ctx
+    })
+
+let executionIDMiddleware : HttpHandler =
+  (fun (next : HttpFunc) (ctx : HttpContext) ->
+    task {
+      let executionID = gid ()
+      let newCtx = saveExecutionID executionID ctx
+      let headerValue = StringValues([| toString executionID |])
+      ctx.Response.Headers.Add("x-darklang-execution-id", headerValue)
+      return! next newCtx
     })
 
 
@@ -284,7 +299,7 @@ let antiClickjackingMiddleware : HttpHandler =
   setHttpHeader "Content-security-policy" "frame-ancestors 'none';"
 
 let serverVersionMiddleware : HttpHandler =
-  setHttpHeader "x-darklang-server-version" Config.buildHash
+  setHttpHeader "x-darklang-server-version" LibService.Config.buildHash
 
 let corsForLocalhostAssetsMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -309,7 +324,8 @@ let canvasMiddleware
 // Composed middlewarestacks for the API
 // --------------------
 let htmlMiddleware : HttpHandler =
-  serverVersionMiddleware
+  executionIDMiddleware
+  >=> serverVersionMiddleware
   >=> corsForLocalhostAssetsMiddleware
   >=> antiClickjackingMiddleware
   >=> setStatusCode 200
@@ -324,8 +340,9 @@ let apiHandler
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonHandler f
   >=> setStatusCode 200
 
@@ -334,8 +351,9 @@ let apiOptionHandler
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonOptionHandler f
   >=> setStatusCode 200
 
@@ -344,8 +362,9 @@ let canvasHtmlHandler
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> htmlHandler f
   >=> htmlMiddleware
 

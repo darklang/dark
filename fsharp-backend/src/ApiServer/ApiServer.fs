@@ -4,10 +4,12 @@ open System
 open Microsoft.AspNetCore
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
+open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.FileProviders
 open Microsoft.Extensions.Logging
-open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.Hosting
 open Giraffe
 open Giraffe.EndpointRouting
 
@@ -76,6 +78,7 @@ let errorHandler (ex : Exception) (logger : ILogger) =
 let configureApp (appBuilder : IApplicationBuilder) =
   appBuilder
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
+  |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   |> fun app -> app.UseServerTiming()
@@ -100,20 +103,27 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseGiraffe(endpoints)
   |> fun app -> app.UseGiraffe(notFoundHandler)
 
-let configureServices (services : IServiceCollection) =
-  services
-    .AddServerTiming()
-    .AddRouting()
-    .AddGiraffe()
-    .AddSingleton<Json.ISerializer>(
-      NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
-    )
-  |> ignore
+let configureServices (services : IServiceCollection) : unit =
+  let (_ : IServiceCollection) =
+    services
+    |> LibService.Rollbar.AspNet.addRollbarToServices
+    |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
+    |> fun s -> s.AddServerTiming()
+    |> fun s -> s.AddRouting()
+    |> fun s -> s.AddGiraffe()
+    |> fun s ->
+         // this should say `s.AddSingleton<Json.ISerializer>(`. Fantomas has a habit of stripping
+         // the `<Json.ISerializer>` part, which causes the serializer not to load.
+         s.AddSingleton<Json.ISerializer>(
+           NewtonsoftJson.Serializer(Json.OCamlCompatible._settings)
+         )
+
+  ()
 
 [<EntryPoint>]
 let main args =
   printfn "Starting ApiServer"
-  LibBackend.Init.init ()
+  LibBackend.Init.init "ApiServer"
 
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel()

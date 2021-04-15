@@ -2,8 +2,6 @@ module LibBackend.EventQueue
 
 // All about workers
 
-module Account = LibBackend.Account
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -16,34 +14,54 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
+module Account = LibBackend.Account
 
-type transaction = id
 
-// type T =
-//   { id : int
-//   ; value : dval
-//   ; retries : int
-//   ; canvasID : Uuidm.t
-//   ; host : string
-//   ; space : string
-//   ; name : string
-//   ; modifier : string
-//   ; (* Delay in ms since it entered the queue *)
-//     delay : Float.t }
-//
-// let to_event_desc t = (t.space, t.name, t.modifier)
-//
-// (* ------------------------- *)
-// (* Public API *)
-// (* ------------------------- *)
-//
-// type queue_action =
-//   | Enqueue
-//   | Dequeue
-//   | None
-//
-// let show_queue_action qa =
-//   match qa with Enqueue -> "enqueue" | Dequeue -> "dequeue" | None -> "none"
+open LibService.Telemetry
+
+type Status =
+  | OK
+  | Err
+  | Incomplete
+  | Missing
+
+  override this.ToString() =
+    match this with
+    | OK -> "Ok"
+    | Err -> "Err"
+    | Incomplete -> "Incomplete"
+    | Missing -> "Missing"
+
+
+type T =
+  { id : id
+    value : RT.Dval
+    retries : int
+    canvasID : CanvasID
+    ownerID : UserID
+    canvasName : CanvasName.T
+    space : string
+    name : string
+    modifier : string
+    // Delay in ms since it entered the queue
+    delay : float }
+
+let toEventDesc t = (t.space, t.name, t.modifier)
+
+// -------------------------
+// Public API *)
+// -------------------------
+
+type queue_action =
+  | Enqueue
+  | Dequeue
+  | NoAction
+
+  override this.ToString() =
+    match this with
+    | Enqueue -> "enqueue"
+    | Dequeue -> "dequeue"
+    | NoAction -> "none"
 
 module SchedulingRule =
   module RuleType =
@@ -204,6 +222,7 @@ module WorkerStates =
 //   Log.infO "queue size" ~params ~jsonparams
 
 
+
 let enqueue
   (canvasID : CanvasID)
   (accountID : UserID)
@@ -232,77 +251,75 @@ let enqueue
   |> Sql.executeStatementAsync
 
 
-// let dequeue (parent : Span.t) (transaction : Int63.t) : t option =
-//   Telemetry.with_span parent "dequeue" (fun parent ->
-//       let fetched =
-//         Db.fetch_one_option
-//           ~name:"dequeue_fetch"
-//           "SELECT e.id, e.value, e.retries, e.canvas_id, c.name, e.space, e.name, e.modifier,
-//          (extract(epoch from (CURRENT_TIMESTAMP - enqueued_at)) * 1000) as queue_delay_ms
-//        FROM events AS e
-//        JOIN canvases AS c ON e.canvas_id = c.id
-//        WHERE status = 'scheduled'
-//        ORDER BY e.id ASC
-//        FOR UPDATE OF e SKIP LOCKED
-//        LIMIT 1"
-//           ~params:[]
-//       in
-//       (* This let is just here for type annotation *)
-//       let result : t option =
-//         match fetched with
-//         | None ->
-//             None
-//         | Some
-//             [ id
-//             ; value
-//             ; retries
-//             ; canvas_id
-//             ; host
-//             ; space
-//             ; name
-//             ; modifier
-//             ; queue_delay_ms ] ->
-//             log_queue_size Dequeue ~host canvas_id space name modifier ;
-//             let queue_delay_ms =
-//               float_of_string_opt queue_delay_ms |> Option.value ~default:0.0
-//             in
-//             Span.set_attrs
-//               parent
-//               [ ("queue_delay", `Float queue_delay_ms)
-//               ; ("host", `String host)
-//               ; ("canvas_id", `String canvas_id)
-//               ; ("space", `String space)
-//               ; ("handler_name", `String name)
-//               ; ("modifier", `String modifier) ] ;
-//             Some
-//               { id = int_of_string id
-//               ; value = value |> Dval.of_internal_roundtrippable_v0
-//               ; retries = int_of_string retries
-//               ; canvas_id = Util.uuid_of_string canvas_id
-//               ; host
-//               ; space
-//               ; name
-//               ; modifier
-//               ; delay = queue_delay_ms }
-//         | Some s ->
-//             Exception.internal
-//               ( "Fetched seemingly impossible shape from Postgres"
-//               ^ "["
-//               ^ String.concat ~sep:", " s
-//               ^ "]" )
-//       in
-//       result)
-//
-//
-// (* TESTS ONLY *)
-// (* schedule_all bypasses actual scheduling logic and is meant only for allowing
-//  * testing without running the queue-scheduler process *)
-// let schedule_all unit : unit =
-//   Db.run
-//     ~name:"schedule_all"
-//     ~params:[]
-//     "UPDATE events SET status = 'scheduled'
-//     WHERE status = 'new' AND delay_until <= CURRENT_TIMESTAMP"
+let dequeue (parent : Span.T) : Task<Option<T>> =
+  Span.addEvent "dequeue" parent
+
+  Sql.query
+    "SELECT e.id, e.value, e.retries, e.canvas_id, e.account_id, c.name as canvas_name, e.space, e.name as event_name, e.modifier,
+     (extract(epoch from (CURRENT_TIMESTAMP - enqueued_at)) * 1000) as queue_delay_ms
+     FROM events AS e
+     JOIN canvases AS c ON e.canvas_id = c.id
+     WHERE status = 'scheduled'
+     ORDER BY e.id ASC
+     FOR UPDATE OF e SKIP LOCKED
+     LIMIT 1"
+  |> Sql.executeRowOptionAsync
+       (fun read ->
+         let id = read.id "id"
+         let value = read.string "value"
+         let retries = read.int "retries"
+         let canvasID = read.uuid "canvas_id"
+         let ownerID = read.uuid "account_id"
+         let canvasName = read.string "canvas_name"
+         let space = read.string "space"
+         let name = read.string "event_name"
+         let modifier = read.string "modifier"
+         let delay = read.doubleOrNone "queue_delay_ms" |> Option.defaultValue 0.0
+
+         (id,
+          value,
+          retries,
+          canvasID,
+          ownerID,
+          canvasName,
+          space,
+          name,
+          modifier,
+          delay))
+  |> Task.map (
+    Option.map
+      (fun (id, value, retries, canvasID, ownerID, canvasName, space, name, modifier, delay) ->
+        // FSTODO
+        // log_queue_size Dequeue ~host canvas_id space name modifier ;
+        // CLEANUP better names
+        let (_ : Span.T) =
+          parent
+            .AddTag("queue_delay", delay)
+            .AddTag("host", canvasName)
+            .AddTag("canvas_id", canvasID)
+            .AddTag("space", space)
+            .AddTag("handler_name", name)
+            .AddTag("modifier", modifier)
+
+        { id = id
+          value = LibExecution.DvalRepr.ofInternalRoundtrippableV0 value
+          retries = retries
+          canvasID = canvasID
+          ownerID = ownerID
+          canvasName = CanvasName.create canvasName
+          space = space
+          name = name
+          modifier = modifier
+          delay = delay })
+  )
+
+// schedule_all bypasses actual scheduling logic and is meant only for allowing
+// testing without running the queue-scheduler process
+let testingScheduleAll () : Task<unit> =
+  Sql.query
+    "UPDATE events SET status = 'scheduled'
+      WHERE status = 'new' AND delay_until <= CURRENT_TIMESTAMP"
+  |> Sql.executeStatementAsync
 
 let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
   { id = read.int "id"
@@ -432,97 +449,80 @@ let removeSchedulingRule
 
 
 
-// (* DARK INTERNAL FN *)
-// let block_worker = add_scheduling_rule "block"
-//
-// (* DARK INTERNAL FN *)
-// let unblock_worker = remove_scheduling_rule "block"
-//
+// DARK INTERNAL FN
+let block_worker = addSchedulingRule "block"
+
+// DARK INTERNAL FN
+let unblock_worker = removeSchedulingRule "block"
+
 let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
 
 let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"
-//
-// let begin_transaction () =
-//   let id = Util.create_id () in
-//   ignore (Db.run ~name:"start_transaction" ~params:[] "BEGIN") ;
-//   id
-//
-//
-// let end_transaction t =
-//   ignore (Db.run ~name:"end_transaction" ~params:[] "COMMIT")
-//
-//
-// (** Open a database [transaction] and run [f],in it - [f] takes both a [Span.t]
-//  * (for tracing) and a [transaction] id *)
-// let with_transaction (parent : Span.t) f =
-//   let transaction = begin_transaction () in
-//   let result = f parent transaction in
-//   end_transaction transaction ;
-//   result
-//
-//
-// let put_back transaction (item : t) ~status : unit =
-//   let show_status s =
-//     match s with
-//     | `OK ->
-//         "Ok"
-//     | `Err ->
-//         "Err"
-//     | `Incomplete ->
-//         "Incomplete"
-//     | `Missing ->
-//         "Missing"
-//   in
-//   Log.infO
-//     "event_queue: put_back_transaction"
-//     ~jsonparams:
-//       [ ("status", `String (status |> show_status))
-//       ; ("retries", `Int item.retries) ] ;
-//   match status with
-//   | `OK ->
-//       Db.run
-//         ~name:"put_back_OK"
-//         "UPDATE \"events\"
-//       SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
-//       WHERE id = $1"
-//         ~params:[Int item.id]
-//   | `Missing ->
-//       Db.run
-//         ~name:"put_back_Missing"
-//         "UPDATE events
-//          SET status = 'missing', last_processed_at = CURRENT_TIMESTAMP
-//          WHERE id = $1"
-//         ~params:[Int item.id]
-//   | `Err ->
-//       if item.retries < 2
-//       then
-//         Db.run
-//           ~name:"put_back_Err<2"
-//           "UPDATE events
-//         SET status = 'new'
-//           , retries = $1
-//           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
-//           , last_processed_at = CURRENT_TIMESTAMP
-//         WHERE id = $2"
-//           ~params:[Int (item.retries + 1); Int item.id]
-//       else
-//         Db.run
-//           ~name:"put_back_Err>=2"
-//           "UPDATE events
-//         SET status = 'error'
-//           , last_processed_at = CURRENT_TIMESTAMP
-//         WHERE id = $1"
-//           ~params:[Int item.id]
-//   | `Incomplete ->
-//       Db.run
-//         ~name:"put_back_Incomplete"
-//         "UPDATE events
-//         SET status = 'new'
-//           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
-//           , last_processed_at = CURRENT_TIMESTAMP
-//         WHERE id = $1"
-//         ~params:[Int item.id]
-//
-//
-// let finish transaction (item : t) : unit = put_back transaction ~status:`OK item
-//
+
+// Open a database [transaction] and run [f],in it - [f] takes both a [Span.t]
+// (for tracing) and a [transaction] id
+let withTransaction (f : unit -> Task<'a>) : Task<'a> =
+  task {
+    let connection = Db.connect () |> Sql.createConnection
+    connection.Open()
+
+    let! transaction = connection.BeginTransactionAsync()
+    let! result = f ()
+    do! transaction.CommitAsync()
+    return result
+  }
+
+let putBack (parent : Span.T) (item : T) (status : Status) : Task<unit> =
+  let span =
+    (Span.child "event_queue: put_back_transaction" parent)
+      .AddTag("status", toString status)
+      .AddTag("retries", item.retries)
+    |> ignore
+
+  match status with
+  | OK ->
+      Sql.query
+        "UPDATE \"events\"
+         SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
+         WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.id item.id ]
+      |> Sql.executeStatementAsync
+  | Missing ->
+      Sql.query
+        "UPDATE events
+            SET status = 'missing', last_processed_at = CURRENT_TIMESTAMP
+          WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.id item.id ]
+      |> Sql.executeStatementAsync
+  | Err ->
+      if item.retries < 2 then
+        Sql.query
+          "UPDATE events
+           SET status = 'new'
+             , retries = @retries
+             , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+             , last_processed_at = CURRENT_TIMESTAMP
+           WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.id item.id
+                            "retries", Sql.int (item.retries + 1) ]
+        |> Sql.executeStatementAsync
+      else
+        Sql.query
+          "UPDATE events
+           SET status = 'error'
+             , last_processed_at = CURRENT_TIMESTAMP
+           WHERE id = @id"
+        |> Sql.parameters [ "id", Sql.id item.id ]
+        |> Sql.executeStatementAsync
+  | Incomplete ->
+      Sql.query
+        "UPDATE events
+         SET status = 'new'
+           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+           , last_processed_at = CURRENT_TIMESTAMP
+         WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.id item.id ]
+      |> Sql.executeStatementAsync
+
+
+let finish (span : Span.T) (item : T) : Task<unit> = putBack span item OK

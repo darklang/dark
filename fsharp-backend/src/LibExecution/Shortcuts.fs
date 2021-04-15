@@ -281,8 +281,6 @@ let worker (name : string) (ast : Expr) : Handler.T =
   { tlid = gid (); ast = ast; spec = Handler.Worker(name) }
 
 
-// let hop h = Types.SetHandler (tlid, pos, h)
-
 let userFn
   (name : string)
   (description : string)

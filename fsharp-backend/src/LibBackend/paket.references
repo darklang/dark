@@ -4,3 +4,4 @@ Sodium.Core
 FsRegEx
 FSharpPlus
 PusherServer
+System.Diagnostics.DiagnosticSource

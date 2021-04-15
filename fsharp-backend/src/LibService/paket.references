@@ -1,2 +1,9 @@
 FSharp.Core
 Rollbar
+Rollbar.NetCore.AspNet
+OpenTelemetry
+OpenTelemetry.Exporter.OpenTelemetryProtocol
+OpenTelemetry.Exporter.Console
+OpenTelemetry.Instrumentation.AspNetCore
+OpenTelemetry.Extensions.Hosting
+OpenTelemetry.Instrumentation.Http

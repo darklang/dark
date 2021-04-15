@@ -7,8 +7,10 @@ open System.Threading.Tasks
 
 [<EntryPoint>]
 let main args =
+  LibBackend.Init.init "Tests" // Must go before Tests.BwdServer.init
   let (_ : Task) = Tests.BwdServer.init ()
   LibBackend.Migrations.init ()
+  LibService.Telemetry.Console.loadTelemetry ()
   (LibBackend.Account.initTestAccounts ()).Wait()
 
   let tests =
@@ -18,6 +20,7 @@ let main args =
       Tests.BwdServer.tests
       Tests.Canvas.tests
       Tests.DvalRepr.tests
+      Tests.EventQueue.tests
       Tests.FSharpToExpr.tests
       Tests.LibExecution.tests.Force()
       Tests.OCamlInterop.tests

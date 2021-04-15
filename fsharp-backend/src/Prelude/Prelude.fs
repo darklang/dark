@@ -61,15 +61,20 @@ let fstodo (msg : string) : 'a = failwith $"Code not yet ported to F#: {msg}"
 // Asserts are problematic because they don't run in prod, and if they did they
 // wouldn't be caught by the webserver
 
-let assert_ (msg : string) (cond : bool) : unit = if cond then () else failwith msg
+let assert_ (msg : string) (cond : bool) : unit =
+  if cond then () else failwith $"Assertion failure, expected: {msg}"
 
 let assertEq (msg : string) (expected : 'a) (actual : 'a) : unit =
   if expected <> actual then
-    assert_ $"assertion failure: {msg} (expected {expected}, got {actual})" false
+    failwith $"Assertion failure: {msg} (expected {expected}, got {actual})"
 
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
   let m = Regex.Match(input, pattern)
-  if m.Success then () else assert_ $"{msg} (\"{input}\" ~= /{pattern}/)" false
+
+  if m.Success then
+    ()
+  else
+    failwith $"Assertion failure: {msg} (but \"{input}\" ~= /{pattern}/)"
 
 // ----------------------
 // Standard conversion functions
@@ -233,6 +238,8 @@ module Dictionary =
     d.Add(k, v)
     d
 
+  let empty () : T<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>()
+
   let keys = FSharpPlus.Dictionary.keys
   let values = FSharpPlus.Dictionary.values
 
@@ -244,6 +251,12 @@ module Dictionary =
         yield (e.Current.Key, e.Current.Value)
     }
     |> Seq.toList
+
+  let fromList (l : List<'k * 'v>) : T<'k, 'v> =
+    let result = System.Collections.Generic.Dictionary<'k, 'v>()
+    List.iter (fun (k, v) -> result.Add(k, v)) l
+    result
+
 
 
 // ----------------------
@@ -302,18 +315,29 @@ type TaskOrValueBuilder() =
   // so I define two overloads for 'let!' - one taking regular
   // Task and one our TaskOrValue. You can then call both using
   // the let! syntax.
-  member x.Bind(tv, f) = TaskOrValue.bind f tv
-  member x.Bind(t, f) = TaskOrValue.bind f (Task t)
+  member x.Bind(tv : TaskOrValue<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
+    TaskOrValue.bind f tv
+
+  member x.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
+    TaskOrValue.bind f (Task t)
+
   // This lets us use return
-  member x.Return(v) = TaskOrValue.unit (v)
+  member x.Return(v : 'a) : TaskOrValue<'a> = TaskOrValue.unit (v)
+
   // This lets us use return!
-  member x.ReturnFrom(tv) = tv
-  member x.Zero() = TaskOrValue.unit (())
+  member x.ReturnFrom(tv : TaskOrValue<'a>) : TaskOrValue<'a> = tv
+
+  member x.Zero() : TaskOrValue<unit> = TaskOrValue.unit (())
+
   // These lets us use try
-  member x.TryWith(tv, f) = TaskOrValue.tryWith tv f
-  member x.Delay(f) = TaskOrValue.delay f
-// To make this usable, this will need a few more
-// especially for reasonable exception handling..
+  member x.TryWith
+    (
+      tv : TaskOrValue<'a>,
+      f : exn -> TaskOrValue<'a>
+    ) : TaskOrValue<'a> =
+    TaskOrValue.tryWith tv f
+
+  member x.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> = TaskOrValue.delay f
 
 let taskv = TaskOrValueBuilder()
 

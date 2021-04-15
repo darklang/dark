@@ -98,7 +98,6 @@ let clearCanvasData (name : CanvasName.T) : Task<unit> =
     return ()
   }
 
-
 let testHttpRouteHandler
   (route : string)
   (method : string)
@@ -146,6 +145,8 @@ let testUserFn
         (fun (p : string) ->
           { name = p; typ = RT.TVariable "b"; description = "test" })
         parameters }
+
+let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
 
 let libraries : Lazy<RT.Libraries> =
   lazy

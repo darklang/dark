@@ -574,16 +574,12 @@ let loadTLIDsWithContext
     return! loadFrom LiveToplevels meta tlids
   }
 
-
-// let load_for_event_from_cache (event : Event_queue.t) :
-//     (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn event.host in
-//   let canvas_id = Serialize.fetch_canvas_id owner event.host in
-//   load_from_cache
-//     ~tlids:(Serialize.fetch_relevant_tlids_for_event ~event ~canvas_id ())
-//     event.host
-//     owner
-
+let loadForEvent (e : EventQueue.T) : Task<Result<T, List<string>>> =
+  task {
+    let meta = { id = e.canvasID; name = e.canvasName; owner = e.ownerID }
+    let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id e
+    return! loadFrom LiveToplevels meta tlids
+  }
 
 let loadAllDBs (meta : Meta) : Task<Result<T, List<string>>> =
   task {
