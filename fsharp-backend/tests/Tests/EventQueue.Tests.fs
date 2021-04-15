@@ -21,8 +21,9 @@ let p (code : string) = FSharpToExpr.parsePTExpr code
 
 let testEventQueueRoundtrip =
   testTask "event queue roundtrip" {
-    let! (meta : Canvas.Meta) = testCanvasInfo "test-event_queue"
-    do! clearCanvasData meta.name
+    let name = "test-event_queue"
+    do! clearCanvasData (CanvasName.create name)
+    let! (meta : Canvas.Meta) = testCanvasInfo name
     let executionID = gid ()
 
     let h = testCron "test" "Daily" (p "let data = Date.now_v0 in 123")
