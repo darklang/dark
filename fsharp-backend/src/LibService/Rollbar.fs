@@ -11,6 +11,7 @@ let init (serviceName : string) : unit =
   let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
   config.Environment <- Config.rollbarEnvironment
   config.Enabled <- Config.rollbarEnabled
+  config.LogLevel <- Rollbar.ErrorLevel.Error
 
   let (_ : Rollbar.IRollbar) =
     Rollbar.RollbarLocator.RollbarInstance.Configure config
@@ -19,8 +20,6 @@ let init (serviceName : string) : unit =
   ()
 
 // "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
-// The escaping on this is a bit overkill - it'll do a layer of url-escaping
-// beyond the example above, which we don't need - but the link works
 type HoneycombFilter = { column : string; op : string; value : string }
 
 type HoneycombJson =
