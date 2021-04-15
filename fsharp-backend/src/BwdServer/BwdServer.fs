@@ -334,30 +334,35 @@ let configureApp (app : IApplicationBuilder) =
      })
     :> Task
 
-  app.Run(RequestDelegate handler)
+  app
+  |> LibService.Rollbar.AspNet.addRollbarToApp
+  |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
-  services.AddOpenTelemetryTracing
-    (fun (builder : TracerProviderBuilder) ->
-      builder
-      |> fun b ->
-           b.SetResourceBuilder(
-             ResourceBuilder.CreateDefault().AddService("bwdserver")
-           )
-      |> fun b -> b.AddAspNetCoreInstrumentation()
-      |> fun b -> b.AddHttpClientInstrumentation()
-      |> fun b ->
-           match LibService.Config.honeycombKey with
-           | Some apiKey ->
-               b.AddOtlpExporter
-                 (fun options ->
-                   let dataset = LibService.Config.honeycombDataset
-                   options.Endpoint <- Uri LibService.Config.honeycombEndpoint
+  services
+  |> LibService.Rollbar.AspNet.addRollbarToServices
+  |> fun s ->
+       s.AddOpenTelemetryTracing
+         (fun (builder : TracerProviderBuilder) ->
+           builder
+           |> fun b ->
+                b.SetResourceBuilder(
+                  ResourceBuilder.CreateDefault().AddService("bwdserver")
+                )
+           |> fun b -> b.AddAspNetCoreInstrumentation()
+           |> fun b -> b.AddHttpClientInstrumentation()
+           |> fun b ->
+                match LibService.Config.honeycombKey with
+                | Some apiKey ->
+                    b.AddOtlpExporter
+                      (fun options ->
+                        let dataset = LibService.Config.honeycombDataset
+                        options.Endpoint <- Uri LibService.Config.honeycombEndpoint
 
-                   options.Headers <-
-                     $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
-           | None -> b.AddConsoleExporter()
-      |> fun b -> b.Build() |> ignore)
+                        options.Headers <-
+                          $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
+                | None -> b.AddConsoleExporter()
+           |> fun b -> b.Build() |> ignore)
   |> ignore
 
 let webserver (shouldLog : bool) (port : int) =

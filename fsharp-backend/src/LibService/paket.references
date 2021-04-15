@@ -2,3 +2,4 @@ FSharp.Core
 Rollbar
 OpenTelemetry
 OpenTelemetry.Exporter.Console
+Rollbar.NetCore.AspNet

@@ -57,8 +57,23 @@ let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit 
       Rollbar.RollbarLocator.RollbarInstance.Error(e, state)
 
     ()
-  with e -> printfn "Exception when calling rollbar"
-// FSTODO: log failure
+  with e ->
+    // FSTODO: log failure
+    printfn "Exception when calling rollbar"
+
+module AspNet =
+  open Microsoft.Extensions.DependencyInjection
+  open Rollbar.NetCore.AspNet
+  open Microsoft.AspNetCore.Builder
+  open Microsoft.AspNetCore.Http.Abstractions
+
+  let addRollbarToServices (services : IServiceCollection) : IServiceCollection =
+    // https://jsnelders.com/Blog/2989/adding-rollbar-to-asp-net-core-2-some-services-are-not-able-to-be-constructed-and-unable-to-resolve-service-for-type-microsoft-aspnetcore-http-ihttpcontextaccessor/
+    services.AddHttpContextAccessor().AddRollbarLogger()
+
+  let addRollbarToApp (app : IApplicationBuilder) : IApplicationBuilder =
+    app.UseRollbarMiddleware()
+
 
 
 // FSTODO enrich this

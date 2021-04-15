@@ -13,9 +13,6 @@ open Microsoft.Extensions.Hosting
 open Giraffe
 open Giraffe.EndpointRouting
 
-open Rollbar.NetCore.AspNet
-
-
 open System.Diagnostics
 open Grpc.Core
 open Grpc.Net.Client
@@ -89,7 +86,7 @@ let errorHandler (ex : Exception) (logger : ILogger) =
 let configureApp (appBuilder : IApplicationBuilder) =
   appBuilder
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
-  |> fun app -> app.UseRollbarMiddleware()
+  |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   |> fun app -> app.UseServerTiming()
@@ -116,9 +113,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
 
 let configureServices (services : IServiceCollection) : unit =
   services
-  // https://jsnelders.com/Blog/2989/adding-rollbar-to-asp-net-core-2-some-services-are-not-able-to-be-constructed-and-unable-to-resolve-service-for-type-microsoft-aspnetcore-http-ihttpcontextaccessor/
-  |> fun s -> s.AddHttpContextAccessor()
-  |> fun s -> s.AddRollbarLogger()
+  |> LibService.Rollbar.AspNet.addRollbarToServices
   |> fun s ->
        s.AddOpenTelemetryTracing
          (fun (builder : TracerProviderBuilder) ->
