@@ -299,7 +299,7 @@ let antiClickjackingMiddleware : HttpHandler =
   setHttpHeader "Content-security-policy" "frame-ancestors 'none';"
 
 let serverVersionMiddleware : HttpHandler =
-  setHttpHeader "x-darklang-server-version" Config.buildHash
+  setHttpHeader "x-darklang-server-version" LibService.Config.buildHash
 
 let corsForLocalhostAssetsMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->

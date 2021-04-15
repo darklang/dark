@@ -12,7 +12,6 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Config.fs" />
-    <Compile Include="Telemetry.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Db.fs" />
     <Compile Include="Password.fs" />

@@ -1,8 +1,9 @@
-module LibBackend.Telemetry
+module LibService.Telemetry
 
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
+
 
 module Internal =
   // CLEANUP: can a DiagnosticSource be used here instead?
@@ -75,10 +76,28 @@ module Span =
 
 // Call, passing with serviceName for this service, such as "ApiServer"
 let init (serviceName : string) =
-  let version = LibBackend.Config.buildHash
+  let version = Config.buildHash
 
   Internal._source <-
     new System.Diagnostics.ActivitySource(
       $"Dark.FSharpBackend.{serviceName}",
       version
     )
+
+open System.Diagnostics
+open OpenTelemetry
+open OpenTelemetry.Trace
+open OpenTelemetry.Logs
+
+// For webservers, tracing is added by middlewares. For non-webservers, we also
+// need to add tracing. This does that.
+let loadTelemetryForConsoleApps () : unit =
+  let (_ : TracerProvider) =
+    Sdk
+      .CreateTracerProviderBuilder()
+      .SetSampler(new AlwaysOnSampler())
+      .AddSource("Dark.*")
+      .AddConsoleExporter()
+      .Build()
+
+  ()

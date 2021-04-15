@@ -4,6 +4,17 @@ open ConfigDsl
 
 let envDisplayName = string "DARK_CONFIG_ENV_DISPLAY_NAME"
 
+// If the GIT_COMMIT is in the environment, use that as the build hash.
+// Otherwise, set it to the env name so that it's constant.
+//
+// We intentionally bypass our DSL here as `GIT_COMMIT` is not set by our
+// config system but as part of the production container build process, and is
+// not available in dev mode.
+let buildHash : string =
+  match getEnv "GIT_COMMIT" with
+  | Some s -> s
+  | None -> envDisplayName
+
 // --------------------
 // rollbar
 // --------------------

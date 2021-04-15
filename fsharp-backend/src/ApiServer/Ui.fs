@@ -81,7 +81,7 @@ let uiHtml
   let t = System.Text.StringBuilder(adminUiTemplate.Force())
 
   t
-    .Replace("{{ENVIRONMENT_NAME}}", Config.envDisplayName)
+    .Replace("{{ENVIRONMENT_NAME}}", LibService.Config.envDisplayName)
     .Replace("{{ALLFUNCTIONS}}", (Functions.functions user.admin).Force())
     .Replace("{{LIVERELOADJS}}", liveReloadJs)
     .Replace("{{STATIC}}", staticHost)
@@ -100,7 +100,7 @@ let uiHtml
     .Replace("{{APPSUPPORT}}", appSupportFile.Force())
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
-    .Replace("{{BUILD_HASH}}", Config.buildHash)
+    .Replace("{{BUILD_HASH}}", LibService.Config.buildHash)
     // There isn't separate routing for static in ASP.NET
     .Replace(
       "static.darklang.localhost:8000",

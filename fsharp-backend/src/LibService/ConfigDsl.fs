@@ -44,7 +44,7 @@ let stringOption (name : string) : string option =
   if v = "none" then None else Some v
 
 
-let int_option (name : string) : int option =
+let intOption (name : string) : int option =
   let v = stringOption name
 
   match v with

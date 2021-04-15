@@ -13,7 +13,7 @@ module EQ = EventQueue
 module TI = TraceInputs
 module Execution = LibExecution.Execution
 
-open Telemetry
+open LibService.Telemetry
 
 let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
   use root = Span.root "dequeue_and_process"
