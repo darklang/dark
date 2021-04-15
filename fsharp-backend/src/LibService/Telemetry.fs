@@ -85,10 +85,8 @@ let init (serviceName : string) =
     )
 
 module Console =
-  open System.Diagnostics
   open OpenTelemetry
   open OpenTelemetry.Trace
-  open OpenTelemetry.Logs
 
   // For webservers, tracing is added by middlewares. For non-webservers, we also
   // need to add tracing. This does that.
@@ -104,10 +102,15 @@ module Console =
 
 module AspNet =
   open Microsoft.Extensions.DependencyInjection
-  open Microsoft.AspNetCore.Builder
-  open Microsoft.AspNetCore.Http.Abstractions
   open OpenTelemetry.Trace
   open OpenTelemetry.Resources
+  open OpenTelemetry.Exporter
+
+  let configureHoneycomb (options : OtlpExporterOptions) =
+    let apiKey = Config.honeycombApiKey
+    let dataset = Config.honeycombDataset
+    options.Endpoint <- System.Uri Config.honeycombEndpoint
+    options.Headers <- $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}"
 
   let addTelemetryToServices
     (serviceName : string)
@@ -123,16 +126,8 @@ module AspNet =
         |> fun b -> b.AddAspNetCoreInstrumentation()
         |> fun b -> b.AddHttpClientInstrumentation()
         |> fun b ->
-             match LibService.Config.honeycombKey with
-             | Some apiKey ->
-                 b.AddOtlpExporter
-                   (fun options ->
-                     let dataset = LibService.Config.honeycombDataset
-
-                     options.Endpoint <-
-                       System.Uri LibService.Config.honeycombEndpoint
-
-                     options.Headers <-
-                       $"x-honeycomb-team={apiKey},x-honeycomb-dataset=${dataset}")
-             | None -> b.AddConsoleExporter()
+             match Config.telemetryExporter with
+             | Config.Honeycomb -> b.AddOtlpExporter(fun o -> configureHoneycomb o)
+             | Config.NoExporter -> b
+             | Config.Console -> b.AddConsoleExporter()
         |> fun b -> b.Build() |> ignore)

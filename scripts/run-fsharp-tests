@@ -39,6 +39,8 @@ createdb testdb
 
 if [[ "$DEBUG" == "true" ]]; then
   cd fsharp-backend
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_DB_HOST=localhost \
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \
@@ -46,6 +48,8 @@ if [[ "$DEBUG" == "true" ]]; then
   lldb -- Build/out/Tests --no-spinner --sequenced "${@}"
 else
   cd fsharp-backend
+  DARK_CONFIG_TELEMETRY_EXPORTER=none \
+  DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_DB_HOST=localhost \
   DARK_CONFIG_DB_DBNAME=testdb \
   DARK_CONFIG_DB_USER=dark \

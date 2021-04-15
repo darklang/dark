@@ -1,5 +1,7 @@
 module LibService.ConfigDsl
 
+open Tablecloth
+
 (* Parsers for env vars *)
 
 let getEnv (name : string) : Option<string> =
@@ -51,14 +53,16 @@ let intOption (name : string) : int option =
   | None -> None
   | Some s -> Some(int s)
 
-
-let stringChoice name (options : string list) : string =
+// Give a list of choices and values to return if the choice is found
+let stringChoice name (options : (string * 'a) list) : 'a =
   let v = getEnvExn name |> lowercase name
 
-  if List.contains v options then
-    v
-  else
-    let options = String.concat ", " options
-    failwith $"Envvar is not a valid option: '{name}' not in [{options}]"
+  options
+  |> List.tryFind (fun (k, _) -> k = v)
+  |> Option.map Tuple2.second
+  |> Option.defaultWith
+       (fun () ->
+         let options = options |> List.map Tuple2.first |> String.concat ", "
+         failwith $"Envvar is not a valid option: '{name}' not in [{options}]")
 
 let password (name : string) : string = getEnvExn name

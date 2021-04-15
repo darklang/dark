@@ -30,8 +30,18 @@ let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 // --------------------
 // honeycomb
 // --------------------
-let honeycombKey = stringOption "DARK_CONFIG_HONEYCOMB_API_KEY"
+type TelemetryExporter =
+  | NoExporter
+  | Honeycomb
+  | Console
 
+// "Where do you send the logs?"
+let telemetryExporter : TelemetryExporter =
+  stringChoice
+    "DARK_CONFIG_TELEMETRY_EXPORTER"
+    [ ("none", NoExporter); ("honeycomb", Honeycomb); ("console", Console) ]
+
+let honeycombApiKey = string "DARK_CONFIG_HONEYCOMB_API_KEY"
 let honeycombDataset = string "DARK_CONFIG_HONEYCOMB_DATASET_NAME"
 let honeycombEndpoint = string "DARK_CONFIG_HONEYCOMB_API_ENDPOINT"
 
