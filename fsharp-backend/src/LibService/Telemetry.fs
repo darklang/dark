@@ -97,7 +97,6 @@ let loadTelemetryForConsoleApps () : unit =
       .CreateTracerProviderBuilder()
       .SetSampler(new AlwaysOnSampler())
       .AddSource("Dark.*")
-      .AddConsoleExporter()
       .Build()
 
   ()
