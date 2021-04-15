@@ -1,6 +1,10 @@
 module Tests.EventQueue
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Expecto
+
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
@@ -51,55 +55,56 @@ let testEventQueueRoundtrip =
     | Error e -> failwith $"Failed: got error: {e}"
   }
 
-//
-// let testEventQueueIsFifo =
-//   testTask "event queue is fifo" {
-//     let c = testCanvasInfo "fifo"
-//     do! clearCanvasData c.name
-//     let apple = worker "apple" (var "event")
-//     let banana = worker "banana" (var "event")
-//     let c = ops2c_exn "test-worker-fifo" [ hop apple; hop banana ]
-//     Canvas.saveAll !c
-//
-//     let enqueue name (i : bigint) =
-//       E.enqueue "WORKER" name "_" (RT.DInt i) c.ownerID c.id
-//
-//     enqueue "apple" 1I
-//     enqueue "apple" 2I
-//     enqueue "banana" 3I
-//     enqueue "apple" 4I
-//     E.scheduleAll ()
-//
-//     let checkDequeue span tx (i : bigint) exname =
-//       let evt = E.dequeue span tx |> Option.unwrapUnsafe
-//
-//       Expect.equal exname evt.name $"dequeue %d{i} is handler %s{exname}"
-//
-//
-//       let actual =
-//         match evt.value with
-//         | RT.DInt i -> i
-//         | _ -> 0I
-//
-//       Expect.equal actual i $"dequeue {i} has value {i}"
-//       E.finish tx evt
-//
-//     do!
-//       Telemetry.with_root
-//         "test"
-//         (fun span ->
-//           E.withTransaction
-//             span
-//             (fun span tx ->
-//               checkDequeue span tx 1 "apple"
-//               checkDequeue span tx 2 "apple"
-//               checkDequeue span tx 3 "banana"
-//               checkDequeue span tx 4 "apple"
-//               Ok(Some DNull)))
-//   }
-//
-//
-//
+
+let testEventQueueIsFifo =
+  testTask "event queue is fifo" {
+    let name = "fifo"
+    do! clearCanvasData (CanvasName.create name)
+    let! meta = testCanvasInfo name
+    let apple = testWorker "apple" (p "event")
+    let banana = testWorker "banana" (p "event")
+
+    do!
+      ([ apple; banana ]
+       |> List.map (fun h -> (h.tlid, [ hop h ], PT.TLHandler h, Canvas.NotDeleted))
+       |> Canvas.saveTLIDs meta)
+
+    let enqueue (name : string) (i : bigint) =
+      EQ.enqueue meta.id meta.owner "WORKER" name "_" (RT.DInt i)
+
+    do! enqueue "apple" 1I
+    do! enqueue "apple" 2I
+    do! enqueue "banana" 3I
+    do! enqueue "apple" 4I
+    do! EQ.testingScheduleAll ()
+
+    let checkDequeue span (i : bigint) exname : Task<unit> =
+      task {
+        let! evt = EQ.dequeue span
+        let evt = Option.unwrapUnsafe evt
+
+        Expect.equal exname evt.name $"dequeue {i} is handler {exname}"
+        Expect.equal evt.value (RT.DInt i) $"dequeue {i} has value {i}"
+        do! EQ.finish span evt
+        return ()
+      }
+
+    use span = LibService.Telemetry.Span.root "test"
+
+    do!
+      EQ.withTransaction
+        (fun () ->
+          task {
+            do! checkDequeue span 1I "apple"
+            do! checkDequeue span 2I "apple"
+            do! checkDequeue span 3I "banana"
+            do! checkDequeue span 4I "apple"
+            return Ok(Some RT.DNull)
+          })
+  }
+
+
+
 // let testCronFetchActiveCrons =
 //   test "fetch active crons doesn't raise" {
 //     Telemetry.with_root
@@ -211,8 +216,8 @@ let testEventQueueRoundtrip =
 //     check "cherry" Running
 //   }
 
-let tests = testList "eventQueue" [ testEventQueueRoundtrip ]
-// testEventQueueIsFifo
+let tests = testList "eventQueue" [ testEventQueueRoundtrip; testEventQueueIsFifo ]
+
 // testCronJustRan
 // testCronFetchActiveCrons
 // testCronSanity

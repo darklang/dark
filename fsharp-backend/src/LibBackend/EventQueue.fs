@@ -12,12 +12,10 @@ open Db
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
+open LibService.Telemetry
 
 module RT = LibExecution.RuntimeTypes
-module Account = LibBackend.Account
 
-
-open LibService.Telemetry
 
 type Status =
   | OK
