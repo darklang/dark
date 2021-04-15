@@ -44,7 +44,6 @@ let push
   let (_ : Task<unit>) =
     task {
       try
-        printfn $"Sending push to Pusher {eventName}: {canvasID}"
         let channel = $"canvas_{canvasID}"
         // FSTODO add executionID
 
