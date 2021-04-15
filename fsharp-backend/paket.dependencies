@@ -46,3 +46,6 @@ nuget Sodium.Core = 1.2.3
 // LibBackend
 nuget Npgsql.FSharp = 3.12.3
 nuget Npgsql = 5.0.4
+
+// Wasm
+nuget Tewr.BlazorWorker.BackgroundService = 2.1.0

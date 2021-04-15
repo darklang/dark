@@ -1,15 +1,11 @@
 namespace Wasm
 
-open Microsoft.AspNetCore.Components.WebAssembly.Hosting
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
-open Prelude.Tablecloth
 
-module Exe = LibExecution.Execution
-module Interpreter = LibExecution.Interpreter
 module RT = LibExecution.RuntimeTypes
+module Exe = LibExecution.Execution
 
 module TestExpr =
   open LibExecution.Shortcuts
@@ -140,10 +136,10 @@ module TestExpr =
                                     eFn "" "toString" 0 [ eVar "uuid" ] ]))))))))))))))
 
 
-module Program =
+module Eval =
   let stdlib =
     LibExecution.StdLib.StdLib.fns
-    |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+    |> Prelude.Tablecloth.Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 
   // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
@@ -151,8 +147,6 @@ module Program =
   [<Microsoft.JSInterop.JSInvokable>]
   let run (arg : int) : Task<string> =
     task {
-      let expr = LibExecution.Shortcuts.eInt arg
-      let expr = TestExpr.expr
       // FSTODO: get packages from caller
       let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
       let tracing = LibExecution.Execution.noTracing RT.Preview
@@ -170,14 +164,6 @@ module Program =
 
       let tlid = id 7
       let state = Exe.createState libraries tracing tlid program
-      let! result = Exe.executeExpr state Map.empty expr
-
+      let! result = Exe.executeExpr state Map.empty TestExpr.expr
       return result.ToString()
     }
-
-
-  [<EntryPoint>]
-  let Main args =
-    let builder = WebAssemblyHostBuilder.CreateDefault([||])
-    builder.Build().RunAsync() |> ignore
-    0

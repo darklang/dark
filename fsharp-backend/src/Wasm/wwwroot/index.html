@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Blazor Worker Proof of Concept</title>
+    <base href="/" />
+</head>
+
+<body>
+    <button onclick="onClick()">Push to start</button>
+    <p id="result">Result will be here</p>
+
+
+    <script src="BlazorWorker.js"></script>
+    <script>
+        function onClick() {
+            let conf = {
+                callbackMethod: "OnMessage",
+                debug: false,
+                dependentAssemblyFilenames: [
+                    "BlazorWorker.WorkerCore.dll",
+                    "netstandard.dll",
+                    "mscorlib.dll",
+                    "System.dll",
+                    "System.Core.dll",
+                    "System.Buffers.dll",
+                    "System.Collections.dll",
+                    "System.Configuration.dll",
+                    "System.Console.dll",
+                    "System.Diagnostics.Debug.dll",
+                    "System.Diagnostics.DiagnosticSource.dll",
+                    "System.Diagnostics.StackTrace.dll",
+                    "System.Diagnostics.TraceSource.dll",
+                    "System.Dynamic.Runtime.dll",
+                    "System.Globalization.Calendars.dll",
+                    "System.Globalization.Extensions.dll",
+                    "System.Globalization.dll",
+                    "System.Linq.Expressions.dll",
+                    "System.Linq.Queryable.dll",
+                    "System.Linq.dll",
+                    "System.Memory.dll",
+                    "System.Numerics.Vectors.dll",
+                    "System.Numerics.dll",
+                    "System.ObjectModel.dll",
+                    "System.Private.CoreLib.dll",
+                    "System.Private.Runtime.InteropServices.JavaScript.dll",
+                    "System.Private.Uri.dll",
+                    "System.Private.Xml.Linq.dll",
+                    "System.Private.Xml.dll",
+                    "System.Reflection.DispatchProxy.dll",
+                    "System.Reflection.Extensions.dll",
+                    "System.Reflection.Metadata.dll",
+                    "System.Reflection.Primitives.dll",
+                    "System.Reflection.TypeExtensions.dll",
+                    "System.Reflection.dll",
+                    "System.Runtime.Extensions.dll",
+                    "System.Runtime.Handles.dll",
+                    "System.Runtime.InteropServices.RuntimeInformation.dll",
+                    "System.Runtime.InteropServices.dll",
+                    "System.Runtime.Intrinsics.dll",
+                    "System.Runtime.Loader.dll",
+                    "System.Runtime.Numerics.dll",
+                    "System.Runtime.dll",
+                    "System.Threading.Tasks.dll",
+                    "System.Threading.Thread.dll",
+                    "System.Threading.dll",
+                    "FSharp.Core.dll",
+                    "Ply.dll",
+                    "System.Threading.Tasks.Extensions.dll",
+                    "LibExecution.dll",
+                    "Prelude.dll",
+                    "Newtonsoft.Json.dll",
+                    "System.Text.RegularExpressions.dll",
+                    "System.Collections.Concurrent.dll",
+                    "FSharpPlus.dll",
+                    "Microsoft.JSInterop.dll",
+                    "Wasm.dll"],
+                deployPrefix: "_framework",
+                initEndPoint: "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService:Init",
+                messageEndPoint: "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.MessageService:OnMessage",
+                useConventionalServiceAssembly: true,
+                wasmRoot: "_framework"
+            }
+            window.BlazorWorker.initWorker(
+                1,
+                ()=>{window.BlazorWorker.postMessage(1,"glop")},
+                (data)=>{document.getElementById("result").innerHTML = data},
+                conf
+            )
+        }
+
+
+    </script>
+</body>
+
+</html>
