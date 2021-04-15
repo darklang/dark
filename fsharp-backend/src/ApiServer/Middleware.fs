@@ -324,7 +324,8 @@ let canvasMiddleware
 // Composed middlewarestacks for the API
 // --------------------
 let htmlMiddleware : HttpHandler =
-  serverVersionMiddleware
+  executionIDMiddleware
+  >=> serverVersionMiddleware
   >=> corsForLocalhostAssetsMiddleware
   >=> antiClickjackingMiddleware
   >=> setStatusCode 200
@@ -339,8 +340,9 @@ let apiHandler
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonHandler f
   >=> setStatusCode 200
 
@@ -349,8 +351,9 @@ let apiOptionHandler
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> jsonOptionHandler f
   >=> setStatusCode 200
 
@@ -359,8 +362,9 @@ let canvasHtmlHandler
   (neededPermission : Auth.Permission)
   (canvasName : string)
   : HttpHandler =
-  canvasMiddleware neededPermission (CanvasName.create canvasName)
+  executionIDMiddleware
   >=> serverVersionMiddleware
+  >=> canvasMiddleware neededPermission (CanvasName.create canvasName)
   >=> htmlHandler f
   >=> htmlMiddleware
 
