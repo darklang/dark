@@ -1,5 +1,3 @@
-[meta FSHARPONLY should be identical to a GET but ocaml drops the content-type header]
-
 [http-handler GET /]
 blank
 
@@ -12,7 +10,6 @@ Content-Length: 0
 [response]
 HTTP/1.1 404 Not Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Content-Type: text/plain
 Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
 Server: darklang

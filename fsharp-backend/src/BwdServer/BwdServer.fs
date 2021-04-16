@@ -144,7 +144,7 @@ let standardResponse
 
 let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   // cors
-  standardResponse ctx "404 Not Found: No route matches" textPlain 404
+  standardResponse ctx "404 Not Found: No route matches" None 404
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   standardResponse ctx "user not found" textPlain 404
