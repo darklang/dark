@@ -12,12 +12,10 @@ open Db
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
+open LibService.Telemetry
 
 module RT = LibExecution.RuntimeTypes
-module Account = LibBackend.Account
 
-
-open LibService.Telemetry
 
 type Status =
   | OK
@@ -450,10 +448,10 @@ let removeSchedulingRule
 
 
 // DARK INTERNAL FN
-let block_worker = addSchedulingRule "block"
+let blockWorker = addSchedulingRule "block"
 
 // DARK INTERNAL FN
-let unblock_worker = removeSchedulingRule "block"
+let unblockWorker = removeSchedulingRule "block"
 
 let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
 

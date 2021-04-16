@@ -111,14 +111,18 @@ let testHttpRouteHandler
     ast = ast
     spec = PT.Handler.HTTP(route, method, ids) }
 
-let testCron (name : string) (interval : string) (ast : PT.Expr) : PT.Handler.T =
+let testCron
+  (name : string)
+  (interval : PT.Handler.CronInterval)
+  (ast : PT.Expr)
+  : PT.Handler.T =
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
   { pos = { x = 0; y = 0 }
     tlid = gid ()
     ast = ast
-    spec = PT.Handler.Cron(name, interval, ids) }
+    spec = PT.Handler.Cron(name, Some interval, ids) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   let ids : PT.Handler.ids =

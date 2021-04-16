@@ -536,7 +536,7 @@ module Handler =
     | Worker of name : string
     // Deprecated but still supported form
     | OldWorker of modulename : string * name : string
-    | Cron of name : string * interval : string
+    | Cron of name : string * interval : Option<CronInterval>
     | REPL of name : string
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }

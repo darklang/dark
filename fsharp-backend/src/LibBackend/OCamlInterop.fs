@@ -410,7 +410,8 @@ module Convert =
     match bo2String o.``module``, bo2String o.name, bo2String o.modifier with
     | "HTTP", route, method -> PT.Handler.HTTP(route, method, ids)
     | "WORKER", name, _ -> PT.Handler.Worker(name, ids)
-    | "CRON", name, interval -> PT.Handler.Cron(name, interval, ids)
+    | "CRON", name, interval ->
+        PT.Handler.Cron(name, PT.Handler.CronInterval.parse interval, ids)
     | "REPL", name, _ -> PT.Handler.REPL(name, ids)
     | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
 
@@ -764,7 +765,11 @@ module Convert =
     | PT.Handler.Cron (name, interval, ids) ->
         { ``module`` = string2bo ids.moduleID "CRON"
           name = string2bo ids.nameID name
-          modifier = string2bo ids.modifierID interval
+          modifier =
+            interval
+            |> Option.map toString
+            |> Option.defaultValue ""
+            |> string2bo ids.modifierID
           types = types }
     | PT.Handler.REPL (name, ids) ->
         { ``module`` = string2bo ids.moduleID "REPL"
