@@ -19,7 +19,7 @@
 
 FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
 
-ENV FORCE_BUILD 1
+ENV FORCE_BUILD 2
 
 # These are reasonable defaults, and what the dark uid/gid would be if we didn't
 # specify values. By exposing them as build-args, we can set these values to
@@ -209,7 +209,8 @@ ENV ESY__PROJECT=/home/dark/app
 USER postgres
 RUN /etc/init.d/postgresql start && \
     psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
-    createdb -O dark devdb
+    createdb -O dark devdb && \
+    createdb -O dark testdb
 
 # Adjust PostgreSQL configuration so that remote connections to the
 # database are possible.
