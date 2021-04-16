@@ -253,8 +253,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let method = ctx.Request.Method
         let requestPath = ctx.Request.Path.Value |> sanitizeUrlPath
 
+        // redirect HEADs to GET. We pass the actual HEAD method to the engine,
+        // and leave it to middleware to say what it wants to do with that
+        let searchMethod = if method = "HEAD" then "GET" else method
+
         let! c =
-          Canvas.loadHttpHandlersFromCache meta requestPath method
+          Canvas.loadHttpHandlersFromCache meta requestPath searchMethod
           |> Task.map Result.unwrapUnsafe
 
         match Map.values c.handlers with
