@@ -19,6 +19,7 @@ let main args =
       Tests.Authorization.tests
       Tests.BwdServer.tests
       Tests.Canvas.tests
+      Tests.Cron.tests
       Tests.DvalRepr.tests
       Tests.EventQueue.tests
       Tests.FSharpToExpr.tests
