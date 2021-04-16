@@ -39,8 +39,7 @@ let lastRanAt (cron : CronScheduleData) : Task<Option<System.DateTime>> =
        LIMIT 1"
   |> Sql.parameters [ "tlid", Sql.tlid cron.tlid
                       "canvasID", Sql.uuid cron.canvasID ]
-  |> Sql.executeRowOptionAsync
-       (fun read -> read.string "ran_at" |> System.DateTime.ofIsoString)
+  |> Sql.executeRowOptionAsync (fun read -> read.dateTime "ran_at")
 
 
 let convertInterval (interval : PT.Handler.CronInterval) : System.TimeSpan =
@@ -76,12 +75,12 @@ let executionCheck (cron : CronScheduleData) : Task<ExecutionCheck> =
         //     shouldRunAfter is 17:01
         //     and we should run once now >= shouldRunAfter
         let interval = convertInterval cron.interval
-        let shouldRunAfter = System.DateTimeOffset(lrt, interval)
+        let shouldRunAfter = lrt + interval
 
-        if now >= shouldRunAfter.DateTime then
+        if now >= shouldRunAfter then
           return
             { shouldExecute = true
-              scheduledRunAt = Some shouldRunAfter.DateTime
+              scheduledRunAt = Some shouldRunAfter
               interval = Some interval }
         else
           return
