@@ -91,16 +91,16 @@ let executionCheck (cron : CronScheduleData) : Task<ExecutionCheck> =
   }
 
 
-// let record_execution (cron : cron_schedule_data) : unit =
-//   let tlid = cron.tlid |> Int63.of_string in
-//   Db.run
-//     "INSERT INTO cron_records
-//     (tlid, canvas_id)
-//     VALUES ($1, $2)"
-//     ~params:[ID tlid; Uuid cron.canvas_id]
-//     ~name:"Cron.record_execution"
-//
-//
+let recordExecution (cron : CronScheduleData) : Task<unit> =
+  Sql.query
+    "INSERT INTO cron_records
+    (tlid, canvas_id)
+    VALUES (@tlid, @canvasID)"
+  |> Sql.parameters [ "tlid", Sql.tlid cron.tlid
+                      "canvasID", Sql.uuid cron.canvasID ]
+  |> Sql.executeStatementAsync
+
+
 // (** Check if a given cron spec should execute now, and if so, enqueue it.
 //   *
 //   * Returns true/false whether the cron was enqueued, so we can count it later *)

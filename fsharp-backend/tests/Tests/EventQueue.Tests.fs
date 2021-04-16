@@ -148,70 +148,65 @@ let testCronSanity =
   }
 
 
-// let testCronJustRan =
-//   testTask "test cron just ran" {
-//     let! c = testCanvasInfo "cronJustRan"
-//     clearCanvasData ()
-//
-//     let h = daily_cron (binop "+" (int 5) (int 3))
-//     let c = ops2c_exn "test-cron_works" [ hop h ]
-//
-//     let cronScheduleData : LibBackend.Cron.cron_schedule_data =
-//       { canvas_id = c.id
-//         owner = Uuidm.nil
-//         host = c.host
-//         tlid = h.tlid |> Int63.to_string
-//         name =
-//           (match h.spec.name with
-//            | Filled (_, s) -> s
-//            | _ -> "CAN'T HAPPEN")
-//         modifier =
-//           (match h.spec.modifier with
-//            | Filled (_, s) -> s
-//            | _ -> "CAN'T HAPPEN") }
-//
-//     Cron.record_execution cron_schedule_data
-//
-//     let ({ should_execute = should_execute
-//            scheduled_run_at = scheduled_run_at
-//            interval = interval } : LibBackend.Cron.execution_check_type) =
-//       Telemetry.with_root
-//         "test"
-//         (fun span -> Cron.execution_check span cron_schedule_data)
-//
-//     AT.check AT.bool "should_execute should be false" should_execute false
-//     ()
-//   }
-//
-//
-//
-// let testGetWorkerSchedulesForCanvas =
-//   test "worker schedules for canvas" {
-//     clear_test_data ()
-//     let apple = worker "apple" (int 1)
-//     let banana = worker "banana" (int 1)
-//     let cherry = worker "cherry" (int 1)
-//
-//     let c =
-//       ops2c_exn "test-worker-scheduling-rules" [ hop apple; hop banana; hop cherry ]
-//
-//     Canvas.save_all !c
-//     E.pauseWorker c.id "apple"
-//     E.pauseWorker c.id "banana"
-//     E.blockWorker c.id "banana"
-//     let res = get_worker_schedules_for_canvas !c.id
-//
-//     let check name value =
-//       let actual =
-//         Core_kernel.Map.find res name |> Option.value_exn |> state_to_string
-//
-//       let expected = state_to_string value in
-//       Expect.equal actual expected ($"{name} is {expected}")
-//
-//     check "apple" Paused
-//     check "banana" Blocked
-//     check "cherry" Running
-//   }
+let testCronJustRan =
+  testTask "test cron just ran" {
+    let name = "cronJustRan"
+    do! clearCanvasData (CanvasName.create name)
+    let! meta = testCanvasInfo name
+
+    let h = testCron "test" PT.Handler.EveryDay (p "5 + 3")
+
+    do!
+      Canvas.saveTLIDs
+        meta
+        [ (h.tlid, [ hop h ], PT.TLHandler h, Canvas.NotDeleted) ]
+
+    let cronScheduleData : Cron.CronScheduleData =
+      { canvasID = meta.id
+        ownerID = meta.owner
+        canvasName = meta.name
+        tlid = h.tlid
+        cronName = "test"
+        interval = PT.Handler.EveryDay }
+
+    do! Cron.recordExecution cronScheduleData
+
+    let! (executionCheck : Cron.ExecutionCheck) =
+      Cron.executionCheck cronScheduleData
+
+    Expect.equal executionCheck.shouldExecute false "should_execute should be false"
+  }
+
+
+let testGetWorkerSchedulesForCanvas =
+  testTask "worker schedules for canvas" {
+    let name = "workerSchedules"
+    do! clearCanvasData (CanvasName.create name)
+    let! meta = testCanvasInfo name
+
+    let apple = testWorker "apple" (p "1")
+    let banana = testWorker "banana" (p "1")
+    let cherry = testWorker "cherry" (p "1")
+
+    do!
+      ([ apple; banana; cherry ]
+       |> List.map (fun h -> (h.tlid, [ hop h ], PT.TLHandler h, Canvas.NotDeleted))
+       |> Canvas.saveTLIDs meta)
+
+    do! EQ.pauseWorker meta.id "apple"
+    do! EQ.pauseWorker meta.id "banana"
+    do! EQ.blockWorker meta.id "banana"
+    let! result = EQ.getWorkerSchedules meta.id
+
+    let check (name : string) (value : EQ.WorkerStates.State) =
+      let actual = Map.get name result |> Option.unwrapUnsafe |> toString
+      let expected = toString value
+      Expect.equal actual expected ($"{name} is {expected}")
+
+    check "apple" EQ.WorkerStates.Paused
+    check "banana" EQ.WorkerStates.Blocked
+    check "cherry" EQ.WorkerStates.Running
+  }
 
 let tests =
   testList
@@ -219,7 +214,6 @@ let tests =
     [ testEventQueueRoundtrip
       testEventQueueIsFifo
       testCronFetchActiveCrons
-      testCronSanity ]
-
-// testCronJustRan
-// testGetWorkerSchedulesForCanvas
+      testCronSanity
+      testCronJustRan
+      testGetWorkerSchedulesForCanvas ]
