@@ -349,6 +349,7 @@ let fetchActiveCrons (span : Span.T) : Task<List<CronScheduleData>> =
            JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
            WHERE module = 'CRON'
              AND modifier IS NOT NULL
+             AND modifier <> ''
              AND toplevel_oplists.name IS NOT NULL"
       |> Sql.executeAsync
            (fun read ->
@@ -359,7 +360,8 @@ let fetchActiveCrons (span : Span.T) : Task<List<CronScheduleData>> =
                cronName = read.string "handler_name"
                interval =
                  read.string "modifier"
+                 // FSTODO: this is new behaviour, so add a test
+                 // we can save empty strings here, but we shouldn't be fetching them
                  |> PT.Handler.CronInterval.parse
-                 // we can do this because of the "is not null" constraint
                  |> Option.unwrapUnsafe })
   }
