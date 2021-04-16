@@ -18,15 +18,6 @@ open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
 
-open System.Diagnostics
-open Grpc.Core
-open Grpc.Net.Client
-open OpenTelemetry
-open OpenTelemetry.Trace
-open OpenTelemetry.Resources
-open OpenTelemetry.Extensions.Hosting
-
-
 open Prelude
 open Tablecloth
 open FSharpx
@@ -78,10 +69,10 @@ let runHttp
     let symtable = Interpreter.withGlobals state inputVars
 
     let! result =
-      Interpreter.applyFnVal
+      Interpreter.callFn
         state
         (RT.Expr.toID expr)
-        (RT.FnName(RT.FQFnName.stdlibFqName "Http" "middleware" 0))
+        (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
         [ RT.DStr url
           RT.DBytes body
           RT.DObj Map.empty

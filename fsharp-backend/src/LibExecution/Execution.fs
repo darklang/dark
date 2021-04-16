@@ -107,7 +107,7 @@ let executeFunction
   (args : List<RT.Dval>)
   (name : RT.FQFnName.T)
   : Task<RT.Dval> =
-  Interpreter.callFn state name callerID args RT.NoRail RT.NotInPipe
+  Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
   |> TaskOrValue.toTask
 
 
