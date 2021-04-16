@@ -184,24 +184,22 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "responseWithJson" 0) }
-// ; { name = fn "Http" "responseWithJson" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp
-//               ( Response
-//                   ( Dint.to_int_exn code
-//                   , [("Content-Type", "application/json")] )
-//               , dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "responseWithJson" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+      fn =
+        (function
+        | _, [dv; DInt code] ->
+            Value (
+              DHttpResponse (
+                Response (
+                  int code, [("Content-Type", "application/json")]), dv ) )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 // ; { name = fn "Http" "redirectTo" 0
 //   ; parameters = [Param.make "url" TStr ""]
 //   ; returnType = TResp
