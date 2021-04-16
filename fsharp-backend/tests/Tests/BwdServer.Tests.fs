@@ -11,6 +11,7 @@ open FSharpPlus
 
 open Prelude
 open Tablecloth
+open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramTypes
@@ -54,23 +55,27 @@ let t name =
     let! contents = System.IO.File.ReadAllBytesAsync filename
     let contents = toStr contents
 
-    let request, expectedResponse, httpDefs =
+    let request, expectedResponse, meta, httpDefs =
       // TODO: use FsRegex instead
       let options = RegexOptions.Singleline
 
       let m =
         Regex.Match(
           contents,
-          "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
+          "^((\[meta.*\])\n)?(.*)((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
           options
         )
 
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
 
-      (g.[3].Value |> toBytes |> setHeadersToCRLF,
-       g.[4].Value |> toBytes |> setHeadersToCRLF,
-       g.[2].Value)
+      (g.[6].Value |> toBytes |> setHeadersToCRLF,
+       g.[7].Value |> toBytes |> setHeadersToCRLF,
+       g.[2].Value,
+       g.[5].Value)
+
+    let testOCaml = String.includes "FSHARPONLY" meta |> not
+    let testFSharp = String.includes "OCAMLONLY" meta |> not
 
     let oplists =
       Regex.Matches(httpDefs, "\[http-handler (\S+) (\S+)\]\n(.*)\n")
@@ -275,8 +280,8 @@ let t name =
     if String.startsWith "_" name then
       skiptest $"underscore test - {name}"
     else
-      do! callServer OCaml // check OCaml to see if we got the right answer
-      do! callServer FSharp // test F# impl
+      if testOCaml then do! callServer OCaml // check OCaml to see if we got the right answer
+      if testFSharp then do! callServer FSharp // test F# impl
 
   }
 
