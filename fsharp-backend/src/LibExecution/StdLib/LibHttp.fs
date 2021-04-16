@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
               |> List.map
                   (fun (k, v) ->
                     match k, v with
-                    | k, DStr v  -> k, string v
+                    | k, DStr v  -> k, v
                     | k, v  ->
                         Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
               |> List.map
                   (fun (k, v) ->
                     match k, v with
-                    | k, DStr v  -> k, string v
+                    | k, DStr v  -> k, v
                     | k, v  ->
                         Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
