@@ -48,36 +48,50 @@ let fns : List<BuiltInFn> =
 //  * -- need to figure out how to deprecate functions w/o breaking
 //  * user code
 //  *)
-// ; { name = fn "Http" "respondWithHeaders" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "headers" TObj ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
-//   ; fn =
-//         (function
-//         | _, [dv; (DObj _ as obj); DInt code] ->
-//             let pairs = Dval.to_string_pairs_exn obj in
-//             DResp (Response (Dint.to_int_exn code, pairs), dv)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Http" "responseWithHeaders" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "headers" TObj ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
-//   ; fn =
-//         (function
-//         | _, [dv; (DObj _ as obj); DInt code] ->
-//             let pairs = Dval.to_string_pairs_exn obj in
-//             DResp (Response (Dint.to_int_exn code, pairs), dv)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "respondWithHeaders" 0
+      parameters = [Param.make "response" varA ""; Param.make "headers" (TDict varA) ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
+      fn =
+        (function
+        | _, [dv; DObj o; DInt code] ->
+          let pairs =
+            Map.toList o
+              |> List.map
+                  (fun (k, v) ->
+                    match k, v with
+                    | k, DStr v  -> k, v
+                    | k, v  ->
+                        Errors.throw (Errors.argumentWasnt "a string" "value" v))
+
+          Value ( DHttpResponse (Response (int code, pairs), dv) )
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Http" "responseWithHeaders" 0) }
+    { name = fn "Http" "responseWithHeaders" 0
+      parameters = [Param.make "response" varA ""; Param.make "headers" (TDict varA) ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
+      fn =
+        (function
+        | _, [dv; DObj o; DInt code] ->
+          let pairs =
+            Map.toList o
+              |> List.map
+                  (fun (k, v) ->
+                    match k, v with
+                    | k, DStr v  -> k, v
+                    | k, v  ->
+                        Errors.throw (Errors.argumentWasnt "a string" "value" v))
+
+          Value ( DHttpResponse (Response (int code, pairs), dv) )
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "success" 0
       parameters = [Param.make "response" varA ""]
       returnType = THttpResponse varA
@@ -90,110 +104,102 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-// ; { name = fn "Http" "respondWithHtml" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp
-//               ( Response
-//                   (Dint.to_int_exn code, [("Content-Type", "text/html")])
-//               , dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Http" "responseWithHtml" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp
-//               ( Response
-//                   (Dint.to_int_exn code, [("Content-Type", "text/html")])
-//               , dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "respondWithText" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp
-//               ( Response
-//                   (Dint.to_int_exn code, [("Content-Type", "text/plain")])
-//               , dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Http" "responseWithText" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp
-//               ( Response
-//                   (Dint.to_int_exn code, [("Content-Type", "text/plain")])
-//               , dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Http" "respondWithJson" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp
-//               ( Response
-//                   ( Dint.to_int_exn code
-//                   , [("Content-Type", "application/json")] )
-//               , dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Http" "responseWithJson" 0
-//   ; parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
-//   ; fn =
-//         (function
-//         | _, [dv; DInt code] ->
-//             DResp
-//               ( Response
-//                   ( Dint.to_int_exn code
-//                   , [("Content-Type", "application/json")] )
-//               , dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "respondWithHtml" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
+      fn =
+        (function
+          | _, [dv; DInt code] ->
+            Value (
+              DHttpResponse (
+                Response (
+                  int code, [("Content-Type", "text/html")]), dv ) )
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Http" "responseWithHtml" 0) }
+    { name = fn "Http" "responseWithHtml" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
+      fn =
+        (function
+          | _, [dv; DInt code] ->
+            Value (
+              DHttpResponse (
+                Response (
+                  int code, [("Content-Type", "text/html")]), dv ) )
+          | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "respondWithText" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
+      fn =
+        (function
+        | _, [dv; DInt code] ->
+            Value (
+              DHttpResponse (
+                Response (
+                  int code, [("Content-Type", "text/plain")]), dv ) )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Http" "responseWithText" 0) }
+    { name = fn "Http" "responseWithText" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
+      fn =
+        (function
+        | _, [dv; DInt code] ->
+            Value (
+              DHttpResponse (
+                Response (
+                  int code, [("Content-Type", "text/plain")]), dv ) )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "respondWithJson" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+      fn =
+        (function
+        | _, [dv; DInt code] ->
+            Value (
+              DHttpResponse (
+                Response (
+                  int code, [("Content-Type", "application/json")]), dv ) )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Http" "responseWithJson" 0) }
+    { name = fn "Http" "responseWithJson" 0
+      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+      fn =
+        (function
+        | _, [dv; DInt code] ->
+            Value (
+              DHttpResponse (
+                Response (
+                  int code, [("Content-Type", "application/json")]), dv ) )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 // ; { name = fn "Http" "redirectTo" 0
 //   ; parameters = [Param.make "url" TStr ""]
 //   ; returnType = TResp
