@@ -711,6 +711,26 @@ module Handler =
       | Every12Hours -> RT.Handler.Every12Hours
       | EveryMinute -> RT.Handler.EveryMinute
 
+    override this.ToString() : string =
+      match this with
+      | EveryDay -> "Daily"
+      | EveryWeek -> "Weekly"
+      | EveryFortnight -> "Fortnightly"
+      | EveryHour -> "Every 1hr"
+      | Every12Hours -> "Every 12hrs"
+      | EveryMinute -> "Every 1min"
+
+    static member parse(modifier : string) : Option<CronInterval> =
+      match String.toLowercase modifier with
+      | "daily" -> Some EveryDay
+      | "weekly" -> Some EveryWeek
+      | "fortnightly" -> Some EveryFortnight
+      | "every 1hr" -> Some EveryHour
+      | "every 12hrs" -> Some Every12Hours
+      | "every 1min" -> Some EveryMinute
+      | _ -> None
+
+
 
   // We need to keep the IDs around until we get rid of them on the client
   type ids = { moduleID : id; nameID : id; modifierID : id }
@@ -720,7 +740,7 @@ module Handler =
     | Worker of name : string * ids : ids
     // Deprecated but still supported form
     | OldWorker of modulename : string * name : string * ids : ids
-    | Cron of name : string * interval : string * ids : ids
+    | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
 
     member this.toRuntimeType() : RT.Handler.Spec =
@@ -728,32 +748,34 @@ module Handler =
       | HTTP (route, method, _ids) -> RT.Handler.HTTP(route, method)
       | Worker (name, _ids) -> RT.Handler.Worker(name)
       | OldWorker (modulename, name, _ids) -> RT.Handler.OldWorker(modulename, name)
-      | Cron (name, interval, _ids) -> RT.Handler.Cron(name, interval)
+      | Cron (name, interval, _ids) ->
+          RT.Handler.Cron(name, interval |> Option.map (fun i -> i.toRuntimeType ()))
       | REPL (name, _ids) -> RT.Handler.REPL(name)
 
     member this.name() =
       match this with
-      | HTTP (route, method, _ids) -> route
+      | HTTP (route, _method, _ids) -> route
       | Worker (name, _ids) -> name
-      | OldWorker (modulename, name, _ids) -> name
+      | OldWorker (_modulename, name, _ids) -> name
       | Cron (name, interval, _ids) -> name
       | REPL (name, _ids) -> name
 
     member this.modifier() =
       match this with
-      | HTTP (route, method, _ids) -> method
-      | Worker (name, _ids) -> "_"
-      | OldWorker (modulename, name, _ids) -> "_"
-      | Cron (name, interval, _ids) -> interval
-      | REPL (name, _ids) -> "_"
+      | HTTP (_route, method, _ids) -> method
+      | Worker (_name, _ids) -> "_"
+      | OldWorker (_modulename, _name, _ids) -> "_"
+      | Cron (_name, interval, _ids) ->
+          interval |> Option.map toString |> Option.defaultValue ""
+      | REPL (_name, _ids) -> "_"
 
     member this.module'() =
       match this with
-      | HTTP (route, method, _ids) -> "HTTP"
-      | Worker (name, _ids) -> "WORKER" // CLEANUP the DB relies on the casing
-      | OldWorker (modulename, name, _ids) -> modulename
-      | Cron (name, interval, _ids) -> "CRON" // CLEANUP the DB relies on the casing
-      | REPL (name, _ids) -> "REPL"
+      | HTTP _ -> "HTTP"
+      | Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
+      | OldWorker (modulename, _name, _ids) -> modulename
+      | Cron _ -> "CRON" // CLEANUP the DB relies on the casing
+      | REPL _ -> "REPL"
 
     member this.complete() : bool =
       match this with
@@ -763,7 +785,7 @@ module Handler =
       | OldWorker ("", _, _) -> false
       | OldWorker (_, "", _) -> false
       | Cron ("", _, _) -> false
-      | Cron (_, "", _) -> false
+      | Cron (_, None, _) -> false
       | REPL ("", _) -> false
       | _ -> true
 

@@ -16,9 +16,13 @@ module EQ = LibBackend.EventQueue
 module Cron = LibBackend.Cron
 module Canvas = LibBackend.Canvas
 module QW = LibBackend.QueueWorker
+module Serialize = LibBackend.Serialize
+module Span = LibService.Telemetry.Span
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
+
+
 let p (code : string) = FSharpToExpr.parsePTExpr code
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
@@ -30,7 +34,7 @@ let testEventQueueRoundtrip =
     let! (meta : Canvas.Meta) = testCanvasInfo name
     let executionID = gid ()
 
-    let h = testCron "test" "Daily" (p "let data = Date.now_v0 in 123")
+    let h = testCron "test" PT.Handler.EveryDay (p "let data = Date.now_v0 in 123")
     let oplists = [ hop h ]
 
     do!
@@ -89,7 +93,7 @@ let testEventQueueIsFifo =
         return ()
       }
 
-    use span = LibService.Telemetry.Span.root "test"
+    use span = Span.root "test"
 
     do!
       EQ.withTransaction
@@ -105,52 +109,45 @@ let testEventQueueIsFifo =
 
 
 
-// let testCronFetchActiveCrons =
-//   test "fetch active crons doesn't raise" {
-//     Telemetry.with_root
-//       "test"
-//       (fun span ->
-//         Serialize.fetch_active_crons span
-//         (* Just checking that this doesn't raise *)
-//         |> ignore)
-//   }
-//
-//
-// let testCronSanity =
-//   testTask "cron sanity" {
-//     let! c = testCanvasInfo "cronSanity"
-//
-//     do! clearCanvasData c.name
-//
-//     let h = daily_cron (binop "+" (int 5) (int 3))
-//     let c = ops2c_exn "test-cron_works" [ hop h ]
-//
-//     let cron_schedule_data : LibBackend.Cron.cron_schedule_data =
-//       { canvas_id = c.id
-//         owner = Uuidm.nil
-//         host = !c.host
-//         tlid = h.tlid |> Int63.to_string
-//         name =
-//           (match h.spec.name with
-//            | Filled (_, s) -> s
-//            | _ -> "CAN'T HAPPEN")
-//         modifier =
-//           (match h.spec.modifier with
-//            | Filled (_, s) -> s
-//            | _ -> "CAN'T HAPPEN") }
-//
-//     let ({ should_execute = should_execute
-//            scheduled_run_at = scheduled_run_at
-//            interval = interval } : LibBackend.Cron.execution_check_type) =
-//       Telemetry.with_root
-//         "test"
-//         (fun span -> Cron.execution_check span cron_schedule_data)
-//
-//     AT.check AT.bool "should_execute should be true" should_execute true
-//     ()
-//   }
-//
-//
+let testCronFetchActiveCrons =
+  testTask "fetch active crons doesn't raise" {
+    use span = Span.root "test"
+
+    let! (_cronSchedule : List<Serialize.CronScheduleData>) =
+      Serialize.fetchActiveCrons span
+
+    Expect.equal true true "just checking it didnt raise"
+  }
+
+
+let testCronSanity =
+  testTask "cron sanity" {
+    let name = "cronSanity"
+    do! clearCanvasData (CanvasName.create name)
+    let! meta = testCanvasInfo name
+
+    let h = testCron "test" PT.Handler.EveryDay (p " 5 + 3")
+    let oplists = [ hop h ]
+
+    do!
+      Canvas.saveTLIDs meta [ (h.tlid, oplists, PT.TLHandler h, Canvas.NotDeleted) ]
+
+    let cronScheduleData : Cron.CronScheduleData =
+      { canvasID = meta.id
+        ownerID = meta.owner
+        canvasName = meta.name
+        tlid = h.tlid
+        cronName = "test"
+        interval = PT.Handler.EveryDay }
+
+    let! (executionCheck : Cron.ExecutionCheck) =
+      Cron.executionCheck cronScheduleData
+
+    Expect.equal executionCheck.shouldExecute true "should_execute should be true"
+    ()
+  }
+
+
 // let testCronJustRan =
 //   testTask "test cron just ran" {
 //     let! c = testCanvasInfo "cronJustRan"
@@ -216,9 +213,13 @@ let testEventQueueIsFifo =
 //     check "cherry" Running
 //   }
 
-let tests = testList "eventQueue" [ testEventQueueRoundtrip; testEventQueueIsFifo ]
+let tests =
+  testList
+    "eventQueue"
+    [ testEventQueueRoundtrip
+      testEventQueueIsFifo
+      testCronFetchActiveCrons
+      testCronSanity ]
 
 // testCronJustRan
-// testCronFetchActiveCrons
-// testCronSanity
 // testGetWorkerSchedulesForCanvas

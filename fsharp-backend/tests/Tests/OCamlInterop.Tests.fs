@@ -43,7 +43,11 @@ let fuzzedTests =
            pos = { x = 0; y = 0 }
            ast = EBool(0UL, false)
            spec =
-             Handler.Cron("", "", { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }) }) ]
+             Handler.Cron(
+               "",
+               None,
+               { moduleID = 0UL; nameID = 0UL; modifierID = 0UL }
+             ) }) ]
     testListUsingProperty
       "OCamlInterop Binary handler tests"
       FuzzTests.All.OCamlInterop.binaryHandlerRoundtrip

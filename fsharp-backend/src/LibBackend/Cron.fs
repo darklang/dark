@@ -1,5 +1,21 @@
 module LibBackend.Cron
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
+open Npgsql.FSharp.Tasks
+open Npgsql
+open Db
+
+open Prelude
+open Prelude.Tablecloth
+open Tablecloth
+open LibService.Telemetry
+
+module PT = LibBackend.ProgramTypes
+
+
+
 // sumPairs folds over the list [l] with function [f], summing the
 // values of the returned (int * int) tuple from each call
 // let sumPairs (f : 'a -> int * int) (l : 'a list): int * int =
@@ -13,92 +29,68 @@ type CronScheduleData = Serialize.CronScheduleData
 // TODO: this is a query per cron handler. Might be worth seeing (later) if a we
 // could do this better with a join in the initial query that gets all cron
 // handlers from toplevel_oplists.
-// let lastRanAt (cron : CronScheduleData) : System.DateTime option =
-//   Db.fetch_one_option
-//     ~name:"last_ran_at"
-//     "SELECT ran_at
-//        FROM cron_records
-//        WHERE tlid = $1
-//        AND canvas_id = $2
-//        ORDER BY id DESC
-//        LIMIT 1"
-//     ~params:[ID (Int63.of_string cron.tlid); Uuid cron.canvas_id]
-//   |> Option.map ~f:List.hd_exn
-//   |> Option.map ~f:Db.date_of_sqlstring
-//
-//
-// let parse_interval (cron : cron_schedule_data) : Time.Span.t option =
-//   match String.lowercase cron.modifier with
-//   | "daily" ->
-//       Time.Span.create ~sign:Sign.Pos ~day:1 () |> Some
-//   | "weekly" ->
-//       Time.Span.create ~sign:Sign.Pos ~day:7 () |> Some
-//   | "fortnightly" ->
-//       Time.Span.create ~sign:Sign.Pos ~day:14 () |> Some
-//   | "every 1hr" ->
-//       Time.Span.create ~sign:Sign.Pos ~hr:1 () |> Some
-//   | "every 12hrs" ->
-//       Time.Span.create ~sign:Sign.Pos ~hr:12 () |> Some
-//   | "every 1min" ->
-//       Time.Span.create ~sign:Sign.Pos ~min:1 () |> Some
-//   | _ ->
-//       None
-//
-//
-// type execution_check_type =
-//   { should_execute : bool
-//   ; scheduled_run_at : Time.t option
-//   ; interval : Time.Span.t option }
-//
-// let execution_check (parent : Span.t) (cron : cron_schedule_data) :
-//     execution_check_type =
-//   let open Option in
-//   let now = Time.now () in
-//   match last_ran_at cron with
-//   | None ->
-//       {should_execute = true; scheduled_run_at = Some now; interval = None}
-//       (* we should always run if we've never run before *)
-//   | Some lrt ->
-//     ( match parse_interval cron with
-//     | None ->
-//         let bt = Caml.Printexc.get_raw_backtrace () in
-//         Log.erroR "Can't parse interval: " ~params:[("modifier", cron.modifier)] ;
-//         let e =
-//           Exception.make_exception
-//             DarkInternal
-//             ("Can't parse interval: " ^ cron.modifier)
-//         in
-//         ignore
-//           (Rollbar.report
-//              e
-//              bt
-//              Libservice.Rollbar.CronChecker
-//              (Telemetry.ID.to_string parent.trace_id)) ;
-//         {should_execute = false; scheduled_run_at = None; interval = None}
-//     | Some interval ->
-//         (* Example:
-//        * last_ran_at = 16:00
-//        * interval: 1 hour
-//        * now: 16:30
-//        *
-//        * therefore:
-//        *   should_run_after is 17:01
-//        *
-//        *   and we should run once now >= should_run_after
-//        *
-//        *)
-//         let should_run_after = Time.add lrt interval in
-//         if now >= should_run_after
-//         then
-//           { should_execute = true
-//           ; scheduled_run_at = Some should_run_after
-//           ; interval = Some interval }
-//         else
-//           { should_execute = false
-//           ; scheduled_run_at = None
-//           ; interval = Some interval } )
-//
-//
+let lastRanAt (cron : CronScheduleData) : Task<Option<System.DateTime>> =
+  Sql.query
+    "SELECT ran_at
+       FROM cron_records
+       WHERE tlid = @tlid
+       AND canvas_id = @canvasID
+       ORDER BY id DESC
+       LIMIT 1"
+  |> Sql.parameters [ "tlid", Sql.tlid cron.tlid
+                      "canvasID", Sql.uuid cron.canvasID ]
+  |> Sql.executeRowOptionAsync
+       (fun read -> read.string "ran_at" |> System.DateTime.ofIsoString)
+
+
+let convertInterval (interval : PT.Handler.CronInterval) : System.TimeSpan =
+  // Must use the 5-value constructor as the 3-value constructor doesn't support days
+  match interval with
+  | PT.Handler.EveryDay -> System.TimeSpan(1, 0, 0, 0, 0)
+  | PT.Handler.EveryWeek -> System.TimeSpan(7, 0, 0, 0, 0)
+  | PT.Handler.EveryFortnight -> System.TimeSpan(14, 0, 0, 0, 0)
+  | PT.Handler.EveryHour -> System.TimeSpan(0, 1, 0, 0, 0)
+  | PT.Handler.Every12Hours -> System.TimeSpan(0, 12, 0, 0, 0)
+  | PT.Handler.EveryMinute -> System.TimeSpan(0, 0, 1, 0, 0)
+
+
+type ExecutionCheck =
+  { shouldExecute : bool
+    scheduledRunAt : Option<System.DateTime>
+    interval : Option<System.TimeSpan> }
+
+let executionCheck (cron : CronScheduleData) : Task<ExecutionCheck> =
+  task {
+    let now = System.DateTime.Now in
+
+    match! lastRanAt cron with
+    | None ->
+        // we should always run if we've never run before
+        return { shouldExecute = true; scheduledRunAt = Some now; interval = None }
+    | Some lrt ->
+        // Example:
+        //   last_ran_at = 16:00
+        //   interval: 1 hour
+        //   now: 16:30
+        //   therefore:
+        //     shouldRunAfter is 17:01
+        //     and we should run once now >= shouldRunAfter
+        let interval = convertInterval cron.interval
+        let shouldRunAfter = System.DateTimeOffset(lrt, interval)
+
+        if now >= shouldRunAfter.DateTime then
+          return
+            { shouldExecute = true
+              scheduledRunAt = Some shouldRunAfter.DateTime
+              interval = Some interval }
+        else
+          return
+            { shouldExecute = false
+              scheduledRunAt = None
+              interval = Some interval }
+  }
+
+
 // let record_execution (cron : cron_schedule_data) : unit =
 //   let tlid = cron.tlid |> Int63.of_string in
 //   Db.run
