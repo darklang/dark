@@ -238,6 +238,73 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "bytifyResponseValue" 0
+      parameters =
+        [ Param.make
+            "response"
+            (THttpResponse varA)
+            "A HTTP response to be returned to the client. May be any type, and will automatically be converted to bytes using the appropriate content-type in the response, if present." ]
+      returnType = THttpResponse TBytes
+      description = "Convert the value of a HTTPResponse into Bytes."
+      fn =
+        (function
+        | _, [ DHttpResponse response ] ->
+            match response with
+            | Response (code, headers, dv) ->
+                let contentType =
+                  List.tryFind
+                    (fun (name, _) -> String.toLower name = "content-type")
+                    headers
+                  |> Option.bind
+                       (fun (_, v) -> String.split [| ";" |] v |> Seq.tryHead)
+
+                debuG "headers" headers
+                debuG "dv" dv
+                debuG "contentType" contentType
+
+                let asBytes =
+                  match dv with
+                  | DBytes bytes -> bytes
+                  | _ ->
+                      match contentType with
+                      | Some "text/plain"
+                      | Some "application/xml"
+                      | Some "text/html" ->
+                          dv |> DvalRepr.toEnduserReadableTextV0 |> toBytes
+                      | Some "application/json"
+                      | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
+
+                Value(DHttpResponse(Response(code, headers, DBytes asBytes)))
+            | Redirect _ -> Value(DHttpResponse response)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "convertResponseToBytes" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description = "Takes a responseValue, and converts its contents to bytes.
+        The output is converted to bytes. If it needs to be stringified first, it is
+        stringified based on its content-type."
+      fn =
+        let code =
+          // (fun req -> Http.bytifyResponseValue_v0 (req |> next))
+          eLambda
+            [ "req" ]
+            (eFn
+              "Http"
+              "bytifyResponseValue"
+              0
+              [ (ePipeApply (eVar "next") [ eVar "req" ]) ])
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "convertToResponseValue" 0
       parameters =
         [ Param.make
@@ -245,26 +312,15 @@ let fns : List<BuiltInFn> =
             varA
             "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
       returnType = THttpResponse varA
-      description = "Return a HTTPResponse based on the input."
+      description = "Return a HTTPResponse based on the input"
       fn =
         (function
         | _, [ response ] ->
-            // what if it's already in a response? Well, we still want to stringify it, but we don't want to add any headers
-            // bytes should be stringified
+            debuG "convertingToResponse" response
+
             match response with
             | DHttpResponse _ -> Value response
-            | _ ->
-                let contentType =
-                  match response with
-                  | DObj _
-                  | DList _ -> "application/json; charset=utf-8"
-                  | _ -> "text/plain; charset=utf-8"
-
-                Value(
-                  DHttpResponse(
-                    Response(200, [ "content-type", contentType ], response)
-                  )
-                )
+            | _ -> Value(DHttpResponse(Response(200, [], response)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -273,11 +329,7 @@ let fns : List<BuiltInFn> =
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Takes a value that is expected to be returned to an end-user via HTTP.
-        If it is not a HttpResponse, it converts it into one. The output is
-        converted to bytes. If it needs to be stringified first, it is
-        stringified to a representation suitable for consuming machine-readable
-        JSON. A header is added based on type: Dicts, Records and Lists have
-        JSON content-type, all others have text/plain."
+        If it is not a HttpResponse, it converts it into one."
       fn =
         let code =
           // (fun req -> Http.convertToResponseValue (req |> next))
@@ -286,6 +338,68 @@ let fns : List<BuiltInFn> =
             (eFn
               "Http"
               "convertToResponseValue"
+              0
+              [ (ePipeApply (eVar "next") [ eVar "req" ]) ])
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "addContentTypeToResponse" 0
+      parameters =
+        [ Param.make
+            "response"
+            varA
+            "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
+      returnType = THttpResponse varA
+      description = "Return a HTTPResponse based on the input"
+      fn =
+        (function
+        | _, [ response ] ->
+            debuG "adding content type" response
+
+            match response with
+            | DHttpResponse (Response (code, headers, dv)) ->
+                let existingContentType =
+                  headers
+                  |> List.tryFind
+                       (fun (name, _) -> String.toLower name = "content-type")
+
+                let inferredCT =
+                  match dv with
+                  | DObj _
+                  | DList _ -> "application/json; charset=utf-8"
+                  | _ -> "text/plain; charset=utf-8"
+
+                let headers =
+                  if existingContentType = None then
+                    ("Content-type", inferredCT) :: headers
+                  else
+                    headers
+
+                Value(DHttpResponse(Response(code, headers, dv)))
+            | other -> Value other
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "addContentTypeResponseHeader" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description =
+        "If there is no Content-type header, add one based on the contents"
+      fn =
+        let code =
+          // (fun req -> Http.convertToResponseValue (req |> next))
+          eLambda
+            [ "req" ]
+            (eFn
+              "Http"
+              "addContentTypeToResponse"
               0
               [ (ePipeApply (eVar "next") [ eVar "req" ]) ])
 
@@ -306,7 +420,6 @@ let fns : List<BuiltInFn> =
           // (fun req ->
           //   let response = req |> next in
           //   let body = Http.responseBody_v0 response in
-          // FSTODO: should be bytes, not a string
           //   Http.setHeader_v0 response "content-length" (toString (Bytes.length_v0 body)))
           eLambda
             [ "req" ]
@@ -321,7 +434,7 @@ let fns : List<BuiltInFn> =
                   "setHeader"
                   0
                   [ eVar "response"
-                    eStr "content-length"
+                    eStr "Content-Length"
                     eFn "" "toString" 0 [ eFn "Bytes" "length" 0 [ eVar "body" ] ] ])))
 
         (function
@@ -362,6 +475,8 @@ let fns : List<BuiltInFn> =
           eLet
             "fns"
             (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
+                     eStdFnVal "Http" "addContentTypeResponseHeader" 0
+                     eStdFnVal "Http" "convertResponseToBytes" 0
                      eStdFnVal "Http" "addContentLengthResponseHeader" 0
                      eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])
             (eLet
