@@ -10,6 +10,7 @@ open LibExecution.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
+module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
@@ -184,12 +185,13 @@ let fns : List<BuiltInFn> =
       description = "Set a header in the HTTP response"
       fn =
         (function
-        | state,
-          [ DHttpResponse (Response (code, headers), responseVal); DStr name;
-            DStr value ] ->
-            Value(
-              DHttpResponse(Response(code, headers ++ [ name, value ]), responseVal)
-            )
+        | state, [ DHttpResponse response; DStr name; DStr value ] ->
+            match response with
+            | Response (code, headers, responseVal) ->
+                Response(code, headers ++ [ name, value ], responseVal)
+                |> DHttpResponse
+                |> Value
+            | Redirect _ -> Value(DHttpResponse response)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -200,7 +202,10 @@ let fns : List<BuiltInFn> =
       description = "Return the body of a HTTP response"
       fn =
         (function
-        | state, [ DHttpResponse (_, responseVal) ] -> Value responseVal
+        | _, [ DHttpResponse response ] ->
+            match response with
+            | Redirect _ -> Value DNull
+            | Response (_, _, dv) -> Value dv
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -243,7 +248,9 @@ let fns : List<BuiltInFn> =
       description = "Return a HTTPResponse based on the input."
       fn =
         (function
-        | state, [ response ] ->
+        | _, [ response ] ->
+            // what if it's already in a response? Well, we still want to stringify it, but we don't want to add any headers
+            // bytes should be stringified
             match response with
             | DHttpResponse _ -> Value response
             | _ ->
@@ -253,16 +260,9 @@ let fns : List<BuiltInFn> =
                   | DList _ -> "application/json; charset=utf-8"
                   | _ -> "text/plain; charset=utf-8"
 
-                let bytified =
-                  response
-                  |> LibExecution.DvalRepr.toPrettyMachineJsonStringV1
-                  |> toBytes
-                  |> DBytes
-
                 Value(
                   DHttpResponse(
-                    Response(200, [ "content-type", contentType ]),
-                    bytified
+                    Response(200, [ "content-type", contentType ], response)
                   )
                 )
         | _ -> incorrectArgs ())

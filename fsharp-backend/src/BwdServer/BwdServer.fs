@@ -276,13 +276,14 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 let expr = expr.toRuntimeType ()
 
                 let! result = runHttp c tlid traceID url body symtable expr
+                debuG "result of runHttp" result
                 do! getCORS ctx canvasID
 
                 match result with
-                | RT.DHttpResponse (RT.Redirect url, _) ->
+                | RT.DHttpResponse (RT.Redirect url) ->
                     ctx.Response.Redirect(url, false)
                     return ctx
-                | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
+                | RT.DHttpResponse (RT.Response (status, headers, RT.DBytes body)) ->
                     ctx.Response.StatusCode <- status
                     // FSTODO content type of application/json for dobj and dlist
                     List.iter (fun (k, v) -> setHeader ctx k v) headers

@@ -333,13 +333,12 @@ module Expect =
             de v1 v2)
           (Map.toList ls)
           (Map.toList rs)
-    | DHttpResponse (Response (sc1, h1), b1), DHttpResponse (Response (sc2, h2), b2) ->
+    | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
         Expect.equal sc1 sc2 msg
         Expect.equal h1 h2 msg
         de b1 b2
-    | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
+    | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) ->
         Expect.equal u1 u2 msg
-        de b1 b2
     | DIncomplete _, DIncomplete _ -> Expect.equal true true "two incompletes"
     | DErrorRail l, DErrorRail r -> de l r
     // Keep for exhaustiveness checking
@@ -522,10 +521,9 @@ let rec dvalEquality (left : Dval) (right : Dval) : bool =
         (Map.toList ls)
         (Map.toList rs)
       |> List.all (fun x -> x)
-  | DHttpResponse (Response (sc1, h1), b1), DHttpResponse (Response (sc2, h2), b2) ->
+  | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
       sc1 = sc2 && h1 = h2 && de b1 b2
-  | DHttpResponse (Redirect u1, b1), DHttpResponse (Redirect u2, b2) ->
-      u1 = u2 && de b1 b2
+  | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) -> u1 = u2
   | DIncomplete _, DIncomplete _ -> true
   | DError (_, msg1), DError (_, msg2) ->
       (msg1.Replace("_v0", "")) = (msg2.Replace("_v0", ""))
@@ -649,8 +647,9 @@ let sampleDvals : List<string * Dval> =
         ("errorrail", DErrorRail(Dval.int 5))
         ("errorrail with float",
          DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
-        ("redirect", DHttpResponse(Redirect "/home", DNull))
-        ("httpresponse", DHttpResponse(Response(200, []), DStr "success"))
+        ("redirect", DHttpResponse(Redirect "/home"))
+        ("httpresponse",
+         DHttpResponse(Response(200, [ "content-length", "9" ], DStr "success")))
         ("db", DDB "Visitors")
         ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
         ("password", DPassword(Password(toBytes "somebytes")))

@@ -21,186 +21,198 @@ let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "respond" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
       fn =
         (function
-        | _, [dv; DInt code] -> Value(DHttpResponse (Response(int code, []), dv))
-        | _ ->  incorrectArgs ())
+        | _, [ dv; DInt code ] -> Value(DHttpResponse(Response(int code, [], dv)))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "response" 0) }
     { name = fn "Http" "response" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
       fn =
         (function
-        | _, [dv; DInt code] -> Value(DHttpResponse(Response(int code, []), dv))
+        | _, [ dv; DInt code ] -> Value(DHttpResponse(Response(int code, [], dv)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   (* TODO(ian): merge Http::respond with Http::respond_with_headers
+    //   (* TODO(ian): merge Http::respond with Http::respond_with_headers
 //  * -- need to figure out how to deprecate functions w/o breaking
 //  * user code
 //  *)
     { name = fn "Http" "respondWithHeaders" 0
-      parameters = [Param.make "response" varA ""; Param.make "headers" (TDict varA) ""; Param.make "code" TInt ""]
+      parameters =
+        [ Param.make "response" varA ""
+          Param.make "headers" (TDict varA) ""
+          Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
       fn =
         (function
-        | _, [dv; DObj o; DInt code] ->
-          let pairs =
-            Map.toList o
+        | _, [ dv; DObj o; DInt code ] ->
+            let pairs =
+              Map.toList o
               |> List.map
-                  (fun (k, v) ->
-                    match k, v with
-                    | k, DStr v  -> k, v
-                    | k, v  ->
-                        Errors.throw (Errors.argumentWasnt "a string" "value" v))
+                   (fun (k, v) ->
+                     match k, v with
+                     | k, DStr v -> k, v
+                     | k, v ->
+                         Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
-          Value ( DHttpResponse (Response (int code, pairs), dv) )
-          | _ -> incorrectArgs ())
+            Value(DHttpResponse(Response(int code, pairs, dv)))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "responseWithHeaders" 0) }
     { name = fn "Http" "responseWithHeaders" 0
-      parameters = [Param.make "response" varA ""; Param.make "headers" (TDict varA) ""; Param.make "code" TInt ""]
+      parameters =
+        [ Param.make "response" varA ""
+          Param.make "headers" (TDict varA) ""
+          Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
       fn =
         (function
-        | _, [dv; DObj o; DInt code] ->
-          let pairs =
-            Map.toList o
+        | _, [ dv; DObj o; DInt code ] ->
+            let pairs =
+              Map.toList o
               |> List.map
-                  (fun (k, v) ->
-                    match k, v with
-                    | k, DStr v  -> k, v
-                    | k, v  ->
-                        Errors.throw (Errors.argumentWasnt "a string" "value" v))
+                   (fun (k, v) ->
+                     match k, v with
+                     | k, DStr v -> k, v
+                     | k, v ->
+                         Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
-          Value ( DHttpResponse (Response (int code, pairs), dv) )
-          | _ -> incorrectArgs ())
+            Value(DHttpResponse(Response(int code, pairs, dv)))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "success" 0
-      parameters = [Param.make "response" varA ""]
+      parameters = [ Param.make "response" varA "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
       fn =
         (function
-        | _, [dv] -> Value(DHttpResponse(Response (200, []), dv))
+        | _, [ dv ] -> Value(DHttpResponse(Response(200, [], dv)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "respondWithHtml" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
       fn =
         (function
-          | _, [dv; DInt code] ->
-            Value (
-              DHttpResponse (
-                Response (
-                  int code, [("Content-Type", "text/html")]), dv ) )
-          | _ -> incorrectArgs ())
+        | _, [ dv; DInt code ] ->
+            Value(
+              DHttpResponse(
+                Response(int code, [ ("Content-Type", "text/html") ], dv)
+              )
+            )
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "responseWithHtml" 0) }
     { name = fn "Http" "responseWithHtml" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
       fn =
         (function
-          | _, [dv; DInt code] ->
-            Value (
-              DHttpResponse (
-                Response (
-                  int code, [("Content-Type", "text/html")]), dv ) )
-          | _ -> incorrectArgs ())
+        | _, [ dv; DInt code ] ->
+            Value(
+              DHttpResponse(
+                Response(int code, [ ("Content-Type", "text/html") ], dv)
+              )
+            )
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "respondWithText" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
       fn =
         (function
-        | _, [dv; DInt code] ->
-            Value (
-              DHttpResponse (
-                Response (
-                  int code, [("Content-Type", "text/plain")]), dv ) )
+        | _, [ dv; DInt code ] ->
+            Value(
+              DHttpResponse(
+                Response(int code, [ ("Content-Type", "text/plain") ], dv)
+              )
+            )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "responseWithText" 0) }
     { name = fn "Http" "responseWithText" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
       fn =
         (function
-        | _, [dv; DInt code] ->
-            Value (
-              DHttpResponse (
-                Response (
-                  int code, [("Content-Type", "text/plain")]), dv ) )
+        | _, [ dv; DInt code ] ->
+            Value(
+              DHttpResponse(
+                Response(int code, [ ("Content-Type", "text/plain") ], dv)
+              )
+            )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "respondWithJson" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
       fn =
         (function
-        | _, [dv; DInt code] ->
-            Value (
-              DHttpResponse (
-                Response (
-                  int code, [("Content-Type", "application/json")]), dv ) )
+        | _, [ dv; DInt code ] ->
+            Value(
+              DHttpResponse(
+                Response(int code, [ ("Content-Type", "application/json") ], dv)
+              )
+            )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "responseWithJson" 0) }
     { name = fn "Http" "responseWithJson" 0
-      parameters = [Param.make "response" varA ""; Param.make "code" TInt ""]
+      parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
       fn =
         (function
-        | _, [dv; DInt code] ->
-            Value (
-              DHttpResponse (
-                Response (
-                  int code, [("Content-Type", "application/json")]), dv ) )
+        | _, [ dv; DInt code ] ->
+            Value(
+              DHttpResponse(
+                Response(int code, [ ("Content-Type", "application/json") ], dv)
+              )
+            )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-// ; { name = fn "Http" "redirectTo" 0
+    // ; { name = fn "Http" "redirectTo" 0
 //   ; parameters = [Param.make "url" TStr ""]
 //   ; returnType = TResp
 //   ; description =
@@ -215,13 +227,13 @@ let fns : List<BuiltInFn> =
 //   ; previewable = Pure
 //   ; deprecated = NotDeprecated }
     { name = fn "Http" "badRequest" 0
-      parameters = [Param.make "error" TStr ""]
+      parameters = [ Param.make "error" TStr "" ]
       returnType = THttpResponse varA
       description =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
       fn =
         (function
-        | _, [msg] -> Value(DHttpResponse (Response(400, []), msg))
+        | _, [ msg ] -> Value(DHttpResponse(Response(400, [], msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -233,7 +245,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
       fn =
         (function
-        | _, [] ->  Value(DHttpResponse(Response (404, []), DNull))
+        | _, [] -> Value(DHttpResponse(Response(404, [], DNull)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -245,7 +257,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
       fn =
         (function
-        | _, [] -> Value(DHttpResponse(Response(401, []), DNull))
+        | _, [] -> Value(DHttpResponse(Response(401, [], DNull)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -257,7 +269,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
       fn =
         (function
-        | _, [] ->  Value(DHttpResponse(Response(403, []), DNull))
+        | _, [] -> Value(DHttpResponse(Response(403, [], DNull)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

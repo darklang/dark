@@ -278,18 +278,6 @@ let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
 
   inner 0 dv
 
-let httpResponseToRepr (h) : string =
-  match h with
-  | Redirect url -> $"302 {url}"
-  | Response (code, headers) ->
-      let headerString =
-        headers
-        |> List.map (fun (k, v) -> k + ": " + v)
-        |> String.concat ","
-        |> fun s -> "{ " + s + " }"
-
-      $"{code} {headerString}"
-
 let toEnduserReadableTextV0 (dval : Dval) : string =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
@@ -328,17 +316,15 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
         // We don't print error here, because the errorrail value will know
         // whether it's an error or not.
         reprfn d
-    | DHttpResponse (h, body) ->
-        match h with
-        | Redirect url -> $"302 {url}\n" + nestedreprfn body
-        | Response (code, headers) ->
-            let headerString =
-              headers
-              |> List.map (fun (k, v) -> k + ": " + v)
-              |> String.concat ","
-              |> fun s -> "{ " + s + " }"
+    | DHttpResponse (Redirect url) -> $"302 {url}\n" + nestedreprfn DNull
+    | DHttpResponse (Response (code, headers, body)) ->
+        let headerString =
+          headers
+          |> List.map (fun (k, v) -> k + ": " + v)
+          |> String.concat ","
+          |> fun s -> "{ " + s + " }"
 
-            $"{code} {headerString}" + "\n" + nestedreprfn body
+        $"{code} {headerString}" + "\n" + nestedreprfn body
     | DResult (Ok d) -> reprfn d
     | DResult (Error d) -> "Error: " + reprfn d
     | DOption (Some d) -> reprfn d
@@ -379,7 +365,8 @@ let rec toPrettyMachineJsonV1 (w : JsonWriter) (dv : Dval) : unit =
         (fun () ->
           w.WritePropertyName "Error"
           w.WriteValue msg)
-  | DHttpResponse (h, response) -> writeDval response
+  | DHttpResponse (Redirect _) -> writeDval DNull
+  | DHttpResponse (Response (_, _, response)) -> writeDval response
   | DDB dbName -> w.WriteValue dbName
   | DDate date -> w.WriteValue(date.toIsoString ())
   | DPassword hashed ->
@@ -411,7 +398,7 @@ let toPrettyMachineJsonStringV1 (dval : Dval) : string =
 
 // This special format was originally the default OCaml (yojson-derived) format
 // for this.
-let responseOfJson (j : JToken) : DHTTP =
+let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
   match j with
   | JList [ JString "Redirect"; JString url ] -> Redirect url
   | JList [ JString "Response"; JInteger code; JList headers ] ->
@@ -422,7 +409,7 @@ let responseOfJson (j : JToken) : DHTTP =
              | JList [ JString k; JString v ] -> (k, v)
              | _ -> failwith "Invalid DHttpResponse headers")
 
-      Response(int code, headers)
+      Response(int code, headers, dv)
   | _ -> failwith "invalid response json"
 
 #nowarn "104" // ignore warnings about enums out of range
@@ -453,7 +440,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
       match fields with
       // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
       | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
-          DHttpResponse(responseOfJson a, convert b)
+          DHttpResponse(responseOfJson (convert b) a)
       | [ ("type", JString "date"); ("value", JString v) ] ->
           DDate(System.DateTime.ofIsoString v)
       | [ ("type", JString "password"); ("value", JString v) ] ->
@@ -522,7 +509,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       match fields with
       // DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
       | [ ("type", JString "response"); ("value", JList [ a; b ]) ] ->
-          DHttpResponse(responseOfJson a, convert b)
+          DHttpResponse(responseOfJson (convert b) a)
       | [ ("type", JString "date"); ("value", JString v) ] ->
           DDate(System.DateTime.ofIsoString v)
       | [ ("type", JString "password"); ("value", JString v) ] ->
@@ -618,7 +605,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
   | DIncomplete _ -> wrapNullValue "incomplete"
   | DChar c -> wrapStringValue "character" c
   | DError (_, msg) -> wrapStringValue "error" msg
-  | DHttpResponse (h, hdv : Dval) ->
+  | DHttpResponse (h) ->
       w.writeObject
         (fun () ->
           w.WritePropertyName "type"
@@ -633,7 +620,9 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
                     (fun () ->
                       w.WriteValue "Redirect"
                       w.WriteValue str)
-              | Response (code, headers) ->
+
+                  writeDval DNull
+              | Response (code, headers, hdv) ->
                   w.writeArray
                     (fun () ->
                       w.WriteValue "Response"
@@ -649,7 +638,7 @@ let rec unsafeDvalToJsonValueV0 (w : JsonWriter) (redact : bool) (dv : Dval) : u
                                   w.WriteValue v))
                             headers))
 
-              writeDval hdv))
+                  writeDval hdv))
   | DDB dbname -> wrapStringValue "datastore" dbname
   | DDate date -> wrapStringValue "date" (date.toIsoString ())
   | DPassword (Password hashed) ->
@@ -919,7 +908,17 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
     | DDate d -> wrap (d.toIsoString ())
     | DDB name -> wrap name
     | DUuid uuid -> wrap (uuid.ToString())
-    | DHttpResponse (h, hdv) -> httpResponseToRepr h + nl + toRepr_ indent hdv
+    | DHttpResponse h ->
+        match h with
+        | Redirect url -> $"302 {url}" + nl + toRepr_ indent DNull
+        | Response (code, headers, hdv) ->
+            let headerString =
+              headers
+              |> List.map (fun (k, v) -> k + ": " + v)
+              |> String.concat ","
+              |> fun s -> "{ " + s + " }"
+
+            $"{code} {headerString}" + nl + toRepr_ indent hdv
     | DList l ->
         if List.isEmpty l then
           "[]"
@@ -1209,21 +1208,20 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
   | DDate d -> "<date: " + d.toIsoString () + ">" |> toBytes
   | DPassword _ -> "<password: <password>>" |> toBytes
   | DUuid id -> "<uuid: " + toString id + ">" |> toBytes
-  | DHttpResponse (h, hdv) ->
-      // deliberately inlined
-      let dhttpToFormattedString (d : DHTTP) : string =
+  | DHttpResponse d ->
+      let formatted, hdv =
         match d with
-        | Redirect url -> "302 " + url
-        | Response (c, hs) ->
+        | Redirect url -> ("302 " + url, DNull)
+        | Response (c, hs, hdv) ->
             let stringOfHeaders hs =
               hs
               |> List.map (fun (k, v) -> k + ": " + v)
               |> String.concat ","
               |> fun s -> "{ " + s + " }"
 
-            toString c + " " + stringOfHeaders hs
+            (toString c + " " + stringOfHeaders hs, hdv)
 
-      [ (dhttpToFormattedString h + nl) |> toBytes; toHashableRepr indent false hdv ]
+      [ (formatted + nl) |> toBytes; toHashableRepr indent false hdv ]
       |> Array.concat
   | DList l ->
       if List.is_empty l then
