@@ -1,7 +1,7 @@
-[meta test that dark handlers can return an incorrect content-length if they choose to]
+[meta CLEANUP given this is bytes, surely there's a content-type that isn't text]
 
 [http-handler GET /]
-Http.responseWithHeaders_v0 "wrong content length" (Dict.fromList_v0_ster [["content-length"; "1"]]) 200
+Crypto.sha384 "some string"
 
 [request]
 GET / HTTP/1.1
