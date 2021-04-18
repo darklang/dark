@@ -1,5 +1,5 @@
 [http-handler GET /]
-let _ = "test that dark handlers can return an incorrect content-length if they choose to"
+// test that dark handlers can return an incorrect content-length if they choose to
 Http.responseWithHeaders_v0 "wrong content length" (Dict.fromList_v0_ster [["content-length"; "1"]]) 200
 
 [request]

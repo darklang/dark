@@ -62,7 +62,7 @@ let t name =
       let m =
         Regex.Match(
           contents,
-          "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
+          "^((\[http-handler \S+ \S+\]\n.*)+)\[request\]\n(.*)\[response\]\n(.*)$",
           options
         )
 
@@ -72,7 +72,11 @@ let t name =
       (g.[3].Value, g.[4].Value, g.[2].Value)
 
     let oplists =
-      Regex.Matches(httpDefs, "\[http-handler (\S+) (\S+)\]\n(.*)\n")
+      Regex.Matches(
+        httpDefs,
+        "\[http-handler (\S+) (\S+)\]\n(.*)\n",
+        RegexOptions.Singleline
+      )
       |> Seq.toList
       |> List.map
            (fun m ->
@@ -81,7 +85,9 @@ let t name =
              let httpMethod = m.Groups.[1].Value
 
              let (source : PT.Expr) =
-               progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
+               $"do ({progString})"
+               |> FSharpToExpr.parse
+               |> FSharpToExpr.convertToExpr
 
              let gid = Prelude.gid
 
@@ -229,17 +235,10 @@ let t name =
           |> String.splitOnNewline
           |> List.filterMap
                (fun line ->
-                 if String.includes " // " line then
-                   if String.includes "OCAMLONLY" line && server = FSharp then
-                     None
-                   else if String.includes "FSHARPONLY" line && server = OCaml then
-                     None
-                   else
-                     line
-                     |> String.split " // "
-                     |> List.head
-                     |> Option.unwrapUnsafe // Must be present
-                     |> Some
+                 if String.includes "// " line then
+                   if String.includes "OCAMLONLY" line && server = FSharp then None
+                   else if String.includes "FSHARPONLY" line && server = OCaml then None
+                   else line |> String.split "// " |> List.head
                  else
                    Some line)
           |> String.concat "\n"
