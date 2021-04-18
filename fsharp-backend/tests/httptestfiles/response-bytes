@@ -1,7 +1,6 @@
-[meta CLEANUP given this is bytes, surely there's a content-type that isn't text]
-
 [http-handler GET /]
-Crypto.sha384 "some string"
+let _ = "CLEANUP given this is bytes, surely there's a content-type that isn't text"
+"some string" |> String.toBytes_v0 |> Crypto.sha384_v0
 
 [request]
 GET / HTTP/1.1
@@ -16,6 +15,6 @@ Content-Type: text/plain; charset=utf-8
 Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
 Server: darklang
-Content-Length: 1
+Content-Length: 66
 
-wrong content length
+"9gValqEF0vtZQaYWlk/9qClP1BVzDMQVSmAgYrw9AOmdPG9KEa+Mllo0PeSvyjwr"

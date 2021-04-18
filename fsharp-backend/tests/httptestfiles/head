@@ -1,6 +1,5 @@
-[meta this tests the behaviour conforms, even though this behaviour sucks: you can't have a HEAD handler cause it will find a GET one instead]
-
 [http-handler HEAD /]
+let _ = "this tests the behaviour conforms, even though this behaviour sucks: you can't have a HEAD handler cause it will find a GET one instead"
 "hello world"
 
 [request]
