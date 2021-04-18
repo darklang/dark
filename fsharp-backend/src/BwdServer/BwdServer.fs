@@ -120,7 +120,7 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     return ctx
   }
 
-let textPlain = Some "text/plain"
+let textPlain = Some "text/plain; charset=utf-8"
 
 let standardResponse
   (ctx : HttpContext)
@@ -144,7 +144,7 @@ let standardResponse
 
 let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   // cors
-  standardResponse ctx "404 Not Found: No route matches" None 404
+  standardResponse ctx "404 Not Found: No route matches" textPlain 404
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
   standardResponse ctx "user not found" textPlain 404

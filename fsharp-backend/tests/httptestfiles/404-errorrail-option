@@ -14,7 +14,8 @@ HTTP/1.1 404 Not Found
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Server: darklang
 Access-Control-Allow-Origin: *
-Content-type: text/plain; charset=utf-8
+Content-type: text/plain // OCAMLONLY
+Content-type: text/plain; charset=utf-8 // FSHARPONLY
 x-darklang-execution-id: 0123456789
 Content-Length: 9
 
