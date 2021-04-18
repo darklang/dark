@@ -236,9 +236,15 @@ let t name =
           |> List.filterMap
                (fun line ->
                  if String.includes "// " line then
-                   if String.includes "OCAMLONLY" line && server = FSharp then None
-                   else if String.includes "FSHARPONLY" line && server = OCaml then None
-                   else line |> String.split "// " |> List.head
+                   if String.includes "OCAMLONLY" line && server = FSharp then
+                     None
+                   else if String.includes "FSHARPONLY" line && server = OCaml then
+                     None
+                   else
+                     line
+                     |> String.split "// "
+                     |> List.head
+                     |> Option.map String.trim_right
                  else
                    Some line)
           |> String.concat "\n"
