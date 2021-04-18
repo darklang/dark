@@ -250,7 +250,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ response ] ->
             let inferContentType dv =
-              match response with
+              match dv with
               | DObj _
               | DList _ -> "application/json; charset=utf-8"
               | _ -> "text/plain; charset=utf-8"
@@ -276,10 +276,6 @@ let fns : List<BuiltInFn> =
                   |> Option.defaultValue inferredCT
                   |> String.split [| ";" |]
                   |> Seq.tryHead
-
-                debuG "headers" headers
-                debuG "dv" dv
-                debuG "contentType" contentType
 
                 let asBytes =
                   match dv, contentType with
