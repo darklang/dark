@@ -196,6 +196,35 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "setHeaderUnlessPresent" 0
+      parameters =
+        [ Param.make "response" (THttpResponse varA) ""
+          Param.make "name" TStr ""
+          Param.make "value" TStr "" ]
+      returnType = THttpResponse varA
+      description = "Set a header in the HTTP response"
+      fn =
+        (function
+        | _, [ DHttpResponse response; DStr headerName; DStr value ] ->
+            match response with
+            | Response (code, headers, responseVal) ->
+                let existingHeader =
+                  headers
+                  |> List.tryFind (fun (name, _) -> String.toLower name = headerName)
+
+                let headers =
+                  if existingHeader = None then
+                    (headerName, value) :: headers
+                  else
+                    headers
+
+                Response(code, headers, responseVal) |> DHttpResponse |> Value
+            | Redirect _ -> Value(DHttpResponse response)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
     { name = fn "Http" "responseBody" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = varA
@@ -226,7 +255,7 @@ let fns : List<BuiltInFn> =
               (ePipeApply (eVar "next") [ eVar "req" ])
               (eFn
                 "Http"
-                "setHeader"
+                "setHeaderUnlessPresent"
                 0
                 [ eVar "response"; eStr "server"; eStr "darklang" ]))
 
@@ -342,7 +371,7 @@ let fns : List<BuiltInFn> =
                 (eFn "Http" "responseBody" 0 [ eVar "response" ])
                 (eFn
                   "Http"
-                  "setHeader"
+                  "setHeader" // always set it
                   0
                   [ eVar "response"
                     eStr "Content-Length"

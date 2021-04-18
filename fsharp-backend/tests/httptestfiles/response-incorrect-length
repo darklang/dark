@@ -15,6 +15,7 @@ Content-Type: text/plain; charset=utf-8
 Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
 Server: darklang
-Content-Length: 1
+Content-Length: 1 // OCAMLONLY
+Content-Length: 20 // FSHARPONLY - this is no longer supported
 
 wrong content length
