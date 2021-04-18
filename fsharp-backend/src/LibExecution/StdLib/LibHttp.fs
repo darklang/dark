@@ -200,20 +200,19 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-// ; { name = fn "Http" "redirectTo" 0
-//   ; parameters = [Param.make "url" TStr ""]
-//   ; returnType = TResp
-//   ; description =
-//       "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
-//   ; fn =
-//         (function
-//         | _, [DStr url] ->
-//             DResp (Redirect (Unicode_string.to_string url), DNull)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+    { name = fn "Http" "redirectTo" 0
+      parameters = [Param.make "url" TStr ""]
+      returnType = THttpResponse varA
+      description =
+        "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
+      fn =
+        (function
+        | _, [DStr url] ->
+          Value( DHttpResponse(Redirect(url), DNull))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "badRequest" 0
       parameters = [Param.make "error" TStr ""]
       returnType = THttpResponse varA
