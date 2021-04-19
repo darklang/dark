@@ -1,7 +1,7 @@
 [http-handler GET /hello/:name]
 "hello " ++ name
 
-[cors *]
+// [cors *]
 
 [request]
 GET /hello/alice-bob HTTP/1.1
