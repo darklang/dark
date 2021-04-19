@@ -11,6 +11,7 @@ open FSharpPlus
 
 open Prelude
 open Tablecloth
+open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramTypes
@@ -56,24 +57,24 @@ let t name =
 
     let request, expectedResponse, httpDefs =
       // TODO: use FsRegex instead
-      let options = RegexOptions.Singleline
-
       let m =
         Regex.Match(
           contents,
           "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
-          options
+          RegexOptions.Singleline
         )
 
       if not m.Success then failwith $"incorrect format in {name}"
       let g = m.Groups
 
-      (g.[3].Value |> toBytes |> setHeadersToCRLF,
-       g.[4].Value |> toBytes |> setHeadersToCRLF,
-       g.[2].Value)
+      (g.[3].Value, g.[4].Value, g.[2].Value)
 
     let oplists =
-      Regex.Matches(httpDefs, "\[http-handler (\S+) (\S+)\]\n(.*)\n")
+      Regex.Matches(
+        httpDefs,
+        "^\[http-handler (\S+) (\S+)\]\n(.*?)\n$",
+        RegexOptions.Multiline ||| RegexOptions.Singleline
+      )
       |> Seq.toList
       |> List.map
            (fun m ->
@@ -215,16 +216,7 @@ let t name =
         use stream = client.GetStream()
         stream.ReadTimeout <- 1000 // responses should be instant, right?
         let host = $"test-{name}.builtwithdark.localhost:{port}"
-
-        let rec replaceHost (bytes : byte list) : byte list =
-          match bytes with
-          // 'H' :: 'O' :: 'S' :: 'T'
-          | 72uy :: 79uy :: 83uy :: 84uy :: tail ->
-              (host |> toBytes |> Array.toList) @ tail
-          | h :: tail -> h :: replaceHost tail
-          | [] -> []
-
-        let request = request |> Array.toList |> replaceHost |> Array.ofList
+        let request = request.Replace("HOST", host) |> toBytes |> setHeadersToCRLF
         do! stream.WriteAsync(request, 0, request.Length)
 
         // Read the response
@@ -232,6 +224,28 @@ let t name =
         let response = Array.zeroCreate length
         let! byteCount = stream.ReadAsync(response, 0, length)
         let response = Array.take byteCount response
+
+        // Prepare expected response
+        let expectedResponse =
+          expectedResponse
+          |> String.splitOnNewline
+          |> List.filterMap
+               (fun line ->
+                 if String.includes "// " line then
+                   if String.includes "OCAMLONLY" line && server = FSharp then
+                     None
+                   else if String.includes "FSHARPONLY" line && server = OCaml then
+                     None
+                   else
+                     line
+                     |> String.split "// "
+                     |> List.head
+                     |> Option.map String.trim_right
+                 else
+                   Some line)
+          |> String.concat "\n"
+          |> toBytes
+          |> setHeadersToCRLF
 
         // Parse and normalize the response
         let (aStatus, aHeaders, aBody) = split response

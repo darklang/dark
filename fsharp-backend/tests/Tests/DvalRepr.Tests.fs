@@ -57,7 +57,7 @@ let testToDeveloperRepr =
         "toDeveloperRepr string"
         DvalRepr.toDeveloperReprV0
         // Most of this is just the OCaml output and not really what the output should be
-        [ RT.DHttpResponse(RT.Response(0, []), RT.DNull), "0 {  }\nnull"
+        [ RT.DHttpResponse(RT.Response(0, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
           RT.DFloat(infinity), "inf"
           RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
@@ -75,8 +75,8 @@ let testToEnduserReadable =
       RT.DFloat(-5.0), "-5."
       RT.DFloat(-5.1), "-5.1"
       RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
-      RT.DHttpResponse(RT.Redirect("some url"), RT.DNull), "302 some url\nnull"
-      RT.DHttpResponse(RT.Response(0, [ "a header", "something" ]), RT.DNull),
+      RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull"
+      RT.DHttpResponse(RT.Response(0, [ "a header", "something" ], RT.DNull)),
       "0 { a header: something }\nnull" ]
 
 module ToHashableRepr =
@@ -101,7 +101,7 @@ module ToHashableRepr =
 
     testList
       "toHashableRepr string"
-      [ t (DHttpResponse(Redirect "", DInt 0I)) "302 \n0"
+      [ t (DHttpResponse(Redirect "")) "302 \nnull"
         t (DFloat 0.0) "0."
         t
           (DObj(
@@ -118,7 +118,7 @@ module ToHashableRepr =
         t
           (DList [ DUuid(System.Guid.Parse "3e64631e-f455-5d61-30f7-2be5794ebb19")
                    DStr "6"
-                   DResult(Ok(DHttpResponse(Response(0, []), DChar ""))) ])
+                   DResult(Ok(DHttpResponse(Response(0, [], DChar "")))) ])
           "[ \n  <uuid: 3e64631e-f455-5d61-30f7-2be5794ebb19>, \"6\", ResultOk 0 {  }\n    ''\n]"
 
         t
@@ -172,13 +172,8 @@ module ToHashableRepr =
           [ DBytes [||] ]
           "JEK8_Gubug09wt7BUWWIPypb2yoMYI4TjzCWqbGWWrK6mNP4I-vszXmZNlDjX2ig"
         t
-          [ DHttpResponse(
-              Redirect "H",
-              DDate(System.DateTime.Parse "2078-12-18T11:33:10Z")
-            )
-            DStr "\""
-            DIncomplete SourceNone ]
-          "EdHM9zWQKZC643ckqKHImTJObLqErbGOFc93DWso2mqaOT-pe3n9G35qiolPoeWW"
+          [ DHttpResponse(Redirect "H"); DStr "\""; DIncomplete SourceNone ]
+          "koFt73igAWTI4-ROoi18TnrSKAN7RDuYjiWD43HGXy7qL9s7LlKbSUjSZeGV6Gt6"
         t
           [ DBytes [| 128uy |] ]
           "EYSh9xozHYAoaIUeS40e25VqvD1K7cA72JhEKbAmMtj6xhN02H7nouKqx4GCtvo_" ]

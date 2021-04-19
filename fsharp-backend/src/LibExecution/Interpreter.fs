@@ -399,7 +399,7 @@ and applyFn
 
 and applyFnVal
   (state : ExecutionState)
-  (id : id)
+  (callerID : id)
   (fnVal : FnValImpl)
   (argList : List<Dval>)
   (isInPipe : IsInPipe)
@@ -407,7 +407,7 @@ and applyFnVal
   : DvalTask =
   match fnVal with
   | Lambda l -> executeLambda state l argList
-  | FnName name -> callFn state name id argList ster isInPipe
+  | FnName name -> callFn state callerID name argList isInPipe ster
 
 and executeLambda
   (state : ExecutionState)
@@ -447,11 +447,11 @@ and executeLambda
 
 and callFn
   (state : ExecutionState)
-  (desc : FQFnName.T)
   (callerID : id)
+  (desc : FQFnName.T)
   (argvals : Dval list)
-  (sendToRail : SendToRail)
   (isInPipe : IsInPipe)
+  (sendToRail : SendToRail)
   : DvalTask =
   taskv {
     let sourceID id = SourceID(state.tlid, id) in

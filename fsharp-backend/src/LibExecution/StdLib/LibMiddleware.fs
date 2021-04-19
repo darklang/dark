@@ -10,6 +10,7 @@ open LibExecution.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
+module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
@@ -184,23 +185,56 @@ let fns : List<BuiltInFn> =
       description = "Set a header in the HTTP response"
       fn =
         (function
-        | state,
-          [ DHttpResponse (Response (code, headers), responseVal); DStr name;
-            DStr value ] ->
-            Value(
-              DHttpResponse(Response(code, headers ++ [ name, value ]), responseVal)
-            )
+        | state, [ DHttpResponse response; DStr name; DStr value ] ->
+            match response with
+            | Response (code, headers, responseVal) ->
+                Response(code, headers ++ [ name, value ], responseVal)
+                |> DHttpResponse
+                |> Value
+            | Redirect _ -> Value(DHttpResponse response)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "setHeaderUnlessPresent" 0
+      parameters =
+        [ Param.make "response" (THttpResponse varA) ""
+          Param.make "name" TStr ""
+          Param.make "value" TStr "" ]
+      returnType = THttpResponse varA
+      description = "Set a header in the HTTP response"
+      fn =
+        (function
+        | _, [ DHttpResponse response; DStr headerName; DStr value ] ->
+            match response with
+            | Response (code, headers, responseVal) ->
+                let existingHeader =
+                  headers
+                  |> List.tryFind (fun (name, _) -> String.toLower name = headerName)
+
+                let headers =
+                  if existingHeader = None then
+                    (headerName, value) :: headers
+                  else
+                    headers
+
+                Response(code, headers, responseVal) |> DHttpResponse |> Value
+            | Redirect _ -> Value(DHttpResponse response)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+
     { name = fn "Http" "responseBody" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = varA
       description = "Return the body of a HTTP response"
       fn =
         (function
-        | state, [ DHttpResponse (_, responseVal) ] -> Value responseVal
+        | _, [ DHttpResponse response ] ->
+            match response with
+            | Redirect _ -> Value DNull
+            | Response (_, _, dv) -> Value dv
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -221,7 +255,7 @@ let fns : List<BuiltInFn> =
               (ePipeApply (eVar "next") [ eVar "req" ])
               (eFn
                 "Http"
-                "setHeader"
+                "setHeaderUnlessPresent"
                 0
                 [ eVar "response"; eStr "server"; eStr "darklang" ]))
 
@@ -239,32 +273,56 @@ let fns : List<BuiltInFn> =
             "response"
             varA
             "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
-      returnType = THttpResponse varA
-      description = "Return a HTTPResponse based on the input."
+      returnType = THttpResponse TBytes
+      description = "Return a HTTPResponse based on the input"
       fn =
         (function
-        | state, [ response ] ->
+        | _, [ response ] ->
+            let inferContentType dv =
+              match dv with
+              | DObj _
+              | DList _ -> "application/json; charset=utf-8"
+              | _ -> "text/plain; charset=utf-8"
+
             match response with
-            | DHttpResponse _ -> Value response
-            | _ ->
+            | DHttpResponse (Response (code, headers, dv)) ->
+                let inferredCT = inferContentType dv
+
+                let existingContentType =
+                  headers
+                  |> List.tryFind
+                       (fun (name, _) -> String.toLower name = "content-type")
+
+                let headers =
+                  if existingContentType = None then
+                    ("Content-type", inferredCT) :: headers
+                  else
+                    headers
+
                 let contentType =
-                  match response with
-                  | DObj _
-                  | DList _ -> "application/json; charset=utf-8"
-                  | _ -> "text/plain; charset=utf-8"
+                  existingContentType
+                  |> Option.map (fun (k, v) -> v)
+                  |> Option.defaultValue inferredCT
+                  |> String.split [| ";" |]
+                  |> Seq.tryHead
 
-                let bytified =
-                  response
-                  |> LibExecution.DvalRepr.toPrettyMachineJsonStringV1
-                  |> toBytes
-                  |> DBytes
+                let asBytes =
+                  match dv, contentType with
+                  | DBytes bytes, _ -> bytes
+                  | _, Some "text/plain"
+                  | _, Some "application/xml"
+                  | _, Some "text/html" ->
+                      dv |> DvalRepr.toEnduserReadableTextV0 |> toBytes
+                  | _ -> dv |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
 
-                Value(
-                  DHttpResponse(
-                    Response(200, [ "content-type", contentType ]),
-                    bytified
-                  )
-                )
+                Value(DHttpResponse(Response(code, headers, DBytes asBytes)))
+            | DHttpResponse (Redirect _) as resp -> Value resp
+            | response ->
+                let bytes =
+                  response |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
+
+                let headers = [ "content-type", inferContentType response ]
+                Value(DHttpResponse(Response(200, headers, DBytes bytes)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -273,11 +331,7 @@ let fns : List<BuiltInFn> =
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Takes a value that is expected to be returned to an end-user via HTTP.
-        If it is not a HttpResponse, it converts it into one. The output is
-        converted to bytes. If it needs to be stringified first, it is
-        stringified to a representation suitable for consuming machine-readable
-        JSON. A header is added based on type: Dicts, Records and Lists have
-        JSON content-type, all others have text/plain."
+        If it is not a HttpResponse, it converts it into one."
       fn =
         let code =
           // (fun req -> Http.convertToResponseValue (req |> next))
@@ -306,7 +360,6 @@ let fns : List<BuiltInFn> =
           // (fun req ->
           //   let response = req |> next in
           //   let body = Http.responseBody_v0 response in
-          // FSTODO: should be bytes, not a string
           //   Http.setHeader_v0 response "content-length" (toString (Bytes.length_v0 body)))
           eLambda
             [ "req" ]
@@ -318,10 +371,10 @@ let fns : List<BuiltInFn> =
                 (eFn "Http" "responseBody" 0 [ eVar "response" ])
                 (eFn
                   "Http"
-                  "setHeader"
+                  "setHeader" // always set it
                   0
                   [ eVar "response"
-                    eStr "content-length"
+                    eStr "Content-Length"
                     eFn "" "toString" 0 [ eFn "Bytes" "length" 0 [ eVar "body" ] ] ])))
 
         (function
@@ -329,7 +382,6 @@ let fns : List<BuiltInFn> =
             let st = Map.empty |> Map.add "next" next
             Interpreter.eval state st code
         | _, _ -> incorrectArgs ())
-
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -361,6 +413,19 @@ let fns : List<BuiltInFn> =
           // handler |> app
           eLet
             "fns"
+
+            // The obvious order of these handlers is:
+            //   eStdFnVal "Http" "wrapInResponseValue" 0
+            //   eStdFnVal "Http" "addContentTypeResponseHeader" 0
+            //   eStdFnVal "Http" "convertResponseToBytes" 0
+
+            // However, in OCaml, if the value was not wrapped in a response,
+            // we would always use toPrettyMachineJson to display it,
+            // regardless of the inferred headers. CLEANUP don't do this.
+            // While this is dumb, we do need to replicate it for now.  As a
+            // result, we cannot separate these from each other: if we convert
+            // to bytes we lose type to infer the content-type from. If we add
+            // the content-type first, we lose whether it's a result or not.
             (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
                      eStdFnVal "Http" "addContentLengthResponseHeader" 0
                      eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])

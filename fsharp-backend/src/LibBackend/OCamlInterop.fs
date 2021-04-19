@@ -1007,8 +1007,8 @@ module Convert =
     | RT.DDB name -> ORT.DDB name
     | RT.DUuid uuid -> ORT.DUuid uuid
     | RT.DPassword (Password bytes) -> ORT.DPassword bytes
-    | RT.DHttpResponse (RT.Redirect url, hdv) -> ORT.DResp(ORT.Redirect url, c hdv)
-    | RT.DHttpResponse (RT.Response (code, headers), hdv) ->
+    | RT.DHttpResponse (RT.Redirect url) -> ORT.DResp(ORT.Redirect url, c RT.DNull)
+    | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
         ORT.DResp(ORT.Response(code, headers), c hdv)
     | RT.DList l -> ORT.DList(List.map c l)
     | RT.DObj o -> ORT.DObj(Map.map c o)
@@ -1047,9 +1047,9 @@ module Convert =
     | ORT.DDB name -> RT.DDB name
     | ORT.DUuid uuid -> RT.DUuid uuid
     | ORT.DPassword bytes -> RT.DPassword(Password bytes)
-    | ORT.DResp (ORT.Redirect url, hdv) -> RT.DHttpResponse(RT.Redirect url, c hdv)
+    | ORT.DResp (ORT.Redirect url, _) -> RT.DHttpResponse(RT.Redirect url)
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
-        RT.DHttpResponse(RT.Response(code, headers), c hdv)
+        RT.DHttpResponse(RT.Response(code, headers, c hdv))
     | ORT.DList l -> RT.DList(List.map c l)
     | ORT.DObj o -> RT.DObj(Map.map c o)
     | ORT.DOption ORT.OptNothing -> RT.DOption None
