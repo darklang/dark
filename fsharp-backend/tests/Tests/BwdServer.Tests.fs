@@ -57,13 +57,11 @@ let t name =
 
     let request, expectedResponse, httpDefs =
       // TODO: use FsRegex instead
-      let options = RegexOptions.Singleline
-
       let m =
         Regex.Match(
           contents,
-          "^((\[http-handler \S+ \S+\]\n.*)+)\[request\]\n(.*)\[response\]\n(.*)$",
-          options
+          "^((\[http-handler \S+ \S+\]\n.*\n)+)\[request\]\n(.*)\[response\]\n(.*)$",
+          RegexOptions.Singleline
         )
 
       if not m.Success then failwith $"incorrect format in {name}"
@@ -74,8 +72,8 @@ let t name =
     let oplists =
       Regex.Matches(
         httpDefs,
-        "\[http-handler (\S+) (\S+)\]\n(.*)\n",
-        RegexOptions.Singleline
+        "^\[http-handler (\S+) (\S+)\]\n(.*?)\n$",
+        RegexOptions.Multiline ||| RegexOptions.Singleline
       )
       |> Seq.toList
       |> List.map
@@ -85,9 +83,7 @@ let t name =
              let httpMethod = m.Groups.[1].Value
 
              let (source : PT.Expr) =
-               $"do ({progString})"
-               |> FSharpToExpr.parse
-               |> FSharpToExpr.convertToExpr
+               progString |> FSharpToExpr.parse |> FSharpToExpr.convertToExpr
 
              let gid = Prelude.gid
 
