@@ -16,7 +16,6 @@ open LibBackend.ProgramTypes.Shortcuts
 
 let parse (input) : SynExpr =
   let file = "test.fs"
-  let input = $"{input}"
   let checker = SourceCodeServices.FSharpChecker.Create()
 
   // Throws an exception here if we don't do this:
