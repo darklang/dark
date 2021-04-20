@@ -63,7 +63,13 @@ module FQFnName =
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
         RT.FQFnName.stdlibFqName "" name (int version)
     // don't accidentally parse these as userFns
-    | v when Set.contains v oneWordFunctions -> RT.FQFnName.stdlibFqName "" fnName 0
+    | v when Set.contains v oneWordFunctions ->
+        match v with
+        | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
+            RT.FQFnName.stdlibFqName "" name (int version)
+        | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] ->
+            RT.FQFnName.stdlibFqName "" name 0
+        | _ -> failwith $"Bad format in one word function name: \"{fnName}\""
     | Regex "^([a-z][a-z0-9A-Z_]*)$" [ name ] -> RT.FQFnName.userFqName name
     | _ -> failwith $"Bad format in function name: \"{fnName}\""
 
