@@ -522,6 +522,18 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    // CLEANUP: move into LibBytes. It's here to help with testing
+    { name = fn "Bytes" "empty" 0
+      parameters = []
+      returnType = TBytes
+      description = "Returns an empty Bytes value"
+      fn =
+        (function
+        | _, [] -> Value(DBytes [||])
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 
