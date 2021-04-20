@@ -216,7 +216,10 @@ let t name =
         use stream = client.GetStream()
         stream.ReadTimeout <- 1000 // responses should be instant, right?
         let host = $"test-{name}.builtwithdark.localhost:{port}"
-        let request = request.Replace("HOST", host) |> toBytes |> setHeadersToCRLF
+
+        let request =
+          request |> String.replace "HOST" host |> toBytes |> setHeadersToCRLF
+
         do! stream.WriteAsync(request, 0, request.Length)
 
         // Read the response
@@ -244,6 +247,7 @@ let t name =
                  else
                    Some line)
           |> String.concat "\n"
+          |> String.replace "HOST" host
           |> toBytes
           |> setHeadersToCRLF
 
