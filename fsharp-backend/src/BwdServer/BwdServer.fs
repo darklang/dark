@@ -18,15 +18,6 @@ open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
 
-open System.Diagnostics
-open Grpc.Core
-open Grpc.Net.Client
-open OpenTelemetry
-open OpenTelemetry.Trace
-open OpenTelemetry.Resources
-open OpenTelemetry.Extensions.Hosting
-
-
 open Prelude
 open Tablecloth
 open FSharpx
@@ -78,10 +69,10 @@ let runHttp
     let symtable = Interpreter.withGlobals state inputVars
 
     let! result =
-      Interpreter.applyFnVal
+      Interpreter.callFn
         state
         (RT.Expr.toID expr)
-        (RT.FnName(RT.FQFnName.stdlibFqName "Http" "middleware" 0))
+        (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
         [ RT.DStr url
           RT.DBytes body
           RT.DObj Map.empty
@@ -129,7 +120,7 @@ let faviconResponse (ctx : HttpContext) : Task<HttpContext> =
     return ctx
   }
 
-let textPlain = Some "text/plain"
+let textPlain = Some "text/plain; charset=utf-8"
 
 let standardResponse
   (ctx : HttpContext)
@@ -262,8 +253,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let method = ctx.Request.Method
         let requestPath = ctx.Request.Path.Value |> sanitizeUrlPath
 
+        // redirect HEADs to GET. We pass the actual HEAD method to the engine,
+        // and leave it to middleware to say what it wants to do with that
+        let searchMethod = if method = "HEAD" then "GET" else method
+
         let! c =
-          Canvas.loadHttpHandlersFromCache meta requestPath method
+          Canvas.loadHttpHandlersFromCache meta requestPath searchMethod
           |> Task.map Result.unwrapUnsafe
 
         match Map.values c.handlers with
@@ -281,13 +276,14 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 let expr = expr.toRuntimeType ()
 
                 let! result = runHttp c tlid traceID url body symtable expr
+                debuG "result of runHttp" result
                 do! getCORS ctx canvasID
 
                 match result with
-                | RT.DHttpResponse (RT.Redirect url, _) ->
+                | RT.DHttpResponse (RT.Redirect url) ->
                     ctx.Response.Redirect(url, false)
                     return ctx
-                | RT.DHttpResponse (RT.Response (status, headers), RT.DBytes body) ->
+                | RT.DHttpResponse (RT.Response (status, headers, RT.DBytes body)) ->
                     ctx.Response.StatusCode <- status
                     // FSTODO content type of application/json for dobj and dlist
                     List.iter (fun (k, v) -> setHeader ctx k v) headers

@@ -60,9 +60,9 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
           404,
           [ "Content-Length", "9"
             "Server", "darklang"
-            "Content-Type", "text/plain; charset=utf-8" ]
-        ),
-        RT.DBytes(toBytes "Not found")
+            "Content-Type", "text/plain; charset=utf-8" ],
+          RT.DBytes(toBytes "Not found")
+        )
       ))
   | RT.DErrorRail _ ->
       (RT.DHttpResponse(
@@ -70,9 +70,9 @@ let extractHttpErrorRail (result : RT.Dval) : RT.Dval =
           500,
           [ "Content-Length", "33"
             "Server", "darklang"
-            "Content-Type", "text/plain; charset=utf-8" ]
-        ),
-        RT.DBytes(toBytes "Invalid conversion from errorrail")
+            "Content-Type", "text/plain; charset=utf-8" ],
+          RT.DBytes(toBytes "Invalid conversion from errorrail")
+        )
       ))
   | dv -> dv
 
@@ -107,7 +107,7 @@ let executeFunction
   (args : List<RT.Dval>)
   (name : RT.FQFnName.T)
   : Task<RT.Dval> =
-  Interpreter.callFn state name callerID args RT.NoRail RT.NotInPipe
+  Interpreter.callFn state callerID name args RT.NotInPipe RT.NoRail
   |> TaskOrValue.toTask
 
 

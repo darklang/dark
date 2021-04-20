@@ -275,7 +275,7 @@ let httpRouteHandler (route : string) (method : string) (ast : Expr) : Handler.T
 
 
 let dailyCron (name : string) (ast : Expr) : Handler.T =
-  { tlid = gid (); ast = ast; spec = Handler.Cron(name, "Daily") }
+  { tlid = gid (); ast = ast; spec = Handler.Cron(name, Some Handler.EveryDay) }
 
 let worker (name : string) (ast : Expr) : Handler.T =
   { tlid = gid (); ast = ast; spec = Handler.Worker(name) }

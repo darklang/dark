@@ -10,7 +10,8 @@ Content-Length: 0
 [response]
 HTTP/1.1 500 Internal Server Error
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Content-Type: text/plain
+Content-Type: text/plain // OCAMLONLY
+Content-Type: text/plain; charset=utf-8 // FSHARPONLY
 Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
 Server: darklang

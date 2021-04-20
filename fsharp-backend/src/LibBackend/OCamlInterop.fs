@@ -410,7 +410,8 @@ module Convert =
     match bo2String o.``module``, bo2String o.name, bo2String o.modifier with
     | "HTTP", route, method -> PT.Handler.HTTP(route, method, ids)
     | "WORKER", name, _ -> PT.Handler.Worker(name, ids)
-    | "CRON", name, interval -> PT.Handler.Cron(name, interval, ids)
+    | "CRON", name, interval ->
+        PT.Handler.Cron(name, PT.Handler.CronInterval.parse interval, ids)
     | "REPL", name, _ -> PT.Handler.REPL(name, ids)
     | workerName, name, _ -> PT.Handler.OldWorker(workerName, name, ids)
 
@@ -764,7 +765,11 @@ module Convert =
     | PT.Handler.Cron (name, interval, ids) ->
         { ``module`` = string2bo ids.moduleID "CRON"
           name = string2bo ids.nameID name
-          modifier = string2bo ids.modifierID interval
+          modifier =
+            interval
+            |> Option.map toString
+            |> Option.defaultValue ""
+            |> string2bo ids.modifierID
           types = types }
     | PT.Handler.REPL (name, ids) ->
         { ``module`` = string2bo ids.moduleID "REPL"
@@ -1002,8 +1007,8 @@ module Convert =
     | RT.DDB name -> ORT.DDB name
     | RT.DUuid uuid -> ORT.DUuid uuid
     | RT.DPassword (Password bytes) -> ORT.DPassword bytes
-    | RT.DHttpResponse (RT.Redirect url, hdv) -> ORT.DResp(ORT.Redirect url, c hdv)
-    | RT.DHttpResponse (RT.Response (code, headers), hdv) ->
+    | RT.DHttpResponse (RT.Redirect url) -> ORT.DResp(ORT.Redirect url, c RT.DNull)
+    | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
         ORT.DResp(ORT.Response(code, headers), c hdv)
     | RT.DList l -> ORT.DList(List.map c l)
     | RT.DObj o -> ORT.DObj(Map.map c o)
@@ -1042,9 +1047,9 @@ module Convert =
     | ORT.DDB name -> RT.DDB name
     | ORT.DUuid uuid -> RT.DUuid uuid
     | ORT.DPassword bytes -> RT.DPassword(Password bytes)
-    | ORT.DResp (ORT.Redirect url, hdv) -> RT.DHttpResponse(RT.Redirect url, c hdv)
+    | ORT.DResp (ORT.Redirect url, _) -> RT.DHttpResponse(RT.Redirect url)
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
-        RT.DHttpResponse(RT.Response(code, headers), c hdv)
+        RT.DHttpResponse(RT.Response(code, headers, c hdv))
     | ORT.DList l -> RT.DList(List.map c l)
     | ORT.DObj o -> RT.DObj(Map.map c o)
     | ORT.DOption ORT.OptNothing -> RT.DOption None

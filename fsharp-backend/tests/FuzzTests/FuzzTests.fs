@@ -518,7 +518,7 @@ module ExecutePureFunctions =
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
-      let genExpr(typ' : RT.DType) : Gen<RT.Expr> =
+      let genExpr (typ' : RT.DType) : Gen<RT.Expr> =
         let rec genExpr' typ s =
           gen {
             match typ with
@@ -619,7 +619,7 @@ module ExecutePureFunctions =
         Gen.sized (genExpr' typ')
 
 
-      let genDval(typ' : RT.DType) : Gen<RT.Dval> =
+      let genDval (typ' : RT.DType) : Gen<RT.Dval> =
         let rec genDval' typ s =
           gen {
             match typ with
@@ -736,11 +736,11 @@ module ExecutePureFunctions =
               let name = fns.[fnIndex].name
               let signature = fns.[fnIndex].parameters
 
-              let unifiesWith(typ : RT.DType) =
+              let unifiesWith (typ : RT.DType) =
                 (fun dv ->
                   dv |> LibExecution.TypeChecker.unify (Map.empty) typ |> Result.isOk)
 
-              let rec containsBytes(dv : RT.Dval) =
+              let rec containsBytes (dv : RT.Dval) =
                 match dv with
                 | RT.DDB _
                 | RT.DInt _
@@ -755,10 +755,11 @@ module ExecutePureFunctions =
                 | RT.DDate _
                 | RT.DPassword _
                 | RT.DUuid _
+                | RT.DHttpResponse (RT.Redirect _)
                 | RT.DOption None -> false
                 | RT.DList l -> List.any containsBytes l
                 | RT.DObj o -> o |> Map.values |> List.any containsBytes
-                | RT.DHttpResponse (_, dv)
+                | RT.DHttpResponse (RT.Response (_, _, dv))
                 | RT.DOption (Some dv)
                 | RT.DErrorRail dv
                 | RT.DResult (Ok dv)

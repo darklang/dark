@@ -3,18 +3,20 @@ module LibBackend.Serialize
 // Serializing to the DB. Serialization formats and binary conversions are
 // stored elsewhere
 
-open System.Runtime.InteropServices
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open FSharpPlus
+
 open Npgsql.FSharp.Tasks
 open Npgsql
 open LibBackend.Db
-open System.Text.RegularExpressions
+
+module Span = LibService.Telemetry.Span
 
 open Prelude
+open Tablecloth
+open Prelude.Tablecloth
 
-module PT = LibBackend.ProgramTypes
+module PT = ProgramTypes
 
 // FSTODO inline this file into canvas
 
@@ -316,47 +318,50 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 //     |> List.hd_exn
 //     |> Uuidm.of_string
 //     |> Option.value_exn
-//
-//
-type CronScheduleData =
-  { canvas_id : CanvasID
-    owner : UserID
-    host : string
-    tlid : string
-    name : string
-    modifier : string }
 
-// (** Fetch cron handlers from the DB. Active here means:
-//  * - a non-null interval field in the spec
-//  * - not deleted (When a CRON handler is deleted, we set (module, modifier,
-//  *   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
-//  *   ignores deleted CRONs.)
-//  *)
-// let fetch_active_crons (span : Span.t) : cron_schedule_data list =
-//   Telemetry.with_span span "Serialize.fetch_crons" (fun _ ->
-//       Db.fetch
-//         ~name:"get crons for scheduler"
-//         "SELECT canvas_id,
-//                 tlid,
-//                 modifier,
-//                 toplevel_oplists.name,
-//                 toplevel_oplists.account_id,
-//                 canvases.name
-//          FROM toplevel_oplists
-//          JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
-//          WHERE module = 'CRON'
-//            AND modifier IS NOT NULL
-//            AND toplevel_oplists.name IS NOT NULL"
-//         ~params:[]
-//       |> List.map ~f:(function
-//              | [canvas_id; tlid; modifier; name; account_id; host] ->
-//                  { canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
-//                  ; tlid
-//                  ; modifier
-//                  ; name
-//                  ; owner = account_id |> Uuidm.of_string |> Option.value_exn
-//                  ; host }
-//              | _ ->
-//                  Exception.internal
-//                    "Wrong shape from get_crons_for_scheduler query"))
-//
+
+type CronScheduleData =
+  { canvasID : CanvasID
+    ownerID : UserID
+    canvasName : CanvasName.T
+    tlid : id
+    cronName : string
+    interval : PT.Handler.CronInterval }
+
+// Fetch cron handlers from the DB. Active here means:
+// - a non-null interval field in the spec
+// - not deleted (When a CRON handler is deleted, we set (module, modifier,
+//   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
+//   ignores deleted CRONs.)
+let fetchActiveCrons (span : Span.T) : Task<List<CronScheduleData>> =
+  task {
+    use _span = Span.child "Serialize.fetch_crons" span
+
+    return!
+      Sql.query
+        "SELECT canvas_id,
+                  tlid,
+                  modifier,
+                  toplevel_oplists.name as handler_name,
+                  toplevel_oplists.account_id,
+                  canvases.name as canvas_name
+           FROM toplevel_oplists
+           JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
+           WHERE module = 'CRON'
+             AND modifier IS NOT NULL
+             AND modifier <> ''
+             AND toplevel_oplists.name IS NOT NULL"
+      |> Sql.executeAsync
+           (fun read ->
+             { canvasID = read.uuid "canvas_id"
+               ownerID = read.uuid "account_id"
+               canvasName = read.string "canvas_name" |> CanvasName.create
+               tlid = read.id "tlid"
+               cronName = read.string "handler_name"
+               interval =
+                 read.string "modifier"
+                 // FSTODO: this is new behaviour, so add a test
+                 // we can save empty strings here, but we shouldn't be fetching them
+                 |> PT.Handler.CronInterval.parse
+                 |> Option.unwrapUnsafe })
+  }

@@ -205,7 +205,7 @@ and FnValImpl =
 
 and DHTTP =
   | Redirect of string
-  | Response of int * List<string * string>
+  | Response of int * List<string * string> * Dval
 
 and Dval =
   | DInt of bigint
@@ -262,7 +262,7 @@ and Dval =
   // -  a list containing a derrorrail is a derrorail
   | DErrorRail of Dval
   (* user types: awaiting a better type system *)
-  | DHttpResponse of DHTTP * Dval
+  | DHttpResponse of DHTTP
   | DDB of string
   | DDate of System.DateTime
   | DPassword of Password
@@ -423,7 +423,8 @@ module Dval =
     | DError _ -> TError
     | DIncomplete _ -> TIncomplete
     | DErrorRail _ -> TErrorRail
-    | DHttpResponse (_, dv) -> THttpResponse(toType dv)
+    | DHttpResponse (Response (_, _, dv)) -> THttpResponse(toType dv)
+    | DHttpResponse (Redirect _) -> THttpResponse TNull
     | DDB _ -> TDB any
     | DDate _ -> TDate
     | DPassword _ -> TPassword
@@ -536,7 +537,7 @@ module Handler =
     | Worker of name : string
     // Deprecated but still supported form
     | OldWorker of modulename : string * name : string
-    | Cron of name : string * interval : string
+    | Cron of name : string * interval : Option<CronInterval>
     | REPL of name : string
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }

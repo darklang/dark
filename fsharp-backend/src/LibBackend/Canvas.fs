@@ -664,14 +664,17 @@ let saveTLIDs
                match tl with
                | PT.TLHandler ({ spec = spec }) ->
                    match spec with
-                   | PT.Handler.HTTP (route, method, _ids) ->
-                       Some("HTTP", Routing.routeToPostgresPattern route, method)
-                   | PT.Handler.Worker (name, _ids) -> Some("WORKER", name, "_")
-                   | PT.Handler.OldWorker (modulename, name, _) ->
-                       Some(modulename, name, "_")
-                   | PT.Handler.Cron (name, interval, _ids) ->
-                       Some("CRON", name, interval)
-                   | PT.Handler.REPL (name, _ids) -> Some("REPL", name, "_")
+                   | PT.Handler.HTTP _ ->
+                       Some(
+                         spec.module' (),
+                         Routing.routeToPostgresPattern (spec.name ()),
+                         spec.modifier ()
+                       )
+                   | PT.Handler.Worker _
+                   | PT.Handler.OldWorker _
+                   | PT.Handler.Cron _
+                   | PT.Handler.REPL _ ->
+                       Some(spec.module' (), spec.name (), spec.modifier ())
                | PT.TLDB _
                | PT.TLType _
                | PT.TLFunction _ -> None
