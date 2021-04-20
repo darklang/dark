@@ -276,11 +276,33 @@ let fns : List<BuiltInFn> =
       description = "Creates the build request"
       fn =
         (function
-        | _, [ DStr _ as url; DObj _ as headers; DBytes _ as body ] ->
+        | _, [ DStr _ as url; DObj headers; DBytes bodyBytes as body ] ->
+            let body = if bodyBytes.Length = 0 then DNull else body
+            let cookies = DObj Map.empty // FSTODO
+            let formBody = DNull // FSTODO
+            let fullBody = DStr ""
+            let jsonBody = DNull // FSTODO
+            let queryParams = DObj Map.empty // FSTODO
+
+            let headers =
+              headers
+              |> Map.toList
+              |> List.map (fun (k, v) -> (String.toLower k, v))
+              |> (++) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
+              |> Map.ofList
+              |> DObj
+
             Map.empty
             |> Map.add "body" body
             |> Map.add "url" url
             |> Map.add "headers" headers
+            |> Map.add "cookies" cookies
+            |> Map.add "formBody" formBody
+            |> Map.add "fullBody" fullBody
+            |> Map.add "queryParams" queryParams
+            |> Map.add "formBody" formBody
+            |> Map.add "jsonBody" jsonBody
+
             |> DObj
             |> Value
         | _ -> incorrectArgs ())
