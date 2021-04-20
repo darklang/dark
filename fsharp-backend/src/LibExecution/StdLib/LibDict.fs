@@ -29,114 +29,113 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "size" 0
-      parameters = [Param.make "dict" (TDict varA) ""]
+      parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TInt
       description =
         "Returns the number of entries in `dict` (the number of key-value pairs)."
       fn =
-          (function
-          | _, [DObj o] -> Value(DInt(bigint(Map.count o)))
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ DObj o ] -> Value(DInt(bigint (Map.count o)))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "keys" 0
-      parameters = [Param.make "dict" (TDict varA) ""]
+      parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList TStr)
       description = "Returns `dict`'s keys in a list, in an arbitrary order."
       fn =
-          (function
-          | _, [DObj o] ->
-              o
-              |> Map.keys
-              |> Seq.map (fun k -> DStr k)
-              |> Seq.toList
-              |> fun l -> DList l
-              |> Value
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ DObj o ] ->
+            o
+            |> Map.keys
+            |> Seq.map (fun k -> DStr k)
+            |> Seq.toList
+            |> fun l -> DList l
+            |> Value
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "values" 0
-      parameters = [Param.make "dict" (TDict varA) ""]
+      parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList varA)
       description = "Returns `dict`'s values in a list, in an arbitrary order."
       fn =
-          (function
-          | _, [DObj o] ->
-              o
-              |> Map.values
-              |> Seq.toList
-              |> fun l -> DList l
-              |> Value
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ DObj o ] -> o |> Map.values |> Seq.toList |> fun l -> DList l |> Value
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "toList" 0
-      parameters = [Param.make "dict" (TDict varA) ""]
+      parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList varA)
       description =
         "Returns `dict`'s entries as a list of `[key, value]` lists, in an arbitrary order. This function is the opposite of `Dict::fromList`."
       fn =
-          (function
-          | _, [DObj o] ->
-              Map.toList o
-              |> List.map (fun (k, v) ->
-                     DList [DStr k; v])
-              |> DList
-              |> Value
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ DObj o ] ->
+            Map.toList o
+            |> List.map (fun (k, v) -> DList [ DStr k; v ])
+            |> DList
+            |> Value
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
-      parameters = [Param.make "entries" (TList varA) ""]
+      parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TDict varA
-      description =
-        "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+      description = "Returns a new dict with `entries`. Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
         If `entries` contains duplicate `key`s, the last entry with that key will be used in the resulting dictionary (use `Dict::fromList` if you want to enforce unique keys).
         This function is the opposite of `Dict::toList`."
       fn =
         (function
-        | state, [DList l] ->
+        | state, [ DList l ] ->
 
-          let f acc e =
-            match e with
-              | DList [DStr k; value] -> Map.add k value acc
-              | DList [k; value] -> Errors.throw(Errors.argumentWasnt "a string" "key" k)
-              | (DIncomplete _ | DErrorRail _ | DError _) as dv -> Errors.foundFakeDval(dv)
+            let f acc e =
+              match e with
+              | DList [ DStr k; value ] -> Map.add k value acc
+              | DList [ k; value ] ->
+                  Errors.throw (Errors.argumentWasnt "a string" "key" k)
+              | (DIncomplete _
+              | DErrorRail _
+              | DError _) as dv -> Errors.foundFakeDval (dv)
               | _ -> Errors.throw "All list items must be `[key, value]`"
 
-          let result = List.fold f Map.empty l
-          Value((DObj(result)))
+            let result = List.fold f Map.empty l
+            Value((DObj(result)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "fromList" 0
-      parameters = [Param.make "entries" (TList varA) ""]
+      parameters = [ Param.make "entries" (TList varA) "" ]
       returnType = TOption(TDict varA)
-      description =
-        "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
+      description = "Each value in `entries` must be a `[key, value]` list, where `key` is a `String`.
          If `entries` contains no duplicate keys, returns `Just dict` where `dict` has `entries`.
          Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
       fn =
         (function
         | state, [ DList l ] ->
 
-          let f acc e =
-            match acc, e with
-              | Some acc, DList [DStr k; value] when Map.containsKey k acc -> None
-              | Some acc, DList [DStr k; value] -> Some(Map.add k value acc)
-              | Some acc, DList [k; value] -> Errors.throw(Errors.argumentWasnt "a string" "key" k)
-              | Some acc, v -> Errors.throw  "All list items must be `[key, value]`"
-              | _, ( (DIncomplete _ | DErrorRail _ | DError _) as dv) -> Errors.foundFakeDval(dv)
+            let f acc e =
+              match acc, e with
+              | Some acc, DList [ DStr k; value ] when Map.containsKey k acc -> None
+              | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
+              | Some acc, DList [ k; value ] ->
+                  Errors.throw (Errors.argumentWasnt "a string" "key" k)
+              | Some acc, v -> Errors.throw "All list items must be `[key, value]`"
+              | _,
+                ((DIncomplete _
+                | DErrorRail _
+                | DError _) as dv) -> Errors.foundFakeDval (dv)
               | None, _ -> None
 
-          let result = List.fold f (Some Map.empty) l
+            let result = List.fold f (Some Map.empty) l
 
-          match result with
+            match result with
             | Some map -> Value(DOption(Some(DObj(map))))
             | None -> Value(DOption None)
         | _ -> incorrectArgs ())
@@ -187,9 +186,9 @@ let fns : List<BuiltInFn> =
       description =
         "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
       fn =
-          (function
-          | _, [DObj o; DStr s] -> Value(DBool(Map.containsKey s o))
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ DObj o; DStr s ] -> Value(DBool(Map.containsKey s o))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
@@ -368,13 +367,13 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "isEmpty" 0
-      parameters = [Param.make "dict" (TDict varA) ""]
+      parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TBool
       description = "Returns `true` if the `dict` contains no entries."
       fn =
-          (function
-          | _, [DObj dict] -> Value(DBool(Map.isEmpty dict))
-          | _ -> incorrectArgs ())
+        (function
+        | _, [ DObj dict ] -> Value(DBool(Map.isEmpty dict))
+        | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
