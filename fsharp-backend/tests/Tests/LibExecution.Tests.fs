@@ -73,7 +73,7 @@ let t
           Expect.equalDval
             fsharpActual
             expected
-            $"FSharp: {msg}, {debugDval fsharpActual}"
+            $"FSharp: {msg} {debugDval fsharpActual}"
 
         return ()
       with e ->

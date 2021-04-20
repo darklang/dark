@@ -147,7 +147,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
       eFn "Int" "negate" 0 []
   | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
-      eFn "" ident.idText 0 []
+      PT.EFnCall(gid (), PT.FQFnName.parse ident.idText, [], PT.NoRail)
   | SynExpr.Ident ident when ident.idText = "Nothing" -> eNothing ()
   | SynExpr.Ident ident when ident.idText = "blank" -> eBlank ()
   | SynExpr.Ident name -> eVar name.idText
