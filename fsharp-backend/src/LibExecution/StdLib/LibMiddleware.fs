@@ -444,7 +444,7 @@ let fns : List<BuiltInFn> =
       fn =
         let code =
           // (fun req ->
-          //   let contentType  = Dict.get_v2 req.headers "Content-Type"
+          //   let contentType  = Dict.get_v2 req.headers "content-type"
           //   if contentType = "text/ping"
           //   then
           //     Http::response_v0 Bytes.empty_v0 418
@@ -458,7 +458,7 @@ let fns : List<BuiltInFn> =
                 "Dict"
                 "get"
                 2
-                [ eFieldAccess (eVar "req") "headers"; eStr "Content-Type" ])
+                [ eFieldAccess (eVar "req") "headers"; eStr "content-type" ])
               (eIf
                 (eFn
                   ""
