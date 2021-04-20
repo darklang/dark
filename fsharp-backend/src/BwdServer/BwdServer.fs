@@ -58,6 +58,7 @@ let runHttp
   (tlid : tlid)
   (traceID : LibExecution.AnalysisTypes.TraceID)
   (url : string)
+  (headers : Map<string, string>)
   (body : byte [])
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
@@ -68,6 +69,8 @@ let runHttp
     let! state = RealExe.createState traceID tlid program
     let symtable = Interpreter.withGlobals state inputVars
 
+    let headers = headers |> Map.map RT.DStr |> RT.DObj
+
     let! result =
       Interpreter.callFn
         state
@@ -75,7 +78,7 @@ let runHttp
         (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
         [ RT.DStr url
           RT.DBytes body
-          RT.DObj Map.empty
+          headers
           RT.DFnVal(
             RT.Lambda
               { parameters = [ gid (), "request" ]
@@ -214,6 +217,24 @@ let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
     return ()
   }
 
+type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
+type StringValues = Microsoft.Extensions.Primitives.StringValues
+
+let getHeaders (ctx : HttpContext) : Map<string, string> =
+  ctx.Request.Headers
+  |> Seq.map
+       (fun (kvp : KeyValuePair<string, StringValues>) ->
+         (kvp.Key, kvp.Value.ToArray() |> Array.toList |> String.concat ","))
+  |> Map
+
+let getBody (ctx : HttpContext) : Task<byte array> =
+  task {
+    let ms = new IO.MemoryStream()
+    do! ctx.Request.Body.CopyToAsync(ms)
+    return ms.ToArray()
+  }
+
+
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     setHeader ctx "Server" "Darklang"
@@ -264,18 +285,17 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         match Map.values c.handlers with
         | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
             let url = ctx.Request.GetEncodedUrl()
+            // FSTODO: move vars into http middleware
             let vars = LibBackend.Routing.routeInputVars route requestPath
 
             match vars with
             | Some vars ->
                 let symtable = Map.ofList vars
-
-                let ms = new IO.MemoryStream()
-                do! ctx.Request.Body.CopyToAsync(ms)
-                let body = ms.ToArray()
+                let! body = getBody ctx
                 let expr = expr.toRuntimeType ()
+                let headers = getHeaders ctx
 
-                let! result = runHttp c tlid traceID url body symtable expr
+                let! result = runHttp c tlid traceID url headers body symtable expr
                 debuG "result of runHttp" result
                 do! getCORS ctx canvasID
 

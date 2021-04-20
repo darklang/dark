@@ -267,6 +267,26 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "buildRequest" 0
+      parameters =
+        [ Param.make "url" TStr ""
+          Param.make "headers" (TDict TStr) ""
+          Param.make "body" TBytes "" ]
+      returnType = TRecord [ "url", TStr; "headers", TDict TStr; "body", TBytes ]
+      description = "Creates the build request"
+      fn =
+        (function
+        | _, [ DStr _ as url; DObj _ as headers; DBytes _ as body ] ->
+            Map.empty
+            |> Map.add "body" body
+            |> Map.add "url" url
+            |> Map.add "headers" headers
+            |> DObj
+            |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "convertToResponseValue" 0
       parameters =
         [ Param.make
@@ -278,6 +298,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ response ] ->
+            // This does a lot more than we'd hope it does, and ideally we'd
+            // have split this into multiple middleware functions.  However,
+            // there is a need to make it match the OCaml version.  In OCaml,
+            // if the value was not wrapped in a response, we would always use
+            // toPrettyMachineJson to display it, regardless of the inferred
+            // headers. As a result, we cannot separate these from each other:
+            // if we convert to bytes we lose type to infer the content-type
+            // from. If we add the content-type first, we lose whether it's a
+            // result or not.
             let inferContentType dv =
               match dv with
               | DObj _
@@ -385,6 +414,46 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "respondToTextPingMiddleware" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description =
+        "If the header has content-type of `text/ping`, return a status code of 418"
+      fn =
+        let code =
+          // (fun req ->
+          //   let contentType  = Dict.get_v2 req.headers "Content-Type"
+          //   if contentType = "text/ping"
+          //   then
+          //     Http::response_v0 Bytes.empty_v0 418
+          //   else
+          //     req |> next
+          eLambda
+            [ "req" ]
+            (eLet
+              "contentType"
+              (eFn
+                "Dict"
+                "get"
+                2
+                [ eFieldAccess (eVar "req") "headers"; eStr "Content-Type" ])
+              (eIf
+                (eFn
+                  ""
+                  "=="
+                  0
+                  [ eVar "contentType"; eConstructor "Just" [ eStr "text/ping" ] ])
+                (eFn "Http" "response" 0 [ eFn "Bytes" "empty" 0 []; eInt 418 ])
+                (ePipeApply (eVar "next") [ eVar "req" ])))
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | _, _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // let req ->
     //   if not wrapped in a response, use machinejson, and infer header based on type (list/obj uses JSON, else use textplain)
     //   if in a response:
@@ -396,39 +465,28 @@ let fns : List<BuiltInFn> =
     //         string in http response: enduser_readable_text and text/plain
     { name = fn "Http" "middleware" 0
       parameters =
-        [ Param.make "url" TBytes ""
+        [ Param.make "url" TStr ""
           Param.make "body" TBytes ""
-          Param.make "headers" TBytes ""
+          Param.make "headers" (TDict TStr) ""
           middlewareNextParameter ]
       returnType = THttpResponse TBytes
-      description =
-        "Call the middleware stack, returning a response which can be sent to the browser"
+      description = "Call the middleware stack, returning a response which can be sent to the browser.
+        Each function in the middleware stack receives the next middleware element, and returns a function
+        to be called on the request, returning a response"
       fn =
-        // eStdFnVal "Http" "wrapInResponseValue" 0
-        // eStdFnVal "Http" "addServerHeaderMiddleware" 0
-        // eStdFnVal "Http" "addContentLengthResponseHeader" 0
         let code =
           // let fns = [Http.wrapInResponseValue_v0 ; Http.addserverHeaderMiddleware_v0]
           // let app = List.fold_v0 fns handler (fun accum curr -> accum |> curr)
-          // handler |> app
+          // request |> app
           eLet
             "fns"
 
-            // The obvious order of these handlers is:
-            //   eStdFnVal "Http" "wrapInResponseValue" 0
-            //   eStdFnVal "Http" "addContentTypeResponseHeader" 0
-            //   eStdFnVal "Http" "convertResponseToBytes" 0
-
-            // However, in OCaml, if the value was not wrapped in a response,
-            // we would always use toPrettyMachineJson to display it,
-            // regardless of the inferred headers. CLEANUP don't do this.
-            // While this is dumb, we do need to replicate it for now.  As a
-            // result, we cannot separate these from each other: if we convert
-            // to bytes we lose type to infer the content-type from. If we add
-            // the content-type first, we lose whether it's a result or not.
             (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
-                     eStdFnVal "Http" "addContentLengthResponseHeader" 0
-                     eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])
+                     // Shortcircuit
+                     eStdFnVal "Http" "respondToTextPingMiddleware" 0
+                     // Everything gets `Content-Length` and `Server` headers
+                     eStdFnVal "Http" "addServerHeaderMiddleware" 0
+                     eStdFnVal "Http" "addContentLengthResponseHeader" 0 ])
             (eLet
               "app"
               (eFn
@@ -440,7 +498,15 @@ let fns : List<BuiltInFn> =
                   eLambda
                     [ "accum"; "curr" ]
                     (ePipeApply (eVar "curr") [ eVar "accum" ]) ])
-              (ePipeApply (eVar "app") [ eVar "handler" ]))
+              (eLet
+                "initialRequest"
+                (eFn
+                  "Http"
+                  "buildRequest"
+                  0
+                  [ eVar "url"; eVar "headers"; eVar "body" ])
+
+                (ePipeApply (eVar "app") [ eVar "initialRequest" ])))
 
 
         (function
