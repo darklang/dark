@@ -16,6 +16,7 @@
 // $ dotnet paket generate-load-scripts --framework net50
 #load "../../.paket/load/net50/main.group.fsx"
 #r "../../Build/out/Tests.dll"
+#r "../../Build/out/TestUtils.dll"
 #r "../../Build/out/Prelude.dll"
 #r "../../Build/out/LibBackend.dll"
 #r "../../Build/out/LibExecution.dll"
@@ -27,8 +28,7 @@ let output =
   |> Seq.map (fun x -> $"  {x}")
   |> String.concat "\n"
   |> (fun input -> $"do ({input})")
-  |> FSharpToExpr.parseDarkExpr
-  |> fun x -> x.toRuntimeType ()
-  |> LibExecution.RuntimeTypes.Shortcuts.toStringRepr
+  |> FSharpToExpr.parseRTExpr
+  |> LibExecution.Shortcuts.toStringRepr
 
 printfn "%s" output
