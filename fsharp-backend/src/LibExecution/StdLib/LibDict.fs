@@ -168,27 +168,21 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "Dict" "get" 1) }
-    // ; { name = fn "Dict" "get" 2
-    //   ; parameters = [Param.make "dict" TObj ""; Param.make "key" TStr ""]
-    //   ; returnType = TOption
-    //   ; description =
-    //       "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o; DStr s] ->
-    //           ( match DvalMap.get o (Unicode_string.to_string s) with
-    //           | Some d ->
-    //               Dval.to_opt_just d
-    //           | None ->
-    //               DOption OptNothing )
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Dict" "get" 2) }
+    { name = fn "Dict" "get" 2
+      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
+      returnType = TOption varA
+      description =
+        "If the `dict` contains `key`, returns the corresponding value, wrapped in an option: `Just value`. Otherwise, returns `Nothing`."
+      fn =
+        (function
+        | _, [ DObj o; DStr s ] -> Map.tryFind s o |> Dval.option |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Dict" "member" 0
-      parameters = [Param.make "dict" (TDict varA) ""; Param.make "key" TStr ""]
+      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TBool
       description =
         "Returns `true` if the `dict` contains an entry with `key`, and `false` otherwise."
