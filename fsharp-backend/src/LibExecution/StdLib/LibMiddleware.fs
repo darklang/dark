@@ -377,13 +377,13 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "buildRequest" 0
+    { name = fn "Http" "createRequest" 0
       parameters =
         [ Param.make "url" TStr ""
           Param.make "headers" (TDict TStr) ""
           Param.make "body" TBytes "" ]
       returnType = TRecord [ "url", TStr; "headers", TDict TStr; "body", TBytes ]
-      description = "Creates the build request"
+      description = "Creates a request"
       fn =
         (function
         | _, [ DStr _ as url; DObj headers; DBytes bodyBytes as body ] ->
@@ -408,7 +408,6 @@ let fns : List<BuiltInFn> =
             |> Map.add "cookies" cookies
             |> Map.add "formBody" formBody
             |> Map.add "fullBody" fullBody
-            |> Map.add "formBody" formBody
             |> Map.add "jsonBody" jsonBody
 
             |> DObj
@@ -636,7 +635,7 @@ let fns : List<BuiltInFn> =
                 "initialRequest"
                 (eFn
                   "Http"
-                  "buildRequest"
+                  "createRequest"
                   0
                   [ eVar "url"; eVar "headers"; eVar "body" ])
 
