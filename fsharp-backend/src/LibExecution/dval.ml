@@ -252,23 +252,6 @@ let rec to_url_string_exn (dv : dval) : string =
 (* Forms and queries Functions *)
 (* ------------------------- *)
 
-let query_to_dval (query : (string * string list) list) : dval =
-  query
-  |> List.map ~f:(fun (key, vals) ->
-         let dval =
-           match vals with
-           | [] ->
-               DNull
-           | [v] ->
-               if v = "" then DNull else dstr_of_string_exn v
-           | vals ->
-               DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
-         in
-         (key, dval))
-  |> DvalMap.from_list
-  |> DObj
-
-
 let dval_to_query (dv : dval) : (string * string list) list =
   match dv with
   | DObj kvs ->

@@ -89,15 +89,33 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr url ] ->
+            // FSTODO: could do with some fuzzing here
             let queryString = System.Uri(url).Query
-            let nvc = System.Web.HttpUtility.ParseQueryString(queryString)
+            let nvc = System.Web.HttpUtility.ParseQueryString queryString
 
             nvc.AllKeys
             |> Seq.map
                  (fun key ->
-                   let values = nvc.GetValues(key)
-                   (key, DStr(values.[values.Length - 1])))
-            |> Seq.toList
+                   let values = nvc.GetValues key
+
+                   let value =
+                     let split =
+                       values.[values.Length - 1]
+                       |> String.split [| "," |]
+                       |> Seq.toList
+
+                     match split with
+                     | [] -> DNull
+                     | [ "" ] -> DNull // CLEANUP this should be a string
+                     | [ v ] -> DStr v
+                     | list -> DList(List.map DStr list)
+
+                   if isNull key then
+                     // All the values with no key are by GetValues, so make each one a value
+                     values |> Array.toList |> List.map (fun k -> (k, DNull))
+                   else
+                     [ (key, value) ])
+            |> List.concat
             |> Map
             |> DObj
             |> Value
@@ -112,7 +130,7 @@ let fns : List<BuiltInFn> =
       fn =
         // fun req ->
         //   let url = Http.parseQueryString_v0 req.url
-        //   let req = Dict.set_v2 req "queryParams" url
+        //   let req = Dict.set_v0 req "queryParams" url
         //   req |> next
         let code =
           eLambda
@@ -124,6 +142,109 @@ let fns : List<BuiltInFn> =
                 "req"
                 (eFn "Dict" "set" 0 [ eVar "req"; eStr "queryParams"; eVar "url" ])
                 (ePipeApply (eVar "next") [ eVar "req" ])))
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "urlEncodeQueryParamString" 0
+      parameters = [ Param.make "url" TStr "" ]
+      returnType = TStr
+      // Uses the same conditions as the old OCaml implementation
+      description = "URL encode query param strings"
+      fn =
+        let urlSafe =
+          (let allowed =
+            // FSTODO: this adds extra safe characters ("=,&") to avoid having
+            // to parse the query string (using the .NET utilities to do so
+            // might throw away info we need, as well.) This is wrong and
+            // probably has edge cases. Needs fuzzing at least.
+            "/?:@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-~=,&"
+
+           let mutable safe = (Array.init 256 (fun _ -> false))
+           Array.iter (fun b -> safe.[int b] <- true) (toBytes allowed)
+           safe)
+
+        (function
+        | _, [ DStr queryParams ] ->
+            let result = System.Text.StringBuilder()
+            // What if there;s a urlencoded ',' or '=' in the values?
+            queryParams
+            |> toBytes
+            |> Array.iter
+                 (fun b ->
+                   let (_ : System.Text.StringBuilder) =
+                     if urlSafe.[int b] then
+                       result.Append(char b)
+                     else
+                       result.AppendFormat("%{0:X2}", b)
+
+                   ())
+
+            result |> string |> DStr |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "canonicalizeUrlMiddleware" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description = "Lowercases the url and removes queryparams from it"
+      fn =
+        // fun req ->
+        //   let parts = req.url |> String.split_v0 "?"
+        //   let host = parts |> List.head_v2 |> Option.withDefault_v0 req.url |> String.toLowercase_v1
+        //   let query = parts |> List.getAt_v1 1 |> Option.map (fun q -> "?" ++ Http.urlEncodeQueryParamString_v0 q) |> Option.withDefault_v0 ""
+        //   let req = Dict.set_v0 req "url" (host ++ query)
+        //   req |> next
+        let code =
+          eLambda
+            [ "req" ]
+            (eLet
+              "parts"
+              (ePipeApply
+                (eStdFnVal "String" "split" 0)
+                [ eFieldAccess (eVar "req") "url"; eStr "?" ])
+              (eLet
+                "host"
+                (ePipeApply
+                  (eStdFnVal "String" "toLowercase" 1)
+                  [ ePipeApply
+                      (eStdFnVal "Option" "withDefault" 0)
+                      [ ePipeApply (eStdFnVal "List" "head" 2) [ eVar "parts" ]
+                        eFieldAccess (eVar "req") "url" ] ])
+                (eLet
+                  "query"
+                  (ePipeApply
+                    (eStdFnVal "Option" "withDefault" 0)
+                    [ ePipeApply
+                        (eStdFnVal "Option" "map" 0)
+                        [ ePipeApply
+                            (eStdFnVal "List" "getAt" 1)
+                            [ eVar "parts"; eInt 1 ]
+                          eLambda
+                            [ "q" ]
+                            (eFn
+                              ""
+                              "++"
+                              0
+                              [ eStr "?"
+                                eFn "Http" "urlEncodeQueryParamString" 0 [ eVar "q" ] ]) ]
+                      eStr "" ])
+                  (eLet
+                    "req"
+                    (eFn
+                      "Dict"
+                      "set"
+                      0
+                      [ eVar "req"
+                        eStr "url"
+                        eFn "" "++" 0 [ eVar "host"; eVar "query" ] ])
+                    (ePipeApply (eVar "next") [ eVar "req" ])))))
 
         (function
         | state, [ DFnVal _ as next ] ->
@@ -480,9 +601,11 @@ let fns : List<BuiltInFn> =
           Param.make "headers" (TDict TStr) ""
           middlewareNextParameter ]
       returnType = THttpResponse TBytes
-      description = "Call the middleware stack, returning a response which can be sent to the browser.
-        Each function in the middleware stack receives the next middleware element, and returns a function
-        to be called on the request, returning a response"
+      description = "Call the middleware stack, returning a response which can be sent
+        to the browser. Each function in the middleware stack receives the next
+        middleware element, and returns a function to be called on the request,
+        returning a response. The stack is executed with the last elements executed
+        first on the request and last on the response. "
       fn =
         let code =
           // let fns = [Http.wrapInResponseValue_v0 ; Http.addserverHeaderMiddleware_v0]
@@ -490,9 +613,9 @@ let fns : List<BuiltInFn> =
           // request |> app
           eLet
             "fns"
-
             (eList [ eStdFnVal "Http" "convertToResponseMiddleware" 0
-                     eStdFnVal "Http" "addQueryParamsMiddleware" 0
+                     eStdFnVal "Http" "canonicalizeUrlMiddleware" 0
+                     eStdFnVal "Http" "addQueryParamsMiddleware" 0 // must be after canonicalizeUrlMiddleware
                      // Shortcircuit
                      eStdFnVal "Http" "respondToTextPingMiddleware" 0
                      // Everything gets `Content-Length` and `Server` headers
@@ -554,7 +677,7 @@ let fns : List<BuiltInFn> =
 //                       (handler)
 //                       : response =
 //   handler
-//   |> \nextMW -> addQueryParams url nextMW
+//   |> addQueryParams
 //   |> parseRawBody
 //   |> addJsonBody body
 //   |> addFormBody body
