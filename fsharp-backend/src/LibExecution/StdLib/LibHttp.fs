@@ -301,7 +301,6 @@ let fns : List<BuiltInFn> =
 //                    (* Throw if there's not a good way to transform the k/v pair *)
                 | _ ->
                     Errors.throw ("Unknown set-cookie param"))
-//                        |> Exception.code)
 //             (* Combine it into a set-cookie header *)
             |> List.concat
             |> String.concat "; "
