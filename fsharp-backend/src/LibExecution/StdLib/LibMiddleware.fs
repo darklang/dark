@@ -81,18 +81,7 @@ let middlewareNextParameter = Param.make "next" middlewareReturnType ""
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Http" "emptyRequest" 0
-      parameters = []
-      returnType = varA
-      description = "An empty HTTP request, with no fields"
-      fn =
-        (function
-        | state, [] -> Value(DObj(Map []))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-    { name = fn "Http" "parseQueryString" 0
+  [ { name = fn "Http" "parseQueryString" 0
       parameters = [ Param.make "url" TStr "" ]
       returnType = TDict TStr // This is always a string
       description =
