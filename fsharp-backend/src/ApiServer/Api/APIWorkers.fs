@@ -60,7 +60,7 @@ module Scheduler =
       let! ws = EQ.getWorkerSchedules canvasInfo.id
       t "get-worker-schedule"
 
-      // CLEANUP: perhaps this update should go closer where it happens, in
+      // TODO: perhaps this update should go closer where it happens, in
       // case it doesn't happen in an API call.
       let executionID = Middleware.loadExecutionID ctx
       LibBackend.Pusher.pushWorkerStates executionID canvasInfo.id ws

@@ -338,7 +338,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
                 })
          |> Task.flatten)
 
-// CLEANUP: this keeps a cached version so we're not loading them all the time.
+// TODO: this keeps a cached version so we're not loading them all the time.
 // Of course, this won't be up to date if we add more functions. Given that all
 // functions need to be loaded for the API, when this becomes a problem we want
 // to look at breaking it up into different packages

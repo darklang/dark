@@ -289,7 +289,7 @@ let dequeue (parent : Span.T) : Task<Option<T>> =
       (fun (id, value, retries, canvasID, ownerID, canvasName, space, name, modifier, delay) ->
         // FSTODO
         // log_queue_size Dequeue ~host canvas_id space name modifier ;
-        // CLEANUP better names
+        // TODO better names
         let (_ : Span.T) =
           parent
             .AddTag("queue_delay", delay)

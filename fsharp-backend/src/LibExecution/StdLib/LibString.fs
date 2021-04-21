@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "s" TStr "" // CLEANUP "string to iterate over"
           Param.makeWithArgs "f" (TFn([ TChar ], TChar)) "" [ "char" ]
           // CLEANUP "function used to convert one character to another"
-         ]
+          ]
       returnType = TStr
       description =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
@@ -491,7 +491,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "String" "split" 0
       parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
-      returnType = TList varA
+      returnType = TList TStr
       description =
         "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
       fn =

@@ -306,6 +306,40 @@ and DType =
     | TVariable _ -> true
     | _ -> false
 
+  // This string was created in the very old days, and is barely used anymore
+  member this.toOldString() : string =
+    // Used in DB::schema_v0, to save type in honeycomb after queue execution
+    // TODO CLEANUP After merge, inline into DB::schema and use better types for honeycomb
+    match this with
+    | TInt -> "Int"
+    | TFloat -> "Float"
+    | TBool -> "Bool"
+    | TNull -> "Nothing"
+    | TChar -> "Character"
+    | TStr -> "Str"
+    | TList _ -> "List"
+    | TFn _ -> "Block"
+    | TRecord _ -> "Dict"
+    | TVariable _ -> "Any"
+    | TIncomplete -> "Incomplete"
+    | TError -> "Error"
+    | THttpResponse _ -> "Response"
+    | TDB _ -> "Datastore"
+    | TDate -> "Date"
+    | TDict _ -> "Dict"
+    | TPassword -> "Password"
+    | TUuid -> "UUID"
+    | TOption _ -> "Option"
+    | TErrorRail -> "ErrorRail"
+    | TResult _ -> "Result"
+    | TUserType (name, _) -> name
+    | TBytes -> "Bytes"
+
+
+
+
+
+
 // Record the source of an incomplete or error. Would be useful to add more
 // information later, such as the iteration count that let to this, or
 // something like a stack trace

@@ -142,7 +142,10 @@ let testUiReturnsTheSame =
       allBuiltins
       |> List.filter
            (fun fn ->
-             not (Set.contains (toString fn.name) (Functions.fsharpOnlyFns.Force())))
+             Functions.fsharpOnlyFns
+             |> Lazy.force
+             |> Set.contains (string fn.name)
+             |> not)
       |> List.map (fun fn -> RT.FQFnName.Stdlib fn.name)
       |> Set
 
