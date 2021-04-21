@@ -364,136 +364,65 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "setCookie" 2) } ]
-// ; { name = fn "Http" "setCookie" 2
-//   ; parameters = [Param.make "name" TStr ""; Param.make "value" TStr ""; Param.make "params" TObj ""]
-//   ; returnType = TObj
-//   ; description =
-//       "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
-//   ; fn =
-//         (function
-//         | state, [DStr name; DStr value; DObj o] ->
-//             let fold_cookie_params
-//                 ~(key : string)
-//                 ~(data : dval)
-//                 (acc : (string list, dval (* type error *)) result) :
-//                 (string list, dval (* type error *)) result =
-//               Result.bind acc (fun acc ->
-//                   match (String.lowercase key, data) with
-//                   (* Bubble up errors for values that are invalid for all params *)
-//                   | _, ((DIncomplete _ | DErrorRail _ | DError _) as dv) ->
-//                       Error dv
+      deprecated = ReplacedBy(fn "Http" "setCookie" 2) }
+    { name = fn "Http" "setCookie" 2
+      parameters = [ Param.make "name" TStr ""
+                     Param.make "value" TStr ""
+                     Param.make "params" (TDict varA) "" ]
+      returnType = TDict varA
+      description =
+        "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
+      fn =
+        (function
+        | state, [ DStr name; DStr value; DObj o ] ->
+
+                let fold_cookie_params acc key value =
+                  match (String.toLower key, value) with
+//                (* Bubble up errors for values that are invalid for all params *)
+                  | _, ((DIncomplete _ | DErrorRail _ | DError _) as dv) ->
+                      Errors.foundFakeDval(dv)
 //                   (*
 //                    * Single boolean set-cookie params *)
-//                   | "secure", v | "httponly", v ->
-//                     ( match v with
-//                     | DBool b ->
-//                         if b then Ok (key :: acc) else Ok acc
-//                     | _ ->
-//                         Error
-//                           (DError
-//                              ( SourceNone
-//                              , Printf.sprintf
-//                                  "Expected the Set-Cookie parameter `%s` passed to `%s` to have the value `true` or `false`, but it had the value `%s` instead."
-//                                  key
-//                                  state.executing_fnname
-//                                  (Dval.to_developer_repr_v0 v) )) )
+                  | "secure", v | "httponly", v ->
+                      (match v with
+                       | DBool b ->
+                           if b then (key :: acc) else acc
+                       | _ ->
+                           Errors.throw(Errors.argumentWasnt "`true` or `false`" "Secure or HttpOnly" v))
 //                   (*
 //                    * key=data set-cookie params *)
-//                   | "path", v | "domain", v ->
-//                     ( match v with
-//                     | DStr str ->
-//                         Ok
-//                           ( Format.sprintf
-//                               "%s=%s"
-//                               key
-//                               (Unicode_string.to_string str)
-//                           :: acc )
-//                     | _ ->
-//                         Error
-//                           (DError
-//                              ( SourceNone
-//                              , Printf.sprintf
-//                                  "Expected the Set-Cookie parameter `%s` passed to `%s` to be a `String`, but it had type `%s` instead."
-//                                  key
-//                                  state.executing_fnname
-//                                  ( v
-//                                  |> Dval.tipe_of
-//                                  |> Dval.tipe_to_developer_repr_v0 ) )) )
-//                   | "samesite", v ->
-//                     ( match v with
-//                     | DStr str
-//                       when List.mem
-//                              [ Unicode_string.of_string_exn "strict"
-//                              ; Unicode_string.of_string_exn "lax"
-//                              ; Unicode_string.of_string_exn "none" ]
-//                              (Unicode_string.lowercase str)
-//                              ( = ) ->
-//                         Ok
-//                           ( Format.sprintf
-//                               "%s=%s"
-//                               key
-//                               (Unicode_string.to_string str)
-//                           :: acc )
-//                     | _ ->
-//                         Error
-//                           (DError
-//                              ( SourceNone
-//                              , Printf.sprintf
-//                                  "Expected the Set-Cookie parameter `%s` passed to `%s` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `%s` instead."
-//                                  key
-//                                  state.executing_fnname
-//                                  (Dval.to_developer_repr_v0 v) )) )
-//                   | "max-age", v ->
-//                     ( match v with
-//                     | DInt i ->
-//                         Ok
-//                           ( Format.sprintf "%s=%s" key (Dint.to_string i)
-//                           :: acc )
-//                     | _ ->
-//                         Error
-//                           (DError
-//                              ( SourceNone
-//                              , Printf.sprintf
-//                                  "Expected the Set-Cookie parameter `%s` passed to `%s` to be an `Int` representing seconds, but it had type `%s` instead."
-//                                  key
-//                                  state.executing_fnname
-//                                  ( v
-//                                  |> Dval.tipe_of
-//                                  |> Dval.tipe_to_developer_repr_v0 ) )) )
-//                   | "expires", v ->
-//                     ( match v with
-//                     | DDate d ->
-//                         Ok
-//                           ( Format.sprintf
-//                               "%s=%s"
-//                               key
-//                               (Stdlib_util.http_date_string_of_date d)
-//                           :: acc )
-//                     | _ ->
-//                         Error
-//                           (DError
-//                              ( SourceNone
-//                              , Printf.sprintf
-//                                  "Expected the Set-Cookie parameter `%s` passed to `%s` to be a `Date`, but it had type `%s` instead."
-//                                  key
-//                                  state.executing_fnname
-//                                  ( v
-//                                  |> Dval.tipe_of
-//                                  |> Dval.tipe_to_developer_repr_v0 ) )) )
-//                   (* Error if the set-cookie parameter is invalid *)
-//                   | _ ->
-//                       Error
-//                         (DError
-//                            ( SourceNone
-//                            , Printf.sprintf
-//                                "Expected the params dict passed to `%s` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was `%s`."
-//                                state.executing_fnname
-//                                key )))
-//             in
-//             let nameValue =
-//               Format.sprintf
-//                 "%s=%s"
+                  | "path", v | "domain", v ->
+                      (match v with
+                       | DStr str ->
+                           (sprintf "%s=%s" key str :: acc)
+                       | _ ->
+                           Errors.throw(Errors.argumentWasnt "a string" "`Path` or `Domain`" v))
+                  | "samesite", v ->
+                      (match v with
+                       | DStr str when List.contains (String.toLower str) [ "strict"; "lax"; "none" ] ->
+                           (sprintf "%s=%s" key str :: acc)
+                       | _ ->
+                           Errors.throw(Errors.argumentWasnt "`Strict`, `Lax`, or `None`" "SameSite" v))
+                  | "max-age", v ->
+                      (match v with
+                       | DInt i ->
+                           (sprintf "%s=%s" key (string i) :: acc)
+                       | _ ->
+                           Errors.throw(Errors.argumentWasnt "a `Int` representing seconds" "Max-Age" v))
+
+                  | "expires", v ->
+                      (match v with
+                       | DDate d ->
+                           (sprintf "%s=%s" key (string d) :: acc)
+                       | _ ->
+                           Errors.throw(Errors.argumentWasnt "a date" "Expires" v))
+
+//                (* Error if the set-cookie parameter is invalid *)
+                  | _ ->
+                      Errors.throw("Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`")
+
+                let nameValue =
+                  sprintf "%s=%s" name value
 //                 (* DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
 //                  * the implicit _v0, and
 //                  * https://github.com/darklang/dark/pull/1917 for a
@@ -504,23 +433,16 @@ let fns : List<BuiltInFn> =
 //                  *
 //                  * If you really want to shield against invalid
 //                  * cookie-name/cookie-value strings, go read RFC6265 first. *)
-//                 (Unicode_string.to_string name)
-//                 (Unicode_string.to_string value)
-//             in
-//             let cookieParams =
-//               o |> Map.fold (Ok []) fold_cookie_params
-//             in
-//             ( match cookieParams with
-//             | Ok kvs ->
-//                 nameValue :: kvs
-//                 |> String.concat "; "
-//                 |> DStr
-//                 |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
-//             | Error dv ->
-//                 dv )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated } ]
-//
+
+                let cookieParams = Map.fold fold_cookie_params [] o
+                nameValue :: cookieParams
+                |> String.concat "; "
+                |> DStr
+                |> fun x -> Map.add "Set-Cookie" x Map.empty
+                |> DObj
+                |> Value
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
