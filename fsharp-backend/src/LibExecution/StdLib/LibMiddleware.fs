@@ -105,30 +105,32 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "parseQueryParamsMiddleware" 0
-      parameters =
-        [ Param.make "url" TStr ""
-          Param.make "req" (TVariable "a") ""
-          middlewareNextParameter ]
+    { name = fn "Http" "addQueryParamsMiddleware" 0
+      parameters = [ Param.make "req" (TVariable "a") ""; middlewareNextParameter ]
       returnType = middlewareReturnType
       description = ""
       fn =
+        // fun req ->
+        //   req.url
+        //   |> Http.parseQueryString_v0
+        //   |> Dict.set_v2 "queryParams"
+        //   |> next
+        let code =
+          eLambda
+            [ "req" ]
+            (ePipeApply
+              (eVar "next")
+              [ ePipeApply
+                  (eStdFnVal "Dict" "set" 2)
+                  [ ePipeApply
+                      (eStdFnVal "Http" "parseQueryString" 0)
+                      [ eFieldAccess (eVar "req") "url" ]
+                    eStr "queryParams" ] ])
+
         (function
-        // FSTODO
-        | state, [] -> Value(DObj(Map []))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-    { name = fn "Http" "parseHeaders" 0
-      parameters = [ Param.make "headerString" TStr "" ]
-      returnType = TDict TStr
-      description =
-        "Parse the headers string into a dict. If multiple headers of the same key exist, the latest one wins."
-      fn =
-        (function
-        // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -271,7 +273,6 @@ let fns : List<BuiltInFn> =
             let formBody = DNull // FSTODO
             let fullBody = DStr ""
             let jsonBody = DNull // FSTODO
-            let queryParams = DObj Map.empty // FSTODO
 
             let headers =
               headers
@@ -288,7 +289,6 @@ let fns : List<BuiltInFn> =
             |> Map.add "cookies" cookies
             |> Map.add "formBody" formBody
             |> Map.add "fullBody" fullBody
-            |> Map.add "queryParams" queryParams
             |> Map.add "formBody" formBody
             |> Map.add "jsonBody" jsonBody
 
