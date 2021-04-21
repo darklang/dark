@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
         "Parse the query string into a dict. If there are copies of the same query param, the last one wins"
       fn =
         (function
-        | state, [ DStr url ] ->
+        | _, [ DStr url ] ->
             let queryString = System.Uri(url).Query
             let nvc = System.Web.HttpUtility.ParseQueryString(queryString)
 
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | _, [] -> Value(DObj(Map []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -171,7 +171,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | _, [] -> Value(DObj(Map []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
       description = "Set a header in the HTTP response"
       fn =
         (function
-        | state, [ DHttpResponse response; DStr name; DStr value ] ->
+        | _, [ DHttpResponse response; DStr name; DStr value ] ->
             match response with
             | Response (code, headers, responseVal) ->
                 Response(code, headers ++ [ name, value ], responseVal)
