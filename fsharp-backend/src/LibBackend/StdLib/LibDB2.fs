@@ -659,8 +659,7 @@ let fns : List<BuiltInFn> =
 
             db.cols
             |> List.filter (fun (k, v) -> k <> "")
-            |> List.map
-                 (fun (k, v) -> (k, (LibExecution.DvalRepr.dtypeToString v |> DStr)))
+            |> List.map (fun (k, v) -> (k, (v.toOldString () |> DStr)))
             |> Dval.obj
             |> Value
         | _ -> incorrectArgs ())

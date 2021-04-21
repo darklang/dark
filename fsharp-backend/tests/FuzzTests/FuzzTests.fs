@@ -606,7 +606,7 @@ module ExecutePureFunctions =
             | RT.TFn (paramTypes, returnType) ->
                 let parameters =
                   List.mapi
-                    (fun i v -> (id i, $"{DvalRepr.dtypeToString v}_{i}"))
+                    (fun i (v : RT.DType) -> (id i, $"{v.toOldString ()}_{i}"))
                     paramTypes
 
                 let! body = genExpr' returnType s
@@ -692,7 +692,7 @@ module ExecutePureFunctions =
             | RT.TFn (paramTypes, returnType) ->
                 let parameters =
                   List.mapi
-                    (fun i v -> (id i, $"{DvalRepr.dtypeToString v}_{i}"))
+                    (fun i (v : RT.DType) -> (id i, $"{v.toOldString ()}_{i}"))
                     paramTypes
 
                 let! body = genExpr returnType

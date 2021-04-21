@@ -155,36 +155,12 @@ let ocamlBytesToString (bytes : byte []) =
 // -------------------------
 // Runtime Types
 // -------------------------
-let rec dtypeToString (t : DType) : string =
-  // TODO CLEANUP its unclear the full scope of what we use these for, and the
-  // impact of cleaning up the terrible names here.
-  // This function is used for putting lots of Data in the DB so we need to be super careful.
-  match t with
-  | TInt -> "Int"
-  | TFloat -> "Float"
-  | TBool -> "Bool"
-  | TNull -> "Nothing"
-  | TChar -> "Character"
-  | TStr -> "Str"
-  | TList _ -> "List"
-  | TFn _ -> "Block"
-  | TRecord _ -> "Dict"
-  | TVariable name -> "Any"
-  | TIncomplete -> "Incomplete"
-  | TError -> "Error"
-  | THttpResponse _ -> "Response"
-  | TDB _ -> "Datastore"
-  | TDate -> "Date"
-  | TDict _ -> "Dict"
-  | TPassword -> "Password"
-  | TUuid -> "UUID"
-  | TOption _ -> "Option"
-  | TErrorRail -> "ErrorRail"
-  | TResult _ -> "Result"
-  | TUserType (name, _) -> name
-  | TBytes -> "Bytes"
 
 
+// As of Wed Apr 21, 2021, this fn is only used for things that are shown to
+// developers, and not for storage or any other thing that needs to be kept
+// backwards-compatible.
+// CLEANUP: once we no longer support compatibility with OCaml, these messages can get much better.
 let rec typeToDeveloperReprV0 (t : DType) : string =
   match t with
   | TInt -> "Int"
@@ -211,47 +187,7 @@ let rec typeToDeveloperReprV0 (t : DType) : string =
   | TUserType (name, _) -> name
   | TBytes -> "Bytes"
 
-
-let rec dtypeOfString (str : string) : DType =
-  let any = TVariable "a"
-
-  match String.toLowercase str with
-  | "any" -> any
-  | "int" -> TInt
-  | "integer" -> TInt
-  | "float" -> TFloat
-  | "bool" -> TBool
-  | "boolean" -> TBool
-  | "nothing" -> TNull
-  | "character"
-  | "char" -> TChar
-  | "str" -> TStr
-  | "string" -> TStr
-  | "list" -> TList any
-  | "obj" -> TDict any
-  | "block" -> TFn([], any)
-  | "incomplete" -> TIncomplete
-  | "error" -> TError
-  | "response" -> THttpResponse any
-  | "datastore" -> TDB any
-  | "date" -> TDate
-  | "password" -> TPassword
-  | "uuid" -> TUuid
-  | "option" -> TOption any
-  | "errorrail" -> TErrorRail
-  | "result" -> TResult(any, any)
-  | "dict" -> TDict any
-  | _ -> failwith "unsupported runtime type"
-
-
-(* Users should not be aware of this *)
-let dtypeName (dv : Dval) : string =
-  dv |> Dval.toType |> dtypeToString |> String.toLowercase
-
 let prettyTypename (dv : Dval) : string = dv |> Dval.toType |> typeToDeveloperReprV0
-
-let unsafeDTypeToJson (typ : DType) : string =
-  typ |> dtypeToString |> String.toLowercase
 
 let rec toNestedString (reprfn : Dval -> string) (dv : Dval) : string =
   let rec inner (indent : int) (dv : Dval) : string =
