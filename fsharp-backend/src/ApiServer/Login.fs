@@ -48,7 +48,7 @@ let cookieOptionsFor (ctx : HttpContext) =
 // FSTODO: test logout when logged in, and when logged out
 let logout : HttpHandler =
   (fun next (ctx : HttpContext) ->
-    // CLEANUP move these into config urls
+    // TODO move these into config urls
     if Config.useLoginDarklangComForLogin then
       redirectTo false "https://login.darklang.com/logout" next ctx
     else

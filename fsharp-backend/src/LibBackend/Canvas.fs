@@ -32,7 +32,7 @@ type T =
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
-    // TODO CLEANUP: no separate fields for deleted, combine them
+    // TODO: no separate fields for deleted, combine them
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
     deletedUserFunctions : Map<tlid, PT.UserFunction.T>
@@ -155,7 +155,7 @@ let deleteTLForever (tlid : tlid) (c : T) : T =
       deletedDBs = Map.remove tlid c.deletedDBs
       deletedHandlers = Map.remove tlid c.deletedHandlers }
 
-// TODO: CLEANUP Historically, on the backend, toplevel meant handler or DB
+// CLEANUP Historically, on the backend, toplevel meant handler or DB
 let deleteToplevel (tlid : tlid) (c : T) : T =
   c |> deleteHandler tlid |> deleteDB tlid
 

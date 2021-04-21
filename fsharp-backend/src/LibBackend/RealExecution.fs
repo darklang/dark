@@ -38,7 +38,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
     (task {
       let! packageFns = Lazy.force packageFns
       let stdlibFns = Lazy.force stdlibFns
-      // CLEANUP: this keeps a cached version so we're not loading them all the time.
+      // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
       return { stdlib = stdlibFns; packageFns = packageFns }
