@@ -106,26 +106,24 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "addQueryParamsMiddleware" 0
-      parameters = [ Param.make "req" (TVariable "a") ""; middlewareNextParameter ]
+      parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = ""
       fn =
         // fun req ->
-        //   req.url
-        //   |> Http.parseQueryString_v0
-        //   |> Dict.set_v2 "queryParams"
-        //   |> next
+        //   let url = Http.parseQueryString_v0 req.url
+        //   let req = Dict.set_v2 req "queryParams" url
+        //   req |> next
         let code =
           eLambda
             [ "req" ]
-            (ePipeApply
-              (eVar "next")
-              [ ePipeApply
-                  (eStdFnVal "Dict" "set" 2)
-                  [ ePipeApply
-                      (eStdFnVal "Http" "parseQueryString" 0)
-                      [ eFieldAccess (eVar "req") "url" ]
-                    eStr "queryParams" ] ])
+            (eLet
+              "url"
+              (eFn "Http" "parseQueryString" 0 [ eFieldAccess (eVar "req") "url" ])
+              (eLet
+                "req"
+                (eFn "Dict" "set" 0 [ eVar "req"; eStr "queryParams"; eVar "url" ])
+                (ePipeApply (eVar "next") [ eVar "req" ])))
 
         (function
         | state, [ DFnVal _ as next ] ->
