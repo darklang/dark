@@ -14,6 +14,12 @@
 //Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0  "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `5` instead."
 //Http.setCookie_v2 "myCookie" "myVal" { SameSite = "allthesecures" } = Test.typeError_v0 "Expected the Set-Cookie parameter `SameSite` passed to `Http::setCookie_v2` to have the value `\"Strict\"`, `\"Lax\"`, or `\"None\"`, but it had the value `\"allthesecures\"` instead."
 
+Http.setCookie_v0 "myCookie" "myVal" { Domain = "darklang" } = { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang"}
+Http.setCookie_v0 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal; " }
+Http.setCookie_v0 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param: Fake: \"0\"" // OCAMLONLY
+Http.setCookie_v0 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param" // FSHARPONLY
+Http.setCookie_v0 "myCookie" "myVal" { Domain = "darklang"; SameSite = "fake" } =  { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang; SameSite=fake" }
+
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
 
 Http.notFound_v0 = Http.response_v0 null 404

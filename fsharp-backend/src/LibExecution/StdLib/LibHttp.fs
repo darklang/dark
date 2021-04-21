@@ -271,52 +271,48 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated } ]
-// ; { name = fn "Http" "setCookie" 0
-//   ; parameters = [Param.make "name" TStr ""; Param.make "value" TStr ""; Param.make "params" TObj ""]
-//   ; returnType = TObj
-//   ; description =
-//       "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
-//   ; fn =
-//         (function
-//         | _, [DStr name; DStr value; DObj o] ->
-//             o
+      deprecated = NotDeprecated }
+    { name = fn "Http" "setCookie" 0
+      parameters = [ Param.make "name" TStr ""
+                     Param.make "value" TStr ""
+                     Param.make "params" (TDict varA) "" ]
+      returnType = TDict varA
+      description =
+        "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
+      fn =
+        (function
+        | _, [ DStr name; DStr value; DObj o ] ->
+            o
 //             (* Transform a DOBj into a cookie list of individual cookie params *)
-//             |> Map.to_alist
-//             |> List.concat_map (fun (x, y) ->
-//                    match (String.lowercase x, y) with
+            |> Map.toList
+            |> List.map (fun (x, y) ->
+                match (String.toLower x, y) with
 //                    (* Single boolean set-cookie params *)
-//                    | "secure", DBool b | "httponly", DBool b ->
-//                        if b then [x] else []
+                | "secure", DBool b | "httponly", DBool b ->
+                    if b then [x] else []
 //                    (* X=y set-cookie params *)
-//                    | "path", DStr str
-//                    | "domain", DStr str
-//                    | "samesite", DStr str ->
-//                        [ Format.sprintf
-//                            "%s=%s"
-//                            x
-//                            (Unicode_string.to_string str) ]
-//                    | "max-age", DInt i | "expires", DInt i ->
-//                        [Format.sprintf "%s=%s" x (Dint.to_string i)]
+                | "path", DStr str
+                | "domain", DStr str
+                | "samesite", DStr str ->
+                    [sprintf "%s=%s" x str]
+                | "max-age", DInt i | "expires", DInt i ->
+                    [sprintf "%s=%s" x (string i)]
 //                    (* Throw if there's not a good way to transform the k/v pair *)
-//                    | _ ->
-//                        y
-//                        |> Dval.to_developer_repr_v0
-//                        |> Format.sprintf "Unknown set-cookie param: %s: %s" x
+                | _ ->
+                    Errors.throw ("Unknown set-cookie param"))
 //                        |> Exception.code)
 //             (* Combine it into a set-cookie header *)
-//             |> String.concat "; "
-//             |> Format.sprintf
-//                  "%s=%s; %s"
-//                  (Uri.pct_encode (Unicode_string.to_string name))
-//                  (Uri.pct_encode (Unicode_string.to_string value))
-//             |> DStr
-//             |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
+            |> List.concat
+            |> String.concat "; "
+            |> sprintf "%s=%s; %s" name value
+            |> DStr
+            |> fun x -> Map.add "Set-Cookie" x Map.empty
+            |> DObj
+            |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Http" "setCookie" 1) } ]
 // ; { name = fn "Http" "setCookie" 1
 //   ; parameters = [Param.make "name" TStr ""; Param.make "value" TStr ""; Param.make "params" TObj ""]
 //   ; returnType = TObj
