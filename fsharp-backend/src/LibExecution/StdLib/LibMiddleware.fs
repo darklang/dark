@@ -377,7 +377,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "wrapInResponseValue" 0
+    { name = fn "Http" "convertToResponseMiddleware" 0
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Takes a value that is expected to be returned to an end-user via HTTP.
@@ -401,7 +401,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "addContentLengthResponseHeader" 0
+    { name = fn "Http" "addContentLengthResponseHeaderMiddleware" 0
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Take the HTTP result, and add a Content-length header to it."
@@ -493,12 +493,13 @@ let fns : List<BuiltInFn> =
           eLet
             "fns"
 
-            (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
+            (eList [ eStdFnVal "Http" "convertToResponseMiddleware" 0
+                     eStdFnVal "Http" "addQueryParamsMiddleware" 0
                      // Shortcircuit
                      eStdFnVal "Http" "respondToTextPingMiddleware" 0
                      // Everything gets `Content-Length` and `Server` headers
                      eStdFnVal "Http" "addServerHeaderMiddleware" 0
-                     eStdFnVal "Http" "addContentLengthResponseHeader" 0 ])
+                     eStdFnVal "Http" "addContentLengthResponseHeaderMiddleware" 0 ])
             (eLet
               "app"
               (eFn
