@@ -273,9 +273,10 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Http" "setCookie" 0
-      parameters = [ Param.make "name" TStr ""
-                     Param.make "value" TStr ""
-                     Param.make "params" (TDict varA) "" ]
+      parameters =
+        [ Param.make "name" TStr ""
+          Param.make "value" TStr ""
+          Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
