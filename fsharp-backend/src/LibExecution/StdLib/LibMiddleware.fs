@@ -567,13 +567,10 @@ let fns : List<BuiltInFn> =
 //   handler
 //   |> \nextMW -> addQueryParams url nextMW
 //   |> parseRawBody
-//   |> addHeaders headers
 //   |> addJsonBody body
 //   |> addFormBody body
 //   |> addCookies headers
 //   |> processErrorRail
 //   |> optionsHanderMiddleware
-//   |> headHandlerMiddleware
 //   |> textPingMiddleware
 //   |> sitemapFaviconMiddleware
-//
