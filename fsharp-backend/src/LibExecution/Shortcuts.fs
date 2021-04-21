@@ -1,6 +1,7 @@
 module LibExecution.Shortcuts
 
 open Prelude
+open Tablecloth
 open RuntimeTypes
 
 // Returns a string representation of an expr using shortcuts. This makes it
@@ -15,8 +16,15 @@ let rec toStringRepr (e : Expr) : string =
   | ECharacter (_, char) -> $"eChar '{char}'"
   | EInteger (_, num) -> $"eInt {num}"
   | EString (_, str) -> $"eStr {q str}"
-  | EFloat (_, number) -> $"eFloat {number}"
-  | EBool (_, b) -> $"eBool {b}"
+  | EFloat (_, number) ->
+      let sign = if System.Double.IsNegative number then Negative else Positive
+      let stringified = number |> abs |> string
+
+      match String.split "." stringified with
+      | [ whole; fraction ] -> $"eFloat {sign} {whole}I {fraction}I"
+      | [ whole ] -> $"eFloat {sign} {whole}I 0I"
+      | _ -> failwith $"can't print float: {number}, {stringified}"
+  | EBool (_, b) -> $"eBool {b |> string |> String.toLowercase}"
   | ENull _ -> $"eNull ()"
   | EVariable (_, var) -> $"eVar {q var}"
   | EFieldAccess (_, obj, fieldname) -> $"eFieldAccess {pr obj} {q fieldname}"
