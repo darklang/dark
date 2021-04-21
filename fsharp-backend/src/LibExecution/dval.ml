@@ -1,21 +1,3 @@
-open Core_kernel
-open Types
-open Types.RuntimeT
-
-(* ------------------------- *)
-(* Strings *)
-(* ------------------------- *)
-let dstr_of_string (s : string) : dval option =
-  s |> Unicode_string.of_string |> Option.map ~f:(fun s -> DStr s)
-
-
-let dstr_of_string_exn (s : string) : dval =
-  s |> dstr_of_string |> Option.value_exn ~message:("Invalid UTF-8 string:" ^ s)
-
-
-(* ------------------------- *)
-(* Types *)
-(* ------------------------- *)
 let rec tipe_to_string (t : tipe) : string =
   match t with
   | TAny ->
