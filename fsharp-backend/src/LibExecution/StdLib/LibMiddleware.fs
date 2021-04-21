@@ -306,18 +306,28 @@ let fns : List<BuiltInFn> =
             "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
       returnType = THttpResponse TBytes
       description = "Return a HTTPResponse based on the input"
+      // This does a lot more than we'd hope it does, and ideally we'd have
+      // split this into multiple middleware functions.  However, there is a
+      // need to make it match the OCaml version.  In OCaml, if the value was
+      // not wrapped in a response, we would always use toPrettyMachineJson to
+      // display it, regardless of the inferred headers. As a result, we cannot
+      // separate these from each other: if we convert to bytes we lose type to
+      // infer the content-type from. If we add the content-type first, we lose
+      // whether it's a result or not.
       fn =
         (function
         | _, [ response ] ->
-            // This does a lot more than we'd hope it does, and ideally we'd
-            // have split this into multiple middleware functions.  However,
-            // there is a need to make it match the OCaml version.  In OCaml,
-            // if the value was not wrapped in a response, we would always use
-            // toPrettyMachineJson to display it, regardless of the inferred
-            // headers. As a result, we cannot separate these from each other:
-            // if we convert to bytes we lose type to infer the content-type
-            // from. If we add the content-type first, we lose whether it's a
-            // result or not.
+            // let req ->
+            //   if not wrapped in a response
+            //     use machinejson
+            //     infer header based on type (list/obj uses JSON, else use textplain)
+            //   if in a response:
+            //      use existing header or infer from type.
+            //      if output is bytes, print direct
+            //      if text/html or text/plain or applcation/xml, use enduser_readable_text
+            //      if application/json, convert to pretty_machine_json_v1
+            //   note: string with no response: machine printout and text/plain (dev mode)
+            //         string in http response: enduser_readable_text and text/plain
             let inferContentType dv =
               match dv with
               | DObj _
@@ -465,15 +475,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // let req ->
-    //   if not wrapped in a response, use machinejson, and infer header based on type (list/obj uses JSON, else use textplain)
-    //   if in a response:
-    //      use existing header or infer from type.
-    //      if output is bytes, print direct
-    //      if text/html or text/plain or applcation/xml, use enduser_readable_text
-    //      if application/json, convert to pretty_machine_json_v1
-    //   note: string with no response: machine printout and text/plain (dev mode)
-    //         string in http response: enduser_readable_text and text/plain
     { name = fn "Http" "middleware" 0
       parameters =
         [ Param.make "url" TStr ""
