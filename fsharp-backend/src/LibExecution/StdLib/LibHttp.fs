@@ -324,24 +324,24 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr name; DStr value; DObj o ] ->
             o
-//             (* Transform a DOBj into a cookie list of individual cookie params *)
+//          (* Transform a DOBj into a cookie list of individual cookie params *)
             |> Map.toList
             |> List.map (fun (x, y) ->
                 match (String.toLower x, y) with
-//                    (* Single boolean set-cookie params *)
-                  | "secure", DBool b | "httponly", DBool b ->
-                      if b then [x] else []
-//                    (* X=y set-cookie params *)
-                  | "path", DStr str
-                  | "domain", DStr str
-                  | "samesite", DStr str ->
-                      [sprintf "%s=%s" x str]
-                  | "max-age", DInt i | "expires", DInt i ->
-                      [sprintf "%s=%s" x (string i)]
-//                    (* Throw if there's not a good way to transform the k/v pair *)
-                  | _ ->
-                      Errors.throw ("Unknown set-cookie param"))
-//             (* Combine it into a set-cookie header *)
+//              (* Single boolean set-cookie params *)
+                | "secure", DBool b | "httponly", DBool b ->
+                    if b then [x] else []
+//              (* X=y set-cookie params *)
+                | "path", DStr str
+                | "domain", DStr str
+                | "samesite", DStr str ->
+                    [sprintf "%s=%s" x str]
+                | "max-age", DInt i | "expires", DInt i ->
+                    [sprintf "%s=%s" x (string i)]
+//              (* Throw if there's not a good way to transform the k/v pair *)
+                | _ ->
+                    Errors.throw ("Unknown set-cookie param"))
+//          (* Combine it into a set-cookie header *)
             |> List.concat
             |> String.concat "; "
             |> sprintf "%s=%s; %s" name value
