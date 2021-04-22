@@ -10,6 +10,7 @@
     <Compile Include="Config.fs" />
     <Compile Include="Rollbar.fs" />
     <Compile Include="HealthCheck.fs" />
+    <Compile Include="Kestrel.fs" />
     <Compile Include="Telemetry.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,9 +1,9 @@
 module LibService.Rollbar
 
-let mutable initialized = false
-
 open Prelude
 open Tablecloth
+
+let mutable initialized = false
 
 let init (serviceName : string) : unit =
   printfn "Configuring rollbar"
