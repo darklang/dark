@@ -279,7 +279,7 @@ RUN pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >>
 ############################
 
 RUN \
-  VERSION=v0.7.1 \
+  VERSION=v0.7.2 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
   && wget -P tmp_install_folder/ https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
@@ -290,7 +290,7 @@ RUN \
 # Kubeval - for linting k8s files
 ############################
 RUN \
-  VERSION=0.15.0 \
+  VERSION=v0.16.1 \
   && wget -P tmp_install_folder/ https://github.com/instrumenta/kubeval/releases/download/${VERSION}/kubeval-linux-amd64.tar.gz \
   && tar xvf tmp_install_folder/kubeval-linux-amd64.tar.gz -C  tmp_install_folder \
   && sudo cp tmp_install_folder/kubeval /usr/bin/ \
@@ -316,7 +316,7 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 # This section was created copying the commands from the 3.1 dockerfiles.
 # https://github.com/dotnet/dotnet-docker/blob/master/src/sdk/3.1/bionic/amd64/Dockerfile
 
-# TODO: switch to 5.0. Note that the 5.0 dockerfules are split among 3
+# TODO: update to latest. Note that the 5.0 dockerfules are split among 3
 # different dockerfile (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src.
 
