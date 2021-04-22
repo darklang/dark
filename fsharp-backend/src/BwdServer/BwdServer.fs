@@ -265,7 +265,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           Canvas.loadHttpHandlersFromCache meta requestPath searchMethod
           |> Task.map Result.unwrapUnsafe
 
-        match Map.values c.handlers with
+        let pages =
+          Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
+
+        match pages with
         | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
             let url = ctx.Request.GetEncodedUrl()
             // FSTODO: move vars into http middleware
