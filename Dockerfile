@@ -2,14 +2,12 @@
 # create another dockerfile to deploy.
 
 # DOCKERFILE_REPO: VERY IMPORTANT: this dockerfile is stored in the
-# darklang/dockerfile repo, and is copied into darklang/dark via a git subtree.
+# darklang/dockerfile repo, and is copied into darklang/dark.
 # The copy allows developers to develop Dark directly without pulling a docker
 # image.
 #
-# You can make changes to this file in this repo, and but pushing directly via
-# the subtree is broken, so you need to make the changes to darklang/dockerfile
-# and then pull them using scripts/dockerfile-pull (or edit the commands within
-# appropiately).
+# You can make changes to this file in this repo, and then copy them to
+# darklang/dockerfile.
 #
 # The CircleCI workflow is a little complicated. To actually use any changes to
 # the image, you need to change the sha used in config/circleci.yml. You can

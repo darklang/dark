@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-# Pushing breaks but we can still pull.
-
-git subtree pull --prefix dockerfile-repo/ git@github.com:darklang/dockerfile main
