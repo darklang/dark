@@ -17,10 +17,12 @@ let connectionString =
   |> Sql.username LibService.Config.pguser
   |> Sql.password LibService.Config.pgpassword
   |> Sql.database LibService.Config.pgdbname
-
   // |> Sql.sslMode SslMode.Require
-  // FSTODO pool size
-  |> Sql.config "Pooling=true;Maximum Pool Size=50;Include Error Detail=true"
+
+  // Our DB in GCP supports 800 connections at once. In the current rollout, we
+  // have 32 api servers, 32 bwd servers, and 60 queue servers. We also need 6
+  // connections for GCP, and room to roll up.
+  |> Sql.config "Pooling=true;Maximum Pool Size=4;Include Error Detail=true"
   |> Sql.formatConnectionString
 
 let connect () : Sql.SqlProps = Sql.connect connectionString

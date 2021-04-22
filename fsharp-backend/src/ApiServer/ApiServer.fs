@@ -126,7 +126,7 @@ let main args =
   LibBackend.Init.init "ApiServer"
 
   WebHost.CreateDefaultBuilder(args)
-  |> fun wh -> wh.UseKestrel()
+  |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
   // FSTODO: use a config value

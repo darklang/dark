@@ -6,12 +6,12 @@ set -euo pipefail
 function check {
   if [[ "$1" == *"/services/"* ]]; then
     echo "kubeval $1"
-    # production version is 1.16.13, this is the closest in that repo
+    # production version is 1.17.17, this is the closest in that repo
     kubeval \
       --additional-schema-locations \
-        https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master,https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/746d95595310baddb59477bde49bfa7e6a4eecb7 \
+        https://raw.githubusercontent.com/instrumenta/kubernetes-json-schema/master \
       --skip-kinds=ManagedCertificate,Issuer,CustomResourceDefinition \
-      --kubernetes-version=1.16.10 \
+      --kubernetes-version=1.17.4 \
       --force-color \
       "$1"
   else
