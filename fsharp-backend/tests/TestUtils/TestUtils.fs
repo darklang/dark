@@ -167,7 +167,7 @@ let executionStateFor
   : Task<RT.ExecutionState> =
   task {
     let! owner = testOwner.Force()
-    let ownerID : UserID = (owner : LibBackend.Account.UserInfo).id
+    let ownerID : UserID = (owner : Account.UserInfo).id
 
     // Performance optimization: don't touch the DB if you don't use the DB
     let! canvasID =
@@ -177,7 +177,7 @@ let executionStateFor
           let canvasName = CanvasName.create $"test-{hash}"
           do! clearCanvasData canvasName
 
-          let! canvasID = LibBackend.Canvas.canvasIDForCanvasName ownerID canvasName
+          let! canvasID = Canvas.canvasIDForCanvasName ownerID canvasName
 
           return canvasID
         }

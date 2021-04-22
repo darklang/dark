@@ -29,7 +29,7 @@ let execSaveDvals
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
     let! state = executionStateFor "test" dbs fns
     let results, traceFn = Exe.traceDvals ()
-    let state = Exe.updateTraceDval traceFn state
+    let state = Exe.updateTracing (fun t -> { t with traceDval = traceFn }) state
 
     let inputVars = Map.empty
     let! _result = Exe.executeExpr state inputVars ast
@@ -47,7 +47,7 @@ let testExecFunctionTLIDs : Test =
     let! state = executionStateFor "test" Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
-    let state = Exe.updateTraceTLID traceFn state
+    let state = Exe.updateTracing (fun t -> { t with traceTLID = traceFn }) state
 
     let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
 
@@ -95,7 +95,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
       { state with libraries = { state.libraries with stdlib = Map.empty } }
 
     let results, traceFn = Exe.traceDvals ()
-    let state = Exe.updateTraceDval traceFn state
+    let state = Exe.updateTracing (fun t -> { t with traceDval = traceFn }) state
 
     let! _value = Exe.executeExpr state Map.empty ast
 

@@ -220,9 +220,9 @@ module String =
 module HashSet =
   type T<'v> = System.Collections.Generic.HashSet<'v>
 
-  let add (v : 'v) (s : T<'v>) : T<'v> =
-    s.Add v |> ignore
-    s
+  let add (v : 'v) (s : T<'v>) : unit =
+    let (_ : bool) = s.Add v
+    ()
 
   let toList (d : T<'v>) : List<'v> =
     seq {

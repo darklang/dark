@@ -32,6 +32,7 @@ module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Routing = LibBackend.Routing
+module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
@@ -58,11 +59,11 @@ let runHttp
   (body : byte [])
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
-  : Task<RT.Dval> =
+  : Task<RT.Dval * Exe.HashSet<tlid>> =
   task {
 
     let program = Canvas.toProgram c
-    let! state = RealExe.createState traceID tlid program
+    let! state, touchedTLIDs = RealExe.createState traceID tlid program
     let symtable = Interpreter.withGlobals state inputVars
 
     let headers = headers |> Map.map RT.DStr |> RT.DObj
@@ -85,8 +86,7 @@ let runHttp
         RT.NoRail
       |> TaskOrValue.toTask
 
-    return Exe.extractHttpErrorRail result
-
+    return (Exe.extractHttpErrorRail result, touchedTLIDs)
   }
 
 
@@ -272,7 +272,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
             let url = ctx.Request.GetEncodedUrl()
             // FSTODO: move vars into http middleware
-            let vars = LibBackend.Routing.routeInputVars route requestPath
+            let vars = Routing.routeInputVars route requestPath
 
             match vars with
             | Some vars ->
@@ -281,9 +281,15 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 let expr = expr.toRuntimeType ()
                 let headers = getHeaders ctx
 
-                let! result = runHttp c tlid traceID url headers body symtable expr
+                let! result, touchedTLIDs =
+                  runHttp c tlid traceID url headers body symtable expr
+
                 debuG "result of runHttp" result
                 do! getCORS ctx canvasID
+
+                // Do not resolve task, send this into the ether
+                let tlids = HashSet.toList touchedTLIDs
+                Pusher.pushNewTraceID executionID canvasID traceID tlids
 
                 match result with
                 | RT.DHttpResponse (RT.Redirect url) ->
