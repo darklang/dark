@@ -15,8 +15,7 @@ content-type: application/json; charset=utf-8
 Access-Control-Allow-Origin: *
 x-darklang-execution-id: 0123456789
 Server: darklang
-Content-Length: 419 // OCAMLONLY
-Content-Length: 421 // FSHARPONLY
+Content-Length: LENGTH
 
 {
   "body": null,
