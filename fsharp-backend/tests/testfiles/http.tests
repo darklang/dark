@@ -27,14 +27,12 @@ Http.setCookie_v2 "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecu
 
 Http.setCookie_v0 "myCookie" "myVal" { Domain = "darklang" } = { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang"}
 Http.setCookie_v0 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal; " }
-Http.setCookie_v0 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param: Fake: \"0\"" // OCAMLONLY
-Http.setCookie_v0 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param" // FSHARPONLY
+Http.setCookie_v0 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param: Fake: \"0\""
 Http.setCookie_v0 "myCookie" "myVal" { Domain = "darklang"; SameSite = "fake" } =  { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang; SameSite=fake" }
 
 Http.setCookie_v1 "myCookie" "myVal" { Domain = "darklang" } = { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang"}
 Http.setCookie_v1 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal; " }
-Http.setCookie_v1 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param: Fake: \"0\"" // OCAMLONLY
-Http.setCookie_v1 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param" // FSHARPONLY
+Http.setCookie_v1 "myCookie" "myVal" {Fake = "0"} = Test.typeError_v0 "Unknown set-cookie param: Fake: \"0\""
 Http.setCookie_v1 "myCookie" "myVal" { Domain = "darklang"; SameSite = "fake" } =  { ``Set-Cookie`` = "myCookie=myVal; Domain=darklang; SameSite=fake" }
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400

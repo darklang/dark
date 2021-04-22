@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open Prelude
 
 module Errors = LibExecution.Errors
+module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
@@ -299,7 +300,7 @@ let fns : List<BuiltInFn> =
                     [sprintf "%s=%s" x (string i)]
                 // Throw if there's not a good way to transform the k/v pair
                 | _ ->
-                    Errors.throw ("Unknown set-cookie param"))
+                    Errors.throw $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
             // Combine it into a set-cookie header
             |> List.concat
             |> String.concat "; "
@@ -339,7 +340,7 @@ let fns : List<BuiltInFn> =
                     [sprintf "%s=%s" x (string i)]
                 // Throw if there's not a good way to transform the k/v pair
                 | _ ->
-                    Errors.throw ("Unknown set-cookie param"))
+                    Errors.throw $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
             // Combine it into a set-cookie header
             |> List.concat
             |> String.concat "; "
