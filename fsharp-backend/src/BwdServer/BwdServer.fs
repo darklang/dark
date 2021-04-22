@@ -287,6 +287,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 debuG "result of runHttp" result
                 do! getCORS ctx canvasID
 
+                // FSTODO: save event in the http pipeline
+
                 // Do not resolve task, send this into the ether
                 let tlids = HashSet.toList touchedTLIDs
                 Pusher.pushNewTraceID executionID canvasID traceID tlids
@@ -315,7 +317,17 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | [] when toString ctx.Request.Path = "/favicon.ico" ->
             return! faviconResponse ctx
         | [] ->
-            // FSTODO: save trace
+            // FSTODO: The request body is created in the pipeline. Should we run this through the pipeline to a handler that returns 404?
+            let event = RT.DNull
+
+            let! timestamp =
+              TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
+
+            Pusher.pushNew404
+              executionID
+              canvasID
+              ("HTTP", requestPath, method, timestamp, traceID)
+
             return! noHandlerResponse ctx
         | _ -> return! moreThanOneHandlerResponse ctx
     | None -> return! canvasNotFoundResponse ctx
