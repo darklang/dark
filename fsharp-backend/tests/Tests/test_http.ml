@@ -1,20 +1,3 @@
-let t_mismatch_is_filtered () =
-  let single = http_route_handler ~route:"/:first" () in
-  let filtered = Http.filter_invalid_handler_matches ~path:"/" [single] in
-  AT.check (AT.list testable_handler) "mismatch is filtered out" [] filtered
-
-
-let t_mismatch_filtering_leaves_root () =
-  let single = http_route_handler ~route:"/:first" () in
-  let root = http_route_handler ~tlid:tlid2 ~route:"/" () in
-  let filtered = Http.filter_invalid_handler_matches ~path:"/" [single; root] in
-  AT.check
-    (AT.list testable_handler)
-    "mismatch is filtered out but root is left"
-    [root]
-    filtered
-
-
 let t_query_params_with_duplicate_keys () =
   let parsed =
     Parsed_request.parsed_query_string [("a", ["b"]); ("a", ["c"])]
@@ -31,17 +14,6 @@ let t_query_params_with_duplicate_keys () =
     (Dval.query_to_dval [("a", ["b"]); ("a", ["c"])])
     (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c"))) ;
   ()
-
-
-let t_incomplete_handler_doesnt_throw () =
-  let filled = http_route_handler ~route:"/:foo" () in
-  let empty = handler (int 5) in
-  let ordered = Http.filter_matching_handlers "/a" [filled; empty] in
-  AT.check
-    (AT.list testable_handler)
-    "incomplete handler is filtered out without throwing"
-    [filled]
-    ordered
 
 
 let t_parsed_request_cookies () =

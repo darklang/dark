@@ -3,8 +3,8 @@ module Tests.Routing
 open Expecto
 
 open Prelude
-open Prelude.Tablecloth
 open Tablecloth
+open Prelude.Tablecloth
 
 open TestUtils
 
@@ -100,6 +100,24 @@ let unitTests =
         // multiple returned (note: test relies on ordering, though there's no reason for the ordering)
         ([ "/:first"; "/:first/:second"; "/:foo/:bar" ],
          [ "/:foo/:bar"; "/:first/:second" ]) ]
+    testMany2
+      "filterInvalidHandlers"
+      (fun path routes ->
+        routes
+        |> List.map (fun r -> testHttpRouteHandler r "GET" (eInt 5))
+        |> filterInvalidHandlerMatches path
+        |> List.map (fun h -> h.spec.name ()))
+      // mismatch is filtered out
+      [ ("/", [ "/:first" ], [])
+        // mismatch is filtered out but root is left
+        ("/", [ "/:first"; "/" ], [ "/" ]) ]
+    testMany2
+      "filterMatchingHandlers"
+      filterInvalidHandlerMatches
+      // incomplete handler is filtered without throwing
+      [ (let filled = testHttpRouteHandler "/:foo" "GET" (eInt 5)
+         let emptyHttp = testHttpRouteHandler "" "" (eInt 5)
+         ("/a", [ filled; emptyHttp ], [ filled ])) ]
     testManyTask
       "canvasNameFromHost"
       (fun h ->

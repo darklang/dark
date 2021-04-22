@@ -114,7 +114,7 @@ let requestPathMatchesRoute (route : string) (requestPath : string) : bool =
 let filterInvalidHandlerMatches
   (path : string)
   (handlers : List<PT.Handler.T>)
-  : PT.Handler.T list =
+  : List<PT.Handler.T> =
   List.filter
     (fun h ->
       let route = h.spec.name () in
