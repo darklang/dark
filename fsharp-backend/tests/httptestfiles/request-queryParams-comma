@@ -1,8 +1,8 @@
-[http-handler GET /user/:user]
+[http-handler GET /]
 request.queryParams
 
 [request]
-GET /user/test?param1=2,x=[asd,5],,&param2=67246&param3&param4=&param2=again&,, HTTP/1.1
+GET /?param1=2,x=[asd,5],,&,, HTTP/1.1
 Host: HOST
 Date: Sun, 08 Nov 2020 15:38:01 GMT
 Content-Length: 0
@@ -24,8 +24,5 @@ Content-Length: LENGTH
     "5]",
     "",
     ""
-  ],
-  "param2": "again",
-  "param3": null,
-  "param4": null
+  ]
 }
