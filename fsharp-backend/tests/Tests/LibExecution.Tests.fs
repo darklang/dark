@@ -191,7 +191,7 @@ let fileTests () : Test =
                                  ({ name = k
                                     nameID = gid ()
                                     typ =
-                                      if v = "" then None else Some(PT.parseType v)
+                                      if v = "" then None else Some(PT.DType.parse v)
                                     typeID = gid () } : PT.DB.Col))
                           |> Map.values }
 
