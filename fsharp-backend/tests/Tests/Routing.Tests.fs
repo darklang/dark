@@ -86,7 +86,20 @@ let unitTests =
         |> filterMatchingHandlersBySpecificity
         |> List.map (fun h -> h.spec.name ()))
       // concrete over wild
-      [ ([ "/:foo"; "/a" ], [ "/a"; "/:foo" ]) ]
+      [ ([ "/:foo"; "/a" ], [ "/a" ])
+        // wild over nothing
+        ([ "/a/:foo"; "/a" ], [ "/a/:foo" ])
+        // differing number of segments
+        ([ "/:first"; "/:first/:second" ], [ "/:first/:second" ])
+        // lengthy abcdef wildcard
+        ([ "/:a/b/c/d/:e/:f"; "/:a/b/c/:d/e/f" ], [ "/:a/b/c/d/:e/:f" ])
+        // same length, diff # of wildcards
+        ([ "/a/:b/:c"; "/:a/b/c" ], [ "/a/:b/:c" ])
+        // same length, same # of wildcards
+        ([ "/:a/b/c"; "/a/:b/c"; "/a/b/:c" ], [ "/a/b/:c" ])
+        // multiple returned (note: test relies on ordering, though there's no reason for the ordering)
+        ([ "/:first"; "/:first/:second"; "/:foo/:bar" ],
+         [ "/:foo/:bar"; "/:first/:second" ]) ]
     testManyTask
       "canvasNameFromHost"
       (fun h ->
