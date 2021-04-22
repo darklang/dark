@@ -27,6 +27,7 @@
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="OCamlInterop.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
+    <Compile Include="Routing.Tests.fs" />
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />
     <Compile Include="Undo.Tests.fs" />

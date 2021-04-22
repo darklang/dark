@@ -953,15 +953,6 @@ let canvasIDForCanvasName
                       "canvasName", Sql.string canvasName ]
   |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
 
-let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.T>> =
-  Sql.query
-    "SELECT canvas
-     FROM custom_domains
-     WHERE host = @host"
-  |> Sql.parameters [ "host", Sql.string customDomain ]
-  |> Sql.executeRowOptionAsync
-       (fun read -> read.string "canvas" |> CanvasName.create)
-
 let toProgram (c : T) : RT.ProgramContext =
   let ownerID = c.meta.owner
   let canvasID = c.meta.id

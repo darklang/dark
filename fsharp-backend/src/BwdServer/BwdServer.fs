@@ -31,6 +31,7 @@ module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
+module Routing = LibBackend.Routing
 module TI = LibBackend.TraceInputs
 
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
@@ -47,13 +48,6 @@ let getHeader (ctx : HttpContext) (name : string) : string option =
   match ctx.Request.Headers.TryGetValue name with
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
-
-let sanitizeUrlPath (path : string) : string =
-  path
-  |> FsRegEx.replace "//+" "/"
-  |> String.trimEnd [| '/' |]
-  |> fun str -> if str = "" then "/" else str
-
 
 let runHttp
   (c : Canvas.T)
@@ -95,19 +89,6 @@ let runHttp
 
   }
 
-
-let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
-  task {
-    match host.Split [| '.' |] with
-    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
-    // just another load balancer
-    | [| a; "darkcustomdomain"; "com" |]
-    | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
-    | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
-    | _ -> return! Canvas.canvasNameFromCustomDomain host
-  }
 
 let favicon : Lazy<byte array> =
   lazy (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png")
@@ -255,7 +236,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     let logger = loggerFactory.CreateLogger("logger")
     let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
 
-    match! canvasNameFromHost ctx.Request.Host.Host with
+    match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
         // CLEANUP: move execution ID header up
         let executionID = gid ()
@@ -274,7 +255,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         let traceID = System.Guid.NewGuid()
         let method = ctx.Request.Method
-        let requestPath = ctx.Request.Path.Value |> sanitizeUrlPath
+        let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
 
         // redirect HEADs to GET. We pass the actual HEAD method to the engine,
         // and leave it to middleware to say what it wants to do with that
