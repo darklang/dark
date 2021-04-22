@@ -44,10 +44,9 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   (* TODO(ian): merge Http::respond with Http::respond_with_headers
-//  * -- need to figure out how to deprecate functions w/o breaking
-//  * user code
-//  *)
+    // TODO(ian): merge Http::respond with Http::respond_with_headers
+    //  -- need to figure out how to deprecate functions w/o breaking
+    //  user code
     { name = fn "Http" "respondWithHeaders" 0
       parameters =
         [ Param.make "response" varA ""
@@ -284,24 +283,24 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr name; DStr value; DObj o ] ->
             o
-//             (* Transform a DOBj into a cookie list of individual cookie params *)
+            // Transform a DOBj into a cookie list of individual cookie params
             |> Map.toList
             |> List.map (fun (x, y) ->
                 match (String.toLower x, y) with
-//                    (* Single boolean set-cookie params *)
+                // Single boolean set-cookie params
                 | "secure", DBool b | "httponly", DBool b ->
                     if b then [x] else []
-//                    (* X=y set-cookie params *)
+                // X=y set-cookie params
                 | "path", DStr str
                 | "domain", DStr str
                 | "samesite", DStr str ->
                     [sprintf "%s=%s" x str]
                 | "max-age", DInt i | "expires", DInt i ->
                     [sprintf "%s=%s" x (string i)]
-//                    (* Throw if there's not a good way to transform the k/v pair *)
+                // Throw if there's not a good way to transform the k/v pair
                 | _ ->
                     Errors.throw ("Unknown set-cookie param"))
-//             (* Combine it into a set-cookie header *)
+            // Combine it into a set-cookie header
             |> List.concat
             |> String.concat "; "
             |> sprintf "%s=%s; %s" name value
@@ -324,39 +323,38 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr name; DStr value; DObj o ] ->
             o
-//          (* Transform a DOBj into a cookie list of individual cookie params *)
+            // Transform a DOBj into a cookie list of individual cookie params
             |> Map.toList
             |> List.map (fun (x, y) ->
                 match (String.toLower x, y) with
-//              (* Single boolean set-cookie params *)
+                // Single boolean set-cookie params
                 | "secure", DBool b | "httponly", DBool b ->
                     if b then [x] else []
-//              (* X=y set-cookie params *)
+                // X=y set-cookie params
                 | "path", DStr str
                 | "domain", DStr str
                 | "samesite", DStr str ->
                     [sprintf "%s=%s" x str]
                 | "max-age", DInt i | "expires", DInt i ->
                     [sprintf "%s=%s" x (string i)]
-//              (* Throw if there's not a good way to transform the k/v pair *)
+                // Throw if there's not a good way to transform the k/v pair
                 | _ ->
                     Errors.throw ("Unknown set-cookie param"))
-//          (* Combine it into a set-cookie header *)
+            // Combine it into a set-cookie header
             |> List.concat
             |> String.concat "; "
             |> sprintf "%s=%s; %s" name value
-//                  (* DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
-//                   * the implicit _v0, and
-//                   * https://github.com/darklang/dark/pull/1917 for a
-//                   * discussion of the bug), but incorrect. By the time it's
-//                   * reached Http::setCookie_v1,  you've probably already
-//                   * stored the cookie value as-is in a datastore somewhere, so
-//                   * any changes will break attempts to look up the session.
-//                   *
-//                   * If you really want to shield against invalid
-//                   * cookie-name/cookie-value strings, go read RFC6265 first. *)
-//                  (Unicode_string.to_string name)
-//                  (Unicode_string.to_string value)
+            // DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
+            // the implicit _v0, and
+            // https://github.com/darklang/dark/pull/1917 for a
+            // discussion of the bug), but incorrect. By the time it's
+            // reached Http::setCookie_v1,  you've probably already
+            // stored the cookie value as-is in a datastore somewhere, so
+            // any changes will break attempts to look up the session.
+            //
+            // If you really want to shield against invalid
+            // cookie-name/cookie-value strings, go read RFC6265 first.
+
             |> DStr
             |> fun x -> Map.add "Set-Cookie" x Map.empty
             |> DObj
@@ -378,19 +376,17 @@ let fns : List<BuiltInFn> =
 
                 let fold_cookie_params acc key value =
                   match (String.toLower key, value) with
-//                (* Bubble up errors for values that are invalid for all params *)
+                  // Bubble up errors for values that are invalid for all params
                   | _, ((DIncomplete _ | DErrorRail _ | DError _) as dv) ->
-                      Errors.foundFakeDval(dv)
-//                   (*
-//                    * Single boolean set-cookie params *)
+                      Errors.foundFakeDval dv
+                  // Single boolean set-cookie params
                   | "secure", v | "httponly", v ->
                       (match v with
                        | DBool b ->
                            if b then (key :: acc) else acc
                        | _ ->
                            Errors.throw(Errors.argumentWasnt "`true` or `false`" "Secure or HttpOnly" v))
-//                   (*
-//                    * key=data set-cookie params *)
+                  // key=data set-cookie params
                   | "path", v | "domain", v ->
                       (match v with
                        | DStr str ->
@@ -409,30 +405,29 @@ let fns : List<BuiltInFn> =
                            (sprintf "%s=%s" key (string i) :: acc)
                        | _ ->
                            Errors.throw(Errors.argumentWasnt "a `Int` representing seconds" "Max-Age" v))
-
                   | "expires", v ->
                       (match v with
                        | DDate d ->
                            (sprintf "%s=%s" key (string d) :: acc)
                        | _ ->
                            Errors.throw(Errors.argumentWasnt "a date" "Expires" v))
-
-//                (* Error if the set-cookie parameter is invalid *)
+                  // Error if the set-cookie parameter is invalid
                   | _ ->
-                      Errors.throw("Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`")
+                      Errors.throw("Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`,
+                      `HttpOnly`, and/or `SameSite`")
 
                 let nameValue =
                   sprintf "%s=%s" name value
-//                 (* DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
-//                  * the implicit _v0, and
-//                  * https://github.com/darklang/dark/pull/1917 for a
-//                  * discussion of the bug), but incorrect. By the time it's
-//                  * reached Http::setCookie_v1,  you've probably already
-//                  * stored the cookie value as-is in a datastore somewhere, so
-//                  * any changes will break attempts to look up the session.
-//                  *
-//                  * If you really want to shield against invalid
-//                  * cookie-name/cookie-value strings, go read RFC6265 first. *)
+                  // DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
+                  // the implicit _v0, and
+                  // https://github.com/darklang/dark/pull/1917 for a
+                  // discussion of the bug), but incorrect. By the time it's
+                  // reached Http::setCookie_v1,  you've probably already
+                  // stored the cookie value as-is in a datastore somewhere, so
+                  // any changes will break attempts to look up the session.
+                  //
+                  // If you really want to shield against invalid
+                  // cookie-name/cookie-value strings, go read RFC6265 first.
 
                 let cookieParams = Map.fold fold_cookie_params [] o
                 nameValue :: cookieParams
