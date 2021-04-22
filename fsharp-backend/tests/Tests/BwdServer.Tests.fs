@@ -347,6 +347,13 @@ let unitTests =
          Some [ "a", RT.DStr "a"; "b", RT.DStr "b"; "c", RT.DStr "c/d/e" ])
         ("/a/:b/c/d", "/a/b/c/e", None)
         ("/letters:var", "lettersextra", None) ]
+    testMany2
+      "requestPathMatchesRoute"
+      Routing.requestPathMatchesRoute
+      [ ("/user/:userid/card/:cardid", "/user/myid/card/0", true)
+        ("/user/%/card/%", "/user/myid/card/0", true) // using pg wildcards
+        ("/api/create-token", "/api-create_token", false)
+        ("/%", "//.some-spam-address", true) ]
     testManyTask
       "canvasNameFromHost"
       (fun h ->

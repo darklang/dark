@@ -1,65 +1,3 @@
-let t_sanitize_uri_path_with_repeated_slashes () =
-  AT.check
-    AT.string
-    "/foo//bar->/foo/bar"
-    (Webserver.sanitize_uri_path "/foo//bar")
-    "/foo/bar"
-
-
-let t_sanitize_uri_path_with_trailing_slash () =
-  AT.check AT.string "/foo/->/foo" (Webserver.sanitize_uri_path "/foo/") "/foo"
-
-
-let t_sanitize_uri_path_with_root_noops () =
-  AT.check AT.string "/->/" (Webserver.sanitize_uri_path "/") "/"
-
-
-let t_sanitize_uri_path_with_repeated_root () =
-  AT.check AT.string "//->/" (Webserver.sanitize_uri_path "//") "/"
-
-
-let t_route_variables_work () =
-  AT.check
-    (AT.list AT.string)
-    "Variables are as expected"
-    ["userid"; "cardid"]
-    (Http.route_variables "/user/:userid/card/:cardid") ;
-  AT.check
-    (AT.list (AT.pair AT.string at_dval))
-    "Variables are bound as expected"
-    [ ("cardid", Dval.dstr_of_string_exn "0")
-    ; ("userid", Dval.dstr_of_string_exn "myid") ]
-    (Http.bind_route_variables_exn
-       "/user/myid/card/0"
-       ~route:"/user/:userid/card/:cardid") ;
-  AT.check
-    AT.bool
-    "Path matches the route"
-    true
-    (Http.request_path_matches_route
-       "/user/myid/card/0"
-       ~route:"/user/:userid/card/:cardid") ;
-  AT.check
-    AT.bool
-    "Path matches the route, using postgres wildcards"
-    true
-    (Http.request_path_matches_route
-       "/user/myid/card/0"
-       ~route:"/user/%/card/%") ;
-  AT.check
-    AT.bool
-    "Path matches wildcard route, using postgres wildcards"
-    true
-    (Http.request_path_matches_route "//.some-spam-address" ~route:"/%") ;
-  AT.check
-    AT.bool
-    "Path doesnt match erroneously"
-    false
-    (Http.request_path_matches_route
-       "/api/create-token"
-       ~route:"/api/create_token")
-
-
 let t_concrete_over_wild () =
   let wild = http_route_handler ~route:"/:foo" () in
   let concrete = http_route_handler ~tlid:tlid2 ~route:"/a" () in
@@ -329,4 +267,3 @@ let t_parsed_request_bodies () =
     (expectedObj, DNull)
     (parse jsonHeader "{ \"field1\": \"value1\" }") ;
   ()
-
