@@ -134,10 +134,7 @@ let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
                         | RT.DResult (Error _) -> "ResError"
                         | RT.DOption (Some _) -> "OptJust"
                         | RT.DOption None -> "OptNothing"
-                        | _ ->
-                            result
-                            |> RT.Dval.toType
-                            |> LibExecution.DvalRepr.dtypeToString
+                        | _ -> (RT.Dval.toType result).toOldString ()
 
                       root
                       |> Span.addTag "result_tipe" resultType

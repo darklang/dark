@@ -118,19 +118,19 @@ let fns : List<BuiltInFn> =
          Otherwise, returns `Nothing` (use `Dict::fromListOverwritingDuplicates` if you want to overwrite duplicate keys)."
       fn =
         (function
-        | state, [ DList l ] ->
+        | _, [ DList l ] ->
 
             let f acc e =
               match acc, e with
               | Some acc, DList [ DStr k; value ] when Map.containsKey k acc -> None
               | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
-              | Some acc, DList [ k; value ] ->
+              | Some _, DList [ k; _ ] ->
                   Errors.throw (Errors.argumentWasnt "a string" "key" k)
-              | Some acc, v -> Errors.throw "All list items must be `[key, value]`"
+              | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
               | _,
                 ((DIncomplete _
                 | DErrorRail _
-                | DError _) as dv) -> Errors.foundFakeDval (dv)
+                | DError _) as dv) -> Errors.foundFakeDval dv
               | None, _ -> None
 
             let result = List.fold f (Some Map.empty) l

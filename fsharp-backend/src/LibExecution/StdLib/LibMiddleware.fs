@@ -81,34 +81,41 @@ let middlewareNextParameter = Param.make "next" middlewareReturnType ""
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Http" "emptyRequest" 0
-      parameters = []
-      returnType = varA
-      description = "An empty HTTP request, with no fields"
-      fn =
-        (function
-        | state, [] -> Value(DObj(Map []))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplementedTODO
-      previewable = Pure
-      deprecated = NotDeprecated }
-    { name = fn "Http" "parseQueryString" 0
+  [ { name = fn "Http" "parseQueryString" 0
       parameters = [ Param.make "url" TStr "" ]
       returnType = TDict TStr // This is always a string
       description =
         "Parse the query string into a dict. If there are copies of the same query param, the last one wins"
       fn =
         (function
-        | state, [ DStr url ] ->
+        | _, [ DStr url ] ->
+            // FSTODO: could do with some fuzzing here
             let queryString = System.Uri(url).Query
-            let nvc = System.Web.HttpUtility.ParseQueryString(queryString)
+            let nvc = System.Web.HttpUtility.ParseQueryString queryString
 
             nvc.AllKeys
             |> Seq.map
                  (fun key ->
-                   let values = nvc.GetValues(key)
-                   (key, DStr(values.[values.Length - 1])))
-            |> Seq.toList
+                   let values = nvc.GetValues key
+
+                   let value =
+                     let split =
+                       values.[values.Length - 1]
+                       |> String.split [| "," |]
+                       |> Seq.toList
+
+                     match split with
+                     | [] -> DNull
+                     | [ "" ] -> DNull // CLEANUP this should be a string
+                     | [ v ] -> DStr v
+                     | list -> DList(List.map DStr list)
+
+                   if isNull key then
+                     // All the values with no key are by GetValues, so make each one a value
+                     values |> Array.toList |> List.map (fun k -> (k, DNull))
+                   else
+                     [ (key, value) ])
+            |> List.concat
             |> Map
             |> DObj
             |> Value
@@ -116,30 +123,133 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "parseQueryParamsMiddleware" 0
-      parameters =
-        [ Param.make "url" TStr ""
-          Param.make "req" (TVariable "a") ""
-          middlewareNextParameter ]
+    { name = fn "Http" "addQueryParamsMiddleware" 0
+      parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = ""
       fn =
+        // fun req ->
+        //   let url = Http.parseQueryString_v0 req.url
+        //   let req = Dict.set_v0 req "queryParams" url
+        //   req |> next
+        let code =
+          eLambda
+            [ "req" ]
+            (eLet
+              "url"
+              (eFn "Http" "parseQueryString" 0 [ eFieldAccess (eVar "req") "url" ])
+              (eLet
+                "req"
+                (eFn "Dict" "set" 0 [ eVar "req"; eStr "queryParams"; eVar "url" ])
+                (ePipeApply (eVar "next") [ eVar "req" ])))
+
         (function
-        // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "parseHeaders" 0
-      parameters = [ Param.make "headerString" TStr "" ]
-      returnType = TDict TStr
-      description =
-        "Parse the headers string into a dict. If multiple headers of the same key exist, the latest one wins."
+    { name = fn "Http" "urlEncodeQueryParamString" 0
+      parameters = [ Param.make "url" TStr "" ]
+      returnType = TStr
+      // Uses the same conditions as the old OCaml implementation
+      description = "URL encode query param strings"
       fn =
+        let urlSafe =
+          (let allowed =
+            // FSTODO: this adds extra safe characters ("=,&") to avoid having
+            // to parse the query string (using the .NET utilities to do so
+            // might throw away info we need, as well.) This is wrong and
+            // probably has edge cases. Needs fuzzing at least.
+            "/?:@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-~=,&"
+
+           let mutable safe = (Array.init 256 (fun _ -> false))
+           Array.iter (fun b -> safe.[int b] <- true) (toBytes allowed)
+           safe)
+
         (function
-        // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | _, [ DStr queryParams ] ->
+            let result = System.Text.StringBuilder()
+            // What if there;s a urlencoded ',' or '=' in the values?
+            queryParams
+            |> toBytes
+            |> Array.iter
+                 (fun b ->
+                   let (_ : System.Text.StringBuilder) =
+                     if urlSafe.[int b] then
+                       result.Append(char b)
+                     else
+                       result.AppendFormat("%{0:X2}", b)
+
+                   ())
+
+            result |> string |> DStr |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Http" "canonicalizeUrlMiddleware" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description = "Lowercases the url and removes queryparams from it"
+      fn =
+        // fun req ->
+        //   let parts = req.url |> String.split_v0 "?"
+        //   let host = parts |> List.head_v2 |> Option.withDefault_v0 req.url |> String.toLowercase_v1
+        //   let query = parts |> List.getAt_v1 1 |> Option.map (fun q -> "?" ++ Http.urlEncodeQueryParamString_v0 q) |> Option.withDefault_v0 ""
+        //   let req = Dict.set_v0 req "url" (host ++ query)
+        //   req |> next
+        let code =
+          eLambda
+            [ "req" ]
+            (eLet
+              "parts"
+              (ePipeApply
+                (eStdFnVal "String" "split" 0)
+                [ eFieldAccess (eVar "req") "url"; eStr "?" ])
+              (eLet
+                "host"
+                (ePipeApply
+                  (eStdFnVal "String" "toLowercase" 1)
+                  [ ePipeApply
+                      (eStdFnVal "Option" "withDefault" 0)
+                      [ ePipeApply (eStdFnVal "List" "head" 2) [ eVar "parts" ]
+                        eFieldAccess (eVar "req") "url" ] ])
+                (eLet
+                  "query"
+                  (ePipeApply
+                    (eStdFnVal "Option" "withDefault" 0)
+                    [ ePipeApply
+                        (eStdFnVal "Option" "map" 0)
+                        [ ePipeApply
+                            (eStdFnVal "List" "getAt" 1)
+                            [ eVar "parts"; eInt 1 ]
+                          eLambda
+                            [ "q" ]
+                            (eFn
+                              ""
+                              "++"
+                              0
+                              [ eStr "?"
+                                eFn "Http" "urlEncodeQueryParamString" 0 [ eVar "q" ] ]) ]
+                      eStr "" ])
+                  (eLet
+                    "req"
+                    (eFn
+                      "Dict"
+                      "set"
+                      0
+                      [ eVar "req"
+                        eStr "url"
+                        eFn "" "++" 0 [ eVar "host"; eVar "query" ] ])
+                    (ePipeApply (eVar "next") [ eVar "req" ])))))
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -155,7 +265,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | _, [] -> Value(DObj(Map []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -171,7 +281,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // FSTODO
-        | state, [] -> Value(DObj(Map []))
+        | _, [] -> Value(DObj(Map []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -185,7 +295,7 @@ let fns : List<BuiltInFn> =
       description = "Set a header in the HTTP response"
       fn =
         (function
-        | state, [ DHttpResponse response; DStr name; DStr value ] ->
+        | _, [ DHttpResponse response; DStr name; DStr value ] ->
             match response with
             | Response (code, headers, responseVal) ->
                 Response(code, headers ++ [ name, value ], responseVal)
@@ -267,6 +377,45 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
+    { name = fn "Http" "createRequest" 0
+      parameters =
+        [ Param.make "url" TStr ""
+          Param.make "headers" (TDict TStr) ""
+          Param.make "body" TBytes "" ]
+      returnType = TRecord [ "url", TStr; "headers", TDict TStr; "body", TBytes ]
+      description = "Creates a request"
+      fn =
+        (function
+        | _, [ DStr _ as url; DObj headers; DBytes bodyBytes as body ] ->
+            let body = if bodyBytes.Length = 0 then DNull else body
+            let cookies = DObj Map.empty // FSTODO
+            let formBody = DNull // FSTODO
+            let fullBody = DStr ""
+            let jsonBody = DNull // FSTODO
+
+            let headers =
+              headers
+              |> Map.toList
+              |> List.map (fun (k, v) -> (String.toLower k, v))
+              |> (++) [ "user-agent", DStr "ocaml-cohttp/1.2.0" ] // FSTODO wtf
+              |> Map.ofList
+              |> DObj
+
+            Map.empty
+            |> Map.add "body" body
+            |> Map.add "url" url
+            |> Map.add "headers" headers
+            |> Map.add "cookies" cookies
+            |> Map.add "formBody" formBody
+            |> Map.add "fullBody" fullBody
+            |> Map.add "jsonBody" jsonBody
+
+            |> DObj
+            |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "convertToResponseValue" 0
       parameters =
         [ Param.make
@@ -275,9 +424,28 @@ let fns : List<BuiltInFn> =
             "A HTTP response to be returned to the client. May be any type, and will automatically be converted to an appropriate HTTP response" ]
       returnType = THttpResponse TBytes
       description = "Return a HTTPResponse based on the input"
+      // This does a lot more than we'd hope it does, and ideally we'd have
+      // split this into multiple middleware functions.  However, there is a
+      // need to make it match the OCaml version.  In OCaml, if the value was
+      // not wrapped in a response, we would always use toPrettyMachineJson to
+      // display it, regardless of the inferred headers. As a result, we cannot
+      // separate these from each other: if we convert to bytes we lose type to
+      // infer the content-type from. If we add the content-type first, we lose
+      // whether it's a result or not.
       fn =
         (function
         | _, [ response ] ->
+            // let req ->
+            //   if not wrapped in a response
+            //     use machinejson
+            //     infer header based on type (list/obj uses JSON, else use textplain)
+            //   if in a response:
+            //      use existing header or infer from type.
+            //      if output is bytes, print direct
+            //      if text/html or text/plain or applcation/xml, use enduser_readable_text
+            //      if application/json, convert to pretty_machine_json_v1
+            //   note: string with no response: machine printout and text/plain (dev mode)
+            //         string in http response: enduser_readable_text and text/plain
             let inferContentType dv =
               match dv with
               | DObj _
@@ -327,7 +495,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "wrapInResponseValue" 0
+    { name = fn "Http" "convertToResponseMiddleware" 0
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Takes a value that is expected to be returned to an end-user via HTTP.
@@ -351,7 +519,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    { name = fn "Http" "addContentLengthResponseHeader" 0
+    { name = fn "Http" "addContentLengthResponseHeaderMiddleware" 0
       parameters = [ middlewareNextParameter ]
       returnType = middlewareReturnType
       description = "Take the HTTP result, and add a Content-length header to it."
@@ -385,50 +553,73 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // let req ->
-    //   if not wrapped in a response, use machinejson, and infer header based on type (list/obj uses JSON, else use textplain)
-    //   if in a response:
-    //      use existing header or infer from type.
-    //      if output is bytes, print direct
-    //      if text/html or text/plain or applcation/xml, use enduser_readable_text
-    //      if application/json, convert to pretty_machine_json_v1
-    //   note: string with no response: machine printout and text/plain (dev mode)
-    //         string in http response: enduser_readable_text and text/plain
+    { name = fn "Http" "respondToTextPingMiddleware" 0
+      parameters = [ middlewareNextParameter ]
+      returnType = middlewareReturnType
+      description =
+        "If the header has content-type of `text/ping`, return a status code of 418"
+      fn =
+        let code =
+          // (fun req ->
+          //   let contentType  = Dict.get_v2 req.headers "content-type"
+          //   if contentType = "text/ping"
+          //   then
+          //     Http::response_v0 Bytes.empty_v0 418
+          //   else
+          //     req |> next
+          eLambda
+            [ "req" ]
+            (eLet
+              "contentType"
+              (eFn
+                "Dict"
+                "get"
+                2
+                [ eFieldAccess (eVar "req") "headers"; eStr "content-type" ])
+              (eIf
+                (eFn
+                  ""
+                  "=="
+                  0
+                  [ eVar "contentType"; eConstructor "Just" [ eStr "text/ping" ] ])
+                (eFn "Http" "response" 0 [ eFn "Bytes" "empty" 0 []; eInt 418 ])
+                (ePipeApply (eVar "next") [ eVar "req" ])))
+
+        (function
+        | state, [ DFnVal _ as next ] ->
+            let st = Map.empty |> Map.add "next" next
+            Interpreter.eval state st code
+        | _, _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Http" "middleware" 0
       parameters =
-        [ Param.make "url" TBytes ""
+        [ Param.make "url" TStr ""
           Param.make "body" TBytes ""
-          Param.make "headers" TBytes ""
+          Param.make "headers" (TDict TStr) ""
           middlewareNextParameter ]
       returnType = THttpResponse TBytes
-      description =
-        "Call the middleware stack, returning a response which can be sent to the browser"
+      description = "Call the middleware stack, returning a response which can be sent
+        to the browser. Each function in the middleware stack receives the next
+        middleware element, and returns a function to be called on the request,
+        returning a response. The stack is executed with the last elements executed
+        first on the request and last on the response. "
       fn =
-        // eStdFnVal "Http" "wrapInResponseValue" 0
-        // eStdFnVal "Http" "addServerHeaderMiddleware" 0
-        // eStdFnVal "Http" "addContentLengthResponseHeader" 0
         let code =
           // let fns = [Http.wrapInResponseValue_v0 ; Http.addserverHeaderMiddleware_v0]
           // let app = List.fold_v0 fns handler (fun accum curr -> accum |> curr)
-          // handler |> app
+          // request |> app
           eLet
             "fns"
-
-            // The obvious order of these handlers is:
-            //   eStdFnVal "Http" "wrapInResponseValue" 0
-            //   eStdFnVal "Http" "addContentTypeResponseHeader" 0
-            //   eStdFnVal "Http" "convertResponseToBytes" 0
-
-            // However, in OCaml, if the value was not wrapped in a response,
-            // we would always use toPrettyMachineJson to display it,
-            // regardless of the inferred headers. CLEANUP don't do this.
-            // While this is dumb, we do need to replicate it for now.  As a
-            // result, we cannot separate these from each other: if we convert
-            // to bytes we lose type to infer the content-type from. If we add
-            // the content-type first, we lose whether it's a result or not.
-            (eList [ eStdFnVal "Http" "wrapInResponseValue" 0
-                     eStdFnVal "Http" "addContentLengthResponseHeader" 0
-                     eStdFnVal "Http" "addServerHeaderMiddleware" 0 ])
+            (eList [ eStdFnVal "Http" "convertToResponseMiddleware" 0
+                     eStdFnVal "Http" "canonicalizeUrlMiddleware" 0
+                     eStdFnVal "Http" "addQueryParamsMiddleware" 0 // must be after canonicalizeUrlMiddleware
+                     // Shortcircuit
+                     eStdFnVal "Http" "respondToTextPingMiddleware" 0
+                     // Everything gets `Content-Length` and `Server` headers
+                     eStdFnVal "Http" "addServerHeaderMiddleware" 0
+                     eStdFnVal "Http" "addContentLengthResponseHeaderMiddleware" 0 ])
             (eLet
               "app"
               (eFn
@@ -440,7 +631,15 @@ let fns : List<BuiltInFn> =
                   eLambda
                     [ "accum"; "curr" ]
                     (ePipeApply (eVar "curr") [ eVar "accum" ]) ])
-              (ePipeApply (eVar "app") [ eVar "handler" ]))
+              (eLet
+                "initialRequest"
+                (eFn
+                  "Http"
+                  "createRequest"
+                  0
+                  [ eVar "url"; eVar "headers"; eVar "body" ])
+
+                (ePipeApply (eVar "app") [ eVar "initialRequest" ])))
 
 
         (function
@@ -456,6 +655,18 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    // CLEANUP: move into LibBytes. It's here to help with testing
+    { name = fn "Bytes" "empty" 0
+      parameters = []
+      returnType = TBytes
+      description = "Returns an empty Bytes value"
+      fn =
+        (function
+        | _, [] -> Value(DBytes [||])
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 
@@ -465,15 +676,12 @@ let fns : List<BuiltInFn> =
 //                       (handler)
 //                       : response =
 //   handler
-//   |> \nextMW -> addQueryParams url nextMW
+//   |> addQueryParams
 //   |> parseRawBody
-//   |> addHeaders headers
 //   |> addJsonBody body
 //   |> addFormBody body
 //   |> addCookies headers
 //   |> processErrorRail
 //   |> optionsHanderMiddleware
-//   |> headHandlerMiddleware
 //   |> textPingMiddleware
 //   |> sitemapFaviconMiddleware
-//

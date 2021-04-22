@@ -4,6 +4,11 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open System.Text.RegularExpressions
+// ----------------------
+// Null
+// ----------------------
+// https://stackoverflow.com/a/11696947/104021
+let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 
 // ----------------------
 // Exceptions

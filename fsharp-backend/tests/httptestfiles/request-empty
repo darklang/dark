@@ -1,0 +1,36 @@
+[http-handler POST /user/:user]
+request
+
+[request]
+POST /user/test HTTP/1.1
+Host: HOST
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Type: text/plain
+Content-Length: 0
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+content-type: application/json; charset=utf-8
+Access-Control-Allow-Origin: *
+x-darklang-execution-id: 0123456789
+Server: darklang
+Content-Length: 419 // OCAMLONLY
+Content-Length: 421 // FSHARPONLY
+
+{
+  "body": null,
+  "cookies": {},
+  "formBody": null,
+  "fullBody": "",
+  "headers": {
+    "content-length": "0",
+    "content-type": "text/plain",
+    "date": "Sun, 08 Nov 2020 15:38:01 GMT",
+    "host": "HOST",
+    "user-agent": "ocaml-cohttp/1.2.0"
+  },
+  "jsonBody": null,
+  "queryParams": {},
+  "url": "http://HOST/user/test"
+}
