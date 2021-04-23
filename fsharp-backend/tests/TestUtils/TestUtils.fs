@@ -173,7 +173,12 @@ let executionStateFor
     let! canvasID =
       if Map.count dbs > 0 then
         task {
-          let hash = sha1digest name |> System.Convert.ToBase64String
+          let hash =
+            (sha1digest name |> System.Convert.ToBase64String |> String.toLowercase)
+              .Replace("/", "")
+              .Replace("=", "")
+              .Replace("+", "")
+
           let canvasName = CanvasName.create $"test-{hash}"
           do! clearCanvasData canvasName
 

@@ -24,8 +24,10 @@ type Server =
   | OCaml
   | FSharp
 
-let t name =
-  testTask $"Httpfiles: {name}" {
+let t filename =
+  testTask $"Httpfiles: {filename}" {
+    let skip = String.startsWith "_" filename
+    let name = if skip then String.dropLeft 1 filename else filename
     let testName = $"test-{name}"
     do! TestUtils.clearCanvasData (CanvasName.create testName)
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
@@ -51,7 +53,7 @@ let t name =
                [ b ])
       |> List.toArray
 
-    let filename = $"tests/httptestfiles/{name}"
+    let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
     let contents = toStr contents
 
@@ -290,7 +292,7 @@ let t name =
 
       }
 
-    if String.startsWith "_" name then
+    if skip then
       skiptest $"underscore test - {name}"
     else
       do! callServer OCaml // check OCaml to see if we got the right answer

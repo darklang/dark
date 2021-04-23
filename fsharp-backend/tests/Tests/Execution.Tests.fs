@@ -40,8 +40,7 @@ let execSaveDvals
 
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
-
-    let name = "testFunction"
+    let name = "test-function"
     let fn = testUserFn name [] (eInt 5)
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor "test" Map.empty fns

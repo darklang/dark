@@ -147,28 +147,6 @@ let t_http_request_redirects () =
           (Uri.of_string "http://test.builtwithdark.com/test")))
 
 
-let t_is_canvas_name_valid () =
-  let is_valid valid name =
-    AT.check
-      AT.bool
-      (name ^ " " ^ if valid then "passes" else "fails")
-      valid
-      (Webserver.is_canvas_name_valid name)
-  in
-  "demo-hello" |> is_valid true ;
-  "demo-" |> is_valid false ;
-  "demo--" |> is_valid false ;
-  "demo" |> is_valid true ;
-  "demo-hello-world" |> is_valid true ;
-  "demo-hello_world" |> is_valid true ;
-  "demo-hello world" |> is_valid false ;
-  "-demo" |> is_valid false ;
-  "demo-(^@^)" |> is_valid false ;
-  "demo-a_a" |> is_valid true ;
-  "demo-9" |> is_valid true ;
-  ()
-
-
 let t_is_service_name_valid () =
   let service =
     Telemetry.with_root "test" (fun span ->

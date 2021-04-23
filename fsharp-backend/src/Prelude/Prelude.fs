@@ -1035,10 +1035,18 @@ module CanvasName =
 
     override this.ToString() = let (CanvasName name) = this in name
 
-  let create (name : string) : T =
-    if String.length name > 64 then
-      failwith $"Canvas name was too long, must be <= 64."
+  let validate (name : string) : Result<string, string> =
+    let regex = "^([a-z0-9]+[_-]?)*[a-z0-9]$"
 
-    CanvasName(Tablecloth.String.toLowercase name)
+    if String.length name > 64 then
+      Error "Canvas name was too long, must be <= 64."
+    else if System.Text.RegularExpressions.Regex.IsMatch(name, regex) then
+      Ok name
+    else
+      Error $"Canvas name can only contain a-z, 0-9, and '-' or '_' but is {name}"
+
+
+  let create (name : string) : T =
+    name |> validate |> Tablecloth.Result.unwrapUnsafe |> CanvasName
 
 let id (x : int) : id = uint64 x

@@ -17,5 +17,5 @@ Server: darklang
 Content-Length: LENGTH
 
 {
-  "param2": "second",
+  "x": "second",
 }

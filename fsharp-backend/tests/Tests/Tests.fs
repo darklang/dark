@@ -25,6 +25,7 @@ let main args =
       Tests.FSharpToExpr.tests
       Tests.LibExecution.tests.Force()
       Tests.OCamlInterop.tests
+      Tests.Prelude.tests
       Tests.Routing.tests
       Tests.ProgramTypes.tests
       Tests.SqlCompiler.tests
