@@ -17,6 +17,8 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
+open Microsoft.AspNetCore.Server.Kestrel.Core
+
 
 open Prelude
 open Tablecloth
@@ -364,7 +366,7 @@ let configureServices (services : IServiceCollection) : unit =
 
 let webserver (shouldLog : bool) (port : int) =
   WebHost.CreateDefaultBuilder()
-  |> fun wh -> wh.UseKestrel(fun kestrel -> kestrel.AddServerHeader <- false)
+  |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
   |> fun wh -> wh.UseUrls($"http://*:{port}")
