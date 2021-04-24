@@ -306,7 +306,9 @@ let fns : List<BuiltInFn> =
             // Combine it into a set-cookie header
             |> List.concat
             |> String.concat "; "
-            |> sprintf "%s=%s; %s" name value
+            |> sprintf "%s=%s; %s"
+                 (Uri.EscapeDataString name)
+                 (Uri.EscapeDataString value)
             |> DStr
             |> fun x -> Map.add "Set-Cookie" x Map.empty
             |> DObj
@@ -348,7 +350,6 @@ let fns : List<BuiltInFn> =
             |> List.concat
             |> String.concat "; "
             |> sprintf "%s=%s; %s" name value
-            |> Uri.EscapeDataString
             // DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
             // the implicit _v0, and
             // https://github.com/darklang/dark/pull/1917 for a
@@ -359,7 +360,6 @@ let fns : List<BuiltInFn> =
             //
             // If you really want to shield against invalid
             // cookie-name/cookie-value strings, go read RFC6265 first.
-
             |> DStr
             |> fun x -> Map.add "Set-Cookie" x Map.empty
             |> DObj
@@ -458,11 +458,9 @@ let fns : List<BuiltInFn> =
                   //
                   // If you really want to shield against invalid
                   // cookie-name/cookie-value strings, go read RFC6265 first.
-
                 let cookieParams = Map.fold fold_cookie_params [] o
                 nameValue :: cookieParams
                 |> String.concat "; "
-                |> Uri.EscapeDataString
                 |> DStr
                 |> fun x -> Map.add "Set-Cookie" x Map.empty
                 |> DObj
