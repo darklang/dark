@@ -108,7 +108,7 @@ let testEventQueueIsFifo =
 
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
-    let name = "workerSchedules"
+    let name = "worker-schedules"
     do! clearCanvasData (CanvasName.create name)
     let! meta = testCanvasInfo name
 

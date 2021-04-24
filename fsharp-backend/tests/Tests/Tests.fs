@@ -22,10 +22,13 @@ let main args =
       Tests.Cron.tests
       Tests.DvalRepr.tests
       Tests.EventQueue.tests
+      Tests.Execution.tests
       Tests.FSharpToExpr.tests
       Tests.LibExecution.tests.Force()
       Tests.OCamlInterop.tests
+      Tests.Prelude.tests
       Tests.ProgramTypes.tests
+      Tests.Routing.tests
       Tests.SqlCompiler.tests
       Tests.Traces.tests
       Tests.TypeChecker.tests

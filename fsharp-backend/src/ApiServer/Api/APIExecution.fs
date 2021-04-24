@@ -51,9 +51,7 @@ module Function =
       t "load-canvas"
 
       let program = Canvas.toProgram c
-      let! state = RealExe.createState p.trace_id p.tlid program
-      let (touchedTLIDs, traceTLIDFn) = Exe.traceTLIDs ()
-      let state = Exe.updateTraceTLID traceTLIDFn state
+      let! (state, touchedTLIDs) = RealExe.createState p.trace_id p.tlid program
       t "load-execution-state"
 
       let fnname = p.fnname |> PT.FQFnName.parse
@@ -104,9 +102,7 @@ module Handler =
       let expr = c.handlers.[p.tlid].ast.toRuntimeType ()
       t "load-canvas"
 
-      let! state = RealExe.createState p.trace_id p.tlid program
-      let (touchedTLIDs, traceTLIDFn) = Exe.traceTLIDs ()
-      let state = Exe.updateTraceTLID traceTLIDFn state
+      let! state, touchedTLIDs = RealExe.createState p.trace_id p.tlid program
       t "load-execution-state"
 
       // since this ignores the result, it doesn't go through the error rail
@@ -115,8 +111,7 @@ module Handler =
 
       t "execute-handler"
 
-      let result =
-        { touched_tlids = touchedTLIDs |> HashSet.add p.tlid |> HashSet.toList }
+      let result = { touched_tlids = touchedTLIDs |> HashSet.toList }
 
       t "write-api"
 

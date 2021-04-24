@@ -1,11 +1,18 @@
 module LibBackend.Routing
 
+open FSharp.Control.Tasks
+open System.Threading.Tasks
+
+open Npgsql.FSharp.Tasks
+open Npgsql
+open LibBackend.Db
+
 open FSharpx
 open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramTypes
+module PT = ProgramTypes
 
 // Functions related to the HTTP server
 
@@ -18,7 +25,6 @@ let splitUriPath (path : string) : string array =
   let subs = String.splitChar [| '/' |] path
   Array.filter (fun x -> String.length x > 0) subs
 
-// CLEANUP Move to libBackend
 let routeToPostgresPattern (route : string) : string =
 
   // https://www.postgresql.org/docs/9.6/functions-matching.html
@@ -72,7 +78,9 @@ let routeInputVars
   if splitRoute.Length > splitRequestPath.Length then
     // Can't match. Route *must* be the <= the length of path
     None
-  else if splitRequestPath.Length = splitRoute.Length then
+  else
+
+  if splitRequestPath.Length = splitRoute.Length then
     // If the route/path are the same length we can zip a binding down
     doBinding splitRoute splitRequestPath
   else
@@ -106,7 +114,7 @@ let requestPathMatchesRoute (route : string) (requestPath : string) : bool =
 let filterInvalidHandlerMatches
   (path : string)
   (handlers : List<PT.Handler.T>)
-  : PT.Handler.T list =
+  : List<PT.Handler.T> =
   List.filter
     (fun h ->
       let route = h.spec.name () in
@@ -173,3 +181,32 @@ let filterMatchingHandlers
   |> List.filter (fun h -> h.spec.complete ())
   |> filterInvalidHandlerMatches path
   |> filterMatchingHandlersBySpecificity
+
+
+let canvasNameFromCustomDomain (customDomain : string) : Task<Option<CanvasName.T>> =
+  Sql.query
+    "SELECT canvas
+     FROM custom_domains
+     WHERE host = @host"
+  |> Sql.parameters [ "host", Sql.string customDomain ]
+  |> Sql.executeRowOptionAsync
+       (fun read -> read.string "canvas" |> CanvasName.create)
+
+let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
+  task {
+    match host.Split [| '.' |] with
+    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
+    // just another load balancer
+    | [| a; "darkcustomdomain"; "com" |]
+    | [| a; "builtwithdark"; "localhost" |]
+    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
+    | [| "builtwithdark"; "localhost" |]
+    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
+    | _ -> return! canvasNameFromCustomDomain host
+  }
+
+let sanitizeUrlPath (path : string) : string =
+  path
+  |> FsRegEx.replace "//+" "/"
+  |> String.trimEnd [| '/' |]
+  |> fun str -> if str = "" then "/" else str

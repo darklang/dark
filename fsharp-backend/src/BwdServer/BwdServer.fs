@@ -31,6 +31,8 @@ module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
+module Routing = LibBackend.Routing
+module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
@@ -48,13 +50,6 @@ let getHeader (ctx : HttpContext) (name : string) : string option =
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
 
-let sanitizeUrlPath (path : string) : string =
-  path
-  |> FsRegEx.replace "//+" "/"
-  |> String.trimEnd [| '/' |]
-  |> fun str -> if str = "" then "/" else str
-
-
 let runHttp
   (c : Canvas.T)
   (tlid : tlid)
@@ -64,11 +59,11 @@ let runHttp
   (body : byte [])
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
-  : Task<RT.Dval> =
+  : Task<RT.Dval * Exe.HashSet<tlid>> =
   task {
 
     let program = Canvas.toProgram c
-    let! state = RealExe.createState traceID tlid program
+    let! state, touchedTLIDs = RealExe.createState traceID tlid program
     let symtable = Interpreter.withGlobals state inputVars
 
     let headers = headers |> Map.map RT.DStr |> RT.DObj
@@ -91,23 +86,9 @@ let runHttp
         RT.NoRail
       |> TaskOrValue.toTask
 
-    return Exe.extractHttpErrorRail result
-
+    return (Exe.extractHttpErrorRail result, touchedTLIDs)
   }
 
-
-let canvasNameFromHost (host : string) : Task<Option<CanvasName.T>> =
-  task {
-    match host.Split [| '.' |] with
-    // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
-    // just another load balancer
-    | [| a; "darkcustomdomain"; "com" |]
-    | [| a; "builtwithdark"; "localhost" |]
-    | [| a; "builtwithdark"; "com" |] -> return Some(CanvasName.create a)
-    | [| "builtwithdark"; "localhost" |]
-    | [| "builtwithdark"; "com" |] -> return Some(CanvasName.create "builtwithdark")
-    | _ -> return! Canvas.canvasNameFromCustomDomain host
-  }
 
 let favicon : Lazy<byte array> =
   lazy (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png")
@@ -255,7 +236,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     let logger = loggerFactory.CreateLogger("logger")
     let log msg (v : 'a) = logger.LogError("{msg}: {v}", msg, v)
 
-    match! canvasNameFromHost ctx.Request.Host.Host with
+    match! Routing.canvasNameFromHost ctx.Request.Host.Host with
     | Some canvasName ->
         // CLEANUP: move execution ID header up
         let executionID = gid ()
@@ -274,7 +255,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         let traceID = System.Guid.NewGuid()
         let method = ctx.Request.Method
-        let requestPath = ctx.Request.Path.Value |> sanitizeUrlPath
+        let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
 
         // redirect HEADs to GET. We pass the actual HEAD method to the engine,
         // and leave it to middleware to say what it wants to do with that
@@ -284,11 +265,14 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           Canvas.loadHttpHandlersFromCache meta requestPath searchMethod
           |> Task.map Result.unwrapUnsafe
 
-        match Map.values c.handlers with
+        let pages =
+          Routing.filterMatchingHandlers requestPath (Map.values c.handlers)
+
+        match pages with
         | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
             let url = ctx.Request.GetEncodedUrl()
             // FSTODO: move vars into http middleware
-            let vars = LibBackend.Routing.routeInputVars route requestPath
+            let vars = Routing.routeInputVars route requestPath
 
             match vars with
             | Some vars ->
@@ -297,9 +281,16 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 let expr = expr.toRuntimeType ()
                 let headers = getHeaders ctx
 
-                let! result = runHttp c tlid traceID url headers body symtable expr
-                debuG "result of runHttp" result
+                let! result, touchedTLIDs =
+                  runHttp c tlid traceID url headers body symtable expr
+
                 do! getCORS ctx canvasID
+
+                // FSTODO: save event in the http pipeline
+
+                // Do not resolve task, send this into the ether
+                let tlids = HashSet.toList touchedTLIDs
+                Pusher.pushNewTraceID executionID canvasID traceID tlids
 
                 match result with
                 | RT.DHttpResponse (RT.Redirect url) ->
@@ -325,7 +316,17 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | [] when toString ctx.Request.Path = "/favicon.ico" ->
             return! faviconResponse ctx
         | [] ->
-            // FSTODO: save trace
+            // FSTODO: The request body is created in the pipeline. Should we run this through the pipeline to a handler that returns 404?
+            let event = RT.DNull
+
+            let! timestamp =
+              TI.storeEvent canvasID traceID ("HTTP", requestPath, method) event
+
+            Pusher.pushNew404
+              executionID
+              canvasID
+              ("HTTP", requestPath, method, timestamp, traceID)
+
             return! noHandlerResponse ctx
         | _ -> return! moreThanOneHandlerResponse ctx
     | None -> return! canvasNotFoundResponse ctx

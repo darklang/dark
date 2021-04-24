@@ -39,7 +39,7 @@ let testCronFetchActiveCrons =
 
 let testCronSanity =
   testTask "cron sanity" {
-    let name = "cronSanity"
+    let name = "cron-sanity"
     do! clearCanvasData (CanvasName.create name)
     let! meta = testCanvasInfo name
 
@@ -67,7 +67,7 @@ let testCronSanity =
 
 let testCronJustRan =
   testTask "test cron just ran" {
-    let name = "cronJustRan"
+    let name = "cron-just-ran"
     do! clearCanvasData (CanvasName.create name)
     let! meta = testCanvasInfo name
 
