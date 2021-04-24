@@ -186,6 +186,7 @@ Dict.get_v1_ster {} "i" = Test.errorRailNothing_v0_ster
 ([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailNothing_v0
 (errorRailFn null) = Nothing
 (blank == Test.errorRailNothing_v0) = Test.errorRailNothing_v0
+(let x = Dict.get_v1_ster {} "i" in 1) = Test.errorRailNothing_v0
 
 [tests.errorrailPropagation]
 List.push_v0 [1;2;3;4] (List.head_v1_ster []) = Test.errorRailNothing_v0_ster

@@ -12,6 +12,7 @@ let parseTests =
   let p = PT.FQFnName.parse
   let User = RT.FQFnName.User
   let Stdlib = RT.FQFnName.Stdlib
+  let Package = RT.FQFnName.Package
 
   testList
     "Parsing fn names"
@@ -30,16 +31,46 @@ let parseTests =
           ("", p "^") ]
       testMany
         "FQFnName parse tests"
-        PT.FQFnName.parse
-        [ ("toString", Stdlib { module_ = ""; function_ = "toString"; version = 0 })
-          ("toRepr", Stdlib { module_ = ""; function_ = "toRepr"; version = 0 })
-          ("equals", Stdlib { module_ = ""; function_ = "equals"; version = 0 })
-          ("notEquals", Stdlib { module_ = ""; function_ = "notEquals"; version = 0 })
-          ("assoc", Stdlib { module_ = ""; function_ = "assoc"; version = 0 })
-          ("dissoc", Stdlib { module_ = ""; function_ = "dissoc"; version = 0 })
-          ("toForm", Stdlib { module_ = ""; function_ = "toForm"; version = 0 })
-          ("++", Stdlib { module_ = ""; function_ = "++"; version = 0 })
-          ("+", Stdlib { module_ = ""; function_ = "+"; version = 0 }) ] ]
+        (fun name ->
+          try
+            Some(PT.FQFnName.parse name)
+          with _ -> None)
+        [ ("toString",
+           Some(Stdlib { module_ = ""; function_ = "toString"; version = 0 }))
+          ("toRepr", Some(Stdlib { module_ = ""; function_ = "toRepr"; version = 0 }))
+          ("equals", Some(Stdlib { module_ = ""; function_ = "equals"; version = 0 }))
+          ("notEquals",
+           Some(Stdlib { module_ = ""; function_ = "notEquals"; version = 0 }))
+          ("assoc", Some(Stdlib { module_ = ""; function_ = "assoc"; version = 0 }))
+          ("dissoc", Some(Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }))
+          ("toForm", Some(Stdlib { module_ = ""; function_ = "toForm"; version = 0 }))
+          ("++", Some(Stdlib { module_ = ""; function_ = "++"; version = 0 }))
+          ("+", Some(Stdlib { module_ = ""; function_ = "+"; version = 0 }))
+          ("dark/stdlib/Twitter::sendText_v0",
+           Some(
+             Package
+               { owner = "dark"
+                 package = "stdlib"
+                 module_ = "Twitter"
+                 function_ = "sendText"
+                 version = 0 }
+           ))
+          ("paul56/random/Rand56om::string20_v57",
+           Some(
+             Package
+               { owner = "paul56"
+                 package = "random"
+                 module_ = "Rand56om"
+                 function_ = "string20"
+                 version = 57 }
+           ))
+          ("twitter::sendText_v0", None)
+          ("Twitter::send/Text_v0", None)
+          ("Dark/stdlib/Twitter::send/text_v0", None)
+          ("dark/stDlib/Twitter::send/text_v0", None)
+          ("dark/stDlib/Twitter::send/text_v0", None)
+          ("d+ark/stDlib/Twitter::send/text_v0", None)
+          ("paul56/ra*ndom/Rand56om::string20_v57", None) ] ]
 
 
 

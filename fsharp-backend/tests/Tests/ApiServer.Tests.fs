@@ -317,8 +317,10 @@ let testDBStats =
 
 let testExecuteFunction =
   testTask "execute_function behaves the same" {
+    let tlid = gid ()
+
     let (body : Execution.Function.Params) =
-      { tlid = gid ()
+      { tlid = tlid
         trace_id = System.Guid.NewGuid()
         caller_id = gid ()
         args = [ ORT.DInt 5L; ORT.DInt 6L ]
@@ -329,7 +331,9 @@ let testExecuteFunction =
         "execute_function"
         (serialize body)
         (deserialize<Execution.Function.T>)
-        ident
+        // New version includes the tlid of the caller
+        (fun (r : Execution.Function.T) ->
+          { r with touched_tlids = List.filter ((<>) tlid) r.touched_tlids })
   }
 
 let testTriggerHandler =

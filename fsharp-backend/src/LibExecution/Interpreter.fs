@@ -32,8 +32,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     taskv {
       if state.tracing.realOrPreview = Preview then
         let state = { state with onExecutionPath = false }
-        let! (result : Dval) = eval state st expr
-        ignore result
+        let! (_result : Dval) = eval state st expr
+        return ()
     }
 
 
@@ -42,10 +42,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EBlank id -> return (incomplete id)
     | EPartial (_, expr) -> return! eval state st expr
     | ELet (_id, lhs, rhs, body) ->
-        // FSTODO: match with ast.ml
         let! rhs = eval state st rhs
-        let st = st.Add(lhs, rhs)
-        return! (eval state st body)
+
+        match rhs with
+        // CLEANUP we should still preview the body
+        // Usually fakevals get propagated when they're evaluated. However, if we don't use the value, we still want to propagate the errorrail here, so return it instead of evaling the body
+        | DErrorRail v -> return rhs
+        | _ ->
+            let st = if lhs <> "" then st.Add(lhs, rhs) else st
+            return! (eval state st body)
     | EString (_id, s) -> return (DStr(s.Normalize()))
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
@@ -67,9 +72,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | None -> return (DList filtered)
 
     | EVariable (id, name) ->
-        // FSTODO: match ast.ml
         match (st.TryFind name, state.tracing.realOrPreview) with
         | None, Preview ->
+            // CLEANUP this feels like giving an error would be an improvement
             // The trace is wrong/we have a bug -- we guarantee to users that
             // variables they can lookup have been bound. However, we
             // shouldn't crash out here when running analysis because it gives
@@ -87,7 +92,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                | k, e -> Some(k, e))
         // FSTODO: we actually want to stop on the first incomplete/error/etc, thing, not do them all.
         let! (resolved : List<string * Dval>) =
-          Prelude.map_s
+          map_s
             (fun (k, v) ->
               taskv {
                 let! dv = eval state st v
@@ -98,8 +103,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return Dval.interpreterObj resolved
     | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
-        let! args = Prelude.map_s (eval state st) exprs
-        return! (applyFn state id fnVal (Seq.toList args) inPipe ster)
+        let! args = map_s (eval state st) exprs
+        return! applyFn state id fnVal (Seq.toList args) inPipe ster
     | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
     | EFieldAccess (id, e, field) ->
         let! obj = eval state st e

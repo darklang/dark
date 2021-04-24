@@ -81,11 +81,7 @@ let executeHandler
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
   : Task<RT.Dval> =
-  // CLEANUP: we should make some sort of effort to put this through the same
-  // HTTP pipeline as BWDServer uses
-
   let symtable = Interpreter.withGlobals state inputVars
-
   Interpreter.eval state symtable expr |> TaskOrValue.toTask
 
 let executeHttpHandler
@@ -96,9 +92,6 @@ let executeHttpHandler
   // CLEANUP: we should make some sort of effort to put this through the same
   // HTTP pipeline as BWDServer uses
   executeHandler state inputVars expr |> Task.map extractHttpErrorRail
-
-
-
 
 
 let executeFunction
@@ -117,17 +110,14 @@ let executeFunction
 // is used
 let traceTLIDs () : HashSet<tlid> * RT.TraceTLID =
   let touchedTLIDs = HashSet()
-
-  let traceTLID tlid : unit =
-    let (_set : HashSet<tlid>) = HashSet.add tlid touchedTLIDs in ()
-
+  let traceTLID tlid : unit = HashSet.add tlid touchedTLIDs
   (touchedTLIDs, traceTLID)
 
-let updateTraceTLID
-  (traceTLID : RT.TraceTLID)
+let updateTracing
+  (fn : RT.Tracing -> RT.Tracing)
   (state : RT.ExecutionState)
   : RT.ExecutionState =
-  { state with tracing = { state.tracing with traceTLID = traceTLID } }
+  { state with tracing = fn state.tracing }
 
 
 
@@ -144,9 +134,3 @@ let traceDvals () : Dictionary<id, AT.ExecutionResult> * RT.TraceDval =
     results.Add(id, result)
 
   (results, trace)
-
-let updateTraceDval
-  (traceDval : RT.TraceDval)
-  (state : RT.ExecutionState)
-  : RT.ExecutionState =
-  { state with tracing = { state.tracing with traceDval = traceDval } }

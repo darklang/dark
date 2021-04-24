@@ -106,11 +106,9 @@ let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
                       do! EQ.putBack root event EQ.Missing
                       return Ok None
                   | Some h ->
-                      let! state =
+                      let! (state, touchedTLIDs) =
                         RealExecution.createState traceID h.tlid (Canvas.toProgram c)
 
-                      let touchedTLIDs, tracer = Execution.traceTLIDs ()
-                      let state = Execution.updateTraceTLID tracer state
                       // FSTODO: add parent span to state
                       // ~parent:(Some parent)
                       Span.addTagID' "handler_id" h.tlid root

@@ -44,19 +44,26 @@ let libraries : Lazy<Task<RT.Libraries>> =
       return { stdlib = stdlibFns; packageFns = packageFns }
      })
 
+
 let createState
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
-  : Task<RT.ExecutionState> =
+  : Task<RT.ExecutionState * Exe.HashSet<tlid>> =
   task {
     let canvasID = program.canvasID
+
+    // Any real execution needs to track the touched TLIDs in order to send traces to pusher
+    let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
+    HashSet.add tlid touchedTLIDs
 
     let tracing =
       { Exe.noTracing RT.Real with
           storeFnResult = TraceFunctionResults.store canvasID traceID
-          storeFnArguments = TraceFunctionArguments.store canvasID traceID }
+          storeFnArguments = TraceFunctionArguments.store canvasID traceID
+          traceTLID = traceTLIDFn }
 
     let! libraries = Lazy.force libraries
-    return LibExecution.Execution.createState libraries tracing tlid program
+
+    return (Exe.createState libraries tracing tlid program, touchedTLIDs)
   }

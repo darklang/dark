@@ -16,8 +16,26 @@ module Exe = LibExecution.Execution
 module Ast = LibExecution.Ast
 
 module AT = LibExecution.AnalysisTypes
+type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
 let parse = FSharpToExpr.parseRTExpr
+
+let executionStateForPreview
+  (name : string)
+  (dbs : Map<string, DB.T>)
+  (fns : Map<string, UserFunction.T>)
+  : Task<AT.AnalysisResults * ExecutionState> =
+  task {
+    let! state = executionStateFor name dbs fns
+    let results, traceFn = Exe.traceDvals ()
+
+    let state =
+      Exe.updateTracing
+        (fun t -> { t with traceDval = traceFn; realOrPreview = Preview })
+        state
+
+    return (results, state)
+  }
 
 let execSaveDvals
   (dbs : List<DB.T>)
@@ -27,9 +45,7 @@ let execSaveDvals
   task {
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
-    let! state = executionStateFor "test" dbs fns
-    let results, traceFn = Exe.traceDvals ()
-    let state = Exe.updateTraceDval traceFn state
+    let! (results, state) = executionStateForPreview "test" dbs fns
 
     let inputVars = Map.empty
     let! _result = Exe.executeExpr state inputVars ast
@@ -40,14 +56,17 @@ let execSaveDvals
 
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
-
     let name = "testFunction"
     let fn = testUserFn name [] (eInt 5)
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor "test" Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
-    let state = Exe.updateTraceTLID traceFn state
+
+    let state =
+      Exe.updateTracing
+        (fun t -> { t with traceTLID = traceFn; realOrPreview = Preview })
+        state
 
     let! value = Exe.executeFunction state (gid ()) [] (FQFnName.User name)
 
@@ -64,7 +83,11 @@ let testErrorRailUsedInAnalysis : Test =
     let loadTraceResults _ _ = Some(DOption(Some(DInt 12345I)), System.DateTime.Now)
 
     let state =
-      { state with tracing = { state.tracing with loadFnResult = loadTraceResults } }
+      { state with
+          tracing =
+            { state.tracing with
+                loadFnResult = loadTraceResults
+                realOrPreview = Preview } }
 
     let inputVars = Map.empty
     let ast = eFnRail "" "fake_test_fn" 0 [ eInt 4; eInt 5 ]
@@ -89,13 +112,11 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
         [ eVar "MyDB"
           eLambda [ "value" ] (eFieldAccess (EVariable(varID, "value")) "age") ]
 
-    let! state = executionStateFor "test" (Map [ "MyDB", db ]) Map.empty
+    let! (results, state) =
+      executionStateForPreview "test" (Map [ "MyDB", db ]) Map.empty
 
     let state =
       { state with libraries = { state.libraries with stdlib = Map.empty } }
-
-    let results, traceFn = Exe.traceDvals ()
-    let state = Exe.updateTraceDval traceFn state
 
     let! _value = Exe.executeExpr state Map.empty ast
 
@@ -128,6 +149,7 @@ let testRecursionInEditor : Test =
       (eIf
         (eApply (eStdFnVal "" "<" 0) [ eVar "i"; eInt 1 ])
         (eInt 0)
+        // infinite recursion
         (EApply(skippedCallerID, eUserFnVal "recurse", [ eInt 2 ], NotInPipe, NoRail)))
 
     let recurse = testUserFn "recurse" [ "i" ] fnExpr

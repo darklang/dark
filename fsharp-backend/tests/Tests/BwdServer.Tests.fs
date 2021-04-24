@@ -24,8 +24,10 @@ type Server =
   | OCaml
   | FSharp
 
-let t name =
-  testTask $"Httpfiles: {name}" {
+let t filename =
+  testTask $"Httpfiles: {filename}" {
+    let skip = String.startsWith "_" filename
+    let name = if skip then String.dropLeft 1 filename else filename
     let testName = $"test-{name}"
     do! TestUtils.clearCanvasData (CanvasName.create testName)
     let toBytes (str : string) = System.Text.Encoding.ASCII.GetBytes str
@@ -51,7 +53,7 @@ let t name =
                [ b ])
       |> List.toArray
 
-    let filename = $"tests/httptestfiles/{name}"
+    let filename = $"tests/httptestfiles/{filename}"
     let! contents = System.IO.File.ReadAllBytesAsync filename
     let contents = toStr contents
 
@@ -290,7 +292,7 @@ let t name =
 
       }
 
-    if String.startsWith "_" name then
+    if skip then
       skiptest $"underscore test - {name}"
     else
       do! callServer OCaml // check OCaml to see if we got the right answer
@@ -307,62 +309,9 @@ let testsFromFiles =
   |> Array.toList
   |> List.map t
 
-let unitTests =
-  [ testMany
-      "sanitizeUrlPath"
-      BwdServer.sanitizeUrlPath
-      [ ("//", "/")
-        ("/foo//bar", "/foo/bar")
-        ("/abc//", "/abc")
-        ("/abc/", "/abc")
-        ("/abc", "/abc")
-        ("/", "/")
-        ("/abcabc//xyz///", "/abcabc/xyz")
-        ("", "/") ]
-    testMany
-      "ownerNameFromHost"
-      (fun cn ->
-        cn
-        |> CanvasName.create
-        |> LibBackend.Account.ownerNameFromCanvasName
-        |> fun (on : OwnerName.T) -> on.ToString())
-      [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
-    testMany
-      "routeVariables"
-      Routing.routeVariables
-      [ ("/user/:userid/card/:cardid", [ "userid"; "cardid" ]) ]
-    testMany2
-      "routeInputVars"
-      Routing.routeInputVars
-      [ ("/hello/:name", "/hello/alice-bob", Some [ "name", RT.DStr "alice-bob" ])
-        ("/hello/alice-bob", "/hello/", None)
-        ("/user/:userid/card/:cardid",
-         "/user/myid/card/0",
-         Some [ "userid", RT.DStr "myid"; "cardid", RT.DStr "0" ])
-        ("/a/:b/c/d", "/a/b/c/d", Some [ "b", RT.DStr "b" ])
-        ("/a/:b/c/d", "/a/b/c", None)
-        ("/a/:b", "/a/b/c/d", Some [ "b", RT.DStr "b/c/d" ])
-        ("/:a/:b/:c",
-         "/a/b/c/d/e",
-         Some [ "a", RT.DStr "a"; "b", RT.DStr "b"; "c", RT.DStr "c/d/e" ])
-        ("/a/:b/c/d", "/a/b/c/e", None)
-        ("/letters:var", "lettersextra", None) ]
-    testManyTask
-      "canvasNameFromHost"
-      (fun h ->
-        h
-        |> BwdServer.canvasNameFromHost
-        |> Task.map (Option.map (fun cn -> cn.ToString())))
-      [ ("test-something.builtwithdark.com", Some "test-something")
-        ("my-canvas.builtwithdark.localhost", Some "my-canvas")
-        ("builtwithdark.localhost", Some "builtwithdark")
-        ("my-canvas.darkcustomdomain.com", Some "my-canvas")
-        ("www.microsoft.com", None) ] ]
 
-let tests =
-  testList
-    "BwdServer"
-    [ testList "From files" testsFromFiles; testList "unit tests" unitTests ]
+
+let tests = testList "BwdServer" [ testList "From files" testsFromFiles ]
 
 open Microsoft.AspNetCore.Hosting
 // run our own webserver instead of relying on the dev webserver
