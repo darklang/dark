@@ -29,7 +29,11 @@ let execSaveDvals
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
     let! state = executionStateFor "test" dbs fns
     let results, traceFn = Exe.traceDvals ()
-    let state = Exe.updateTracing (fun t -> { t with traceDval = traceFn }) state
+
+    let state =
+      Exe.updateTracing
+        (fun t -> { t with traceDval = traceFn; realOrPreview = Preview })
+        state
 
     let inputVars = Map.empty
     let! _result = Exe.executeExpr state inputVars ast
@@ -127,6 +131,7 @@ let testRecursionInEditor : Test =
       (eIf
         (eApply (eStdFnVal "" "<" 0) [ eVar "i"; eInt 1 ])
         (eInt 0)
+        // infinite recursion
         (EApply(skippedCallerID, eUserFnVal "recurse", [ eInt 2 ], NotInPipe, NoRail)))
 
     let recurse = testUserFn "recurse" [ "i" ] fnExpr
