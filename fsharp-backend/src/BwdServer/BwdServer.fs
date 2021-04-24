@@ -284,7 +284,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                 let! result, touchedTLIDs =
                   runHttp c tlid traceID url headers body symtable expr
 
-                debuG "result of runHttp" result
                 do! getCORS ctx canvasID
 
                 // FSTODO: save event in the http pipeline
