@@ -343,7 +343,7 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
 // Gets event scheduling rules for the specified canvas
 let getSchedulingRules (canvasID : CanvasID) : Task<List<SchedulingRule.T>> =
   Sql.query
-    "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
+    "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
      FROM scheduling_rules
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
