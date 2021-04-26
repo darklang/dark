@@ -279,6 +279,6 @@ Ok 0 <> Error 0
 (fun x -> let y = 1 in y) <> (fun x -> let y = 1 in x)
 
 [db.MyDB { "x" : "Str", "y": "Str" }]
-[test db.equality] with DB myDB
+[test.db equality] with DB MyDB
 MyDB = MyDB
 MyDB <> 5
