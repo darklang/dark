@@ -33,7 +33,8 @@ let main args =
       Tests.SqlCompiler.tests
       Tests.Traces.tests
       Tests.TypeChecker.tests
-      Tests.Undo.tests ]
+      Tests.Undo.tests
+      Tests.UserDB.tests ]
 
   // this does async stuff within it, so do not run it from a task/async
   // context or it may hang
