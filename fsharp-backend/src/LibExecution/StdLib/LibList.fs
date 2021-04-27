@@ -987,31 +987,34 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "zip" 0
-//     ; parameters = [Param.make "as" TList ""; Param.make "bs" TList ""]
-//     ; returnType = TOption
-//     ; description =
-//         {|If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
-//         For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"], [3,"z"]]`.
-//         See `List::unzip` if you want to deconstruct `list` into `as` and `bs` again.
-//         If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop values from the longer list instead).|}
-//     ; fn =
-//           (function
-//           | state, [DList l1; DList l2] ->
-//               let f (l1Item : dval) (l2Item : dval) : dval =
-//                 Dval.to_list [l1Item; l2Item]
-//               in
-//               DOption
-//                 ( match List.map2 ~f l1 l2 with
-//                 | Ok res ->
-//                     OptJust (Dval.to_list res)
-//                 | Unequal_lengths ->
-//                     OptNothing )
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "zip" 0
+      parameters = [ Param.make "as" (TList varA) "";  Param.make "bs" (TList varB) "" ]
+      returnType = TOption(TList(TList varA))
+      description =
+        "If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
+        For example, if `as` is `[1,2,3]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[[1,\"x\"], [2,\"y\"], [3,\"z\"]]`.
+        See `List::unzip` if you want to deconstruct `list` into `as` and `bs` again.
+        If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop values from the longer list instead)."
+      fn =
+        (function
+        | state, [ DList l1; DList l2 ] ->
+                let result =
+                  if (bigint (List.length l1) <> bigint (List.length l2)) then
+                    None
+                  else
+                    List.zip l1 l2
+                    |> List.map (fun (val1, val2) -> DList [val1;val2])
+                    |> DList
+                    |> Some
+
+                match result with
+                | Some pairs -> Value(DOption(Some pairs))
+                | None -> Value(DOption None)
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "unzip" 0
 //     ; parameters = [Param.make "pairs" TList ""]
 //     ; returnType = TList
