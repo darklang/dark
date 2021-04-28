@@ -98,9 +98,10 @@ List.head_v2 [] = Nothing
 //List.interleave_v0 [] [4;5;6] = [ 4, 5, 6 ]
 //List.interleave_v0 [] [] = []
 
-//List.interpose_v0 [1;2;3] 5 = [ 1, 5, 2, 5, 3 ]
-//List.interpose_v0 [1] 5 = [ 1 ]
-//List.interpose_v0 [] 5 = []
+List.interpose_v0 [1;2;3] 5 = [ 1, 5, 2, 5, 3 ]
+List.interpose_v0 [1] 5 = [ 1 ]
+List.interpose_v0 [] 5 = []
+List.interpose_v0 ["a"; "b"; "c"] 0 = ["a"; 0; "b"; 0; "c"]
 
 List.isEmpty_v0 [1] = false
 List.isEmpty_v0 [] = true

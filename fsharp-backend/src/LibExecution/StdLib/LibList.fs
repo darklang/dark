@@ -338,27 +338,27 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "interpose" 0
-//     ; parameters = [Param.make "list" TList ""; Param.make "sep" varA ""]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a single list containing the values of `list` separated by `sep`."
-//     ; fn =
-//           (function
-//           | _, [DList l; i] ->
-//               let rec join ls =
-//                 match ls with
-//                 | [] ->
-//                     []
-//                 | h :: t ->
-//                   (match t with [] -> [h] | t -> [h] @ [i] @ join t)
-//               in
-//               DList (join l)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "interpose" 0
+      parameters = [Param.make "list" (TList varA) ""; Param.make "sep" varA ""]
+      returnType = TList varA
+      description =
+        "Returns a single list containing the values of `list` separated by `sep`."
+      fn =
+        (function
+        | _, [DList l; i] ->
+            let rec join ls =
+                match ls with
+                | [] -> []
+                | h :: t ->
+                  (match t with
+                   |[] -> [h]
+                   | t -> [h] @ [i] @ join t)
+            in
+              Value(DList(join l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "interleave" 0
 //     ; parameters = [Param.make "as" TList ""; Param.make "bs" TList ""]
 //     ; returnType = TList
