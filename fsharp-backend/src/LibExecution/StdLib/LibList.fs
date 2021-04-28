@@ -339,20 +339,20 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "List" "interpose" 0
-      parameters = [Param.make "list" (TList varA) ""; Param.make "sep" varA ""]
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "sep" varA "" ]
       returnType = TList varA
       description =
         "Returns a single list containing the values of `list` separated by `sep`."
       fn =
         (function
-        | _, [DList l; i] ->
+        | _, [ DList l; i ] ->
             let rec join ls =
-                match ls with
-                | [] -> []
-                | h :: t ->
-                  (match t with
-                   |[] -> [h]
-                   | t -> [h] @ [i] @ join t)
+              match ls with
+              | [] -> []
+              | h :: t ->
+                (match t with
+                 | [] -> [h]
+                 | t -> [h] @ [i] @ join t)
             in
               Value(DList(join l))
         | _ -> incorrectArgs ())
