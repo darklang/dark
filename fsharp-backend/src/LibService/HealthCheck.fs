@@ -1,5 +1,34 @@
 module LibService.HealthCheck
 
+open Microsoft.Extensions.DependencyInjection
+open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http
+open Microsoft.AspNetCore.Http.Abstractions
+
+let url (port : int) : string = $"http://*:{port}"
+
+let configureServices (services : IServiceCollection) : IServiceCollection =
+  let (_ : IHealthChecksBuilder) =
+    services.AddHealthChecks().AddNpgSql(DBConnection.connectionString)
+
+  services
+
+let configureApp (port : int) (app : IApplicationBuilder) : IApplicationBuilder =
+  app
+    .UseHealthChecks(PathString("/"), port)
+    .UseEndpoints(
+      (fun endpoints ->
+        let (_ : IEndpointConventionBuilder) =
+          endpoints.MapHealthChecks("/healthz").RequireHost($"*:{port}")
+
+        ())
+    )
+
+//FSTODO: things to check
+
+// CLEANUP add support for https://devblogs.microsoft.com/dotnet/introducing-dotnet-monitor/
+
+
 //FSTODO run a health-check service on another port
 // let run ~shutdown ~execution_id =
 //   let callback _conn req body =

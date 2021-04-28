@@ -24,6 +24,7 @@ open Prelude
 open Tablecloth
 open FSharpx
 
+module HealthCheck = LibService.HealthCheck
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module RealExe = LibBackend.RealExecution
@@ -49,6 +50,42 @@ let getHeader (ctx : HttpContext) (name : string) : string option =
   match ctx.Request.Headers.TryGetValue name with
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
+
+
+// let shouldUseHttps uri =
+//   let parts = uri |> Uri.host |> Option.value "" |> fun h -> String.split h '.'
+//
+//   match parts with
+//   | [ "darklang"; "com" ]
+//   | [ "builtwithdark"; "com" ]
+//   | [ _; "builtwithdark"; "com" ]
+//   (* Customers - do not remove the marker below *)
+//   (* ACD-should_use_https-MARKER *)
+//   | [ "chat"; "lee"; "af" ]
+//   | [ "scraper-proxy"; "galactic"; "zone" ]
+//   | [ "hellobirb"; "com" ]
+//   | [ "www"; "hellobirb"; "com" ]
+//   | [ "kiksht"; "com" ]
+//   | [ "www"; "kiksht"; "com" ]
+//   | [ "food"; "placeofthin"; "gs" ] -> true
+//   | parts ->
+//       (* If we've set up a custom domain, we should force https. If we haven't,
+//        * and we've fallen all the way through (this is not a known host), then we
+//        * should not, because it is likely a healthcheck or other k8s endpoint *)
+//       parts |> canvas_from_db_opt |> Option.is_some
+//
+//
+// let redirect_to uri =
+//   let proto = uri |> Uri.scheme |> Option.value "" in
+//   (* If it's http and on a domain that can be served with https,
+//      we want to redirect to the same url but with the scheme
+//      replaced by "https". *)
+//   if proto = "http" && should_use_https uri then
+//     Some "https" |> Uri.with_scheme uri |> Some
+//   else
+//     None
+//
+//
 
 let runHttp
   (c : Canvas.T)
@@ -218,6 +255,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
   }
 
 
+
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     setHeader ctx "Server" "Darklang"
@@ -355,6 +393,9 @@ let configureApp (app : IApplicationBuilder) =
 
   app
   |> LibService.Rollbar.AspNet.addRollbarToApp
+  |> fun app -> app.UseRouting()
+  // must go after UseRouting
+  |> HealthCheck.configureApp LibService.Config.bwdServerHealthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -362,15 +403,18 @@ let configureServices (services : IServiceCollection) : unit =
     services
     |> LibService.Rollbar.AspNet.addRollbarToServices
     |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
+    |> HealthCheck.configureServices
 
   ()
 
 let webserver (shouldLog : bool) (port : int) =
+  let hcUrl = HealthCheck.url LibService.Config.bwdServerHealthCheckPort
+
   WebHost.CreateDefaultBuilder()
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+  |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{port}")
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
-  |> fun wh -> wh.UseUrls($"http://*:{port}")
   |> fun wh -> wh.Build()
 
 

@@ -8,3 +8,6 @@ OpenTelemetry.Exporter.Console
 OpenTelemetry.Instrumentation.AspNetCore
 OpenTelemetry.Extensions.Hosting
 OpenTelemetry.Instrumentation.Http
+Microsoft.Extensions.Diagnostics.HealthChecks
+AspNetCore.HealthChecks.Npgsql
+Npgsql.FSharp
