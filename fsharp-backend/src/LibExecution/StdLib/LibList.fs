@@ -359,27 +359,27 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "interleave" 0
-//     ; parameters = [Param.make "as" TList ""; Param.make "bs" TList ""]
-//     ; returnType = TList
-//     ; description =
-//         "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
-//     ; fn =
-//           (function
-//           | _, [DList l1; DList l2] ->
-//               let rec f l1 l2 =
-//                 match l1 with
-//                 | [] ->
-//                     l2
-//                 | x :: xs ->
-//                   (match l2 with [] -> l1 | y :: ys -> x :: y :: f xs ys)
-//               in
-//               DList (f l1 l2)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "interleave" 0
+      parameters = [ Param.make "as" (TList varA) "";  Param.make "bs" (TList varB) "" ]
+      returnType = TList varA
+      description =
+        "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
+      fn =
+        (function
+        | _, [ DList l1; DList l2 ] ->
+            let rec f l1 l2 =
+              match l1 with
+              | [] -> l2
+              | x :: xs ->
+                (match l2 with
+                 | [] -> l1
+                 | y :: ys -> x :: y :: f xs ys)
+            in
+              Value(DList(f l1 l2))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
 //   ; { name = fn "List" "uniqueBy" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
