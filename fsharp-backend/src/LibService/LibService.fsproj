@@ -9,6 +9,7 @@
     <Compile Include="ConfigDsl.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Rollbar.fs" />
+    <Compile Include="DBConnection.fs" />
     <Compile Include="HealthCheck.fs" />
     <Compile Include="Kestrel.fs" />
     <Compile Include="Telemetry.fs" />

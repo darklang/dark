@@ -65,7 +65,7 @@ let runSystemMigration (name : string) (sql : string) : unit =
 
       let counts =
 
-        Db.connect ()
+        LibService.DBConnection.connect ()
         |> Sql.executeTransaction [ sql, []
                                     recordMigrationStmt, [ recordMigrationParams ] ]
 
