@@ -457,19 +457,6 @@ let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
 
 let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"
 
-// Open a database [transaction] and run [f],in it - [f] takes both a [Span.t]
-// (for tracing) and a [transaction] id
-let withTransaction (f : unit -> Task<'a>) : Task<'a> =
-  task {
-    let connection = Db.connect () |> Sql.createConnection
-    connection.Open()
-
-    let! transaction = connection.BeginTransactionAsync()
-    let! result = f ()
-    do! transaction.CommitAsync()
-    return result
-  }
-
 let putBack (parent : Span.T) (item : T) (status : Status) : Task<unit> =
   let span =
     (Span.child "event_queue: put_back_transaction" parent)

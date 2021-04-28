@@ -31,6 +31,21 @@ module Sql =
 
   let query (sql : string) : Sql.SqlProps = connect () |> Sql.query sql
 
+  // Open a database [transaction] and run [f],in it
+  let withTransaction (f : unit -> Task<'a>) : Task<'a> =
+    task {
+      let connection = LibService.DBConnection.connect () |> Sql.createConnection
+      connection.Open()
+
+      let! transaction = connection.BeginTransactionAsync()
+      let! result = f ()
+      do! transaction.CommitAsync()
+      return result
+    }
+
+  let query (sql : string) : Sql.SqlProps =
+    LibService.DBConnection.connect () |> Sql.query sql
+
   let executeRowOptionAsync
     (reader : RowReader -> 't)
     (props : Sql.SqlProps)
