@@ -962,31 +962,30 @@ let fns : List<BuiltInFn> =
 //     ; sqlSpec = NotYetImplementedTODO
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "zipShortest" 0
-//     ; parameters = [Param.make "as" TList ""; Param.make "bs" TList ""]
-//     ; returnType = TList
-//     ; description =
-//         {|Returns a list of parallel pairs from `as` and `bs`.
-//         If the lists differ in length, values from the longer list are dropped.
-//         For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[[1,"x"], [2,"y"]]`.
-//         Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.
-//         See `List::unzip` if you want to deconstruct the result into `as` and `bs` again.|}
-//     ; fn =
-//           (function
-//           | state, [DList l1; DList l2] ->
-//               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
-//               let len = min (List.length l1) (List.length l2) in
-//               let l1 = List.take l1 len in
-//               let l2 = List.take l2 len in
-//               let f (l1Item : dval) (l2Item : dval) : dval =
-//                 Dval.to_list [l1Item; l2Item]
-//               in
-//               Dval.to_list (List.map2_exn ~f l1 l2)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "zipShortest" 0
+      parameters = [ Param.make "as" (TList varA) "";  Param.make "bs" (TList varB) "" ]
+      returnType = TList varA
+      description = "Returns a list of parallel pairs from `as` and `bs`.
+        If the lists differ in length, values from the longer list are dropped.
+        For example, if `as` is `[1,2]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[[1,\"x\"], [2,\"y\"]]`.
+        Use `List::zip` if you want to enforce equivalent lengths for `as` and `bs`.
+        See `List::unzip` if you want to deconstruct the result into `as` and `bs` again."
+      fn =
+        (function
+        | state, [ DList l1; DList l2 ] ->
+                // We have to do this munging because OCaml's map2
+                // and Fsharp's zip enforces lists of the same length
+                let len = min (bigint (List.length l1)) (bigint (List.length l2))
+                let l1 = List.take (int len) l1
+                let l2 = List.take (int len) l2
+                List.zip l1 l2
+                |> List.map (fun (val1, val2) -> DList[ val1; val2 ])
+                |> DList
+                |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "zip" 0
       parameters = [ Param.make "as" (TList varA) "";  Param.make "bs" (TList varB) "" ]
       returnType = TOption(TList(TList varA))
