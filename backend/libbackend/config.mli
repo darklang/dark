@@ -17,6 +17,8 @@ val dir : root -> string
 
 val port : int
 
+val legacyserver_port : int
+
 val log_format : [`Json | `DecoratedJson]
 
 val log_level : Libcommon.Log.level

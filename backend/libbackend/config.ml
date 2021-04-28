@@ -105,6 +105,8 @@ let dir root =
 (* ------------------------- *)
 let port = int "DARK_CONFIG_HTTP_PORT"
 
+let legacyserver_port = int "DARK_CONFIG_LEGACYSERVER_PORT"
+
 let allow_test_routes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
 let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"

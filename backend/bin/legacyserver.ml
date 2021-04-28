@@ -133,7 +133,11 @@ let server () =
         let headers = Header.init () in
         S.respond_string ~status:`Not_found ~body:"" ~headers ()
   in
-  S.create ~stop ~mode:(`TCP (`Port 5000)) (S.make ~callback ())
+  (* FSTODO: make port configurable *)
+  S.create
+    ~stop
+    ~mode:(`TCP (`Port Config.legacyserver_port))
+    (S.make ~callback ())
 
 
 let () =
