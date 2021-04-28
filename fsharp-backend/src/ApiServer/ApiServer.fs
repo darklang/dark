@@ -83,17 +83,10 @@ let configureApp (appBuilder : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   |> fun app -> app.UseServerTiming()
   |> fun app ->
-       // FSTODO: use a Config value
-       if LibBackend.Config.staticHost.Contains "localhost:8000" then
+       if LibBackend.Config.apiServerServeStaticContent then
          app.UseStaticFiles(
            StaticFileOptions(
-             FileProvider =
-               new PhysicalFileProvider(
-                 System.IO.Path.Combine(
-                   System.IO.Directory.GetCurrentDirectory(),
-                   "backend/static"
-                 )
-               )
+             FileProvider = new PhysicalFileProvider(Config.webrootDir)
            )
          )
        else
@@ -127,10 +120,10 @@ let main args =
 
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+  |> fun wh ->
+       wh.UseUrls($"http://darklang.localhost:{LibService.Config.apiServerPort}")
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
-  // FSTODO: use a config value
-  |> fun wh -> wh.UseUrls("http://darklang.localhost:9000")
   |> fun wh -> wh.Build()
   |> fun wh -> wh.Run()
 

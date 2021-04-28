@@ -41,11 +41,13 @@ let binRootDir = absoluteDir "DARK_CONFIG_BIN_ROOT_DIR"
 // -------------------------
 // Web configuration *)
 // -------------------------
-let staticHost = string "DARK_CONFIG_STATIC_HOST"
+let apiServerServeStaticContent = bool "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT"
+
+let apiServerStaticHost = string "DARK_CONFIG_APISERVER_STATIC_HOST"
 
 let cookieDomain = string "DARK_CONFIG_COOKIE_DOMAIN"
 
-let userContentHost = string "DARK_CONFIG_USER_CONTENT_HOST"
+let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
 
 // -------------------------
 // Kubernetes *)
