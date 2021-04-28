@@ -15,7 +15,7 @@
 # as part of that build. Search for DOCKERFILE_REPO for where to make that
 # change.
 
-FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
+FROM ubuntu:20.04@sha256:cf31af331f38d1d7158470e095b132acd126a7180a54f263d386da88eb681d93 as dark-base
 
 ENV FORCE_BUILD 2
 
