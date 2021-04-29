@@ -36,6 +36,9 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
+// ---------------
+// Headers
+// ---------------
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
   // There's an exception thrown for duplicate test name. We just want the last
   // header to win, especially since the user can add the same headers we add
@@ -52,81 +55,9 @@ let getHeader (ctx : HttpContext) (name : string) : string option =
   | false, _ -> None
 
 
-// let shouldUseHttps uri =
-//   let parts = uri |> Uri.host |> Option.value "" |> fun h -> String.split h '.'
-//
-//   match parts with
-//   | [ "darklang"; "com" ]
-//   | [ "builtwithdark"; "com" ]
-//   | [ _; "builtwithdark"; "com" ]
-//   (* Customers - do not remove the marker below *)
-//   (* ACD-should_use_https-MARKER *)
-//   | [ "chat"; "lee"; "af" ]
-//   | [ "scraper-proxy"; "galactic"; "zone" ]
-//   | [ "hellobirb"; "com" ]
-//   | [ "www"; "hellobirb"; "com" ]
-//   | [ "kiksht"; "com" ]
-//   | [ "www"; "kiksht"; "com" ]
-//   | [ "food"; "placeofthin"; "gs" ] -> true
-//   | parts ->
-//       (* If we've set up a custom domain, we should force https. If we haven't,
-//        * and we've fallen all the way through (this is not a known host), then we
-//        * should not, because it is likely a healthcheck or other k8s endpoint *)
-//       parts |> canvas_from_db_opt |> Option.is_some
-//
-//
-// let redirect_to uri =
-//   let proto = uri |> Uri.scheme |> Option.value "" in
-//   (* If it's http and on a domain that can be served with https,
-//      we want to redirect to the same url but with the scheme
-//      replaced by "https". *)
-//   if proto = "http" && should_use_https uri then
-//     Some "https" |> Uri.with_scheme uri |> Some
-//   else
-//     None
-//
-//
-
-let runHttp
-  (c : Canvas.T)
-  (tlid : tlid)
-  (traceID : LibExecution.AnalysisTypes.TraceID)
-  (url : string)
-  (headers : Map<string, string>)
-  (body : byte [])
-  (inputVars : RT.Symtable)
-  (expr : RT.Expr)
-  : Task<RT.Dval * Exe.HashSet<tlid>> =
-  task {
-
-    let program = Canvas.toProgram c
-    let! state, touchedTLIDs = RealExe.createState traceID tlid program
-    let symtable = Interpreter.withGlobals state inputVars
-
-    let headers = headers |> Map.map RT.DStr |> RT.DObj
-
-    let! result =
-      Interpreter.callFn
-        state
-        (RT.Expr.toID expr)
-        (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
-        [ RT.DStr url
-          RT.DBytes body
-          headers
-          RT.DFnVal(
-            RT.Lambda
-              { parameters = [ gid (), "request" ]
-                symtable = symtable
-                body = expr }
-          ) ]
-        RT.NotInPipe
-        RT.NoRail
-      |> TaskOrValue.toTask
-
-    return (Exe.extractHttpErrorRail result, touchedTLIDs)
-  }
-
-
+// ---------------
+// Responses
+// ---------------
 let favicon : Lazy<byte array> =
   lazy (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png")
 
@@ -201,6 +132,9 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
     with _ -> return! raise (LoadException(msg, code))
   }
 
+// ---------------
+// CORS
+// ---------------
 // FSTODO: for now, we'll read the CORS settings and write the response headers. This is probably wrong but we'll see
 let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
   task {
@@ -237,7 +171,29 @@ let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
     return ()
   }
 
+// ---------------
+// HttpsRedirect
+// ---------------
+
+let configureHttpsRedirect (s : IServiceCollection) : IServiceCollection =
+  if LibBackend.Config.redirectHttp then
+    s.AddHttpsRedirection
+      (fun opts ->
+        // CLEANUP: use 307 probably
+        opts.RedirectStatusCode <- 302
+        opts.HttpsPort <- 443)
+  else
+    s
+
+let useHttpsRedirect (app : IApplicationBuilder) : IApplicationBuilder =
+  if LibBackend.Config.redirectHttp then app.UseHttpsRedirection() else app
+
+
+// ---------------
+// Read from HttpContext
+// ---------------
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
+
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 let getHeaders (ctx : HttpContext) : Map<string, string> =
@@ -255,6 +211,46 @@ let getBody (ctx : HttpContext) : Task<byte array> =
   }
 
 
+// ---------------
+// Handle builtwithdark request
+// ---------------
+let runHttp
+  (c : Canvas.T)
+  (tlid : tlid)
+  (traceID : LibExecution.AnalysisTypes.TraceID)
+  (url : string)
+  (headers : Map<string, string>)
+  (body : byte [])
+  (inputVars : RT.Symtable)
+  (expr : RT.Expr)
+  : Task<RT.Dval * Exe.HashSet<tlid>> =
+  task {
+    let program = Canvas.toProgram c
+    let! state, touchedTLIDs = RealExe.createState traceID tlid program
+    let symtable = Interpreter.withGlobals state inputVars
+
+    let headers = headers |> Map.map RT.DStr |> RT.DObj
+
+    let! result =
+      Interpreter.callFn
+        state
+        (RT.Expr.toID expr)
+        (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
+        [ RT.DStr url
+          RT.DBytes body
+          headers
+          RT.DFnVal(
+            RT.Lambda
+              { parameters = [ gid (), "request" ]
+                symtable = symtable
+                body = expr }
+          ) ]
+        RT.NotInPipe
+        RT.NoRail
+      |> TaskOrValue.toTask
+
+    return (Exe.extractHttpErrorRail result, touchedTLIDs)
+  }
 
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
@@ -371,8 +367,11 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   }
 
 
+// ---------------
+// Configure Kestrel/ASP.NET
+// ---------------
 let configureApp (app : IApplicationBuilder) =
-  let handler ctx =
+  let handler (ctx : HttpContext) =
     (task {
       try
         return! runDarkHandler ctx
@@ -392,6 +391,7 @@ let configureApp (app : IApplicationBuilder) =
     :> Task
 
   app
+  |> useHttpsRedirect
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseRouting()
   // must go after UseRouting
@@ -404,6 +404,7 @@ let configureServices (services : IServiceCollection) : unit =
     |> LibService.Rollbar.AspNet.addRollbarToServices
     |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
     |> HealthCheck.configureServices
+    |> configureHttpsRedirect
 
   ()
 
