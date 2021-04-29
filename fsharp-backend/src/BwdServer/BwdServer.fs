@@ -371,7 +371,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 // ---------------
 // Configure Kestrel/ASP.NET
 // ---------------
-let configureApp (app : IApplicationBuilder) =
+let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) =
     (task {
       try
@@ -399,7 +399,7 @@ let configureApp (app : IApplicationBuilder) =
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseRouting()
   // must go after UseRouting
-  |> HealthCheck.configureApp LibService.Config.bwdServerHealthCheckPort
+  |> HealthCheck.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -411,14 +411,14 @@ let configureServices (services : IServiceCollection) : unit =
 
   ()
 
-let webserver (shouldLog : bool) (port : int) =
-  let hcUrl = HealthCheck.url LibService.Config.bwdServerHealthCheckPort
+let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
+  let hcUrl = HealthCheck.url healthCheckPort
 
   WebHost.CreateDefaultBuilder()
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
-  |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{port}")
+  |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> fun wh -> wh.ConfigureServices(configureServices)
-  |> fun wh -> wh.Configure(configureApp)
+  |> fun wh -> wh.Configure(configureApp healthCheckPort)
   |> fun wh -> wh.Build()
 
 
@@ -426,5 +426,11 @@ let webserver (shouldLog : bool) (port : int) =
 let main _ =
   printfn "Starting BwdServer"
   LibBackend.Init.init "Bwdserver"
-  (webserver true LibService.Config.bwdServerPort).Run()
+
+  (webserver
+    true
+    LibService.Config.bwdServerPort
+    LibService.Config.bwdServerHealthCheckPort)
+    .Run()
+
   0
