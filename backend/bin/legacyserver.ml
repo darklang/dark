@@ -136,7 +136,7 @@ let server () =
   (* FSTODO: make port configurable *)
   S.create
     ~stop
-    ~mode:(`TCP (`Port Config.legacyserver_port))
+    ~mode:(`TCP (`Port Libservice.Config.legacyserver_port))
     (S.make ~callback ())
 
 
