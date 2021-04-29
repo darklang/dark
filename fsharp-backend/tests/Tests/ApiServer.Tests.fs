@@ -221,10 +221,14 @@ let postApiTestCase
 
       clear "Date"
       clear "Server"
-      clear "ServerTiming"
-      let (_ : bool) = h.Remove "x-darklang-execution-id" // not in new API
+      clear "Server-Timing"
+      clear "x-darklang-execution-id"
       let (_ : bool) = h.Remove "Connection" // not useful, not in new API
-      h |> Seq.toList |> List.map (fun (KeyValue (x, y)) -> x, y.ToString()) |> Map
+
+      h
+      |> Seq.toList
+      |> List.map (fun (KeyValue (x, y)) -> x, String.concat "," y)
+      |> Map
 
     let headers = headerMap response.Headers
     return (body, response.StatusCode, headers)
