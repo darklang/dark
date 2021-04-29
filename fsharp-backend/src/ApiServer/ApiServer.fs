@@ -78,15 +78,15 @@ let errorHandler (ex : Exception) (logger : ILogger) =
 // --------------------
 let configureApp (appBuilder : IApplicationBuilder) =
   appBuilder
+  |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> HealthCheck.configureApp LibService.Config.apiServerHealthCheckPort
-  |> fun app -> app.UseServerTiming()
   |> fun app ->
-       if LibBackend.Config.apiServerServeStaticContent then
+       if Config.apiServerServeStaticContent then
          app.UseStaticFiles(
            StaticFileOptions(
              FileProvider = new PhysicalFileProvider(Config.webrootDir)
