@@ -126,7 +126,7 @@ let testUiReturnsTheSame =
     let oc =
       oc
         // a couple of specific ones
-        .Replace("static.darklang.localhost:8000", "darklang.localhost:9000")
+        .Replace("static.darklang.localhost:8000", "static.darklang.localhost:9000")
         .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
         // get the rest
         .Replace(

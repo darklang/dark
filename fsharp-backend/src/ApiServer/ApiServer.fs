@@ -89,7 +89,10 @@ let configureApp (appBuilder : IApplicationBuilder) =
        if Config.apiServerServeStaticContent then
          app.UseStaticFiles(
            StaticFileOptions(
-             FileProvider = new PhysicalFileProvider(Config.webrootDir)
+             FileProvider = new PhysicalFileProvider(Config.webrootDir),
+             OnPrepareResponse =
+               (fun ctx ->
+                 ctx.Context.SetHttpHeader("Access-Control-Allow-Origin", "*"))
            )
          )
        else
