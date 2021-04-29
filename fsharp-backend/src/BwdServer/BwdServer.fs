@@ -174,20 +174,21 @@ let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
 // ---------------
 // HttpsRedirect
 // ---------------
+let shouldRedirect (ctx : HttpContext) : bool =
+  LibBackend.Config.redirectHttp && not ctx.Request.IsHttps
 
-let configureHttpsRedirect (s : IServiceCollection) : IServiceCollection =
-  if LibBackend.Config.redirectHttp then
-    s.AddHttpsRedirection
-      (fun opts ->
-        // CLEANUP: use 307 probably
-        opts.RedirectStatusCode <- 302
-        opts.HttpsPort <- 443)
-  else
-    s
+let httpsRedirect (ctx : HttpContext) : HttpContext =
+  // adapted from https://github.com/aspnet/BasicMiddleware/blob/master/src/Microsoft.AspNetCore.HttpsPolicy/HttpsRedirectionMiddleware.cs
+  let req = ctx.Request
+  let host = HostString req.Host.Host
 
-let useHttpsRedirect (app : IApplicationBuilder) : IApplicationBuilder =
-  if LibBackend.Config.redirectHttp then app.UseHttpsRedirection() else app
+  let redirectUrl =
+    UriHelper.BuildAbsolute("https", host, req.PathBase, req.Path, req.QueryString)
 
+  // CLEANUP use better status code, maybe 307
+  ctx.Response.StatusCode <- 302
+  setHeader ctx "Location" redirectUrl
+  ctx
 
 // ---------------
 // Read from HttpContext
@@ -374,7 +375,11 @@ let configureApp (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) =
     (task {
       try
-        return! runDarkHandler ctx
+        // Do this here so we don't redirect the health check
+        if shouldRedirect ctx then
+          return httpsRedirect ctx
+        else
+          return! runDarkHandler ctx
       with
       | LoadException (msg, code) ->
           // FSTODO log/honeycomb, rollbar
@@ -391,7 +396,6 @@ let configureApp (app : IApplicationBuilder) =
     :> Task
 
   app
-  |> useHttpsRedirect
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseRouting()
   // must go after UseRouting
@@ -404,7 +408,6 @@ let configureServices (services : IServiceCollection) : unit =
     |> LibService.Rollbar.AspNet.addRollbarToServices
     |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
     |> HealthCheck.configureServices
-    |> configureHttpsRedirect
 
   ()
 

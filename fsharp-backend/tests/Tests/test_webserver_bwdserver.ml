@@ -1,23 +1,3 @@
-let t_should_use_https () =
-  let custom_domain = "https.customdomain.com" in
-  let canvas = "test" in
-  Db.run
-    ~name:"insert test custom_domain"
-    "INSERT INTO custom_domains(host,canvas) VALUES ($1, $2)"
-    ~params:[Db.String custom_domain; Db.String canvas] ;
-  AT.check
-    (AT.list AT.bool)
-    "should_use_https works"
-    (List.map
-       ~f:(fun x -> Webserver.should_use_https (Uri.of_string x))
-       [ "http://builtwithdark.com"
-       ; "http://test.builtwithdark.com"
-       ; "http://localhost"
-       ; "http://test.localhost"
-       ; "http://" ^ custom_domain ])
-    [true; true; false; false; true]
-
-
 let t_route_host () =
   let custom_domain = "route_host.customdomain.com" in
   let canvas = "test-route_host" in
@@ -42,30 +22,6 @@ let t_route_host () =
                "failure"
            | Some (Canvas canvas) ->
                canvas) )
-
-
-let t_redirect_to () =
-  AT.check
-    (AT.list (AT.option AT.string))
-    "redirect_to works"
-    (List.map
-       ~f:(fun x ->
-         x
-         |> Uri.of_string
-         |> Webserver.redirect_to
-         |> Option.map ~f:Uri.to_string)
-       [ "http://example.com"
-       ; "http://builtwithdark.com"
-       ; "https://builtwithdark.com"
-       ; "http://test.builtwithdark.com"
-       ; "https://test.builtwithdark.com"
-       ; "http://test.builtwithdark.com/x/y?z=a" ])
-    [ None
-    ; Some "https://builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com/x/y?z=a" ]
 
 
 let t_canonicalize_maintains_schemes () =
