@@ -216,11 +216,11 @@ let sessionDataMiddleware : HttpHandler =
 
       match session with
       | None ->
-          t "sessionDataMiddleware"
+          t "session-data-middleware"
           return! redirectOr unauthorized ctx
       | Some sessionData ->
           let newCtx = saveSessionData sessionData ctx
-          t "sessionDataMiddleware"
+          t "session-data-middleware"
           return! next newCtx
     })
 
@@ -268,7 +268,6 @@ let withPermissionMiddleware
 
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
-
         let (_ : HttpContext) =
           ctx |> saveCanvasInfo canvasInfo |> savePermission permission
         // FSTODO load integration test
