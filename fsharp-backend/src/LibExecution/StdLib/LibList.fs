@@ -6,6 +6,7 @@ open Prelude
 
 module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
+module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
@@ -1014,73 +1015,45 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "unzip" 0
-//     ; parameters = [Param.make "pairs" TList ""]
-//     ; returnType = TList
-//     ; description =
-//         {|Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
-//         one with every first value, and one with every second value. For example, if `pairs` is `[[1,"x"], [2,"y"], [3,"z"]]`, returns `[[1,2,3], ["x","y","z"]]`.|}
-//     ; fn =
-//         (* We should deprecate this once we have tuples and homogenous lists *)
-//
-//           (function
-//           | state, [DList l] ->
-//               let idx_from_rev_idx (rev_idx : int) (l : 'a list) : int =
-//                 List.length l - 1 - rev_idx
-//               in
-//               let fold_fn
-//                   (rev_idx : int)
-//                   (acc : (dval list * dval list, dval (* type error *)) result)
-//                   (dv : dval) :
-//                   (dval list * dval list, dval (* type error *)) result =
-//                 Result.bind acc (fun (acc_a, acc_b) ->
-//                     match dv with
-//                     | DList [a; b] ->
-//                         Ok (a :: acc_a, b :: acc_b)
-//                     | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-//                         Error dv
-//                     | v ->
-//                         let err_details =
-//                           match v with
-//                           | DList l ->
-//                               Printf.sprintf
-//                                 "It has length %i but must have length 2."
-//                                 (List.length l)
-//                           | non_list ->
-//                               let tipe =
-//                                 non_list
-//                                 |> Dval.tipe_of
-//                                 |> Dval.tipe_to_developer_repr_v0
-//                               in
-//                               Printf.sprintf
-//                                 "It is of type `%s` instead of `List`."
-//                                 tipe
-//                         in
-//                         Error
-//                           (DError
-//                              ( SourceNone
-//                              , Printf.sprintf
-//                                  "Expected every value within the `pairs` argument passed to `%s` to be a list with exactly two values. However, that is not the case for the value at index %i: %s. %s"
-//                                  state.executing_fnname
-//                                  (idx_from_rev_idx rev_idx l)
-//                                  (Dval.to_developer_repr_v0 v)
-//                                  err_details )))
-//               in
-//               let result =
-//                 (* We reverse here so that the [foldi] consing happens in the correct order.
-//                 * It does mean that the index passed by [foldi] counts from the end *)
-//                 l |> List.rev |> List.foldi (Ok ([], [])) fold_fn
-//               in
-//               ( match result with
-//               | Ok (res_a, res_b) ->
-//                   DList [DList res_a; DList res_b]
-//               | Error v ->
-//                   v )
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "unzip" 0
+      parameters = [ Param.make "pairs" (TList varA) "" ]
+      returnType = TList(TList varA)
+      description = "Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
+        one with every first value, and one with every second value. For example, if `pairs` is `[[1,\"x\"], [2,\"y\"], [3,\"z\"]]`, returns `[[1,2,3], [\"x\",\"y\",\"z\"]]`."
+      fn =
+        // We should deprecate this once we have tuples and homogenous lists
+        (function
+        | state, [ DList l ] ->
+
+                let f (acc1, acc2) i =
+                  match i with
+                  | DList [ a; b ] -> (a::acc1, b::acc2)
+                  | (DIncomplete _
+                  | DErrorRail _
+                  | DError _) as dv -> Errors.foundFakeDval dv
+                  | v ->
+                      let err_details =
+                        match v with
+                        | DList l ->
+                          $" It has length {bigint (List.length l)} but must have length 2"
+                        | non_list ->
+                          $" It is of type {DvalRepr.prettyTypename v} instead of `List`"
+
+                      Errors.throw (
+                        Errors.argumentWasnt
+                          "a list with exactly two values" "pairs" v
+                        + err_details
+                      )
+                // We reverse here so that the [foldi ocaml and fold fsharp] consing happens in the correct order.
+                // It does mean that the index passed by [foldi and fsharp] counts from the end
+                let result =
+                  l |> List.rev |> List.fold f ([], [])
+                match result with
+                | (l, l2) -> Value(DList [ DList l; DList l2 ])
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "getAt" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA
