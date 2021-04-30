@@ -18,6 +18,7 @@ module Auth = LibBackend.Authorization
 open Prelude
 open Tablecloth
 
+module HealthCheck = LibService.HealthCheck
 module Config = LibBackend.Config
 
 // --------------------
@@ -77,23 +78,21 @@ let errorHandler (ex : Exception) (logger : ILogger) =
 // --------------------
 let configureApp (appBuilder : IApplicationBuilder) =
   appBuilder
+  |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // FSTODO: use ConfigureWebHostDefaults + AllowedHosts
   |> LibService.Rollbar.AspNet.addRollbarToApp
   |> fun app -> app.UseHttpsRedirection()
   |> fun app -> app.UseRouting()
-  |> fun app -> app.UseServerTiming()
+  // must go after UseRouting
+  |> HealthCheck.configureApp LibService.Config.apiServerHealthCheckPort
   |> fun app ->
-       // FSTODO: use a Config value
-       if LibBackend.Config.staticHost.Contains "localhost:8000" then
+       if Config.apiServerServeStaticContent then
          app.UseStaticFiles(
            StaticFileOptions(
-             FileProvider =
-               new PhysicalFileProvider(
-                 System.IO.Path.Combine(
-                   System.IO.Directory.GetCurrentDirectory(),
-                   "backend/static"
-                 )
-               )
+             FileProvider = new PhysicalFileProvider(Config.webrootDir),
+             OnPrepareResponse =
+               (fun ctx ->
+                 ctx.Context.SetHttpHeader("Access-Control-Allow-Origin", "*"))
            )
          )
        else
@@ -108,8 +107,8 @@ let configureServices (services : IServiceCollection) : unit =
     services
     |> LibService.Rollbar.AspNet.addRollbarToServices
     |> LibService.Telemetry.AspNet.addTelemetryToServices "ApiServer"
+    |> HealthCheck.configureServices
     |> fun s -> s.AddServerTiming()
-    |> fun s -> s.AddRouting()
     |> fun s -> s.AddGiraffe()
     |> fun s ->
          // this should say `s.AddSingleton<Json.ISerializer>(`. Fantomas has a habit of stripping
@@ -125,12 +124,17 @@ let main args =
   printfn "Starting ApiServer"
   LibBackend.Init.init "ApiServer"
 
+  let hcUrl = HealthCheck.url LibService.Config.apiServerHealthCheckPort
+
   WebHost.CreateDefaultBuilder(args)
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+  |> fun wh ->
+       wh.UseUrls(
+         hcUrl,
+         $"http://darklang.localhost:{LibService.Config.apiServerPort}"
+       )
   |> fun wh -> wh.ConfigureServices(configureServices)
   |> fun wh -> wh.Configure(configureApp)
-  // FSTODO: use a config value
-  |> fun wh -> wh.UseUrls("http://darklang.localhost:9000")
   |> fun wh -> wh.Build()
   |> fun wh -> wh.Run()
 

@@ -38,7 +38,10 @@ let t
         let! state = executionStateFor name rtDBs rtFunctions
 
         let source = FSharpToExpr.parse code
-        let actualProg, expectedResult = FSharpToExpr.convertToTest source
+
+        let shouldEqual, actualProg, expectedResult =
+          FSharpToExpr.convertToTest source
+
         let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
 
         let! expected =
@@ -62,7 +65,16 @@ let t
             with e ->
               failwith "When calling OCaml code, OCaml server failed: {msg}, {e}"
 
-          Expect.equalDval (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
+          if shouldEqual then
+            Expect.equalDval
+              (normalizeDvalResult ocamlActual)
+              expected
+              $"OCaml: {msg}"
+          else
+            Expect.notEqual
+              (normalizeDvalResult ocamlActual)
+              expected
+              $"OCaml: {msg}"
 
         if testFSharp then
           let! fsharpActual =
@@ -70,10 +82,12 @@ let t
 
           let fsharpActual = normalizeDvalResult fsharpActual
 
-          Expect.equalDval
-            fsharpActual
-            expected
-            $"FSharp: {msg} {debugDval fsharpActual}"
+          if shouldEqual then
+            Expect.equalDval fsharpActual expected $"FSharp: {msg}"
+          else
+            Expect.notEqual fsharpActual expected $"FSharp: {msg}"
+
+
 
         return ()
       with e ->
@@ -268,53 +282,4 @@ let fileTests () : Test =
   |> Array.toList
   |> testList "All files"
 
-let fqFnName =
-  testMany
-    "FQFnName.ToString"
-    (fun (name : RT.FQFnName.T) -> name.ToString())
-    [ (RT.FQFnName.stdlibFqName "" "++" 0), "++"
-      (RT.FQFnName.stdlibFqName "" "!=" 0), "!="
-      (RT.FQFnName.stdlibFqName "" "&&" 0), "&&"
-      (RT.FQFnName.stdlibFqName "" "toString" 0), "toString"
-      (RT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
-
-// TODO parsing function names from OCaml
-
-let backendFqFnName =
-  testMany
-    "ProgramTypes.FQFnName.ToString"
-    (fun (name : PT.FQFnName.T) -> name.ToString())
-    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++"
-      (PT.FQFnName.stdlibFqName "" "!=" 0), "!="
-      (PT.FQFnName.stdlibFqName "" "&&" 0), "&&"
-      (PT.FQFnName.stdlibFqName "" "toString" 0), "toString"
-      (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
-
-let equalsOCaml =
-  // These are hard to represent in .tests files, usually because of FakeDval behaviour
-  testMany
-    "equalsOCaml"
-    (FuzzTests.All.ExecutePureFunctions.equalsOCaml)
-    [ ((RT.FQFnName.stdlibFnName "List" "fold" 0,
-        [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0I) ]
-          RT.DList []
-          RT.DFnVal(
-            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
-          ) ]),
-       true) ]
-
-// FSTODO
-// let t_dark_internal_fns_are_internal () =
-//   let ast = fn "DarkInternal::checkAccess" [] in
-//   let check_access canvas_name =
-//     match exec_ast ~canvas_name ast with DError _ -> None | dval -> Some dval
-//   in
-//   AT.check
-//     (AT.list (AT.option at_dval))
-//     "DarkInternal:: functions are internal."
-//     [check_access "test"; check_access "test_admin"]
-//     [None; Some DNull]
-
-let tests =
-  lazy
-    (testList "LibExecution" [ fqFnName; backendFqFnName; equalsOCaml; fileTests () ])
+let tests = lazy (testList "LibExecution" [ fileTests () ])

@@ -343,7 +343,7 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
 // Gets event scheduling rules for the specified canvas
 let getSchedulingRules (canvasID : CanvasID) : Task<List<SchedulingRule.T>> =
   Sql.query
-    "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
+    "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
      FROM scheduling_rules
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
@@ -456,19 +456,6 @@ let unblockWorker = removeSchedulingRule "block"
 let pauseWorker : CanvasID -> string -> Task<unit> = addSchedulingRule "pause"
 
 let unpauseWorker : CanvasID -> string -> Task<unit> = removeSchedulingRule "pause"
-
-// Open a database [transaction] and run [f],in it - [f] takes both a [Span.t]
-// (for tracing) and a [transaction] id
-let withTransaction (f : unit -> Task<'a>) : Task<'a> =
-  task {
-    let connection = Db.connect () |> Sql.createConnection
-    connection.Open()
-
-    let! transaction = connection.BeginTransactionAsync()
-    let! result = f ()
-    do! transaction.CommitAsync()
-    return result
-  }
 
 let putBack (parent : Span.T) (item : T) (status : Status) : Task<unit> =
   let span =

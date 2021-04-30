@@ -68,7 +68,7 @@ let uiHtml
     match localhostAssets with
     // TODO: can add other people to this for easier debugging
     | Some username -> $"darklang-{username}.ngrok.io"
-    | _ -> Config.staticHost
+    | _ -> Config.apiServerStaticHost
 
 
   let liveReloadJs =
@@ -88,7 +88,7 @@ let uiHtml
     .Replace("{{HEAPIO_ID}}", Config.heapioId)
     .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
     .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
-    .Replace("{{USER_CONTENT_HOST}}", Config.userContentHost)
+    .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
     .Replace("{{USER_USERNAME}}", user.username.ToString())
     .Replace("{{USER_EMAIL}}", user.email)
     .Replace("{{USER_FULLNAME}}", user.name)
@@ -101,17 +101,6 @@ let uiHtml
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
     .Replace("{{BUILD_HASH}}", LibService.Config.buildHash)
-    // There isn't separate routing for static in ASP.NET
-    .Replace(
-      "static.darklang.localhost:8000",
-      "darklang.localhost:9000"
-    )
-    // FSTODO: Config is set up for OCaml right now
-    .Replace(
-      "darklang.localhost:8000",
-      "darklang.localhost:9000"
-    )
-    .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
     .ToString()
 
 let uiHandler (ctx : HttpContext) : Task<string> =

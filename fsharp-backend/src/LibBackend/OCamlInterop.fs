@@ -1072,7 +1072,7 @@ let legacyReq
   (data : byte array)
   : Task<System.Net.Http.HttpContent> =
   task {
-    let url = $"http://localhost:5000/{endpoint}"
+    let url = $"http://localhost:{LibService.Config.legacyServerPort}/{endpoint}"
 
     use message =
       new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)

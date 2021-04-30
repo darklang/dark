@@ -17,6 +17,8 @@ module Account = LibBackend.Account
 // Cookie stuff
 // --------------------
 
+// FSTODO: respect DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN=n
+
 // get the domain of a request
 let domain (ctx : HttpContext) : string =
   // For why we use 'darklang.com' and not '.darklang.com', see

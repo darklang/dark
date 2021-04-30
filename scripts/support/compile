@@ -211,11 +211,6 @@ def fsharp_paket_restore():
   build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
   return run_backend(start, build)
 
-# F# builds are really slow by default. I managed to tune them to complete
-# pretty quickly, but it's unclear whether the tuning is safe; I expect we'll
-# need to optimize it over time, and to revisit it when then assumptions
-# change.
-
 # Builds are split into
 # - dotnet tool restore: installs build tooling (paket)
 # - dotnet paket restore: installs dependencies from paket.lock
@@ -266,7 +261,7 @@ def fsharp_backend_full_build():
   start = time.time()
   #FSTODO: there is a bug in the .NET linker, come back to it later.
   #https://github.com/mono/linker/issues/1508
-  if False and os.environ.get("CI"):
+  if os.environ.get("CI"):
     configuration = "Release"
     verbosity = "normal"
     command = "publish"

@@ -126,7 +126,7 @@ let testUiReturnsTheSame =
     let oc =
       oc
         // a couple of specific ones
-        .Replace("static.darklang.localhost:8000", "darklang.localhost:9000")
+        .Replace("static.darklang.localhost:8000", "static.darklang.localhost:9000")
         .Replace("builtwithdark.localhost:8000", "builtwithdark.localhost:9001")
         // get the rest
         .Replace(
@@ -221,10 +221,14 @@ let postApiTestCase
 
       clear "Date"
       clear "Server"
-      clear "ServerTiming"
-      let (_ : bool) = h.Remove "x-darklang-execution-id" // not in new API
+      clear "Server-Timing"
+      clear "x-darklang-execution-id"
       let (_ : bool) = h.Remove "Connection" // not useful, not in new API
-      h |> Seq.toList |> List.map (fun (KeyValue (x, y)) -> x, y.ToString()) |> Map
+
+      h
+      |> Seq.toList
+      |> List.map (fun (KeyValue (x, y)) -> x, String.concat "," y)
+      |> Map
 
     let headers = headerMap response.Headers
     return (body, response.StatusCode, headers)

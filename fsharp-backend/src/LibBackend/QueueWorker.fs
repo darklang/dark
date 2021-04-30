@@ -6,6 +6,7 @@ open FSharp.Control.Tasks
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
+open Db
 
 module PT = ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -19,7 +20,7 @@ let dequeueAndProcess (executionID : id) : Task<Result<Option<RT.Dval>, exn>> =
   use root = Span.root "dequeue_and_process"
   root.AddTag("meta.process_id", toString executionID) |> ignore
 
-  EQ.withTransaction
+  Sql.withTransaction
     (fun () ->
       task {
         let! event =

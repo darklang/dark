@@ -10,12 +10,6 @@
 // Roundtripping Functions
 // ------------
 [test.dbnullroundtrip] with DB X
-(let key = DB.generateKey_v0 in
- let old = { x = null } in
- let _ = DB.set_v1 old key X in
- DB.get_v1_ster key X) = { x = null }
-
-[test.dbnullroundtrip2] with DB X
 (let _ = DB.set_v1 { x = null } "hello" X in
  DB.get_v1_ster "hello" X) = { x = null }
 

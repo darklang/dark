@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, [ a; b ] -> (Value(DBool(a = b))) //FSTODO: use equal_dval
+        | _, [ a; b ] -> (Value(DBool(a = b))) // TODO: support fn value equality
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure

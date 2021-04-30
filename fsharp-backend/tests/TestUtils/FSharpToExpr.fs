@@ -297,7 +297,6 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       match c funcExpr with
       | PT.EFnCall (id, name, args, ster) ->
           PT.EFnCall(id, name, args @ [ c arg ], ster)
-      // FSTODO are these in the right order? might fail for non-commutative binops
       | PT.EBinOp (id, name, Placeholder, arg2, ster) ->
           PT.EBinOp(id, name, c arg, arg2, ster)
       | PT.EBinOp (id, name, arg1, Placeholder, ster) ->
@@ -327,7 +326,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       failwith $"There was a parser error parsing: {expr}"
   | expr -> failwith $"Unsupported expression: {ast}"
 
-let convertToTest (ast : SynExpr) : PT.Expr * PT.Expr =
+let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
   // Split equality into actual vs expected in tests.
   let convert (x : SynExpr) : PT.Expr = convertToExpr x
 
@@ -338,8 +337,15 @@ let convertToTest (ast : SynExpr) : PT.Expr * PT.Expr =
                  expected,
                  _) when ident.idText = "op_Equality" ->
       // failwith $"whole thing: {actual}"
-      (convert actual, convert expected)
-  | _ -> convert ast, PT.Shortcuts.eBool true
+      (true, convert actual, convert expected)
+  | SynExpr.App (_,
+                 _,
+                 SynExpr.App (_, _, SynExpr.Ident ident, actual, _),
+                 expected,
+                 _) when ident.idText = "op_Inequality" ->
+      // failwith $"whole thing: {actual}"
+      (false, convert actual, convert expected)
+  | _ -> true, convert ast, PT.Shortcuts.eBool true
 
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
 let parseRTExpr (code : string) : RT.Expr = (parsePTExpr code).toRuntimeType ()

@@ -13,7 +13,7 @@ open LibExecution.RuntimeTypes
 module C = LibBackend.SqlCompiler
 module S = LibExecution.Shortcuts
 
-
+// FSTODO
 // let t_sql_compiler_works () =
 //   checkError
 //     "no field gives error"

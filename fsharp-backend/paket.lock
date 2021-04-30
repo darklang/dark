@@ -2,6 +2,9 @@ STORAGE: NONE
 RESTRICTION: == net50
 NUGET
   remote: https://api.nuget.org/v3/index.json
+    AspNetCore.HealthChecks.Npgsql (5.0.2)
+      Microsoft.Extensions.Diagnostics.HealthChecks (>= 5.0.1)
+      Npgsql (>= 5.0.3)
     Expecto (9.0.2)
       FSharp.Core (>= 4.6)
       Mono.Cecil (>= 0.11.2)
@@ -142,6 +145,12 @@ NUGET
     Microsoft.Extensions.DependencyInjection (5.0.1)
       Microsoft.Extensions.DependencyInjection.Abstractions (>= 5.0)
     Microsoft.Extensions.DependencyInjection.Abstractions (5.0)
+    Microsoft.Extensions.Diagnostics.HealthChecks (5.0.5)
+      Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions (>= 5.0.5)
+      Microsoft.Extensions.Hosting.Abstractions (>= 5.0)
+      Microsoft.Extensions.Logging.Abstractions (>= 5.0)
+      Microsoft.Extensions.Options (>= 5.0)
+    Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions (5.0.5)
     Microsoft.Extensions.FileProviders.Abstractions (5.0)
       Microsoft.Extensions.Primitives (>= 5.0)
     Microsoft.Extensions.FileProviders.Physical (5.0)
@@ -198,7 +207,7 @@ NUGET
     Newtonsoft.Json (12.0.3)
     Newtonsoft.Json.Bson (1.0.2)
       Newtonsoft.Json (>= 12.0.1)
-    Npgsql (5.0.1.1)
+    Npgsql (5.0.4)
       System.Runtime.CompilerServices.Unsafe (>= 4.6)
     Npgsql.FSharp (3.12.3)
       FSharp.Core (>= 4.7.2)
