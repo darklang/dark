@@ -8,6 +8,8 @@ open Expecto
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
+open LibBackend.Db
+
 open TestUtils
 
 module PT = LibBackend.ProgramTypes
@@ -95,7 +97,7 @@ let testEventQueueIsFifo =
     use span = Span.root "test"
 
     do!
-      EQ.withTransaction
+      Sql.withTransaction
         (fun () ->
           task {
             do! checkDequeue span 1I "apple"

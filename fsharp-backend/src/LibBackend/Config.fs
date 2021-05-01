@@ -34,22 +34,20 @@ let templatesDir = absoluteDir "DARK_CONFIG_TEMPLATES_DIR"
 
 let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
 
-let swaggerDir = absoluteDir "DARK_CONFIG_SWAGGER_DIR"
-
 let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 
 let binRootDir = absoluteDir "DARK_CONFIG_BIN_ROOT_DIR"
 
-let __unused_bin_scripts_dir = absoluteDir "DARK_CONFIG_SCRIPTS_DIR"
-
 // -------------------------
 // Web configuration *)
 // -------------------------
-let staticHost = string "DARK_CONFIG_STATIC_HOST"
+let apiServerServeStaticContent = bool "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT"
+
+let apiServerStaticHost = string "DARK_CONFIG_APISERVER_STATIC_HOST"
 
 let cookieDomain = string "DARK_CONFIG_COOKIE_DOMAIN"
 
-let userContentHost = string "DARK_CONFIG_USER_CONTENT_HOST"
+let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
 
 // -------------------------
 // Kubernetes *)
@@ -87,20 +85,21 @@ let dir (root : Root) : string =
   | NoCheck -> ""
 
 
-(* ------------------------- *)
-(* Running the server *)
-(* ------------------------- *)
-let port = int "DARK_CONFIG_HTTP_PORT"
-
+// -------------------------
+// Running the server
+// -------------------------
 let allowTestRoutes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
+// FSTODO
 let __unusedTriggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 
 let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
-(* ------------------------- *)
-(* Logs *)
-(* ------------------------- *)
+// Should we redirect insecure requests
+let redirectHttp = bool "DARK_CONFIG_REDIRECT_HTTP"
+// -------------------------
+// Logs
+// -------------------------
 // let logFormat : [`Json | `DecoratedJson] =
 //   let asStr =
 //     stringChoice "DARK_CONFIG_LOGGING_FORMAT" ["json"; "decorated_json"]

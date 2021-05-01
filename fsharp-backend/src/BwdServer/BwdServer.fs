@@ -24,6 +24,7 @@ open Prelude
 open Tablecloth
 open FSharpx
 
+module HealthCheck = LibService.HealthCheck
 module PT = LibBackend.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module RealExe = LibBackend.RealExecution
@@ -35,6 +36,9 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
+// ---------------
+// Headers
+// ---------------
 let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
   // There's an exception thrown for duplicate test name. We just want the last
   // header to win, especially since the user can add the same headers we add
@@ -50,46 +54,10 @@ let getHeader (ctx : HttpContext) (name : string) : string option =
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
 
-let runHttp
-  (c : Canvas.T)
-  (tlid : tlid)
-  (traceID : LibExecution.AnalysisTypes.TraceID)
-  (url : string)
-  (headers : Map<string, string>)
-  (body : byte [])
-  (inputVars : RT.Symtable)
-  (expr : RT.Expr)
-  : Task<RT.Dval * Exe.HashSet<tlid>> =
-  task {
 
-    let program = Canvas.toProgram c
-    let! state, touchedTLIDs = RealExe.createState traceID tlid program
-    let symtable = Interpreter.withGlobals state inputVars
-
-    let headers = headers |> Map.map RT.DStr |> RT.DObj
-
-    let! result =
-      Interpreter.callFn
-        state
-        (RT.Expr.toID expr)
-        (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
-        [ RT.DStr url
-          RT.DBytes body
-          headers
-          RT.DFnVal(
-            RT.Lambda
-              { parameters = [ gid (), "request" ]
-                symtable = symtable
-                body = expr }
-          ) ]
-        RT.NotInPipe
-        RT.NoRail
-      |> TaskOrValue.toTask
-
-    return (Exe.extractHttpErrorRail result, touchedTLIDs)
-  }
-
-
+// ---------------
+// Responses
+// ---------------
 let favicon : Lazy<byte array> =
   lazy (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png")
 
@@ -164,6 +132,9 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
     with _ -> return! raise (LoadException(msg, code))
   }
 
+// ---------------
+// CORS
+// ---------------
 // FSTODO: for now, we'll read the CORS settings and write the response headers. This is probably wrong but we'll see
 let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
   task {
@@ -200,7 +171,30 @@ let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
     return ()
   }
 
+// ---------------
+// HttpsRedirect
+// ---------------
+let shouldRedirect (ctx : HttpContext) : bool =
+  LibBackend.Config.redirectHttp && not ctx.Request.IsHttps
+
+let httpsRedirect (ctx : HttpContext) : HttpContext =
+  // adapted from https://github.com/aspnet/BasicMiddleware/blob/master/src/Microsoft.AspNetCore.HttpsPolicy/HttpsRedirectionMiddleware.cs
+  let req = ctx.Request
+  let host = HostString req.Host.Host
+
+  let redirectUrl =
+    UriHelper.BuildAbsolute("https", host, req.PathBase, req.Path, req.QueryString)
+
+  // CLEANUP use better status code, maybe 307
+  ctx.Response.StatusCode <- 302
+  setHeader ctx "Location" redirectUrl
+  ctx
+
+// ---------------
+// Read from HttpContext
+// ---------------
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
+
 type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 let getHeaders (ctx : HttpContext) : Map<string, string> =
@@ -217,6 +211,47 @@ let getBody (ctx : HttpContext) : Task<byte array> =
     return ms.ToArray()
   }
 
+
+// ---------------
+// Handle builtwithdark request
+// ---------------
+let runHttp
+  (c : Canvas.T)
+  (tlid : tlid)
+  (traceID : LibExecution.AnalysisTypes.TraceID)
+  (url : string)
+  (headers : Map<string, string>)
+  (body : byte [])
+  (inputVars : RT.Symtable)
+  (expr : RT.Expr)
+  : Task<RT.Dval * Exe.HashSet<tlid>> =
+  task {
+    let program = Canvas.toProgram c
+    let! state, touchedTLIDs = RealExe.createState traceID tlid program
+    let symtable = Interpreter.withGlobals state inputVars
+
+    let headers = headers |> Map.map RT.DStr |> RT.DObj
+
+    let! result =
+      Interpreter.callFn
+        state
+        (RT.Expr.toID expr)
+        (RT.FQFnName.stdlibFqName "Http" "middleware" 0)
+        [ RT.DStr url
+          RT.DBytes body
+          headers
+          RT.DFnVal(
+            RT.Lambda
+              { parameters = [ gid (), "request" ]
+                symtable = symtable
+                body = expr }
+          ) ]
+        RT.NotInPipe
+        RT.NoRail
+      |> TaskOrValue.toTask
+
+    return (Exe.extractHttpErrorRail result, touchedTLIDs)
+  }
 
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
@@ -333,11 +368,18 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   }
 
 
-let configureApp (app : IApplicationBuilder) =
-  let handler ctx =
+// ---------------
+// Configure Kestrel/ASP.NET
+// ---------------
+let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
+  let handler (ctx : HttpContext) =
     (task {
       try
-        return! runDarkHandler ctx
+        // Do this here so we don't redirect the health check
+        if shouldRedirect ctx then
+          return httpsRedirect ctx
+        else
+          return! runDarkHandler ctx
       with
       | LoadException (msg, code) ->
           // FSTODO log/honeycomb, rollbar
@@ -355,6 +397,9 @@ let configureApp (app : IApplicationBuilder) =
 
   app
   |> LibService.Rollbar.AspNet.addRollbarToApp
+  |> fun app -> app.UseRouting()
+  // must go after UseRouting
+  |> HealthCheck.configureApp healthCheckPort
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =
@@ -362,15 +407,18 @@ let configureServices (services : IServiceCollection) : unit =
     services
     |> LibService.Rollbar.AspNet.addRollbarToServices
     |> LibService.Telemetry.AspNet.addTelemetryToServices "BwdServer"
+    |> HealthCheck.configureServices
 
   ()
 
-let webserver (shouldLog : bool) (port : int) =
+let webserver (shouldLog : bool) (httpPort : int) (healthCheckPort : int) =
+  let hcUrl = HealthCheck.url healthCheckPort
+
   WebHost.CreateDefaultBuilder()
   |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
+  |> fun wh -> wh.UseUrls(hcUrl, $"http://*:{httpPort}")
   |> fun wh -> wh.ConfigureServices(configureServices)
-  |> fun wh -> wh.Configure(configureApp)
-  |> fun wh -> wh.UseUrls($"http://*:{port}")
+  |> fun wh -> wh.Configure(configureApp healthCheckPort)
   |> fun wh -> wh.Build()
 
 
@@ -378,5 +426,11 @@ let webserver (shouldLog : bool) (port : int) =
 let main _ =
   printfn "Starting BwdServer"
   LibBackend.Init.init "Bwdserver"
-  (webserver true 9001).Run()
+
+  (webserver
+    true
+    LibService.Config.bwdServerPort
+    LibService.Config.bwdServerHealthCheckPort)
+    .Run()
+
   0

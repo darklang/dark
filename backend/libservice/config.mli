@@ -10,6 +10,8 @@ val rollbar_environment : string
 
 val health_check_port : int
 
+val legacyserver_port : int
+
 type postgres_config =
   { host : string
   ; dbname : string

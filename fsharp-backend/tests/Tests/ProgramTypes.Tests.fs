@@ -8,6 +8,29 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibBackend.ProgramTypes
 module S = LibExecution.Shortcuts
 
+let rtFQFnName =
+  testMany
+    "FQFnName.ToString"
+    (fun (name : RT.FQFnName.T) -> name.ToString())
+    [ (RT.FQFnName.stdlibFqName "" "++" 0), "++"
+      (RT.FQFnName.stdlibFqName "" "!=" 0), "!="
+      (RT.FQFnName.stdlibFqName "" "&&" 0), "&&"
+      (RT.FQFnName.stdlibFqName "" "toString" 0), "toString"
+      (RT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
+
+// TODO parsing function names from OCaml
+
+let ptFQFnName =
+  testMany
+    "ProgramTypes.FQFnName.ToString"
+    (fun (name : PT.FQFnName.T) -> name.ToString())
+    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++"
+      (PT.FQFnName.stdlibFqName "" "!=" 0), "!="
+      (PT.FQFnName.stdlibFqName "" "&&" 0), "&&"
+      (PT.FQFnName.stdlibFqName "" "toString" 0), "toString"
+      (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
+
+
 let parseTests =
   let p = PT.FQFnName.parse
   let User = RT.FQFnName.User
@@ -93,4 +116,7 @@ let testPipesToRuntimeTypes =
     Expect.equalExprIgnoringIDs actual expected
   }
 
-let tests = testList "ProgramTypes" [ parseTests; testPipesToRuntimeTypes ]
+let tests =
+  testList
+    "ProgramTypes"
+    [ parseTests; testPipesToRuntimeTypes; rtFQFnName; ptFQFnName ]
