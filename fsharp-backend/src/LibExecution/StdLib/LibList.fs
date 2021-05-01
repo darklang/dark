@@ -354,8 +354,8 @@ let fns : List<BuiltInFn> =
                 (match t with
                  | [] -> [h]
                  | t -> [h] @ [i] @ join t)
-            in
-              Value(DList(join l))
+
+            Value(DList(join l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -375,8 +375,8 @@ let fns : List<BuiltInFn> =
                 (match l2 with
                  | [] -> l1
                  | y :: ys -> x :: y :: f xs ys)
-            in
-              Value(DList(f l1 l2))
+
+            Value(DList(f l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -974,15 +974,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l1; DList l2 ] ->
-                // We have to do this munging because OCaml's map2
-                // and Fsharp's zip enforces lists of the same length
-                let len = min (bigint (List.length l1)) (bigint (List.length l2))
-                let l1 = List.take (int len) l1
-                let l2 = List.take (int len) l2
-                List.zip l1 l2
-                |> List.map (fun (val1, val2) -> DList[ val1; val2 ])
-                |> DList
-                |> Value
+            // We have to do this munging because OCaml's map2
+            // and Fsharp's zip enforces lists of the same length
+            let len = min (bigint (List.length l1)) (bigint (List.length l2))
+            let l1 = List.take (int len) l1
+            let l2 = List.take (int len) l2
+            List.zip l1 l2
+            |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
+            |> DList
+            |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -998,18 +998,18 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l1; DList l2 ] ->
-                let result =
-                  if (bigint (List.length l1) <> bigint (List.length l2)) then
-                    None
-                  else
-                    List.zip l1 l2
-                    |> List.map (fun (val1, val2) -> DList [val1;val2])
-                    |> DList
-                    |> Some
+            let result =
+              if (bigint (List.length l1) <> bigint (List.length l2)) then
+                None
+              else
+                List.zip l1 l2
+                |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
+                |> DList
+                |> Some
 
-                match result with
-                | Some pairs -> Value(DOption(Some pairs))
-                | None -> Value(DOption None)
+            match result with
+            | Some pairs -> Value(DOption(Some pairs))
+            | None -> Value(DOption None)
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1025,31 +1025,31 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l ] ->
 
-                let f (acc1, acc2) i =
-                  match i with
-                  | DList [ a; b ] -> (a::acc1, b::acc2)
-                  | (DIncomplete _
-                  | DErrorRail _
-                  | DError _) as dv -> Errors.foundFakeDval dv
-                  | v ->
-                      let err_details =
-                        match v with
-                        | DList l ->
-                          $" It has length {bigint (List.length l)} but must have length 2"
-                        | non_list ->
-                          $" It is of type {DvalRepr.prettyTypename v} instead of `List`"
+            let f (acc1, acc2) i =
+              match i with
+              | DList [ a; b ] -> (a::acc1, b::acc2)
+              | (DIncomplete _
+              | DErrorRail _
+              | DError _) as dv -> Errors.foundFakeDval dv
+              | v ->
+                  let err_details =
+                    match v with
+                    | DList l ->
+                      $" It has length {bigint (List.length l)} but must have length 2"
+                    | non_list ->
+                      $" It is of type {DvalRepr.prettyTypename v} instead of `List`"
 
-                      Errors.throw (
-                        Errors.argumentWasnt
-                          "a list with exactly two values" "pairs" v
-                        + err_details
-                      )
-                // We reverse here so that the [foldi ocaml and fold fsharp] consing happens in the correct order.
-                // It does mean that the index passed by [foldi and fsharp] counts from the end
-                let result =
-                  l |> List.rev |> List.fold f ([], [])
-                match result with
-                | (l, l2) -> Value(DList [ DList l; DList l2 ])
+                  Errors.throw (
+                    Errors.argumentWasnt
+                      "a list with exactly two values" "pairs" v
+                    + err_details
+                  )
+            // We reverse here so that the [foldi ocaml and fold fsharp] consing happens in the correct order.
+            // It does mean that the index passed by [foldi and fsharp] counts from the end
+            let result =
+              l |> List.rev |> List.fold f ([], [])
+            match result with
+            | (l, l2) -> Value(DList [ DList l; DList l2 ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
