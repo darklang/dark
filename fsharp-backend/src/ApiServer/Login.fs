@@ -30,7 +30,7 @@ let domain (ctx : HttpContext) : string =
   // us.
   ctx.GetRequestHeader "host"
   |> Result.unwrap "darklang.com"
-  // Host: darklang.localhost:8000 is properly set in-cookie as
+  // Host: darklang.localhost:9000 is properly set in-cookie as
   // "darklang.localhost", the cookie domain doesn't want the
   // port
   |> FsRegEx.replace ":9000" ""
@@ -52,20 +52,21 @@ let cookieOptionsFor (ctx : HttpContext) =
 let logout : HttpHandler =
   (fun next (ctx : HttpContext) ->
     // TODO move these into config urls
-    if Config.useLoginDarklangComForLogin then
-      redirectTo false "https://login.darklang.com/logout" next ctx
-    else
-      task {
-        try
-          // if no session data, continue without deleting it
-          let sessionData = Middleware.loadSessionData ctx
-          do! Session.clear sessionData.key
-        with _ -> ()
+    task {
+      try
+        // if no session data, continue without deleting it
+        let sessionData = Middleware.loadSessionData ctx
+        do! Session.clear sessionData.key
+      with _ -> ()
 
-        ctx.Response.Cookies.Delete(Session.cookieKey, cookieOptionsFor ctx)
+      ctx.Response.Cookies.Delete(Session.cookieKey, cookieOptionsFor ctx)
 
-        return! redirectTo false "/login" next ctx
-      })
+      return!
+        if Config.useLoginDarklangComForLogin then
+          redirectTo false "https://login.darklang.com/logout" next ctx
+        else
+          redirectTo false "/login" next ctx
+    })
   >=> Middleware.userMiddleware
 
 

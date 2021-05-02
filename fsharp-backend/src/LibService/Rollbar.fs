@@ -7,11 +7,12 @@ let mutable initialized = false
 
 let init (serviceName : string) : unit =
   printfn "Configuring rollbar"
-  // FSTODO: include host, ip address, canvas, person, serviceName, honeycomb url, execution_id, in requests
+  // FSTODO: include host, ip address, serviceName
   let config = Rollbar.RollbarConfig(Config.rollbarServerAccessToken)
   config.Environment <- Config.rollbarEnvironment
   config.Enabled <- Config.rollbarEnabled
   config.LogLevel <- Rollbar.ErrorLevel.Error
+  // FSTODO add username
 
   let (_ : Rollbar.IRollbar) =
     Rollbar.RollbarLocator.RollbarInstance.Configure config
@@ -51,6 +52,7 @@ let send (executionID : id) (metadata : List<string * string>) (e : exn) : unit 
     printfn "sending exception to rollbar"
     let (state : Dictionary.T<string, obj>) = Dictionary.empty ()
     state.Add("message.honeycomb", honeycombLinkOfExecutionID executionID)
+    state.Add("execution_id", executionID)
     List.iter (fun (k, v) -> Dictionary.add k (v :> obj) state |> ignore) metadata
 
     let (_ : Rollbar.ILogger) =

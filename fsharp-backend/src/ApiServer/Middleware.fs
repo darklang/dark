@@ -23,7 +23,7 @@ open FSharpPlus
 open Prelude
 open Tablecloth
 
-
+module Telemetry = LibService.Telemetry
 module Canvas = LibBackend.Canvas
 module Config = LibBackend.Config
 module Session = LibBackend.Session
@@ -236,6 +236,7 @@ let userInfoMiddleware : HttpHandler =
           t "user-info-middleware"
           return! redirectOr notFound ctx
       | Some user ->
+          // FSTODO: add canvas to tracing
           ctx.SetHttpHeader("x-dark-username", user.username)
           let newCtx = saveUserInfo user ctx
           t "user-info-middleware"
@@ -267,7 +268,10 @@ let withPermissionMiddleware
 
       // This is a precarious function call, be careful
       if Auth.permitted permissionNeeded permission then
-        ctx |> saveCanvasInfo canvasInfo |> savePermission permission |> ignore // ignored as `save` is side-effecting
+
+        let (_ : HttpContext) =
+          ctx |> saveCanvasInfo canvasInfo |> savePermission permission
+        // FSTODO load integration test
         t "with-permission-middleware"
 
         return! next ctx
@@ -280,6 +284,7 @@ let withPermissionMiddleware
 let executionIDMiddleware : HttpHandler =
   (fun (next : HttpFunc) (ctx : HttpContext) ->
     task {
+      // FSTODO add executionID to tracing
       let executionID = gid ()
       let newCtx = saveExecutionID executionID ctx
       let headerValue = StringValues([| toString executionID |])
@@ -333,6 +338,8 @@ let htmlMiddleware : HttpHandler =
 // --------------------
 // Middleware stacks for the API
 // --------------------
+
+// FSTODO trace the "x-darklang-client-version" header
 
 // Returns JSON API for calls on a particular canvas. Loads user and checks permission.
 let apiHandler
