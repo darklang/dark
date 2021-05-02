@@ -1012,7 +1012,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "List" "unzip" 0
-      parameters = [ Param.make "pairs" (TList varA) "" ]
+      parameters = [ Param.make "pairs" (TList(TList varA)) "" ]
       returnType = TList(TList varA)
       description = "Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
         one with every first value, and one with every second value. For example, if `pairs` is `[[1,\"x\"], [2,\"y\"], [3,\"z\"]]`, returns `[[1,2,3], [\"x\",\"y\",\"z\"]]`."
