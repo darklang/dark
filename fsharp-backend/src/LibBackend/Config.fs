@@ -96,7 +96,7 @@ let __unusedTriggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
 // Should we redirect insecure requests
-let redirectHttp = bool "DARK_CONFIG_REDIRECT_HTTP"
+let useHttps = bool "DARK_CONFIG_USE_HTTPS"
 // -------------------------
 // Logs
 // -------------------------

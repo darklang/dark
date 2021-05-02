@@ -39,8 +39,9 @@ let cookieOptionsFor (ctx : HttpContext) =
   let options = CookieOptions()
   options.Domain <- domain ctx
   options.HttpOnly <- true
-  options.Secure <- String.startsWith "https:" ctx.Request.Host.Host
+  options.Secure <- Config.useHttps
   options.Path <- "/"
+  options.MaxAge <- System.TimeSpan(0, 0, 604800)
   options
 
 
@@ -84,12 +85,12 @@ let loginPage : HttpHandler =
 let loginHandler : HttpHandler =
   (fun _ (ctx : HttpContext) ->
     task {
-      let usernameOrEmail = ctx.GetFormValue "username" |> Option.unwrapUnsafe
-      let password = ctx.GetFormValue "password" |> Option.unwrapUnsafe
+      let usernameOrEmail = ctx.GetFormValue "username" |> Option.unwrap ""
+      let password = ctx.GetFormValue "password" |> Option.unwrap ""
 
       let redirect =
         ctx.GetFormValue "redirect"
-        |> Option.unwrapUnsafe
+        |> Option.unwrap ""
         |> System.Web.HttpUtility.UrlDecode
 
       match! Account.authenticate usernameOrEmail password with
@@ -111,7 +112,3 @@ let loginHandler : HttpHandler =
           let location = if redirect = "" then $"/a/{username}" else redirect
           return! redirectTo false location earlyReturn ctx
     })
-
-// --------------------
-// endpoints
-// --------------------

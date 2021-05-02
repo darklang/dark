@@ -287,14 +287,18 @@ let authenticate
     "SELECT username, password from accounts
       WHERE accounts.username = @usernameOrEmail OR accounts.email = @usernameOrEmail"
   |> Sql.parameters [ "usernameOrEmail", Sql.string usernameOrEmail ]
-  |> Sql.executeRowAsync
-       (fun read ->
-         let dbHash = read.string "password" |> base64Decode |> ofBytes
+  |> Sql.executeRowOptionAsync
+       (fun read -> (read.string "username", read.string "password"))
+  |> Task.map (
+    Option.andThen
+      (fun (username, password) ->
+        let dbHash = password |> base64Decode |> ofBytes
 
-         if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
-           Some(read.string "username")
-         else
-           None)
+        if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
+          Some(username)
+        else
+          None)
+  )
 
 let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 

@@ -6,9 +6,10 @@ open FSharp.Control.Tasks
 open Expecto
 
 open System.Net.Http
+open Microsoft.AspNetCore.Http
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
-type AuthData = LibBackend.Session.AuthData
+type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Tablecloth
 open Prelude
@@ -21,6 +22,8 @@ module OT = LibBackend.OCamlInterop.OCamlTypes
 module ORT = OT.RuntimeT
 module Convert = LibBackend.OCamlInterop.Convert
 module TI = LibBackend.TraceInputs
+
+type AuthData = LibBackend.Session.AuthData
 
 open ApiServer
 
@@ -61,7 +64,7 @@ let login (username : string) (password : string) : Task<User> =
 let testUser = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
 let testAdminUser = lazy (login "test_admin" "fVm2CUePzGKCwoEQQdNJktUQ")
 
-let loggedOutUser =
+let loggedOutUser () =
   lazy
     (let handler = new HttpClientHandler(AllowAutoRedirect = false)
      let client = new HttpClient(handler)
@@ -641,15 +644,90 @@ let permissions =
       (testAdminUser, "sample", (200, 200))
       (testAdminUser, "sample-something", (200, 200))
       // logged out user can access nothing
-      (loggedOutUser, "test", (302, 401))
-      (loggedOutUser, "test-something", (302, 401))
-      (loggedOutUser, "test_admin", (302, 401))
-      (loggedOutUser, "test_admin-something", (302, 401))
-      (loggedOutUser, "sample", (302, 401))
-      (loggedOutUser, "sample-something", (302, 401)) ]
+      (loggedOutUser (), "test", (302, 401))
+      (loggedOutUser (), "test-something", (302, 401))
+      (loggedOutUser (), "test_admin", (302, 401))
+      (loggedOutUser (), "test_admin-something", (302, 401))
+      (loggedOutUser (), "sample", (302, 401))
+      (loggedOutUser (), "sample-something", (302, 401)) ]
 
 
+let cookies =
+  let pw = "fVm2CUePzGKCwoEQQdNJktUQ"
+  let local = "darklang.localhost"
+  let prod = "darklang.com"
+
+  testMany2Task
+    "Check login gives the right cookies"
+    (fun (host : string) (creds : Option<string * string>) ->
+      task {
+        let handler = new HttpClientHandler(AllowAutoRedirect = false)
+        let client = new HttpClient(handler)
+
+        use req =
+          new HttpRequestMessage(
+            HttpMethod.Post,
+            $"http://darklang.localhost:9000/login"
+          )
+
+        req.Headers.Host <- host
+
+        match creds with
+        | Some (username, password) ->
+            let body =
+              [ KeyValuePair<string, string>("username", username)
+                KeyValuePair<string, string>("password", password) ]
+
+            req.Content <- new FormUrlEncodedContent(body)
+        | None -> ()
+
+        let! resp = client.SendAsync(req)
+
+        let getHeader name =
+          let mutable c = seq []
+
+          match resp.Headers.TryGetValues(name, &c) with
+          | true -> c |> String.concat "," |> Some
+          | false -> None
+
+        let cookie =
+          getHeader "set-cookie"
+          |> Option.andThen
+               (fun c ->
+                 match String.split ";" c with
+                 | h :: rest when String.startsWith "__session" h ->
+                     rest |> String.concat ";" |> String.trim |> Some
+                 | split -> None)
+
+        let location = getHeader "location"
+
+        return (int resp.StatusCode, cookie, location)
+      })
+    [ (local,
+       Some("test", pw),
+       (302,
+        Some "max-age=604800; domain=darklang.localhost; path=/; httponly",
+        Some "/a/test"))
+      (local,
+       Some("test", ""),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (local,
+       Some("", pw),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (local, None, (302, None, Some "/login?error=Invalid+username+or+password"))
+      (prod,
+       Some("test", pw),
+       (302,
+        // Prod would also have the secure header, but that's a config var so we don't have that here
+        Some "max-age=604800; domain=darklang.com; path=/; httponly",
+        Some "/a/test"))
+      (prod,
+       Some("test", ""),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (prod,
+       Some("", pw),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (local, None, (302, None, Some "/login?error=Invalid+username+or+password")) ]
 
 
-
-let tests = testList "ApiServer" [ localOnlyTests; permissions ]
+let tests = testList "ApiServer" [ localOnlyTests; permissions; cookies ]

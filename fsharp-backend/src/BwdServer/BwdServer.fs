@@ -19,6 +19,8 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.Hosting
 open Microsoft.AspNetCore.Server.Kestrel.Core
 
+type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
+type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Prelude
 open Tablecloth
@@ -44,13 +46,10 @@ let setHeader (ctx : HttpContext) (name : string) (value : string) : unit =
   // header to win, especially since the user can add the same headers we add
   let (_ : bool) = ctx.Response.Headers.Remove name
 
-  ctx.Response.Headers.Add(
-    name,
-    Microsoft.Extensions.Primitives.StringValues([| value |])
-  )
+  ctx.Response.Headers.Add(name, StringValues([| value |]))
 
-let getHeader (ctx : HttpContext) (name : string) : string option =
-  match ctx.Request.Headers.TryGetValue name with
+let getHeader (hs : IHeaderDictionary) (name : string) : string option =
+  match hs.TryGetValue name with
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
 
@@ -139,7 +138,7 @@ let catch (msg : string) (code : int) (fn : 'a -> Task<'b>) (value : 'a) : Task<
 let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
   task {
     let! corsSetting = Canvas.fetchCORSSetting canvasID
-    let originHeader = getHeader ctx "Origin"
+    let originHeader = getHeader ctx.Request.Headers "Origin"
 
     let defaultOrigins =
       [ "http://localhost:3000"; "http://localhost:5000"; "http://localhost:8000" ]
@@ -175,7 +174,7 @@ let getCORS (ctx : HttpContext) (canvasID : CanvasID) : Task<unit> =
 // HttpsRedirect
 // ---------------
 let shouldRedirect (ctx : HttpContext) : bool =
-  LibBackend.Config.redirectHttp && not ctx.Request.IsHttps
+  LibBackend.Config.useHttps && not ctx.Request.IsHttps
 
 let httpsRedirect (ctx : HttpContext) : HttpContext =
   // adapted from https://github.com/aspnet/BasicMiddleware/blob/master/src/Microsoft.AspNetCore.HttpsPolicy/HttpsRedirectionMiddleware.cs
@@ -193,10 +192,6 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
 // ---------------
 // Read from HttpContext
 // ---------------
-type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
-
-type StringValues = Microsoft.Extensions.Primitives.StringValues
-
 let getHeaders (ctx : HttpContext) : Map<string, string> =
   ctx.Request.Headers
   |> Seq.map
