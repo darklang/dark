@@ -189,6 +189,22 @@ let httpsRedirect (ctx : HttpContext) : HttpContext =
   setHeader ctx "Location" redirectUrl
   ctx
 
+
+// ---------------
+// Urls
+// ---------------
+
+// Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
+// or X-Forwarded-Proto: https.
+// Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto.
+let canonicalizeURL (toHttps : bool) (url : string) =
+  if toHttps then
+    let uri = System.UriBuilder url
+    uri.Scheme <- "https"
+    uri.ToString()
+  else
+    url
+
 // ---------------
 // Read from HttpContext
 // ---------------
@@ -300,7 +316,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         match pages with
         | [ { spec = PT.Handler.HTTP (route = route); ast = expr; tlid = tlid } ] ->
-            let url = ctx.Request.GetEncodedUrl()
+            let isHttps =
+              getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
+
+            let url = ctx.Request.GetEncodedUrl() |> canonicalizeURL isHttps
             // FSTODO: move vars into http middleware
             let vars = Routing.routeInputVars route requestPath
 
