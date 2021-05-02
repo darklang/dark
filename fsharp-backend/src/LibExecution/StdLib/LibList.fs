@@ -976,7 +976,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList l1; DList l2 ] ->
             // We have to do this munging because OCaml's map2
             // and Fsharp's zip enforces lists of the same length
-            let len = min (bigint (List.length l1)) (bigint (List.length l2))
+            let len = min (List.length l1) (List.length l2)
             let l1 = List.take (int len) l1
             let l2 = List.take (int len) l2
             List.zip l1 l2
@@ -998,19 +998,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ DList l1; DList l2 ] ->
-            let result =
-              if (bigint (List.length l1) <> bigint (List.length l2)) then
-                None
-              else
-                List.zip l1 l2
-                |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
-                |> DList
-                |> Some
-
-            match result with
-            | Some pairs -> Value(DOption(Some pairs))
-            | None -> Value(DOption None)
-
+            if List.length l1 <> List.length l2 then
+              Value(DOption None)
+            else
+              List.zip l1 l2
+              |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
+              |> DList
+              |> Some
+              |> DOption
+              |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1021,7 +1017,6 @@ let fns : List<BuiltInFn> =
       description = "Given a `pairs` list where each value is a list of two values (such lists are constructed by `List::zip` and `List::zipShortest`), returns a list of two lists,
         one with every first value, and one with every second value. For example, if `pairs` is `[[1,\"x\"], [2,\"y\"], [3,\"z\"]]`, returns `[[1,2,3], [\"x\",\"y\",\"z\"]]`."
       fn =
-        // We should deprecate this once we have tuples and homogenous lists
         (function
         | state, [ DList l ] ->
 
@@ -1035,9 +1030,9 @@ let fns : List<BuiltInFn> =
                   let err_details =
                     match v with
                     | DList l ->
-                      $" It has length {bigint (List.length l)} but must have length 2"
-                    | non_list ->
-                      $" It is of type {DvalRepr.prettyTypename v} instead of `List`"
+                      $"It has length {List.length l} but must have length 2"
+                    | nonList ->
+                      $"It is of type {DvalRepr.prettyTypename v} instead of `List`"
 
                   Errors.throw (
                     Errors.argumentWasnt
