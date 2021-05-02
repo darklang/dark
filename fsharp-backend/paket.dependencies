@@ -1,4 +1,4 @@
-version 6.0.0-beta9
+version 6.0.0-beta10
 
 source https://api.nuget.org/v3/index.json
 framework: net5.0
