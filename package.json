@@ -20,7 +20,7 @@
   "dependencies": {
     "@fullstory/browser": "^1.4.9",
     "@glennsl/bs-json": "5.0.2",
-    "acorn": ">=8.1.1",
+    "acorn": ">=8.2.2",
     "bs-deriving": "44.1.3",
     "bs-fetch": "0.6.2",
     "bs-uuid": "0.3.1",
