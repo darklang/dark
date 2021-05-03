@@ -171,9 +171,7 @@ let should_use_https uri =
   (* Customers - do not remove the marker below *)
   (* ACD-should_use_https-MARKER *)
   | ["hellobirb"; "com"]
-  | ["www"; "hellobirb"; "com"]
-  | ["kiksht"; "com"]
-  | ["www"; "kiksht"; "com"] ->
+  | ["www"; "hellobirb"; "com"] ->
       true
   | parts ->
       (* If we've set up a custom domain, we should force https. If we haven't,
@@ -584,8 +582,6 @@ let route_host req =
       Some (Canvas ("dabblefox-" ^ a))
   | ["www"; "hellobirb"; "com"] | ["hellobirb"; "com"] ->
       Some (Canvas "pixelkeet")
-  | ["www"; "kiksht"; "com"] | ["kiksht"; "com"] ->
-      Some (Canvas "alex")
   (* admin interface + outer site, conditionally *)
   | ["darklang"; "com"]
   | ["darklang"; "localhost"]
