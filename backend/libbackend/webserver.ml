@@ -186,13 +186,8 @@ let should_use_https uri =
   | [_; "builtwithdark"; "com"]
   (* Customers - do not remove the marker below *)
   (* ACD-should_use_https-MARKER *)
-  | ["chat"; "lee"; "af"]
-  | ["scraper-proxy"; "galactic"; "zone"]
   | ["hellobirb"; "com"]
-  | ["www"; "hellobirb"; "com"]
-  | ["kiksht"; "com"]
-  | ["www"; "kiksht"; "com"]
-  | ["food"; "placeofthin"; "gs"] ->
+  | ["www"; "hellobirb"; "com"] ->
       true
   | parts ->
       (* If we've set up a custom domain, we should force https. If we haven't,
@@ -2032,18 +2027,10 @@ let route_host req =
       Some (Canvas "builtwithdark")
   (* Customers - do not remove the marker below *)
   (* ACD-route_host-MARKER *)
-  | ["chat"; "lee"; "af"] ->
-      Some (Canvas "lee-roulette")
-  | ["scraper-proxy"; "galactic"; "zone"] ->
-      Some (Canvas "danielsokil-scraper-proxy")
   | [a; "dabblefox"; "com"] ->
       Some (Canvas ("dabblefox-" ^ a))
   | ["www"; "hellobirb"; "com"] | ["hellobirb"; "com"] ->
       Some (Canvas "pixelkeet")
-  | ["www"; "kiksht"; "com"] | ["kiksht"; "com"] ->
-      Some (Canvas "alex")
-  | ["food"; "placeofthin"; "gs"] ->
-      Some (Canvas "scottriley-trellomap")
   (* admin interface + outer site, conditionally *)
   | ["darklang"; "com"]
   | ["darklang"; "localhost"]
