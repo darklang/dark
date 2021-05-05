@@ -189,7 +189,7 @@ check_ocamlformat() {
 }
 
 check_fantomas () {
-  dotnet fantomas --check --recurse $1
+  fantomas --check --recurse $1
 }
 
 check_prettier () {
@@ -205,7 +205,7 @@ format_ocamlformat() {
 }
 
 format_fantomas() {
-  dotnet fantomas --recurse $1
+  fantomas --recurse $1
 }
 
 format_prettier() {
