@@ -273,7 +273,7 @@ jobs:
     executor: in-container
     steps:
       - checkout
-      - scripts/format check
+      - run: scripts/format check
 
   build-stroller:
     executor: in-rust-container
