@@ -42,25 +42,25 @@ type t = int
 
 (** {1 Constants } *)
 
-val zero: t
+val zero : t
 (** The literal [0] as a named value *)
 
-val one: t
+val one : t
 (** The literal [1] as a named value *)
 
-val maximumValue: t
+val maximumValue : t
 (** The maximum representable [int] on the current platform *)
 
-val maximum_value: t
+val maximum_value : t
 
-val minimumValue: t
+val minimumValue : t
 (** The minimum representable [int] on the current platform *)
 
-val minimum_value: t
+val minimum_value : t
 
 (** {1 Create} *)
 
-val fromString: string -> t option
+val fromString : string -> t option
 (** Attempt to parse a [string] into a [int].
 
     {2 Examples}
@@ -82,7 +82,7 @@ val fromString: string -> t option
     {[Int.fromString "NaN" = None]}
 *)
 
-val from_string: string -> t option
+val from_string : string -> t option
 
 (** {1 Operators}
 
@@ -91,7 +91,7 @@ val from_string: string -> t option
     available as soon as you [open Tablecloth]
 *)
 
-val add: t -> t -> t
+val add : t -> t -> t
 (** Add two {!Int} numbers.
 
   {[Int.add 3002 4004 = 7006]}
@@ -105,10 +105,10 @@ val add: t -> t -> t
   See {!Float.add} for why, and how to overcome this limitation.
 *)
 
-val (+): t -> t -> t
+val (+) : t -> t -> t
 (** See {!Int.add} *)
 
-val subtract: t -> t -> t
+val subtract : t -> t -> t
 (** Subtract numbers
 
     {[Int.subtract 4 3 = 1]}
@@ -118,10 +118,10 @@ val subtract: t -> t -> t
     {[4 - 3 = 1]}
 *)
 
-val (-): t -> t -> t
+val (-) : t -> t -> t
 (** See {!Int.subtract} *)
 
-val multiply: t -> t -> t
+val multiply : t -> t -> t
 (** Multiply [int]s like
 
     {[Int.multiply 2 7 = 14]}
@@ -131,10 +131,10 @@ val multiply: t -> t -> t
     {[(2 * 7) = 14]}
 *)
 
-val (*): t -> t -> t
+val (*) : t -> t -> t
 (** See {!Int.multiply} *)
 
-val divide: by:t -> t -> t
+val divide : by: t -> t -> t
 (** Integer division
 
     Notice that the remainder is discarded.
@@ -150,10 +150,10 @@ val divide: by:t -> t -> t
     {[27 / 5 = 5]}
 *)
 
-val (/): t -> t -> t
+val (/) : t -> t -> t
 (** See {!Int.divide} *)
 
-val (/.): t -> t -> float
+val (/.) : t -> t -> float
 (** Floating point division
 
     {2 Examples}
@@ -165,7 +165,7 @@ val (/.): t -> t -> float
     {[Int.(8 /. 4) = 2.0]}
 *)
 
-val power: exponent:t -> ``base``:t -> t
+val power : exponent: t -> ``base``: t -> t
 (** Exponentiation, takes the base first, then the exponent.
 
     {2 Examples}
@@ -177,10 +177,10 @@ val power: exponent:t -> ``base``:t -> t
     {[7 ** 3 = 343]}
 *)
 
-val ( ** ): t -> t -> t
+val ( ** ) : t -> t -> t
 (** See {!Int.power} *)
 
-val negate: t -> t
+val negate : t -> t
 (** Flips the 'sign' of an integer so that positive integers become negative and negative integers become positive. Zero stays as it is.
 
     {2 Examples}
@@ -196,10 +196,10 @@ val negate: t -> t
     {[~-(7) = (-7)]}
 *)
 
-val (~-): t -> t
+val (~-) : t -> t
 (** See {!Int.negate} *)
 
-val absolute: t -> t
+val absolute : t -> t
 (** Get the {{: https://en.wikipedia.org/wiki/Absolute_value } absolute value } of a number.
 
     {2 Examples}
@@ -211,7 +211,7 @@ val absolute: t -> t
     {[Int.absolute 0 = 0]}
 *)
 
-val modulo: by:t -> t -> t
+val modulo : by: t -> t -> t
 (** Perform {{: https://en.wikipedia.org/wiki/Modular_arithmetic } modular arithmetic }.
 
     If you intend to use [modulo] to detect even and odd numbers consider using {!Int.isEven} or {!Int.isOdd}.
@@ -241,10 +241,10 @@ val modulo: by:t -> t -> t
     {[Int.modulo 3 4 = 1]}
 *)
 
-val ``mod``: t -> t -> t
+val ``mod`` : t -> t -> t
 (** See {!Int.modulo} *)
 
-val remainder: by:t -> t -> t
+val remainder : by: t -> t -> t
 (** Get the remainder after division. Here are bunch of examples of dividing by four:
 
     Use {!Int.modulo} for a different treatment of negative numbers.
@@ -259,7 +259,7 @@ val remainder: by:t -> t -> t
     ]}
 *)
 
-val maximum: t -> t -> t
+val maximum : t -> t -> t
 (** Returns the larger of two [int]s
 
     {2 Examples}
@@ -269,7 +269,7 @@ val maximum: t -> t -> t
     {[Int.maximum (-4) (-1) = (-1)]}
 *)
 
-val minimum: t -> t -> t
+val minimum : t -> t -> t
 (** Returns the smaller of two [int]s
 
     {2 Examples}
@@ -281,7 +281,7 @@ val minimum: t -> t -> t
 
 (** {1 Query} *)
 
-val isEven: t -> bool
+val isEven : t -> bool
 (** Check if an [int] is even
 
     {2 Examples}
@@ -293,9 +293,9 @@ val isEven: t -> bool
     {[Int.isEven 0 = true]}
 *)
 
-val is_even: t -> bool
+val is_even : t -> bool
 
-val isOdd: t -> bool
+val isOdd : t -> bool
 (** Check if an [int] is odd
 
   {2 Examples}
@@ -307,9 +307,9 @@ val isOdd: t -> bool
   {[Int.isOdd 0 = false]}
 *)
 
-val is_odd: t -> bool
+val is_odd : t -> bool
 
-val clamp: t -> lower:t -> upper:t -> t
+val clamp : t -> lower: t -> upper: t -> t
 (** Clamps [n] within the inclusive [lower] and [upper] bounds.
 
   {3 Exceptions}
@@ -325,7 +325,7 @@ val clamp: t -> lower:t -> upper:t -> t
   {[Int.clamp (-10) (-5) 5 = (-5)]}
 *)
 
-val inRange: t -> lower:t -> upper:t -> bool
+val inRange : t -> lower: t -> upper: t -> bool
 (** Checks if [n] is between [lower] and up to, but not including, [upper].
 
     {3 Exceptions}
@@ -342,11 +342,11 @@ val inRange: t -> lower:t -> upper:t -> bool
 
 *)
 
-val in_range: t -> lower:t -> upper:t -> bool
+val in_range : t -> lower: t -> upper: t -> bool
 
 (** {1 Convert} *)
 
-val toFloat: t -> float
+val toFloat : t -> float
 (** Convert an integer into a float. Useful when mixing {!Int} and {!Float} values like this:
 
     {2 Examples}
@@ -360,9 +360,9 @@ val toFloat: t -> float
     ]}
 *)
 
-val to_float: t -> float
+val to_float : t -> float
 
-val toString: t -> string
+val toString : t -> string
 (** Convert an [int] into a [string] representation.
 
     Guarantees that
@@ -378,12 +378,12 @@ val toString: t -> string
     {[Int.to_sString 0 = "0"]}
 *)
 
-val to_string: t -> string
+val to_string : t -> string
 
 (** {1 Compare} *)
 
-val equal: t -> t -> bool
+val equal : t -> t -> bool
 (** Test two [int]s for equality *)
 
-val compare: t -> t -> int
+val compare : t -> t -> int
 (** Compare two [int]s *)

@@ -35,19 +35,28 @@ let oldFunctionsAreDeprecated =
   test "old functions are deprecated" {
 
     let counts = ref Map.empty
-    let fns = LibTest.fns @ LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
 
-    fns |>
-    List.iter (fun fn ->
-        let key = string { fn.name with version = 0 }
-        if fn.deprecated = RT.NotDeprecated
-        then
-          counts :=
-            Map.update key (fun count ->
-                count |> Option.defaultValue 0 |> ( + ) 1 |> Some) !counts
-        ()) ;
-    Map.iter (fun name count ->
-        Expect.equal count 1 $"{name} has more than one undeprecated function") !counts
+    let fns =
+      LibTest.fns @ LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns
+
+    fns
+    |> List.iter
+         (fun fn ->
+           let key = string { fn.name with version = 0 }
+
+           if fn.deprecated = RT.NotDeprecated then
+             counts
+             := Map.update
+                  key
+                  (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
+                  !counts
+
+           ())
+
+    Map.iter
+      (fun name count ->
+        Expect.equal count 1 $"{name} has more than one undeprecated function")
+      !counts
   }
 
 

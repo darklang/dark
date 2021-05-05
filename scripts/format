@@ -7,6 +7,7 @@ CHECK=0 # (0 mean check, 1 means format)
 OCAML=0 # (0 means check ocaml files, 1 means don't)
 PRETTIER=0 # (0 means check prettier files, 1 means don't)
 RUST=0 # (0 means check rust files, 1 means don't)
+FSHARP=0 # (0 means check fsharp files, 1 means don't)
 FILES=()
 
 #######################
@@ -18,8 +19,10 @@ function print_help ()
 	printf 'Usage: %s [check|format] <files|dirs...> [--help] \n' "$0"
 	printf '\t%s\n' "check: Error if files are not formatted. No argument means check all files. Does not error if file is not supported."
 	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
-  printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
   printf '\t%s\n' "--ocaml-only: Only check ocaml files (mli, ml)"
+  printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
+  printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
+  printf '\t%s\n' "--rust-only: Only check rust files (rs)"
 }
 
 FILES=()
@@ -34,14 +37,22 @@ for val in "${@}"; do
     --prettier-only)
         OCAML=1
         RUST=1
+        FSHARP=1
         ;;
     --ocaml-only)
         PRETTIER=1
         RUST=1
+        FSHARP=1
+        ;;
+    --fsharp-only)
+        OCAML=1
+        PRETTIER=1
+        RUST=1
         ;;
     --rust-only)
-        PRETTIER=1
         OCAML=1
+        PRETTIER=1
+        FSHARP=1
         ;;
     check)
       CHECK=0
@@ -77,8 +88,12 @@ is_rust() {
   [[ $1 == *.rs ]]
 }
 
+is_fsharp() {
+  [[ $1 == *.fs || $1 == *.fsi ]]
+}
+
 is_allowed() {
-  [[ $1 == *.mli || $1 == *.ml || $1 == *.css || $i == *.scss || $1 == *.js || $1 == *.html || $! == *.rs ]]
+  [[ $1 == *.fs || $1 == *.fsi || $1 == *.mli || $1 == *.ml || $1 == *.css || $1 == *.scss || $1 == *.js || $1 == *.html || $1 == *.rs ]]
 }
 
 all_prettier_files() {
@@ -101,6 +116,10 @@ all_prettier_files() {
     -o -path "/home/dark/.esy" -prune \
     -o -path "lib" -prune \
     -o -path "./lib" -prune \
+    -o -path "fsharp-backend/.paket" -prune \
+    -o -path "./fsharp-backend/.paket" -prune \
+    -o -path "fsharp-backend/Build" -prune \
+    -o -path "./fsharp-backend/Build" -prune \
   | grep --null-data --invert-match reset-normalize
 }
 
@@ -117,9 +136,29 @@ all_ocaml_files() {
     -o -path "./_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
     -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune
+    -o -path "./esy.lock" -prune \
+    -o -path "fsharp-backend" -prune
 }
 
+all_fsharp_files() {
+  find "$1" -type f \
+    \( -name "*.fs" \
+    -o -name "*.fsi" \) -print \
+    -o -path ".git" -prune \
+    -o -path "_build" -prune \
+    -o -path "./_build" -prune \
+    -o -path "node_modules" -prune \
+    -o -path "./node_modules" -prune \
+    -o -path "_esy" -prune \
+    -o -path "./_esy" -prune \
+    -o -path "/home/dark/.esy" -prune \
+    -o -path "esy.lock" -prune \
+    -o -path "./esy.lock" -prune \
+    -o -path "fsharp-backend/.paket" -prune \
+    -o -path "./fsharp-backend/.paket" -prune \
+    -o -path "fsharp-backend/Build" -prune \
+    -o -path "./fsharp-backend/Build" -prune
+}
 
 all_rust_files() {
   find "$1" -type f \
@@ -138,11 +177,19 @@ all_rust_files() {
     -o -path "./_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
     -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune
+    -o -path "./esy.lock" -prune \
+    -o -path "fsharp-backend/.paket" -prune \
+    -o -path "./fsharp-backend/.paket" -prune \
+    -o -path "fsharp-backend/Build" -prune \
+    -o -path "./fsharp-backend/Build" -prune
 }
 
 check_ocamlformat() {
-  xargs -0 esy ocamlformat --check
+  xargs -0 ocamlformat --check
+}
+
+check_fantomas () {
+  fantomas --check --recurse $1
 }
 
 check_prettier () {
@@ -154,7 +201,11 @@ check_rustfmt () {
 }
 
 format_ocamlformat() {
-  xargs -0 esy ocamlformat --inplace
+  xargs -0 ocamlformat --inplace
+}
+
+format_fantomas() {
+  fantomas --recurse $1
 }
 
 format_prettier() {
@@ -170,6 +221,28 @@ do_ocamlformat() {
     check_ocamlformat
   else
     format_ocamlformat
+  fi
+}
+
+# Unlike all the other formatters, fantomas does not like a list of files on
+# the command line: https://github.com/fsprojects/fantomas/issues/1696
+do_fantomas() {
+  file=$1
+  # Only run in the fsharp-backend directory, to avoid scanning everything
+  if [[ "${file}" == "." ]]; then
+    file="fsharp-backend"
+  fi
+  if [[ "${file}x" == *"fsharp-backend"* ]]; then
+    cd fsharp-backend
+    if [[ 0 -eq "$CHECK" ]]; then
+      check_fantomas "../$file"
+      result=$?
+    else
+      format_fantomas "../$file"
+      result=$?
+    fi
+    cd -
+    return $result
   fi
 }
 
@@ -201,6 +274,9 @@ for i in "${FILES[@]}"; do
     if [[ 0 -eq "$OCAML" ]]; then
       all_ocaml_files "$i" | do_ocamlformat
     fi
+    if [[ 0 -eq "$FSHARP" ]]; then
+      do_fantomas $i
+    fi
     if [[ 0 -eq "$PRETTIER" ]]; then
       all_prettier_files "$i" | do_prettier
     fi
@@ -211,6 +287,10 @@ for i in "${FILES[@]}"; do
     if is_ocaml "$i"; then
       if [[ 0 -eq "$OCAML" ]]; then
         echo "$i" | do_ocamlformat
+      fi
+    elif is_fsharp "$i"; then
+      if [[ 0 -eq "$FSHARP" ]]; then
+        do_fantomas $i
       fi
     elif is_rust "$1"; then
       if [[ 0 -eq "$RUST" ]]; then

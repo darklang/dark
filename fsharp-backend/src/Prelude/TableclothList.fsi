@@ -35,7 +35,7 @@ type 'a t = 'a list
     You can create a [list] with the [[1;2;3]] syntax.
 *)
 
-val empty: 'a t
+val empty : 'a t
 (** An empty list.
 
     {2 Examples}
@@ -45,7 +45,7 @@ val empty: 'a t
     {[List.length List.empty = 0]}
 *)
 
-val singleton: 'a -> 'a t
+val singleton : 'a -> 'a t
 (** Create a list with only one element.
 
     {2 Examples}
@@ -55,7 +55,7 @@ val singleton: 'a -> 'a t
     {[List.singleton "hi" = ["hi"]]}
 *)
 
-val repeat: count:int -> 'a -> 'a t
+val repeat : count: int -> 'a -> 'a t
 (** Creates a list of length [times] with the value [x] populated at each index.
 
     {2 Examples}
@@ -67,7 +67,7 @@ val repeat: count:int -> 'a -> 'a t
     {[List.repeat (-1) "Why?" = []]}
 *)
 
-val range: from:int -> ``to``:int -> int t
+val range : from: int -> ``to``: int -> int t
 (** Creates a list containing all of the integers from [from] up to but not including [to]
 
     {2 Examples}
@@ -79,7 +79,7 @@ val range: from:int -> ``to``:int -> int t
     {[List.range (-2) 3 = [-2; -1; 0; 1; 2] ]}
 *)
 
-val initialize: count:int -> f:(int -> 'a) -> 'a t
+val initialize : count: int -> f: (int -> 'a) -> 'a t
 (** Initialize a list.
 
     [List.initialize n f] creates a list of length [n] by setting the element at position [index] to be [f(index)].
@@ -91,7 +91,7 @@ val initialize: count:int -> f:(int -> 'a) -> 'a t
     {[List.initialize 4 (fun index -> index * index) = [0; 1; 4; 9]]}
 *)
 
-val fromArray: 'a array -> 'a t
+val fromArray : 'a array -> 'a t
 (** Create a list from an {!Array}.
 
     {2 Examples}
@@ -99,11 +99,11 @@ val fromArray: 'a array -> 'a t
     {[List.fromArray [|1;2;3|] = [1;2;3]]}
 *)
 
-val from_array: 'a array -> 'a t
+val from_array : 'a array -> 'a t
 
 (** {1 Basic operations} *)
 
-val head: 'a t -> 'a option
+val head : 'a t -> 'a option
 (** Returns, as an {!Option}, the first element of a list.
 
     If the list is empty, returns [None]
@@ -115,7 +115,7 @@ val head: 'a t -> 'a option
     {[List.head [] = None]}
 *)
 
-val tail: 'a t -> 'a t option
+val tail : 'a t -> 'a t option
 (** Returns, as an {!Option}, a list without its first element.
 
     If the list is empty, returns [None]
@@ -129,7 +129,7 @@ val tail: 'a t -> 'a t option
     {[List.tail [] = None]}
 *)
 
-val cons: 'a -> 'a t -> 'a t
+val cons : 'a -> 'a t -> 'a t
 (** Prepend a value to the front of a list.
 
     The [::] operator can also be used, in Reason you use the spread syntax
@@ -142,7 +142,7 @@ val cons: 'a -> 'a t -> 'a t
     {[1 :: [2;3;4] = [1;2;3;4]]}
 *)
 
-val take: count:int -> 'a t -> 'a t
+val take : count: int -> 'a t -> 'a t
 (** Attempt to take the first [count] elements of a list.
 
    If the list has fewer than [count] elements, returns [None].
@@ -156,7 +156,7 @@ val take: count:int -> 'a t -> 'a t
    {[List.take 8 [1;2;3;4] = None]}
 *)
 
-val takeWhile: f:('a -> bool) -> 'a t -> 'a t
+val takeWhile : f: ('a -> bool) -> 'a t -> 'a t
 (** Take elements from a list until [f] returns [false]
 
     {2 Examples}
@@ -168,9 +168,9 @@ val takeWhile: f:('a -> bool) -> 'a t -> 'a t
     ]}
 *)
 
-val take_while: f:('a -> bool) -> 'a t -> 'a t
+val take_while : f: ('a -> bool) -> 'a t -> 'a t
 
-val drop: count:int -> 'a t -> 'a t
+val drop : count: int -> 'a t -> 'a t
 (** Drop the first [count] elements from the front of a list.
 
     {2 Examples}
@@ -180,7 +180,7 @@ val drop: count:int -> 'a t -> 'a t
     {[List.drop 6 [1;2;3;4] = []]}
 *)
 
-val dropWhile: f:('a -> bool) -> 'a t -> 'a t
+val dropWhile : f: ('a -> bool) -> 'a t -> 'a t
 (** Drop elements from a list until [f] returns [false]
 
     {2 Examples}
@@ -192,9 +192,9 @@ val dropWhile: f:('a -> bool) -> 'a t -> 'a t
     {[List.dropWhile Int.isEven [1; 2; 3] = [1; 2; 3]]}
 *)
 
-val drop_while: f:('a -> bool) -> 'a t -> 'a t
+val drop_while : f: ('a -> bool) -> 'a t -> 'a t
 
-val initial: 'a t -> 'a t option
+val initial : 'a t -> 'a t option
 (** As an {!Option} get of all of the elements of a list except the last one.
 
     Returns [None] if the list is empty.
@@ -208,7 +208,7 @@ val initial: 'a t -> 'a t option
     {[List.initial [] = None]}
 *)
 
-val last: 'a t -> 'a option
+val last : 'a t -> 'a option
 (** Get the last element of a list.
 
     Returns [None] if the list is empty.
@@ -224,7 +224,7 @@ val last: 'a t -> 'a option
     {[List.last [] = None]}
 *)
 
-val getAt: index:int -> 'a t -> 'a option
+val getAt : index: int -> 'a t -> 'a option
 (** Returns the element at position [index] in the list.
 
     Returns [None] if [index] is outside of the bounds of the list.
@@ -238,9 +238,9 @@ val getAt: index:int -> 'a t -> 'a option
     {[List.getAt 100 [1;2;3] = None]}
 *)
 
-val get_at: index:int -> 'a t -> 'a option
+val get_at : index: int -> 'a t -> 'a option
 
-val insertAt: index:int -> value:'a -> 'a t -> 'a t
+val insertAt : index: int -> value: 'a -> 'a t -> 'a t
 (** Insert a new element at the specified index.
 
     The element previously occupying [index] will now be at [index + 1]
@@ -270,9 +270,9 @@ val insertAt: index:int -> value:'a -> 'a t -> 'a t
     {[List.insertAt 5 999 [100; 101; 102; 103] = [999]]}
 *)
 
-val insert_at: index:int -> value:'a -> 'a t -> 'a t
+val insert_at : index: int -> value: 'a -> 'a t -> 'a t
 
-val updateAt: index:int -> f:('a -> 'a) -> 'a t -> 'a t
+val updateAt : index: int -> f: ('a -> 'a) -> 'a t -> 'a t
 (** Returns a new list with the value at [index] updated to be the result of applying [f].
 
     If [index] is outside of the bounds of the list, returns the list as-is.
@@ -287,9 +287,9 @@ val updateAt: index:int -> f:('a -> 'a) -> 'a t -> 'a t
     ]}
 *)
 
-val update_at: index:int -> f:('a -> 'a) -> 'a t -> 'a t
+val update_at : index: int -> f: ('a -> 'a) -> 'a t -> 'a t
 
-val removeAt: index:int -> 'a t -> 'a t
+val removeAt : index: int -> 'a t -> 'a t
 (** Creates a new list without the element at [index].
 
     If [index] is outside of the bounds of the list, returns the list as-is.
@@ -304,9 +304,9 @@ val removeAt: index:int -> 'a t -> 'a t
     ]}
 *)
 
-val remove_at: index:int -> 'a t -> 'a t
+val remove_at : index: int -> 'a t -> 'a t
 
-val reverse: 'a t -> 'a t
+val reverse : 'a t -> 'a t
 (** Reverse the elements in a list
 
     {2 Examples}
@@ -314,7 +314,7 @@ val reverse: 'a t -> 'a t
     {[List.reverse [1; 2; 3] = [3; 2; 1]]}
  *)
 
-val sort: 'a t -> 'a t when 'a: comparison
+val sort : 'a t -> 'a t when 'a: comparison
 (** Sort list using comparison trait
 
     Sorting is stable.
@@ -326,7 +326,7 @@ val sort: 'a t -> 'a t when 'a: comparison
 
 (** {1 Query} *)
 
-val isEmpty: 'a t -> bool
+val isEmpty : 'a t -> bool
 (** Determine if a list is empty.
 
     {2 Examples}
@@ -338,9 +338,9 @@ val isEmpty: 'a t -> bool
     {[List.isEmpty [|1; 2; 3|] = false]}
 *)
 
-val is_empty: 'a t -> bool
+val is_empty : 'a t -> bool
 
-val length: 'a t -> int
+val length : 'a t -> int
 (** Return the number of elements in a list.
 
     {b Warning} [List.length] needs to access the {b entire} list in order to calculate its result.
@@ -383,7 +383,7 @@ val length: 'a t -> int
     {[List.length [7; 8; 9] = 3]}
 *)
 
-val any: f:('a -> bool) -> 'a t -> bool
+val any : f: ('a -> bool) -> 'a t -> bool
 (** Determine if [f] returns true for [any] values in a list.
 
     Stops iteration as soon as [f] returns true.
@@ -397,7 +397,7 @@ val any: f:('a -> bool) -> 'a t -> bool
     {[List.any isEven [||] = false]}
 *)
 
-val all: f:('a -> bool) -> 'a t -> bool
+val all : f: ('a -> bool) -> 'a t -> bool
 (** Determine if [f] returns true for [all] values in a list.
 
     Stops iteration as soon as [f] returns false.
@@ -411,7 +411,7 @@ val all: f:('a -> bool) -> 'a t -> bool
     {[List.all Int.isEven [||] = true]}
 *)
 
-val count: f:('a -> bool) -> 'a t -> int
+val count : f: ('a -> bool) -> 'a t -> int
 (** Count the number of elements which [f] returns [true] for
 
     {2 Examples}
@@ -419,7 +419,7 @@ val count: f:('a -> bool) -> 'a t -> int
     {[List.count Int.isEven [7;5;8;6] = 2]}
  *)
 
-val find: f:('a -> bool) -> 'a t -> 'a option
+val find : f: ('a -> bool) -> 'a t -> 'a option
 (** Returns, as an option, the first element for which [f] evaluates to true.
 
   If [f] doesn't return [true] for any of the elements [find] will return [None]
@@ -433,7 +433,7 @@ val find: f:('a -> bool) -> 'a t -> 'a option
   {[List.find Int.isEven [||] = None]}
 *)
 
-val findIndex: f:(int -> 'a -> bool) -> 'a t -> (int * 'a) option
+val findIndex : f: (int -> 'a -> bool) -> 'a t -> (int * 'a) option
 (** Returns, as an option, a tuple of the first element and its index for which [f] evaluates to true.
 
     If [f] doesnt return [true] for any [(index, element)] pair, returns [None].
@@ -443,9 +443,9 @@ val findIndex: f:(int -> 'a -> bool) -> 'a t -> (int * 'a) option
     {[List.findIndex (fun index number -> index > 2 && Int.isEven number) [|1; 3; 4; 8;|] = Some (3, 8)]}
 *)
 
-val find_index: f:(int -> 'a -> bool) -> 'a t -> (int * 'a) option
+val find_index : f: (int -> 'a -> bool) -> 'a t -> (int * 'a) option
 
-val includes: 'a -> 'a t -> bool when 'a: equality
+val includes : 'a -> 'a t -> bool when 'a: equality
 
 (** Test if a list contains the specified element using the provided [equal] to test for equality.
 
@@ -461,7 +461,7 @@ val includes: 'a -> 'a t -> bool when 'a: equality
     {[List.includes [] 5 = false]}
 *)
 
-val minimum: 'a t -> 'a option when 'a: comparison
+val minimum : 'a t -> 'a option when 'a: comparison
 (** Find the smallest element.
 
     Returns [None] if called on an empty array.
@@ -471,7 +471,7 @@ val minimum: 'a t -> 'a option when 'a: comparison
     {[List.minimum [|7; 5; 8; 6|] = Some 5]}
 *)
 
-val maximum: 'a t -> 'a option when 'a: comparison
+val maximum : 'a t -> 'a option when 'a: comparison
 (** Find the largest element.
 
     Returns [None] if called on an empty array.
@@ -481,7 +481,7 @@ val maximum: 'a t -> 'a option when 'a: comparison
     {[List.maximum [|7; 5; 8; 6|] = Some 8]}
 *)
 
-val extent: 'a t -> ('a * 'a) option when 'a: comparison
+val extent : 'a t -> ('a * 'a) option when 'a: comparison
 (** Find a {!Tuple} of the [(minimum, maximum)] elements.
 
     Returns [None] if called on an empty array.
@@ -494,8 +494,8 @@ val extent: 'a t -> ('a * 'a) option when 'a: comparison
 // when clause copied from
 // https://github.com/dotnet/fsharp/blob/main/src/fsharp/FSharp.Core/list.fs.
 // Must be inline or we get a type error
-val inline sum: 'a list -> 'a
-  when 'a: (static member (+): 'a * 'a -> 'a) and 'a: (static member Zero: 'a)
+val inline sum : 'a list -> 'a
+  when 'a: (static member (+) : 'a * 'a -> 'a) and 'a: (static member Zero : 'a)
 
 (** Calculate the sum of a list. This will work for any type with a (+) and a Zero operator
 
@@ -510,7 +510,7 @@ val inline sum: 'a list -> 'a
 
 (** {1 Transform} *)
 
-val map: f:('a -> 'b) -> 'a t -> 'b t
+val map : f: ('a -> 'b) -> 'a t -> 'b t
 (** Create a new list which is the result of applying a function [f] to every element.
 
     {2 Examples}
@@ -518,7 +518,7 @@ val map: f:('a -> 'b) -> 'a t -> 'b t
     {[List.map Float.squareRoot [|1.0; 4.0; 9.0|] = [|1.0; 2.0; 3.0|]]}
 *)
 
-val mapWithIndex: f:(int -> 'a -> 'b) -> 'a t -> 'b t
+val mapWithIndex : f: (int -> 'a -> 'b) -> 'a t -> 'b t
 (** Apply a function [f] to every element and its index.
 
     {2 Examples}
@@ -532,9 +532,9 @@ val mapWithIndex: f:(int -> 'a -> 'b) -> 'a t -> 'b t
     ]}
 *)
 
-val map_with_index: f:(int -> 'a -> 'b) -> 'a t -> 'b t
+val map_with_index : f: (int -> 'a -> 'b) -> 'a t -> 'b t
 
-val filter: f:('a -> bool) -> 'a t -> 'a t
+val filter : f: ('a -> bool) -> 'a t -> 'a t
 (** Keep elements that [f] returns [true] for.
 
     {2 Examples}
@@ -542,12 +542,12 @@ val filter: f:('a -> bool) -> 'a t -> 'a t
     {[List.filter Int.isEven [1; 2; 3; 4; 5; 6] = [2; 4; 6]]}
 *)
 
-val filterWithIndex: f:(int -> 'a -> bool) -> 'a t -> 'a t
+val filterWithIndex : f: (int -> 'a -> bool) -> 'a t -> 'a t
 (** Like {!filter} but [f] is also called with each elements index. *)
 
-val filter_with_index: f:(int -> 'a -> bool) -> 'a t -> 'a t
+val filter_with_index : f: (int -> 'a -> bool) -> 'a t -> 'a t
 
-val filterMap: f:('a -> 'b option) -> 'a t -> 'b t
+val filterMap : f: ('a -> 'b option) -> 'a t -> 'b t
 (** Allows you to combine {!map} and {!filter} into a single pass.
 
     The output list only contains elements for which [f] returns [Some].
@@ -574,9 +574,9 @@ val filterMap: f:('a -> 'b option) -> 'a t -> 'b t
     ]}
 *)
 
-val filter_map: f:('a -> 'b option) -> 'a t -> 'b t
+val filter_map : f: ('a -> 'b option) -> 'a t -> 'b t
 
-val flatMap: f:('a -> 'b t) -> 'a t -> 'b t
+val flatMap : f: ('a -> 'b t) -> 'a t -> 'b t
 (** Apply a function [f] onto a list and {!flatten} the resulting list of lists.
 
     {2 Examples}
@@ -586,9 +586,9 @@ val flatMap: f:('a -> 'b t) -> 'a t -> 'b t
     {[List.flatMap (fun n -> [|n; n|]) [|1; 2; 3|] = [|1; 1; 2; 2; 3; 3|]]}
 *)
 
-val flat_map: f:('a -> 'b t) -> 'a t -> 'b t
+val flat_map : f: ('a -> 'b t) -> 'a t -> 'b t
 
-val fold: initial:'b -> f:('b -> 'a -> 'b) -> 'a t -> 'b
+val fold : initial: 'b -> f: ('b -> 'a -> 'b) -> 'a t -> 'b
 (** Transform a list into a value
 
     After applying [f] to every element of the list, [fold] returns the accumulator.
@@ -637,14 +637,14 @@ val fold: initial:'b -> f:('b -> 'a -> 'b) -> 'a t -> 'b
     ]}
 *)
 
-val foldRight: initial:'b -> f:('b -> 'a -> 'b) -> 'a t -> 'b
+val foldRight : initial: 'b -> f: ('b -> 'a -> 'b) -> 'a t -> 'b
 (** This method is like {!fold} except that it iterates over the elements of the list from last to first. *)
 
-val fold_right: initial:'b -> f:('b -> 'a -> 'b) -> 'a t -> 'b
+val fold_right : initial: 'b -> f: ('b -> 'a -> 'b) -> 'a t -> 'b
 
 (** {1 Combine} *)
 
-val append: 'a t -> 'a t -> 'a t
+val append : 'a t -> 'a t -> 'a t
 (** Creates a new list which is the result of appending the second list onto the end of the first.
 
     {2 Examples}
@@ -656,7 +656,7 @@ val append: 'a t -> 'a t -> 'a t
     ]}
 *)
 
-val flatten: 'a t t -> 'a t
+val flatten : 'a t t -> 'a t
 (** Concatenate a list of lists into a single list:
 
     {2 Examples}
@@ -664,7 +664,7 @@ val flatten: 'a t t -> 'a t
     {[List.flatten [[1; 2]; [3]; [4; 5]] = [1; 2; 3; 4; 5]]}
 *)
 
-val zip: 'a t -> 'b t -> ('a * 'b) t
+val zip : 'a t -> 'b t -> ('a * 'b) t
 (** Combine two lists by merging each pair of elements into a {!Tuple}
 
     If one list is longer, the extra elements are dropped.
@@ -676,7 +676,7 @@ val zip: 'a t -> 'b t -> ('a * 'b) t
     {[List.zip [|1;2;3;4;5|] [|"Dog"; "Eagle"; "Ferret"|] = [|(1, "Dog"); (2, "Eagle"); (3, "Ferret")|]]}
 *)
 
-val map2: f:('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+val map2 : f: ('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
 (** Combine two lists, using [f] to combine each pair of elements.
 
     If one list is longer, the extra elements are dropped.
@@ -694,7 +694,7 @@ val map2: f:('a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
     ]}
 *)
 
-val map3: f:('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
+val map3 : f: ('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
 (** Combine three lists, using [f] to combine each trio of elements.
 
     If one list is longer, the extra elements are dropped.
@@ -713,7 +713,7 @@ val map3: f:('a -> 'b -> 'c -> 'd) -> 'a t -> 'b t -> 'c t -> 'd t
 
 (** {1 Deconstruct} *)
 
-val partition: f:('a -> bool) -> 'a t -> 'a t * 'a t
+val partition : f: ('a -> bool) -> 'a t -> 'a t * 'a t
 (** Split a list into a {!Tuple} of lists. Values which [f] returns true for will end up in {!Tuple.first}.
 
     {2 Examples}
@@ -721,7 +721,7 @@ val partition: f:('a -> bool) -> 'a t -> 'a t * 'a t
     {[List.partition Int.isOdd [1;2;3;4;5;6] = ([1;3;5], [2;4;6])]}
 *)
 
-val splitAt: index:int -> 'a t -> 'a t * 'a t
+val splitAt : index: int -> 'a t -> 'a t * 'a t
 (** Divides a list into a {!Tuple} of lists.
 
     Elements which have index upto (but not including) [index] will be in the first component of the tuple.
@@ -735,9 +735,9 @@ val splitAt: index:int -> 'a t -> 'a t * 'a t
     {[List.splitAt 2 [1;2;3;4;5] 2 = ([1;2], [3;4;5])]}
 *)
 
-val split_at: index:int -> 'a t -> 'a t * 'a t
+val split_at : index: int -> 'a t -> 'a t * 'a t
 
-val splitWhen: f:('a -> bool) -> 'a t -> 'a t * 'a t
+val splitWhen : f: ('a -> bool) -> 'a t -> 'a t * 'a t
 (** Divides a list into a {!Tuple} at the first element [f] returns [true] for.
 
     Elements up to (but not including) the first element [f] returns [true] for
@@ -751,9 +751,9 @@ val splitWhen: f:('a -> bool) -> 'a t -> 'a t * 'a t
     {[List.splitWhen (Fun.constant false) [2; 4; 5; 6; 7] = ([2; 4; 5; 6; 7], [])]}
 *)
 
-val split_when: f:('a -> bool) -> 'a t -> 'a t * 'a t
+val split_when : f: ('a -> bool) -> 'a t -> 'a t * 'a t
 
-val unzip: ('a * 'b) t -> 'a t * 'b t
+val unzip : ('a * 'b) t -> 'a t * 'b t
 (** Decompose a list of {!Tuple} into a {!Tuple} of lists.
 
     {2 Examples}
@@ -763,7 +763,7 @@ val unzip: ('a * 'b) t -> 'a t * 'b t
 
 (** {1 Iterate} *)
 
-val forEach: f:('a -> unit) -> 'a t -> unit
+val forEach : f: ('a -> unit) -> 'a t -> unit
 (** Iterates over the elements of invokes [f] for each element.
 
     The function you provide must return [unit], and the [forEach] call itself also returns [unit].
@@ -784,9 +784,9 @@ val forEach: f:('a -> unit) -> 'a t -> unit
     ]}
 *)
 
-val for_each: f:('a -> unit) -> 'a t -> unit
+val for_each : f: ('a -> unit) -> 'a t -> unit
 
-val forEachWithIndex: f:(int -> 'a -> unit) -> 'a t -> unit
+val forEachWithIndex : f: (int -> 'a -> unit) -> 'a t -> unit
 (** Like {!forEach} but [f] is also called with the elements index.
 
     {2 Examples}
@@ -802,9 +802,9 @@ val forEachWithIndex: f:(int -> 'a -> unit) -> 'a t -> unit
     ]}
 *)
 
-val for_each_with_index: f:(int -> 'a -> unit) -> 'a t -> unit
+val for_each_with_index : f: (int -> 'a -> unit) -> 'a t -> unit
 
-val intersperse: sep:'a -> 'a t -> 'a t
+val intersperse : sep: 'a -> 'a t -> 'a t
 (** Places [sep] between all the elements of the given list.
 
     {2 Examples}
@@ -814,7 +814,7 @@ val intersperse: sep:'a -> 'a t -> 'a t
     {[List.intersperse 0 [] = []]}
 *)
 
-val chunksOf: size:int -> 'a t -> 'a t t
+val chunksOf : size: int -> 'a t -> 'a t t
 (** Split a list into equally sized chunks.
 
     If there aren't enough elements to make the last 'chunk', those elements are ignored.
@@ -829,9 +829,9 @@ val chunksOf: size:int -> 'a t -> 'a t t
     ]}
  *)
 
-val chunks_of: size:int -> 'a t -> 'a t t
+val chunks_of : size: int -> 'a t -> 'a t t
 
-val sliding: step:int -> size:int -> 'a t -> 'a t t
+val sliding : step: int -> size: int -> 'a t -> 'a t t
 (** Provides a sliding 'window' of sub-lists over a list.
 
     The first sub-list starts at the head of the list and takes the first [size] elements.
@@ -857,7 +857,7 @@ val sliding: step:int -> size:int -> 'a t -> 'a t t
     {[List.sliding 1 7 [1;2;3;4;5] = []]}
 *)
 
-val groupWhile: f:('a -> 'a -> bool) -> 'a t -> 'a t t
+val groupWhile : f: ('a -> 'a -> bool) -> 'a t -> 'a t t
 (** Divide a list into groups.
 
     [f] is called with consecutive elements, when [f] returns [false] a new group is started.
@@ -887,11 +887,11 @@ val groupWhile: f:('a -> 'a -> bool) -> 'a t -> 'a t t
     ]}
 *)
 
-val group_while: f:('a -> 'a -> bool) -> 'a t -> 'a t t
+val group_while : f: ('a -> 'a -> bool) -> 'a t -> 'a t t
 
 (** {1 Convert} *)
 
-val join: sep:string -> string t -> string
+val join : sep: string -> string t -> string
 (** Converts a list of strings into a {!String}, placing [sep] between each string in the result.
 
     {2 Examples}
@@ -899,7 +899,7 @@ val join: sep:string -> string t -> string
     {[List.join ", " ["Ant"; "Bat"; "Cat"] = "Ant, Bat, Cat"]}
  *)
 
-val groupBy: ('value -> 'key) -> 'value t -> Map<'key, 'value list>
+val groupBy : ('value -> 'key) -> 'value t -> Map<'key, 'value list>
 (** Collect elements which [f] produces the same key for
 
     Produces a map from ['key] to a {!List} of all elements which produce the same ['key]
@@ -916,19 +916,19 @@ val groupBy: ('value -> 'key) -> 'value t -> Map<'key, 'value list>
     ]}
 *)
 
-val group_by: ('value -> 'key) -> 'value t -> Map<'key, 'value list>
+val group_by : ('value -> 'key) -> 'value t -> Map<'key, 'value list>
 
-val toArray: 'a t -> 'a array
+val toArray : 'a t -> 'a array
 (** Converts a list to an {!Array}. *)
 
-val to_array: 'a t -> 'a array
+val to_array : 'a t -> 'a array
 
 (** {1 Compare} *)
 
-val equal: ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 (** Test two lists for equality using the provided function to test elements. *)
 
-val compare: ('a -> 'a -> int) -> 'a t -> 'a t -> int
+val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 (** Compare two lists using the provided function to compare elements.
 
     A shorter list is 'less' than a longer one.

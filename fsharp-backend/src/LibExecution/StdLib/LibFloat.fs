@@ -225,12 +225,12 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Float" "sum" 0
-      parameters = [Param.make "a" (TList TFloat) ""]
+      parameters = [ Param.make "a" (TList TFloat) "" ]
       returnType = TFloat
       description = "Returns the sum of all the floats in the list"
       fn =
         (function
-        | _, [DList l as ldv] ->
+        | _, [ DList l as ldv ] ->
             let floats =
               List.map
                 (fun f ->
@@ -239,6 +239,7 @@ let fns : List<BuiltInFn> =
                   | t ->
                       Errors.throw (Errors.argumentWasnt "a list of floats" "a" ldv))
                 l
+
             let sum = List.fold (fun acc elem -> acc + elem) 0.0 floats
             Value(DFloat sum)
         | _ -> incorrectArgs ())
