@@ -185,7 +185,7 @@ all_rust_files() {
 }
 
 check_ocamlformat() {
-  xargs -0 esy ocamlformat --check
+  xargs -0 ocamlformat --check
 }
 
 check_fantomas () {
@@ -201,7 +201,7 @@ check_rustfmt () {
 }
 
 format_ocamlformat() {
-  xargs -0 esy ocamlformat --inplace
+  xargs -0 ocamlformat --inplace
 }
 
 format_fantomas() {
