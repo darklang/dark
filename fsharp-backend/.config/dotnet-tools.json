@@ -5,6 +5,10 @@
     "paket": {
       "version": "6.0.0-beta9",
       "commands": ["paket"]
+    },
+    "fantomas-tool": {
+      "version": "4.4.0",
+      "commands": ["fantomas"]
     }
   }
 }
