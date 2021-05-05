@@ -30,7 +30,7 @@ type t<'ok, 'error> = Result<'ok, 'error>
 
 (** {1 Create} *)
 
-val ok: 'ok -> t<'ok, 'error>
+val ok : 'ok -> t<'ok, 'error>
 (** A function alternative to the [Ok] constructor which can be used in places where
     the constructor isn't permitted such as at the of a {!Fun.(|>)} or functions like {!List.map}.
 
@@ -41,7 +41,7 @@ val ok: 'ok -> t<'ok, 'error>
     {[List.map [1; 2; 3] ~f:Result.ok = [Ok 1; Ok 2; Ok 3]]}
 *)
 
-val error: 'error -> t<'ok, 'error>
+val error : 'error -> t<'ok, 'error>
 (** A function alternative to the [Error] constructor which can be used in places where
     the constructor isn't permitted such as at the of a {!Fun.pipe} or functions like {!List.map}.
 
@@ -60,7 +60,7 @@ val error: 'error -> t<'ok, 'error>
     {[List.map [1; 2; 3] ~f:Result.error = [Error 1; Error 2; Error 3]]}
 *)
 
-val attempt: (unit -> 'ok) -> t<'ok, System.Exception>
+val attempt : (unit -> 'ok) -> t<'ok, System.Exception>
 (** Run the provided function and wrap the returned value in a {!Result}, catching any exceptions raised.
 
     {2 Examples}
@@ -74,7 +74,7 @@ val attempt: (unit -> 'ok) -> t<'ok, System.Exception>
     ]}
 *)
 
-val fromOption: error:'error -> 'ok option -> t<'ok, 'error>
+val fromOption : error: 'error -> 'ok option -> t<'ok, 'error>
 (** Convert an {!Option} to a {!Result} where a [(Some value)] becomes [(Ok value)] and a [None] becomes [(Error error)].
 
     {2 Examples}
@@ -87,9 +87,9 @@ val fromOption: error:'error -> 'ok option -> t<'ok, 'error>
     ]}
 *)
 
-val from_option: error:'error -> 'ok option -> t<'ok, 'error>
+val from_option : error: 'error -> 'ok option -> t<'ok, 'error>
 
-val isOk: t<_, _> -> bool
+val isOk : t<_, _> -> bool
 (** Check if a {!Result} is an [Ok].
 
     Useful when you want to perform some side affect based on the presence of
@@ -107,9 +107,9 @@ val isOk: t<_, _> -> bool
     {[Result.isOk (Error 3) = false]}
 *)
 
-val is_ok: t<_, _> -> bool
+val is_ok : t<_, _> -> bool
 
-val isError: t<_, _> -> bool
+val isError : t<_, _> -> bool
 (** Check if a {!Result} is an [Error].
 
     Useful when you want to perform some side affect based on the presence of
@@ -127,9 +127,9 @@ val isError: t<_, _> -> bool
     {[Result.isError (Error 3) = true]}
 *)
 
-val is_error: t<_, _> -> bool
+val is_error : t<_, _> -> bool
 
-val and_: t<'ok, 'error> -> t<'ok, 'error> -> t<'ok, 'error>
+val and_ : t<'ok, 'error> -> t<'ok, 'error> -> t<'ok, 'error>
 (** Returns the first argument if it {!isError}, otherwise return the second argument.
 
     Unlike the {!Bool.(&&)} operator, the [and_] function does not short-circuit.
@@ -161,7 +161,7 @@ val and_: t<'ok, 'error> -> t<'ok, 'error> -> t<'ok, 'error>
     ]}
 *)
 
-val or_: t<'ok, 'error> -> t<'ok, 'error> -> t<'ok, 'error>
+val or_ : t<'ok, 'error> -> t<'ok, 'error> -> t<'ok, 'error>
 (** Return the first argument if it {!isOk}, otherwise return the second.
 
   Unlike the built in [||] operator, the [or_] function does not short-circuit.
@@ -178,7 +178,7 @@ val or_: t<'ok, 'error> -> t<'ok, 'error> -> t<'ok, 'error>
   {[Result.or_ (Error (`UnexpectedInvertabrate "Periwinkle")) (Error (`UnexpectedBird "Robin")) = (Error (`UnexpectedBird "Robin"))]}
 *)
 
-val both: t<'a, 'error> -> t<'b, 'error> -> t<'a * 'b, 'error>
+val both : t<'a, 'error> -> t<'b, 'error> -> t<'a * 'b, 'error>
 (** Combine two results, if both are [Ok] returns an [Ok] containing a {!Tuple} of the values.
 
     If either is an [Error], returns the [Error].
@@ -209,7 +209,7 @@ val both: t<'a, 'error> -> t<'b, 'error> -> t<'a * 'b, 'error>
     ]}
 *)
 
-val flatten: t<t<'ok, 'error>, 'error> -> t<'ok, 'error>
+val flatten : t<t<'ok, 'error>, 'error> -> t<'ok, 'error>
 (** Collapse a nested result, removing one layer of nesting.
 
     {2 Examples}
@@ -227,7 +227,7 @@ val flatten: t<t<'ok, 'error>, 'error> -> t<'ok, 'error>
     ]}
 *)
 
-val unwrap: ``default``:'ok -> t<'ok, 'error> -> 'ok
+val unwrap : ``default``: 'ok -> t<'ok, 'error> -> 'ok
 (** Unwrap a Result using the [~default] value in case of an [Error]
 
     {2 Examples}
@@ -237,7 +237,7 @@ val unwrap: ``default``:'ok -> t<'ok, 'error> -> 'ok
     {[Result.unwrap ~default:0 ((Error (`UnexpectedBird "Ostrich"))) = 0]}
 *)
 
-val unwrapUnsafe: t<'ok, _> -> 'ok
+val unwrapUnsafe : t<'ok, _> -> 'ok
 (** Unwrap a Result, raising an exception in case of an [Error]
 
     {e Exceptions}
@@ -251,9 +251,9 @@ val unwrapUnsafe: t<'ok, _> -> 'ok
     {[Result.unwrapUnsafe (Error "bad") ]}
 *)
 
-val unwrap_unsafe: t<'ok, _> -> 'ok
+val unwrap_unsafe : t<'ok, _> -> 'ok
 
-val unwrapError: ``default``:'error -> t<'ok, 'error> -> 'error
+val unwrapError : ``default``: 'error -> t<'ok, 'error> -> 'error
 (** Like {!Result.unwrap} but unwraps an [Error] value instead
 
     {2 Examples}
@@ -273,9 +273,10 @@ val unwrapError: ``default``:'error -> t<'ok, 'error> -> 'error
     ]}
 *)
 
-val unwrap_error: ``default``:'error -> t<'ok, 'error> -> 'error
+val unwrap_error : ``default``: 'error -> t<'ok, 'error> -> 'error
 
-val map2: f:('a -> 'b -> 'c) -> t<'a, 'error> -> t<'b, 'error> -> t<'c, 'error>
+val map2 :
+  f: ('a -> 'b -> 'c) -> t<'a, 'error> -> t<'b, 'error> -> t<'c, 'error>
 (** Combine two results
 
     If one of the results is an [Error], that becomes the return result.
@@ -293,7 +294,7 @@ val map2: f:('a -> 'b -> 'c) -> t<'a, 'error> -> t<'b, 'error> -> t<'c, 'error>
     {[Result.map2 (Error "A") (Error "B") ~f:Int.add = Error "A"]}
 *)
 
-val values: t<'ok, 'error> list -> t<'ok list, 'error>
+val values : t<'ok, 'error> list -> t<'ok list, 'error>
 (** If all of the elements of a list are [Ok], returns an [Ok] of the the list of unwrapped values.
 
     If {b any} of the elements are an [Error], the first one encountered is returned.
@@ -305,7 +306,7 @@ val values: t<'ok, 'error> list -> t<'ok list, 'error>
     {[Result.values [Ok 1; Error "two"; Ok 3; Error "four"] = Error "two"]}
 *)
 
-val map: f:('a -> 'b) -> t<'a, 'error> -> t<'b, 'error>
+val map : f: ('a -> 'b) -> t<'a, 'error> -> t<'b, 'error>
 (** Transforms the ['ok] in a result using [f]. Leaves the ['error] untouched.
 
     {2 Examples}
@@ -315,7 +316,7 @@ val map: f:('a -> 'b) -> t<'a, 'error> -> t<'b, 'error>
     {[Result.map (Error "three") ~f:(Int.add 1) = Error "three"]}
 *)
 
-val mapError: f:('a -> 'b) -> t<'ok, 'a> -> t<'ok, 'b>
+val mapError : f: ('a -> 'b) -> t<'ok, 'a> -> t<'ok, 'b>
 (** Transforms the value in an [Error] using [f]. Leaves an [Ok] untouched.
 
     {2 Examples}
@@ -325,9 +326,9 @@ val mapError: f:('a -> 'b) -> t<'ok, 'a> -> t<'ok, 'b>
     {[Result.mapError (Error "bad") ~f:(Int.add 1)  = Error "bad"]}
 *)
 
-val map_error: f:('a -> 'b) -> t<'ok, 'a> -> t<'ok, 'b>
+val map_error : f: ('a -> 'b) -> t<'ok, 'a> -> t<'ok, 'b>
 
-val andThen: f:('a -> t<'b, 'error>) -> t<'a, 'error> -> t<'b, 'error>
+val andThen : f: ('a -> t<'b, 'error>) -> t<'a, 'error> -> t<'b, 'error>
 (** Run a function which may fail on a result.
 
     Short-circuits of called with an [Error].
@@ -365,9 +366,9 @@ val andThen: f:('a -> t<'b, 'error>) -> t<'a, 'error> -> t<'b, 'error>
     {[Result.andThen (Ok 0.0) ~f:root |> Result.andThen ~f:reciprical = Error "Divide by zero"]}
 *)
 
-val and_then: f:('a -> t<'b, 'error>) -> t<'a, 'error> -> t<'b, 'error>
+val and_then : f: ('a -> t<'b, 'error>) -> t<'a, 'error> -> t<'b, 'error>
 
-val tap: f:('ok -> unit) -> t<'ok, _> -> unit
+val tap : f: ('ok -> unit) -> t<'ok, _> -> unit
 (** Run a function against an [(Ok value)], ignores [Error]s.
 
     {2 Examples}
@@ -380,7 +381,7 @@ val tap: f:('ok -> unit) -> t<'ok, _> -> unit
 
 (** {1 Convert} *)
 
-val toOption: t<'ok, _> -> 'ok option
+val toOption : t<'ok, _> -> 'ok option
 (** Convert a {!Result} to an {!Option}.
 
     An [Ok x] becomes [Some x]
@@ -394,13 +395,17 @@ val toOption: t<'ok, _> -> 'ok option
     {[Result.toOption (Error "Missing number!") = None]}
 *)
 
-val to_option: t<'ok, _> -> 'ok option
+val to_option : t<'ok, _> -> 'ok option
 
 (** {1 Compare} *)
 
-val equal:
-  ('ok -> 'ok -> bool)
-   -> ('error -> 'error -> bool) -> t<'ok, 'error> -> t<'ok, 'error> -> bool
+val equal :
+
+    ('ok -> 'ok -> bool) ->
+    ('error -> 'error -> bool) ->
+    t<'ok, 'error> ->
+    t<'ok, 'error> ->
+    bool
 (** Test two results for equality using the provided functions.
 
     {2 Examples}
@@ -416,9 +421,13 @@ val equal:
     {[Result.equal String.equal Int.equal (Error "Fail") (Ok 4) = false]}
 *)
 
-val compare:
-  ('ok -> 'ok -> int)
-   -> ('error -> 'error -> int) -> t<'ok, 'error> -> t<'ok, 'error> -> int
+val compare :
+
+    ('ok -> 'ok -> int) ->
+    ('error -> 'error -> int) ->
+    t<'ok, 'error> ->
+    t<'ok, 'error> ->
+    int
 (** Compare results for using the provided functions.
 
     In the case when one of the results is an [Error] and one is [Ok], [Error]s  are considered 'less' then [Ok]s
@@ -444,7 +453,7 @@ val compare:
     concise at the expense  of placing a greater cognitive burden on future readers.
 *)
 
-val (|?): t<'a, 'error> -> 'a -> 'a
+val (|?) : t<'a, 'error> -> 'a -> 'a
 (** An operator version of {!Result.unwrap} where the [default] value goes to the right of the operator.
 
     {2 Examples}
@@ -456,7 +465,7 @@ val (|?): t<'a, 'error> -> 'a -> 'a
     {[Error "Missing number!" |? 8 = 8]}
 *)
 
-val (>>=): t<'ok, 'error> -> ('ok -> t<'b, 'error>) -> t<'b, 'error>
+val (>>=) : t<'ok, 'error> -> ('ok -> t<'b, 'error>) -> t<'b, 'error>
 (** An operator version of {!andThen}
 
     {2 Examples}
@@ -482,7 +491,7 @@ val (>>=): t<'ok, 'error> -> ('ok -> t<'b, 'error>) -> t<'b, 'error>
     {[Ok 0. >>= reciprical = Error "Divide by zero"]}
 *)
 
-val (>>|): t<'a, 'error> -> ('a -> 'b) -> t<'b, 'error>
+val (>>|) : t<'a, 'error> -> ('a -> 'b) -> t<'b, 'error>
 (** An operator version of {!map}
 
     {2 Examples}

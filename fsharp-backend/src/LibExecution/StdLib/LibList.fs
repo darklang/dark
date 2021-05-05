@@ -351,9 +351,9 @@ let fns : List<BuiltInFn> =
               match ls with
               | [] -> []
               | h :: t ->
-                (match t with
-                 | [] -> [h]
-                 | t -> [h] @ [i] @ join t)
+                  (match t with
+                   | [] -> [ h ]
+                   | t -> [ h ] @ [ i ] @ join t)
 
             Value(DList(join l))
         | _ -> incorrectArgs ())
@@ -361,7 +361,8 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "List" "interleave" 0
-      parameters = [ Param.make "as" (TList varA) "";  Param.make "bs" (TList varB) "" ]
+      parameters =
+        [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
       returnType = TList varA
       description =
         "Returns a new list with the first value from <param as> then the first value from <param bs>, then the second value from <param as> then the second value from <param bs>, etc, until one list ends, then the remaining items from the other list."
@@ -372,16 +373,16 @@ let fns : List<BuiltInFn> =
               match l1 with
               | [] -> l2
               | x :: xs ->
-                (match l2 with
-                 | [] -> l1
-                 | y :: ys -> x :: y :: f xs ys)
+                  (match l2 with
+                   | [] -> l1
+                   | y :: ys -> x :: y :: f xs ys)
 
             Value(DList(f l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "uniqueBy" 0
+    //   ; { name = fn "List" "uniqueBy" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -964,7 +965,8 @@ let fns : List<BuiltInFn> =
 //     ; previewable = Pure
 //     ; deprecated = NotDeprecated }
     { name = fn "List" "zipShortest" 0
-      parameters = [ Param.make "as" (TList varA) "";  Param.make "bs" (TList varB) "" ]
+      parameters =
+        [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
       returnType = TList varA
       description = "Returns a list of parallel pairs from `as` and `bs`.
         If the lists differ in length, values from the longer list are dropped.
@@ -979,6 +981,7 @@ let fns : List<BuiltInFn> =
             let len = min (List.length l1) (List.length l2)
             let l1 = List.take (int len) l1
             let l2 = List.take (int len) l2
+
             List.zip l1 l2
             |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
             |> DList
@@ -988,10 +991,10 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "List" "zip" 0
-      parameters = [ Param.make "as" (TList varA) "";  Param.make "bs" (TList varB) "" ]
+      parameters =
+        [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
       returnType = TOption(TList(TList varA))
-      description =
-        "If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
+      description = "If the lists have the same length, returns `Just list` formed from parallel pairs in `as` and `bs`.
         For example, if `as` is `[1,2,3]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[[1,\"x\"], [2,\"y\"], [3,\"z\"]]`.
         See `List::unzip` if you want to deconstruct `list` into `as` and `bs` again.
         If the lists differ in length, returns `Nothing` (consider `List::zipShortest` if you want to drop values from the longer list instead)."
@@ -1022,7 +1025,7 @@ let fns : List<BuiltInFn> =
 
             let f (acc1, acc2) i =
               match i with
-              | DList [ a; b ] -> (a::acc1, b::acc2)
+              | DList [ a; b ] -> (a :: acc1, b :: acc2)
               | (DIncomplete _
               | DErrorRail _
               | DError _) as dv -> Errors.foundFakeDval dv
@@ -1030,19 +1033,18 @@ let fns : List<BuiltInFn> =
                   let err_details =
                     match v with
                     | DList l ->
-                      $"It has length {List.length l} but must have length 2"
+                        $"It has length {List.length l} but must have length 2"
                     | nonList ->
-                      $"It is of type {DvalRepr.prettyTypename v} instead of `List`"
+                        $"It is of type {DvalRepr.prettyTypename v} instead of `List`"
 
                   Errors.throw (
-                    Errors.argumentWasnt
-                      "a list with exactly two values" "pairs" v
+                    Errors.argumentWasnt "a list with exactly two values" "pairs" v
                     + err_details
                   )
             // We reverse here so that the [foldi ocaml and fold fsharp] consing happens in the correct order.
             // It does mean that the index passed by [foldi and fsharp] counts from the end
-            let result =
-              l |> List.rev |> List.fold f ([], [])
+            let result = l |> List.rev |> List.fold f ([], [])
+
             match result with
             | (l, l2) -> Value(DList [ DList l; DList l2 ])
         | _ -> incorrectArgs ())

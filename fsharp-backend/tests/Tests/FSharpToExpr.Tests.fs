@@ -41,4 +41,4 @@ let parserTests =
         "fun a b c d -> 8"
         (eLambda [ "a"; "b"; "c"; "d" ] (eInt 8)) ]
 
-let tests = testList "FSharpToExpr" [parserTests]
+let tests = testList "FSharpToExpr" [ parserTests ]
