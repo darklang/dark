@@ -270,7 +270,7 @@ jobs:
       - store_test_results: { path: rundir/test_results }
 
   check-formatting:
-    executor: in-container
+    executor: in-rust-container
     steps:
       - checkout
       - run: scripts/format check
