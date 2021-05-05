@@ -269,7 +269,11 @@ jobs:
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 
-
+  check-formatting:
+    executor: in-container
+    steps:
+      - checkout
+      - scripts/format check
 
   build-stroller:
     executor: in-rust-container
@@ -420,6 +424,7 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
+      - check-formatting
       - build-postgres-honeytail
       - validate-honeycomb-config
       - build-backend
