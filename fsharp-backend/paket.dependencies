@@ -1,7 +1,7 @@
 version 6.0.0-rc001
 
 source https://api.nuget.org/v3/index.json
-framework: net5.0
+framework: net6.0
 storage: none
 
 nuget FSharp.Core 5.0.0

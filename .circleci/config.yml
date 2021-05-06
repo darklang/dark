@@ -15,7 +15,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:b3aff85
+      - image: darklang/dark-base:ab34efe
   # Rust is so big we create a separate container for it and only use that
   # for rust builds
   in-rust-container:
@@ -24,7 +24,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-rust:b3aff85
+      - image: darklang/dark-rust:ab34efe
 
 commands:
   show-large-files-and-directories:
@@ -261,8 +261,8 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/net5.0/publish/ApiServer
-            - fsharp-backend/Build/out/net5.0/publish/BwdServer
+            - fsharp-backend/Build/out/net6.0/publish/ApiServer
+            - fsharp-backend/Build/out/net6.0/publish/BwdServer
       - show-large-files-and-directories
       - save_cache:
           paths: [fsharp-backend/Build]
