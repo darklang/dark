@@ -24,13 +24,13 @@ updates:
   directory: "/"
   schedule:
     interval: daily
-    time: "13:00"
+    time: "12:00"
   open-pull-requests-limit: 10
 - package-ecosystem: npm
   directory: "/"
   schedule:
     interval: daily
-    time: "13:00"
+    time: "12:00"
   open-pull-requests-limit: 10
   ignore:
   - dependency-name: rollbar
@@ -40,7 +40,7 @@ updates:
   directory: "/containers/queue-scheduler"
   schedule:
     interval: daily
-    time: "13:00"
+    time: "12:00"
   open-pull-requests-limit: 10
   labels:
   - rust
@@ -58,3 +58,9 @@ updates:
   - dependency-name: backoff
     versions:
     - 0.3.0
+- package-ecosystem: nuget
+  directory: "/fsharp-backend"
+  schedule:
+    interval: daily
+    time: "12:00"
+  open-pull-requests-limit: 10
