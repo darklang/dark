@@ -254,6 +254,7 @@ jobs:
       # so the ocamltestserver will load
       - run: scripts/support/generate-etags
       - run: scripts/support/compile --test fsharp-backend/global.json
+      - run: touch backend/static/appsupport.js # prevent ocaml server from freaking out
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
