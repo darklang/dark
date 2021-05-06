@@ -313,14 +313,14 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 ####################################
 # dotnet / F#
 ####################################
-# This section was created copying the commands from the 3.1 dockerfiles.
-# https://github.com/dotnet/dotnet-docker/blob/master/src/sdk/3.1/bionic/amd64/Dockerfile
+# This section was created copying the commands from the dotnet dockerfiles.
+# https://github.com/dotnet/dotnet-docker/blob/master/src/sdk/6.0/focal/amd64/Dockerfile
 
 # TODO: update to latest. Note that the 5.0 dockerfules are split among 3
 # different dockerfile (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src.
 
-ENV DOTNET_SDK_VERSION=5.0.202 \
+ENV DOTNET_SDK_VERSION=6.0.100-preview.3.21202.5 \
      # Skip extraction of XML docs - generally not useful within an
      # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
@@ -330,7 +330,7 @@ ENV DOTNET_SDK_VERSION=5.0.202 \
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
 RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
-    && dotnet_sha512='01ed59f236184987405673d24940d55ce29d830e7dbbc19556fdc03893039e6046712de6f901dc9911047a0dee4fd15319b7e94f8a31df6b981fa35bd93d9838' \
+    && dotnet_sha512='f776177c1ca2b672cf05f9ec32f20ef35a039dd8d31beaa139d1e47d71cca4ccf0f2a61bbf006a781e693977ee91cc9e08e12134ffb4c7a03a8e56c163b8661d' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && mkdir -p /usr/share/dotnet \
     && tar -ozxf dotnet.tar.gz -C /usr/share/dotnet \
