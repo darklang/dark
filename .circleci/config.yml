@@ -252,6 +252,7 @@ jobs:
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # so the ocamltestserver will load
+      - run: touch backend/static/appsupport.js
       - run: scripts/support/generate-etags
       - run: scripts/support/compile --test fsharp-backend/global.json
       - assert-clean-worktree

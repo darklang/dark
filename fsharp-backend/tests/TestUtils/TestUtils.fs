@@ -258,6 +258,23 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
         })
       values)
 
+let testMany2Task
+  (name : string)
+  (fn : 'a -> 'b -> Task<'c>)
+  (values : List<'a * 'b * 'c>)
+  =
+  testList
+    name
+    (List.mapi
+      (fun i (input1, input2, expected) ->
+        testTask $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
+          let! result = fn input1 input2
+          Expect.equal result expected ""
+        })
+      values)
+
+
+
 // Allow reusing property-test definitions with test cases found by fuzzing
 let testListUsingProperty
   (name : string)

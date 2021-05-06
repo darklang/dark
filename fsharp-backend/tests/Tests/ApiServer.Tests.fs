@@ -6,9 +6,10 @@ open FSharp.Control.Tasks
 open Expecto
 
 open System.Net.Http
+open Microsoft.AspNetCore.Http
 
 type KeyValuePair<'k, 'v> = System.Collections.Generic.KeyValuePair<'k, 'v>
-type AuthData = LibBackend.Session.AuthData
+type StringValues = Microsoft.Extensions.Primitives.StringValues
 
 open Tablecloth
 open Prelude
@@ -22,58 +23,75 @@ module ORT = OT.RuntimeT
 module Convert = LibBackend.OCamlInterop.Convert
 module TI = LibBackend.TraceInputs
 
+type AuthData = LibBackend.Session.AuthData
+
 open ApiServer
 
 let ident = Fun.identity
-let client = new HttpClient()
+
+type User = { client : HttpClient; csrf : string }
+
+type U = Lazy<Task<User>>
 
 // login as test user and return the csrfToken (the cookies are stored in httpclient)
-let login : Lazy<Task<string>> =
-  lazy
-    (task {
-      use loginReq =
-        new HttpRequestMessage(
-          HttpMethod.Post,
-          $"http://darklang.localhost:8000/login"
-        )
-
-      let body =
-        [ KeyValuePair<string, string>("username", "test")
-          KeyValuePair<string, string>("password", "fVm2CUePzGKCwoEQQdNJktUQ") ]
-
-      loginReq.Content <- new FormUrlEncodedContent(body)
-
-      let! loginResp = client.SendAsync(loginReq)
-      let! loginContent = loginResp.Content.ReadAsStringAsync()
-
-      let csrfToken =
-        match loginContent with
-        | Regex "const csrfToken = \"(.*?)\";" [ token ] -> token
-        | _ -> failwith $"could not find csrfToken in {loginContent}"
-
-      return csrfToken
-     })
-
-
-let getAsync (url : string) : Task<HttpResponseMessage> =
+let login (username : string) (password : string) : Task<User> =
   task {
-    let! csrfToken = login.Force()
-    use message = new HttpRequestMessage(HttpMethod.Get, url)
-    message.Headers.Add("X-CSRF-Token", csrfToken)
+    let client = new HttpClient()
 
-    return! client.SendAsync(message)
+    use loginReq =
+      new HttpRequestMessage(
+        HttpMethod.Post,
+        $"http://darklang.localhost:8000/login"
+      )
+
+    let body =
+      [ KeyValuePair<string, string>("username", username)
+        KeyValuePair<string, string>("password", password) ]
+
+    loginReq.Content <- new FormUrlEncodedContent(body)
+
+    let! loginResp = client.SendAsync(loginReq)
+    let! loginContent = loginResp.Content.ReadAsStringAsync()
+
+    let csrfToken =
+      match loginContent with
+      | Regex "const csrfToken = \"(.*?)\";" [ token ] -> token
+      | _ -> failwith $"could not find csrfToken in {loginContent}"
+
+    return { client = client; csrf = csrfToken }
   }
 
-let postAsync (url : string) (body : string) : Task<HttpResponseMessage> =
+let testUser = lazy (login "test" "fVm2CUePzGKCwoEQQdNJktUQ")
+let testAdminUser = lazy (login "test_admin" "fVm2CUePzGKCwoEQQdNJktUQ")
+
+let loggedOutUser () =
+  lazy
+    (let handler = new HttpClientHandler(AllowAutoRedirect = false)
+     let client = new HttpClient(handler)
+     let user = { client = client; csrf = "" }
+     Task.FromResult user)
+
+
+
+let getAsync (user : U) (url : string) : Task<HttpResponseMessage> =
   task {
-    let! csrfToken = login.Force()
+    let! user = Lazy.force user
+    use message = new HttpRequestMessage(HttpMethod.Get, url)
+    message.Headers.Add("X-CSRF-Token", user.csrf)
+
+    return! user.client.SendAsync(message)
+  }
+
+let postAsync (user : U) (url : string) (body : string) : Task<HttpResponseMessage> =
+  task {
+    let! user = Lazy.force user
     use message = new HttpRequestMessage(HttpMethod.Post, url)
-    message.Headers.Add("X-CSRF-Token", csrfToken)
+    message.Headers.Add("X-CSRF-Token", user.csrf)
 
     message.Content <-
       new StringContent(body, System.Text.Encoding.UTF8, "application/json")
 
-    return! client.SendAsync(message)
+    return! user.client.SendAsync(message)
   }
 
 let deserialize<'a> (str : string) : 'a = Json.OCamlCompatible.deserialize<'a> str
@@ -84,10 +102,10 @@ let noBody () = ""
 
 
 
-let getInitialLoad () : Task<InitialLoad.T> =
+let getInitialLoad (user : U) : Task<InitialLoad.T> =
   task {
     let! (o : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:8000/api/test/initial_load" ""
+      postAsync user $"http://darklang.localhost:8000/api/test/initial_load" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -99,8 +117,11 @@ let getInitialLoad () : Task<InitialLoad.T> =
 let testUiReturnsTheSame =
   testTask "ui returns the same" {
 
-    let! (o : HttpResponseMessage) = getAsync "http://darklang.localhost:8000/a/test"
-    let! (f : HttpResponseMessage) = getAsync "http://darklang.localhost:9000/a/test"
+    let! (o : HttpResponseMessage) =
+      getAsync testUser "http://darklang.localhost:8000/a/test"
+
+    let! (f : HttpResponseMessage) =
+      getAsync testUser "http://darklang.localhost:9000/a/test"
 
     Expect.equal o.StatusCode f.StatusCode ""
 
@@ -202,7 +223,7 @@ let postApiTestCase
       | FSharp -> 9000
 
     let! (response : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:{port}/api/test/{api}" body
+      postAsync testUser $"http://darklang.localhost:{port}/api/test/{api}" body
 
     let! content = response.Content.ReadAsStringAsync()
 
@@ -273,7 +294,7 @@ let testPostApi
 let testGetTraceData =
   testTask "get_trace is the same" {
     let! (o : HttpResponseMessage) =
-      postAsync $"http://darklang.localhost:8000/api/test/all_traces" ""
+      postAsync testUser $"http://darklang.localhost:8000/api/test/all_traces" ""
 
     Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
     let! body = o.Content.ReadAsStringAsync()
@@ -302,7 +323,7 @@ let testGetTraceData =
 
 let testDBStats =
   testTask "db_stats is the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad ()
+    let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
 
     let dbs =
       initialLoad.toplevels
@@ -342,7 +363,7 @@ let testExecuteFunction =
 
 let testTriggerHandler =
   testTask "trigger_handler behaves the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad ()
+    let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
 
     let handlerTLID =
       initialLoad.toplevels
@@ -373,7 +394,7 @@ let testTriggerHandler =
 
 let testWorkerStats =
   testTask "worker_stats is the same" {
-    let! (initialLoad : InitialLoad.T) = getInitialLoad ()
+    let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
 
     do!
       initialLoad.toplevels
@@ -406,7 +427,7 @@ let testInsertDeleteSecrets =
 
     let getSecret () : Task<Option<string>> =
       task {
-        let! (initialLoad : InitialLoad.T) = getInitialLoad ()
+        let! (initialLoad : InitialLoad.T) = getInitialLoad testUser
 
         return
           initialLoad.secrets
@@ -467,7 +488,7 @@ let testDelete404s =
     let get404s () : Task<List<TI.F404>> =
       task {
         let! (o : HttpResponseMessage) =
-          postAsync $"http://darklang.localhost:8000/api/test/get_404s" ""
+          postAsync testUser $"http://darklang.localhost:8000/api/test/get_404s" ""
 
         Expect.equal o.StatusCode System.Net.HttpStatusCode.OK ""
         let! body = o.Content.ReadAsStringAsync()
@@ -503,7 +524,7 @@ let testDelete404s =
       task {
         // FSTODO switch test to use F#, which doesn't yet add traces
         let url = $"http://test.builtwithdark.localhost:8000{path}"
-        let! result = getAsync url
+        let! result = getAsync testUser url
         Expect.equal result.StatusCode System.Net.HttpStatusCode.NotFound "404s"
 
         // assert 404 added
@@ -591,5 +612,122 @@ let localOnlyTests =
 
   testList "local" tests
 
+// FSTODO: this should be on the *TEST* api server, not the dev one
+let permissions =
+  testMany2Task
+    "check apiserver permissions"
+    (fun (user : U) (username : string) ->
+      task {
+        let! (uiResp : HttpResponseMessage) =
+          getAsync user $"http://darklang.localhost:9000/a/{username}"
 
-let tests = testList "ApiServer" [ localOnlyTests ]
+        let! (apiResp : HttpResponseMessage) =
+          postAsync
+            user
+            $"http://darklang.localhost:9000/api/{username}/initial_load"
+            ""
+
+        return (int uiResp.StatusCode, int apiResp.StatusCode)
+      })
+    // test user can access their canvases (and sample)
+    [ (testUser, "test", (200, 200))
+      (testUser, "test-something", (200, 200))
+      (testUser, "sample", (200, 200))
+      (testUser, "sample-something", (200, 200))
+      (testUser, "test_admin", (401, 401))
+      (testUser, "test_admin-something", (401, 401))
+      // admin user can access everything
+      (testAdminUser, "test", (200, 200))
+      (testAdminUser, "test-something", (200, 200))
+      (testAdminUser, "test_admin", (200, 200))
+      (testAdminUser, "test_admin-something", (200, 200))
+      (testAdminUser, "sample", (200, 200))
+      (testAdminUser, "sample-something", (200, 200))
+      // logged out user can access nothing
+      (loggedOutUser (), "test", (302, 401))
+      (loggedOutUser (), "test-something", (302, 401))
+      (loggedOutUser (), "test_admin", (302, 401))
+      (loggedOutUser (), "test_admin-something", (302, 401))
+      (loggedOutUser (), "sample", (302, 401))
+      (loggedOutUser (), "sample-something", (302, 401)) ]
+
+
+let cookies =
+  let pw = "fVm2CUePzGKCwoEQQdNJktUQ"
+  let local = "darklang.localhost"
+  let prod = "darklang.com"
+
+  testMany2Task
+    "Check login gives the right cookies"
+    (fun (host : string) (creds : Option<string * string>) ->
+      task {
+        let handler = new HttpClientHandler(AllowAutoRedirect = false)
+        let client = new HttpClient(handler)
+
+        use req =
+          new HttpRequestMessage(
+            HttpMethod.Post,
+            $"http://darklang.localhost:9000/login"
+          )
+
+        req.Headers.Host <- host
+
+        match creds with
+        | Some (username, password) ->
+            let body =
+              [ KeyValuePair<string, string>("username", username)
+                KeyValuePair<string, string>("password", password) ]
+
+            req.Content <- new FormUrlEncodedContent(body)
+        | None -> ()
+
+        let! resp = client.SendAsync(req)
+
+        let getHeader name =
+          let mutable c = seq []
+
+          match resp.Headers.TryGetValues(name, &c) with
+          | true -> c |> String.concat "," |> Some
+          | false -> None
+
+        let cookie =
+          getHeader "set-cookie"
+          |> Option.andThen
+               (fun c ->
+                 match String.split ";" c with
+                 | h :: rest when String.startsWith "__session" h ->
+                     rest |> String.concat ";" |> String.trim |> Some
+                 | split -> None)
+
+        let location = getHeader "location"
+
+        return (int resp.StatusCode, cookie, location)
+      })
+    [ (local,
+       Some("test", pw),
+       (302,
+        Some "max-age=604800; domain=darklang.localhost; path=/; httponly",
+        Some "/a/test"))
+      (local,
+       Some("test", ""),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (local,
+       Some("", pw),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (local, None, (302, None, Some "/login?error=Invalid+username+or+password"))
+      (prod,
+       Some("test", pw),
+       (302,
+        // Prod would also have the secure header, but that's a config var so we don't have that here
+        Some "max-age=604800; domain=darklang.com; path=/; httponly",
+        Some "/a/test"))
+      (prod,
+       Some("test", ""),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (prod,
+       Some("", pw),
+       (302, None, Some "/login?error=Invalid+username+or+password"))
+      (local, None, (302, None, Some "/login?error=Invalid+username+or+password")) ]
+
+
+let tests = testList "ApiServer" [ localOnlyTests; permissions; cookies ]

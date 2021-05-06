@@ -50,6 +50,7 @@ module Insert =
       with e ->
         let msg = e.ToString()
 
+        // FSTODO: does this error trigger correctly
         if String.includes "duplicate key value violates unique constraint" msg then
           failwith "The secret's name is already defined for this canvas"
         else

@@ -32,6 +32,7 @@ let endpoints : Endpoint list =
   let RW = Auth.ReadWrite
 
   let api (name : string) fn =
+    // FSTODO: trace is_admin, username, and canvas
     routef (PrintfFormat<_, _, _, _, _>("/api/%s/" + name)) fn
 
   [ GET [ route "/login" Login.loginPage
@@ -40,7 +41,7 @@ let endpoints : Endpoint list =
 
     POST [ route "/login" Login.loginHandler
            route "/logout" Login.logout
-           // FSTODO: add_op
+           // FSTODO: add_op RW
            api "all_traces" (h Traces.AllTraces.fetchAll R)
            api "delete_404" (h F404s.Delete.delete RW)
            api "delete_secret" (h Secrets.Delete.delete RW)
@@ -54,6 +55,7 @@ let endpoints : Endpoint list =
            api "insert_secret" (h Secrets.Insert.insert RW)
            api "packages" (h Packages.List.packages R)
            // FSTODO: packages/upload_function
+           // FSTODO: save_test handler
            api "trigger_handler" (h Execution.Handler.trigger RW)
            api "worker_schedule" (h Workers.Scheduler.updateSchedule RW) ] ]
 
