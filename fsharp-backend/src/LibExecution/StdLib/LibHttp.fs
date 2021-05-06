@@ -287,26 +287,30 @@ let fns : List<BuiltInFn> =
             o
             // Transform a DOBj into a cookie list of individual cookie params
             |> Map.toList
-            |> List.map (fun (x, y) ->
-                match (String.toLower x, y) with
-                // Single boolean set-cookie params
-                | "secure", DBool b | "httponly", DBool b ->
-                    if b then [x] else []
-                // X=y set-cookie params
-                | "path", DStr str
-                | "domain", DStr str
-                | "samesite", DStr str ->
-                    [sprintf "%s=%s" x str]
-                | "max-age", DInt i | "expires", DInt i ->
-                    [sprintf "%s=%s" x (string i)]
-                // Throw if there's not a good way to transform the k/v pair
-                | _ ->
-                    Errors.throw
-                      $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
+            |> List.map
+                 (fun (x, y) ->
+                   match (String.toLower x, y) with
+                   // Single boolean set-cookie params
+                   | "secure", DBool b
+                   | "httponly", DBool b -> if b then [ x ] else []
+                   // X=y set-cookie params
+                   | "path", DStr str
+                   | "domain", DStr str
+                   | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
+                   | "max-age", DInt i
+                   | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
+                   // Throw if there's not a good way to transform the k/v pair
+                   | _ ->
+                       Errors.throw
+                         $"Unknown set-cookie param: {x}: {
+                                                             DvalRepr.toDeveloperReprV0
+                                                               y
+                         }")
             // Combine it into a set-cookie header
             |> List.concat
             |> String.concat "; "
-            |> sprintf "%s=%s; %s"
+            |> sprintf
+                 "%s=%s; %s"
                  (Uri.EscapeDataString name)
                  (Uri.EscapeDataString value)
             |> DStr
@@ -318,9 +322,10 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "setCookie" 1) }
     { name = fn "Http" "setCookie" 1
-      parameters = [ Param.make "name" TStr ""
-                     Param.make "value" TStr ""
-                     Param.make "params" (TDict varA) "" ]
+      parameters =
+        [ Param.make "name" TStr ""
+          Param.make "value" TStr ""
+          Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =
         "Generate an HTTP Set-Cookie header Object suitable for Http::responseWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
@@ -330,22 +335,25 @@ let fns : List<BuiltInFn> =
             o
             // Transform a DOBj into a cookie list of individual cookie params
             |> Map.toList
-            |> List.map (fun (x, y) ->
-                match (String.toLower x, y) with
-                // Single boolean set-cookie params
-                | "secure", DBool b | "httponly", DBool b ->
-                    if b then [x] else []
-                // X=y set-cookie params
-                | "path", DStr str
-                | "domain", DStr str
-                | "samesite", DStr str ->
-                    [sprintf "%s=%s" x str]
-                | "max-age", DInt i | "expires", DInt i ->
-                    [sprintf "%s=%s" x (string i)]
-                // Throw if there's not a good way to transform the k/v pair
-                | _ ->
-                    Errors.throw
-                      $"Unknown set-cookie param: {x}: {DvalRepr.toDeveloperReprV0 y}")
+            |> List.map
+                 (fun (x, y) ->
+                   match (String.toLower x, y) with
+                   // Single boolean set-cookie params
+                   | "secure", DBool b
+                   | "httponly", DBool b -> if b then [ x ] else []
+                   // X=y set-cookie params
+                   | "path", DStr str
+                   | "domain", DStr str
+                   | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
+                   | "max-age", DInt i
+                   | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
+                   // Throw if there's not a good way to transform the k/v pair
+                   | _ ->
+                       Errors.throw
+                         $"Unknown set-cookie param: {x}: {
+                                                             DvalRepr.toDeveloperReprV0
+                                                               y
+                         }")
             // Combine it into a set-cookie header
             |> List.concat
             |> String.concat "; "
@@ -369,9 +377,10 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = ReplacedBy(fn "Http" "setCookie" 2) }
     { name = fn "Http" "setCookie" 2
-      parameters = [ Param.make "name" TStr ""
-                     Param.make "value" TStr ""
-                     Param.make "params" (TDict varA) "" ]
+      parameters =
+        [ Param.make "name" TStr ""
+          Param.make "value" TStr ""
+          Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =
         "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn Http::responseWithHeaders>, given a cookie <param name>, a <type String> <param value> for it, and a <type Dict> of Set-Cookie <param params> ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}}, and/or {{SameSite}})."
@@ -379,92 +388,92 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DStr name; DStr value; DObj o ] ->
 
-                let fold_cookie_params acc key value =
-                  match (String.toLower key, value) with
-                  // Bubble up errors for values that are invalid for all params
-                  | _, ((DIncomplete _ | DErrorRail _ | DError _) as dv) ->
-                      Errors.foundFakeDval dv
-                  // Single boolean set-cookie params
-                  | "secure", v | "httponly", v ->
-                      (match v with
-                       | DBool b ->
-                           if b then (key :: acc) else acc
-                       | _ ->
-                           Errors.throw(
-                             Errors.argumentWasnt
-                              "`true` or `false`" "Secure or HttpOnly" v
-                           )
-                      )
-                  // key=data set-cookie params
-                  | "path", v | "domain", v ->
-                      (match v with
-                       | DStr str ->
-                           (sprintf "%s=%s" key str :: acc)
-                       | _ ->
-                           Errors.throw(
-                             Errors.argumentWasnt
-                               "a string" "`Path` or `Domain`" v
-                           )
-                      )
-                  | "samesite", v ->
-                      (match v with
-                       | DStr str
-                           when List.contains (String.toLower str) [ "strict"; "lax"; "none" ] ->
-                             (sprintf "%s=%s" key str :: acc)
-                       | _ ->
-                           Errors.throw(
-                             Errors.argumentWasnt
-                               "`Strict`, `Lax`, or `None`" "SameSite" v
-                           )
-                      )
-                  | "max-age", v ->
-                      (match v with
-                       | DInt i ->
-                           (sprintf "%s=%s" key (string i) :: acc)
-                       | _ ->
-                           Errors.throw(
-                             Errors.argumentWasnt
-                               "a `Int` representing seconds" "Max-Age" v
-                           )
-                      )
-                  | "expires", v ->
-                      (match v with
-                       | DDate d ->
-                           (sprintf "%s=%s" key
-                              (d.ToString
-                                ("ddd, dd MMM yyyy HH':'mm':'ss 'GMT'")
-                              ) :: acc
-                           )
-                       | _ ->
-                           Errors.throw(
-                             Errors.argumentWasnt "a date" "Expires" v
-                           )
-                      )
-                  // Error if the set-cookie parameter is invalid
-                  | _ ->
-                      Errors.throw(
-                        $"Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was {key}"
-                      )
+            let fold_cookie_params acc key value =
+              match (String.toLower key, value) with
+              // Bubble up errors for values that are invalid for all params
+              | _,
+                ((DIncomplete _
+                | DErrorRail _
+                | DError _) as dv) -> Errors.foundFakeDval dv
+              // Single boolean set-cookie params
+              | "secure", v
+              | "httponly", v ->
+                  (match v with
+                   | DBool b -> if b then (key :: acc) else acc
+                   | _ ->
+                       Errors.throw (
+                         Errors.argumentWasnt
+                           "`true` or `false`"
+                           "Secure or HttpOnly"
+                           v
+                       ))
+              // key=data set-cookie params
+              | "path", v
+              | "domain", v ->
+                  (match v with
+                   | DStr str -> (sprintf "%s=%s" key str :: acc)
+                   | _ ->
+                       Errors.throw (
+                         Errors.argumentWasnt "a string" "`Path` or `Domain`" v
+                       ))
+              | "samesite", v ->
+                  (match v with
+                   | DStr str when
+                     List.contains (String.toLower str) [ "strict"; "lax"; "none" ] ->
+                       (sprintf "%s=%s" key str :: acc)
+                   | _ ->
+                       Errors.throw (
+                         Errors.argumentWasnt
+                           "`Strict`, `Lax`, or `None`"
+                           "SameSite"
+                           v
+                       ))
+              | "max-age", v ->
+                  (match v with
+                   | DInt i -> (sprintf "%s=%s" key (string i) :: acc)
+                   | _ ->
+                       Errors.throw (
+                         Errors.argumentWasnt
+                           "a `Int` representing seconds"
+                           "Max-Age"
+                           v
+                       ))
+              | "expires", v ->
+                  (match v with
+                   | DDate d ->
+                       (sprintf
+                         "%s=%s"
+                         key
+                         (d.ToString("ddd, dd MMM yyyy HH':'mm':'ss 'GMT'"))
+                        :: acc)
+                   | _ -> Errors.throw (Errors.argumentWasnt "a date" "Expires" v))
+              // Error if the set-cookie parameter is invalid
+              | _ ->
+                  Errors.throw (
+                    $"Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was {
+                                                                                                                                               key
+                    }"
+                  )
 
-                let nameValue =
-                  sprintf "%s=%s" name value
-                  // DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
-                  // the implicit _v0, and
-                  // https://github.com/darklang/dark/pull/1917 for a
-                  // discussion of the bug), but incorrect. By the time it's
-                  // reached Http::setCookie_v1,  you've probably already
-                  // stored the cookie value as-is in a datastore somewhere, so
-                  // any changes will break attempts to look up the session.
-                  //
-                  // If you really want to shield against invalid
-                  // cookie-name/cookie-value strings, go read RFC6265 first.
-                let cookieParams = Map.fold fold_cookie_params [] o
-                nameValue :: cookieParams
-                |> String.concat "; "
-                |> DStr
-                |> fun x -> Map.add "Set-Cookie" x Map.empty
-                |> DObj
-                |> Value
+            let nameValue = sprintf "%s=%s" name value
+            // DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
+            // the implicit _v0, and
+            // https://github.com/darklang/dark/pull/1917 for a
+            // discussion of the bug), but incorrect. By the time it's
+            // reached Http::setCookie_v1,  you've probably already
+            // stored the cookie value as-is in a datastore somewhere, so
+            // any changes will break attempts to look up the session.
+            //
+            // If you really want to shield against invalid
+            // cookie-name/cookie-value strings, go read RFC6265 first.
+            let cookieParams = Map.fold fold_cookie_params [] o
+
+            nameValue :: cookieParams
+            |> String.concat "; "
+            |> DStr
+            |> fun x -> Map.add "Set-Cookie" x Map.empty
+            |> DObj
+            |> Value
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

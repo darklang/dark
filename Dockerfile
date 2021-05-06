@@ -181,6 +181,8 @@ ENV LC_ALL en_US.UTF-8
 ############################
 USER root
 
+RUN npm install -g prettier@2.2.1
+
 # Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
 # - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
 #   cross-volume, so it fails with an EXDEV error.
@@ -356,6 +358,16 @@ ENV TERM=xterm-256color
 ############################
 USER dark
 
+RUN sudo apt update && sudo apt install -y lldb htop
+RUN dotnet tool install -g dotnet-sos
+RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
+
+# formatting
+ENV PATH "$PATH:/home/dark/bin"
+RUN dotnet tool install fantomas-tool --version 4.4.0 --tool-path ~/bin
+RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
+
+
 ########################
 # Install Rust toolchain
 # This is in a separate container to save time in CI
@@ -384,7 +396,3 @@ RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 ENV CARGO_HOME=/home/dark/.cargo
 
 USER dark
-
-RUN sudo apt update && sudo apt install -y lldb htop
-RUN dotnet tool install -g dotnet-sos
-RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit

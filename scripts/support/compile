@@ -84,16 +84,6 @@ def copy_static():
 
 
 def client_build():
-  if os.environ.get("CI"):
-    start = time.time()
-    # ml is checked on the backend
-    result = run_frontend(
-        start, "./scripts/format check --prettier-only backend client")
-    if not result:
-      return result
-  else:
-    start = time.time()
-
   start = time.time()
   build = "unbuffer ./scripts/support/npm-run-build-with-retry"
   result = run_frontend(start, build)
@@ -138,16 +128,6 @@ def test_nginx():
   return result
 
 def backend_build():
-  if os.environ.get("CI"):
-    start = time.time()
-    # checks the frontend too
-    result = run_backend(
-        start, "./scripts/format check  --ocaml-only client backend")
-    if not result:
-      return result
-  else:
-    start = time.time()
-
   start = time.time()
   # Get all the ml files in backend/bin, and build executables This is less
   # technically correct than "parse the sexp in backend/bin/dune", but it
@@ -249,15 +229,6 @@ def fsharp_backend_quick_build():
 
 
 def fsharp_backend_full_build():
-  if os.environ.get("CI"):
-    start = time.time()
-    #  result = run_backend(
-    #      start, "./scripts/format check  --ocaml-only client backend")
-    #  if not result:
-    #    return result
-  else:
-    start = time.time()
-
   start = time.time()
   #FSTODO: there is a bug in the .NET linker, come back to it later.
   #https://github.com/mono/linker/issues/1508
@@ -280,11 +251,6 @@ def fsharp_backend_full_build():
 
 def rust_build(dir):
   if os.environ.get("CI"):
-    start = time.time()
-    result = run_backend(
-        start, f"./scripts/format check --rust-only {dir}")
-    if not result:
-      return result
     build_flags = " --release"
   else:
     build_flags = ""

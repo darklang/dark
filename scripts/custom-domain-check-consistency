@@ -39,8 +39,11 @@ TLSES=$(printf "%s" "${CERTMANAGER_JSON}" \
 RULES=$(printf "%s" "${CERTMANAGER_JSON}" \
   | jq -r '.spec.rules | map ( .host ) | sort | .[] ' \
   | grep -v ops-placeholder.darkcustomdomain.com)
+CERTS=$(kubectl get certs -o json \
+  | jq -r '.items | map ( .spec.dnsNames[0] ) | sort | .[] ' \
+  | grep -v ops-placeholder.darkcustomdomain.com)
 
-if [[ "${TLSES}"x == "${DBHOSTS}"x && "${RULES}"x == "${DBHOSTS}"x ]]; then
+if [[ "${TLSES}"x == "${DBHOSTS}"x && "${RULES}"x == "${DBHOSTS}"x && "${CERTS}"x == "${DBHOSTS}"x ]]; then
   echo -e "\nAll entries match"
   echo "${DBHOSTS}"
   echo -e "\nAll entries match"
@@ -49,17 +52,19 @@ else
   echo -e "DB: \n${DBHOSTS}\n"
   echo -e "TLS: \n${TLSES}\n"
   echo -e "Rules: \n${RULES}\n"
+  echo -e "Certs: \n${CERTS}\n"
 
   echo "DB hosts vs Rules:"
   diff <(echo "${DBHOSTS}") <(echo "${RULES}") || true
   echo -e "\nDB hosts vs TLSes:"
   diff <(echo "${DBHOSTS}") <(echo "${TLSES}") || true
-  echo -e "\nTLSes vs Rules:"
-  diff <(echo "${TLSES}") <(echo "${RULES}") || true
+  echo -e "\nDB hosts vs certs:"
+  diff <(echo "${DBHOSTS}") <(echo "${CERTS}") || true
 
   echo -e "\nDB    sha: $(echo ${DBHOSTS} | sha1sum )"
   echo -e "TLS   sha: $(echo ${TLSES} | sha1sum )"
   echo -e "Rules sha: $(echo ${RULES} | sha1sum )\n"
+  echo -e "Certs sha: $(echo ${CERTS} | sha1sum )\n"
   echo -e "ERROR: Entries do not all match"
   exit 1
 fi

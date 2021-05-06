@@ -24,7 +24,7 @@ type t = bool
 
 (** {1 Create} *)
 
-val fromInt: int -> bool option
+val fromInt : int -> bool option
 (** Convert an {!Int} into a {!Bool}.
 
     {2 Examples}
@@ -38,9 +38,9 @@ val fromInt: int -> bool option
     {[Bool.fromInt (-3) = None]}
 *)
 
-val from_int: int -> bool option
+val from_int : int -> bool option
 
-val fromString: string -> bool option
+val fromString : string -> bool option
 (** Convert a {!String} into a {!Bool}.
 
     {2 Examples}
@@ -60,11 +60,11 @@ val fromString: string -> bool option
     {[Bool.fromString "Not even close" = None]}
 *)
 
-val from_string: string -> bool option
+val from_string : string -> bool option
 
 (** {1 Basic operations} *)
 
-val and_: bool -> bool -> bool
+val and_ : bool -> bool -> bool
 (** The lazy logical AND operator.
 
     Returns [true] if both of its operands evaluate to [true].
@@ -82,7 +82,7 @@ val and_: bool -> bool -> bool
     {[Bool.(false && false) = false]}
 *)
 
-val or_: bool -> bool -> bool
+val or_ : bool -> bool -> bool
 (** The lazy logical OR operator.
 
     Returns [true] if one of its operands evaluates to [true].
@@ -100,7 +100,7 @@ val or_: bool -> bool -> bool
     {[Bool.(false || false) = false]}
 *)
 
-val xor: bool -> bool -> bool
+val xor : bool -> bool -> bool
 (** The exclusive or operator.
 
     Returns [true] if {b exactly one} of its operands is [true].
@@ -116,7 +116,7 @@ val xor: bool -> bool -> bool
     {[Bool.xor false false = false]}
 *)
 
-val not: t -> bool
+val not : t -> bool
 (** Negate a [bool].
 
     {2 Examples}
@@ -128,7 +128,7 @@ val not: t -> bool
 
 (** {1 Convert} *)
 
-val toString: bool -> string
+val toString : bool -> string
 (** Convert a [bool] to a {!String}
 
     {2 Examples}
@@ -138,9 +138,9 @@ val toString: bool -> string
     {[Bool.toString false = "false"]}
 *)
 
-val to_string: bool -> string
+val to_string : bool -> string
 
-val toInt: bool -> int
+val toInt : bool -> int
 (** Convert a [bool] to an {!Int}.
 
     {2 Examples}
@@ -150,11 +150,11 @@ val toInt: bool -> int
     {[Bool.toInt false = 0]}
 *)
 
-val to_int: bool -> int
+val to_int : bool -> int
 
 (** {1 Compare} *)
 
-val equal: bool -> bool -> bool
+val equal : bool -> bool -> bool
 (** Test for the equality of two [bool] values.
 
     {2 Examples}
@@ -166,7 +166,7 @@ val equal: bool -> bool -> bool
     {[Bool.equal false true = false]}
 *)
 
-val compare: bool -> bool -> int
+val compare : bool -> bool -> int
 (** Compare two boolean values
 
     {2 Examples}

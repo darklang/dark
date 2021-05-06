@@ -152,7 +152,13 @@ let specialCasePermission
   (username : UserName.T)
   (ownerName : OwnerName.T)
   : Option<Permission> =
-  if List.any ((=) (ownerName, username)) specialCases then
+  if List.any
+       ((=)
+         (
+           ownerName,
+           username
+         ))
+       specialCases then
     Some ReadWrite
   else
     None

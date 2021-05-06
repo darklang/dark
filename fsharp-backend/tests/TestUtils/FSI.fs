@@ -32,7 +32,7 @@ let executeOCaml (code : string) : RT.Dval =
       let prog = FSharpToExpr.parsePTExpr code
       let! state = TestUtils.executionStateFor "fsi" Map.empty Map.empty
       let accountID = state.program.accountID
-      let canvasID =  state.program.canvasID
+      let canvasID = state.program.canvasID
       return! OCamlInterop.execute accountID canvasID prog Map.empty [] []
     }
 

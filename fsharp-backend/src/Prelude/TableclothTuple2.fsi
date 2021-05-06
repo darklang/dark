@@ -6,7 +6,7 @@ type ('a, 'b) t = 'a * 'b
 
 (** {1 Create} *)
 
-val make: 'a -> 'b -> 'a * 'b
+val make : 'a -> 'b -> 'a * 'b
 (** Create a two-tuple with the given values.
 
     The values do not have to be of the same type.
@@ -16,7 +16,7 @@ val make: 'a -> 'b -> 'a * 'b
     {[Tuple2.make 3 "Clementine" = (3, "Clementine")]}
 *)
 
-val fromArray: 'a array -> ('a * 'a) option
+val fromArray : 'a array -> ('a * 'a) option
 (** Create a tuple from the first two elements of an {!Array}.
 
     If the array is longer than two elements, the extra elements are ignored.
@@ -32,9 +32,9 @@ val fromArray: 'a array -> ('a * 'a) option
     {[Tuple2.fromArray [|4; 5; 6|] = Some (4, 5)]}
 *)
 
-val from_array: 'a array -> ('a * 'a) option
+val from_array : 'a array -> ('a * 'a) option
 
-val fromList: 'a list -> ('a * 'a) option
+val fromList : 'a list -> ('a * 'a) option
 (** Create a tuple from the first two elements of a {!List}.
 
     If the list is longer than two elements, the extra elements are ignored.
@@ -50,9 +50,9 @@ val fromList: 'a list -> ('a * 'a) option
     {[Tuple2.fromList [4; 5; 6] = Some (4, 5)]}
 *)
 
-val from_list: 'a list -> ('a * 'a) option
+val from_list : 'a list -> ('a * 'a) option
 
-val first: 'a * 'b -> 'a
+val first : 'a * 'b -> 'a
 (** Extract the first value from a tuple.
 
     {2 Examples}
@@ -62,7 +62,7 @@ val first: 'a * 'b -> 'a
     {[Tuple2.first ("john", "doe") = "john"]}
 *)
 
-val second: 'a * 'b -> 'b
+val second : 'a * 'b -> 'b
 (** Extract the second value from a tuple.
 
     {2 Examples}
@@ -74,7 +74,7 @@ val second: 'a * 'b -> 'b
 
 (** {1 Transform} *)
 
-val mapFirst: f:('a -> 'x) -> 'a * 'b -> 'x * 'b
+val mapFirst : f: ('a -> 'x) -> 'a * 'b -> 'x * 'b
 (** Transform the {!first} value in a tuple.
 
     {2 Examples}
@@ -84,9 +84,9 @@ val mapFirst: f:('a -> 'x) -> 'a * 'b -> 'x * 'b
     {[Tuple2.mapFirst String.length ("stressed", 16) = (8, 16)]}
 *)
 
-val map_first: f:('a -> 'x) -> 'a * 'b -> 'x * 'b
+val map_first : f: ('a -> 'x) -> 'a * 'b -> 'x * 'b
 
-val mapSecond: f:('b -> 'c) -> 'a * 'b -> 'a * 'c
+val mapSecond : f: ('b -> 'c) -> 'a * 'b -> 'a * 'c
 (** Transform the second value in a tuple.
 
     {2 Examples}
@@ -96,9 +96,9 @@ val mapSecond: f:('b -> 'c) -> 'a * 'b -> 'a * 'c
     {[Tuple2.mapSecond (~-) ("stressed", 16) = ("stressed", -16)]}
 *)
 
-val map_second: f:('b -> 'c) -> 'a * 'b -> 'a * 'c
+val map_second : f: ('b -> 'c) -> 'a * 'b -> 'a * 'c
 
-val mapEach: f:('a -> 'x) -> g:('b -> 'y) -> 'a * 'b -> 'x * 'y
+val mapEach : f: ('a -> 'x) -> g: ('b -> 'y) -> 'a * 'b -> 'x * 'y
 (** Transform both values of a tuple, using [f] for the first value and [g] for the second.
 
     {2 Examples}
@@ -108,9 +108,9 @@ val mapEach: f:('a -> 'x) -> g:('b -> 'y) -> 'a * 'b -> 'x * 'y
     {[Tuple2.mapEach String.length (~-) ("stressed", 16) = (8, -16)]}
 *)
 
-val map_each: f:('a -> 'x) -> g:('b -> 'y) -> 'a * 'b -> 'x * 'y
+val map_each : f: ('a -> 'x) -> g: ('b -> 'y) -> 'a * 'b -> 'x * 'y
 
-val mapAll: f:('a -> 'b) -> 'a * 'a -> 'b * 'b
+val mapAll : f: ('a -> 'b) -> 'a * 'a -> 'b * 'b
 (** Transform both of the values of a tuple using the same function.
 
     [mapAll] can only be used on tuples which have the same type for each value.
@@ -122,9 +122,9 @@ val mapAll: f:('a -> 'b) -> 'a * 'a -> 'b * 'b
     {[Tuple2.mapAll String.length ("was", "stressed") = (3, 8)]}
 *)
 
-val map_all: f:('a -> 'b) -> 'a * 'a -> 'b * 'b
+val map_all : f: ('a -> 'b) -> 'a * 'a -> 'b * 'b
 
-val swap: 'a * 'b -> 'b * 'a
+val swap : 'a * 'b -> 'b * 'a
 (** Switches the first and second values of a tuple.
 
     {2 Examples}
@@ -136,7 +136,7 @@ val swap: 'a * 'b -> 'b * 'a
 
 (** {1 Convert} *)
 
-val toArray: 'a * 'a -> 'a array
+val toArray : 'a * 'a -> 'a array
 (** Turns a tuple into an {!Array} of length two.
 
     This function can only be used on tuples which have the same type for each value.
@@ -148,9 +148,9 @@ val toArray: 'a * 'a -> 'a array
     {[Tuple2.toArray ("was", "stressed") = [|"was"; "stressed"|]]}
 *)
 
-val to_array: 'a * 'a -> 'a array
+val to_array : 'a * 'a -> 'a array
 
-val toList: 'a * 'a -> 'a list
+val toList : 'a * 'a -> 'a list
 (** Turns a tuple into a list of length two. This function can only be used on tuples which have the same type for each value.
 
     {2 Examples}
@@ -160,11 +160,11 @@ val toList: 'a * 'a -> 'a list
     {[Tuple2.toList ("was", "stressed") = ["was"; "stressed"]]}
 *)
 
-val to_list: 'a * 'a -> 'a list
+val to_list : 'a * 'a -> 'a list
 
 (** {1 Compare} *)
 
-val equal:
+val equal :
   ('a -> 'a -> bool) -> ('b -> 'b -> bool) -> 'a * 'b -> 'a * 'b -> bool
 (** Test two {!Tuple2}s for equality, using the provided functions to test the
     first and second components.
@@ -176,7 +176,8 @@ val equal:
     {[Tuple2.equal Int.equal String.equal (1, "Fox") (2, "Hen") = false]}
 *)
 
-val compare: ('a -> 'a -> int) -> ('b -> 'b -> int) -> 'a * 'b -> 'a * 'b -> int
+val compare :
+  ('a -> 'a -> int) -> ('b -> 'b -> int) -> 'a * 'b -> 'a * 'b -> int
 (** Compare two {!Tuple2}s, using the provided functions to compare the first
     components then, if the first components are equal, the second components.
 
