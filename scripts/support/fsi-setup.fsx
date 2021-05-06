@@ -8,7 +8,7 @@ printfn
 #I "../../fsharp-backend"
 #I "../../fsharp-backend/Build/out"
 
-#load ".paket/load/net50/main.group.fsx"
+#load ".paket/load/net60/main.group.fsx"
 #r "Prelude.dll"
 #r "LibService.dll"
 #r "LibExecution.dll"
