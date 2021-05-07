@@ -644,7 +644,6 @@ let fns : List<BuiltInFn> =
                         false
                     | v ->
                         Errors.throw (Errors.expectedLambdaType TBool v)
-                        false
 
                   return run && cont
                 }
