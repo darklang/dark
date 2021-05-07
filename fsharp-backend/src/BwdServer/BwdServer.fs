@@ -232,7 +232,7 @@ let runHttp
   (body : byte [])
   (inputVars : RT.Symtable)
   (expr : RT.Expr)
-  : Task<RT.Dval * Exe.HashSet<tlid>> =
+  : Task<RT.Dval * HashSet.T<tlid>> =
   task {
     let program = Canvas.toProgram c
     let! state, touchedTLIDs = RealExe.createState traceID tlid program

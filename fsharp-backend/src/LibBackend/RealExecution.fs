@@ -49,7 +49,7 @@ let createState
   (traceID : AT.TraceID)
   (tlid : tlid)
   (program : RT.ProgramContext)
-  : Task<RT.ExecutionState * Exe.HashSet<tlid>> =
+  : Task<RT.ExecutionState * HashSet.T<tlid>> =
   task {
     let canvasID = program.canvasID
 

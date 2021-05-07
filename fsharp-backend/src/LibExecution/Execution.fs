@@ -3,9 +3,6 @@ module LibExecution.Execution
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
-type HashSet<'k> = System.Collections.Generic.HashSet<'k>
-
 open Prelude
 open Tablecloth
 
@@ -109,8 +106,8 @@ let executeFunction
 // Return a function to trace TLIDs (add it to state via
 // state.tracing.traceTLID), and a mutable set which updates when the traceFn
 // is used
-let traceTLIDs () : HashSet<tlid> * RT.TraceTLID =
-  let touchedTLIDs = HashSet()
+let traceTLIDs () : HashSet.T<tlid> * RT.TraceTLID =
+  let touchedTLIDs = HashSet.empty ()
   let traceTLID tlid : unit = HashSet.add tlid touchedTLIDs
   (touchedTLIDs, traceTLID)
 
@@ -125,10 +122,10 @@ let updateTracing
 // Return a function to trace Dvals (add it to state via
 // state.tracing.traceDval), and a mutable dictionary which updates when the
 // traceFn is used
-let traceDvals () : Dictionary<id, AT.ExecutionResult> * RT.TraceDval =
-  let results = Dictionary()
+let traceDvals () : Dictionary.T<id, AT.ExecutionResult> * RT.TraceDval =
+  let results = Dictionary.empty ()
 
-  let trace onExecutionPath (id : id) (dval : RT.Dval) =
+  let trace onExecutionPath (id : id) (dval : RT.Dval) : unit =
     let result =
       (if onExecutionPath then AT.ExecutedResult dval else AT.NonExecutedResult dval)
 
