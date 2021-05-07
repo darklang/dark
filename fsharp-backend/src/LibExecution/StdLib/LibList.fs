@@ -614,37 +614,50 @@ let fns : List<BuiltInFn> =
     //   sqlSpec = NotYetImplementedTODO
     //   previewable = Pure
     //   deprecated = NotDeprecated }
-    //   ; { name = fn "List" "filter" 1
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
-//         Preserves the order of values that were not dropped.
-//         Consider `List::filterMap` if you also want to transform the values."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let fakecf = ref None in
-//               let f (dv : dval) : bool =
-//                 let run = !fakecf = None in
-//                 run
-//                 &&
-//                 match Ast.execute_dblock ~state b [dv] with
-//                 | DBool b ->
-//                     b
-//                 | (DIncomplete _ | DErrorRail _) as dv ->
-//                     fakecf := Some dv ;
-//                     false
-//                 | v ->
-//                     RT.error "Expecting fn to return bool" v dv
-//               in
-//               let result = List.filter ~f l in
-//               (match !fakecf with None -> DList result | Some v -> v)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "filter" 1
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TList varA
+      description = "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
+        Preserves the order of values that were not dropped.
+        Consider `List::filterMap` if you also want to transform the values."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+              let fakecf = ref None
+
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let run = !fakecf = None
+
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                  let cont =
+                    match result with
+                    | DBool b -> b
+                    | (DIncomplete _
+                    | DErrorRail _) as dv ->
+                        fakecf := Some dv
+                        false
+                    | v ->
+                        Errors.throw (Errors.expectedLambdaType TBool v)
+                        false
+
+                  return run && cont
+                }
+
+              let! result = filter_s f l
+              match !fakecf with
+              | None -> return DList(result)
+              | Some v -> return v
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "List" "filter" 2) }
 //   ; { name = fn "List" "filter" 2
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
