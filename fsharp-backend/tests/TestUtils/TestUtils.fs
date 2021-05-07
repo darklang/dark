@@ -733,3 +733,61 @@ let sampleDvals : List<string * Dval> =
          )) ]
 
 // FSTODO: deeply nested data
+
+// Utilties shared among tests
+module Http =
+  type T = { status : string; headers : string list; body : byte array }
+
+  let setHeadersToCRLF (text : byte array) : byte array =
+    // We keep our test files with an LF line ending, but the HTTP spec
+    // requires headers (but not the body, nor the first line) to have CRLF
+    // line endings
+    let mutable justSawNewline = false
+    let mutable inBody = false
+
+    text
+    |> Array.toList
+    |> List.collect
+         (fun b ->
+           if not inBody && b = byte '\n' then
+             if justSawNewline then inBody <- true
+             justSawNewline <- true
+             [ byte '\r'; b ]
+           else
+             justSawNewline <- false
+             [ b ])
+    |> List.toArray
+
+  let split (response : byte array) : T =
+    // read a single line of bytes (a line ends with \r\n)
+    let rec consume (existing : byte list) (l : byte list) : byte list * byte list =
+      match l with
+      | [] -> [], []
+      | 13uy :: 10uy :: tail -> existing, tail
+      | head :: tail -> consume (existing @ [ head ]) tail
+
+    // read all headers (ends when we get two \r\n in a row), return headers
+    // and remaining byte string (the body). Assumes the status line is not
+    // present. Headers are returned reversed
+    let rec consumeHeaders
+      (headers : string list)
+      (l : byte list)
+      : string list * byte list =
+      let (line, remaining) = consume [] l
+
+      if line = [] then
+        (headers, remaining)
+      else
+        let str = line |> Array.ofList |> ofBytes
+        consumeHeaders (str :: headers) remaining
+
+    let bytes = Array.toList response
+
+    // read the status like (eg HTTP 200 OK)
+    let status, bytes = consume [] bytes
+
+    let headers, body = consumeHeaders [] bytes
+
+    { status = status |> List.toArray |> ofBytes
+      headers = List.reverse headers
+      body = List.toArray body }
