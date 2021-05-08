@@ -736,7 +736,7 @@ let sampleDvals : List<string * Dval> =
 
 // Utilties shared among tests
 module Http =
-  type T = { status : string; headers : string list; body : byte array }
+  type T = { status : string; headers : (string * string) list; body : byte array }
 
   let setHeadersToCRLF (text : byte array) : byte array =
     // We keep our test files with an LF line ending, but the HTTP spec
@@ -788,6 +788,16 @@ module Http =
 
     let headers, body = consumeHeaders [] bytes
 
+    let headers =
+      headers
+      |> List.reverse
+      |> List.map
+           (fun s ->
+             match String.split ": " s with
+             | k :: vs -> (k, String.concat ": " vs)
+             | _ -> failwith $"not a valid header: {s}")
+
+
     { status = status |> List.toArray |> ofBytes
-      headers = List.reverse headers
+      headers = headers
       body = List.toArray body }
