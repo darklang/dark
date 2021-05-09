@@ -1,17 +1,25 @@
 [expected-request]
-HEAD / HTTP/1.1
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip
 Host: HOST
-Date: Sun, 08 Nov 2020 15:38:01 GMT
-Content-Length: 0
 
 [response]
-HTTP/1.1 404 Not Found
+HTTP/1.1 200 Ok
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
-Content-type: text/plain; charset=utf-8 // FSHARPONLY
-Access-Control-Allow-Origin: *
-x-darklang-execution-id: 0123456789
-Server: darklang
-Content-Length: 31
+Content-type: text/plain; charset=utf-8
+Content-Length: 12
+
+"Hello back"
 
 [test]
-HttpClient.get_v0 "http://HOST/" Dict.empty Dict.empty Dict.empty = Test.error_v0 "x"
+HttpClient.get_v0 "http://URL/" { str = "Hello world" }  Dict.empty Dict.empty =
+   { body = "Hello back"
+     headers =
+       {
+         Accept = "*/*"
+         ``Accept-Encoding`` = "deflate, gzip"
+         Date = "Sat, 08 May 2021 16:10:40 GMT"
+         Host = "test.builtwithdark.localhost:10005"
+         Server = "Kestrel"
+       }}
