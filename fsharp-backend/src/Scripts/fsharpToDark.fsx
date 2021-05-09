@@ -11,10 +11,8 @@
 //   that (eg use `x |> y` instead of `y x`)
 
 // If there's a problem, you need to run:
-// $ rm paket-files/paket.restore.cached
-// $ dotnet restore
-// $ dotnet paket generate-load-scripts --framework net50
-#load "../../.paket/load/net50/main.group.fsx"
+// $ ./scripts/support/dotnet-regen-fsi
+#load "../../.paket/load/net60/main.group.fsx"
 #r "../../Build/out/Tests.dll"
 #r "../../Build/out/TestUtils.dll"
 #r "../../Build/out/Prelude.dll"
