@@ -161,23 +161,32 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "findFirst" 0
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = varA
-//     ; description =
-//         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let f (dv : dval) : bool =
-//                 DBool true = Ast.execute_dblock ~state b [dv]
-//               in
-//               (match List.find ~f l with None -> DNull | Some dv -> dv)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "List" "findFirst" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = varA
+      description =
+        "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+                let f (dv : Dval) : TaskOrValue<bool> =
+                  taskv {
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                    return result = DBool true
+                  }
+
+                let! result = find_s f l
+                return Option.defaultValue DNull result
+              }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "List" "findFirst" 1) }
 //   ; { name = fn "List" "findFirst" 1
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TOption
