@@ -138,12 +138,12 @@ let t filename =
         // Web server might not be loaded yet
         use client = new TcpClient()
 
-        let mutable connected = false
-
         let port =
           match server with
           | OCaml -> 8001
           | FSharp -> 10001
+
+        let mutable connected = false
 
         for i in 1 .. 10 do
           try
