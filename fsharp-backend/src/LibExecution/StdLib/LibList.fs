@@ -213,27 +213,32 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = ReplacedBy(fn "List" "findFirst" 2) }
-//   ; { name = fn "List" "findFirst" 2
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let f (dv : Types.RuntimeT.dval) : bool =
-//                 DBool true = Ast.execute_dblock ~state b [dv]
-//               in
-//               ( match List.find ~f l with
-//               | None ->
-//                   DOption OptNothing
-//               | Some dv ->
-//                   Dval.to_opt_just dv )
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "findFirst" 2
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TOption varA
+      description =
+        "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+                let f (dv : Dval) : TaskOrValue<bool> =
+                  taskv {
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                    return result = DBool true
+                  }
+
+                let! result = find_s f l
+                return Dval.option result
+              }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "contains" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TBool
