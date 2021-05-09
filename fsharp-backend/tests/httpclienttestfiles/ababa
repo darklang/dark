@@ -2,24 +2,33 @@
 GET PATH HTTP/1.1
 Accept: */*
 Accept-Encoding: deflate, gzip
+Content-Type: text/plain; charset=utf-8
 Host: HOST
 
 [response]
-HTTP/1.1 200 Ok
+HTTP/1.1 200 OK
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-type: text/plain; charset=utf-8
-Content-Length: 12
+Content-Length: 11
 
 "Hello back"
 
 [test]
-HttpClient.get_v0 "http://URL/" { str = "Hello world" }  Dict.empty Dict.empty =
-   { body = "Hello back"
+(let response = HttpClient.get_v5_ster "http://URL/" Dict.empty Dict.empty in
+ let headers = response.headers |> Dict.set "Date" "" in
+ Dict.set response "headers" headers) =
+   { body = ""
+     code = 200
+     error = ""
      headers =
-       {
-         Accept = "*/*"
-         ``Accept-Encoding`` = "deflate, gzip"
-         Date = "Sat, 08 May 2021 16:10:40 GMT"
-         Host = "test.builtwithdark.localhost:10005"
-         Server = "Kestrel"
-       }}
+      {
+        Accept = "*/*"
+        ``Accept-Encoding`` = "deflate, gzip"
+        ``Content-Type`` = "text/plain; charset=utf-8"
+        ``HTTP/1.1 200 OK`` = ""
+        Date = ""
+        Host = "test.builtwithdark.localhost:10005"
+        ``Transfer-Encoding`` = "chunked"
+        Server = "Kestrel"
+      }
+     raw = ""}

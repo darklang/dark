@@ -375,8 +375,8 @@ module Expect =
       if a <> e then errorFn (string actual) (string expected)
 
     let eqList (l1 : List<RT.Pattern>) (l2 : List<RT.Pattern>) =
-      check (List.length l1) (List.length l2)
       List.iter2 eq l1 l2
+      Expect.equal (List.length l1) (List.length l2) ""
 
     if checkIDs then check (Pattern.toID actual) (Pattern.toID expected)
 
@@ -785,6 +785,7 @@ module Http =
 
     // read the status like (eg HTTP 200 OK)
     let status, bytes = consume [] bytes
+    printfn "status is %s" (status |> Array.ofList |> ofBytes)
 
     let headers, body = consumeHeaders [] bytes
 

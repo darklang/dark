@@ -105,7 +105,7 @@ let t filename =
         with e -> failwith "When calling OCaml code, OCaml server failed: {msg}, {e}"
 
       if shouldEqual then
-        Expect.equalDval (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
+        Expect.equal (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
       else
         Expect.notEqual (normalizeDvalResult ocamlActual) expected $"OCaml: {msg}"
 
@@ -155,10 +155,23 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
     let expectedBody = testCase.expected.body
 
     if (headers, requestBody) = (expectedHeaders, testCase.expected.body) then
+      printfn "It matches, returning prepared response"
       ctx.Response.StatusCode <- 200
       Map.iter (fun k v -> BwdServer.setHeader ctx k v) expectedHeaders
       do! ctx.Response.Body.WriteAsync(expectedBody, 0, expectedBody.Length)
     else
+      let expectedHeaders =
+        expectedHeaders
+        |> Map.toList
+        |> List.map (fun (k, v) -> k + ": " + v)
+        |> String.concat "\n"
+
+      let headers =
+        headers
+        |> Map.toList
+        |> List.map (fun (k, v) -> k + ": " + v)
+        |> String.concat "\n"
+
       let body =
         $"Expected\n{expectedHeaders}\n{toStr expectedBody}\n"
         + $"Got:\n{headers}\n{toStr requestBody}"
