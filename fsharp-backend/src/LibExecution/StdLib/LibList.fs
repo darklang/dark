@@ -1079,10 +1079,8 @@ let fns : List<BuiltInFn> =
                     Errors.argumentWasnt "a list with exactly two values" "pairs" v
                     + err_details
                   )
-            // We reverse here so that the [foldi ocaml and fold fsharp] consing happens in the correct order.
-            // It does mean that the index passed by [foldi and fsharp] counts from the end
-            let result = l |> List.rev |> List.fold f ([], [])
 
+            let result = l |> List.rev |> List.fold f ([], [])
             match result with
             | (l, l2) -> Value(DList [ DList l; DList l2 ])
         | _ -> incorrectArgs ())
