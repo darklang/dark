@@ -167,7 +167,7 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = varA
       description =
-        "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
+        "Returns the first value of `list` for which `f val` returns `true`. Returns `null` if no such value exists."
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
