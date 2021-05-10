@@ -172,17 +172,17 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal fn ] ->
             taskv {
-                let f (dv : Dval) : TaskOrValue<bool> =
-                  taskv {
-                    let! result =
-                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
-                    return result = DBool true
-                  }
+                  return result = DBool true
+                }
 
-                let! result = find_s f l
-                return Option.defaultValue DNull result
-              }
+              let! result = find_s f l
+              return Option.defaultValue DNull result
+            }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -198,17 +198,17 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal fn ] ->
             taskv {
-                let f (dv : Dval) : TaskOrValue<bool> =
-                  taskv {
-                    let! result =
-                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
-                    return result = DBool true
-                  }
+                  return result = DBool true
+                }
 
-                let! result = find_s f l
-                return DOption result
-              }
+              let! result = find_s f l
+              return DOption result
+            }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -224,17 +224,17 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal fn ] ->
             taskv {
-                let f (dv : Dval) : TaskOrValue<bool> =
-                  taskv {
-                    let! result =
-                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
-                    return result = DBool true
-                  }
+                  return result = DBool true
+                }
 
-                let! result = find_s f l
-                return Dval.option result
-              }
+              let! result = find_s f l
+              return Dval.option result
+            }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -661,13 +661,13 @@ let fns : List<BuiltInFn> =
                     | DErrorRail _) as dv ->
                         fakecf := Some dv
                         false
-                    | v ->
-                        Errors.throw (Errors.expectedLambdaType TBool v)
+                    | v -> Errors.throw (Errors.expectedLambdaType TBool v)
 
                   return run && cont
                 }
 
               let! result = filter_s f l
+
               match !fakecf with
               | None -> return DList(result)
               | Some v -> return v
@@ -708,7 +708,9 @@ let fns : List<BuiltInFn> =
                     | v ->
                         Errors.throw (
                           Errors.argumentWasnt
-                            "`true` or `false` for every value in `list`" "f" v
+                            "`true` or `false` for every value in `list`"
+                            "f"
+                            v
                           + $"for the input {DvalRepr.toDeveloperReprV0 dv}"
                         )
 
@@ -716,6 +718,7 @@ let fns : List<BuiltInFn> =
                 }
 
               let! result = filter_s f l
+
               match !abortReason with
               | None -> return DList(result)
               | Some v -> return v
@@ -724,7 +727,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-//   ; { name = fn "List" "filterMap" 0
+    //   ; { name = fn "List" "filterMap" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -1081,6 +1084,7 @@ let fns : List<BuiltInFn> =
                   )
 
             let result = l |> List.rev |> List.fold f ([], [])
+
             match result with
             | (l, l2) -> Value(DList [ DList l; DList l2 ])
         | _ -> incorrectArgs ())
