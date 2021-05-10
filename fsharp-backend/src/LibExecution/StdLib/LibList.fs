@@ -711,7 +711,7 @@ let fns : List<BuiltInFn> =
                             "`true` or `false` for every value in `list`"
                             "f"
                             v
-                          + $"for the input {DvalRepr.toDeveloperReprV0 dv}"
+                          + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
                         )
 
                   return run && cont
