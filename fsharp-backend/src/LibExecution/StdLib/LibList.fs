@@ -651,19 +651,22 @@ let fns : List<BuiltInFn> =
                 taskv {
                   let run = !fakecf = None
 
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+                  if run then
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
-                  let cont =
                     match result with
-                    | DBool b -> b
+                    | DBool b -> return b
                     | (DIncomplete _
                     | DErrorRail _) as dv ->
                         fakecf := Some dv
-                        false
-                    | v -> Errors.throw (Errors.expectedLambdaType TBool v)
+                        return false
+                    | v ->
+                        Errors.throw (Errors.expectedLambdaType TBool v)
+                        return false
 
-                  return run && cont
+                  else
+                    return false
                 }
 
               let! result = filter_s f l
@@ -694,17 +697,17 @@ let fns : List<BuiltInFn> =
                 taskv {
                   let run = !abortReason = None
 
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+                  if run then
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
 
-                  let cont =
                     match result with
-                    | DBool b -> b
+                    | DBool b -> return b
                     | (DIncomplete _
                     | DErrorRail _
                     | DError _) as dv ->
                         abortReason := Some dv
-                        false
+                        return false
                     | v ->
                         Errors.throw (
                           Errors.argumentWasnt
@@ -714,7 +717,10 @@ let fns : List<BuiltInFn> =
                           + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
                         )
 
-                  return run && cont
+                        return false
+
+                  else
+                    return false
                 }
 
               let! result = filter_s f l
