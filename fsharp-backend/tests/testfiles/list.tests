@@ -31,22 +31,59 @@ List.empty_v0 = []
 
 List.filter_v0 [-20; 5; 9;] (fun x -> x < 1) = [-20]
 List.filter_v0 [-20; 5; 9;] (fun x -> x > 1) = [5, 9]
+List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1, 3]
 List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > -2 then true else false)) = [1; -1; 2; 3; 4]
 List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3, 4]
 List.filter_v0 [1;2;3] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3]
+List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = [1, 3]
 List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
 List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expecting the function to return Bool, but the result was 2" // FSHARPONLY
-List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1, 3]
+List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
+List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting the function to return Bool, but the result was \"a\"" // FSHARPONLY
 
-//List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`"
-//List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
-//List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1, 3 ]
-//List.filter_v2 [] (fun item -> true) = []
+List.filter_v1 [-20; 5; 9;] (fun x -> x < 1) = [-20]
+List.filter_v1 [-20; 5; 9;] (fun x -> x > 20) = []
+List.filter_v1 [-20; 5; 9;] (fun x -> true) = [-20, 5, 9]
+List.filter_v1 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > -2 then true else false)) = [1; -1; 2; 3; 4]
+List.filter_v1 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3, 4]
+List.filter_v1 [] (fun x -> x < 20) = []
+List.filter_v1 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
+List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
+List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expecting the function to return Bool, but the result was \"a\"" // FSHARPONLY
+List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
+List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting the function to return Bool, but the result was \"a\"" // FSHARPONLY
+
+List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`. However, it returned `Nothing` for the input `1`." // OCAMLONLY
+List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` to be `true` or `false` for every value in `list`, but it was `Nothing` for the input 1" // FSHARPONLY
+List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected the argument `f` to be `true` or `false` for every value in `list`, but it was `\"a\"` for the input true" // FSHARPONLY
+List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`. However, it returned `\"a\"` for the input `true`." // OCAMLONLY
+List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
+List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1, 3 ]
+List.filter_v2 [] (fun item -> true) = []
+List.filter_v2 [-20; 5; 9;] (fun x -> x > 20) = []
 
 //List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then Nothing else (Just (item * 2))) = [ 2, 6 ]
 //List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then blank else (Just (item * 2))) = blank
 //List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every value in `list`"
 //List.filterMap_v0 [] (fun item -> 0) = []
+
+List.findFirst_v0 [1;2;3] (fun x -> x > 5) = null
+List.findFirst_v0 [] (fun x -> x) = null
+List.findFirst_v0 [1;2;3;1;4] (fun x -> x > 1 ) =  2
+List.findFirst_v0 [0; 5; -6; -10; ] (fun x -> x < 0) = -6
+List.findFirst_v0 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 = 0)) = -2
+
+List.findFirst_v1 [1;2;3] (fun x -> x > 5) = Nothing
+List.findFirst_v1 [] (fun x -> x) = Nothing
+List.findFirst_v1 [1;2;3;1;4] (fun x -> x > 1 ) = Just 2
+List.findFirst_v1 [0; 5; -6; -10; ] (fun x -> x < 0) = Just -6
+List.findFirst_v1 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 = 0)) = Just -2
+
+List.findFirst_v2 [1;2;3] (fun x -> x > 5) = Nothing
+List.findFirst_v2 [] (fun x -> x) = Nothing
+List.findFirst_v2 [1;2;3;1;4] (fun x -> x > 1 ) = Just 2
+List.findFirst_v2 [0; 5; -6; -10; ] (fun x -> x < 0) = Just -6
+List.findFirst_v2 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 = 0)) = Just -2
 
 List.flatten_v0 [1;2;3] = Test.typeError_v0 "Flattening non-lists"
 List.flatten_v0 [[1];[2];[3]] = [ 1, 2, 3 ]

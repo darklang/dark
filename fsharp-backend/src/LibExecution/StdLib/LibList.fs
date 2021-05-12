@@ -161,65 +161,84 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "findFirst" 0
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = varA
-//     ; description =
-//         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let f (dv : dval) : bool =
-//                 DBool true = Ast.execute_dblock ~state b [dv]
-//               in
-//               (match List.find ~f l with None -> DNull | Some dv -> dv)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "findFirst" 1
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let f (dv : dval) : bool =
-//                 DBool true = Ast.execute_dblock ~state b [dv]
-//               in
-//               ( match List.find ~f l with
-//               | None ->
-//                   DOption OptNothing
-//               | Some dv ->
-//                   DOption (OptJust dv) )
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "findFirst" 2
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TOption
-//     ; description =
-//         "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let f (dv : Types.RuntimeT.dval) : bool =
-//                 DBool true = Ast.execute_dblock ~state b [dv]
-//               in
-//               ( match List.find ~f l with
-//               | None ->
-//                   DOption OptNothing
-//               | Some dv ->
-//                   Dval.to_opt_just dv )
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "findFirst" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = varA
+      description =
+        "Returns the first value of `list` for which `f val` returns `true`. Returns `null` if no such value exists."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                  return result = DBool true
+                }
+
+              let! result = find_s f l
+              return Option.defaultValue DNull result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "List" "findFirst" 1) }
+    { name = fn "List" "findFirst" 1
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TOption varA
+      description =
+        "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                  return result = DBool true
+                }
+
+              let! result = find_s f l
+              return DOption result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "List" "findFirst" 2) }
+    { name = fn "List" "findFirst" 2
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TOption varA
+      description =
+        "Returns `Just firstMatch` where `firstMatch` is the first value of the list for which `f` returns `true`. Returns `Nothing` if no such value exists."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                  return result = DBool true
+                }
+
+              let! result = find_s f l
+              return Dval.option result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "contains" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TBool
@@ -614,79 +633,107 @@ let fns : List<BuiltInFn> =
     //   sqlSpec = NotYetImplementedTODO
     //   previewable = Pure
     //   deprecated = NotDeprecated }
-    //   ; { name = fn "List" "filter" 1
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
-//         Preserves the order of values that were not dropped.
-//         Consider `List::filterMap` if you also want to transform the values."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let fakecf = ref None in
-//               let f (dv : dval) : bool =
-//                 let run = !fakecf = None in
-//                 run
-//                 &&
-//                 match Ast.execute_dblock ~state b [dv] with
-//                 | DBool b ->
-//                     b
-//                 | (DIncomplete _ | DErrorRail _) as dv ->
-//                     fakecf := Some dv ;
-//                     false
-//                 | v ->
-//                     RT.error "Expecting fn to return bool" v dv
-//               in
-//               let result = List.filter ~f l in
-//               (match !fakecf with None -> DList result | Some v -> v)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = ReplacedBy(fn "" "" 0) }
-//   ; { name = fn "List" "filter" 2
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
-//         Preserves the order of values that were not dropped.
-//         Consider `List::filterMap` if you also want to transform the values."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let abortReason = ref None in
-//               let f (dv : dval) : bool =
-//                 !abortReason = None
-//                 &&
-//                 match Ast.execute_dblock ~state b [dv] with
-//                 | DBool b ->
-//                     b
-//                 | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-//                     abortReason := Some dv ;
-//                     false
-//                 | v ->
-//                     abortReason :=
-//                       Some
-//                         (DError
-//                            ( SourceNone
-//                            , "Expected the argument `f` passed to `"
-//                              ^ state.executing_fnname
-//                              ^ "` to return `true` or `false` for every value in `list`. However, it returned `"
-//                              ^ Dval.to_developer_repr_v0 v
-//                              ^ "` for the input `"
-//                              ^ Dval.to_developer_repr_v0 dv
-//                              ^ "`." )) ;
-//                     false
-//               in
-//               let result = List.filter ~f l in
-//               (match !abortReason with None -> DList result | Some v -> v)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "filterMap" 0
+    { name = fn "List" "filter" 1
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TList varA
+      description = "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
+        Preserves the order of values that were not dropped.
+        Consider `List::filterMap` if you also want to transform the values."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+              let fakecf = ref None
+
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let run = !fakecf = None
+
+                  if run then
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                    match result with
+                    | DBool b -> return b
+                    | (DIncomplete _
+                    | DErrorRail _) as dv ->
+                        fakecf := Some dv
+                        return false
+                    | v ->
+                        Errors.throw (Errors.expectedLambdaType TBool v)
+                        return false
+
+                  else
+                    return false
+                }
+
+              let! result = filter_s f l
+
+              match !fakecf with
+              | None -> return DList(result)
+              | Some v -> return v
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "List" "filter" 2) }
+    { name = fn "List" "filter" 2
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
+      returnType = TList varA
+      description = "Calls `f` on every `val` in `list`, returning a list of only those values for which `f val` returns `true`.
+        Preserves the order of values that were not dropped.
+        Consider `List::filterMap` if you also want to transform the values."
+      fn =
+        (function
+        | state, [ DList l; DFnVal fn ] ->
+            taskv {
+              let abortReason = ref None
+
+              let f (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let run = !abortReason = None
+
+                  if run then
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+
+                    match result with
+                    | DBool b -> return b
+                    | (DIncomplete _
+                    | DErrorRail _
+                    | DError _) as dv ->
+                        abortReason := Some dv
+                        return false
+                    | v ->
+                        Errors.throw (
+                          Errors.argumentWasnt
+                            "`true` or `false` for every value in `list`"
+                            "f"
+                            v
+                          + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
+                        )
+
+                        return false
+
+                  else
+                    return false
+                }
+
+              let! result = filter_s f l
+
+              match !abortReason with
+              | None -> return DList(result)
+              | Some v -> return v
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    //   ; { name = fn "List" "filterMap" 0
 //     ; parameters = [Param.make "list" TList ""; func ["val"]]
 //     ; returnType = TList
 //     ; description =
@@ -1041,8 +1088,7 @@ let fns : List<BuiltInFn> =
                     Errors.argumentWasnt "a list with exactly two values" "pairs" v
                     + err_details
                   )
-            // We reverse here so that the [foldi ocaml and fold fsharp] consing happens in the correct order.
-            // It does mean that the index passed by [foldi and fsharp] counts from the end
+
             let result = l |> List.rev |> List.fold f ([], [])
 
             match result with
