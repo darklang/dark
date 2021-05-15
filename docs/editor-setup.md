@@ -4,19 +4,25 @@
 
 ### VS Code
 
-VS Code works pretty well when set up to run within the container. Choose "open
-folder within container" and it should work.
+VS Code works pretty well when set up to run within the container. Install the
+"Remote containers" extension and choose "open folder within container" and it
+should work. Install the recommended extensions within the container when
+asked.
 
 Use Ionide for F#. It's important to use (at least) version 5, which solves a
 few bugs and has the latest version of fantomas (the code formatter).
 
 #### Troubleshooting VScode
 
-If you find that you are not getting language-server feedback (types appearing,
-"goto definition" working, errors shown, etc), bring up the terminal within
-VSCode and run `dotnet tool restore; dotnet build`. This needs to be done after
-adding a new file and in some other cases. It may help to run "Developer:
-reload window" as well.
+Often, the F# plugin will fail to work. This can be solved by doing a full
+build of dotnet from the VSCode terminal and then restarting VSCode:
+
+- open the terminal from within VSCode
+- run `dotnet tool restore`
+- run `dotnet paket restore`
+- run `dotnet build`
+- if this doesn't work, comment out the failing code until the build fully works, and repeat `dotnet build`
+- from VSCode, run the command "Developer: Reload Window"
 
 If that doesn't work, look in the "Output" tabs marked "msbuild" or "F#" for
 clues.
