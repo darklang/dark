@@ -9,7 +9,8 @@ open System.Threading.Tasks
 let main args =
   LibBackend.Init.init "Tests" // Must go before Tests.BwdServer.init
   let (_ : Task) = Tests.BwdServer.init ()
-  LibBackend.Migrations.init ()
+  // CLEANUP For now, migrations are run by the ocaml process in run-fsharp-tests
+  // LibBackend.Migrations.init ()
   LibService.Telemetry.Console.loadTelemetry ()
   (LibBackend.Account.initTestAccounts ()).Wait()
 
