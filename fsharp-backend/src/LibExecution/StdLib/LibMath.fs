@@ -175,7 +175,7 @@ let fns : List<BuiltInFn> =
          The result is in radians and is between `-Math::pi` and `Math::pi`. Consider `Math::atan` if you know the value of `y / x` but not the individual values `x` and `y`."
       fn =
         (function
-        | _, [ DFloat y; DFloat x ] -> Value(DFloat(System.Math.Atan2 (y, x)))
+        | _, [ DFloat y; DFloat x ] -> Value(DFloat(System.Math.Atan2(y, x)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
