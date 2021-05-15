@@ -5,6 +5,8 @@ This is the main repo for [Dark](https://darklang.com), a combined language, edi
 This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
 [source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
+See our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing.
+
 ## Contributing
 
 We are committed to make Dark easy to contribute to. Our
