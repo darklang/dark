@@ -17,23 +17,23 @@ about the code base.
 
 ### Install dependencies
 
+We develop Dark within a docker container, so there is not a lot of setup.
+However, we do need to setup the host system in a few ways to support file
+watching, DNS, and of course Docker. This section guides you through that, for
+each OS.
+
+#### OSX
+
 To build and run the server you must have the following installed (and running):
 
-- Mac only: Homebrew for Mac (https://brew.sh/)
-- Mac only: Docker for Mac (https://docs.docker.com/docker-for-mac/install/)
-- Mac only: The latest version of bash `brew install bash`
-- fswatch `brew install fswatch` / `apt install fswatch`
-- PIP `brew install python` / `apt install python3-pip`
+- Homebrew for Mac (https://brew.sh/)
+- Docker for Mac (https://docs.docker.com/docker-for-mac/install/)
+- The latest version of bash `brew install bash`
+- fswatch `brew install fswatch`
+- PIP `brew install python`
 - live reload `pip3 install livereload`
 
-On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
-
-- You must be on at least Windows 10 Version 2004, and you must run WSL 2 (docker does not work in WSL 1)
-- Follow the [WSL 2 installation instructions](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2)
-- Follow the [Docker for WSL 2 installation instructions](https://docs.docker.com/docker-for-windows/wsl/)
-- Install the depedencies above in your Linux distro
-
-### Docker
+##### Docker
 
 The app and its dependencies are all held within the container. While code is edited on your machine, the application is compiled and run inside of the container.
 
@@ -43,7 +43,7 @@ Ensure that docker:
 
 Ignore the other tabs (for example you don't need to enable Kubernetes).
 
-### Dnsmasq
+##### Dnsmasq
 
 A local DNS server is needed to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide](https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
 
@@ -70,7 +70,7 @@ address=/localhost/127.0.0.1
 Restart dnsmasq:
 
 ```
-sudo brew services restart dnsmasq / sudo /etc/init.d/dnsmasq restart
+sudo brew services restart dnsmasq
 ```
 
 Configure OSX to use dnsmasq (not needed on linux):
@@ -91,7 +91,62 @@ ping -c 1 www.google.com
 dig testing.builtwithdark.localhost@127.0.0.1
 ```
 
+#### Windows
+
+On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
+
+- You must be on at least Windows 10 Version 2004, and you must run WSL 2 (docker does not work in WSL 1)
+- Follow the [WSL 2 installation instructions](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2)
+- Follow the [Docker for WSL 2 installation instructions](https://docs.docker.com/docker-for-windows/wsl/)
+- After installing a Linux distro, run the depedencies below in your Linux distro
+- This section of the guide is incomplete. We would welcome further notes to make this foolproof.
+
+#### On Linux
+
+##### Install dependencies
+
+To build and run the server you must have the following installed (and running):
+
+- fswatch: `apt install fswatch`
+- PIP: `apt install python3-pip`
+- live reload: `pip3 install livereload`
+
+### Dnsmasq
+
+A local DNS server is needed to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide](https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
+
+Install dnsmasq:
+
+```
+apt install dnsmasq
+```
+
+Add the following to `/etc/dnsmasq.conf`
+
+```
+address=/localhost/127.0.0.1
+```
+
+Restart dnsmasq:
+
+```
+sudo /etc/init.d/dnsmasq restart
+```
+
+Test it:
+
+```
+# Make sure you haven't broken your DNS.
+ping -c 1 www.google.com
+# Check that .localhost names work
+dig testing.builtwithdark.localhost@127.0.0.1
+```
+
 ### Building and running for the first time
+
+Now that the pre-requisites are installed, we should be able to build the
+development container in Docker, which has the exact right versions of all the
+tools we use.
 
 - Run `scripts/builder --compile --watch --test`
 - Wait until the terminal says "Initial compile succeeded" - this means the
