@@ -75,10 +75,11 @@ RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -cs)" && \
     echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
 
-# We pin the exact package version so that we don't have any surprises.
-# However, sometimes the versions upgrade from under us and break the
-# build. To fix that, you need the actual package version, which you can
-# find by installing it directly:
+# Mostly, we use the generic version. However, for things in production we want
+# to pin the exact package version so that we don't have any surprises.  As a
+# result, sometimes the versions upgrade from under us and break the build. To
+# fix that, you need the actual package version, which you can find by
+# installing it directly:
 # $ docker run <HASH> apt install mypackage
 # Notes
 # - replace <HASH> with a recent hash from the docker build output.
@@ -133,6 +134,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libssl-ocaml-dev \
       zlib1g-dev \
       pv \
+      htop \
       net-tools \
       nginx=1.16.1-1~bionic \
       bash-completion \
@@ -148,6 +150,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libssl1.1 \
       libstdc++6 \
       zlib1g \
+      lldb \
       # end .NET dependencies
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
@@ -159,18 +162,19 @@ USER root
 RUN groupadd -g ${gid} dark \
     && adduser --disabled-password --gecos '' --uid ${uid} --gid ${gid} dark
 RUN echo "dark:dark" | chpasswd && adduser dark sudo
-RUN chown -R dark:dark /home/dark
+RUN sudo chown -R dark:dark /home/dark
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# From here on in, use Dark as the user for everything and use sudo when necessary
 USER dark
 WORKDIR /home/dark
-RUN mkdir bin
-# otherwise this gets created by the mount, and it'll be owned by root if your docker host os is linux
-RUN mkdir .config
+RUN mkdir -p .config
+RUN mkdir -p .config/configstore
+RUN mkdir -p bin
 
 ############################
 # Locales
 ############################
-USER dark
 RUN sudo locale-gen "en_US.UTF-8"
 ENV LANGUAGE en_US.UTF-8
 ENV LANG en_US.UTF-8
@@ -179,9 +183,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-USER root
-
-RUN npm install -g prettier@2.2.1
+RUN sudo npm install -g prettier@2.2.1
 
 # Esy is currently a nightmare. Upgrading to esy 6.6 is stalled because:
 # - esy 6.6 copies from ~/.esy to _esy, and in our container, that copy is
@@ -193,6 +195,9 @@ RUN npm install -g prettier@2.2.1
 #   dune-configurator, alcotest, and others.
 
 
+# This violates our "dark is the user" rule but we'll be getting rid of this
+# soon so don't spend the time making it work right
+USER root
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
 RUN npm install -g esy@0.5.8 --unsafe-perm=true \
@@ -245,11 +250,9 @@ RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /de
 # Google cloud
 ############################
 # New authentication for docker - not supported via apt
-USER root
-
-RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
+RUN sudo wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
         -O /usr/bin/cloud_sql_proxy \
-  && chmod +x /usr/bin/cloud_sql_proxy
+  && sudo chmod +x /usr/bin/cloud_sql_proxy
 
 # crcmod for gsutil; this gets us the compiled (faster), not pure Python
 # (slower) crcmod, as described in `gsutil help crcmod`
@@ -264,20 +267,19 @@ RUN wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
 # this install is a bit brittle, and it's easy to invisibly install the pure
 # Python crcmod.
 ENV CLOUDSDK_PYTHON=python3
-RUN pip3 install -U --no-cache-dir -U crcmod \
+RUN sudo pip3 install -U --no-cache-dir -U crcmod \
   && ((gsutil version -l | grep compiled.crcmod:.True) \
       || (echo "Compiled crcmod not installed." && false))
 
 ############################
 # Pip packages
 ############################
-RUN pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
+RUN sudo pip3 install --no-cache-dir yq yamllint && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
 ############################
 # Shellcheck
 # Ubuntu has a very old version
 ############################
-
 RUN \
   VERSION=v0.7.2 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
@@ -332,34 +334,16 @@ ENV DOTNET_SDK_VERSION=6.0.100-preview.3.21202.5 \
 RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
     && dotnet_sha512='f776177c1ca2b672cf05f9ec32f20ef35a039dd8d31beaa139d1e47d71cca4ccf0f2a61bbf006a781e693977ee91cc9e08e12134ffb4c7a03a8e56c163b8661d' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
-    && mkdir -p /usr/share/dotnet \
-    && tar -ozxf dotnet.tar.gz -C /usr/share/dotnet \
+    && sudo mkdir -p /usr/share/dotnet \
+    && sudo tar -ozxf dotnet.tar.gz -C /usr/share/dotnet \
     && rm dotnet.tar.gz \
-    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+    && sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
 # Trigger first run experience by running arbitrary cmd
 RUN dotnet help
 
-
-#############
-# tunnel user
-#############
-USER root
-RUN adduser --disabled-password --gecos '' --gid ${gid} tunnel
-
-############################
-# Environment
-############################
-USER dark
-ENV TERM=xterm-256color
-
-############################
-# Finish
-############################
-USER dark
-
-RUN sudo apt update && sudo apt install -y lldb htop
 RUN dotnet tool install -g dotnet-sos
+# TODO: is this the right directory?
 RUN echo "plugin load /home/dark/.dotnet/tools/.store/dotnet-sos/5.0.160202/dotnet-sos/5.0.160202/tools/netcoreapp2.1/any/linux-x64/libsosplugin.so" > ~/.lldbinit
 
 # formatting
@@ -367,15 +351,42 @@ ENV PATH "$PATH:/home/dark/bin"
 RUN dotnet tool install fantomas-tool --version 4.4.0 --tool-path ~/bin
 RUN curl https://raw.githubusercontent.com/darklang/build-files/main/ocamlformat --output ~/bin/ocamlformat && chmod +x ~/bin/ocamlformat
 
+#############
+# tunnel user
+#############
+RUN sudo adduser --disabled-password --gecos '' --gid ${gid} tunnel
+
+############################
+# Environment
+############################
+ENV TERM=xterm-256color
+
+############################
+# Finish
+############################
+USER dark
+
+# Add all the mounts here so that they have the right permissions
+RUN touch .bash_history
+RUN mkdir -p .config/gcloud
+RUN mkdir -p app
+RUN mkdir -p app/_build
+RUN mkdir -p app/_esy
+RUN mkdir -p .esy
+RUN mkdir -p app/node_modules
+RUN mkdir -p app/lib
+RUN mkdir -p app/containers/stroller/target
+RUN mkdir -p app/containers/queue-scheduler/target
+RUN mkdir -p app/fsharp-backend/Build
+RUN mkdir -p .cargo
 
 ########################
 # Install Rust toolchain
 # This is in a separate container to save time in CI
 ########################
 FROM dark-base
-
+# We use root here because we're eventually going to remove rust and so it's not worth solving
 USER root
-
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH \
@@ -389,6 +400,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-too
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview rls
 RUN cargo install cargo-cache --no-default-features --features ci-autoclean
+USER dark
 
 
 # Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
