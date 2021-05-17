@@ -265,7 +265,6 @@ def main():
     print("Starting file watcher")
     for changes in watchgod.watch('.'):
       changes = [f for (_, f) in changes]
-      print(changes)
       compile(changes)
 
   elif should_serve:

@@ -7,13 +7,19 @@ This repo is intended to help Dark users solve their needs by fixing bugs, expan
 
 ## Contributing
 
-We are committed to make Dark easy to contribute to.
-Our [contributor
-docs](https://darklang.github.io/docs/contributing/getting-started) will help
-guide you through your first PR, find good projects to contribute to, and learn
-about the code base.
+We are committed to make Dark easy to contribute to. Our
+[contributor docs](https://darklang.github.io/docs/contributing/getting-started)
+will help guide you through your first PR, find good projects to contribute to,
+and learn about the code base.
 
-## Getting Started
+## Getting started
+
+We try to make it really easy to get started. If you have any problems, please
+ask in Slack and we'll work to fix any issues you have.
+
+If you're using VSCode, we run our build scripts the VSCode devcontainer. See
+[docs/vscode-setup](the VSCode instructions) for a complete guide. Do not use
+the standard instructions, as lots of things will be subtly wrong.
 
 ### Install dependencies
 
@@ -26,70 +32,14 @@ each OS.
 
 To build and run the server you must have the following installed (and running):
 
-- Homebrew for Mac (https://brew.sh/)
-- Docker for Mac (https://docs.docker.com/docker-for-mac/install/)
-- The latest version of bash `brew install bash`
-- fswatch `brew install fswatch`
-- PIP `brew install python`
-- live reload `pip3 install livereload`
+- [Homebrew for Mac](https://brew.sh/)
+- [Docker for Mac](https://docs.docker.com/docker-for-mac/install/)
+- The latest version of bash: `brew install bash`
 
-##### Docker
+#### Linux
 
-The app and its dependencies are all held within the container. While code is edited on your machine, the application is compiled and run inside of the container.
-
-Ensure that docker:
-
-- set to use 4 CPUs, 4.0 GiB of Memory, and 4.0 GiB of Swap (under the Advanced preferences tab).
-
-Ignore the other tabs (for example you don't need to enable Kubernetes).
-
-##### Dnsmasq
-
-A local DNS server is needed to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide](https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
-
-Install dnsmasq:
-
-```
-brew install dnsmasq / apt install dnsmasq
-```
-
-Follow brew's post-install instructions:
-
-```
-brew info dnsmasq
-```
-
-(probably `sudo brew services start dnsmasq`)
-
-Add the following to `(brew --prefix)/etc/dnsmasq.conf`
-
-```
-address=/localhost/127.0.0.1
-```
-
-Restart dnsmasq:
-
-```
-sudo brew services restart dnsmasq
-```
-
-Configure OSX to use dnsmasq (not needed on linux):
-
-```
-sudo mkdir -p /etc/resolver
-sudo tee /etc/resolver/localhost >/dev/null <<EOF
-nameserver 127.0.0.1
-EOF
-```
-
-Test it:
-
-```
-# Make sure you haven't broken your DNS.
-ping -c 1 www.google.com
-# Check that .localhost names work
-dig testing.builtwithdark.localhost@127.0.0.1
-```
+Everything should just work on Linux, so long as you have docker installed and
+you are using bash 4 or later.
 
 #### Windows
 
@@ -98,49 +48,7 @@ On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
 - You must be on at least Windows 10 Version 2004, and you must run WSL 2 (docker does not work in WSL 1)
 - Follow the [WSL 2 installation instructions](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2)
 - Follow the [Docker for WSL 2 installation instructions](https://docs.docker.com/docker-for-windows/wsl/)
-- After installing a Linux distro, run the depedencies below in your Linux distro
 - This section of the guide is incomplete. We would welcome further notes to make this foolproof.
-
-#### On Linux
-
-##### Install dependencies
-
-To build and run the server you must have the following installed (and running):
-
-- fswatch: `apt install fswatch`
-- PIP: `apt install python3-pip`
-- live reload: `pip3 install livereload`
-
-### Dnsmasq
-
-A local DNS server is needed to access the application via a `.localhost` TLD. The following is a quick start, adapted from [this guide](https://passingcuriosity.com/2013/dnsmasq-dev-osx/).
-
-Install dnsmasq:
-
-```
-apt install dnsmasq
-```
-
-Add the following to `/etc/dnsmasq.conf`
-
-```
-address=/localhost/127.0.0.1
-```
-
-Restart dnsmasq:
-
-```
-sudo /etc/init.d/dnsmasq restart
-```
-
-Test it:
-
-```
-# Make sure you haven't broken your DNS.
-ping -c 1 www.google.com
-# Check that .localhost names work
-dig testing.builtwithdark.localhost@127.0.0.1
-```
 
 ### Building and running for the first time
 
@@ -152,9 +60,10 @@ tools we use.
 - Wait until the terminal says "Initial compile succeeded" - this means the
   build server is ready. The `builder` script will sit open, waiting for file
   changes in order to recompile
-- If you see "initial compile failed", it may be a memory issue. Ensure you
-  have docker configured to provide 4GB or more of memory, then rerun the builder
-  script. (Sometimes just rerunning will work, too).
+- If you see "initial compile failed", it may be a memory issue. If you're
+  using OSX, ensure you have Docker For Mac configured to provide 4GB or more
+  of memory, then rerun the builder script. (Sometimes just rerunning will
+  work, too).
 - Open your browser to http://darklang.localhost:8000/a/dark/, username "dark",
   password "what"
 - Edit code normally - on each save to your filesystem, the app will be rebuilt
@@ -164,12 +73,18 @@ tools we use.
 
 If you've gotten this far, you're now ready to [contribute your first PR](https://darklang.github.io/docs/contributing/getting-started#first-contribution).
 
+## Advanced setup
+
+- [setting up dnsmasq](docs/dnsmasq)
+- [setting up browser-reloading](docs/livereload)
+
 ## Testing
 
 Unit tests run when you specify `--test` to `scripts/builder`. You can run them as a once off using:
 
-- `scripts/runtests` # client
+- `scripts/run-client-tests`
 - `scripts/run-backend-tests`
+- `scripts/run-fsharp-tests`
 - `scripts/run-rust-tests containers/stroller`
 - `scripts/run-rust-tests containers/queue-scheduler`
 
