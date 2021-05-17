@@ -10,15 +10,24 @@ the compile script. Run it with --test to run tests.
 The entry point is backend/test/test.ml. Run tests from the command
 line using:
 
-  `run-in-docker _build/default/backend/test/test.exe`
+`scripts/run-backend-tests`
 
 Tests are _not_ automatically discovered; they must be added to the
 list at the bottom of the test file. New test files must be added
 to test.ml.
 
+## F#
+
+The entry point is fsharp-backend/tests/Tests/Tests.ml. Run tests from the command
+line using:
+
+`scripts/run-fsharp-tests`
+
+Tests are _not_ automatically discovered; they must be added to Tests.fs.
+
 ## Client-side
 
-To run tests, run `scripts/runtests` or `npm run test` (slower).
+To run tests, run `scripts/run-client-tests` or `npm run test` (slower).
 Run `scripts/runtests --help` for options.
 
 Tests are _not_ automatically discovered; they must be added to
@@ -33,4 +42,3 @@ figuring out why it was bad.
 ## Integration tests
 
 There are also integration tests, see integration-tests/README.md.
-

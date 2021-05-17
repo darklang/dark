@@ -47,6 +47,6 @@
     "build:analysiswrapper": "browserifyinc --cachefile lib/browserify-analysis-wrapper-cache.json lib/js/client/workers/AnalysisWrapper.bs.js --standalone analysiswrapper -o backend/static/analysiswrapper.js",
     "copy:static": "rsync -a client/static/* backend/static/",
     "build": "npm-run-all --sequential build:bsb --parallel build:app build:appsupport build:unsupportedBrowser build:fetcher build:analysiswrapper copy:static",
-    "test": "scripts/runtests --dom"
+    "test": "scripts/run-client-tests --dom"
   }
 }

@@ -107,7 +107,7 @@ def client_test():
   flags = ""
   if os.environ.get("CI"):
     flags = "--verbose --dom"
-  result = run_test(start, f"./scripts/runtests {flags}")
+  result = run_test(start, f"./scripts/run-client-tests {flags}")
   return result
 
 
