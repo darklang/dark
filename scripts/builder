@@ -193,6 +193,7 @@ $FSWATCH | docker run \
              -p 2345:2345 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
              -w /home/dark/app \
+             --user "$(id -u):$gid" \
              --cap-add=ALL \
              --security-opt seccomp=unconfined \
              $MOUNTS \
