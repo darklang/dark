@@ -51,6 +51,15 @@ Dict.member_v0 { otherKey = 5 } "someKey" = false
 
 // Dict.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
 
+Dict.set_v0 { key1 = "val1before" } "key1" "val1after" = { key1 = "val1after" }
+Dict.set_v0 { key1 = "val1" } "key2" "val2" = { key1 = "val1"; key2 = "val2" }
+// Dicts do not currently enforce value typing, therefore the following tests pass
+Dict.set_v0 { key1 = "val1" } "key2" 2 = { key1 = "val1"; key2 = 2 }
+Dict.set_v0 { key1 = 1 } "key1" "changedTypeValue" = { key1 = "changedTypeValue" }
+// In the future the expected behavior would be more like
+// Dict.set_v0 { key1 = "val1" } "key2" 2 = Test.typeError_v0 "The argument `value` does not match the type of the dictionary. Expected string but received type int"
+// Dict.set_v0 { key1 = 1 } "key1" "changedTypeValue" = Test.typeError_v0 "The argument `value` does not match the type of the dictionary. Expected int but received type int"
+
 Dict.singleton_v0 "one" 1 = { one = 1 }
 Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
 
