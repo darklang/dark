@@ -11,6 +11,7 @@ import threading
 import time
 import os
 import signal
+import watchgod
 
 run_tests = False
 freq = float(os.environ.get("POLL_FREQUENCY", "10"))
@@ -168,67 +169,67 @@ def main():
 
   # Compile it once - you usually want this to have full built code.
   # See also run_tests (--test) which runs the tests too.
-  compile = False
-  compile_client = False
-  compile_backend = False
-  compile_fsharp_backend = False
-  compile_stroller = False
-  compile_scheduler = False
+  should_compile = False
+  should_compile_client = False
+  should_compile_backend = False
+  should_compile_fsharp_backend = False
+  should_compile_stroller = False
+  should_compile_scheduler = False
 
   # Run the Dark webserver and keep the container open to serve it.
   # Useful for demoing without draining your battery. Will not recompile
   # like --watch does.
-  serve = False
+  should_serve = False
 
   for f in sys.argv[1:]:
     if f == "--compile":
-      compile = True
-      compile_backend = True
-      compile_fsharp_backend = True
-      compile_client = True
-      compile_stroller = True
-      compile_scheduler = True
+      should_compile = True
+      should_compile_backend = True
+      should_compile_fsharp_backend = True
+      should_compile_client = True
+      should_compile_stroller = True
+      should_compile_scheduler = True
     elif f == "--compile-backend":
-      compile = True
-      compile_backend = True
+      should_compile = True
+      should_compile_backend = True
     elif f == "--compile-fsharp-backend":
-      compile = True
-      compile_fsharp_backend = True
+      should_compile = True
+      should_compile_fsharp_backend = True
     elif f == "--compile-client":
-      compile = True
-      compile_client = True
+      should_compile = True
+      should_compile_client = True
     elif f == "--compile-stroller":
-      compile = True
-      compile_stroller = True
+      should_compile = True
+      should_compile_stroller = True
     elif f == "--compile-scheduler":
-      compile = True
-      compile_scheduler = True
+      should_compile = True
+      should_compile_scheduler = True
     elif f == "--watch":
-      watch = True
+      should_watch = True
     elif f == "--ci-serve":
-      serve = True
+      should_serve = True
     elif f == "--serve":
-      serve = True
-      compile = True
+      should_serve = True
+      should_compile = True
     elif f == "--test":
-      global run_tests
-      run_tests = True
+      global should_run_tests
+      should_run_tests = True
 
   def initial_compile():
     success = True
-    if compile_client and not initial_client_compile():
+    if should_compile_client and not initial_client_compile():
       print("Failed client build")
       success = False
-    if compile_backend and not initial_backend_compile():
+    if should_compile_backend and not initial_backend_compile():
       print("Failed backend build")
       success = False
-    if compile_fsharp_backend and not initial_fsharp_backend_compile():
+    if should_compile_fsharp_backend and not initial_fsharp_backend_compile():
       print("Failed backend build")
       success = False
-    if compile_stroller and not initial_stroller_compile():
+    if should_compile_stroller and not initial_stroller_compile():
       print("Failed stroller build")
       success = False
-    if compile_scheduler and not initial_scheduler_compile():
+    if should_compile_scheduler and not initial_scheduler_compile():
       print("Failed scheduler build")
       success = False
 
@@ -247,8 +248,8 @@ def main():
   run_or_fail("scripts/support/create-cache-directories")
   run_or_fail("scripts/support/setup-hosts")
   run_or_fail("scripts/support/start-background-services postgresql")
-  if compile:
-    if watch or serve:
+  if should_compile:
+    if should_watch or should_serve:
       background_task(initial_compile, "initial_compile")
     else:
       if initial_compile():
@@ -256,13 +257,18 @@ def main():
       else:
         sys.exit(1)
   else:
-    if serve:
+    if should_serve:
       #FSTODO
       run_server()
 
-  if watch:
-    process_watchers()
-  elif serve:
+  if should_watch:
+    print("Starting file watcher")
+    for changes in watchgod.watch('.'):
+      changes = [f for (_, f) in changes]
+      print(changes)
+      compile(changes)
+
+  elif should_serve:
     # pause to allow the server stay up
     signal.pause()
 

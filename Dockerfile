@@ -408,3 +408,5 @@ USER dark
 ENV CARGO_HOME=/home/dark/.cargo
 
 USER dark
+
+RUN pip3 install watchgod
