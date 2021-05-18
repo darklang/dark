@@ -389,21 +389,21 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "toJSON" 0
-    //   ; parameters = [Param.make "dict" TObj ""]
-    //   ; returnType = TStr
-    //   ; description = "Returns `dict` as a JSON string."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj o] ->
-    //             DObj o
-    //             |> Dval.to_pretty_machine_json_v1
-    //             |> DStr
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "toJSON" 0
+      parameters = [ Param.make "dict" (TDict varA) "" ]
+      returnType = TStr
+      description = "Returns `dict` as a JSON string."
+      fn =
+        (function
+        | _, [ DObj o ] ->
+            DObj o
+            |> DvalRepr.toPrettyMachineJsonStringV1
+            |> DStr
+            |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Dict" "set" 0
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
