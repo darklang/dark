@@ -4,7 +4,7 @@ set -euo pipefail
 
 prepare () {
   sudo mkdir -p $1
-  sudo chown dark:dark $1
+  sudo chown -R dark:dark $1
 }
 
 prepare "_build"
