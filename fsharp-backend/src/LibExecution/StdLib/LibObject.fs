@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open Prelude
 
 module Errors = LibExecution.Errors
+module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
@@ -19,16 +20,18 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fns : List<BuiltInFn> = []
-// [ { name = fn "Object" "empty" 0
-//    ; parameters = []
-//    ; returnType = TObj
-//    ; description = "Return an empty object"
-//    ; fn =
-//         (function _, [] -> DObj DvalMap.empty | _ -> incorrectArgs ())
-//    ; sqlSpec = NotYetImplementedTODO
-//    ; previewable = Pure
-//    ; deprecated = ReplacedBy(fn "" "" 0) }
+let fns : List<BuiltInFn> =
+  [ { name = fn "Object" "empty" 0
+      parameters = []
+      returnType = TDict varA
+      description = "Return an empty object"
+      fn =
+        (function
+        | _, [] -> Value(DObj(Map.empty))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = DeprecatedBecause("") } ]
 //  ; { name = fn "Object" "merge" 0
 //    ; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
 //    ; returnType = TObj
