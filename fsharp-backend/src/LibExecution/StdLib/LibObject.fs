@@ -31,21 +31,20 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = DeprecatedBecause("") }
+    { name = fn "Object" "merge" 0
+      parameters =
+        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varB) "" ]
+      returnType = TDict varA
+      description =
+        "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
+      fn =
+        (function
+        | _, [ DObj l; DObj r ] -> Value(DObj(Map.union r l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = DeprecatedBecause("") } ]
-//  ; { name = fn "Object" "merge" 0
-//    ; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
-//    ; returnType = TObj
-//    ; description =
-//        "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
-//    ; fn =
-//          (function
-//          | _, [DObj l; DObj r] ->
-//              DObj (Stdlib_util.merge_right l r)
-//          | _ ->
-//              incorrectArgs ())
-//    ; sqlSpec = NotYetImplementedTODO
-//    ; previewable = Pure
-//    ; deprecated = ReplacedBy(fn "" "" 0) }
 //  ; { name = fn "Object" "toJSON" 0
 //    ; parameters = [Param.make "obj" TObj ""]
 //    ; returnType = TStr
