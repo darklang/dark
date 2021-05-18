@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = DeprecatedBecause("") } ]
+      deprecated = DeprecatedBecause("") }
 //  ; { name = fn "Object" "toJSON" 0
 //    ; parameters = [Param.make "obj" TObj ""]
 //    ; returnType = TStr
@@ -60,19 +60,15 @@ let fns : List<BuiltInFn> =
 //    ; sqlSpec = NotYetImplementedTODO
 //    ; previewable = Pure
 //    ; deprecated = ReplacedBy(fn "" "" 0) }
-//  ; { name = fn "Object" "toJSON" 1
-//    ; parameters = [Param.make "obj" TObj ""]
-//    ; returnType = TStr
-//    ; description = "Dumps `obj` to a JSON string"
-//    ; fn =
-//          (function
-//          | _, [DObj o] ->
-//              DObj o
-//              |> Dval.to_pretty_machine_json_v1
-//              |> DStr
-//          | _ ->
-//              incorrectArgs ())
-//    ; sqlSpec = NotYetImplementedTODO
-//    ; previewable = Pure
-//    ; deprecated = ReplacedBy(fn "" "" 0) } ]
-//
+    { name = fn "Object" "toJSON" 1
+      parameters = [ Param.make "obj" (TDict varA) "" ]
+      returnType = TStr
+      description = "Dumps `obj` to a JSON string"
+      fn =
+        (function
+        | _, [ DObj o ] ->
+            DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = DeprecatedBecause("") } ]
