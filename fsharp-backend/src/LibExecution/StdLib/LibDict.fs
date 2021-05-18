@@ -7,6 +7,7 @@ open FSharpPlus
 open Prelude
 
 module Errors = LibExecution.Errors
+module DvalRepr = LibExecution.DvalRepr
 
 let fn = FQFnName.stdlibFnName
 
@@ -377,20 +378,17 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //{ name = fn "Dict" "merge" 0
-    //; parameters = [Param.make "left" TObj ""; Param.make "right" TObj ""]
-    //; returnType = TObj
-    //; description =
-    //    "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
-    //   ; fn =
-    //         (function
-    //         | _, [DObj l; DObj r] ->
-    //             DObj (Stdlib_util.merge_right l r)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "merge" 0
+      parameters = [Param.make "left" (TDict varA) ""; Param.make "right" (TDict varB) ""]
+      returnType = TDict varA
+      description = "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
+      fn =
+        (function
+        | _, [ DObj l; DObj r ] -> Value(DObj(Map.union r l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     // ; { name = fn "Dict" "toJSON" 0
     //   ; parameters = [Param.make "dict" TObj ""]
     //   ; returnType = TStr
