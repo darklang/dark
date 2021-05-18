@@ -379,9 +379,11 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
     { name = fn "Dict" "merge" 0
-      parameters = [Param.make "left" (TDict varA) ""; Param.make "right" (TDict varB) ""]
+      parameters =
+        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varB) "" ]
       returnType = TDict varA
-      description = "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
+      description =
+        "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
       fn =
         (function
         | _, [ DObj l; DObj r ] -> Value(DObj(Map.union r l))
@@ -396,10 +398,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
-            DObj o
-            |> DvalRepr.toPrettyMachineJsonStringV1
-            |> DStr
-            |> Value
+            DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
