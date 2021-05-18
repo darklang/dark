@@ -409,4 +409,5 @@ ENV CARGO_HOME=/home/dark/.cargo
 
 USER dark
 
-RUN pip3 install watchgod
+RUN pip3 install git+https://github.com/darklang/watchgod.git@5bf4f0f3b49bc64f435f59493b0e17e07a20da0d
+RUN sudo chown -R dark:dark /home/dark/.config/configstore/update-notifier-npm.json
