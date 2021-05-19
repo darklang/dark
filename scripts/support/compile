@@ -595,6 +595,7 @@ def ignore(filename):
   ignores = [
       ".git",
       ".merlin",
+      ".browser-trigger",
       "scripts/support/compile",
       "integration-tests/tests.js",
       "rundir/",
