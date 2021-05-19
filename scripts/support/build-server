@@ -8,13 +8,9 @@
 import subprocess
 import sys
 import threading
-import time
-import os
 import signal
 
 run_tests = False
-freq = float(os.environ.get("POLL_FREQUENCY", "10"))
-
 
 # Make io unbuffered
 def flush(fn):
@@ -100,60 +96,6 @@ def run_server():
   print("--------------------------")
   return exit
 
-
-# It is extremely challenging to get a non-blocking read on stdin.
-# Essentially, we want to read everything from stdin and then compile.
-# And if there isn't anything on stdin, sleep for a bit. The best way
-# to do that is to read stdin in a separate thread, and every 300ms to
-# check what has accumulated. Every other option I tried, including
-# termios, epoll, either didn't work, or had a weird edge case. One
-# nasty edge case is when you're saving all the time, as my editor is
-# configured to do, it processes it one at a time and builds up a huge
-# list of touched files, which it does one at a time, regardless of
-# what's behind it in the queue.
-
-inputBuffer = []
-bufferLock = threading.Lock()
-
-
-def process_watchers():
-  global inputBuffer
-
-  class InputThread(threading.Thread):
-    def run(self):
-      global inputBuffer
-      while True:
-        line = sys.stdin.readline()
-        bufferLock.acquire()
-        inputBuffer.insert(0, line)
-        bufferLock.release()
-
-  input_thread = InputThread()
-  input_thread.daemon = True
-  input_thread.start()
-
-  while True:
-    if len(inputBuffer) == 0:
-      time.sleep(1 / freq)
-    else:
-      bufferLock.acquire()
-      input = inputBuffer.copy()
-      inputBuffer.clear()
-      bufferLock.release()
-
-      files = set()
-      for line in input:
-        for f in line.split("\n"):
-          if f != "":
-            try:
-              f, _ = f.strip().split(" ")
-              f = f.replace(os.environ["HOST_PWD"], "/home/dark/app")
-              files.add(f)
-            except:
-              print("exception splitting: " + f)
-      compile(files)
-
-
 def background_task(fn, name):
   t = threading.Thread(target=fn)
   t.name = name
@@ -164,7 +106,7 @@ def main():
   # Recompile on file changes til infinity. This is our primary dev
   # mode. this is also used in scripts/builder.
   # See also run_tests (--test) which runs the tests too.
-  watch = False
+  should_watch = False
 
   # Compile it once - you usually want this to have full built code.
   # See also run_tests (--test) which runs the tests too.

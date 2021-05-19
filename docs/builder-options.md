@@ -18,15 +18,3 @@ in parallel with your currently working one.
 You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker
 invocations, use the old+running container as opposed to attempting to use the
 container that has an in progress build.
-
-### Preserving battery life
-
-The're a poll during building that is a great drain on battery life. To
-reduce the frequency of the poll, run script/builder using
-POLL_FREQUENCY, which is the number of times per second to check.
-
-- `POLL_FREQUENCY=0.1 scripts/builder --etc`
-
-You can also disable the polling (and consequently the building):
-
-- `scripts/builder --compile --serve`

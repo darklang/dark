@@ -108,15 +108,6 @@ ENV_FILE="config/$ENV"
 echo "Using env: $ENV_FILE"
 
 # --------------
-# save power with POLL_FREQUENCY
-# --------------
-
-POLL_FREQ=
-if [ -v POLL_FREQUENCY ]; then
-  POLL_FREQ="--env POLL_FREQUENCY=$POLL_FREQUENCY"
-fi
-
-# --------------
 # create the network
 # --------------
 ./scripts/support/create-dark-dev-network
@@ -148,7 +139,6 @@ docker run \
   --env-file "$ENV_FILE" \
   --env HOST_PWD="$PWD" \
   --env IN_DEV_CONTAINER=true \
-  $POLL_FREQ \
   -v pgconf:/etc/postgresql \
   -v pglogs:/var/log/postgresql \
   -v pgdata:/var/lib/postgresql \
