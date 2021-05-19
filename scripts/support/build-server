@@ -24,17 +24,17 @@ def flush(fn):
 sys.stdout.write = flush(sys.stdout.write)
 sys.stdout.writelines = flush(sys.stdout.writelines)
 
-
 def run_or_fail(bash):
   if not run(bash):
     print("Failed during call: " + bash)
     sys.exit(-1)
 
-
 def run(bash):
   proc = subprocess.run(bash, shell=True)
   return proc.returncode == 0
 
+def compile_project(name):
+  return run(f"scripts/support/compile-project {name}")
 
 def compile(files):
   global run_tests
@@ -47,47 +47,7 @@ def compile(files):
     return run(f"scripts/support/compile {test} {fileStr}")
   except:
     print(f"Tried to compile too many files. Length was {len(fileStr)}")
-    return initial_compile()
-
-
-
-def initial_backend_compile():
-  files = [
-      "backend/bin/server.ml",
-      "backend/test/test.ml",
-      "esy.json",
-  ]
-  return compile(files)
-
-
-def initial_fsharp_backend_compile():
-  files = [
-      "fsharp-backend/global.json",
-      "fsharp-backend/paket.lock",
-      "fsharp-backend/src/LibExecution/LibExecution.fs",
-  ]
-  return compile(files)
-
-
-def initial_client_compile():
-  files = [
-      "package.json",
-      "client/src/Types.ml",
-      "client/styles/app.scss",
-      "client/test/ast_test.ml",
-  ]
-  return compile(files)
-
-
-def initial_stroller_compile():
-  files = ["containers/stroller/src/main.rs"]
-  return compile(files)
-
-
-def initial_scheduler_compile():
-  files = [ "containers/queue-scheduler/src/main.rs" ]
-  return compile(files)
-
+    return compile_project(f"all {test}")
 
 def run_server():
   exit = compile(["scripts/support/runserver"])
@@ -111,11 +71,6 @@ def main():
   # Compile it once - you usually want this to have full built code.
   # See also run_tests (--test) which runs the tests too.
   should_compile = False
-  should_compile_client = False
-  should_compile_backend = False
-  should_compile_fsharp_backend = False
-  should_compile_stroller = False
-  should_compile_scheduler = False
 
   # Run the Dark webserver and keep the container open to serve it.
   # Useful for demoing without draining your battery. Will not recompile
@@ -125,26 +80,6 @@ def main():
   for f in sys.argv[1:]:
     if f == "--compile":
       should_compile = True
-      should_compile_backend = True
-      should_compile_fsharp_backend = True
-      should_compile_client = True
-      should_compile_stroller = True
-      should_compile_scheduler = True
-    elif f == "--compile-backend":
-      should_compile = True
-      should_compile_backend = True
-    elif f == "--compile-fsharp-backend":
-      should_compile = True
-      should_compile_fsharp_backend = True
-    elif f == "--compile-client":
-      should_compile = True
-      should_compile_client = True
-    elif f == "--compile-stroller":
-      should_compile = True
-      should_compile_stroller = True
-    elif f == "--compile-scheduler":
-      should_compile = True
-      should_compile_scheduler = True
     elif f == "--watch":
       should_watch = True
     elif f == "--ci-serve":
@@ -157,23 +92,7 @@ def main():
       should_run_tests = True
 
   def initial_compile():
-    success = True
-    if should_compile_client and not initial_client_compile():
-      print("Failed client build")
-      success = False
-    if should_compile_backend and not initial_backend_compile():
-      print("Failed backend build")
-      success = False
-    if should_compile_fsharp_backend and not initial_fsharp_backend_compile():
-      print("Failed backend build")
-      success = False
-    if should_compile_stroller and not initial_stroller_compile():
-      print("Failed stroller build")
-      success = False
-    if should_compile_scheduler and not initial_scheduler_compile():
-      print("Failed scheduler build")
-      success = False
-
+    success = compile_project("all")
     print("--------------------------")
     if success:
       print("-- Initial compile succeeded")
@@ -229,6 +148,5 @@ def main():
   elif should_serve:
     # pause to allow the server stay up
     signal.pause()
-
 
 main()

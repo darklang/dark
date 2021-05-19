@@ -170,7 +170,7 @@ jobs:
             - v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
             - v2-client-{{ checksum "package-lock.json" }}
             - v2-client
-      - run: scripts/support/compile --test package.json client/src/styles/app.scss
+      - run: scripts/support/compile client --test
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
@@ -200,7 +200,7 @@ jobs:
       # tests.
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
-      - run: scripts/support/compile --test esy.json
+      - run: scripts/support/compile-project --test backend
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
       - run: scripts/ocaml-find-unused backend/test
@@ -254,7 +254,7 @@ jobs:
       # so the ocamltestserver will load
       - run: touch backend/static/appsupport.js
       - run: scripts/support/generate-etags
-      - run: scripts/support/compile --test fsharp-backend/global.json
+      - run: scripts/support/compile-project fsharp-backend
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
@@ -281,7 +281,7 @@ jobs:
     steps:
       - checkout
       - rust-setup: { project: "stroller", dir: "containers/stroller" }
-      - run: scripts/support/compile containers/stroller/Cargo.toml --test
+      - run: scripts/support/compile-project stroller --test
       - assert-clean-worktree
       - rust-finish: { project: "stroller", dir: "containers/stroller" }
 
@@ -291,7 +291,7 @@ jobs:
       - checkout
       - rust-setup: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
       # tests are run in rust-integration-tests
-      - run: scripts/support/compile containers/queue-scheduler/Cargo.toml
+      - run: scripts/support/compile-project queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
 
