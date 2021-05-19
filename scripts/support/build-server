@@ -11,7 +11,6 @@ import threading
 import time
 import os
 import signal
-import watchgod
 
 run_tests = False
 freq = float(os.environ.get("POLL_FREQUENCY", "10"))
@@ -262,8 +261,26 @@ def main():
       run_server()
 
   if should_watch:
-    print("Starting file watcher")
-    for changes in watchgod.watch('.'):
+    import watchgod
+    # watchgod scans the file system on a loop. This is extremely
+    # fast so long as we list directory trees we don't want to go
+    # into. We prefer this to notification based systems as we've
+    # struggled to get them to work with our fun docker-based
+    # setup.
+    ignored=[".git",
+             "_build",
+             "_esy",
+             "node_modules",
+             "backend/static",
+             "containers/stroller/target",
+             "containers/queue-scheduler/target",
+             "lib",
+             "fsharp-backend/Build"]
+    ignored = set(["/home/dark/app/" + f for f in ignored])
+    for changes in watchgod.watch(
+            "/home/dark/app/",
+            watcher_cls=watchgod.AllWatcher,
+            watcher_kwargs=dict(ignored_paths=ignored)):
       changes = [f for (_, f) in changes]
       compile(changes)
 
