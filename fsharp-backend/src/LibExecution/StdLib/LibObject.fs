@@ -10,6 +10,7 @@ open Prelude
 
 module Errors = LibExecution.Errors
 module DvalRepr = LibExecution.DvalRepr
+module Legacy = LibExecution.Legacy
 
 let fn = FQFnName.stdlibFnName
 
@@ -45,21 +46,21 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = DeprecatedBecause("") }
-//  ; { name = fn "Object" "toJSON" 0
-//    ; parameters = [Param.make "obj" TObj ""]
-//    ; returnType = TStr
-//    ; description = "Dumps `obj` to a JSON string"
-//    ; fn =
-//          (function
-//          | _, [DObj o] ->
-//              DObj o
-//              |> Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
-//              |> DStr
-//          | _ ->
-//              incorrectArgs ())
-//    ; sqlSpec = NotYetImplementedTODO
-//    ; previewable = Pure
-//    ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "Object" "toJSON" 0
+      parameters = [ Param.make "obj" (TDict varA) "" ]
+      returnType = TStr
+      description = "Dumps `obj` to a JSON string"
+      fn =
+        (function
+        | _, [ DObj o ] ->
+            DObj o
+            |> Legacy.PrettyResponseJsonV0.toPrettyResponseJsonV0
+            |> DStr
+            |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Object" "toJSON" 1) }
     { name = fn "Object" "toJSON" 1
       parameters = [ Param.make "obj" (TDict varA) "" ]
       returnType = TStr
