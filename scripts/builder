@@ -26,7 +26,6 @@ rm -Rf containers/queue-scheduler/target
 rm -Rf fsharp-backend/src/*/obj
 rm -Rf fsharp-backend/tests/*/obj
 rm -Rf fsharp-backend/Build
-rm -Rf fsharp-backend/node_modules
 
 # --------------
 # Build image from clean start
