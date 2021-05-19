@@ -149,8 +149,7 @@ module PrettyResponseJsonV0 =
                  w.WriteValue("Error")
                  w.WritePropertyName "values"
                  w.writeArray (fun () -> writeDval rdv)))
-    | DBytes bytes ->
-        wrapStringValue "bytes" (System.Convert.ToBase64String bytes)
+    | DBytes bytes -> wrapStringValue "bytes" (System.Convert.ToBase64String bytes)
 
   let toPrettyResponseJsonV0 (dval : Dval) : string =
     writePrettyJson (fun w -> unsafeDvalToJsonValue w false dval)
