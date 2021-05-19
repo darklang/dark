@@ -54,6 +54,12 @@ Dict.merge_v0 { key1 = "val_l" } { key1 = "val_r" } = {key1 = "val_r"}
 Dict.merge_v0 {key1 = "val_l"} {key1 = blank } = {key1 = "val_l"}
 Dict.merge_v0 {} {} = {}
 
+Dict.set_v0 { key1 = "val1before" } "key1" "val1after" = { key1 = "val1after" }
+Dict.set_v0 { key1 = "val1" } "key2" "val2" = { key1 = "val1"; key2 = "val2" }
+// Dicts do not currently enforce value typing, therefore the following tests pass
+Dict.set_v0 { key1 = "val1" } "key2" 2 = { key1 = "val1"; key2 = 2 }
+Dict.set_v0 { key1 = 1 } "key1" "changedTypeValue" = { key1 = "changedTypeValue" }
+
 Dict.singleton_v0 "one" 1 = { one = 1 }
 Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
 
