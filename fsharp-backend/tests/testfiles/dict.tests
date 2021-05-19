@@ -52,6 +52,7 @@ Dict.member_v0 { otherKey = 5 } "someKey" = false
 Dict.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
 Dict.merge_v0 { key1 = "val_l" } { key1 = "val_r" } = {key1 = "val_r"}
 Dict.merge_v0 {key1 = "val_l"} {key1 = blank } = {key1 = "val_l"}
+Dict.merge_v0 {} {} = {}
 
 Dict.singleton_v0 "one" 1 = { one = 1 }
 Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
