@@ -380,7 +380,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "Dict" "merge" 0
       parameters =
-        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varB) "" ]
+        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
       returnType = TDict varA
       description =
         "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both `left` and `right`, it will have the value from `right`."
