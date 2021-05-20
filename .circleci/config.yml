@@ -170,7 +170,7 @@ jobs:
             - v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
             - v2-client-{{ checksum "package-lock.json" }}
             - v2-client
-      - run: scripts/support/compile client --test
+      - run: scripts/support/compile-project client --test
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
@@ -254,7 +254,7 @@ jobs:
       # so the ocamltestserver will load
       - run: touch backend/static/appsupport.js
       - run: scripts/support/generate-etags
-      - run: scripts/support/compile-project fsharp-backend
+      - run: scripts/support/compile-project --test fsharp-backend
       - assert-clean-worktree
       - persist_to_workspace:
           # Do this before reducing size of cache
