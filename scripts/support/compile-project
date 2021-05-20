@@ -21,11 +21,16 @@ for v in "${files[@]}"; do
   files["all"]+=" $v"
 done
 
-while [ "$1" != "" ]; do
-  case $1 in
+test=""
+testfiles=""
+
+for cmd in "$@"; do
+  case $cmd in
     backend | client | stroller | queue-scheduler | all | fsharp-backend)
-      ./scripts/support/compile ${files[$1]}
-      exit
+      testfiles="${testfiles} ${files[$cmd]}"
+      ;;
+    --test )
+      test="--test"
       ;;
     -h | --help )
       usage
@@ -36,6 +41,6 @@ while [ "$1" != "" ]; do
       exit 1
       ;;
   esac
-  shift
-
 done
+
+./scripts/support/compile $testfiles $test
