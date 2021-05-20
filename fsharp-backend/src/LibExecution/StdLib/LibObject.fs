@@ -35,7 +35,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "Dict" "empty" 0) }
     { name = fn "Object" "merge" 0
       parameters =
-        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varB) "" ]
+        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
       returnType = TDict varA
       description =
         "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
