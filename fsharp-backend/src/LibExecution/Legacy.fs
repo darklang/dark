@@ -7,8 +7,6 @@ open RuntimeTypes
 open Newtonsoft.Json
 open Newtonsoft.Json.Linq
 
-module DvalRepr = LibExecution.DvalRepr
-
 let writePrettyJson (f : JsonWriter -> unit) : string =
   let stream = new System.IO.StringWriter()
   let w = new JsonTextWriter(stream)
