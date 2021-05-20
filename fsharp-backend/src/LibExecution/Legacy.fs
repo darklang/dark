@@ -34,7 +34,7 @@ module PrettyResponseJsonV0 =
 
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
   let rec unsafeDvalToJsonValue (w : JsonWriter) (redact : bool) (dv : Dval) : unit =
-    let writeDval = DvalRepr.unsafeDvalToJsonValueV0 w redact
+    let writeDval = unsafeDvalToJsonValue w redact
 
     let wrapStringValue (typ : string) (str : string) =
       w.writeObject
@@ -149,7 +149,8 @@ module PrettyResponseJsonV0 =
                  w.WriteValue("Error")
                  w.WritePropertyName "values"
                  w.writeArray (fun () -> writeDval rdv)))
-    | DBytes bytes -> wrapStringValue "bytes" (System.Convert.ToBase64String bytes)
+    | DBytes bytes ->
+        bytes |> System.Text.Encoding.ASCII.GetString |> wrapStringValue "bytes"
 
   let toPrettyResponseJsonV0 (dval : Dval) : string =
     writePrettyJson (fun w -> unsafeDvalToJsonValue w false dval)
