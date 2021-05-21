@@ -251,7 +251,11 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DResult result -> return (DResult result)
-                  | other -> return Errors.throw(Errors.expectedLambdaType (TResult(varOk, varErr)) other)
+                  | other ->
+                      return
+                        Errors.throw (
+                          Errors.expectedLambdaType (TResult(varOk, varErr)) other
+                        )
               | Error msg -> return DResult(Error msg)
             }
         | _ -> incorrectArgs ())
@@ -277,7 +281,11 @@ let fns : List<BuiltInFn> =
                   match result with
                   | DResult (Ok result) -> return DResult(Ok result)
                   | DResult (Error result) -> return DResult(Error result)
-                  | other -> return Errors.throw(Errors.expectedLambdaType (TResult(varOk, varErr)) other)
+                  | other ->
+                      return
+                        Errors.throw (
+                          Errors.expectedLambdaType (TResult(varOk, varErr)) other
+                        )
               | Error msg -> return DResult(Error msg)
             }
         | _ -> incorrectArgs ())
