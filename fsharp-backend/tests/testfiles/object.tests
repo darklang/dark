@@ -1,0 +1,12 @@
+Object.empty_v0 = {}
+
+Object.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
+Object.merge_v0 { key1 = "val_l" } { key1 = "val_r" } = {key1 = "val_r"}
+Object.merge_v0 {key1 = "val_l"} {key1 = blank } = {key1 = "val_l"}
+Object.merge_v0 {} {} = {}
+
+Object.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }" // OCAMLONLY
+Object.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{\n  \"key1\": \"val1\",\n  \"key2\": \"val2\"\n}" //FSHARPONLY
+
+Object.toJSON_v1 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }" // OCAMLONLY
+Object.toJSON_v1 { key1 = "val1"; key2 = "val2"; } = "{\n  \"key1\": \"val1\",\n  \"key2\": \"val2\"\n}" //FSHARPONLY

@@ -49,7 +49,10 @@ Dict.keys_v0 { key1 = "val1" } = [ "key1"]
 Dict.member_v0 { otherKey = 5; someKey = 5 } "someKey" = true
 Dict.member_v0 { otherKey = 5 } "someKey" = false
 
-// Dict.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
+Dict.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
+Dict.merge_v0 { key1 = "val_l" } { key1 = "val_r" } = {key1 = "val_r"}
+Dict.merge_v0 {key1 = "val_l"} {key1 = blank } = {key1 = "val_l"}
+Dict.merge_v0 {} {} = {}
 
 Dict.set_v0 { key1 = "val1before" } "key1" "val1after" = { key1 = "val1after" }
 Dict.set_v0 { key1 = "val1" } "key2" "val2" = { key1 = "val1"; key2 = "val2" }
@@ -63,7 +66,8 @@ Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
 Dict.size_v0 { a = 3; b = 1; c = 1 } = 3
 Dict.size_v0 {} = 0
 
-// Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }"
+Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{ \"key1\": \"val1\", \"key2\": \"val2\" }" // OCAMLONLY
+Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{\n  \"key1\": \"val1\",\n  \"key2\": \"val2\"\n}" //FSHARPONLY
 
 Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
 Dict.toList_v0 {} = []
