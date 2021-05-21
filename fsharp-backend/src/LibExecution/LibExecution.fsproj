@@ -15,6 +15,7 @@
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <Compile Include="Execution.fs" />
+    <Compile Include="Legacy.fs" />
     <Compile Include="StdLib/LibBool.fs" />
     <Compile Include="StdLib/LibBytes.fs" />
     <Compile Include="StdLib/LibChar.fs" />
