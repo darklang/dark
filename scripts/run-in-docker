@@ -39,8 +39,8 @@ USER="$(id -u):$gid"
 
 if [ -t 0 ] ;
 then
-  docker exec -it --user "${USER}" "${NAME}" "${ARGS[@]}" ;
+  docker exec -it "${NAME}" "${ARGS[@]}" ;
 else
   # Replace any in-container filenames with host filenames (stdout + stderr)
-  { cat <&0 | fix_dir_stdin | docker exec -i --user "${USER}" "${NAME}" "${ARGS[@]}" 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
+  { cat <&0 | fix_dir_stdin | docker exec -i "${NAME}" "${ARGS[@]}" 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
 fi
