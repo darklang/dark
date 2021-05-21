@@ -1,14 +1,10 @@
 {
   "name": "dark-builder",
 
-  // Sets the run context to one level up instead of the .devcontainer folder.
-  "context": "..",
-
-  // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-
-  // "image": "darklang/Dockerfile",
-  //"image" : "dark",
-  "dockerFile": "../Dockerfile",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Dockerfile"
+  },
 
   // Set *default* container specific settings.json values on container create.
   "settings": {
@@ -50,7 +46,9 @@
     "--security-opt",
     "seccomp=scripts/support/chrome-seccomp.json",
     "--security-opt",
-    "seccomp=unconfined"
+    "seccomp=unconfined",
+    "--label",
+    "dark-dev-container"
   ],
 
   "workspaceMount": "source=${localWorkspaceFolder},target=/home/dark/app,type=bind,consistency=delegated", // for local
