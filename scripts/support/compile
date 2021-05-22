@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 run_tests = False
-
+in_ci = os.environ.get("CI")
 
 # Make io unbuffered
 def flush(fn):
@@ -105,9 +105,9 @@ def esy_install():
 def client_test():
   start = time.time()
   flags = ""
-  if os.environ.get("CI"):
+  if in_ci:
     flags = "--verbose --dom"
-  result = run_test(start, f"./scripts/runtests {flags}")
+  result = run_test(start, f"./scripts/run-client-tests {flags}")
   return result
 
 
@@ -137,7 +137,7 @@ def backend_build():
   exes = [ rename(x) for x in os.listdir("backend/bin") if x.endswith(".ml") ]
   exes.append("@analysis.js")
   exes = " ".join(exes)
-  if os.environ.get("CI"):
+  if in_ci:
     compilation_profile = "release"
   else:
     compilation_profile = "dev"
@@ -153,7 +153,7 @@ def backend_build():
 
 def backend_test():
   start = time.time()
-  ci = "--verbose" if os.environ.get("CI") else "--quick"
+  ci = "--verbose" if in_ci else "--quick"
   return run_test(start,
           f"unbuffer scripts/dune-wrapper.sh build backend/test/test.exe" \
           f" && unbuffer scripts/run-backend-tests --show-errors {ci}" \
@@ -166,8 +166,9 @@ def backend_test():
 
 def fsharp_backend_test():
   start = time.time()
-  ci = "--verbosity detailed" if os.environ.get("CI") else "--verbosity normal"
-  if os.environ.get("CI"):
+  ci = "--verbosity detailed" if in_ci else "--verbosity normal"
+  # FSTODO: unused
+  if in_ci:
     configuration = "Release"
   else:
     configuration = "Debug"
@@ -187,7 +188,7 @@ def fsharp_paket_install():
 def fsharp_paket_restore():
   start = time.time()
   # We run paket restore to match the lock file
-  ci = "--verbose" if os.environ.get("CI") else ""
+  ci = "--verbose" if in_ci else ""
   build = f"cd fsharp-backend && unbuffer dotnet paket restore {ci}"
   return run_backend(start, build)
 
@@ -211,10 +212,6 @@ def fsharp_paket_restore():
 # the msbuild only build one project, afaict. There's something to be done
 # there but I'm not sure what.
 def fsharp_backend_quick_build():
-  if os.environ.get("CI"):
-    print("quick builds are only for local development")
-    return false
-
   start = time.time()
   # Debug symbols are removed because running the server in dev reads the debug
   # symbols (.pdb files), which locks them for the build server. We work around
@@ -232,7 +229,7 @@ def fsharp_backend_full_build():
   start = time.time()
   #FSTODO: there is a bug in the .NET linker, come back to it later.
   #https://github.com/mono/linker/issues/1508
-  if os.environ.get("CI"):
+  if in_ci:
     configuration = "Release"
     verbosity = "normal"
     command = "publish"
@@ -250,7 +247,7 @@ def fsharp_backend_full_build():
 
 
 def rust_build(dir):
-  if os.environ.get("CI"):
+  if in_ci:
     build_flags = " --release"
   else:
     build_flags = ""
@@ -282,7 +279,7 @@ def rust_test(dir):
     return result
 
   start = time.time()
-  if os.environ.get("CI"):
+  if in_ci:
     clippy_flags = "-D warnings"
   else:
     clippy_flags = ""
@@ -492,7 +489,10 @@ def mark(should, f):
 
   elif ("/backend/" in f) and ((".c" in f) or ("libserializ" in f) or ("legacyserver" in f)):
     should.backend_build = True
-    should.fsharp_backend_quick_build = True
+    if in_ci:
+      should.fsharp_backend_full_build = True
+    else:
+      should.fsharp_backend_quick_build = True
 
   elif ("/backend/templates/" in f) and (".html" in f):
     should.backend_build = True
@@ -513,10 +513,10 @@ def mark(should, f):
     (".fsproj" in f or ".sln" in f or "Directory.Build.props" in f):
       should.fsharp_backend_full_build = True
 
-  elif ("/fsharp-backend/" in f) and (f.endswith(".fs")):
-      should.fsharp_backend_quick_build = True
-
-  elif ("/fsharp-backend/" in f) and (f.endswith(".fsi")):
+  elif ("/fsharp-backend/" in f) and ((f.endswith(".fs")) or (f.endswith(".fsi"))):
+    if in_ci:
+      should.fsharp_backend_full_build = True
+    else:
       should.fsharp_backend_quick_build = True
 
   elif ("/fsharp-backend/" in f) and ("/tests/" in f):
@@ -585,7 +585,7 @@ def mark(should, f):
     should.reload_browser = True
 
   else:
-    print("unknown file: " + f, end='')
+    print("non-build file: " + f, end='')
 
   return should
 
@@ -595,6 +595,7 @@ def ignore(filename):
   ignores = [
       ".git",
       ".merlin",
+      ".browser-trigger",
       "scripts/support/compile",
       "integration-tests/tests.js",
       "rundir/",

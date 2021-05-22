@@ -26,7 +26,6 @@ rm -Rf containers/queue-scheduler/target
 rm -Rf fsharp-backend/src/*/obj
 rm -Rf fsharp-backend/tests/*/obj
 rm -Rf fsharp-backend/Build
-rm -Rf fsharp-backend/node_modules
 
 # --------------
 # Build image from clean start
@@ -74,14 +73,14 @@ MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
 # Avoid docker syncing everything to the host, slowing compiles down by 5x
 MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/_build"
-MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
 MOUNTS+=" --mount type=volume,src=dark_dotesy,dst=/home/dark/.esy"
-MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
+MOUNTS+=" --mount type=volume,src=dark_esy,dst=/home/dark/app/_esy"
+MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build"
 MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
-MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target"
+MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
 MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/containers/queue-scheduler/target"
 MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo"
-MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build"
+MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target"
 
 if [[ -e "$HOME/.config/gcloud" ]]; then
   MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
@@ -89,38 +88,6 @@ fi
 # make sure this exists first, so it doesn't get created as a directory
 touch "$HOME/.dark_bash_history"
 MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
-
-# --------------
-# fswatch
-# --------------
-# Avoid hanging when --watch is not called. This runs the `true` command
-# instead of fswatch.
-FSWATCH="true"
-for i in "$@"
-do
-  case $i in
-    --watch)
-    FSWATCH="fswatch --event-flag-separator=, -r * -x -e rundir"
-    # Need to specify --event types, or something in node_modules will fire
-    # endless IsDir and PlatformSpecific ("This event maps a platform-specific
-    # event that has no corresponding flag.") events
-    FSWATCH+=" --event=Created --event=Updated --event=Removed --event=Renamed --event=MovedFrom --event=MovedTo"
-
-    # In case you are working on linux, it seems like poll_monitor is more reliable way
-    # to check for the changes. You can find all monitors available on your platform
-    # using `fswatch -M`. You can always override the monitor mode by passing
-    # custom FSWATCH_MONITOR environment variable.
-    if [[ "${FSWATCH_MONITOR-}" != "" ]]; then
-      echo "Using fswatch with monitor from env: ${FSWATCH_MONITOR} (env)"
-      FSWATCH+=" -m ${FSWATCH_MONITOR}"
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-      echo "Using fswatch with monitor: poll_monitor (Linux default)"
-      FSWATCH+=" -m poll_monitor"
-    else
-      echo "Using fswatch with monitor: (default)"
-    fi
-  esac
-done
 
 # --------------
 # environment
@@ -139,15 +106,6 @@ done
 ENV_FILE="config/$ENV"
 
 echo "Using env: $ENV_FILE"
-
-# --------------
-# save power with POLL_FREQUENCY
-# --------------
-
-POLL_FREQ=
-if [ -v POLL_FREQUENCY ]; then
-  POLL_FREQ="--env POLL_FREQUENCY=$POLL_FREQUENCY"
-fi
 
 # --------------
 # create the network
@@ -170,31 +128,31 @@ echo "Run the build"
 # -p 9001:9001 to expose the F# bwd server
 # -p 8000:8000 to expose the OCaml backend server
 # -cap-add & -secururity-opt to attach a gdb/strace to .net code
-$FSWATCH | docker run \
-             --init \
-             --rm \
-             -i \
-             --dns 8.8.8.8 \
-             --dns 8.8.4.4 \
-             --name dark-builder \
-             --hostname dark-dev \
-             --env-file "$ENV_FILE" \
-             --env HOST_PWD="$PWD" \
-             --env IN_DEV_CONTAINER=true \
-             $POLL_FREQ \
-             -v pgconf:/etc/postgresql \
-             -v pglogs:/var/log/postgresql \
-             -v pgdata:/var/lib/postgresql \
-             -v /var/run/docker.sock:/var/run/docker.sock \
-             -p 8000:8000 \
-             -p 9000:9000 \
-             -p 9001:9001 \
-             -p 5433:5432 \
-             -p 2345:2345 \
-             --security-opt seccomp=scripts/support/chrome-seccomp.json \
-             -w /home/dark/app \
-             --cap-add=ALL \
-             --security-opt seccomp=unconfined \
-             $MOUNTS \
-             dark \
-             scripts/support/build-server "${@}"
+docker run \
+  --init \
+  --rm \
+  -i \
+  --dns 8.8.8.8 \
+  --dns 8.8.4.4 \
+  --name dark-builder \
+  --hostname dark-dev \
+  --env-file "$ENV_FILE" \
+  --env HOST_PWD="$PWD" \
+  --env IN_DEV_CONTAINER=true \
+  -v pgconf:/etc/postgresql \
+  -v pglogs:/var/log/postgresql \
+  -v pgdata:/var/lib/postgresql \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -p 8000:8000 \
+  -p 9000:9000 \
+  -p 9001:9001 \
+  -p 5433:5432 \
+  -p 2345:2345 \
+  --security-opt seccomp=scripts/support/chrome-seccomp.json \
+  -w /home/dark/app \
+  --user "$(id -u):$gid" \
+  --cap-add=ALL \
+  --security-opt seccomp=unconfined \
+  $MOUNTS \
+  dark \
+  scripts/support/build-server "${@}"

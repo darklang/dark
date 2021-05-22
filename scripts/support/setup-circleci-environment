@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# build-server does in the dev environment
+# build-server does this in the dev environment
 
 ENV_FILE="config/circleci"
 echo "Using env: $ENV_FILE"

@@ -24,7 +24,7 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 
 # Build the base ocaml docker image ('-' means no build context)
 echo -e "\nBuild dark-base-service container"
-docker build \
+time docker build \
   --build-arg GIT_COMMIT="${GIT_COMMIT}" \
   --tag "dark-base-service:latest" \
   - \
@@ -32,7 +32,7 @@ docker build \
 
 # Build the base ocaml docker image ('-' means no build context)
 echo -e "\nBuild dark-ocaml-service container"
-docker build \
+time docker build \
   --build-arg GIT_COMMIT="${GIT_COMMIT}" \
   --tag "dark-ocaml-service:latest" \
   - \
@@ -49,12 +49,12 @@ for dir in containers/*/; do
 
     BUILD_DIR="${dir}"
     if [[ -e "${dir}prep.sh" ]]; then
-      BUILD_DIR=$(${dir}prep.sh)
+      BUILD_DIR=$(time ${dir}prep.sh)
     fi
 
     ( cd $BUILD_DIR \
       && echo "Building in $BUILD_DIR" \
-      && docker build \
+      && time docker build \
            --tag "${PREFIX}${c}:latest" \
            .
       )
