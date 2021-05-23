@@ -47,6 +47,19 @@ commands:
           command: "bash -c '[[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
 
   ##########################
+  # Checkout - need to remove some things for a clean checkout
+  ##########################
+  darkcheckout:
+    steps:
+      # To get ownership right when mounting volumes in local development, the
+      # container adds a bunch of directories within ~/app. However, in Circle,
+      # we don't use volumes and the container is loaded before the git
+      # checkout, which complains if the checkout directory is not empty. So
+      # let's delete those first.
+      - run: rm -Rf /home/dark/app/*
+      - checkout
+
+  ##########################
   # Setup app
   ##########################
   setup-app:
@@ -163,7 +176,7 @@ jobs:
   build-client:
     executor: in-container
     steps:
-      - checkout
+      - darkcheckout
       - setup-app
       - restore_cache:
           keys:
@@ -189,7 +202,7 @@ jobs:
   build-backend:
     executor: in-container
     steps:
-      - checkout
+      - darkcheckout
       - setup-app
       - restore_cache:
           keys:
@@ -242,7 +255,7 @@ jobs:
   build-fsharp-backend:
     executor: in-container
     steps:
-      - checkout
+      - darkcheckout
       - setup-app
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
@@ -273,13 +286,13 @@ jobs:
   check-formatting:
     executor: in-rust-container
     steps:
-      - checkout
+      - darkcheckout
       - run: scripts/format check
 
   build-stroller:
     executor: in-rust-container
     steps:
-      - checkout
+      - darkcheckout
       - rust-setup: { project: "stroller", dir: "containers/stroller" }
       - run: scripts/support/compile-project stroller --test
       - assert-clean-worktree
@@ -288,7 +301,7 @@ jobs:
   build-queue-scheduler:
     executor: in-rust-container
     steps:
-      - checkout
+      - darkcheckout
       - rust-setup: { project: "queue-scheduler", dir: "containers/queue-scheduler" }
       # tests are run in rust-integration-tests
       - run: scripts/support/compile-project queue-scheduler
@@ -298,14 +311,14 @@ jobs:
   build-postgres-honeytail:
     executor: my-executor
     steps:
-      - checkout
+      - darkcheckout
       - prep-container-creation
       - run: cd containers/postgres-honeytail && docker build -t postgres-honeytail .
 
   validate-honeycomb-config:
     executor: my-executor
     steps:
-      - checkout
+      - darkcheckout
       - prep-container-creation
       - run: apk add --update bash jq python3 py3-pip && pip install yq
       - run: bash -c scripts/support/test-honeycomb-config.sh
@@ -314,7 +327,7 @@ jobs:
     executor: in-container
     parallelism: 4
     steps:
-      - checkout
+      - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
@@ -346,7 +359,7 @@ jobs:
   rust-integration-tests:
     executor: in-rust-container
     steps:
-      - checkout
+      - darkcheckout
       - rust-setup: { dir: "containers/queue-scheduler", project: "containers/queue-scheduler" }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
@@ -367,7 +380,7 @@ jobs:
     executor: in-container
     steps:
       # Just test that we can build them for now
-      - checkout
+      - darkcheckout
       - setup-app
       - attach_workspace: { at: "." }
       - build-gcp-containers
@@ -375,7 +388,7 @@ jobs:
   push-to-gcp:
     executor: in-container
     steps:
-      - checkout
+      - darkcheckout
       - setup-app
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
@@ -403,7 +416,7 @@ jobs:
   deploy:
     executor: in-container
     steps:
-      - checkout
+      - darkcheckout
       - setup-app
       - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
