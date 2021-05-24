@@ -885,10 +885,10 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
   toRepr_ 0 dv
 
 
-// let of_unknown_json_v0 str =
-//   try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
-//   with e ->
-//     Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
+let ofUnknownJsonV0 str =
+  try
+    str |> parseJson |> unsafeDvalOfJsonV0
+  with _ -> failwith "Invalid json"
 //
 //
 // let of_unknown_json_v1 str =
