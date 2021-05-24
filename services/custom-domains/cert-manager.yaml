@@ -48,12 +48,20 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Approved")].status
+      name: Approved
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Denied")].status
+      name: Denied
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
     - jsonPath: .spec.issuerRef.name
       name: Issuer
-      priority: 1
+      type: string
+    - jsonPath: .spec.username
+      name: Requestor
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].message
       name: Status
@@ -100,6 +108,23 @@ spec:
                 description: The requested 'duration' (i.e. lifetime) of the Certificate.
                   This option may be ignored/overridden by some issuer types.
                 type: string
+              extra:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: Extra contains extra attributes of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                type: object
+              groups:
+                description: Groups contains group membership of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
               isCA:
                 description: IsCA will request to mark the certificate as valid for
                   certificate signing when submitting to the issuer. This will automatically
@@ -127,6 +152,10 @@ spec:
                 required:
                 - name
                 type: object
+              uid:
+                description: UID contains the uid of the user that created the CertificateRequest.
+                  Populated by the cert-manager webhook on creation and immutable.
+                type: string
               usages:
                 description: Usages is the set of x509 usages that are requested for
                   the certificate. Defaults to `digital signature` and `key encipherment`
@@ -167,6 +196,11 @@ spec:
                   - netscape sgc
                   type: string
                 type: array
+              username:
+                description: Username contains the name of the user that created the
+                  CertificateRequest. Populated by the cert-manager webhook on creation
+                  and immutable.
+                type: string
             required:
             - csr
             - issuerRef
@@ -219,7 +253,7 @@ spec:
                       type: string
                     type:
                       description: Type of the condition, known values are (`Ready`,
-                        `InvalidRequest`).
+                        `InvalidRequest`, `Approved`, `Denied`).
                       type: string
                   required:
                   - status
@@ -238,12 +272,20 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Approved")].status
+      name: Approved
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Denied")].status
+      name: Denied
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
     - jsonPath: .spec.issuerRef.name
       name: Issuer
-      priority: 1
+      type: string
+    - jsonPath: .spec.username
+      name: Requestor
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].message
       name: Status
@@ -290,6 +332,23 @@ spec:
                 description: The requested 'duration' (i.e. lifetime) of the Certificate.
                   This option may be ignored/overridden by some issuer types.
                 type: string
+              extra:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: Extra contains extra attributes of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                type: object
+              groups:
+                description: Groups contains group membership of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
               isCA:
                 description: IsCA will request to mark the certificate as valid for
                   certificate signing when submitting to the issuer. This will automatically
@@ -317,6 +376,10 @@ spec:
                 required:
                 - name
                 type: object
+              uid:
+                description: UID contains the uid of the user that created the CertificateRequest.
+                  Populated by the cert-manager webhook on creation and immutable.
+                type: string
               usages:
                 description: Usages is the set of x509 usages that are requested for
                   the certificate. Defaults to `digital signature` and `key encipherment`
@@ -357,6 +420,11 @@ spec:
                   - netscape sgc
                   type: string
                 type: array
+              username:
+                description: Username contains the name of the user that created the
+                  CertificateRequest. Populated by the cert-manager webhook on creation
+                  and immutable.
+                type: string
             required:
             - csr
             - issuerRef
@@ -409,7 +477,7 @@ spec:
                       type: string
                     type:
                       description: Type of the condition, known values are (`Ready`,
-                        `InvalidRequest`).
+                        `InvalidRequest`, `Approved`, `Denied`).
                       type: string
                   required:
                   - status
@@ -428,12 +496,20 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Approved")].status
+      name: Approved
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Denied")].status
+      name: Denied
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
     - jsonPath: .spec.issuerRef.name
       name: Issuer
-      priority: 1
+      type: string
+    - jsonPath: .spec.username
+      name: Requestor
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].message
       name: Status
@@ -475,6 +551,23 @@ spec:
                 description: The requested 'duration' (i.e. lifetime) of the Certificate.
                   This option may be ignored/overridden by some issuer types.
                 type: string
+              extra:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: Extra contains extra attributes of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                type: object
+              groups:
+                description: Groups contains group membership of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
               isCA:
                 description: IsCA will request to mark the certificate as valid for
                   certificate signing when submitting to the issuer. This will automatically
@@ -506,6 +599,10 @@ spec:
                 description: The PEM-encoded x509 certificate signing request to be
                   submitted to the CA for signing.
                 format: byte
+                type: string
+              uid:
+                description: UID contains the uid of the user that created the CertificateRequest.
+                  Populated by the cert-manager webhook on creation and immutable.
                 type: string
               usages:
                 description: Usages is the set of x509 usages that are requested for
@@ -547,6 +644,11 @@ spec:
                   - netscape sgc
                   type: string
                 type: array
+              username:
+                description: Username contains the name of the user that created the
+                  CertificateRequest. Populated by the cert-manager webhook on creation
+                  and immutable.
+                type: string
             required:
             - issuerRef
             - request
@@ -599,7 +701,7 @@ spec:
                       type: string
                     type:
                       description: Type of the condition, known values are (`Ready`,
-                        `InvalidRequest`).
+                        `InvalidRequest`, `Approved`, `Denied`).
                       type: string
                   required:
                   - status
@@ -620,12 +722,20 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="Approved")].status
+      name: Approved
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Denied")].status
+      name: Denied
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
     - jsonPath: .spec.issuerRef.name
       name: Issuer
-      priority: 1
+      type: string
+    - jsonPath: .spec.username
+      name: Requestor
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].message
       name: Status
@@ -667,6 +777,23 @@ spec:
                 description: The requested 'duration' (i.e. lifetime) of the Certificate.
                   This option may be ignored/overridden by some issuer types.
                 type: string
+              extra:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                description: Extra contains extra attributes of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                type: object
+              groups:
+                description: Groups contains group membership of the user that created
+                  the CertificateRequest. Populated by the cert-manager webhook on
+                  creation and immutable.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
               isCA:
                 description: IsCA will request to mark the certificate as valid for
                   certificate signing when submitting to the issuer. This will automatically
@@ -698,6 +825,10 @@ spec:
                 description: The PEM-encoded x509 certificate signing request to be
                   submitted to the CA for signing.
                 format: byte
+                type: string
+              uid:
+                description: UID contains the uid of the user that created the CertificateRequest.
+                  Populated by the cert-manager webhook on creation and immutable.
                 type: string
               usages:
                 description: Usages is the set of x509 usages that are requested for
@@ -740,6 +871,11 @@ spec:
                   - netscape sgc
                   type: string
                 type: array
+              username:
+                description: Username contains the name of the user that created the
+                  CertificateRequest. Populated by the cert-manager webhook on creation
+                  and immutable.
+                type: string
             required:
             - issuerRef
             - request
@@ -792,7 +928,7 @@ spec:
                       type: string
                     type:
                       description: Type of the condition, known values are (`Ready`,
-                        `InvalidRequest`).
+                        `InvalidRequest`, `Approved`, `Denied`).
                       type: string
                   required:
                   - status
@@ -1084,6 +1220,17 @@ spec:
                   of the certificate (i.e. notAfter - notBefore), it will be automatically
                   renewed 2/3rds of the way through the certificate's duration.
                 type: string
+              revisionHistoryLimit:
+                description: revisionHistoryLimit is the maximum number of CertificateRequest
+                  revisions that are maintained in the Certificate's history. Each
+                  revision represents a single `CertificateRequest` created by this
+                  Certificate, either when it was created, renewed, or Spec was changed.
+                  Revisions will be removed by oldest first if the number of revisions
+                  exceeds this number. If set, revisionHistoryLimit must be a value
+                  of `1` or greater. If unset (`nil`), revisions will not be garbage
+                  collected. Default value is `nil`.
+                format: int32
+                type: integer
               secretName:
                 description: SecretName is the name of the secret resource that will
                   be automatically created and managed by this Certificate resource.
@@ -1196,6 +1343,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Certificate.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -1494,6 +1649,17 @@ spec:
                   of the certificate (i.e. notAfter - notBefore), it will be automatically
                   renewed 2/3rds of the way through the certificate's duration.
                 type: string
+              revisionHistoryLimit:
+                description: revisionHistoryLimit is the maximum number of CertificateRequest
+                  revisions that are maintained in the Certificate's history. Each
+                  revision represents a single `CertificateRequest` created by this
+                  Certificate, either when it was created, renewed, or Spec was changed.
+                  Revisions will be removed by oldest first if the number of revisions
+                  exceeds this number. If set, revisionHistoryLimit must be a value
+                  of `1` or greater. If unset (`nil`), revisions will not be garbage
+                  collected. Default value is `nil`.
+                format: int32
+                type: integer
               secretName:
                 description: SecretName is the name of the secret resource that will
                   be automatically created and managed by this Certificate resource.
@@ -1611,6 +1777,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Certificate.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -1903,6 +2077,17 @@ spec:
                   of the certificate (i.e. notAfter - notBefore), it will be automatically
                   renewed 2/3rds of the way through the certificate's duration.
                 type: string
+              revisionHistoryLimit:
+                description: revisionHistoryLimit is the maximum number of CertificateRequest
+                  revisions that are maintained in the Certificate's history. Each
+                  revision represents a single `CertificateRequest` created by this
+                  Certificate, either when it was created, renewed, or Spec was changed.
+                  Revisions will be removed by oldest first if the number of revisions
+                  exceeds this number. If set, revisionHistoryLimit must be a value
+                  of `1` or greater. If unset (`nil`), revisions will not be garbage
+                  collected. Default value is `nil`.
+                format: int32
+                type: integer
               secretName:
                 description: SecretName is the name of the secret resource that will
                   be automatically created and managed by this Certificate resource.
@@ -2020,6 +2205,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Certificate.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -2149,10 +2342,10 @@ spec:
                 type: array
               duration:
                 description: The requested 'duration' (i.e. lifetime) of the Certificate.
-                  This option may be ignored/overridden by some issuer types. If overridden
-                  and `renewBefore` is greater than the actual certificate duration,
-                  the certificate will be automatically renewed 2/3rds of the way
-                  through the certificate's duration.
+                  This option may be ignored/overridden by some issuer types. If unset
+                  this defaults to 90 days. If overridden and `renewBefore` is greater
+                  than the actual certificate duration, the certificate will be automatically
+                  renewed 2/3rds of the way through the certificate's duration.
                 type: string
               emailAddresses:
                 description: EmailAddresses is a list of email subjectAltNames to
@@ -2316,10 +2509,22 @@ spec:
               renewBefore:
                 description: The amount of time before the currently issued certificate's
                   `notAfter` time that cert-manager will begin to attempt to renew
-                  the certificate. If this value is greater than the total duration
-                  of the certificate (i.e. notAfter - notBefore), it will be automatically
-                  renewed 2/3rds of the way through the certificate's duration.
+                  the certificate. If unset this defaults to 30 days. If this value
+                  is greater than the total duration of the certificate (i.e. notAfter
+                  - notBefore), it will be automatically renewed 2/3rds of the way
+                  through the certificate's duration.
                 type: string
+              revisionHistoryLimit:
+                description: revisionHistoryLimit is the maximum number of CertificateRequest
+                  revisions that are maintained in the Certificate's history. Each
+                  revision represents a single `CertificateRequest` created by this
+                  Certificate, either when it was created, renewed, or Spec was changed.
+                  Revisions will be removed by oldest first if the number of revisions
+                  exceeds this number. If set, revisionHistoryLimit must be a value
+                  of `1` or greater. If unset (`nil`), revisions will not be garbage
+                  collected. Default value is `nil`.
+                format: int32
+                type: integer
               secretName:
                 description: SecretName is the name of the secret resource that will
                   be automatically created and managed by this Certificate resource.
@@ -2437,6 +2642,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Certificate.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -10275,7 +10488,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -10536,6 +10749,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -12263,7 +12484,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -12524,6 +12745,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -14251,7 +14480,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -14512,6 +14741,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -16241,7 +16478,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -16502,6 +16739,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -18269,7 +18514,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -18530,6 +18775,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -20256,7 +20509,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -20517,6 +20770,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -22243,7 +22504,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -22504,6 +22765,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -24232,7 +24501,7 @@ spec:
                     description: The OCSP server list is an X.509 v3 extension that
                       defines a list of URLs of OCSP responders. The OCSP responders
                       can be queried for the revocation status of an issued certificate.
-                      If not set, the certificate wil be issued with no OCSP servers
+                      If not set, the certificate will be issued with no OCSP servers
                       set. For example, an OCSP server URL could be "http://ocsp.int-x3.letsencrypt.org".
                     items:
                       type: string
@@ -24493,6 +24762,14 @@ spec:
                       description: Message is a human readable description of the
                         details of the last transition, complementing reason.
                       type: string
+                    observedGeneration:
+                      description: If set, this represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.condition[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the Issuer.
+                      format: int64
+                      type: integer
                     reason:
                       description: Reason is a brief machine readable explanation
                         for the condition's last transition.
@@ -25452,6 +25729,7 @@ metadata:
   name: cert-manager
 ---
 apiVersion: v1
+automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
   labels:
@@ -25463,6 +25741,7 @@ metadata:
   namespace: cert-manager
 ---
 apiVersion: v1
+automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
   labels:
@@ -25474,6 +25753,7 @@ metadata:
   namespace: cert-manager
 ---
 apiVersion: v1
+automountServiceAccountToken: true
 kind: ServiceAccount
 metadata:
   labels:
@@ -25982,9 +26262,48 @@ rules:
   - challenges
   - orders
   verbs:
-  - get
-  - list
-  - watch
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: cert-manager
+    app.kubernetes.io/component: cert-manager
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/name: cert-manager
+  name: cert-manager-controller-approve:cert-manager-io
+rules:
+- apiGroups:
+  - cert-manager.io
+  resourceNames:
+  - issuers.cert-manager.io/*
+  - clusterissuers.cert-manager.io/*
+  resources:
+  - signers
+  verbs:
+  - approve
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: webhook
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/name: webhook
+  name: cert-manager-webhook:subjectaccessreviews
+rules:
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -26110,6 +26429,43 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: cert-manager
+  namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: cert-manager
+    app.kubernetes.io/component: cert-manager
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/name: cert-manager
+  name: cert-manager-controller-approve:cert-manager-io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cert-manager-controller-approve:cert-manager-io
+subjects:
+- kind: ServiceAccount
+  name: cert-manager
+  namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: webhook
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/name: webhook
+  name: cert-manager-webhook:subjectaccessreviews
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cert-manager-webhook:subjectaccessreviews
+subjects:
+- apiGroup: ""
+  kind: ServiceAccount
+  name: cert-manager-webhook
   namespace: cert-manager
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -26333,7 +26689,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/jetstack/cert-manager-cainjector:v1.2.0
+        image: quay.io/jetstack/cert-manager-cainjector:v1.3.1
         imagePullPolicy: IfNotPresent
         name: cert-manager
         resources: {}
@@ -26378,7 +26734,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/jetstack/cert-manager-controller:v1.2.0
+        image: quay.io/jetstack/cert-manager-controller:v1.3.1
         imagePullPolicy: IfNotPresent
         name: cert-manager
         ports:
@@ -26424,7 +26780,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/jetstack/cert-manager-webhook:v1.2.0
+        image: quay.io/jetstack/cert-manager-webhook:v1.3.1
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
