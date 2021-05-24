@@ -21,6 +21,8 @@ let incorrectArgs = Errors.incorrectArgs
 let varOk = TVariable "ok"
 let varErr = TVariable "err"
 let varB = TVariable "b"
+let varA = TVariable "a"
+let varC = TVariable "c"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Result" "map" 0
@@ -45,227 +47,248 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "Result" "map" 1) } ]
-// ; { name = fn "Result" "map" 1
-//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
-//   ; returnType = TResult
-//   ; description =
-//       "If <param result> is {{Ok <var value>}}, returns {{Ok (f <var value>)}}. The lambda <param f> is applied to <var value> and the result is wrapped in {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
-//   ; fn =
-//         (function
-//         | state, [DResult r; DFnVal d] ->
-//           ( match r with
-//           | ResOk dv ->
-//               let result = Ast.execute_dblock ~state d [dv] in
-//               Dval.to_res_ok result
-//           | ResError _ ->
-//               DResult r )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Result" "mapError" 0
-//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
-//   ; returnType = TResult
-//   ; description =
-//       "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
-//   ; fn =
-//         (function
-//         | state, [DResult r; DFnVal b] ->
-//           ( match r with
-//           | ResOk _ ->
-//               DResult r
-//           | ResError err ->
-//               let result = Ast.execute_dblock ~state b [err] in
-//               DResult (ResError result) )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Result" "mapError" 1
-//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
-//   ; returnType = TResult
-//   ; description =
-//       "If <param result> is {{Error <var msg>}}, returns {{Error (f <var msg>)}}. The lambda <var f> is applied to <var msg> and the result is wrapped in {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result> unchanged."
-//   ; fn =
-//         (function
-//         | state, [DResult r; DFnVal b] ->
-//           ( match r with
-//           | ResOk _ ->
-//               DResult r
-//           | ResError err ->
-//               let result = Ast.execute_dblock ~state b [err] in
-//               Dval.to_res_err result )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Result" "withDefault" 0
-//   ; parameters = [Param.make "result" TResult ""; Param.make "default" varA ""]
-//   ; returnType = varA
-//   ; description =
-//       "If <param result> is {{Ok <var value>}}, returns <var value>. Returns <param default> otherwise."
-//   ; fn =
-//         (function
-//         | _, [DResult o; default] ->
-//           (match o with ResOk dv -> dv | ResError _ -> default)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Result" "fromOption" 0
-//   ; parameters = [Param.make "option" TOption ""; Param.make "error" TStr ""]
-//   ; returnType = TResult
-//   ; description =
-//       "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
-//   ; fn =
-//         (function
-//         | _, [DOption o; DStr error] ->
-//           ( match o with
-//           | OptJust dv ->
-//               DResult (ResOk dv)
-//           | OptNothing ->
-//               DResult (ResError (DStr error)) )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Result" "fromOption" 1
-//   ; parameters = [Param.make "option" TOption ""; Param.make "error" TStr ""]
-//   ; returnType = TResult
-//   ; description =
-//       "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
-//   ; fn =
-//         (function
-//         | _, [DOption o; DStr error] ->
-//           ( match o with
-//           | OptJust dv ->
-//               Dval.to_res_ok dv
-//               (* match (Dval.to_opt_just dv) with
-//                 | DOption (OptJust v) -> Dval.to_res_ok v
-//                 | DError s -> DError s
-//                 | _ -> Dval.to_res_err (DStr error)
-//               *)
-//           | OptNothing ->
-//               Dval.to_res_err (DStr error) )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Result" "toOption" 0
-//   ; parameters = [Param.make "result" TResult ""]
-//   ; returnType = TOption
-//   ; description = "Turn a result into an option."
-//   ; fn =
-//         (function
-//         | _, [DResult o] ->
-//           ( match o with
-//           | ResOk dv ->
-//               DOption (OptJust dv)
-//           | ResError _ ->
-//               DOption OptNothing )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Result" "toOption" 1
-//   ; parameters = [Param.make "result" TResult ""]
-//   ; returnType = TOption
-//   ; description = "Turn a result into an option."
-//   ; fn =
-//         (function
-//         | _, [DResult o] ->
-//           ( match o with
-//           | ResOk dv ->
-//               Dval.to_opt_just dv
-//           | ResError _ ->
-//               DOption OptNothing )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Result" "map2" 0
-//   ; parameters =
-//       [Param.make "result1" TResult ""; Param.make "result2" TResult ""; func ["v1"; "v2"]]
-//   ; returnType = TResult
-//   ; description =
-//       "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var v2>}}, returns {{Ok (f <var v1> <var v2>)}} -- the lambda <var f> is applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param result1> and <param result2> that is an error."
-//   ; fn =
-//         (function
-//         | state, [DResult r1; DResult r2; DFnVal b] ->
-//           ( match (r1, r2) with
-//           | ResError e1, _ ->
-//               DResult (ResError e1)
-//           | ResOk _, ResError e2 ->
-//               DResult (ResError e2)
-//           | ResOk dv1, ResOk dv2 ->
-//               let result = Ast.execute_dblock ~state b [dv1; dv2] in
-//               Dval.to_res_ok result )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "Result" "andThen" 0
-//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
-//   ; returnType = TResult
-//   ; description =
-//       "If `result` is `Ok value`, returns `f value` (the lambda `f` is applied to `value` and must return `Error msg` or `Ok newValue`). If `result` is `Error msg`, returns `result` unchanged."
-//   ; fn =
-//         (function
-//         | state, [DResult o; DFnVal b] ->
-//           ( match o with
-//           | ResOk dv ->
-//               let result = Ast.execute_dblock ~state b [dv] in
-//               ( match result with
-//               | DResult result ->
-//                   DResult result
-//               | other ->
-//                   RT.error
-//                     other
-//                     "a result"
-//                     "Expected `f` to return a result" )
-//           | ResError msg ->
-//               DResult (ResError msg) )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Result" "andThen" 1
-//   ; parameters = [Param.make "result" TResult ""; func ["val"]]
-//   ; returnType = TResult
-//   ; description =
-//       "If <param result> is {{Ok <var value>}}, returns {{f <var value>}}. The lambda <param f> is applied to <var value> and must return {{Error <var msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
-//   ; fn =
-//         (function
-//         | state, [DResult o; DFnVal b] ->
-//           ( match o with
-//           | ResOk dv ->
-//               let result = Ast.execute_dblock ~state b [dv] in
-//               ( match result with
-//               | DResult (ResOk res) ->
-//                   Dval.to_res_ok res
-//               | DResult (ResError res) ->
-//                   Dval.to_res_err res
-//               | other ->
-//                   RT.error
-//                     other
-//                     "a result"
-//                     "Expected `f` to return a result" )
-//           | ResError msg ->
-//               DResult (ResError msg) )
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated } ]
-//
+      deprecated = ReplacedBy(fn "Result" "map" 1) }
+    { name = fn "Result" "map" 1
+      parameters =
+        [ Param.make "result" (TResult(varOk, varErr)) ""
+          Param.makeWithArgs "f" (TFn([ varOk ], varB)) "" [ "val" ] ]
+      returnType = TResult(varB, varErr)
+      description =
+        "If <param result> is {{Ok <var value>}}, returns {{Ok (f <var value>)}}. The lambda <param f> is applied to <var value> and the result is wrapped in {{Ok}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
+      fn =
+        (function
+        | state, [ DResult r; DFnVal d ] ->
+            taskv {
+              match r with
+              | Ok dv ->
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) d [ dv ] NotInPipe NoRail
+
+                  return Dval.resultOk result
+              | Error _ -> return DResult r
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Result" "mapError" 0
+      parameters =
+        [ Param.make "result" (TResult(varOk, varErr)) ""
+          Param.makeWithArgs "f" (TFn([ varOk ], varB)) "" [ "val" ] ]
+      returnType = (TResult(varB, varErr))
+      description =
+        "If `result` is `Error msg`, returns `Error (f msg)` (the lambda `f` is applied to `msg` and the result is wrapped in `Error`). If `result` is `Ok value`, returns `result` unchanged."
+      fn =
+        (function
+        | state, [ DResult r; DFnVal b ] ->
+            taskv {
+              match r with
+              | Ok _ -> return DResult r
+              | Error err ->
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
+
+                  return DResult(Error result)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Result" "mapError" 1) }
+    { name = fn "Result" "mapError" 1
+      parameters =
+        [ Param.make "result" (TResult(varOk, varErr)) ""
+          Param.makeWithArgs "f" (TFn([ varOk ], varB)) "" [ "val" ] ]
+      returnType = (TResult(varB, varErr))
+      description =
+        "If <param result> is {{Error <var msg>}}, returns {{Error (f <var msg>)}}. The lambda <var f> is applied to <var msg> and the result is wrapped in {{Error}}. If <param result> is {{Ok <var value>}}, returns <param result> unchanged."
+      fn =
+        (function
+        | state, [ DResult r; DFnVal b ] ->
+            taskv {
+              match r with
+              | Ok _ -> return DResult r
+              | Error err ->
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
+
+                  return Dval.resultError result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Result" "withDefault" 0
+      parameters =
+        [ Param.make "result" (TResult(varOk, varErr)) ""
+          Param.make "default" varB "" ]
+      returnType = varB
+      description =
+        "If <param result> is {{Ok <var value>}}, returns <var value>. Returns <param default> otherwise."
+      fn =
+        (function
+        | _, [ DResult o; default' ] ->
+            (match o with
+             | Ok dv -> Value dv
+             | Error _ -> Value default')
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Result" "fromOption" 0
+      parameters =
+        [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
+      returnType = (TResult(varB, varErr))
+      description =
+        "Turn an option into a result, using `error` as the error message for Error. Specifically, if `option` is `Just value`, returns `Ok value`. Returns `Error error` otherwise."
+      fn =
+        (function
+        | _, [ DOption o; DStr error ] ->
+            taskv {
+              match o with
+              | Some dv -> return DResult(Ok dv)
+              | None -> return DResult(Error(DStr error))
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Result" "fromOption" 1) }
+    { name = fn "Result" "fromOption" 1
+      parameters =
+        [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
+      returnType = (TResult(varB, varErr))
+      description =
+        "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
+      fn =
+        (function
+        | _, [ DOption o; DStr error ] ->
+            taskv {
+              match o with
+              | Some dv -> return DResult(Ok dv)
+              | None -> return DResult(Error(DStr error))
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Result" "toOption" 0
+      parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
+      returnType = TOption varB
+      description = "Turn a result into an option."
+      fn =
+        (function
+        | _, [ DResult o ] ->
+            taskv {
+              match o with
+              | Ok dv -> return DOption(Some dv)
+              | Error _ -> return DOption None
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Result" "toOption" 1) }
+    { name = fn "Result" "toOption" 1
+      parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
+      returnType = TOption varB
+      description = "Turn a result into an option."
+      fn =
+        (function
+        | _, [ DResult o ] ->
+            taskv {
+              match o with
+              | Ok dv -> return DOption(Some dv) // Dval.to_opt_just dv
+              | Error _ -> return DOption None
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Result" "map2" 0
+      parameters =
+        [ Param.make "result1" (TResult(varA, varErr)) ""
+          Param.make "result2" (TResult(varB, varErr)) ""
+          Param.makeWithArgs "f" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
+      returnType = (TResult(varC, varErr))
+      description =
+        "If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var v2>}}, returns {{Ok (f <var v1> <var v2>)}} -- the lambda <var f> is applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}. Otherwise, returns the first of <param result1> and <param result2> that is an error."
+      fn =
+        (function
+        | state, [ DResult r1; DResult r2; DFnVal b ] ->
+            taskv {
+              match (r1, r2) with
+              | Error e1, _ -> return DResult(Error e1)
+              | Ok _, Error e2 -> return DResult(Error e2)
+              | Ok dv1, Ok dv2 ->
+                  let! result =
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ dv1; dv2 ]
+                      NotInPipe
+                      NoRail
+
+                  return DResult(Ok result)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Result" "andThen" 0
+      parameters =
+        [ Param.make "result" (TResult(varOk, varErr)) ""
+          Param.makeWithArgs "f" (TFn([ varOk ], varB)) "" [ "val" ] ]
+      returnType = (TResult(varB, varErr))
+      description =
+        "If `result` is `Ok value`, returns `f value` (the lambda `f` is applied to `value` and must return `Error msg` or `Ok newValue`). If `result` is `Error msg`, returns `result` unchanged."
+      fn =
+        (function
+        | state, [ DResult o; DFnVal b ] ->
+            taskv {
+              match o with
+              | Ok dv ->
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+
+                  match result with
+                  | DResult result -> return (DResult result)
+                  | other ->
+                      return
+                        Errors.throw (
+                          Errors.expectedLambdaType (TResult(varOk, varErr)) other
+                        )
+              | Error msg -> return DResult(Error msg)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Result" "andThen" 1) }
+    { name = fn "Result" "andThen" 1
+      parameters =
+        [ Param.make "result" (TResult(varOk, varErr)) ""
+          Param.makeWithArgs "f" (TFn([ varOk ], varB)) "" [ "val" ] ]
+      returnType = (TResult(varOk, varErr))
+      description =
+        "If <param result> is {{Ok <var value>}}, returns {{f <var value>}}. The lambda <param f> is applied to <var value> and must return {{Error <var msg>}} or {{Ok <var newValue>}}. If <param result> is {{Error <var msg>}}, returns <param result> unchanged."
+      fn =
+        (function
+        | state, [ DResult o; DFnVal b ] ->
+            taskv {
+              match o with
+              | Ok dv ->
+                  let! result =
+                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+
+                  match result with
+                  | DResult (Ok result) -> return DResult(Ok result)
+                  | DResult (Error result) -> return DResult(Error result)
+                  | other ->
+                      return
+                        Errors.throw (
+                          Errors.expectedLambdaType (TResult(varOk, varErr)) other
+                        )
+              | Error msg -> return DResult(Error msg)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
