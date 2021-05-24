@@ -64,7 +64,7 @@ let fns : List<BuiltInFn> =
                   let! result =
                     Interpreter.applyFnVal state (id 0) d [ dv ] NotInPipe NoRail
 
-                  return DResult(Ok result)
+                  return Dval.resultOk result
               | Error _ -> return DResult r
             }
         | _ -> incorrectArgs ())
@@ -111,7 +111,7 @@ let fns : List<BuiltInFn> =
                   let! result =
                     Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
 
-                  return DResult(Error result)
+                  return Dval.resultError result
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
