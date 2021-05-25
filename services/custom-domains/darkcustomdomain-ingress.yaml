@@ -4,10 +4,26 @@
 # domain; `kubectl apply` would remove those hosts. If you need to update this
 # file, you'll need a migration plan.
 #
+# Example migration plan:
+#
+#   For converting to the v1 apiVersion, we are pulling the data using:
+#
+#     kubectl get ingress darkcustomdomaon-l4-ingress -o yaml > local.yaml
+#
+#   then updating it based on the changes in
+#   https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122,
+#   then setting it using
+#
+#     kubectl apply -f local.yaml
+#
+#   The code below represents the updated version, even though this has never
+#   been directly applied.
+
+
 # Handles darkcustomdomain, for which we (not google) do TLS termination
 #
 # See docs/custom-domains.md for more detail.
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: darkcustomdomain-l4-ingress
@@ -24,9 +40,11 @@ spec:
     - secretName: 'ops-placeholder.darkcustomdomain.com'
       hosts:
         - 'ops-placeholder.darkcustomdomain.com'
-  backend:
-    serviceName: bwd-nodeport
-    servicePort: 80
+  defaultBackend:
+    service:
+      name: bwd-nodeport
+      port:
+        number: 80
   rules:
     # This entry is a placeholder, to ensure we have a .spec.rules array to
     # append to using kubectl patch
@@ -34,6 +52,9 @@ spec:
       http:
         paths:
           - path: /
+            pathType: ImplementationSpecific
             backend:
-              serviceName: bwd-nodeport
-              servicePort: 80
+              service:
+                name: bwd-nodeport
+                port:
+                  number: 80

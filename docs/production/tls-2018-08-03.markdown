@@ -102,22 +102,24 @@ You can see that IP (and the others) at
 https://console.cloud.google.com/networking/addresses/list?project=balmy-ground-195100. It's
 `35.227.208.117`.
 
-Then you need to actually create a Kubernetes Ingress pointing to the
-static IP we generated and the TLS secret we just created. For me,
-that looked like
+Then you need to actually create a Kubernetes Ingress pointing to the static IP
+we generated and the TLS secret we just created. For me, that looked like
+(NOTE: updated by pbiggar May 25, 2021, to account for v1 api).
 
 ```
 kubectl create -f - <<EOF
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: bwd-tls-ingress
   annotations:
         kubernetes.io/ingress.global-static-ip-name: "bwd-tls-ip"
 spec:
-  backend:
-    serviceName: bwd-nodeport
-    servicePort: 80
+  defaultBackend:
+    service:
+      name: bwd-nodeport
+      port:
+        number: 80
   tls:
     - secretName: bwd-tls
 EOF

@@ -32,9 +32,14 @@ PATCH=$(cat <<-PATCH
         "paths": [
           {
             "backend": {
-              "serviceName": "bwd-nodeport",
-              "servicePort": 80
+              "service": {
+                "name": "bwd-nodeport",
+                "port": {
+                  "number": 80
+                }
+              },
             },
+            "pathType": "ImplementationSpecific",
             "path": "/"
           }
         ]

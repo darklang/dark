@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: bwd-tls-ingress
@@ -6,9 +6,11 @@ metadata:
     kubernetes.io/ingress.class: gce
     kubernetes.io/ingress.global-static-ip-name: bwd-tls-ip
 spec:
-  backend:
-    serviceName: bwd-nodeport
-    servicePort: 80
+  defaultBackend:
+    service:
+      name: bwd-nodeport
+      port:
+        number: 80
   tls:
     - secretName: bwd-tls
     - secretName: darklang-tls
