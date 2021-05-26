@@ -28,6 +28,9 @@ kind: Ingress
 metadata:
   name: darkcustomdomain-l4-ingress
   annotations:
+    # We use an nginx ingress as GCE ingresses are only able to do a maximum of
+    # 10 certs while nginx can do infinite (though after 5000 it will use a
+    # cache and fetch uncached certs from secrets).
     kubernetes.io/ingress.class: nginx
     kubernetes.io/ingress.global-static-ip-name: darkcustomdomain-ip
     # I believe this is necessary to allow ACME to work, but we'll see!
