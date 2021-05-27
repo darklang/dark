@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-# build-server does this in the dev environment
+# build-server does an equivalent to this in the dev environment
 
 ENV_FILE="config/circleci"
 echo "Using env: $ENV_FILE"
 
-grep DARK_CONFIG "$ENV_FILE" | sed 's/^/export /' >> "${BASH_ENV}"
+grep DARK_CONFIG "$ENV_FILE" | sed 's/^\(DARK_CONFIG_[A-Z_]*\)=\(.*\)$/if [[ ! -v \1 ]]; then export \1=\2; fi/' >> "${BASH_ENV}"
