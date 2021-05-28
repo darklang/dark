@@ -1,12 +1,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: staticdarklangcom-tls
+  name: darklang.com-tls
   namespace: default
 spec:
-  secretName: staticdarklangcom-tls
+  secretName: darklang.com-tls
   dnsNames:
     # We don't need a wildcard for darklang.com, as we get specific certs for the subdomains we use
-    - static.darklang.com
+    - darklang.com
   issuerRef:
     name: letsencrypt-prod-wildcards
