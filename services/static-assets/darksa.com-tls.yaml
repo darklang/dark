@@ -1,12 +1,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name:
+  name: darksa.com-tls
   namespace: default
 spec:
-  secretName: darkstaticassetscom-tls
+  secretName: darksa.com-tls
   dnsNames:
-    - darkstaticassets.com
-    - '*.darkstaticassets.com'
+    - darksa.com
+    - '*.darksa.com'
   issuerRef:
     name: letsencrypt-prod-wildcards
