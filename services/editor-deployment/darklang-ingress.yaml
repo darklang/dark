@@ -12,3 +12,4 @@ spec:
         number: 80
   tls:
     - secretName: darklang-tls
+    - secretName: darklangorg-tls

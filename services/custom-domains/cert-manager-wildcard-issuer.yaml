@@ -1,6 +1,14 @@
 # Extra cert-manager issuer for wildcard domains on our own properties, like
 # darklang.com, darksa.com, etc. For simplicity, the yaml files are here even
 # though it's not really part of the custom-domain product.
+#
+# Each cert created here must be added to a gce load balancer via the
+# `spec.tls` field of an ingress. The cert will be valid within 10 minutes, as
+# that's how often the ingress updates its state (look for "scheduled to sync"
+# in `kubectl get events`).
+#
+# Upon renewal, cert-manager will overwrite the secret with the new cert from
+# letsencrypt. The load balancer will reread this secret on its next sync.
 
 apiVersion: cert-manager.io/v1
 kind: Issuer
