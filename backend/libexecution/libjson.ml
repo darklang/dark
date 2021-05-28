@@ -35,7 +35,7 @@ let fns : fn list =
               fail args)
     ; preview_safety = Safe
     ; deprecated = true }
-  ; { prefix_names = ["JSON::parse_v0"]
+  ; { prefix_names = ["JSON::parse"]
     ; infix_names = []
     ; parameters = [par "json" TStr]
     ; return_type = TAny
