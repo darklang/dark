@@ -13,5 +13,6 @@ spec:
         number: 80
   tls:
     - secretName: bwd-tls
-    - secretName: darklang-tls
-    - secretName: www.hellobirb.com-tls
+    - secretName: darklang-tls # TODO: remove, but add via presence first via cert-manager
+    - secretName: www.hellobirb.com-tls # TODO: remove, moved to cert-manager
+    - secretName: builtwithdark.com-tls
