@@ -15,3 +15,11 @@ JSON.read_v1 "{Id : 1.0}" = {Id = 1.0}
 JSON.read_v1 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ]
 JSON.read_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"}
 JSON.read_v1 "\"\"" = ""
+
+JSON.parse_v0 "[97, 2, 30, 4]" = [97, 2, 30, 4]
+JSON.parse_v0 "[97, 2, 30, 4,]" = [97, 2, 30, 4] // FSHARPONLY
+JSON.parse_v0 "{Id : 1.0}" = {Id = 1.0}
+JSON.parse_v0 "{Id : 1.}" = {Id = 1.0} // FSHARPONLY
+JSON.parse_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ]
+JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"}
+JSON.parse_v0 "\"\"" = ""
