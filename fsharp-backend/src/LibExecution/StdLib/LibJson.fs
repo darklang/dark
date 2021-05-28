@@ -35,21 +35,19 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = ReplacedBy(fn "JSON" "read" 1) } ]
-// ; { name = fn "JSON" "read" 1
-//   ; parameters = [Param.make "json" TStr ""]
-//   ; returnType = varA
-//   ; description =
-//       "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
-//   ; fn =
-//         (function
-//         | _, [DStr json] ->
-//             json |> Unicode_string.to_string |> Dval.of_unknown_json_v1
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
+      deprecated = ReplacedBy(fn "JSON" "read" 1) }
+    { name = fn "JSON" "read" 1
+      parameters = [ Param.make "json" TStr "" ]
+      returnType = varA
+      description =
+        "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
+      fn =
+        (function
+        | _, [ DStr json ] -> json |> DvalRepr.ofUnknownJsonV1 |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "JSON" "parse" 0) } ]
 // ; { name = fn "JSON" "parse" 0
 //   ; parameters = [Param.make "json" TStr ""]
 //   ; returnType = varA
