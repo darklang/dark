@@ -33,6 +33,9 @@ createdb testdb
 ./scripts/support/runlegacyserver
 ./scripts/support/run-ocaml-test-server
 
+# CLEANUP This is where the migrations are run for testdb at the moment
+DARK_CONFIG_STATIC_HOST=static.darklang.localhost:8001 ./scripts/wait-until-server-ready
+
 # Expecto has a number of async bugs causing it to hang. It appears to be due
 # to the test framework though it's hard to tell. It's solved by disabling the
 # spinner and not running the tests in parallel.
