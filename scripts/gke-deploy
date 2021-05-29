@@ -117,8 +117,86 @@ else
   echo "On CI: not fetching latest containers"
 fi
 
+#########################
+# Update the newly-built deployment containers
+#########################
+if [[ ! -v SERVER_IMAGE_ID ]]; then
+  SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-server -q | head -n 1)"
+fi
+if [[ ! -v QW_IMAGE_ID ]]; then
+  QW_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-queueworker -q | head -n 1)"
+fi
+if [[ ! -v CRON_IMAGE_ID ]]; then
+  CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-cronchecker -q | head -n 1)"
+fi
+if [[ ! -v GARBAGE_COLLECTOR_IMAGE_ID ]]; then
+  GARBAGE_COLLECTOR_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-garbagecollector -q | head -n 1)"
+fi
+if [[ ! -v STROLLER_IMAGE_ID ]]; then
+  STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}stroller -q | head -n 1)"
+fi
+if [[ ! -v QUEUE_SCHEDULER_IMAGE_ID ]]; then
+  QUEUE_SCHEDULER_IMAGE_ID="$(docker images $GCR/${PREFIX}queue-scheduler -q | head -n 1)"
+fi
+if [[ ! -v TUNNEL_IMAGE_ID ]]; then
+  TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
+fi
+if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
+  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}postgres-honeytail -q | head -n 1)"
+fi
+
+CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
+
+#FSTODO
+sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  services/bwd-deployment/bwd-deployment.template.yaml > services/bwd-deployment/bwd-deployment.yaml
+
+sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  services/editor-deployment/editor-deployment.template.yaml > services/editor-deployment/editor-deployment.yaml
+
+sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  services/qw-deployment/qw-deployment.template.yaml > services/qw-deployment/qw-deployment.yaml
+
+sed -e "s!{SCHEDULER_IMAGE}!${QUEUE_SCHEDULER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  services/scheduler-deployment/scheduler-deployment.template.yaml > services/scheduler-deployment/scheduler-deployment.yaml
+
+sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  services/cron-deployment/cron-deployment.template.yaml > services/cron-deployment/cron-deployment.yaml
+
+sed -e "s!{GARBAGE_COLLECTOR_IMAGE}!${GARBAGE_COLLECTOR_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  services/garbagecollector-deployment/garbagecollector-deployment.template.yaml > services/garbagecollector-deployment/garbagecollector-deployment.yaml
+
+sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  services/tunnel-deployment/tunnel-deployment.template.yaml > services/tunnel-deployment/tunnel-deployment.yaml
+
+sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  services/postgres-honeytail-deployment/postgres-honeytail-deployment.template.yaml > services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
+
 #############################
-# Lock before doing a deploy (don't forget to unlock!)
+# Get the credentials to do the deploy with
+#############################
+gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
+  "--project=${DARK_PROJECT}" "${DARK_CLUSTER}"
+
+#############################
+# Lock before doing a deploy (unlocks on fail or at end of file)
 #############################
 
 cleanup_deploy_lock() {
@@ -173,93 +251,21 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
   sleep 5
 done
 
+
 #############################
-# Check that the deploy is correct before we do anything drastic
+# Check that the prod cluster matches our view of the world, before we deploy
 #############################
 ./scripts/gke-check-predeployed-yaml
 
-#########################
-# Update the newly-built deployments
-#########################
-if [[ ! -v SERVER_IMAGE_ID ]]; then
-  SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-server -q | head -n 1)"
-fi
-if [[ ! -v QW_IMAGE_ID ]]; then
-  QW_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-queueworker -q | head -n 1)"
-fi
-if [[ ! -v CRON_IMAGE_ID ]]; then
-  CRON_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-cronchecker -q | head -n 1)"
-fi
-if [[ ! -v GARBAGE_COLLECTOR_IMAGE_ID ]]; then
-  GARBAGE_COLLECTOR_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-garbagecollector -q | head -n 1)"
-fi
-if [[ ! -v STROLLER_IMAGE_ID ]]; then
-  STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}stroller -q | head -n 1)"
-fi
-if [[ ! -v QUEUE_SCHEDULER_IMAGE_ID ]]; then
-  QUEUE_SCHEDULER_IMAGE_ID="$(docker images $GCR/${PREFIX}queue-scheduler -q | head -n 1)"
-fi
-if [[ ! -v TUNNEL_IMAGE_ID ]]; then
-  TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
-fi
-if [[ ! -v POSTGRES_HONEYTAIL_IMAGE_ID ]]; then
-  POSTGRES_HONEYTAIL_IMAGE_ID="$(docker images $GCR/${PREFIX}postgres-honeytail -q | head -n 1)"
-fi
-
-# get creds
-gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
-  "--project=${DARK_PROJECT}" "${DARK_CLUSTER}"
-
-CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-
-#FSTODO
-sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/bwd-deployment/bwd-deployment.template.yaml > services/bwd-deployment/bwd-deployment.yaml
-
-sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/editor-deployment/editor-deployment.template.yaml > services/editor-deployment/editor-deployment.yaml
-
-sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{STROLLER_IMAGE}!${STROLLER_IMAGE_ID}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/qw-deployment/qw-deployment.template.yaml > services/qw-deployment/qw-deployment.yaml
-
-sed -e "s!{SCHEDULER_IMAGE}!${QUEUE_SCHEDULER_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/scheduler-deployment/scheduler-deployment.template.yaml > services/scheduler-deployment/scheduler-deployment.yaml
-
-sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/cron-deployment/cron-deployment.template.yaml > services/cron-deployment/cron-deployment.yaml
-
-sed -e "s!{GARBAGE_COLLECTOR_IMAGE}!${GARBAGE_COLLECTOR_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
-  services/garbagecollector-deployment/garbagecollector-deployment.template.yaml > services/garbagecollector-deployment/garbagecollector-deployment.yaml
-
-sed -e "s!{TUNNEL_IMAGE}!${TUNNEL_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  services/tunnel-deployment/tunnel-deployment.template.yaml > services/tunnel-deployment/tunnel-deployment.yaml
-
-sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
-  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
-  services/postgres-honeytail-deployment/postgres-honeytail-deployment.template.yaml > services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
-
+#############################
+# Actually do the deploy
+#############################
 # env vars (replace existing configmap)
 kubectl create configmap gke-dark-prod --from-env-file ${DARK_CLUSTER_CONFIGMAP_FILE}  -o yaml --dry-run=client | kubectl replace -f -
 kubectl create configmap base-nginx --from-file=containers/ocaml-nginx/base-nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o yaml --dry-run=client | kubectl replace -f -
 
-# these files deploy a newly-created container
+# these files deploy the newly-created deployment containers
 #FSTODO
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
 kubectl apply -f services/cron-deployment/cron-deployment.yaml
