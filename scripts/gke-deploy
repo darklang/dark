@@ -261,7 +261,7 @@ sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
 
 #FSTODO
 # make sure deployment matches current understanding
-kubectl apply -f services/bwd-deployment/builtwithdarkcom-tls.yaml
+kubectl apply -f services/bwd-deployment/builtwithdark.com-tls.yaml
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
 kubectl apply -f services/bwd-deployment/bwd-ingress.yaml
 kubectl apply -f services/bwd-deployment/bwd-network-policy.yaml
@@ -276,11 +276,10 @@ kubectl apply -f services/custom-domains/darkcustomdomain-ip-svc.yaml
 # services/custom-domains/darkcustomdomain-ingress.yaml - see below
 kubectl apply -f services/editor-deployment/darklang-ingress.yaml
 kubectl apply -f services/editor-deployment/darklang-nodeport.yaml
-kubectl apply -f services/editor-deployment/darklangcom-tls.yaml
-kubectl apply -f services/editor-deployment/darklangorg-tls.yaml
+kubectl apply -f services/editor-deployment/darklang.com-tls.yaml
 kubectl apply -f services/editor-deployment/editor-deployment.yaml
 kubectl apply -f services/editor-deployment/editor-network-policy.yaml
-kubectl apply -f services/editor-deployment/staticdarklangcom-tls.yaml
+kubectl apply -f services/editor-deployment/static.darklang.com-tls.yaml
 kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
 kubectl apply -f services/honeycomb-agent/honeycomb-heapster.yaml
 kubectl apply -f services/honeycomb-agent/honeycomb.yaml
@@ -289,8 +288,8 @@ kubectl apply -f services/qw-deployment/qw-deployment.yaml
 kubectl apply -f services/qw-deployment/qw-network-policy.yaml
 kubectl apply -f services/reloader-reloader/reloader.yaml
 kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml
-kubectl apply -f services/static-assets/darksacom-tls.yaml
-kubectl apply -f services/static-assets/darkstaticassetscom-tls.yaml
+kubectl apply -f services/static-assets/darksa.com-tls.yaml
+kubectl apply -f services/static-assets/darkstaticassets.com-tls.yaml
 kubectl apply -f services/tunnel-deployment/isolate-tunnel.yaml
 kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml
 kubectl apply -f services/tunnel-deployment/tunnel-service.yaml
