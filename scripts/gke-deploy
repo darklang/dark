@@ -173,8 +173,13 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
   sleep 5
 done
 
+#############################
+# Check that the deploy is correct before we do anything drastic
+#############################
+./scripts/gke-check-predeployed-yaml
+
 #########################
-# Tell Kubernetes what to do
+# Update the newly-built deployments
 #########################
 if [[ ! -v SERVER_IMAGE_ID ]]; then
   SERVER_IMAGE_ID="$(docker images $GCR/${PREFIX}gcp-server -q | head -n 1)"
@@ -254,50 +259,16 @@ sed -e "s!{POSTGRES_HONEYTAIL_IMAGE}!${POSTGRES_HONEYTAIL_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   services/postgres-honeytail-deployment/postgres-honeytail-deployment.template.yaml > services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 
+
+# these files deploy a newly-created container
 #FSTODO
-# make sure deployment matches current understanding
-kubectl apply -f services/bwd-deployment/builtwithdark.com-tls.yaml
 kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
-kubectl apply -f services/bwd-deployment/bwd-ingress.yaml
-kubectl apply -f services/bwd-deployment/bwd-network-policy.yaml
-kubectl apply -f services/bwd-deployment/bwd-nodeport.yaml
-kubectl apply -f services/cert-manager/cert-manager-issuer.yaml
-kubectl apply -f services/cert-manager/cert-manager-wildcard-issuer.yaml
-kubectl apply -f services/cert-manager/cert-manager.yaml
-kubectl apply -f services/cert-manager/nginx-ingress-controller.yaml
-kubectl apply -f services/cron-deployment/cc-network-policy.yaml
 kubectl apply -f services/cron-deployment/cron-deployment.yaml
-kubectl apply -f services/custom-domains/darkcustomdomain-ip-svc.yaml
-# services/custom-domains/darkcustomdomain-ingress.yaml - see below
-kubectl apply -f services/editor-deployment/darklang-ingress.yaml
-kubectl apply -f services/editor-deployment/darklang-nodeport.yaml
-kubectl apply -f services/editor-deployment/darklang.com-tls.yaml
 kubectl apply -f services/editor-deployment/editor-deployment.yaml
-kubectl apply -f services/editor-deployment/editor-network-policy.yaml
-kubectl apply -f services/editor-deployment/static.darklang.com-tls.yaml
-kubectl apply -f services/garbagecollector-deployment/garbagecollector-deployment.yaml
-kubectl apply -f services/honeycomb-agent/honeycomb-heapster.yaml
-kubectl apply -f services/honeycomb-agent/honeycomb.yaml
 kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 kubectl apply -f services/qw-deployment/qw-deployment.yaml
-kubectl apply -f services/qw-deployment/qw-network-policy.yaml
-kubectl apply -f services/reloader-reloader/reloader.yaml
 kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml
-kubectl apply -f services/static-assets/darksa.com-tls.yaml
-kubectl apply -f services/static-assets/darkstaticassets.com-tls.yaml
-kubectl apply -f services/tunnel-deployment/isolate-tunnel.yaml
 kubectl apply -f services/tunnel-deployment/tunnel-deployment.yaml
-kubectl apply -f services/tunnel-deployment/tunnel-service.yaml
-
-# THIS IS DELIBERATELY create AND NOT apply!
-#
-# This ingress is `kubectl patch`'d to add new custom domains; `kubectl
-# apply`ing the file over that would lose us those custom domains, so we don't
-# want to do that.
-#
-# Expected output if this is not the first time the cluster is being created:
-# Error from server (AlreadyExists): error when creating "scripts/support/kubernetes/certs/darkcustomdomain-ingress.yaml": ingresses.extensions "darkcustomdomain-l4-ingress" already exists
-kubectl create -f services/custom-domains/darkcustomdomain-ingress.yaml || true
 
 #########################
 # Tell everyone else what's going on
