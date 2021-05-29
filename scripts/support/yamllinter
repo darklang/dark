@@ -10,7 +10,7 @@ function check {
       --strict \
       --additional-schema-locations \
         https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master \
-      --skip-kinds=ManagedCertificate,Issuer,CustomResourceDefinition \
+      --skip-kinds=Certificate,Issuer,CustomResourceDefinition \
       --kubernetes-version=1.19.9 \
       --force-color \
       "$1"

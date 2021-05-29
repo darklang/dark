@@ -1,27 +1,13 @@
-# DO NOT `kubectl apply` THIS FILE WITHOUT EXTREME CAUTION.
+# DO NOT `kubectl apply` THIS FILE.
 #
-# This ingress is `kubectl patch`'d any time we want to add a new custom
-# domain; `kubectl apply` would remove those hosts. If you need to update this
-# file, you'll need a migration plan.
+# This was the original version of the file. However, the file is a way to
+# communicate to cert-manager, and we add to it using `kubectl patch` as part
+# of scripts/custom-domain-add-to-cert-manager.
 #
-# Example migration plan:
-#
-#   For converting to the v1 apiVersion, we are pulling the data using:
-#
-#     kubectl get ingress darkcustomdomaon-l4-ingress -o yaml > local.yaml
-#
-#   then updating it based on the changes in
-#   https://kubernetes.io/docs/reference/using-api/deprecation-guide/#ingress-v122,
-#   then setting it using
-#
-#     kubectl apply -f local.yaml
-#
-#   The code below represents the updated version, even though this has never
-#   been directly applied.
+# As such, this file is only kept around as documentation for how we originally
+# set this up, though we have also been updating it when we change the config
+# (which we do manually and very carefully).
 
-
-# Handles darkcustomdomain, for which we (not google) do TLS termination
-#
 # See docs/custom-domains.md for more detail.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
