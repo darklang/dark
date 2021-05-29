@@ -113,18 +113,18 @@ def client_test():
 
 def shellcheck(f):
   start = time.time()
-  result = run_test(start, "scripts/support/shellchecker " + f)
+  result = run_backend(start, "scripts/support/shellchecker " + f)
   return result
 
 
 def yamllint(f):
   start = time.time()
-  result = run_test(start, "scripts/support/yamllinter " + f)
+  result = run_backend(start, "scripts/support/yamllinter " + f)
   return result
 
 def test_nginx():
   start = time.time()
-  result = run_test(start, "sudo nginx -t")
+  result = run_backend(start, "sudo nginx -t")
   return result
 
 def backend_build():
