@@ -406,7 +406,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
-  // disable all those so we fail if we see them. Hwoever, we might need to
+  // disable all those so we fail if we see them. However, we might need to
   // just convert some of these into strings.
   | JNonStandard
   | _ -> failwith $"Invalid type in json: {json}"
@@ -477,7 +477,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
-  // disable all those so we fail if we see them. Hwoever, we might need to
+  // disable all those so we fail if we see them. However, we might need to
   // just convert some of these into strings.
   | JNonStandard
   | _ -> failwith $"Invalid type in json: {json}"
@@ -743,7 +743,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
             fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     // Json.NET does a bunch of magic based on the contents of various types.
     // For example, it has tokens for Dates, constructors, etc. We've tried to
-    // disable all those so we fail if we see them. Hwoever, we might need to
+    // disable all those so we fail if we see them. However, we might need to
     // just convert some of these into strings.
     | JNonStandard _
     | _ -> failwith $"Invalid type in json: {json}"
@@ -917,7 +917,7 @@ let ofUnknownJsonV1 str =
             fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     // Json.NET does a bunch of magic based on the contents of various types.
     // For example, it has tokens for Dates, constructors, etc. We've tried to
-    // disable all those so we fail if we see them. Hwoever, we might need to
+    // disable all those so we fail if we see them. However, we might need to
     // just convert some of these into strings.
     | JNonStandard
     | _ -> failwith $"Invalid type in json: {json}"
