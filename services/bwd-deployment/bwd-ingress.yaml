@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: bwd-tls-ingress
@@ -6,10 +6,12 @@ metadata:
     kubernetes.io/ingress.class: gce
     kubernetes.io/ingress.global-static-ip-name: bwd-tls-ip
 spec:
-  backend:
-    serviceName: bwd-nodeport
-    servicePort: 80
+  defaultBackend:
+    service:
+      name: bwd-nodeport
+      port:
+        number: 80
   tls:
-    - secretName: bwd-tls
-    - secretName: darklang-tls
-    - secretName: www.hellobirb.com-tls
+    - secretName: darklang-tls # TODO: remove, but add via presence.darklang.com first via cert-manager
+    - secretName: www.hellobirb.com-tls # TODO: remove, moved to cert-manager
+    - secretName: builtwithdark.com-tls

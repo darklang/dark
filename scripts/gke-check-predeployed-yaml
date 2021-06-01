@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# Most of the yaml files are configuration, we're supposed to deploy them
+# manually and watch them go out. So the goal here is to make sure they are
+# already deployed and what we have in the repo matches what we have in prod.
+
+# If you need to change something here, you'll need to ask someone with
+# permissions (that is, Paul) to apply it before merging.
+
+#FSTODO
+kubectl diff \
+  -f services/bwd-deployment/builtwithdark.com-tls.yaml \
+  -f services/bwd-deployment/bwd-ingress.yaml \
+  -f services/bwd-deployment/bwd-network-policy.yaml \
+  -f services/bwd-deployment/bwd-nodeport.yaml \
+  -f services/cert-manager/cert-manager-issuer.yaml \
+  -f services/cert-manager/cert-manager-wildcard-issuer.yaml \
+  -f services/cert-manager/cert-manager.yaml \
+  -f services/cert-manager/nginx-ingress-controller.yaml \
+  -f services/cron-deployment/cc-network-policy.yaml \
+  -f services/custom-domains/darkcustomdomain-ip-svc.yaml \
+  -f services/editor-deployment/darklang-ingress.yaml \
+  -f services/editor-deployment/darklang-nodeport.yaml \
+  -f services/editor-deployment/darklang.com-tls.yaml \
+  -f services/editor-deployment/editor-network-policy.yaml \
+  -f services/editor-deployment/static.darklang.com-tls.yaml \
+  -f services/honeycomb-agent/honeycomb-heapster.yaml \
+  -f services/honeycomb-agent/honeycomb.yaml \
+  -f services/qw-deployment/qw-network-policy.yaml \
+  -f services/reloader-reloader/reloader.yaml \
+  -f services/static-assets/darksa.com-tls.yaml \
+  -f services/static-assets/darkstaticassets.com-tls.yaml \
+  -f services/tunnel-deployment/isolate-tunnel.yaml \
+  -f services/tunnel-deployment/tunnel-service.yaml
+
+# Note that services/custom-domains/darkcustomdomain-ingress.yaml is NOT checked!
+#
+# This ingress is `kubectl patch`'d to add new custom domains; `kubectl
+# apply`ing the file over that would lose us those custom domains, so we don't
+# want to do that.

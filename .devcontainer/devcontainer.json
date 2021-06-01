@@ -48,7 +48,9 @@
     "--security-opt",
     "seccomp=unconfined",
     "--label",
-    "dark-dev-container"
+    "dark-dev-container",
+    "--workdir",
+    "/home/dark/app"
   ],
 
   "workspaceMount": "source=${localWorkspaceFolder},target=/home/dark/app,type=bind,consistency=delegated", // for local

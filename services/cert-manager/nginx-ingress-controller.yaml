@@ -1,4 +1,14 @@
 # See docs/custom-domains.md for more detail.
+
+# This deployment runs nginx in order to terminate TLS for custom domains. It
+# reads the domains from secrets on the ingress.
+
+# Note that in GCE, a TCP load balancer (currently
+# ad1a603ffb59a4e5f8bde1e1a96c4a15) points to this deployment and marks all the
+# nodes except the one running ngins as unhealthy. However, they're not
+# actually unhealthy, it's just that there's (deliberately) not one
+# pod-per-node and it doesn't know what to do with that.
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,7 +19,9 @@ metadata:
     app.kubernetes.io/part-of: ingress-nginx
 spec:
   revisionHistoryLimit: 10
-  replicas: 1
+  # All darkcustomdomain traffic comes through this deployment, so we may need
+  # to increase this to support the traffic later.
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: ingress-nginx
