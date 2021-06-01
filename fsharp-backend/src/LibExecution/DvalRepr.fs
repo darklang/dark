@@ -922,9 +922,11 @@ let ofUnknownJsonV1 str =
     | JNonStandard
     | _ -> failwith $"Invalid type in json: {json}"
 
-  str |> parseJson |> convert
-//
-//
+  try
+    str |> parseJson |> convert
+  with _ -> failwith $"Invalid type in json: {str}"
+
+
 // let rec show dv =
 //   match dv with
 //   | DInt i ->
