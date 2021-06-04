@@ -88,10 +88,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr token ] ->
-            let authString = [ "Bearer "; token ] |> String.concat ""
-
+            let authString = "Bearer " + token
             Value(DObj(Map.ofList [ "Authorization", DStr authString ]))
-
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
