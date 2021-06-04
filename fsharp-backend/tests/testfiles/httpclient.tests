@@ -1,1 +1,3 @@
 //HttpClient::get_v5 "http://thenonexistingurlforsure.com" Dict.empty Dict.empty = Test.typeError_v0 "Couldn't reolve host name"
+
+HttpClient.formContentType_v0 = {``Content-Type`` = "application/x-www-form-urlencoded"}

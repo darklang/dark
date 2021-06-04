@@ -19,24 +19,24 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fns : List<BuiltInFn> = []
-// [ { name = fn "HttpClient" "formContentType" 0
-//   ; parameters = []
-//   ; returnType = TObj
-//   ; description =
-//       "Returns an object with 'Content-Type' for url-encoded HTML forms"
-//   ; fn =
-//         (function
-//         | _, [] ->
-//             DObj
-//               (Map.singleton
-//                  "Content-Type"
-//                  (DStr "application/x-www-form-urlencoded"))
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
+let fns : List<BuiltInFn> =
+  [ { name = fn "HttpClient" "formContentType" 0
+      parameters = []
+      returnType = TDict varA
+      description =
+        "Returns an object with 'Content-Type' for url-encoded HTML forms"
+      fn =
+        (function
+        | _, [] ->
+            Value(
+              DObj(
+                Map.ofList [ "Content-Type", DStr "application/x-www-form-urlencoded" ]
+              )
+            )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 // ; { name = fn "HttpClient" "jsonContentType" 0
 //   ; parameters = []
 //   ; returnType = TObj
