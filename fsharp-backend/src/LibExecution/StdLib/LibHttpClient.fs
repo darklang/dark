@@ -80,27 +80,27 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated } ]
-// ; { name = fn "HttpClient" "bearerToken" 0
-//   ; parameters = [Param.make "token" TStr ""]
-//   ; returnType = TObj
-//   ; description =
-//       "Returns an object with 'Authorization' set to the passed token"
-//   ; fn =
-//         (function
-//         | _, [DStr token] ->
-//             let auth_string =
-//               Unicode_string.append_broken
-//                 (Unicode_string.of_string_exn "Bearer ")
-//                 token
-//             in
-//             DObj (Map.singleton "Authorization" (DStr auth_string))
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated =
-//       true (* Deprecated due to using Unicode_string.append_broken *) }
+      deprecated = NotDeprecated }
+    { name = fn "HttpClient" "bearerToken" 0
+      parameters = [ Param.make "token" TStr "" ]
+      returnType = TDict varA
+      description = "Returns an object with 'Authorization' set to the passed token"
+      fn =
+        (function
+        | _, [ DStr token ] ->
+            let authString =
+              System.Text.Encoding.UTF8.GetString(
+                Array.append
+                  (System.Text.Encoding.UTF8.GetBytes "Bearer ")
+                  (System.Text.Encoding.UTF8.GetBytes token)
+              )
+
+            Value(DObj(Map.ofList [ "Authorization", DStr authString ]))
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "HttpClient" "bearerToken" 1) } ]
 // ; { name = fn "HttpClient" "bearerToken" 1
 //   ; parameters = [Param.make "token" TStr ""]
 //   ; returnType = TObj

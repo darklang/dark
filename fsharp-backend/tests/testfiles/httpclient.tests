@@ -7,3 +7,5 @@ HttpClient.jsonContentType_v0 = {``Content-Type`` = "application/json; charset=u
 HttpClient.plainTextContentType_v0 = {``Content-Type`` = "text/plain; charset=utf-8"}
 
 HttpClient.htmlContentType_v0 = {``Content-Type`` = "text/html; charset=utf-8" }
+
+HttpClient.bearerToken_v0 "YWxhZGRpbjpvcGVuc2VzYW1l" = { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
