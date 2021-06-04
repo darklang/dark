@@ -22,7 +22,7 @@ let varB = TVariable "b"
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
       parameters = []
-      returnType = TDict varA
+      returnType = TDict TStr
       description =
         "Returns an object with 'Content-Type' for url-encoded HTML forms"
       fn =
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "HttpClient" "jsonContentType" 0
       parameters = []
-      returnType = TDict varA
+      returnType = TDict TStr
       description = "Returns an object with 'Content-Type' for JSON"
       fn =
         (function
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "HttpClient" "plainTextContentType" 0
       parameters = []
-      returnType = TDict varA
+      returnType = TDict TStr
       description = "Returns an object with 'Content-Type' for plain text"
       fn =
         (function
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "HttpClient" "htmlContentType" 0
       parameters = []
-      returnType = TDict varA
+      returnType = TDict TStr
       description = "Returns an object with 'Content-Type' for html"
       fn =
         (function
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "HttpClient" "bearerToken" 0
       parameters = [ Param.make "token" TStr "" ]
-      returnType = TDict varA
+      returnType = TDict TStr
       description = "Returns an object with 'Authorization' set to the passed token"
       fn =
         (function
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
       deprecated = ReplacedBy(fn "HttpClient" "bearerToken" 1) }
     { name = fn "HttpClient" "bearerToken" 1
       parameters = [ Param.make "token" TStr "" ]
-      returnType = TDict varA
+      returnType = TDict TStr
       description = "Returns an object with 'Authorization' set to the passed token"
       fn =
         (function
