@@ -52,23 +52,21 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "HttpClient" "plainTextContentType" 0
+      parameters = []
+      returnType = TDict varA
+      description = "Returns an object with 'Content-Type' for plain text"
+      fn =
+        (function
+        | _, [] ->
+            Value(
+              DObj(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ])
+            )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
-// ; { name = fn "HttpClient" "plainTextContentType" 0
-//   ; parameters = []
-//   ; returnType = TObj
-//   ; description = "Returns an object with 'Content-Type' for plain text"
-//   ; fn =
-//         (function
-//         | _, [] ->
-//             DObj
-//               (Map.singleton
-//                  "Content-Type"
-//                  (DStr "text/plain; charset=utf-8"))
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-//   ; previewable = Pure
-//   ; deprecated = NotDeprecated }
 // ; { name = fn "HttpClient" "htmlContentType" 0
 //   ; parameters = []
 //   ; returnType = TObj
