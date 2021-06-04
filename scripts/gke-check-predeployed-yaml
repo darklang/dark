@@ -20,6 +20,7 @@ kubectl diff \
   -f services/cert-manager/cert-manager-wildcard-issuer.yaml \
   -f services/cert-manager/cert-manager.yaml \
   -f services/cert-manager/nginx-ingress-controller.yaml \
+  -f services/config-connector/config-connector.yaml \
   -f services/cron-deployment/cc-network-policy.yaml \
   -f services/custom-domains/darkcustomdomain-ip-svc.yaml \
   -f services/editor-deployment/darklang-ingress.yaml \
