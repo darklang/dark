@@ -88,12 +88,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr token ] ->
-            let authString =
-              System.Text.Encoding.UTF8.GetString(
-                Array.append
-                  (System.Text.Encoding.UTF8.GetBytes "Bearer ")
-                  (System.Text.Encoding.UTF8.GetBytes token)
-              )
+            let authString = [ "Bearer "; token ] |> String.concat ""
 
             Value(DObj(Map.ofList [ "Authorization", DStr authString ]))
 
