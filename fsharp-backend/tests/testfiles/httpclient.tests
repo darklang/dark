@@ -5,3 +5,5 @@ HttpClient.formContentType_v0 = {``Content-Type`` = "application/x-www-form-urle
 HttpClient.jsonContentType_v0 = {``Content-Type`` = "application/json; charset=utf-8"}
 
 HttpClient.plainTextContentType_v0 = {``Content-Type`` = "text/plain; charset=utf-8"}
+
+HttpClient.htmlContentType_v0 = {``Content-Type`` = "text/html; charset=utf-8" }
