@@ -5,3 +5,5 @@ buckets.
 
 This was added using the instructions at
 https://cloud.google.com/config-connector/docs/how-to/install-upgrade-uninstall#gcloud_1
+
+The namespace is called `config-connector`
