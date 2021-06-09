@@ -22,7 +22,7 @@ spec:
   resourceID: "config-connector-experiment"
   storageClass: "STANDARD"
   # retentionPolicy is off
-  uniformBucketLevelAccess: false
+  uniformBucketLevelAccess: true
   versioning:
     enabled: false
   website:
