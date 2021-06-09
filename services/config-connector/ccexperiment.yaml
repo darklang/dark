@@ -1,0 +1,29 @@
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  annotations:
+    cnrm.cloud.google.com/force-destroy: "false"
+  name: "balmy-ground-195100-config-connector-experiment"
+spec:
+  bucketPolicyOnly: false
+  cors:
+    - origin: ["*"]
+      responseHeader: ["Content-Type"]
+      method: ["GET"]
+      maxAgeSeconds: 3600
+  defaultEventBasedHold: false
+  # encryption is off
+  lifecycleRule: []
+  location: "US"
+  # logging is off
+  requesterPays: false
+  resourceID: "balmy-ground-195100-config-connector-experiment"
+  storageClass: "STANDARD"
+  # retentionPolicy is off
+  uniformBucketLevelAccess: false
+  versioning:
+    enabled: false
+  website:
+    mainPageSuffix: "index.html"
+    notFoundPage: "404.html"
+
