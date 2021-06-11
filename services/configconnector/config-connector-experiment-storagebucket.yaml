@@ -16,7 +16,7 @@ spec:
   defaultEventBasedHold: false
   # encryption is off
   # I think there's a bug in config-connector, adding an empty list of lifecycleRules makes `kubectl diff` fail every time
-  # lifecycleRule: [] 
+  # lifecycleRule: []
   location: "US"
   # logging is off
   requesterPays: false
@@ -29,4 +29,3 @@ spec:
   website:
     mainPageSuffix: "index.html"
     notFoundPage: "404.html"
-
