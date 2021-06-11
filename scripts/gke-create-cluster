@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+echo "This script has not been updated with config-connector, and possibly other config. It will need a full audit before running."
+exit 1
+
 # Defaults
 DARK_CLUSTER_REGION="us-west1"
 DARK_CLUSTER_PROJECT="balmy-ground-195100"
