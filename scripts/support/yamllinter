@@ -10,7 +10,7 @@ function check {
       --strict \
       --additional-schema-locations \
         https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master \
-      --skip-kinds=Certificate,Issuer,CustomResourceDefinition \
+      --skip-kinds=StorageBucket,ConfigConnector,Certificate,Issuer,CustomResourceDefinition \
       --kubernetes-version=1.19.9 \
       --force-color \
       "$1"
@@ -54,4 +54,5 @@ else
     for i in $FILES; do
       check $i
     done
+    check .circleci/config.yml
   fi
