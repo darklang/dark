@@ -54,4 +54,5 @@ else
     for i in $FILES; do
       check $i
     done
+    check .circleci/config.yml
   fi
