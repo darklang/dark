@@ -146,6 +146,7 @@ commands:
 
   build-gcp-containers:
     steps:
+      - run: scripts/support/yamllinter
       - prep-container-creation
       - run:
           name: Regenerate combined ETags
@@ -153,7 +154,6 @@ commands:
             scripts/support/generate-etags
             scripts/support/check-etags
             cp backend/static/etags.json rundir/
-      - run: scripts/support/yamllinter
       - run: scripts/gcp-build-containers
 
   ##########################
