@@ -15,7 +15,8 @@ spec:
       maxAgeSeconds: 3600
   defaultEventBasedHold: false
   # encryption is off
-  lifecycleRule: []
+  # I think there's a bug in config-connector, adding an empty list of lifecycleRules makes `kubectl diff` fail every time
+  # lifecycleRule: [] 
   location: "US"
   # logging is off
   requesterPays: false
