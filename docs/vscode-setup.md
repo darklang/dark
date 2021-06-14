@@ -17,7 +17,18 @@ now we are missing the extensions for ReScript and OCaml.
 
 ## Build output
 
-You should see build output in the terminal. Every time you change a file
+You should see build output in the terminal, under the heading "Configuring".
+If you have to reload the VSCode window, the build output will no longer
+appear. Fortunately, it is logged to `rundir/logs/build-server.txt`, so you can
+see it by opening a terminal and running:
+
+- `tail -f rundir/logs/build-server.txt`
+
+## Extensions
+
+VSCode extensions are installed on a docker volume in the container, which caches them for the next time we need to restart the container. This means that new extensions added to devcontainer.json are not automatically built. If that's needed, you can delete the extensions volume with:
+
+- `docker volume rm darklang-dark-extension-volume darklang-dark-extension-volume-insiders`
 
 ## Issues
 

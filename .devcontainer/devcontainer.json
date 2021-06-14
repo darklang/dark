@@ -58,10 +58,16 @@
   "workspaceFolder": "/home/dark/app",
 
   "mounts": [
+    // For Docker-in-Docker
     "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
+
+    // gcloud permissions
     "type=bind,src=${localEnv:HOME}/.config/gcloud,dst=/home/dark/.config/gcloud",
+
+    // Bash history
     "type=bind,src=${localEnv:HOME}/.dark_bash_history,dst=/home/dark/.bash_history",
 
+    // Build directories
     "type=volume,src=dark_build,dst=/home/dark/app/_build",
     "type=volume,src=dark_dotesy,dst=/home/dark/.esy",
     "type=volume,src=dark_esy,dst=/home/dark/app/_esy",
@@ -70,7 +76,11 @@
     "type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules",
     "type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/containers/queue-scheduler/target",
     "type=volume,src=dark_rust_cargo,dst=/home/dark/.cargo",
-    "type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target"
+    "type=volume,src=dark_stroller_target,dst=/home/dark/app/containers/stroller/target",
+
+    // VSCode extensions
+    "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
+    "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"
   ],
 
   // See https://aka.ms/vscode-remote/containers/non-root.
@@ -78,5 +88,5 @@
   "containerUser": "dark",
   "updateRemoteUserUID": true,
 
-  "postStartCommand": "./scripts/support/build-server --watch"
+  "postStartCommand": "./scripts/support/build-server --watch | tee rundir/logs/build-server.txt"
 }
