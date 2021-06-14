@@ -17,7 +17,8 @@
     "shuumatsu.vscode-ocamlformat",
     "esbenp.prettier-vscode",
     "ms-python.python",
-    "ms-azuretools.vscode-docker"
+    "ms-azuretools.vscode-docker",
+    "editorconfig.editorconfig"
   ],
 
   /////////////////////////////////////////////////

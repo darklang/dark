@@ -17,16 +17,11 @@ and learn about the code base.
 We try to make it really easy to get started. If you have any problems, please
 ask in Slack and we'll work to fix any issues you have.
 
-If you're using VSCode, we run our build scripts the VSCode devcontainer. See
-[docs/vscode-setup](the VSCode instructions) for a complete guide. Do not use
-the standard instructions, as lots of things will be subtly wrong.
-
 ### Install dependencies
 
 We develop Dark within a docker container, so there is not a lot of setup.
-However, we do need to setup the host system in a few ways to support file
-watching, DNS, and of course Docker. This section guides you through that, for
-each OS.
+However, we do need to setup the host system in a few ways to support running
+scripts, and Docker.
 
 #### OSX
 
@@ -52,22 +47,35 @@ On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
 
 ### Building and running for the first time
 
+#### Running the build script
+
 Now that the pre-requisites are installed, we should be able to build the
 development container in Docker, which has the exact right versions of all the
 tools we use.
 
-- Run `scripts/builder --compile --watch --test`
+- If you're using VSCode, we run our build scripts the VSCode devcontainer. See
+  [the VSCode instructions](docs/vscode-setup) for instructions.
+- Otherwise, simply run `scripts/builder --compile --watch --test`
+
+These steps apply for all builds, VSCode or using `scripts/builder`:
+
 - Wait until the terminal says "Initial compile succeeded" - this means the
   build server is ready. The `builder` script will sit open, waiting for file
   changes in order to recompile
-- If you see "initial compile failed", it may be a memory issue. If you're
-  using OSX, ensure you have Docker For Mac configured to provide 4GB or more
-  of memory, then rerun the builder script. (Sometimes just rerunning will
-  work, too).
+- If you see "initial compile failed", it may be a memory issue. Sometimes
+  trying again will work. If not, ensure you have Docker configured to provide
+  4GB or more of memory, then try again.
 - Open your browser to http://darklang.localhost:8000/a/dark/, username "dark",
   password "what"
 - Edit code normally - on each save to your filesystem, the app will be rebuilt
   and the browser will reload as necessary
+
+### Using Dark scripts
+
+The [`scripts/`](/scripts) directory is full of scripts. They automatically
+execute in the dev container, even if they are run on the host (see
+[`/scripts/support/assert-on-container`](/scripts/support/assert-on-container)
+for how this works).
 
 ## Read the contributor docs
 
@@ -75,8 +83,8 @@ If you've gotten this far, you're now ready to [contribute your first PR](https:
 
 ## Advanced setup
 
-- [setting up dnsmasq](docs/dnsmasq)
-- [setting up browser-reloading](docs/livereload)
+- [setting up dnsmasq](docs/dnsmasq.md)
+- [setting up browser-reloading](docs/livereload.md)
 
 ## Testing
 
@@ -96,7 +104,8 @@ You can also run integration tests on your (host) machine, which gives you some 
 
 - `./integration-tests/run.sh`
 
-There are good debugging options for integration testing. See integration-tests/README.
+There are good debugging options for integration testing. See
+[integration-tests/README](integration-tests/README).
 
 ## Running unix commands in the container
 
@@ -108,8 +117,8 @@ There are good debugging options for integration testing. See integration-tests/
 
 ## Config files
 
-Config files are in config/. Simple rule: anything that runs inside the
-container must use a DARK_CONFIG value set in config/, and cannot use
+Config files are in [config/](config). Simple rule: anything that runs inside
+the container must use a `DARK_CONFIG` value set in `config/`, and cannot use
 any other env var.
 
 ## Debugging the client
@@ -144,34 +153,47 @@ container.
 
 ## Production Services
 
-The app is split into `backend/` and `client/`. Part of the backend is used in
-the client (`jsanalysis`), and one directory is shared (`libshared`). These are
-compiled to create libraries and binaries.
+The app is split into [backend/](backend) (being converted into
+[fsharp-backend](fsharp-backend)) and [client/](client). Part of the backend is
+used in the client ([jsanalysis](backend/jsanalysis), and in F#:
+[Wasm](fsharp-backend/src/Wasm)), and one directory is shared ([libshared](libshared)).
+These are compiled to create libraries and binaries.
 
-These are put into containers, whose definitions are in `containers/`. We also
+These are put into containers, whose definitions are in [containers/](containers). We also
 have some containers which are defined entirely in their directory (typically,
 these have a self-contained codebase).
 
-The containers are used in `services/`. A _service_ is typically a number of
-yaml files defining a kubernetes _deployment_, made up of one or more
-containers, which use binaries from the backend.
+The containers are deployed via Kubernetes. A group of containers are deployed
+together, which is called a pod. Those pods, and how they are run (for example,
+how many of them, what secrets they have access to, how to check if they are
+still alive) are defined by a set of Yaml files which is called a _deployment_.
+Our deployments are all defined in the [services](services) directory.
 
-Some services do not use Dark's containers (eg, when we deploy 3rdparty code,
-such as "let's encrypt"). Some just have a single container (eg queue-scheduler
-and postgres-honeytail).
+A Kubernetes _service_ typically wraps a deployment, but it can sometimes mean
+other things, so we also have a number of other services, defined via yaml
+files, in (services)[services]. Some of the services are deployments that use
+3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
+Google Cloud services. Some deployments just have a single container (eg
+[queue-scheduler](services/scheduler-deployment) and
+[postgres-honeytail](postgres-honeytail)).
 
 ## Other important docs
 
 - [Contributor docs](https://darklang.github.io/docs/contributing/getting-started)
 - [Other ways to run the dev container](docs/builder-options.md)
 - [Setting up your editor](docs/editor-setup.md)
+- [Running unit tests](docs/unittests.md)
 - [Dark unit tests](fsharp-backend/tests/testfiles/README.md)
+- [If you're interviewing at Dark, read this](docs/interviewing.md)
 
 ### Less important docs
 
+- [Docs around running Dark in production](docs/production)
 - [Running the client against production (ngrok)](docs/running-against-production.md)
 - [Oplist serialization](docs/oplist-serialization.md)
 - [Intricacies of Bucklescript-tea](docs/bs-tea.md)
 - [Writing Stdlib docstrings](docs/writing-docstrings.md)
 - [Editing other BS libraries](docs/modifying-libraries.md)
 - [Add an account for yourself](docs/add-account.md)
+- [Using fuzzers to develop Dark](docs/fuzzer.md)
+- [Writing docstrings in the Dark Standard library](docs/writing-docstrings.md)

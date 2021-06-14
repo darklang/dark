@@ -1,5 +1,7 @@
 ## Setting up livereload
 
+**Note: this doc is out of date. We would like to make this work, however, so contributions are welcome.**
+
 When a compile completes, you will want your browser to reload, the load your changes. You can set this up on your host using "livereload".
 
 ### Setup
