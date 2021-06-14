@@ -54,7 +54,7 @@ development container in Docker, which has the exact right versions of all the
 tools we use.
 
 - If you're using VSCode, we run our build scripts the VSCode devcontainer. See
-  [the VSCode instructions](docs/vscode-setup) for instructions.
+  [the VSCode instructions](docs/vscode-setup.md) for instructions.
 - Otherwise, simply run `scripts/builder --compile --watch --test`
 
 These steps apply for all builds, VSCode or using `scripts/builder`:
@@ -74,7 +74,7 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 
 The [`scripts/`](/scripts) directory is full of scripts. They automatically
 execute in the dev container, even if they are run on the host (see
-[`/scripts/support/assert-on-container`](/scripts/support/assert-on-container)
+[`/scripts/support/assert-in-container`](/scripts/support/assert-in-container)
 for how this works).
 
 ## Read the contributor docs
@@ -105,7 +105,7 @@ You can also run integration tests on your (host) machine, which gives you some 
 - `./integration-tests/run.sh`
 
 There are good debugging options for integration testing. See
-[integration-tests/README](integration-tests/README).
+[integration-tests/README.md](integration-tests/README.md).
 
 ## Running unix commands in the container
 
@@ -117,9 +117,8 @@ There are good debugging options for integration testing. See
 
 ## Config files
 
-Config files are in [config/](config). Simple rule: anything that runs inside
-the container must use a `DARK_CONFIG` value set in `config/`, and cannot use
-any other env var.
+Config files ([config/](config)) define all env vars that you can use in Dark
+code. All config vars must start with `DARK_CONFIG`.
 
 ## Debugging the client
 
@@ -146,10 +145,10 @@ When dotnet crashes, you can debug it by running:
 
 - `lldb -- [your command]
 
-In LLDB, you can use dotnet's SOS plugin to read the stack, values, etc. See
-https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension
-for instructions. The plugin is automatically loaded in lldb in the dev
-container.
+In LLDB, you can use [dotnet's SOS
+plugin](https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension)
+to read the stack, values, etc. The plugin is automatically loaded in lldb in
+the dev container.
 
 ## Production Services
 
@@ -175,7 +174,7 @@ files, in (services)[services]. Some of the services are deployments that use
 3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
 Google Cloud services. Some deployments just have a single container (eg
 [queue-scheduler](services/scheduler-deployment) and
-[postgres-honeytail](postgres-honeytail)).
+[postgres-honeytail](services/postgres-honeytail)).
 
 ## Other important docs
 
