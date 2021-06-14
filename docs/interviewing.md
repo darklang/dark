@@ -1,6 +1,6 @@
-### If you're interviewing:
+### If you're interviewing
+
+Before the interview:
 
 - run `scripts/builder --compile --test` and leave it for 10-15mins to compile the Docker image.
 - If there's any issues, let us know when we start and we can fix it in the background.
-
-
