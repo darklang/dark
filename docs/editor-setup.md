@@ -1,35 +1,14 @@
 ## Setting up your editor
 
-**Note that this doc is incomplete and sometimes may require tinkering after doing the actions here. We welcome additions, clarifications, and instructions on how to set up other editors.**
+**Note that this doc is incomplete and sometimes may require tinkering after
+doing the actions here. We welcome additions, clarifications, and instructions
+on how to set up other editors.**
 
-### VS Code
-
-VS Code works pretty well when set up to run within the container. Install the
-"Remote containers" extension and choose "open folder within container" and it
-should work. Install the recommended extensions within the container when
-asked.
-
-Use Ionide for F#. It's important to use (at least) version 5, which solves a
-few bugs and has the latest version of fantomas (the code formatter).
-
-#### Troubleshooting VScode
-
-Often, the F# plugin will fail to work. This can be solved by doing a full
-build of dotnet from the VSCode terminal and then restarting VSCode:
-
-- open the terminal from within VSCode
-- run `dotnet tool restore`
-- run `dotnet paket restore`
-- run `dotnet build`
-- if this doesn't work, comment out the failing code until the build fully works, and repeat `dotnet build`
-- from VSCode, run the command "Developer: Reload Window"
-
-If that doesn't work, look in the "Output" tabs marked "msbuild" or "F#" for
-clues.
+If you're using VSCode, see instead [docs/vscode-setup.md](docs/vscode-setup.md).
 
 ### Merlin
 
-Merlin is a language server used by ResCript that provides things like
+Merlin is a language server used by ReScript that provides things like
 autocompletion, type information, and go-to-definition functionality. Because
 all libraries are installed inside the container and not on your local
 machine, merlin needs to be running inside the container. Unfortunately, this

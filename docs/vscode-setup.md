@@ -30,6 +30,22 @@ VSCode extensions are installed on a docker volume in the container, which cache
 
 - `docker volume rm darklang-dark-extension-volume darklang-dark-extension-volume-insiders`
 
+#### Troubleshooting
+
+Often, the F# plugin (Ionide) will fail to work. This can sometimes be solved
+by doing a full build of dotnet from the VSCode terminal and then restarting
+VSCode:
+
+- open the terminal from within VSCode
+- run `dotnet tool restore`
+- run `dotnet paket restore`
+- run `dotnet build`
+- if this doesn't work, comment out the failing code until the build fully works, and repeat `dotnet build`
+- from VSCode, run the command "Developer: Reload Window"
+
+If that doesn't work, look in the "Output" tabs marked "msbuild" or "F#" for
+clues.
+
 ## Issues
 
 We are very interested in any issues you might have. First class support for
