@@ -18,11 +18,7 @@ now we are missing the extensions for ReScript and OCaml.
 ## Build output
 
 You should see build output in the terminal, under the heading "Configuring".
-If you have to reload the VSCode window, the build output will no longer
-appear. Fortunately, it is logged to `rundir/logs/build-server.txt`, so you can
-see it by opening a terminal and running:
-
-- `tail -f rundir/logs/build-server.txt`
+This is also logged to `rundir/logs/build-server.txt`
 
 ## Extensions
 
