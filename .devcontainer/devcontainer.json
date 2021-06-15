@@ -43,7 +43,7 @@
     "--env-file",
     "config/dev",
     "--env",
-    "HOST_PWD=${localEnv:PWD}",
+    "HOST_PWD=${localWorkspaceFolder}",
     "--security-opt",
     "seccomp=scripts/support/chrome-seccomp.json",
     "--security-opt",
@@ -59,13 +59,13 @@
 
   "mounts": [
     // For Docker-in-Docker
-    "type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
+    //"type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock",
 
     // gcloud permissions
-    "type=bind,src=${localEnv:HOME}/.config/gcloud,dst=/home/dark/.config/gcloud",
+    "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gcloud,dst=/home/dark/.config/gcloud,consistency=cached",
 
     // Bash history
-    "type=bind,src=${localEnv:HOME}/.dark_bash_history,dst=/home/dark/.bash_history",
+    "type=bind,src=${localEnv:HOME}${localEnv:USERPROFILE}/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
 
     // Build directories
     "type=volume,src=dark_build,dst=/home/dark/app/_build",
@@ -88,5 +88,6 @@
   "containerUser": "dark",
   "updateRemoteUserUID": true,
 
-  "postStartCommand": "./scripts/support/build-server --watch | tee rundir/logs/build-server.txt"
+  "initializeCommand": "bash ./scripts/support/initialize-vscode",
+  "postAttachCommand": "./scripts/support/build-server --compile --watch | tee rundir/logs/build-server.txt"
 }

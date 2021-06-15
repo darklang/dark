@@ -40,10 +40,16 @@ you are using bash 4 or later.
 
 On Windows, you can run Dark in WSL2 (Windows Subsystem for Linux):
 
-- You must be on at least Windows 10 Version 2004, and you must run WSL 2 (docker does not work in WSL 1)
-- Follow the [WSL 2 installation instructions](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2)
-- Follow the [Docker for WSL 2 installation instructions](https://docs.docker.com/docker-for-windows/wsl/)
-- This section of the guide is incomplete. We would welcome further notes to make this foolproof.
+- You must be on at least Windows 10 Version 2004, and you must run WSL 2
+  (docker does not work in WSL 1)
+- Follow the [WSL 2 installation
+  instructions](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2)
+- Follow the [Docker for WSL 2 installation
+  instructions](https://docs.docker.com/docker-for-windows/wsl/)
+- You need to clone the dark repo with the git `core.autocrlf` setting set to
+  `false`. You can configure this by running `git config --global core.autocrlf false`. If you have already cloned dark, you will need to reclone it.
+- This section of the guide is incomplete. Please [create an
+  issue](https://github.com/darklang/dark) if you find something doesn't work.
 
 ### Building and running for the first time
 
