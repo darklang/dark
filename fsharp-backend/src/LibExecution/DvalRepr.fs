@@ -899,22 +899,12 @@ let ofUnknownJsonV1 str =
     | JBoolean b -> DBool b
     | JNull -> DNull
     | JString s -> DStr s
-    | JList l ->
-        // We shouldnt have saved dlist that have incompletes or error rails but we might have
-        l |> List.map convert |> Dval.list
+    | JList l -> l |> List.map convert |> Dval.list
     | JObject fields ->
-        let fields = fields |> List.sortBy (fun (k, _) -> k)
-        // These are the only types that are allowed in the queryable
-        // representation. We may allow more in the future, but the real thing to
-        // do is to use the DB's type and version to encode/decode them correctly
-        match fields with
-        | [ ("type", JString "date"); ("value", JString v) ] ->
-            DDate(System.DateTime.ofIsoString v)
-        | [ ("type", JString "password"); ("value", JString v) ] ->
-            v |> base64Decode |> Password |> DPassword
-        | [ ("type", JString "uuid"); ("value", JString v) ] -> DUuid(System.Guid v)
-        | _ ->
-            fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
+        fields
+        |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m)
+        |> DObj
+
     // Json.NET does a bunch of magic based on the contents of various types.
     // For example, it has tokens for Dates, constructors, etc. We've tried to
     // disable all those so we fail if we see them. However, we might need to
