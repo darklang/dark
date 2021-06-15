@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
-sudo chmod 777 /var/run/docker.sock
-
-
+if [[ -S "/var/run/docker.sock" ]]; then
+  sudo chmod 777 /var/run/docker.sock
+else
+  # We might not have the docker socket available on windows. Since we don't
+  # need this all that much, let's just print a warning rather than expect
+  # people to set this up.
+  echo "No docker socket, skipping"
+fi
