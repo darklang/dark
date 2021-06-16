@@ -187,9 +187,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DResult o ] ->
-             match o with
-             | Ok dv -> Value(Dval.optionJust dv)
-             | Error _ -> Value(DOption None)
+            match o with
+            | Ok dv -> Value(Dval.optionJust dv)
+            | Error _ -> Value(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -211,7 +211,13 @@ let fns : List<BuiltInFn> =
               | Ok _, Error e2 -> return DResult(Error e2)
               | Ok dv1, Ok dv2 ->
                   let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ dv1; dv2 ]
+                      NotInPipe
+                      NoRail
 
                   return DResult(Ok result)
             }
