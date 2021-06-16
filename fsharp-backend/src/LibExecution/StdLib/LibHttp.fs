@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
       fn =
         (function
-        | _, [ dv; DInt code ] -> Value(DHttpResponse(Response(int code, [], dv)))
+        | _, [ dv; DInt code ] -> Value(DHttpResponse(Response(code, [], dv)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
       fn =
         (function
-        | _, [ dv; DInt code ] -> Value(DHttpResponse(Response(int code, [], dv)))
+        | _, [ dv; DInt code ] -> Value(DHttpResponse(Response(code, [], dv)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
                      | k, v ->
                          Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
-            Value(DHttpResponse(Response(int code, pairs, dv)))
+            Value(DHttpResponse(Response(code, pairs, dv)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
                      | k, v ->
                          Errors.throw (Errors.argumentWasnt "a string" "value" v))
 
-            Value(DHttpResponse(Response(int code, pairs, dv)))
+            Value(DHttpResponse(Response(code, pairs, dv)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
       fn =
         (function
-        | _, [ dv ] -> Value(DHttpResponse(Response(200, [], dv)))
+        | _, [ dv ] -> Value(DHttpResponse(Response(200I, [], dv)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -120,9 +120,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ dv; DInt code ] ->
             Value(
-              DHttpResponse(
-                Response(int code, [ ("Content-Type", "text/html") ], dv)
-              )
+              DHttpResponse(Response(code, [ ("Content-Type", "text/html") ], dv))
             )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -137,9 +135,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ dv; DInt code ] ->
             Value(
-              DHttpResponse(
-                Response(int code, [ ("Content-Type", "text/html") ], dv)
-              )
+              DHttpResponse(Response(code, [ ("Content-Type", "text/html") ], dv))
             )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -154,9 +150,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ dv; DInt code ] ->
             Value(
-              DHttpResponse(
-                Response(int code, [ ("Content-Type", "text/plain") ], dv)
-              )
+              DHttpResponse(Response(code, [ ("Content-Type", "text/plain") ], dv))
             )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -171,9 +165,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ dv; DInt code ] ->
             Value(
-              DHttpResponse(
-                Response(int code, [ ("Content-Type", "text/plain") ], dv)
-              )
+              DHttpResponse(Response(code, [ ("Content-Type", "text/plain") ], dv))
             )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -189,7 +181,7 @@ let fns : List<BuiltInFn> =
         | _, [ dv; DInt code ] ->
             Value(
               DHttpResponse(
-                Response(int code, [ ("Content-Type", "application/json") ], dv)
+                Response(code, [ ("Content-Type", "application/json") ], dv)
               )
             )
         | _ -> incorrectArgs ())
@@ -206,7 +198,7 @@ let fns : List<BuiltInFn> =
         | _, [ dv; DInt code ] ->
             Value(
               DHttpResponse(
-                Response(int code, [ ("Content-Type", "application/json") ], dv)
+                Response(code, [ ("Content-Type", "application/json") ], dv)
               )
             )
         | _ -> incorrectArgs ())
@@ -232,7 +224,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
       fn =
         (function
-        | _, [ msg ] -> Value(DHttpResponse(Response(400, [], msg)))
+        | _, [ msg ] -> Value(DHttpResponse(Response(400I, [], msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -244,7 +236,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
       fn =
         (function
-        | _, [] -> Value(DHttpResponse(Response(404, [], DNull)))
+        | _, [] -> Value(DHttpResponse(Response(404I, [], DNull)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -256,7 +248,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
       fn =
         (function
-        | _, [] -> Value(DHttpResponse(Response(401, [], DNull)))
+        | _, [] -> Value(DHttpResponse(Response(401I, [], DNull)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -268,7 +260,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
       fn =
         (function
-        | _, [] -> Value(DHttpResponse(Response(403, [], DNull)))
+        | _, [] -> Value(DHttpResponse(Response(403I, [], DNull)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

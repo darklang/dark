@@ -151,6 +151,21 @@ let sha1digest (input : string) : byte [] =
 
 let toString (v : 'a) : string = v.ToString()
 
+let truncateToInt32 (v : bigint) : int32 =
+  try
+    int32 v
+  with :? System.OverflowException ->
+    if v > 0I then System.Int32.MaxValue else System.Int32.MinValue
+
+let truncateToInt64 (v : bigint) : int64 =
+  try
+    int64 v
+  with :? System.OverflowException ->
+    if v > 0I then System.Int64.MaxValue else System.Int64.MinValue
+
+
+
+
 
 module Uuid =
   let nilNamespace : System.Guid = System.Guid "00000000-0000-0000-0000-000000000000"

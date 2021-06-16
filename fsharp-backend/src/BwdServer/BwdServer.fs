@@ -346,7 +346,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
                     ctx.Response.Redirect(url, false)
                     return ctx
                 | RT.DHttpResponse (RT.Response (status, headers, RT.DBytes body)) ->
-                    ctx.Response.StatusCode <- status
+                    ctx.Response.StatusCode <- truncateToInt32 status
                     // FSTODO content type of application/json for dobj and dlist
                     List.iter (fun (k, v) -> setHeader ctx k v) headers
                     do! ctx.Response.Body.WriteAsync(body, 0, body.Length)

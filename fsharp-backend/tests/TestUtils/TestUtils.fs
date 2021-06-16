@@ -671,7 +671,7 @@ let sampleDvals : List<string * Dval> =
          DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
         ("redirect", DHttpResponse(Redirect "/home"))
         ("httpresponse",
-         DHttpResponse(Response(200, [ "content-length", "9" ], DStr "success")))
+         DHttpResponse(Response(200I, [ "content-length", "9" ], DStr "success")))
         ("db", DDB "Visitors")
         ("date", DDate(System.DateTime.ofIsoString "2018-09-14T00:31:41Z"))
         ("password", DPassword(Password(toBytes "somebytes")))
