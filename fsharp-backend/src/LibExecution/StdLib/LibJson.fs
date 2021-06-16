@@ -56,7 +56,10 @@ let fns : List<BuiltInFn> =
         "Parses a json string and returns its value. HTTPClient functions, and our request handler, automatically parse JSON into the `body` and `jsonbody` fields, so you probably won't need this. However, if you need to consume bad JSON, you can use string functions to fix the JSON and then use this function to parse it."
       fn =
         (function
-        | _, [ DStr json ] -> json |> DvalRepr.ofUnknownJsonV1 |> Value
+        | _, [ DStr json ] ->
+            try
+              json |> DvalRepr.ofUnknownJsonV1 |> Value
+            with e -> Value(DError(SourceNone, e.Message))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

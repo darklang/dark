@@ -1332,4 +1332,9 @@ let execute
   let str =
     Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
 
-  stringToDvalReq "execute" str
+  task {
+    try
+      let! result = stringToDvalReq "execute" str
+      return result
+    with e -> return (RT.DError(RT.SourceNone, e.Message))
+  }

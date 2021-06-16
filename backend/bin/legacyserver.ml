@@ -118,7 +118,7 @@ let server () =
         with e ->
           let headers = Header.init () in
           let message =
-            Libexecution.Exception.to_string e
+            Libexecution.Exception.exn_to_string e
           in
           print_endline ("error while calling " ^ Uri.to_string uri ^ "\n" ^ message) ;
           S.respond_string
