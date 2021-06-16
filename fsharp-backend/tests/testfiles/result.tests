@@ -20,6 +20,8 @@ Result.fromOption_v1 (Just 6) "test" = Ok 6
 Result.fromOption_v1 Nothing "test" = Error "test"
 Result.fromOption_v1 (Just (Error "test")) "test" = Ok (Error "test")
 Result.fromOption_v1 blank "test" = blank
+Result.fromOption_v1 (Test.justWithTypeError_v0 "err") "msg" = Test.typeError_v0 "err"
+
 
 Result.map2_v0 (Error "error1") (Error "error2") (fun (a, b) -> a - b) = Error "error1"
 Result.map2_v0 (Error "error1") (Ok 1) (fun (a, b) -> a - b) = Error "error1"

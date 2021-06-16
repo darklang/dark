@@ -245,7 +245,7 @@ let fns : Types.RuntimeT.fn list =
               Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
-  ; { prefix_names = ["Test::"]
+  ; { prefix_names = ["Test::justWithTypeError"]
     ; infix_names = []
     ; parameters = [Lib.par "msg" TStr]
     ; return_type = TOption
