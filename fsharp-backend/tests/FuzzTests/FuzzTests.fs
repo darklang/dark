@@ -638,7 +638,14 @@ module ExecutePureFunctions =
                 let naughty =
                   naughtyStrings |> Lazy.force |> List.map Gen.constant |> Gen.oneof
 
-                let! v = Gen.frequency [ (7, naughty); (3, Arb.generate<string>) ]
+                let! v =
+                  Gen.frequency [ (7, naughty)
+                                  (3,
+                                   Arb.generate<UnicodeString>
+                                   |> Gen.map
+                                        (function
+                                        | UnicodeString s -> s)) ]
+
                 return RT.DStr v
             | RT.TVariable _ -> return! Arb.generate<RT.Dval>
             | RT.TFloat ->
