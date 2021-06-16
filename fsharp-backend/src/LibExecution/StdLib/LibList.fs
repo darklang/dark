@@ -1030,8 +1030,8 @@ let fns : List<BuiltInFn> =
             let l2 = List.take (int len) l2
 
             List.zip l1 l2
-            |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
-            |> DList
+            |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+            |> Dval.list
             |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1052,8 +1052,8 @@ let fns : List<BuiltInFn> =
               Value(DOption None)
             else
               List.zip l1 l2
-              |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
-              |> DList
+              |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+              |> Dval.list
               |> Some
               |> DOption
               |> Value

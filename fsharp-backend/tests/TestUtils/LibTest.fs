@@ -147,4 +147,15 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Test" "justWithTypeError" 0
+      parameters = [ Param.make "msg" TStr "" ]
+      returnType = TOption varA
+      description = "Returns a DError in a Just"
+      fn =
+        (function
+        | _, [ DStr msg ] -> Value(DOption(Some(DError(SourceNone, msg))))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
