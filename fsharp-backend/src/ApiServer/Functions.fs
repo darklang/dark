@@ -84,7 +84,10 @@ let convertFn (fn : RT.BuiltInFn) : FunctionMetadata =
       // CLEANUP: this is difficult to change in OCaml, but is trivial in F# (we
       // should just be able to remove this line with no other change)
       let n = fn.name.ToString()
-      if n = "DB::add" then "DB::add_v0" else n
+
+      if n = "DB::add" then "DB::add_v0"
+      else if n = "JSON::parse" then "JSON::parse_v0"
+      else n
     parameters =
       List.map
         (fun (p : RT.Param) ->
