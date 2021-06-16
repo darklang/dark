@@ -27,6 +27,7 @@ Result.map2_v0 (Error "error1") (Error "error2") (fun (a, b) -> a - b) = Error "
 Result.map2_v0 (Error "error1") (Ok 1) (fun (a, b) -> a - b) = Error "error1"
 Result.map2_v0 (Ok 10) (Error "error2") (fun (a, b) -> a - b) = Error "error2"
 Result.map2_v0 (Ok 10) (Ok 1) (fun (a, b) -> a - b) = Ok 9
+Result.map2_v0 (Ok (Test.typeError_v0 "")) (Ok 1) (fun (a, b) -> a - b) = Test.typeError_v0 ""
 
 Result.mapError_v0 (Error "test") (fun x -> String.append_v0 x "-appended") = Error "test-appended"
 Result.mapError_v0 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 4
