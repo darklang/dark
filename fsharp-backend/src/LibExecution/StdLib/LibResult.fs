@@ -127,9 +127,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DResult o; default' ] ->
-            (match o with
-             | Ok dv -> Value dv
-             | Error _ -> Value default')
+            match o with
+            | Ok dv -> Value dv
+            | Error _ -> Value default'
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -143,11 +143,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DOption o; DStr error ] ->
-            taskv {
-              match o with
-              | Some dv -> return DResult(Ok dv)
-              | None -> return DResult(Error(DStr error))
-            }
+            match o with
+            | Some dv -> Value(DResult(Ok dv))
+            | None -> Value(DResult(Error(DStr error)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -161,11 +159,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DOption o; DStr error ] ->
-            taskv {
-              match o with
-              | Some dv -> return DResult(Ok dv)
-              | None -> return DResult(Error(DStr error))
-            }
+            match o with
+            | Some dv -> Value(Dval.resultOk dv)
+            | None -> Value(DResult(Error(DStr error)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -177,11 +173,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DResult o ] ->
-            taskv {
-              match o with
-              | Ok dv -> return DOption(Some dv)
-              | Error _ -> return DOption None
-            }
+            match o with
+            | Ok dv -> Value(DOption(Some dv))
+            | Error _ -> Value(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -193,11 +187,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DResult o ] ->
-            taskv {
-              match o with
-              | Ok dv -> return DOption(Some dv) // Dval.to_opt_just dv
-              | Error _ -> return DOption None
-            }
+            match o with
+            | Ok dv -> Value(Dval.optionJust dv)
+            | Error _ -> Value(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -279,8 +271,8 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
 
                   match result with
-                  | DResult (Ok result) -> return DResult(Ok result)
-                  | DResult (Error result) -> return DResult(Error result)
+                  | DResult (Ok result) -> return Dval.resultOk result
+                  | DResult (Error result) -> return Dval.resultError result
                   | other ->
                       return
                         Errors.throw (
