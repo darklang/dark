@@ -727,10 +727,16 @@ module ExecutePureFunctions =
                            (ApiServer.Functions.fsharpOnlyFns.Force())
                        ))
                 |> List.filter
+                     // FSTODO: all these differences should be removed
                      (function
-                     // FSTODO: These use a different sort order in OCaml
-                     | { name = { module_ = "List"; function_ = "sort" } } -> false
-                     | { name = { module_ = "List"; function_ = "sortBy" } } -> false
+                     | { name = { module_ = "List"; function_ = "sort" } }
+                     | { name = { module_ = "List"; function_ = "sortBy" } } ->
+                         // FSTODO: These use a different sort order in OCaml
+                         false
+                     | { name = { module_ = "Object"; function_ = "toJSON" } }
+                     | { name = { module_ = "Dict"; function_ = "toJSON" } } ->
+                         // Known formatting differences
+                         false
                      | { name = { module_ = "String"; function_ = "base64Decode" } } ->
                          // Don't know what the bug is
                          false
