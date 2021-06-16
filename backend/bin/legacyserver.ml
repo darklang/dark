@@ -118,14 +118,11 @@ let server () =
         with e ->
           let headers = Header.init () in
           let message =
-            "failed to run function at: "
-            ^ Uri.to_string uri
-            ^ "\n"
-            ^ Libexecution.Exception.to_string e
+            Libexecution.Exception.to_string e
           in
-          print_endline message ;
+          print_endline ("error while calling " ^ Uri.to_string uri ^ "\n" ^ message) ;
           S.respond_string
-            ~status:`Internal_server_error
+            ~status:`Bad_request
             ~body:message
             ~headers
             () )

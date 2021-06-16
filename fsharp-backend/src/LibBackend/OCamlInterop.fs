@@ -1091,11 +1091,15 @@ let legacyReq
 
     let! response = client.SendAsync(message)
 
-    if response.StatusCode <> System.Net.HttpStatusCode.OK then
+    if response.StatusCode = System.Net.HttpStatusCode.OK then
+      ()
+    else if response.StatusCode = System.Net.HttpStatusCode.BadRequest then
+      // This is how errors are reported
+      let! content = response.Content.ReadAsStringAsync()
+      failwith content
+    else
       let! content = response.Content.ReadAsStringAsync()
       failwith $"not a 200 response to {endpoint}: {response.StatusCode}, {content}"
-    else
-      ()
 
     return response.Content
   }
