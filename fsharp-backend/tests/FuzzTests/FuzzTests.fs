@@ -929,6 +929,10 @@ module ExecutePureFunctions =
           | "Char::toASCIICode"
           | "Char::toASCIIChar"
           | "String::foreach" -> true
+          // Known acceptable difference
+          | "Object::toJSON"
+          | "Object::toJSON_v1"
+          | "Dict::toJSON" -> true
           // Messages are close-enough
           | "%"
           | "Int::mod" ->
