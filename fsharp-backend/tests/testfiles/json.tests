@@ -1,0 +1,43 @@
+JSON.read_v0 "[97, 2, 30, 4]" = [97, 2, 30, 4]
+JSON.read_v0 "[97, 2, 30, 4,]" = null  // OCAMLONLY
+JSON.read_v0 "[97, 2, 30, 4,]" = [97, 2, 30, 4] // FSHARPONLY
+JSON.read_v0 "{Id : 1.0}" = {Id = 1.0}
+JSON.read_v0 "{Id : 1.}" = null // OCAMLONLY
+JSON.read_v0 "{Id : 1.}" = {Id = 1.0} // FSHARPONLY
+JSON.read_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ]
+JSON.read_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"}
+JSON.read_v0 "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = null
+JSON.read_v0 "" = null
+JSON.read_v0 "\"\"" = ""
+
+JSON.read_v1 "[97, 2, 30, 4]" = [97, 2, 30, 4]
+JSON.read_v1 "[97, 2, 30, 4,]" = [97, 2, 30, 4] // FSHARPONLY
+JSON.read_v1 "{Id : 1.0}" = {Id = 1.0}
+JSON.read_v1 "{Id : 1.}" = {Id = 1.0} // FSHARPONLY
+JSON.read_v1 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ]
+JSON.read_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"}
+JSON.read_v1 "\"\"" = ""
+
+JSON.parse_v0 "[97, 2, 30, 4]" = [97, 2, 30, 4]
+JSON.parse_v0 "[97, 2, 30, 4,]" = [97, 2, 30, 4] // FSHARPONLY
+JSON.parse_v0 "{Id : 1.0}" = {Id = 1.0}
+JSON.parse_v0 "{Id : 1.}" = {Id = 1.0} // FSHARPONLY
+JSON.parse_v0 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ]
+JSON.parse_v0 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"}
+JSON.parse_v0 "\"\"" = ""
+
+JSON.parse_v1 "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
+JSON.parse_v1 "[97, 2, 30, 4,]" = Error "Json Err: Line 1, bytes 14-15:\nInvalid token ']'" // OCAMLONLY
+JSON.parse_v1 "[97, 2, 30, 4,]" = Ok [97, 2, 30, 4] // FSHARPONLY
+JSON.parse_v1 "{Id : 1.0}" = Ok {Id = 1.0}
+JSON.parse_v1 "{Id : 1.}" = Error "Json Err: Line 1, bytes 7-9:\nExpected ',' or '}' but found '.}'" // OCAMLONLY
+JSON.parse_v1 "{Id : 1.}" = Ok {Id = 1.0} // FSHARPONLY
+JSON.parse_v1 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = Ok [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ]
+JSON.parse_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = Ok {id = 555; edition = "First"; author = "Dennis Ritchie"}
+JSON.parse_v1 "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = Error "Dark Exception.DarkInternal Err: We dont use tuples" // OCAMLONLY
+JSON.parse_v1 "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = Error "Invalid type in json: ({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" // FSHARPONLY
+JSON.parse_v1 "\"\"" = Ok ""
+JSON.parse_v1 "" = Error "Json Err: Blank input data" // OCAMLONLY
+JSON.parse_v1 "" = Error "Invalid type in json: " // FSHARPONLY
+JSON.parse_v1 "{3: false}" = Error "Json Err: Line 1, bytes 1-10:\nExpected string or identifier but found '3: false}'"  // OCAMLONLY
+//JSON.parse_v1 "{3: false}" = {3 = false} // FSHARPONLY  It should throws an error, but expects Ok { 3 = false} that is not a valid map (key should be a str)

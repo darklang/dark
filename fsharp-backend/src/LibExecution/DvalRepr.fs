@@ -406,7 +406,7 @@ let rec unsafeDvalOfJsonV0 (json : JToken) : Dval =
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
-  // disable all those so we fail if we see them. Hwoever, we might need to
+  // disable all those so we fail if we see them. However, we might need to
   // just convert some of these into strings.
   | JNonStandard
   | _ -> failwith $"Invalid type in json: {json}"
@@ -477,7 +477,7 @@ let rec unsafeDvalOfJsonV1 (json : JToken) : Dval =
       | _ -> fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
   // Json.NET does a bunch of magic based on the contents of various types.
   // For example, it has tokens for Dates, constructors, etc. We've tried to
-  // disable all those so we fail if we see them. Hwoever, we might need to
+  // disable all those so we fail if we see them. However, we might need to
   // just convert some of these into strings.
   | JNonStandard
   | _ -> failwith $"Invalid type in json: {json}"
@@ -743,7 +743,7 @@ let ofInternalQueryableV1 (str : string) : Dval =
             fields |> List.map (fun (k, v) -> (k, convert v)) |> Map.ofList |> DObj
     // Json.NET does a bunch of magic based on the contents of various types.
     // For example, it has tokens for Dates, constructors, etc. We've tried to
-    // disable all those so we fail if we see them. Hwoever, we might need to
+    // disable all those so we fail if we see them. However, we might need to
     // just convert some of these into strings.
     | JNonStandard _
     | _ -> failwith $"Invalid type in json: {json}"
@@ -885,43 +885,38 @@ let rec toDeveloperReprV0 (dv : Dval) : string =
   toRepr_ 0 dv
 
 
-// let of_unknown_json_v0 str =
-//   try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
-//   with e ->
-//     Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
-//
-//
-// let of_unknown_json_v1 str =
-//   let rec convert json =
-//     match json with
-//     | `Int i ->
-//         DInt (Dint.of_int i)
-//     | `Intlit i ->
-//         DInt (Dint.of_string_exn i)
-//     | `Float f ->
-//         DFloat f
-//     | `Bool b ->
-//         DBool b
-//     | `Null ->
-//         DNull
-//     | `String s ->
-//         dstr_of_string_exn s
-//     | `List l ->
-//         to_list (List.map ~f:convert l)
-//     | `Variant v ->
-//         Exception.internal "We dont use variants"
-//     | `Tuple v ->
-//         Exception.internal "We dont use tuples"
-//     | `Assoc alist ->
-//         DObj
-//           (List.fold_left
-//              alist
-//              ~f:(fun m (k, v) -> DvalMap.insert m ~key:k ~value:(convert v))
-//              ~init:DvalMap.empty)
-//   in
-//   str |> Yojson.Safe.from_string |> convert
-//
-//
+let ofUnknownJsonV0 str =
+  try
+    str |> parseJson |> unsafeDvalOfJsonV0
+  with _ -> failwith "Invalid json"
+
+
+let ofUnknownJsonV1 str =
+  let rec convert json =
+    match json with
+    | JInteger i -> DInt(bigint i)
+    | JFloat f -> DFloat f
+    | JBoolean b -> DBool b
+    | JNull -> DNull
+    | JString s -> DStr s
+    | JList l -> l |> List.map convert |> Dval.list
+    | JObject fields ->
+        fields
+        |> List.fold Map.empty (fun m (k, v) -> Map.add k (convert v) m)
+        |> DObj
+
+    // Json.NET does a bunch of magic based on the contents of various types.
+    // For example, it has tokens for Dates, constructors, etc. We've tried to
+    // disable all those so we fail if we see them. However, we might need to
+    // just convert some of these into strings.
+    | JNonStandard
+    | _ -> failwith $"Invalid type in json: {json}"
+
+  try
+    str |> parseJson |> convert
+  with _ -> failwith $"Invalid type in json: {str}"
+
+
 // let rec show dv =
 //   match dv with
 //   | DInt i ->

@@ -662,12 +662,14 @@ module Convert =
     | PT.EVariable (id, var) -> ORT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) -> ORT.EFieldAccess(id, r obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
-        ORT.EFnCall(
-          id,
-          name.ToString() |> String.replace "_v0" "",
-          List.map r args,
-          pt2ocamlSter ster
-        )
+        let name =
+          if string name = "JSON::parse" || string name = "DB::add" then
+            // Some things were named wrong in OCaml
+            $"{name}_v0"
+          else
+            string name |> String.replace "_v0" ""
+
+        ORT.EFnCall(id, name, List.map r args, pt2ocamlSter ster)
     | PT.EBinOp (id, name, arg1, arg2, ster) ->
         ORT.EBinOp(
           id,
@@ -736,7 +738,15 @@ module Convert =
     | RT.EFeatureFlag (id, cond, caseA, caseB) ->
         ORT.EFeatureFlag(id, "flag", r cond, r caseA, r caseB)
     | RT.EApply (id, RT.EFQFnValue (_, name), args, RT.NotInPipe, rail) ->
-        ORT.EFnCall(id, toString name, List.map r args, rt2ocamlSter rail)
+        let name =
+          if string name = "JSON::parse" || string name = "DB::add" then
+            // Some things were named wrong in OCaml
+            $"{name}_v0"
+          else
+            string name |> String.replace "_v0" ""
+
+
+        ORT.EFnCall(id, name, List.map r args, rt2ocamlSter rail)
     | _ -> failwith "TODO: add more cases to rt2ocamlExpr"
 
 
