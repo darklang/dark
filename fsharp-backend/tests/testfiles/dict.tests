@@ -21,6 +21,7 @@ Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Expected ever
 Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Expected the argument `key` to be a string, but it was `1`" // FSHARPONLY
 Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "Expected every value within the `entries` argument passed to `Dict::fromListOverwritingDuplicates` to be a `[key, value]` list. However, that is not the case for the value at index 1: `2`. It is of type `Int` instead of `List`."" // OCAMLONLY
 Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "All list items must be `[key, value]`" // FSHARPONLY
+Dict.fromListOverwritingDuplicates_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
 Dict.fromList_v0 [["a";1];["b";2];["a";3]] = Nothing // duplicate key
 Dict.fromList_v0 [["a";1];["b";2];["c";3]] = Just { c = 3; b = 2; a = 1 }
