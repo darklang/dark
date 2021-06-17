@@ -309,6 +309,54 @@ let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
 open LibExecution.RuntimeTypes
 
 module Expect =
+
+  // Checks if the value (and all its contents) is in its desired
+  // representation (in the event that there are multiple ways to represent
+  // it). Think of this as a general form of string normalization.
+  let rec isCanonical (dv : Dval) : bool =
+    let check = isCanonical
+
+    match dv with
+    | DDate _
+    | DIncomplete _
+    | DInt _
+    | DDate _
+    | DBool _
+    | DFloat _
+    | DNull
+    | DPassword _
+    | DFnVal _
+    | DError _
+    | DDB _
+    | DUuid _
+    | DBytes _
+    | DOption None
+    | DFloat _ -> true
+
+    | DHttpResponse (Redirect str) -> str.IsNormalized()
+    | DHttpResponse (Response (code, headers, v)) ->
+        let vOk = check v
+        let codeOk = code >= 0I
+
+        let headersOk =
+          List.all
+            (fun ((k, v) : string * string) -> k.IsNormalized() && v.IsNormalized())
+            headers
+
+        vOk && codeOk && headersOk
+
+    | DResult (Ok v)
+    | DResult (Error v)
+    | DErrorRail v
+    | DOption (Some v) -> check v
+
+    | DList vs -> List.all check vs
+    | DObj vs -> vs |> Map.values |> List.all check
+    | DStr str -> str.IsNormalized()
+    | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
+
+
+
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
     let de a e = equalDval a e msg
 

@@ -962,13 +962,25 @@ module ExecutePureFunctions =
                 "Expected a string representation of an IEEE float"
           | _ -> false
 
+        let debugFn () =
+          debuG "fn" fn
+          debuG "args" (List.map (fun (_, v) -> debugDval v) args)
+
+        if not (Expect.isCanonical expected) then
+          debugFn ()
+          debuG "ocaml (expected) is not normalized" (debugDval expected)
+          return false
+        else
+
+        if not (Expect.isCanonical actual) then
+          debugFn ()
+          debuG "fsharp (actual) is not normalized" (debugDval actual)
+          return false
+        else
+
         if dvalEquality actual expected then
           return true
         else
-          let debugFn () =
-            debuG "fn" fn
-            debuG "args" (List.map (fun (_, v) -> debugDval v) args)
-
           match actual, expected with
           | RT.DError (_, msg1), RT.DError (_, msg2) ->
               let allowed = errorAllowed msg1 msg2
@@ -989,8 +1001,9 @@ module ExecutePureFunctions =
               // FSTODO make false
               return true
           | _ ->
-              debuG "ocaml (expected)" expected
-              debuG "fsharp (actual) " actual
+              debugFn ()
+              debuG "ocaml (expected)" (debugDval expected)
+              debuG "fsharp (actual) " (debugDval actual)
               return false
       }
 

@@ -62,6 +62,8 @@ let t
               dbs
               (Map.values functions)
 
+          Expect.isTrue (Expect.isCanonical ocamlActual) "actual is normalized"
+
           if shouldEqual then
             Expect.equalDval
               (normalizeDvalResult ocamlActual)
@@ -78,6 +80,8 @@ let t
             Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
 
           let fsharpActual = normalizeDvalResult fsharpActual
+
+          Expect.isTrue (Expect.isCanonical fsharpActual) "expected is normalized"
 
           if shouldEqual then
             Expect.equalDval fsharpActual expected $"FSharp: {msg}"
