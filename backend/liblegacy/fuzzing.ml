@@ -260,6 +260,36 @@ let fns : Types.RuntimeT.fn list =
               Lib.fail args)
     ; preview_safety = Safe
     ; deprecated = false }
+  ; { prefix_names = ["Test::okWithTypeError"]
+    ; infix_names = []
+    ; parameters = [Lib.par "msg" TStr]
+    ; return_type = TResult
+    ; description = "Returns a DError in an Ok"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr msg] ->
+              let msg = Unicode_string.to_string msg in
+              DOption(OptJust(DError(SourceNone, msg)))
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
+  ; { prefix_names = ["Test::errorWithTypeError"]
+    ; infix_names = []
+    ; parameters = [Lib.par "msg" TStr]
+    ; return_type = TOption
+    ; description = "Returns a DError in a Just"
+    ; func =
+        InProcess
+          (function
+          | state, [DStr msg] ->
+              let msg = Unicode_string.to_string msg in
+              DOption(OptJust(DError(SourceNone, msg)))
+          | args ->
+              Lib.fail args)
+    ; preview_safety = Safe
+    ; deprecated = false }
   ]
 
 
