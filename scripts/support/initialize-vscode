@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -x
-echo $@
 # this is run on the host when starting the vscode devcontainer. It makes sure
 # the host is in the right shape so that the devcontainer can start up. This is
 # cross-platform, and must run on windows, linux and Mac.
