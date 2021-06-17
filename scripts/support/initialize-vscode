@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # this is run on the host when starting the vscode devcontainer. It makes sure
 # the host is in the right shape so that the devcontainer can start up. This is
 # cross-platform, and must run on windows, linux and Mac.
@@ -9,7 +8,11 @@ if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
   exit 1
 fi
 
-home="${HOME}${USERPROFILE}"
+if [[ -v WSLENV ]]; then
+  home=$(wslpath $1)
+else
+  home=$1
+fi
 
 echo "making ~/.dark_bash_history to share bash history with the Dark container"
 touch "${home}/.dark_bash_history"
