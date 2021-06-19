@@ -466,12 +466,12 @@ String.toUppercase_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱
 String.toUppercase_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
 String.toUppercase_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toUppercase_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+String.toUppercase_v0 "`⁄€‹›ﬁﬂ‡°·‚—±" = "`⁄€‹›ﬁﬂ‡°·‚—±"
 String.toUppercase_v0 "ჾ" = "ჾ"
 
 String.toUppercase_v0 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇Lͮ̒ͫǧ̗͚̚O̙̔ͮ̇͐̇"
 
 String.toUppercase_v0 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢H͏͓̮̻E̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅA͏͓͔̹̼̣L̴͔̰̤̟͔ḽ̫.͕"
-
 
 
 String.toUppercase_v1 "" = ""
@@ -489,6 +489,7 @@ String.toUppercase_v1 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️
 String.toUppercase_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toUppercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.toUppercase_v1 "ჾ" = "Ჾ"
+//String.toUppercase_v1 "`⁄€‹›ﬁﬂ‡°·‚—±" = "`⁄€‹›FIFL‡°·‚—±"
 
 String.toUppercase_v1 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
 
