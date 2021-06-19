@@ -334,16 +334,16 @@ module Expect =
     | DFloat _ -> true
 
     | DHttpResponse (Redirect str) -> str.IsNormalized()
-    | DHttpResponse (Response (code, headers, v)) ->
+    | DHttpResponse (Response (_, headers, v)) ->
+        // We don't check code as you can actually set it to anything
         let vOk = check v
-        let codeOk = code >= 0I
 
         let headersOk =
           List.all
             (fun ((k, v) : string * string) -> k.IsNormalized() && v.IsNormalized())
             headers
 
-        vOk && codeOk && headersOk
+        vOk && headersOk
 
     | DResult (Ok v)
     | DResult (Error v)
@@ -356,106 +356,35 @@ module Expect =
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
 
 
+  let rec patternEqualityBaseFn
+    (checkIDs : bool)
+    (actual : Pattern)
+    (expected : Pattern)
+    (errorFn : string -> string -> unit)
+    : unit =
+    let eq a e = patternEqualityBaseFn checkIDs a e errorFn
 
-  let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
-    let de a e = equalDval a e msg
-
-    match actual, expected with
-    | DFloat l, DFloat r ->
-        if System.Double.IsNaN l && System.Double.IsNaN r then
-          ()
-        else if System.Double.IsPositiveInfinity l
-                && System.Double.IsPositiveInfinity r then
-          ()
-        else if System.Double.IsNegativeInfinity l
-                && System.Double.IsNegativeInfinity r then
-          ()
-        else
-          Expect.floatClose Accuracy.veryHigh l r msg
-    | DResult (Ok l), DResult (Ok r) -> de l r
-    | DResult (Error l), DResult (Error r) -> de l r
-    | DOption (Some l), DOption (Some r) -> de l r
-    | DDate l, DDate r ->
-        // Two dates can be the same millisecond and not be equal if they don't
-        // have the same number of ticks. For testing, we shall consider them
-        // equal if they print the same string.
-        Expect.equal (l.ToString()) (r.ToString()) $"{msg}: {l} <> {r}"
-    | DList ls, DList rs ->
-        let lLength = List.length ls
-        let rLength = List.length rs
-
-        let lenMsg list =
-          if lLength = rLength then
-            ""
-          else
-            List.map toString list |> String.concat "; " |> fun s -> $"[{s}]"
-
-        Expect.equal lLength rLength $"{lenMsg ls} <> {lenMsg rs} in ({msg})"
-        List.iter2 de ls rs
-    | DObj ls, DObj rs ->
-        let lLength = Map.count ls
-        let rLength = Map.count rs
-        Expect.equal lLength rLength $"{ls.ToString()} <> {rs.ToString()} in ({msg})"
-
-        List.iter2
-          (fun (k1, v1) (k2, v2) ->
-            Expect.equal k1 k2 msg
-            de v1 v2)
-          (Map.toList ls)
-          (Map.toList rs)
-    | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
-        Expect.equal sc1 sc2 msg
-        Expect.equal h1 h2 msg
-        de b1 b2
-    | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) ->
-        Expect.equal u1 u2 msg
-    | DIncomplete _, DIncomplete _ -> Expect.equal true true "two incompletes"
-    | DErrorRail l, DErrorRail r -> de l r
-    // Keep for exhaustiveness checking
-    | DHttpResponse _, _
-    | DObj _, _
-    | DList _, _
-    | DResult _, _
-    | DErrorRail _, _
-    | DOption _, _
-    // All others can be directly compared
-    | DInt _, _
-    | DDate _, _
-    | DBool _, _
-    | DFloat _, _
-    | DNull, _
-    | DStr _, _
-    | DChar _, _
-    | DPassword _, _
-    | DFnVal _, _
-    | DIncomplete _, _
-    | DError _, _
-    | DDB _, _
-    | DUuid _, _
-    | DBytes _, _ -> Expect.equal actual expected msg
-
-
-  let rec equalPatternIgnoringIDs (p : RT.Pattern) (p' : RT.Pattern) : unit =
-    let eq = equalPatternIgnoringIDs
-    let eeq (v : 'a) (v' : 'a) = Expect.equal v v' ""
+    let check (a : 'a) (e : 'a) =
+      if a <> e then errorFn (string actual) (string expected)
 
     let eqList (l1 : List<RT.Pattern>) (l2 : List<RT.Pattern>) =
-      Expect.equal (List.length l1) (List.length l2) ""
+      check (List.length l1) (List.length l2)
       List.iter2 eq l1 l2
 
-    match (p, p') with
-    | PVariable (_, name), PVariable (_, name') -> eeq name name'
+    if checkIDs then check (Pattern.toID actual) (Pattern.toID expected)
+
+    match actual, expected with
+    | PVariable (_, name), PVariable (_, name') -> check name name'
     | (PConstructor (_, name, patterns), PConstructor (_, name', patterns')) ->
-        eeq name name'
+        check name name'
         eqList patterns patterns'
-    | PString (_, str), PString (_, str') -> eeq str str'
-    | PInteger (_, l), PInteger (_, l') -> eeq l l'
-    | PFloat (_, d), PFloat (_, d') -> eeq d d'
-    | PBool (_, l), PBool (_, l') -> eeq l l'
-    | PCharacter (_, c), PCharacter (_, c') -> eeq c c'
+    | PString (_, str), PString (_, str') -> check str str'
+    | PInteger (_, l), PInteger (_, l') -> check l l'
+    | PFloat (_, d), PFloat (_, d') -> check d d'
+    | PBool (_, l), PBool (_, l') -> check l l'
+    | PCharacter (_, c), PCharacter (_, c') -> check c c'
     | PNull (_), PNull (_) -> ()
     | PBlank (_), PBlank (_) -> ()
-
     // exhaustiveness check
     | PVariable _, _
     | PConstructor _, _
@@ -465,30 +394,39 @@ module Expect =
     | PBool _, _
     | PCharacter _, _
     | PNull _, _
-    | PBlank _, _ -> eeq p p' // fail with appropriate msg
+    | PBlank _, _ -> check actual expected
 
 
-  let rec equalExprIgnoringIDs (e : RT.Expr) (e' : Expr) : unit =
-    let eq = equalExprIgnoringIDs
-    let eeq (v : 'a) (v' : 'a) = Expect.equal v v' ""
+  let rec exprEqualityBaseFn
+    (checkIDs : bool)
+    (actual : Expr)
+    (expected : Expr)
+    (errorFn : string -> string -> unit)
+    : unit =
+    let eq a e = exprEqualityBaseFn checkIDs a e errorFn
+
+    let check (a : 'a) (e : 'a) =
+      if a <> e then errorFn (string actual) (string expected)
 
     let eqList (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
-      Expect.equal (List.length l1) (List.length l2) ""
+      check (List.length l1) (List.length l2)
       List.iter2 eq l1 l2
 
-    match e, e' with
+    if checkIDs then check (Expr.toID actual) (Expr.toID expected)
+
+    match actual, expected with
     // expressions with no values
     | ENull _, ENull _
     | EBlank _, EBlank _ -> ()
     // expressions with single string values
-    | EString (_, v), EString (_, v') -> eeq v v'
-    | ECharacter (_, v), ECharacter (_, v') -> eeq v v'
-    | EVariable (_, v), EVariable (_, v') -> eeq v v'
-    | EInteger (_, v), EInteger (_, v') -> eeq v v'
-    | EFloat (_, d), EFloat (_, d') -> eeq d d'
-    | EBool (_, v), EBool (_, v') -> eeq v v'
+    | EString (_, v), EString (_, v')
+    | ECharacter (_, v), ECharacter (_, v')
+    | EVariable (_, v), EVariable (_, v') -> check v v'
+    | EInteger (_, v), EInteger (_, v') -> check v v'
+    | EFloat (_, v), EFloat (_, v') -> check v v'
+    | EBool (_, v), EBool (_, v') -> check v v'
     | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
-        eeq lhs lhs'
+        check lhs lhs'
         eq rhs rhs'
         eq body body'
     | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
@@ -496,42 +434,40 @@ module Expect =
         eq thn thn'
         eq els els'
     | EList (_, l), EList (_, l') -> eqList l l'
-    | EFQFnValue (_, v), EFQFnValue (_, v') -> eeq v v'
+    | EFQFnValue (_, v), EFQFnValue (_, v') -> check v v'
     | EApply (_, name, args, toRail, inPipe),
       EApply (_, name', args', toRail', inPipe') ->
         eq name name'
         eqList args args'
-        eeq toRail toRail'
-        eeq inPipe inPipe'
+        check toRail toRail'
+        check inPipe inPipe'
     | ERecord (_, pairs), ERecord (_, pairs') ->
-        let sort = List.sortBy (fun (k, _) -> k)
-
         List.iter2
           (fun (k, v) (k', v') ->
-            eeq k k'
+            check k k'
             eq v v')
-          (sort pairs)
-          (sort pairs')
+          pairs
+          pairs'
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
         eq e e'
-        eeq f f'
+        check f f'
     | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
         eq cond cond'
         eq old old'
         eq knew knew'
     | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
-        eeq s s'
+        check s s'
         eqList ts ts'
     | EPartial (_, e), EPartial (_, e') -> eq e e'
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
         eq e e'
-        List.iter2 (fun (_, v) (_, v') -> eeq v v') vars vars'
+        List.iter2 (fun (_, v) (_, v') -> check v v') vars vars'
     | EMatch (_, e, branches), EMatch (_, e', branches') ->
         eq e e'
 
         List.iter2
           (fun ((p, v) : Pattern * Expr) (p', v') ->
-            equalPatternIgnoringIDs p p'
+            patternEqualityBaseFn checkIDs p p' errorFn
             eq v v')
           branches
           branches'
@@ -555,71 +491,121 @@ module Expect =
     | EConstructor _, _
     | EPartial _, _
     | ELambda _, _
-    | EMatch _, _ -> eeq e e' // fail with appropriate message
+    | EMatch _, _ -> check actual expected
 
 
 
-// We reimplement the same conditions as it's confusing to have this print out the same errors
-let rec dvalEquality (left : Dval) (right : Dval) : bool =
-  let de = dvalEquality
+  // If the dvals are not the same, call errorFn. This is in this form to allow
+  // both an equality function and a test expectation function
+  let rec dvalEqualityBaseFn
+    (actual : Dval)
+    (expected : Dval)
+    (errorFn : string -> string -> unit)
+    : unit =
+    let de a e = dvalEqualityBaseFn a e errorFn
+    let error () = errorFn (string actual) (string expected)
 
-  match left, right with
-  | DFloat l, DFloat r ->
-      if System.Double.IsNaN l && System.Double.IsNaN r then
-        // This isn't "true" equality, it's just for tests
-        true
-      else if System.Double.IsPositiveInfinity l
-              && System.Double.IsPositiveInfinity r then
-        true
-      else if System.Double.IsNegativeInfinity l
-              && System.Double.IsNegativeInfinity r then
-        true
-      else
-        Accuracy.areClose Accuracy.veryHigh l r
-  | DResult (Ok l), DResult (Ok r) -> de l r
-  | DResult (Error l), DResult (Error r) -> de l r
-  | DOption (Some l), DOption (Some r) -> de l r
-  | DDate l, DDate r ->
-      // Two dates can be the same millisecond and not be equal if they don't
-      // have the same number of ticks. For testing, we shall consider them
-      // equal if they print the same string.
-      l.ToString() = r.ToString()
-  | DList ls, DList rs -> List.map2 de ls rs |> List.all (fun x -> x)
-  | DObj ls, DObj rs ->
-      List.map2
-        (fun (k1, v1) (k2, v2) -> k1 = k2 && de v1 v2)
-        (Map.toList ls)
-        (Map.toList rs)
-      |> List.all (fun x -> x)
-  | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
-      sc1 = sc2 && h1 = h2 && de b1 b2
-  | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) -> u1 = u2
-  | DIncomplete _, DIncomplete _ -> true
-  | DError (_, msg1), DError (_, msg2) ->
-      (msg1.Replace("_v0", "")) = (msg2.Replace("_v0", ""))
-  | DErrorRail l, DErrorRail r -> de l r
-  // Keep for exhaustiveness checking
-  | DHttpResponse _, _
-  | DObj _, _
-  | DErrorRail _, _
-  | DList _, _
-  | DResult _, _
-  | DOption _, _
-  // All others can be directly compared
-  | DInt _, _
-  | DDate _, _
-  | DPassword _, _
-  | DBool _, _
-  | DFloat _, _
-  | DNull, _
-  | DStr _, _
-  | DChar _, _
-  | DFnVal _, _
-  | DIncomplete _, _
-  | DError _, _
-  | DDB _, _
-  | DUuid _, _
-  | DBytes _, _ -> left = right
+    let check (a : 'a) (e : 'a) : unit =
+      if a <> e then errorFn (string actual) (string expected)
+
+    match actual, expected with
+    | DFloat l, DFloat r ->
+        if System.Double.IsNaN l && System.Double.IsNaN r then
+          // This isn't "true" equality, it's just for tests
+          ()
+        else if System.Double.IsPositiveInfinity l
+                && System.Double.IsPositiveInfinity r then
+          ()
+        else if System.Double.IsNegativeInfinity l
+                && System.Double.IsNegativeInfinity r then
+          ()
+        else if not (Accuracy.areClose Accuracy.veryHigh l r) then
+          error ()
+    | DResult (Ok l), DResult (Ok r) -> de l r
+    | DResult (Error l), DResult (Error r) -> de l r
+    | DOption (Some l), DOption (Some r) -> de l r
+    | DDate l, DDate r ->
+        // Two dates can be the same millisecond and not be equal if they don't
+        // have the same number of ticks. For testing, we shall consider them
+        // equal if they print the same string.
+        check (string l) (string r)
+    | DList ls, DList rs ->
+        let lLength = List.length ls
+        let rLength = List.length rs
+
+        check lLength rLength
+        List.iter2 de ls rs
+    | DObj ls, DObj rs ->
+        let lLength = Map.count ls
+        let rLength = Map.count rs
+        check lLength rLength
+
+        List.iter2
+          (fun (k1, v1) (k2, v2) ->
+            check k1 k2
+            de v1 v2)
+          (Map.toList ls)
+          (Map.toList rs)
+    | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
+        check sc1 sc2
+        check h1 h2
+        de b1 b2
+    | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) -> check u1 u2
+    | DIncomplete _, DIncomplete _ -> ()
+    | DError (_, msg1), DError (_, msg2) ->
+        check (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
+    | DErrorRail l, DErrorRail r -> de l r
+    | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
+        check l1.parameters l2.parameters
+        check l1.symtable l2.symtable // TODO: use dvalEquality
+        exprEqualityBaseFn false l1.body l2.body errorFn
+
+    // Keep for exhaustiveness checking
+    | DHttpResponse _, _
+    | DObj _, _
+    | DList _, _
+    | DResult _, _
+    | DErrorRail _, _
+    | DOption _, _
+    // All others can be directly compared
+    | DInt _, _
+    | DDate _, _
+    | DBool _, _
+    | DFloat _, _
+    | DNull, _
+    | DStr _, _
+    | DChar _, _
+    | DPassword _, _
+    | DFnVal _, _
+    | DIncomplete _, _
+    | DError _, _
+    | DDB _, _
+    | DUuid _, _
+    | DBytes _, _ -> check actual expected
+
+  let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
+    dvalEqualityBaseFn actual expected (fun a e -> Expect.equal a e msg)
+
+  let rec equalPattern
+    (actual : Pattern)
+    (expected : Pattern)
+    (msg : string)
+    : unit =
+    patternEqualityBaseFn true actual expected (fun a e -> Expect.equal a e msg)
+
+  let rec equalPatternIgnoringIDs (actual : Pattern) (expected : Pattern) : unit =
+    patternEqualityBaseFn false actual expected (fun a e -> Expect.equal a e "")
+
+  let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
+    exprEqualityBaseFn true actual expected (fun a e -> Expect.equal a e msg)
+
+  let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
+    exprEqualityBaseFn false actual expected (fun a e -> Expect.equal a e "")
+
+let dvalEquality (left : Dval) (right : Dval) : bool =
+  let success = ref true
+  Expect.dvalEqualityBaseFn left right (fun _ _ -> success := false)
+  !success
 
 let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
 
