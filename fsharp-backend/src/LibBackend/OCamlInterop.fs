@@ -713,7 +713,11 @@ module Convert =
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
         let asStr = d.ToString().Split "."
-        ORT.EFloat(id, asStr.[0], asStr.[1])
+
+        if asStr.Length = 1 then
+          ORT.EFloat(id, asStr.[0], "0")
+        else
+          ORT.EFloat(id, asStr.[0], asStr.[1])
     | RT.EBool (id, b) -> ORT.EBool(id, b)
     | RT.ENull id -> ORT.ENull id
     | RT.EVariable (id, var) -> ORT.EVariable(id, var)
