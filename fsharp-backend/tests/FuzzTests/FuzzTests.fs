@@ -91,12 +91,7 @@ module Generators =
        |> List.filter (String.startsWith "#" >> not))
 
   let char () : Gen<string> =
-    string ()
-    |> Gen.map (debug "generated string")
-    |> Gen.map (String.take 1)
-    |> Gen.map (debug "resized string")
-    |> Gen.filter ((<>) "")
-    |> Gen.map (debug "filtered string")
+    string () |> Gen.map (String.take 1) |> Gen.filter ((<>) "")
 
 
 module G = Generators
@@ -709,10 +704,7 @@ module ExecutePureFunctions =
                       RT.DDate dt)
                     Arb.generate<System.DateTime>
             | RT.TChar ->
-                debuG "generating a dval" ""
-
                 let! v = G.char ()
-                debuG "generated a dval" v
                 return RT.DChar v
             // | RT.TPassword -> return! Gen.map RT.TPassword Arb.generate<password>
             | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
