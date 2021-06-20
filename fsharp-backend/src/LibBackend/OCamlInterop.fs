@@ -628,8 +628,8 @@ module Convert =
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | RT.PFloat (id, d) ->
-        let asStr = d.ToString().Split "."
-        ORT.FPFloat(mid, id, asStr.[0], asStr.[1])
+        let w, f = readFloat d
+        ORT.FPFloat(mid, id, string w, string f)
     | RT.PNull (id) -> ORT.FPNull(mid, id)
     | RT.PBlank (id) -> ORT.FPBlank(mid, id)
 
@@ -655,8 +655,8 @@ module Convert =
     | PT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
     | PT.ECharacter (id, num) -> failwith "Characters not supported"
     | PT.EString (id, str) -> ORT.EString(id, str)
-    | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, w.ToString(), f.ToString())
-    | PT.EFloat (id, Negative, w, f) -> ORT.EFloat(id, $"-{w}", f.ToString())
+    | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, string w, string f)
+    | PT.EFloat (id, Negative, w, f) -> ORT.EFloat(id, $"-{w}", string f)
     | PT.EBool (id, b) -> ORT.EBool(id, b)
     | PT.ENull id -> ORT.ENull id
     | PT.EVariable (id, var) -> ORT.EVariable(id, var)
@@ -712,12 +712,8 @@ module Convert =
     | RT.ECharacter (id, num) -> failwith "Characters not supported"
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
-        let asStr = d.ToString().Split "."
-
-        if asStr.Length = 1 then
-          ORT.EFloat(id, asStr.[0], "0")
-        else
-          ORT.EFloat(id, asStr.[0], asStr.[1])
+        let (w, f) = readFloat d
+        ORT.EFloat(id, string w, string f)
     | RT.EBool (id, b) -> ORT.EBool(id, b)
     | RT.ENull id -> ORT.ENull id
     | RT.EVariable (id, var) -> ORT.EVariable(id, var)

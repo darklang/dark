@@ -17,6 +17,9 @@
     (String.toList_v1 "some string")
     (fun var -> String.toUppercase_v0 (String.fromChar_v1 var))) "") = "SOME STRING"
 
+[test.lambdaFloat]
+List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
+
 [test.matchInt]
 (match 5 with
 | 5 -> "int"
