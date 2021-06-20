@@ -513,7 +513,7 @@ module ExecutePureFunctions =
   let ocamlIntLowerLimit = -4611686018427387904I
 
   let isValidOCamlInt (i : bigint) : bool =
-    i < ocamlIntUpperLimit && i > ocamlIntLowerLimit
+    i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
 
 
   type Generator =
@@ -577,12 +577,12 @@ module ExecutePureFunctions =
                 let! v = Arb.generate<bigint>
                 return RT.EInteger(gid (), v)
             | RT.TStr ->
-                let! v = Arb.generate<string>
+                let! v = Generators.string ()
                 return RT.EString(gid (), v)
             | RT.TChar ->
                 // We don't have a construct for characters, so create code to generate the character
                 let! str =
-                  Arb.generate<string> |> Gen.resize 1 |> Gen.filter ((<>) "")
+                  Generators.string () |> Gen.resize 1 |> Gen.filter ((<>) "")
 
                 return call "String" "toChar" 0 [ RT.EString(gid (), str) ]
             // Don't generate a random value as some random values are invalid
@@ -605,7 +605,7 @@ module ExecutePureFunctions =
                     (fun l -> RT.ERecord(gid (), l))
                     (Gen.listOfLength
                       s
-                      (Gen.zip Arb.generate<string> (genExpr' typ (s / 2))))
+                      (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
             | RT.TOption typ ->
                 match! Gen.optionOf (genExpr' typ s) with
                 | Some v -> return RT.EConstructor(gid (), "Just", [ v ])
@@ -653,7 +653,7 @@ module ExecutePureFunctions =
                 let! v = Arb.generate<bigint>
                 return RT.DInt v
             | RT.TStr ->
-                let! v = Arb.generate<string>
+                let! v = Generators.string ()
                 return RT.DStr v
             | RT.TVariable _ ->
                 let rec supportedType =
@@ -690,7 +690,7 @@ module ExecutePureFunctions =
                     (fun l -> RT.DObj(Map.ofList l))
                     (Gen.listOfLength
                       s
-                      (Gen.zip Arb.generate<string> (genDval' typ (s / 2))))
+                      (Gen.zip (Generators.string ()) (genDval' typ (s / 2))))
             // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
             // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
             // | RT.THttpResponse of DType -> return! Gen.map RT.THttpResponse  Arb.generate<httpresponse >
