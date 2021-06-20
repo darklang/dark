@@ -17,8 +17,6 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // Exceptions that should not be exposed to users, and that indicate unexpected
 // behaviour
 
-exception InternalException of string
-
 // ----------------------
 // Regex patterns
 // ----------------------
@@ -90,19 +88,19 @@ let parseInt64 (str : string) : int64 =
   try
     assertRe "int64" @"-?\d+" str
     System.Convert.ToInt64 str
-  with e -> raise (InternalException $"parseInt64 failed: {str} - {e}")
+  with e -> failwith $"parseInt64 failed: {str} - {e}"
 
 let parseUInt64 (str : string) : uint64 =
   try
     assertRe "uint64" @"-?\d+" str
     System.Convert.ToUInt64 str
-  with e -> raise (InternalException $"parseUInt64 failed: {str} - {e}")
+  with e -> failwith $"parseUInt64 failed: {str} - {e}"
 
 let parseBigint (str : string) : bigint =
   try
     assertRe "bigint" @"-?\d+" str
     System.Numerics.BigInteger.Parse str
-  with e -> raise (InternalException $"parseBigint failed: {str} - {e}")
+  with e -> failwith $"parseBigint failed: {str} - {e}"
 
 let parseFloat (whole : string) (fraction : string) : float =
   try
@@ -110,15 +108,23 @@ let parseFloat (whole : string) (fraction : string) : float =
     assertRe "whole" @"-?\d+" whole
     assertRe "fraction" @"\d+" fraction
     System.Double.Parse($"{whole}.{fraction}")
-  with e -> raise (InternalException $"parseFloat failed: {whole}.{fraction} - {e}")
+  with e -> failwith $"parseFloat failed: {whole}.{fraction} - {e}"
+
+// Given a float, read it correctly into two ints: whole number and fraction
+let readFloat (f : float) : (bigint * bigint) =
+  let asStr = f.ToString("G53").Split "."
+  if asStr.Length = 1 then
+    parseBigint asStr.[0], 0I
+  else
+    parseBigint asStr.[0], parseBigint asStr.[1]
+
 
 let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float =
   try
     assert_ "makefloat" (whole >= 0I)
     let sign = if positiveSign then "" else "-"
     $"{sign}{whole}.{fraction}" |> System.Double.Parse
-  with e ->
-    raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
+  with e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
 
 let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
 
@@ -202,7 +208,7 @@ let gid () : uint64 =
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
-  with e -> raise (InternalException $"gid failed: {e}")
+  with e -> failwith $"gid failed: {e}"
 
 let randomString (length : int) : string =
   let result =
