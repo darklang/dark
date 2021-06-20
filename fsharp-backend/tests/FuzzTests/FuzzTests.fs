@@ -91,7 +91,13 @@ module Generators =
        |> List.filter (String.startsWith "#" >> not))
 
   let char () : Gen<string> =
-    string () |> Gen.map (String.take 1) |> Gen.filter ((<>) "")
+    string ()
+    |> Gen.map String.toEgcSeq
+    |> Gen.map Seq.toList
+    |> Gen.map List.head
+    |> Gen.filter ((<>) None)
+    |> Gen.map (Option.defaultValue "")
+    |> Gen.filter ((<>) "")
 
 
 module G = Generators
@@ -765,6 +771,9 @@ module ExecutePureFunctions =
                      | { name = { module_ = "String"; function_ = "base64Decode" } } ->
                          // Don't know what the bug is
                          false
+                     | { name = { module_ = "String"; function_ = "trim" } } ->
+                         // OCaml seems to trim wrong here
+                         false
                      | { name = { module_ = "AWS"; function_ = "urlencode" } } ->
                          // Bug in unicode probably
                          false
@@ -823,7 +832,7 @@ module ExecutePureFunctions =
                     | "String::padStart", 1
                     | "String::padEnd", 1 ->
                         // FSTODO: allow more than just chars
-                        let! v = Arb.generate<char>
+                        let! v = Arb.generate<char> |> Gen.filter ((<>) (char 0))
                         return RT.DStr(System.String([| v |]))
                     | _ -> return! genDval signature.[i].typ
                   }
@@ -861,6 +870,8 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
                            isValidOCamlInt (e + i)
+                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
+                           isValidOCamlInt (e - i)
                        | 0, RT.DList l, _, "Int", "sum", 0 ->
                            l
                            |> List.map
