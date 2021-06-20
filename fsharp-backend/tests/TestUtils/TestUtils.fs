@@ -556,7 +556,8 @@ module Expect =
         check (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
     | DErrorRail l, DErrorRail r -> de l r
     | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
-        check l1.parameters l2.parameters
+        let vals l = List.map Tuple2.second l
+        check (vals l1.parameters) (vals l2.parameters)
         check l1.symtable l2.symtable // TODO: use dvalEquality
         exprEqualityBaseFn false l1.body l2.body errorFn
 
