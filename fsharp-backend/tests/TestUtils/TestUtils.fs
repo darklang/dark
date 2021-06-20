@@ -308,8 +308,14 @@ let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
 
 open LibExecution.RuntimeTypes
 
-module Expect =
+let debugDval (v : Dval) : string =
+  match v with
+  | DStr s ->
+      $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+  | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
+  | _ -> v.ToString()
 
+module Expect =
   // Checks if the value (and all its contents) is in its desired
   // representation (in the event that there are multiple ways to represent
   // it). Think of this as a general form of string normalization.
@@ -506,7 +512,7 @@ module Expect =
     let error () = errorFn (string actual) (string expected)
 
     let check (a : 'a) (e : 'a) : unit =
-      if a <> e then errorFn (string actual) (string expected)
+      if a <> e then errorFn (debugDval actual) (debugDval expected)
 
     match actual, expected with
     | DFloat l, DFloat r ->
@@ -560,7 +566,7 @@ module Expect =
         check (vals l1.parameters) (vals l2.parameters)
         check l1.symtable l2.symtable // TODO: use dvalEquality
         exprEqualityBaseFn false l1.body l2.body errorFn
-
+    | DStr _, DStr _ -> check (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DObj _, _
@@ -568,13 +574,13 @@ module Expect =
     | DResult _, _
     | DErrorRail _, _
     | DOption _, _
+    | DStr _, _
     // All others can be directly compared
     | DInt _, _
     | DDate _, _
     | DBool _, _
     | DFloat _, _
     | DNull, _
-    | DStr _, _
     | DChar _, _
     | DPassword _, _
     | DFnVal _, _
@@ -609,14 +615,6 @@ let dvalEquality (left : Dval) (right : Dval) : bool =
   !success
 
 let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) = dvalEquality (DObj m1) (DObj m2)
-
-let debugDval (v : Dval) : string =
-  match v with
-  | DStr s ->
-      $"DStr '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
-  | DDate d -> $"DDate '{d.toIsoString ()}': (millies {d.Millisecond})"
-  | _ -> v.ToString()
-
 
 let interestingFloats : List<string * float> =
   let initial =

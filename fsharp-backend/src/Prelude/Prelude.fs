@@ -46,6 +46,12 @@ let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
   a
 
+// Print the value of s, alongside with length and the bytes in the string
+let debugString (msg : string) (s : string) : string =
+  let bytes = s |> System.Text.Encoding.UTF8.GetBytes |> System.BitConverter.ToString
+  printfn $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
+  s
+
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
 // of operations.
@@ -113,6 +119,7 @@ let parseFloat (whole : string) (fraction : string) : float =
 // Given a float, read it correctly into two ints: whole number and fraction
 let readFloat (f : float) : (bigint * bigint) =
   let asStr = f.ToString("G53").Split "."
+
   if asStr.Length = 1 then
     parseBigint asStr.[0], 0I
   else
