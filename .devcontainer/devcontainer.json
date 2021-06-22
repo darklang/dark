@@ -94,8 +94,9 @@
   // Run one build-server, and keep it running for the life of the
   // devcontainer. This is in postStart rather than postAttach as postAttach would
   // add a new build-server each time and we only want one.
-  "postStartCommand": "nohup ./scripts/support/build-server --compile --watch > rundir/logs/build-server.txt &",
+  "postStartCommand": "./scripts/support/vscode-post-start-command",
 
   // Show the build-server output in a terminal
-  "postAttachCommand": "tail -n 1000 -f rundir/logs/build-server.txt"
+  // Use -F as it the build-server might not have output by the time this starts
+  "postAttachCommand": "tail -n 1000 -F rundir/logs/build-server.txt"
 }
