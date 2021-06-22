@@ -114,7 +114,7 @@ let server () =
       ( try
           let result = body_string |> fn in
           print_endline ("success calling " ^ Uri.to_string uri) ;
-          // FSTODO reduce debugging info
+          (* FSTODO reduce debugging info *)
           print_endline ("body was: \n" ^ body_string) ;
           print_endline ("result was: \n " ^ result) ;
           respond_json_ok result
