@@ -321,25 +321,28 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 # different dockerfile (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src.
 
-ENV DOTNET_SDK_VERSION=6.0.100-preview.3.21202.5 \
+ENV DOTNET_SDK_VERSION=6.0.100-preview.5.21302.13 \
      # Skip extraction of XML docs - generally not useful within an
      # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
     # Enable detection of running in a container
     DOTNET_RUNNING_IN_CONTAINER=true \
+    # Do not generate certificate
+    DOTNET_GENERATE_ASPNET_CERTIFICATE=false \
+    # Do not show first run text
+    DOTNET_NOLOGO=true \
     # Enable correct mode for dotnet watch (only mode supported in a container)
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
 RUN curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$DOTNET_SDK_VERSION/dotnet-sdk-$DOTNET_SDK_VERSION-linux-x64.tar.gz \
-    && dotnet_sha512='f776177c1ca2b672cf05f9ec32f20ef35a039dd8d31beaa139d1e47d71cca4ccf0f2a61bbf006a781e693977ee91cc9e08e12134ffb4c7a03a8e56c163b8661d' \
+    && dotnet_sha512='000ea38847453f636f81adf3d1083d811b0e4c20585e3735dd599a4009f4289793d4e1e8e75d5f86b73bd9f75e78ce2a68900686f4230ea7ed9a49bdb4e46a83' \
     && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
     && sudo mkdir -p /usr/share/dotnet \
-    && sudo tar -ozxf dotnet.tar.gz -C /usr/share/dotnet \
-    && rm dotnet.tar.gz \
-    && sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
-
-# Trigger first run experience by running arbitrary cmd
-RUN dotnet help
+    && sudo tar -C /usr/share/dotnet -oxzf dotnet.tar.gz . \
+    && sudo rm dotnet.tar.gz \
+    # Trigger first run experience by running arbitrary cmd
+    && sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
+    && dotnet help
 
 RUN dotnet tool install -g dotnet-sos
 # TODO: is this the right directory?
