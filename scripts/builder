@@ -127,7 +127,7 @@ echo "Run the build"
 # -p 9000:9000 to expose the F# api server
 # -p 9001:9001 to expose the F# bwd server
 # -p 8000:8000 to expose the OCaml backend server
-# -cap-add & -secururity-opt to attach a gdb/strace to .net code
+# -cap-add & -security-opt to attach a gdb/strace to .net code
 docker run \
   --init \
   --rm \
