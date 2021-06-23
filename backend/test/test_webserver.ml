@@ -131,7 +131,7 @@ let t_bad_ssl_cert _ =
        (fn
           "HttpClient::get"
           [str "https://self-signed.badssl.com"; record []; record []; record []]))
-    "Internal HTTP-stack exception: Peer certificate cannot be authenticated with given CA certificates"
+    "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK"
 
 
 let t_sanitize_uri_path_with_repeated_slashes () =

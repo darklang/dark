@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Starting build server"
+
+nohup ./scripts/support/build-server --compile --watch > /home/dark/app/rundir/logs/build-server.txt &
+
+# It seems that if we don't sleep here, the server does not start properly in all cases
+sleep 2
+
+echo "Build server started"
