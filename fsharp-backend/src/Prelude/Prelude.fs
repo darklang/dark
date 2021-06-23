@@ -447,6 +447,49 @@ let filter_s
     return (result |> Seq.toList)
   }
 
+let filter_map
+  (f : 'a -> TaskOrValue<Option<'b>>)
+  (list : List<'a>)
+  : TaskOrValue<List<'b>> =
+  taskv {
+    let! result =
+      match list with
+      | [] -> taskv { return [] }
+      | head :: tail ->
+          taskv {
+            let firstComp =
+              taskv {
+                let! newValue = f head
+                return ([], newValue)
+              }
+
+            let! ((accum, lastcomp) : (List<'b> * Option<'b>)) =
+              List.fold
+                (fun (prevcomp : TaskOrValue<List<'b> * Option<'b>>) (arg : 'a) ->
+                  taskv {
+                    let! ((accum, prevValue) : (List<'b> * Option<'b>)) =
+                      prevcomp
+
+                    let accum = match prevValue with
+                                | Some pv -> pv :: accum
+                                | None -> accum
+
+                    let! newValue = (f arg)
+
+                    return (accum, newValue)
+                  })
+                firstComp
+                tail
+
+            let accum = match lastcomp with
+                        | Some lv -> lv :: accum
+                        | None -> accum
+
+            return List.rev accum
+          }
+
+    return (result |> Seq.toList)
+  }
 
 let find_s
   (f : 'a -> TaskOrValue<bool>)
