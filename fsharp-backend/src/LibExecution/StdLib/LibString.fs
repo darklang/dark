@@ -268,11 +268,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             s
-            |> String.toEgcSeq
-            |> Seq.map
-                 (fun s ->
-                   if s.Length = 1 && (int s.[0]) < 128 then s.ToUpper() else s)
-            |> String.concat ""
+            |> String.toArray
+            |> Array.map (fun c -> if int c < 128 then Char.ToUpper c else c)
+            |> System.String
             |> DStr
             |> Value
         | _ -> incorrectArgs ())
@@ -300,11 +298,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr s ] ->
             s
-            |> String.toEgcSeq
-            |> Seq.map
-                 (fun s ->
-                   if s.Length = 1 && (int s.[0]) < 128 then s.ToLower() else s)
-            |> String.concat ""
+            |> String.toArray
+            |> Array.map (fun c -> if int c < 128 then Char.ToLower c else c)
+            |> System.String
             |> DStr
             |> Value
         | _ -> incorrectArgs ())
@@ -1143,8 +1139,7 @@ let fns : List<BuiltInFn> =
             let padLen = length padWith in
 
             if padLen = 1 then
-              let l = int l in
-              Value(DStr(padStart s padWith l))
+              let l = int l in Value(DStr(padStart s padWith (int l)))
             else
               err (Errors.argumentWasnt "1 character long" "padWith" dv)
         | _ -> incorrectArgs ())
@@ -1196,8 +1191,7 @@ let fns : List<BuiltInFn> =
             let padLen = length padWith in
 
             if padLen = 1 then
-              let l = int l in
-              Value(DStr(padEnd s padWith l))
+              Value(DStr(padEnd s padWith (int l)))
             else
               err (Errors.argumentWasnt "1 character long" "padWith" dv)
         | _ -> incorrectArgs ())
@@ -1248,7 +1242,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr str ] ->
-            let theBytes = System.Text.Encoding.UTF8.GetBytes str in
+            let theBytes = System.Text.Encoding.UTF8.GetBytes str
             Value(DBytes theBytes)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

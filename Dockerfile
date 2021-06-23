@@ -15,7 +15,7 @@
 # as part of that build. Search for DOCKERFILE_REPO for where to make that
 # change.
 
-FROM ubuntu:18.04@sha256:3235326357dfb65f1781dbc4df3b834546d8bf914e82cce58e6e6b676e23ce8f as dark-base
+FROM ubuntu:20.04@sha256:376209074d481dca0a9cf4282710cd30a9e7ff402dea8261acdaaf57a18971dd as dark-base
 
 ENV FORCE_BUILD 2
 
@@ -68,11 +68,10 @@ RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" 
 RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
 
 # Testcafe needs node >= 11
-RUN echo "deb https://deb.nodesource.com/node_13.x bionic main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_13.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_13.x focal main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_13.x focal main" >> /etc/apt/sources.list.d/nodesource.list
 
-RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -cs)" && \
-    echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" > /etc/apt/sources.list.d/google-cloud-sdk.list
+RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
 
 # Mostly, we use the generic version. However, for things in production we want
@@ -146,7 +145,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libc6 \
       libgcc1 \
       libgssapi-krb5-2 \
-      libicu60 \
+      libicu66 \
       libssl1.1 \
       libstdc++6 \
       zlib1g \
@@ -201,8 +200,8 @@ USER root
 # esy uses the _build directory, none of the platform dirs are needed but
 # they take 150MB
 RUN npm install -g esy@0.5.8 --unsafe-perm=true \
-     && rm -Rf /root/.npm \
-     && rm -Rf /usr/lib/node_modules/esy/platform-*
+    && rm -Rf /root/.npm \
+    && rm -Rf /usr/lib/node_modules/esy/platform-*
 
 USER dark
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
@@ -314,16 +313,15 @@ RUN wget -q https://honeycomb.io/download/honeymarker/linux/honeymarker_1.9_amd6
 ####################################
 # dotnet / F#
 ####################################
-# This section was created copying the commands from the dotnet dockerfiles.
-# https://github.com/dotnet/dotnet-docker/blob/master/src/sdk/6.0/focal/amd64/Dockerfile
 
-# TODO: update to latest. Note that the 5.0 dockerfules are split among 3
-# different dockerfile (runtime-deps, runtime, and sdk), see
-# https://github.com/dotnet/dotnet-docker/blob/master/src.
+# This section was created copying the commands from the dotnet dockerfiles.
+# Note that the Dockerfiles are split among 3 different dockerfile
+# (runtime-deps, runtime, and sdk), see
+# https://github.com/dotnet/dotnet-docker/blob/master/src
 
 ENV DOTNET_SDK_VERSION=6.0.100-preview.5.21302.13 \
-     # Skip extraction of XML docs - generally not useful within an
-     # image/container - helps performance
+    # Skip extraction of XML docs - generally not useful within an
+    # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
     # Enable detection of running in a container
     DOTNET_RUNNING_IN_CONTAINER=true \
@@ -371,6 +369,7 @@ USER dark
 # Add all the mounts here so that they have the right permissions
 RUN touch .bash_history
 RUN mkdir -p .config/gcloud
+RUN mkdir -p .config/configstore
 RUN mkdir -p app
 RUN mkdir -p app/_build
 RUN mkdir -p app/_esy
@@ -382,11 +381,24 @@ RUN mkdir -p app/containers/queue-scheduler/target
 RUN mkdir -p app/fsharp-backend/Build
 RUN mkdir -p .cargo
 
+RUN pip3 install git+https://github.com/darklang/watchgod.git@5bf4f0f3b49bc64f435f59493b0e17e07a20da0d
+#RUN sudo chown -R dark:dark /home/dark/.config/configstore/update-notifier-npm.json
+
+RUN mkdir -p \
+      /home/dark/.vscode-server/extensions \
+      /home/dark/.vscode-server-insiders/extensions \
+    && chown -R dark \
+      /home/dark/.vscode-server \
+      /home/dark/.vscode-server-insiders
+
+USER dark
+
+
 ########################
 # Install Rust toolchain
 # This is in a separate container to save time in CI
 ########################
-FROM dark-base
+FROM dark-base as dark-rust
 # We use root here because we're eventually going to remove rust and so it's not worth solving
 USER root
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -404,20 +416,6 @@ RUN rustup component add clippy-preview rustfmt-preview rls
 RUN cargo install cargo-cache --no-default-features --features ci-autoclean
 USER dark
 
-
 # Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
-
-USER dark
-
-RUN pip3 install git+https://github.com/darklang/watchgod.git@5bf4f0f3b49bc64f435f59493b0e17e07a20da0d
-RUN sudo chown -R dark:dark /home/dark/.config/configstore/update-notifier-npm.json
-
-RUN mkdir -p \
-      /home/dark/.vscode-server/extensions \
-      /home/dark/.vscode-server-insiders/extensions \
-    && chown -R dark \
-      /home/dark/.vscode-server \
-      /home/dark/.vscode-server-insiders
-
