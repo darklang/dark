@@ -1,6 +1,6 @@
 # Base docker image for most services we run in production on GCP
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 RUN apt-get update && \
     apt-get install \
