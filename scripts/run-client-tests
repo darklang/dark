@@ -3,5 +3,5 @@
 
 set -euo pipefail
 
-nodejs lib/js/client/test/unittests.bs.js "$@"
+node lib/js/client/test/unittests.bs.js "$@"
 
