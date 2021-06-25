@@ -32,7 +32,7 @@
     "moment": "^2.29.1",
     "mouse-wheel": "1.2.0",
     "pusher-js": "5.1.1",
-    "rollbar": "2.22.0",
+    "rollbar": "2.23.0",
     "sha2": "1.0.2",
     "tablecloth-bucklescript": "0.0.7",
     "validator": "^13.6.0"
