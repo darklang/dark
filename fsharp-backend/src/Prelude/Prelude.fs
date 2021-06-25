@@ -467,12 +467,12 @@ let filter_map
               List.fold
                 (fun (prevcomp : TaskOrValue<List<'b> * Option<'b>>) (arg : 'a) ->
                   taskv {
-                    let! ((accum, prevValue) : (List<'b> * Option<'b>)) =
-                      prevcomp
+                    let! ((accum, prevValue) : (List<'b> * Option<'b>)) = prevcomp
 
-                    let accum = match prevValue with
-                                | Some pv -> pv :: accum
-                                | None -> accum
+                    let accum =
+                      match prevValue with
+                      | Some pv -> pv :: accum
+                      | None -> accum
 
                     let! newValue = (f arg)
 
@@ -481,9 +481,10 @@ let filter_map
                 firstComp
                 tail
 
-            let accum = match lastcomp with
-                        | Some lv -> lv :: accum
-                        | None -> accum
+            let accum =
+              match lastcomp with
+              | Some lv -> lv :: accum
+              | None -> accum
 
             return List.rev accum
           }
