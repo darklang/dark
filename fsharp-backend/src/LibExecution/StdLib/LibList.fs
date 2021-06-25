@@ -750,8 +750,8 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "filterMap" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
-      returnType = TList varA
+          Param.makeWithArgs "f" (TFn([ varA ], TOption varB)) "" [ "val" ] ]
+      returnType = TList varB
       description = "Calls `f` on every `val` in `list`, returning a new list that drops some values (filter) and transforms others (map).
         If `f val` returns `Nothing`, drops `val` from the list.
         If `f val` returns `Just newValue`, replaces `val` with `newValue`.
