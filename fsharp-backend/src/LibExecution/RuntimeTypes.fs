@@ -205,7 +205,7 @@ and FnValImpl =
 
 and DHTTP =
   | Redirect of string
-  | Response of int * List<string * string> * Dval
+  | Response of bigint * List<string * string> * Dval
 
 and Dval =
   | DInt of bigint

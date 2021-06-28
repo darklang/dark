@@ -219,7 +219,7 @@ let fns : List<BuiltInFn> =
                       NotInPipe
                       NoRail
 
-                  return DResult(Ok result)
+                  return DResult(Ok result) //FSTODO
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

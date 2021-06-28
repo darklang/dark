@@ -57,7 +57,7 @@ let testToDeveloperRepr =
         "toDeveloperRepr string"
         DvalRepr.toDeveloperReprV0
         // Most of this is just the OCaml output and not really what the output should be
-        [ RT.DHttpResponse(RT.Response(0, [], RT.DNull)), "0 {  }\nnull"
+        [ RT.DHttpResponse(RT.Response(0I, [], RT.DNull)), "0 {  }\nnull"
           RT.DFloat(-0.0), "-0."
           RT.DFloat(infinity), "inf"
           RT.DObj(Map.ofList [ "", RT.DNull ]), "{ \n  : null\n}"
@@ -76,7 +76,7 @@ let testToEnduserReadable =
       RT.DFloat(-5.1), "-5.1"
       RT.DError(RT.SourceNone, "Some message"), "Error: Some message"
       RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull"
-      RT.DHttpResponse(RT.Response(0, [ "a header", "something" ], RT.DNull)),
+      RT.DHttpResponse(RT.Response(0I, [ "a header", "something" ], RT.DNull)),
       "0 { a header: something }\nnull" ]
 
 module ToHashableRepr =
@@ -118,7 +118,7 @@ module ToHashableRepr =
         t
           (DList [ DUuid(System.Guid.Parse "3e64631e-f455-5d61-30f7-2be5794ebb19")
                    DStr "6"
-                   DResult(Ok(DHttpResponse(Response(0, [], DChar "")))) ])
+                   DResult(Ok(DHttpResponse(Response(0I, [], DChar "")))) ])
           "[ \n  <uuid: 3e64631e-f455-5d61-30f7-2be5794ebb19>, \"6\", ResultOk 0 {  }\n    ''\n]"
 
         t

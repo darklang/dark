@@ -67,7 +67,7 @@ module OCamlTypes =
     | TErrorRail
     | TCharacter
     | TResult
-    | TUserType of string * int
+    | TUserType of string * int64
     | TBytes
 
 
@@ -133,8 +133,8 @@ module OCamlTypes =
         | DBMigrationInitialized
 
       type 'expr_type db_migration =
-        { starting_version : int
-          version : int
+        { starting_version : int64
+          version : int64
           state : db_migration_state
           rollforward : 'expr_type
           rollback : 'expr_type
@@ -144,12 +144,12 @@ module OCamlTypes =
         { tlid : tlid
           name : string or_blank
           cols : col list
-          version : int
+          version : int64
           old_migrations : 'expr_type db_migration list
           active_migration : 'expr_type db_migration option }
 
     module HandlerT =
-      type dtdeprecated = int or_blank
+      type dtdeprecated = int64 or_blank
 
       type spec_types = { input : dtdeprecated; output : dtdeprecated }
 
@@ -187,7 +187,7 @@ module OCamlTypes =
     type user_tipe =
       { tlid : tlid
         name : string or_blank
-        version : int
+        version : int64
         definition : user_tipe_definition }
 
     type tldata =
@@ -202,7 +202,7 @@ module OCamlTypes =
 
     and dhttp =
       | Redirect of string
-      | Response of int * (string * string) list
+      | Response of int64 * (string * string) list
 
     and optionT =
       | OptJust of dval
@@ -456,7 +456,7 @@ module Convert =
     | OT.TErrorRail -> PT.TErrorRail
     | OT.TCharacter -> PT.TChar
     | OT.TResult -> PT.TResult(any, any)
-    | OT.TUserType (name, version) -> PT.TUserType(name, version)
+    | OT.TUserType (name, version) -> PT.TUserType(name, int version)
     | OT.TBytes -> PT.TBytes
 
   let ocamlDBCol2PT ((name, tipe) : ORT.DbT.col) : PT.DB.Col =
@@ -471,13 +471,13 @@ module Convert =
       nameID = bo2ID o.name
       pos = pos
       cols = List.map ocamlDBCol2PT o.cols
-      version = o.version }
+      version = int o.version }
 
   let ocamlUserType2PT (o : ORT.user_tipe) : PT.UserType.T =
     { tlid = o.tlid
       name = o.name |> bo2String
       nameID = bo2ID o.name
-      version = o.version
+      version = int o.version
       definition =
         match o.definition with
         | ORT.UTRecord fields ->
@@ -628,8 +628,8 @@ module Convert =
     | RT.PBool (id, b) -> ORT.FPBool(mid, id, b)
     | RT.PString (id, s) -> ORT.FPString { matchID = mid; patternID = id; str = s }
     | RT.PFloat (id, d) ->
-        let asStr = d.ToString().Split "."
-        ORT.FPFloat(mid, id, asStr.[0], asStr.[1])
+        let w, f = readFloat d
+        ORT.FPFloat(mid, id, string w, string f)
     | RT.PNull (id) -> ORT.FPNull(mid, id)
     | RT.PBlank (id) -> ORT.FPBlank(mid, id)
 
@@ -655,8 +655,8 @@ module Convert =
     | PT.EInteger (id, num) -> ORT.EInteger(id, num.ToString())
     | PT.ECharacter (id, num) -> failwith "Characters not supported"
     | PT.EString (id, str) -> ORT.EString(id, str)
-    | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, w.ToString(), f.ToString())
-    | PT.EFloat (id, Negative, w, f) -> ORT.EFloat(id, $"-{w}", f.ToString())
+    | PT.EFloat (id, Positive, w, f) -> ORT.EFloat(id, string w, string f)
+    | PT.EFloat (id, Negative, w, f) -> ORT.EFloat(id, $"-{w}", string f)
     | PT.EBool (id, b) -> ORT.EBool(id, b)
     | PT.ENull id -> ORT.ENull id
     | PT.EVariable (id, var) -> ORT.EVariable(id, var)
@@ -712,8 +712,8 @@ module Convert =
     | RT.ECharacter (id, num) -> failwith "Characters not supported"
     | RT.EString (id, str) -> ORT.EString(id, str)
     | RT.EFloat (id, d) ->
-        let asStr = d.ToString().Split "."
-        ORT.EFloat(id, asStr.[0], asStr.[1])
+        let (w, f) = readFloat d
+        ORT.EFloat(id, string w, string f)
     | RT.EBool (id, b) -> ORT.EBool(id, b)
     | RT.ENull id -> ORT.ENull id
     | RT.EVariable (id, var) -> ORT.EVariable(id, var)
@@ -819,7 +819,7 @@ module Convert =
     | PT.TErrorRail -> OT.TErrorRail
     | PT.TChar -> OT.TCharacter
     | PT.TResult _ -> OT.TResult
-    | PT.TUserType (name, version) -> OT.TUserType(name, version)
+    | PT.TUserType (name, version) -> OT.TUserType(name, int64 version)
     | PT.TBytes -> OT.TBytes
 
   let pt2ocamlDBCol (p : PT.DB.Col) : ORT.DbT.col =
@@ -829,7 +829,7 @@ module Convert =
     { tlid = p.tlid
       name = string2bo p.nameID p.name
       cols = List.map pt2ocamlDBCol p.cols
-      version = p.version
+      version = int64 p.version
       old_migrations = []
       active_migration = None }
 
@@ -837,7 +837,7 @@ module Convert =
   let pt2ocamlUserType (p : PT.UserType.T) : ORT.user_tipe =
     { tlid = p.tlid
       name = p.name |> string2bo p.nameID
-      version = p.version
+      version = int64 p.version
       definition =
         match p.definition with
         | PT.UserType.Record fields ->
@@ -1019,7 +1019,7 @@ module Convert =
     | RT.DPassword (Password bytes) -> ORT.DPassword bytes
     | RT.DHttpResponse (RT.Redirect url) -> ORT.DResp(ORT.Redirect url, c RT.DNull)
     | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
-        ORT.DResp(ORT.Response(code, headers), c hdv)
+        ORT.DResp(ORT.Response(int64 code, headers), c hdv)
     | RT.DList l -> ORT.DList(List.map c l)
     | RT.DObj o -> ORT.DObj(Map.map c o)
     | RT.DOption None -> ORT.DOption ORT.OptNothing
@@ -1059,7 +1059,7 @@ module Convert =
     | ORT.DPassword bytes -> RT.DPassword(Password bytes)
     | ORT.DResp (ORT.Redirect url, _) -> RT.DHttpResponse(RT.Redirect url)
     | ORT.DResp (ORT.Response (code, headers), hdv) ->
-        RT.DHttpResponse(RT.Response(code, headers, c hdv))
+        RT.DHttpResponse(RT.Response(bigint code, headers, c hdv))
     | ORT.DList l -> RT.DList(List.map c l)
     | ORT.DObj o -> RT.DObj(Map.map c o)
     | ORT.DOption ORT.OptNothing -> RT.DOption None
@@ -1091,11 +1091,15 @@ let legacyReq
 
     let! response = client.SendAsync(message)
 
-    if response.StatusCode <> System.Net.HttpStatusCode.OK then
+    if response.StatusCode = System.Net.HttpStatusCode.OK then
+      ()
+    else if response.StatusCode = System.Net.HttpStatusCode.BadRequest then
+      // This is how errors are reported
+      let! content = response.Content.ReadAsStringAsync()
+      failwith content
+    else
       let! content = response.Content.ReadAsStringAsync()
       failwith $"not a 200 response to {endpoint}: {response.StatusCode}, {content}"
-    else
-      ()
 
     return response.Content
   }
@@ -1328,4 +1332,9 @@ let execute
   let str =
     Json.OCamlCompatible.serialize ((ownerID, canvasID, program, args, dbs, fns))
 
-  stringToDvalReq "execute" str
+  task {
+    try
+      let! result = stringToDvalReq "execute" str
+      return result
+    with e -> return (RT.DError(RT.SourceNone, e.Message))
+  }

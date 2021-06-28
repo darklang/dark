@@ -29,7 +29,40 @@ let equalsOCaml =
           RT.DFnVal(
             RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
           ) ]),
-       true) ]
+       true)
+      ((RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
+        [ RT.DOption(
+            Some(
+              RT.DFnVal(
+                RT.Lambda
+                  { parameters = []
+                    symtable = Map.empty
+                    body = RT.EFloat(84932785UL, -9.223372037e+18) }
+              )
+            )
+          )
+          RT.DStr "s" ]),
+       true)
+      ((RT.FQFnName.stdlibFnName "Result" "fromOption" 0,
+        [ RT.DOption(
+            Some(
+              RT.DFnVal(
+                RT.Lambda
+                  { parameters = []
+                    symtable = Map.empty
+                    body =
+                      RT.EMatch(
+                        gid (),
+                        RT.ENull(gid ()),
+                        [ (RT.PFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
+                      ) }
+              )
+            )
+          )
+          RT.DStr "s" ]),
+       true)
+
+      ]
 
 let oldFunctionsAreDeprecated =
   test "old functions are deprecated" {

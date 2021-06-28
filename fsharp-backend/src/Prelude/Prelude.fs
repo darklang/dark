@@ -17,8 +17,6 @@ let inline isNull (x : ^T when ^T : not struct) = obj.ReferenceEquals(x, null)
 // Exceptions that should not be exposed to users, and that indicate unexpected
 // behaviour
 
-exception InternalException of string
-
 // ----------------------
 // Regex patterns
 // ----------------------
@@ -47,6 +45,12 @@ let debuG (msg : string) (a : 'a) : unit = printfn $"DEBUG: {msg} ({a})"
 let debug (msg : string) (a : 'a) : 'a =
   debuG msg a
   a
+
+// Print the value of s, alongside with length and the bytes in the string
+let debugString (msg : string) (s : string) : string =
+  let bytes = s |> System.Text.Encoding.UTF8.GetBytes |> System.BitConverter.ToString
+  printfn $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
+  s
 
 // Print the value of `a`. Note that since this is wrapped in a task, it must
 // resolve the task before it can print, which could lead to different ordering
@@ -90,19 +94,19 @@ let parseInt64 (str : string) : int64 =
   try
     assertRe "int64" @"-?\d+" str
     System.Convert.ToInt64 str
-  with e -> raise (InternalException $"parseInt64 failed: {str} - {e}")
+  with e -> failwith $"parseInt64 failed: {str} - {e}"
 
 let parseUInt64 (str : string) : uint64 =
   try
     assertRe "uint64" @"-?\d+" str
     System.Convert.ToUInt64 str
-  with e -> raise (InternalException $"parseUInt64 failed: {str} - {e}")
+  with e -> failwith $"parseUInt64 failed: {str} - {e}"
 
 let parseBigint (str : string) : bigint =
   try
     assertRe "bigint" @"-?\d+" str
     System.Numerics.BigInteger.Parse str
-  with e -> raise (InternalException $"parseBigint failed: {str} - {e}")
+  with e -> failwith $"parseBigint failed: {str} - {e}"
 
 let parseFloat (whole : string) (fraction : string) : float =
   try
@@ -110,15 +114,24 @@ let parseFloat (whole : string) (fraction : string) : float =
     assertRe "whole" @"-?\d+" whole
     assertRe "fraction" @"\d+" fraction
     System.Double.Parse($"{whole}.{fraction}")
-  with e -> raise (InternalException $"parseFloat failed: {whole}.{fraction} - {e}")
+  with e -> failwith $"parseFloat failed: {whole}.{fraction} - {e}"
+
+// Given a float, read it correctly into two ints: whole number and fraction
+let readFloat (f : float) : (bigint * bigint) =
+  let asStr = f.ToString("G53").Split "."
+
+  if asStr.Length = 1 then
+    parseBigint asStr.[0], 0I
+  else
+    parseBigint asStr.[0], parseBigint asStr.[1]
+
 
 let makeFloat (positiveSign : bool) (whole : bigint) (fraction : bigint) : float =
   try
     assert_ "makefloat" (whole >= 0I)
     let sign = if positiveSign then "" else "-"
     $"{sign}{whole}.{fraction}" |> System.Double.Parse
-  with e ->
-    raise (InternalException $"makeFloat failed: {sign}{whole}.{fraction} - {e}")
+  with e -> failwith $"makeFloat failed: {sign}{whole}.{fraction} - {e}"
 
 let toBytes (input : string) : byte array = System.Text.Encoding.UTF8.GetBytes input
 
@@ -150,6 +163,21 @@ let sha1digest (input : string) : byte [] =
   input |> toBytes |> sha1.ComputeHash
 
 let toString (v : 'a) : string = v.ToString()
+
+let truncateToInt32 (v : bigint) : int32 =
+  try
+    int32 v
+  with :? System.OverflowException ->
+    if v > 0I then System.Int32.MaxValue else System.Int32.MinValue
+
+let truncateToInt64 (v : bigint) : int64 =
+  try
+    int64 v
+  with :? System.OverflowException ->
+    if v > 0I then System.Int64.MaxValue else System.Int64.MinValue
+
+
+
 
 
 module Uuid =
@@ -187,7 +215,7 @@ let gid () : uint64 =
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
-  with e -> raise (InternalException $"gid failed: {e}")
+  with e -> failwith $"gid failed: {e}"
 
 let randomString (length : int) : string =
   let result =

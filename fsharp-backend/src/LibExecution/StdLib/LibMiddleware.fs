@@ -490,7 +490,7 @@ let fns : List<BuiltInFn> =
                   response |> DvalRepr.toPrettyMachineJsonStringV1 |> toBytes
 
                 let headers = [ "content-type", inferContentType response ]
-                Value(DHttpResponse(Response(200, headers, DBytes bytes)))
+                Value(DHttpResponse(Response(200I, headers, DBytes bytes)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

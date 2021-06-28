@@ -125,13 +125,13 @@ let fns : List<BuiltInFn> =
               match acc, e with
               | Some acc, DList [ DStr k; value ] when Map.containsKey k acc -> None
               | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
-              | Some _, DList [ k; _ ] ->
-                  Errors.throw (Errors.argumentWasnt "a string" "key" k)
-              | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
               | _,
                 ((DIncomplete _
                 | DErrorRail _
                 | DError _) as dv) -> Errors.foundFakeDval dv
+              | Some _, DList [ k; _ ] ->
+                  Errors.throw (Errors.argumentWasnt "a string" "key" k)
+              | Some _, _ -> Errors.throw "All list items must be `[key, value]`"
               | None, _ -> None
 
             let result = List.fold f (Some Map.empty) l
@@ -398,6 +398,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj o ] ->
+            // CLEANUP: this prints invalid JSON for infinity and NaN
             DObj o |> DvalRepr.toPrettyMachineJsonStringV1 |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO

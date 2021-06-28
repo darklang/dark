@@ -54,16 +54,15 @@ let t
 
         if testOCaml then
           let! ocamlActual =
-            try
-              LibBackend.OCamlInterop.execute
-                state.program.accountID
-                state.program.canvasID
-                actualProg
-                Map.empty
-                dbs
-                (Map.values functions)
-            with e ->
-              failwith "When calling OCaml code, OCaml server failed: {msg}, {e}"
+            LibBackend.OCamlInterop.execute
+              state.program.accountID
+              state.program.canvasID
+              actualProg
+              Map.empty
+              dbs
+              (Map.values functions)
+
+          Expect.isTrue (Expect.isCanonical ocamlActual) "actual is normalized"
 
           if shouldEqual then
             Expect.equalDval
@@ -81,6 +80,8 @@ let t
             Exe.executeExpr state Map.empty (actualProg.toRuntimeType ())
 
           let fsharpActual = normalizeDvalResult fsharpActual
+
+          Expect.isTrue (Expect.isCanonical fsharpActual) "expected is normalized"
 
           if shouldEqual then
             Expect.equalDval fsharpActual expected $"FSharp: {msg}"

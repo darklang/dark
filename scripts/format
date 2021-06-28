@@ -97,91 +97,102 @@ is_allowed() {
 }
 
 all_prettier_files() {
-  find "$1" -type f \
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    -o -path "backend/static" \
+    -o -path "./backend/static" \
+    -o -path "client/static/vendor" \
+    -o -path "./client/static/vendor" \
+    -o -path "lib" \
+    -o -path "./lib" \
+    -o -path "fsharp-backend/.paket" \
+    -o -path "./fsharp-backend/.paket" \
+    -o -path "fsharp-backend/Build" \
+    -o -path "./fsharp-backend/Build" \
+    \) -prune -false \
+    \
+    -o -type f \
     \( -name "*.css" \
     -o -name "*.scss" \
     -o -name "*.js" \
-    -o -name "*.html" \) -print0 \
-    -o -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
-    -o -path "backend/static" -prune \
-    -o -path "./backend/static" -prune \
-    -o -path "client/static/vendor" -prune \
-    -o -path "./client/static/vendor" -prune \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "/home/dark/.esy" -prune \
-    -o -path "lib" -prune \
-    -o -path "./lib" -prune \
-    -o -path "fsharp-backend/.paket" -prune \
-    -o -path "./fsharp-backend/.paket" -prune \
-    -o -path "fsharp-backend/Build" -prune \
-    -o -path "./fsharp-backend/Build" -prune \
-  | grep --null-data --invert-match reset-normalize
+    -o -name "*.html" \
+    \) -print0 \
+    | grep --null-data --invert-match reset-normalize
 }
 
 all_ocaml_files() {
-  find "$1" -type f \
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    \) -prune -false \
+    \
+    -o -type f \
     \( -name "*.ml" \
-    -o -name "*.mli" \) -print0 \
-    -o -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "/home/dark/.esy" -prune \
-    -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune \
-    -o -path "fsharp-backend" -prune
+    -o -name "*.mli" \
+    \) -print0
 }
 
 all_fsharp_files() {
-  find "$1" -type f \
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    -o -path "fsharp-backend/.paket" \
+    -o -path "./fsharp-backend/.paket" \
+    -o -path "fsharp-backend/Build" \
+    \) -prune -false \
+    \
+    -o -type f \
     \( -name "*.fs" \
-    -o -name "*.fsi" \) -print \
-    -o -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "/home/dark/.esy" -prune \
-    -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune \
-    -o -path "fsharp-backend/.paket" -prune \
-    -o -path "./fsharp-backend/.paket" -prune \
-    -o -path "fsharp-backend/Build" -prune \
-    -o -path "./fsharp-backend/Build" -prune
+    -o -name "*.fsi" \
+    \) -print
 }
 
 all_rust_files() {
-  find "$1" -type f \
+  find "$1" \
+    \( -path ".git" \
+    -o -path "_build" \
+    -o -path "./_build" \
+    -o -path "node_modules" \
+    -o -path "./node_modules" \
+    -o -path "_esy" \
+    -o -path "./_esy" \
+    -o -path "/home/dark/.esy" \
+    -o -path "esy.lock" \
+    -o -path "fsharp-backend" \
+    -o -path "containers/stroller/target" \
+    -o -path "./containers/stroller/target" \
+    -o -path "containers/queue-scheduler/target" \
+    -o -path "./containers/queue-scheduler/target" \
+    \) -prune -false \
+    \
+    -o -type f \
     -name "*.rs" \
-    -print0 \
-    -o -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
-    -o -path "containers/stroller/target" -prune \
-    -o -path "./containers/stroller/target" -prune \
-    -o -path "containers/queue-scheduler/target" -prune \
-    -o -path "./containers/queue-scheduler/target" -prune \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "/home/dark/.esy" -prune \
-    -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune \
-    -o -path "fsharp-backend/.paket" -prune \
-    -o -path "./fsharp-backend/.paket" -prune \
-    -o -path "fsharp-backend/Build" -prune \
-    -o -path "./fsharp-backend/Build" -prune
+    -print0
 }
 
 check_ocamlformat() {

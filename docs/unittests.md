@@ -3,7 +3,7 @@
 ## Overview
 
 Unit tests run automatically on the client and backend, as part of
-the compile script. Run it with --test to run tests.
+the builder script. Run it with `--test` to run tests.
 
 ## Backend
 
@@ -23,12 +23,20 @@ line using:
 
 `scripts/run-fsharp-tests`
 
+Run `scripts/run-fsharp-tests --help` for options. In particular, to run only tests with XXX in their names:
+
+`scripts/run-fsharp-tests --filter-test-case XXX`
+
+Or to run only testlists with XXX in their names:
+
+`scripts/run-fsharp-tests --filter-test-list XXX`
+
 Tests are _not_ automatically discovered; they must be added to Tests.fs.
 
 ## Client-side
 
 To run tests, run `scripts/run-client-tests` or `npm run test` (slower).
-Run `scripts/runtests --help` for options.
+Run `scripts/run-client-tests --help` for options.
 
 Tests are _not_ automatically discovered; they must be added to
 `run` in the file in question to run automatically, and new files

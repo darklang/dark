@@ -112,23 +112,18 @@ let server () =
     match (meth, fn) with
     | `POST, Some fn ->
       ( try
-          let result = body_string |> fn |> respond_json_ok in
+          let result = body_string |> fn in
           print_endline ("success calling " ^ Uri.to_string uri) ;
-          result
+          (* FSTODO reduce debugging info *)
+          print_endline ("body was: \n" ^ body_string) ;
+          print_endline ("result was: \n " ^ result) ;
+          respond_json_ok result
         with e ->
           let headers = Header.init () in
-          let message =
-            "failed to run function at: "
-            ^ Uri.to_string uri
-            ^ "\n"
-            ^ Libexecution.Exception.to_string e
-          in
-          print_endline message ;
-          S.respond_string
-            ~status:`Internal_server_error
-            ~body:message
-            ~headers
-            () )
+          let message = Libexecution.Exception.exn_to_string e in
+          print_endline
+            ("error while calling " ^ Uri.to_string uri ^ "\n" ^ message) ;
+          S.respond_string ~status:`Bad_request ~body:message ~headers () )
     | _ ->
         let headers = Header.init () in
         S.respond_string ~status:`Not_found ~body:"" ~headers ()
