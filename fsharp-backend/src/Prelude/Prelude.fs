@@ -274,65 +274,55 @@ type TaskOrValue<'T> =
   | Value of 'T
 
 module TaskOrValue =
-  let toTask (v : TaskOrValue<'a>) : Task<'a> =
-    task {
-      match v with
-      | Task t -> return! t
-      | Value v -> return v
-    }
-
-  // Functions for a computation Expressions
-  let unit v = Value v
-
-  let tryWith (v : TaskOrValue<'a>) (f : exn -> TaskOrValue<'a>) : TaskOrValue<'a> =
+  let toTask (v : TaskOrValue<'T>) : Task<'T> =
     match v with
-    | Value v -> Value v
-    | Task t ->
-        Task(
-          task {
-            try
-              let! newt = t
-              return newt
-            with e -> return! toTask (f e)
-          }
-        )
+    | Task t -> t
+    | Value v -> Task.FromResult v
 
-  let delay (f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
-    Task(task { return! toTask (f ()) })
 
-  // Create a new TaskOrValue that first runs 'vt' and then
-  // continues with whatever TaskOrValue is produced by 'f'.
-  let bind (f : 'a -> TaskOrValue<'b>) (vt : TaskOrValue<'a>) : TaskOrValue<'b> =
-    match vt with
+// https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
+// This lets us use let!, do! - These can be overloaded
+// so I define two overloads for 'let!' - one taking regular
+// Task and one our TaskOrValue. You can then call both using
+// the let! syntax.
+type TaskOrValueBuilder() =
+  member builder.Bind
+    (
+      tv : TaskOrValue<'a>,
+      f : 'a -> TaskOrValue<'b>
+    ) : TaskOrValue<'b> =
+    match tv with
     | Value v -> f v
     | Task t ->
         Task(
           task {
             let! v = t
-            return! toTask (f v)
+            let result = f v
+            return! TaskOrValue.toTask result
           }
         )
 
+  member builder.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
+    Task(
+      task {
+        let! v = t
+        let result = f v
+        return! TaskOrValue.toTask result
+      }
+    )
 
-type TaskOrValueBuilder() =
-  // https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-  // This lets us use let!, do! - These can be overloaded
-  // so I define two overloads for 'let!' - one taking regular
-  // Task and one our TaskOrValue. You can then call both using
-  // the let! syntax.
-  member x.Bind(tv : TaskOrValue<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
-    TaskOrValue.bind f tv
+  member builder.Bind(t : Task, f : unit -> TaskOrValue<'b>) : TaskOrValue<'b> =
+    Task(
+      task {
+        do! t
+        let result = f ()
+        return! TaskOrValue.toTask result
+      }
+    )
 
-  member x.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
-    TaskOrValue.bind f (Task t)
-
-  // This lets us use return
-  member x.Return(v : 'a) : TaskOrValue<'a> = TaskOrValue.unit (v)
-
-  // This lets us use return!
+  member x.Return(v : 'a) : TaskOrValue<'a> = Value v
   member x.ReturnFrom(tv : TaskOrValue<'a>) : TaskOrValue<'a> = tv
-
-  member x.Zero() : TaskOrValue<unit> = TaskOrValue.unit (())
+  member x.Zero() : TaskOrValue<unit> = Value()
 
   // These lets us use try
   member x.TryWith
@@ -340,9 +330,20 @@ type TaskOrValueBuilder() =
       tv : TaskOrValue<'a>,
       f : exn -> TaskOrValue<'a>
     ) : TaskOrValue<'a> =
-    TaskOrValue.tryWith tv f
+    match tv with
+    | Value v -> Value v
+    | Task t ->
+        Task(
+          task {
+            try
+              let! result = t
+              return result
+            with e -> return! TaskOrValue.toTask (f e)
+          }
+        )
 
-  member x.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> = TaskOrValue.delay f
+  member builder.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
+    Task(task { return! TaskOrValue.toTask (f ()) })
 
 let taskv = TaskOrValueBuilder()
 
@@ -351,118 +352,67 @@ let taskv = TaskOrValueBuilder()
 // before the next one is done, making sure that, for example, a HttpClient
 // call will finish before the next one starts. Will allow other requests to
 // run which waiting.
-//
-// Why can't this be done in a simple map? We need to resolve element i in
-// element (i+1)'s task expression.
-let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> =
-  taskv {
-    let! result =
-      match list with
-      | [] -> taskv { return [] }
-      | head :: tail ->
-          taskv {
-            let firstComp =
-              taskv {
-                let! result = f head
-                return ([], result)
-              }
+module List =
+  let map_s (f : 'a -> TaskOrValue<'b>) (list : List<'a>) : TaskOrValue<List<'b>> =
+    taskv {
+      let! mapped =
+        List.fold
+          (fun (accum : TaskOrValue<List<'b>>) (arg : 'a) ->
+            taskv {
+              let! accum = accum
+              let! result = f arg
+              return result :: accum
+            })
+          (Value [])
+          list
 
-            let! ((accum, lastcomp) : (List<'b> * 'b)) =
-              List.fold
-                (fun (prevcomp : TaskOrValue<List<'b> * 'b>) (arg : 'a) ->
-                  taskv {
-                    // Ensure the previous computation is done first
-                    let! ((accum, prev) : (List<'b> * 'b)) = prevcomp
-                    let! result = f arg
+      return List.rev mapped
+    }
 
-                    return (prev :: accum, result)
-                  })
-                firstComp
-                tail
+  let iter_s (f : 'a -> TaskOrValue<unit>) (list : List<'a>) : TaskOrValue<unit> =
+    List.fold
+      (fun (accum : TaskOrValue<unit>) (arg : 'a) ->
+        taskv {
+          do! accum // resolve the previous task before doing this one
+          return! f arg
+        })
+      (Value())
+      list
 
-            return List.rev (lastcomp :: accum)
-          }
+  let filter_s
+    (f : 'a -> TaskOrValue<bool>)
+    (list : List<'a>)
+    : TaskOrValue<List<'a>> =
+    taskv {
+      let! filtered =
+        List.fold
+          (fun (accum : TaskOrValue<List<'a>>) (arg : 'a) ->
+            taskv {
+              let! (accum : List<'a>) = accum
+              let! keep = f arg
+              return (if keep then (arg :: accum) else accum)
+            })
+          (Value [])
+          list
 
-    return (result |> Seq.toList)
-  }
+      return List.rev filtered
+    }
 
-let iter_s (f : 'a -> TaskOrValue<unit>) (list : List<'a>) : TaskOrValue<unit> =
-  taskv {
-    match list with
-    | [] -> return ()
-    | head :: tail ->
-        return!
-          List.fold
-            (fun (prevcomp : TaskOrValue<unit>) (arg : 'a) ->
-              taskv {
-                // Ensure the previous computation is done first
-                let! (prev : unit) = prevcomp
-                return! f arg
-              })
-            (f head)
-            tail
-  }
-
-
-let filter_s
-  (f : 'a -> TaskOrValue<bool>)
-  (list : List<'a>)
-  : TaskOrValue<List<'a>> =
-  taskv {
-    let! result =
-      match list with
-      | [] -> taskv { return [] }
-      | head :: tail ->
-          taskv {
-            let firstComp =
-              taskv {
-                let! keep = f head
-                return ([], (keep, head))
-              }
-
-            let! ((accum, lastcomp) : (List<'a> * (bool * 'a))) =
-              List.fold
-                (fun (prevcomp : TaskOrValue<List<'a> * (bool * 'a)>) (arg : 'a) ->
-                  taskv {
-                    // Ensure the previous computation is done first
-                    let! ((accum, (prevkeep, prev)) : (List<'a> * (bool * 'a))) =
-                      prevcomp
-
-                    let accum = if prevkeep then prev :: accum else accum
-
-                    let! keep = (f arg)
-
-                    return (accum, (keep, arg))
-                  })
-                firstComp
-                tail
-
-            let (lastkeep, lastval) = lastcomp
-
-            let accum = if lastkeep then lastval :: accum else accum
-
-            return List.rev accum
-          }
-
-    return (result |> Seq.toList)
-  }
-
-
-let find_s
-  (f : 'a -> TaskOrValue<bool>)
-  (list : List<'a>)
-  : TaskOrValue<Option<'a>> =
-  List.fold
-    (fun (accum : TaskOrValue<Option<'a>>) (arg : 'a) ->
-      taskv {
-        match! accum with
-        | Some v -> return Some v
-        | None ->
-            let! result = f arg
-            return (if result then Some arg else None)
-      })
-    (taskv { return None })
-    list
+  let find_s
+    (f : 'a -> TaskOrValue<bool>)
+    (list : List<'a>)
+    : TaskOrValue<Option<'a>> =
+    List.fold
+      (fun (accum : TaskOrValue<Option<'a>>) (arg : 'a) ->
+        taskv {
+          match! accum with
+          | Some v -> return Some v
+          | None ->
+              let! result = f arg
+              return (if result then Some arg else None)
+        })
+      (Value None)
+      list
 
 // ----------------------
 // Lazy utilities

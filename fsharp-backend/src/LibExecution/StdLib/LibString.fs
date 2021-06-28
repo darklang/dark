@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
         | state, [ DStr s; DFnVal b ] ->
             (String.toEgcSeq s
              |> Seq.toList
-             |> map_s
+             |> List.map_s
                   (fun te ->
                     (LibExecution.Interpreter.applyFnVal
                       state

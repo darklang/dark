@@ -61,7 +61,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         // We ignore incompletes but not error rail.
         // TODO: Other places where lists are created propagate incompletes
         // instead of ignoring, this is probably a mistake.
-        let! results = Prelude.map_s (eval state st) exprs
+        let! results = Prelude.List.map_s (eval state st) exprs
 
         let filtered =
           List.filter (fun (dv : Dval) -> not (Dval.isIncomplete dv)) results
@@ -92,7 +92,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                | k, e -> Some(k, e))
         // FSTODO: we actually want to stop on the first incomplete/error/etc, thing, not do them all.
         let! (resolved : List<string * Dval>) =
-          map_s
+          List.map_s
             (fun (k, v) ->
               taskv {
                 let! dv = eval state st v
@@ -103,7 +103,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return Dval.interpreterObj resolved
     | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
-        let! args = map_s (eval state st) exprs
+        let! args = List.map_s (eval state st) exprs
         return! applyFn state id fnVal (Seq.toList args) inPipe ster
     | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
     | EFieldAccess (id, e, field) ->
@@ -333,7 +333,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let! matchVal = eval state st matchExpr
 
             do!
-              iter_s
+              List.iter_s
                 (fun (pattern, expr) -> matchAndExecute matchVal [] (pattern, expr))
                 cases
 
