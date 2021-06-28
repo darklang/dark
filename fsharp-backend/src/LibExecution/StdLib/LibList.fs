@@ -180,7 +180,7 @@ let fns : List<BuiltInFn> =
                   return result = DBool true
                 }
 
-              let! result = find_s f l
+              let! result = List.find_s f l
               return Option.defaultValue DNull result
             }
         | _ -> incorrectArgs ())
@@ -206,7 +206,7 @@ let fns : List<BuiltInFn> =
                   return result = DBool true
                 }
 
-              let! result = find_s f l
+              let! result = List.find_s f l
               return DOption result
             }
         | _ -> incorrectArgs ())
@@ -232,7 +232,7 @@ let fns : List<BuiltInFn> =
                   return result = DBool true
                 }
 
-              let! result = find_s f l
+              let! result = List.find_s f l
               return Dval.option result
             }
         | _ -> incorrectArgs ())
@@ -457,7 +457,7 @@ let fns : List<BuiltInFn> =
               // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
               let! withKeys =
                 list
-                |> map_s
+                |> List.map_s
                      (fun v ->
                        taskv {
                          let! key = fn v
@@ -579,7 +579,7 @@ let fns : List<BuiltInFn> =
               if !incomplete then
                 return DIncomplete SourceNone
               else
-                let! result = filter_s f l
+                let! result = List.filter_s f l
                 return DList(result)
             }
         | _ -> incorrectArgs ())
@@ -626,7 +626,7 @@ let fns : List<BuiltInFn> =
     //           if !incomplete then
     //             return DIncomplete SourceNone
     //           else
-    //             let! result = filter_s f l
+    //             let! result = List.filter_s f l
     //             return DBool((result.Length) = (l.Length))
     //         }
     //     | _ -> incorrectArgs ())
@@ -669,7 +669,7 @@ let fns : List<BuiltInFn> =
                     return false
                 }
 
-              let! result = filter_s f l
+              let! result = List.filter_s f l
 
               match !fakecf with
               | None -> return DList(result)
@@ -723,7 +723,7 @@ let fns : List<BuiltInFn> =
                     return false
                 }
 
-              let! result = filter_s f l
+              let! result = List.filter_s f l
 
               match !abortReason with
               | None -> return DList(result)
@@ -910,7 +910,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList l; DFnVal b ] ->
             taskv {
               let! result =
-                map_s
+                List.map_s
                   (fun dv ->
                     Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                   l
@@ -933,7 +933,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList l; DFnVal b ] ->
             taskv {
               let! result =
-                map_s
+                List.map_s
                   (fun dv ->
                     Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                   l
