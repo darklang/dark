@@ -120,15 +120,10 @@ let server () =
           respond_json_ok result
         with e ->
           let headers = Header.init () in
-          let message =
-            Libexecution.Exception.exn_to_string e
-          in
-          print_endline ("error while calling " ^ Uri.to_string uri ^ "\n" ^ message) ;
-          S.respond_string
-            ~status:`Bad_request
-            ~body:message
-            ~headers
-            () )
+          let message = Libexecution.Exception.exn_to_string e in
+          print_endline
+            ("error while calling " ^ Uri.to_string uri ^ "\n" ^ message) ;
+          S.respond_string ~status:`Bad_request ~body:message ~headers () )
     | _ ->
         let headers = Header.init () in
         S.respond_string ~status:`Not_found ~body:"" ~headers ()

@@ -255,7 +255,7 @@ let fns : Types.RuntimeT.fn list =
           (function
           | state, [DStr msg] ->
               let msg = Unicode_string.to_string msg in
-              DOption(OptJust(DError(SourceNone, msg)))
+              DOption (OptJust (DError (SourceNone, msg)))
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
@@ -270,7 +270,7 @@ let fns : Types.RuntimeT.fn list =
           (function
           | state, [DStr msg] ->
               let msg = Unicode_string.to_string msg in
-              DOption(OptJust(DError(SourceNone, msg)))
+              DOption (OptJust (DError (SourceNone, msg)))
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
@@ -285,12 +285,11 @@ let fns : Types.RuntimeT.fn list =
           (function
           | state, [DStr msg] ->
               let msg = Unicode_string.to_string msg in
-              DOption(OptJust(DError(SourceNone, msg)))
+              DOption (OptJust (DError (SourceNone, msg)))
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
-    ; deprecated = false }
-  ]
+    ; deprecated = false } ]
 
 
 let exec_state : Types.RuntimeT.exec_state =
