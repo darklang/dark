@@ -12,7 +12,7 @@ window.BlazorWorker = (function () {
   };
 
   const workerDef = function () {
-    const initConf = JSON.parse("$initConf$");
+    const initConf = JSON.parse('$initConf$');
     const nonExistingDlls = [];
     let blazorBootManifest = {
       resources: { assembly: { "AssemblyName.dll": "sha256-<sha256>" } },
