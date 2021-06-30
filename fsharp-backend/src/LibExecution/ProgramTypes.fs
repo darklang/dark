@@ -1,4 +1,4 @@
-module LibBackend.ProgramTypes
+module LibExecution.ProgramTypes
 
 // These are the types that are serialized for the program.
 
@@ -8,7 +8,7 @@ open Prelude
 open Tablecloth
 
 // Used for conversion functions
-module RT = LibExecution.RuntimeTypes
+module RT = RuntimeTypes
 
 module FQFnName =
   type T = RT.FQFnName.T

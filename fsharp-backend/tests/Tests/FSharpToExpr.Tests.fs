@@ -1,13 +1,14 @@
 module Tests.FSharpToExpr
 
 open Expecto
+
 open Prelude
 open TestUtils
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-open LibBackend.ProgramTypes.Shortcuts
+open PT.Shortcuts
 
 let parserTests =
   let t name testStr expectedExpr =

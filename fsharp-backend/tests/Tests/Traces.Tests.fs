@@ -14,7 +14,7 @@ open LibExecution.RuntimeTypes
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module AT = LibExecution.AnalysisTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module TI = LibBackend.TraceInputs
 
 let testTraceIDsOfTlidsMatch : Test =

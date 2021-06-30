@@ -10,7 +10,7 @@ open Tablecloth
 open TestUtils
 
 module Canvas = LibBackend.Canvas
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module S = PT.Shortcuts
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)

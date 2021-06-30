@@ -12,7 +12,7 @@ open LibBackend.Db
 
 open TestUtils
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module EQ = LibBackend.EventQueue
 module Canvas = LibBackend.Canvas

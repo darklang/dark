@@ -8,7 +8,7 @@ open FSharp.Control.Tasks
 open Prelude
 open Tablecloth
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 // FSCLEANUP

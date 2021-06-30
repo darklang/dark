@@ -12,7 +12,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 
 // -------------------------
 // Non-execution analysis

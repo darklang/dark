@@ -12,11 +12,11 @@ open FSharp.Control.Tasks
 open Prelude
 open Tablecloth
 
-module PT = LibBackend.ProgramTypes
-module OT = LibBackend.OCamlInterop.OCamlTypes
-module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
+module PT = LibExecution.ProgramTypes
+module OT = LibExecution.OCamlTypes
+module ORT = LibExecution.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
-module Convert = LibBackend.OCamlInterop.Convert
+module Convert = LibExecution.OCamlTypes.Convert
 
 module Stats = LibBackend.Stats
 module EQ = LibBackend.EventQueue

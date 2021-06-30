@@ -8,7 +8,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module DvalRepr = LibExecution.DvalRepr
 module OCamlInterop = LibBackend.OCamlInterop
 module Exe = LibExecution.Execution

@@ -27,7 +27,7 @@ open Tablecloth
 open FSharpx
 
 module HealthCheck = LibService.HealthCheck
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module RealExe = LibBackend.RealExecution
 module Exe = LibExecution.Execution

@@ -37,6 +37,8 @@
     <Compile Include="StdLib/LibUuid.fs" />
     <Compile Include="StdLib/StdLib.fs" />
     <Compile Include="ParsedRequest.fs" />
+    <Compile Include="ProgramTypes.fs" />
+    <Compile Include="OCamlTypes.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

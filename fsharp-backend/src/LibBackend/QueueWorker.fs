@@ -8,7 +8,7 @@ open Prelude.Tablecloth
 open Tablecloth
 open Db
 
-module PT = ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module EQ = EventQueue
 module TI = TraceInputs
