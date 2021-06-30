@@ -6,6 +6,7 @@ open LibExecution.RuntimeTypes
 open FSharpPlus
 open Prelude
 
+module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
 module DvalRepr = LibExecution.DvalRepr
 
@@ -193,169 +194,213 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "foreach" 0
-    //   ; parameters = [Param.make "dict" TObj ""; func ["val"]]
-    //   ; returnType = TObj
-    //   ; description =
-    //       "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
-    //   ; fn =
-    //         (function
-    //         | state, [DObj o; DFnVal b] ->
-    //             let f dv = Ast.execute_dblock ~state b [dv] in
-    //             DObj (Map.map ~f o)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = ReplacedBy(fn "" "" 0) }
-    // ; { name = fn "Dict" "map" 0
-    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
-    //   ; returnType = TObj
-    //   ; description =
-    //       "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
-    //       Consider `Dict::filterMap` if you also want to drop some of the entries."
-    //   ; fn =
-    //         (function
-    //         | state, [DObj o; DFnVal b] ->
-    //             let f ~key ~(data : dval) =
-    //               Ast.execute_dblock ~state b [DStr key; data]
-    //             in
-    //             DObj (Map.mapi ~f o)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "filter" 0
-    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
-    //   ; returnType = TObj
-    //   ; description =
-    //       "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
-    //       Consider `Dict::filterMap` if you also want to transform the entries."
-    //   ; fn =
-    //         (function
-    //         | state, [DObj o; DFnVal b] ->
-    //             let incomplete = ref false in
-    //             let f ~(key : string) ~(data : dval) : bool =
-    //               let result =
-    //                 Ast.execute_dblock ~state b [DStr key; data]
-    //               in
-    //               match result with
-    //               | DBool b ->
-    //                   b
-    //               | DIncomplete _ ->
-    //                   incomplete := true ;
-    //                   false
-    //               | v ->
-    //                   RT.error
-    //                     "Expecting fn to return bool"
-    //                     v
-    //                     data
-    //             in
-    //             if !incomplete
-    //             then DIncomplete SourceNone (*TODO(ds) source info *)
-    //             else DObj (Base.Map.filteri ~f o)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = ReplacedBy(fn "" "" 0) }
-    // ; { name = fn "Dict" "filter" 1
-    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
-    //   ; returnType = TObj
-    //   ; description =
-    //       "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
-    //   ; fn =
-    //         (function
-    //         | state, [DObj o; DFnVal b] ->
-    //             let filter_propagating_errors ~key ~data acc =
-    //               match acc with
-    //               | Error dv ->
-    //                   Error dv
-    //               | Ok m ->
-    //                   let result =
-    //                     Ast.execute_dblock
-    //                       ~state
-    //                       b
-    //                       [DStr key; data]
-    //                   in
-    //                   ( match result with
-    //                   | DBool true ->
-    //                       Ok (Base.Map.set m ~key ~data)
-    //                   | DBool false ->
-    //                       Ok m
-    //                   | (DIncomplete _ as e) | (DError _ as e) ->
-    //                       Error e
-    //                   | other ->
-    //                       RT.error
-    //                         "Fn returned incorrect type"
-    //                         "bool"
-    //                         other )
-    //             in
-    //             let filtered_result =
-    //               Base.Map.fold
-    //                 o
-    //                 (Ok DvalMap.empty)
-    //                 filter_propagating_errors
-    //             in
-    //             (match filtered_result with Ok o -> DObj o | Error dv -> dv)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
-    // ; { name = fn "Dict" "filterMap" 0
-    //   ; parameters = [Param.make "dict" TObj ""; func ["key"; "value"]]
-    //   ; returnType = TObj
-    //   ; description =
-    //       {|Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
-    //       If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
-    //       If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
-    //       This function combines `Dict::filter` and `Dict::map`.|}
-    //   ; fn =
-    //         (function
-    //         | state, [DObj o; DFnVal b] ->
-    //             let abortReason = ref None in
-    //             let f ~key ~(data : dval) : dval option =
-    //               if !abortReason = None
-    //               then (
-    //                 match
-    //                   Ast.execute_dblock
-    //                     ~state
-    //                     b
-    //                     [DStr key; data]
-    //                 with
-    //                 | DOption (OptJust o) ->
-    //                     Some o
-    //                 | DOption OptNothing ->
-    //                     None
-    //                 | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-    //                     abortReason := Some dv ;
-    //                     None
-    //                 | v ->
-    //                     abortReason :=
-    //                       Some
-    //                         (DError
-    //                            ( SourceNone
-    //                            , "Expected the argument `f` passed to `"
-    //                              ^ state.executing_fnname
-    //                              ^ "` to return `Just` or `Nothing` for every entry in `dict`. However, it returned `"
-    //                              ^ Dval.to_developer_repr_v0 v
-    //                              ^ "` for the entry `"
-    //                              ^ key
-    //                              ^ " : "
-    //                              ^ Dval.to_developer_repr_v0 data
-    //                              ^ "`." )) ;
-    //                     None )
-    //               else None
-    //             in
-    //             let result = Map.filter_mapi ~f o in
-    //             (match !abortReason with None -> DObj result | Some v -> v)
-    //         | _ -> args
-    //             incorrectArgs ())
-    //   ; sqlSpec = NotYetImplementedTODO
-    //   ; previewable = Pure
-    //   ; deprecated = NotDeprecated }
+    { name = fn "Dict" "foreach" 0
+      parameters =
+        [ Param.make "dict" (TDict varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+      returnType = TDict varB
+      description =
+        "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
+      fn =
+        (function
+        | state, [ DObj o; DFnVal b ] ->
+            taskv {
+              let! result =
+                Map.map_s
+                  (fun dv ->
+                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
+                  o
+
+              return DObj result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Dict" "map" 0
+      parameters =
+        [ Param.make "dict" (TDict varA) ""
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "val" ] ]
+      returnType = TDict varB
+      description = "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
+          Consider `Dict::filterMap` if you also want to drop some of the entries."
+      fn =
+        (function
+        | state, [ DObj o; DFnVal b ] ->
+            taskv {
+              let mapped = Map.map (fun i v -> (i, v)) o
+
+              let! result =
+                Map.map_s
+                  (fun ((key, dv) : string * Dval) ->
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ DStr key; dv ]
+                      NotInPipe
+                      NoRail)
+                  mapped
+
+              return DObj result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Dict" "filter" 0
+      parameters =
+        [ Param.make "dict" (TDict varA) ""
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+      returnType = TDict varA
+      description = "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
+              Consider `Dict::filterMap` if you also want to transform the entries."
+      fn =
+        (function
+        | state, [ DObj o; DFnVal b ] ->
+            taskv {
+              let incomplete = ref false
+
+              let f (key : string) (dv : Dval) : TaskOrValue<bool> =
+                taskv {
+                  let! result =
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ DStr key; dv ]
+                      NotInPipe
+                      NoRail
+
+                  match result with
+                  | DBool b -> return b
+                  | DIncomplete _ ->
+                      incomplete := true
+                      return false
+                  | v -> return Errors.throw (Errors.expectedLambdaType TBool v)
+                }
+
+              if !incomplete then
+                return DIncomplete SourceNone (*TODO(ds) source info *)
+              else
+                let! result = Map.filter_s f o
+                return DObj result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Dict" "filter" 1) }
+    { name = fn "Dict" "filter" 1
+      parameters =
+        [ Param.make "dict" (TDict varA) ""
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+      returnType = TDict varB
+      description =
+        "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
+      fn =
+        (function
+        | state, [ DObj o; DFnVal b ] ->
+            taskv {
+              let filter_propagating_errors
+                (acc : Result<DvalMap, Dval>)
+                (key : string)
+                (data : Dval)
+                : TaskOrValue<Result<DvalMap, Dval>> =
+                match acc with
+                | Error dv -> Value(Error dv)
+                | Ok m ->
+                    taskv {
+                      let! result =
+                        Interpreter.applyFnVal
+                          state
+                          (id 0)
+                          b
+                          [ DStr key; data ]
+                          NotInPipe
+                          NoRail
+
+                      match result with
+                      | DBool true -> return Ok(Map.add key data m)
+                      | DBool false -> return Ok m
+                      | (DIncomplete _ as e)
+                      | (DError _ as e) -> return Error e
+                      | other ->
+                          return Errors.throw (Errors.expectedLambdaType TBool other)
+                    }
+
+              let! filtered_result =
+                Map.fold_s filter_propagating_errors (Ok Map.empty) o
+
+              match filtered_result with
+              | Ok o -> return DObj o
+              | Error dv -> return dv
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Dict" "filterMap" 0
+      parameters =
+        [ Param.make "dict" (TDict varA) ""
+          Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
+      returnType = TDict varB
+      description = "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
+          If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
+          If `f key value` returns `Just newValue`, adds the entry `key`: `newValue` to the new dictionary.
+          This function combines `Dict::filter` and `Dict::map`."
+      fn =
+        (function
+        | state, [ DObj o; DFnVal b ] ->
+            taskv {
+              let abortReason = ref None
+
+              let f (key : string) (data : Dval) : TaskOrValue<Dval option> =
+                taskv {
+                  let run = !abortReason = None
+
+                  if run then
+                    let! result =
+                      Interpreter.applyFnVal
+                        state
+                        (id 0)
+                        b
+                        [ DStr key; data ]
+                        NotInPipe
+                        NoRail
+
+                    match result with
+                    | DOption (Some o) -> return Some o
+                    | DOption None -> return None
+                    | (DIncomplete _
+                    | DErrorRail _
+                    | DError _) as dv ->
+                        abortReason := Some dv
+                        return None
+                    | v ->
+                        Errors.throw (
+                          Errors.argumentWasnt
+                            "`Just` or `Nothing` for every entry in `dict`"
+                            "f"
+                            v
+                          + $" for the entry {key}: {DvalRepr.toDeveloperReprV0 data}."
+                        )
+
+                        return None
+
+                  else
+                    return None
+                }
+
+              let! result = Map.filter_map f o
+
+              match !abortReason with
+              | None -> return DObj result
+              | Some v -> return v
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "Dict" "empty" 0
       parameters = []
       returnType = TDict varA
