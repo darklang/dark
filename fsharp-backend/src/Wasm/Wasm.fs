@@ -11,7 +11,19 @@ module TestExpr =
   open LibExecution.Shortcuts
 
   // see big.tests
-  // Expected result is "a string to be used as the test case\nbytes: a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
+  // Expected result:
+  //   a string to be used as the test case
+  //   a string to be used as the test case
+  //   YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl
+  //   6120737472696E6720746F20626520757365642061732074686520746573742063617365
+  //   36
+  //   36
+  //   false
+  //   1234567.98765
+  //   2489377.51259
+  //   esac tset eht sa desu eb ot gnirts
+  //   false
+  //   9c59ba07-1e20-4ce2-a2de-6a95391d67b2
   let expr =
     eLet
       "str"
@@ -53,7 +65,7 @@ module TestExpr =
                                 (eStdFnVal "Float" "add" 0)
                                 [ ePipeApply
                                     (eStdFnVal "Float" "power" 0)
-                                    [ eVar "d0"; eFloat Positive 2I 0I ]
+                                    [ eVar "d0"; eFloat Positive 2I 1I ]
                                   eFloat Positive 1I 0I ] ])
                           (eLet
                             "reverse"
