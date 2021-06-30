@@ -177,5 +177,6 @@ module Eval =
       let tlid = id 7
       let state = Exe.createState libraries tracing tlid program
       let! result = Exe.executeExpr state Map.empty TestExpr.expr
-      return result.ToString()
+      let serialized = Prelude.Json.OCamlCompatible.serialize result
+      return serialized
     }

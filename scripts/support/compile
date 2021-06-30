@@ -373,11 +373,13 @@ def execute(should):
 
   if should.fsharp_backend_full_build:
     if not fsharp_backend_full_build(): success = False
+    should.copy_static |= success
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False
+    should.copy_static |= success
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
 
