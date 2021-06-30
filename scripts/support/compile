@@ -575,6 +575,9 @@ def mark(should, f):
   elif "/client/static/" in f:
     should.copy_static = True
 
+  elif "/fsharp-backend/src/Wasm/static/" in f:
+    should.copy_static = True
+
   elif ("/scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 

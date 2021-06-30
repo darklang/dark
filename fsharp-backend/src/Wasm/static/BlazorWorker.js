@@ -215,7 +215,7 @@ window.BlazorWorker = (function () {
       MessageEndPoint: initOptions.messageEndPoint,
       InitEndPoint: initOptions.initEndPoint,
       wasmRoot: initOptions.wasmRoot,
-      blazorBoot: "_framework/blazor.boot.json",
+      blazorBoot: `${initOptions.wasmRoot}/blazor.boot.json`,
       debug: initOptions.debug,
     };
 

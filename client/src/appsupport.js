@@ -554,6 +554,94 @@ setTimeout(function () {
   })();
 
   // ---------------------------
+  // Initialize blazorworker
+  // ---------------------------
+  function initializeBlazorWorker() {
+    const conf = {
+      callbackMethod: "OnMessage",
+      debug: false,
+      dependentAssemblyFilenames: [
+        "BlazorWorker.WorkerCore.dll",
+        "netstandard.dll",
+        "mscorlib.dll",
+        "System.dll",
+        "System.Core.dll",
+        "System.Buffers.dll",
+        "System.Collections.dll",
+        "System.Configuration.dll",
+        "System.Console.dll",
+        "System.Diagnostics.Debug.dll",
+        "System.Diagnostics.DiagnosticSource.dll",
+        "System.Diagnostics.StackTrace.dll",
+        "System.Diagnostics.TraceSource.dll",
+        "System.Dynamic.Runtime.dll",
+        "System.Globalization.Calendars.dll",
+        "System.Globalization.Extensions.dll",
+        "System.Globalization.dll",
+        "System.Linq.Expressions.dll",
+        "System.Linq.Queryable.dll",
+        "System.Linq.dll",
+        "System.Memory.dll",
+        "System.Numerics.Vectors.dll",
+        "System.Numerics.dll",
+        "System.ObjectModel.dll",
+        "System.Private.CoreLib.dll",
+        "System.Private.Runtime.InteropServices.JavaScript.dll",
+        "System.Private.Uri.dll",
+        "System.Private.Xml.Linq.dll",
+        "System.Private.Xml.dll",
+        "System.Reflection.DispatchProxy.dll",
+        "System.Reflection.Extensions.dll",
+        "System.Reflection.Metadata.dll",
+        "System.Reflection.Primitives.dll",
+        "System.Reflection.TypeExtensions.dll",
+        "System.Reflection.dll",
+        "System.Runtime.Extensions.dll",
+        "System.Runtime.Handles.dll",
+        "System.Runtime.InteropServices.RuntimeInformation.dll",
+        "System.Runtime.InteropServices.dll",
+        "System.Runtime.Intrinsics.dll",
+        "System.Runtime.Loader.dll",
+        "System.Runtime.Numerics.dll",
+        "System.Runtime.dll",
+        "System.Threading.Tasks.dll",
+        "System.Threading.Thread.dll",
+        "System.Threading.dll",
+        "FSharp.Core.dll",
+        "Ply.dll",
+        "System.Threading.Tasks.Extensions.dll",
+        "LibExecution.dll",
+        "Prelude.dll",
+        "Newtonsoft.Json.dll",
+        "System.Text.RegularExpressions.dll",
+        "System.Collections.Concurrent.dll",
+        "FSharpPlus.dll",
+        "Microsoft.JSInterop.dll",
+        "Wasm.dll",
+      ],
+      deployPrefix: "blazor",
+      initEndPoint:
+        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService:Init",
+      messageEndPoint:
+        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.MessageService:OnMessage",
+      useConventionalServiceAssembly: true,
+      wasmRoot: "blazor",
+    };
+
+    window.BlazorWorker.initWorker(
+      1,
+      () => {
+        console.log("BlazorWorker loaded");
+      },
+      data => {
+        console.log("response received by blazorworker", data);
+      },
+      conf,
+    );
+  }
+  initializeBlazorWorker();
+
+  // ---------------------------
   // Detect window focus change
   // ---------------------------
   window.onfocus = function (evt) {
