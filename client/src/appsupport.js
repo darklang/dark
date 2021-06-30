@@ -6,6 +6,9 @@ const mousewheel = function (callback) {
   });
 };
 
+// ---------------------------
+// Check unsupported browser
+// ---------------------------
 function unsupportedBrowser() {
   var isChrome =
     /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
@@ -96,6 +99,9 @@ function stopKeys(event) {
 }
 window.stopKeys = stopKeys;
 
+// ---------------------------
+// Is it chrome?
+// ---------------------------
 function getBrowserPlatform(event) {
   // Checks if mac
   var isMac = window.navigator.platform == "MacIntel";
@@ -157,11 +163,10 @@ if (pusherConfig.enabled) {
   });
 }
 
-// ---------------------------
-// Analysis
-// ---------------------------
-
 window.Dark = {
+  // ---------------------------
+  // Worker to fetch and decode traces in the background
+  // ---------------------------
   fetcher: {
     fetch: function (params) {
       if (!window.fetcherWorker) {
@@ -181,6 +186,10 @@ window.Dark = {
       };
     },
   },
+
+  // ---------------------------
+  // Run analysis
+  // ---------------------------
   analysis: {
     /* Next and busy are used to queue analyses. If busy is false, run
       immediately; else wait until the analysis is done and then run next. If
@@ -230,6 +239,10 @@ window.Dark = {
       };
     },
   },
+
+  // ---------------------------
+  // Calculate AST positions
+  // ---------------------------
   ast: {
     positions: function (tlid) {
       var extractId = function (elem) {
@@ -276,6 +289,10 @@ window.Dark = {
       };
     },
   },
+
+  // ---------------------------
+  // Capturing screenshots
+  // ---------------------------
   view: {
     capture: function () {
       var html2canvas = require("html2canvas");
@@ -294,6 +311,9 @@ window.Dark = {
       );
     },
   },
+  // ---------------------------
+  // Fullstory
+  // ---------------------------
   fullstory: {
     init: function (canvas) {
       const maxAccountAgeToRecordMs =
@@ -343,6 +363,9 @@ window.Dark = {
   },
 };
 
+// ---------------------------
+// Focus
+// ---------------------------
 function windowFocusChange(visible) {
   var event = new CustomEvent("windowFocusChange", { detail: visible });
   document.dispatchEvent(event);
@@ -368,6 +391,9 @@ function visibilityCheck() {
   }
 }
 
+// ---------------------------
+// Wheel
+// ---------------------------
 function addWheelListener(elem) {
   var prefix = "";
   var _addEventListener;
@@ -458,6 +484,9 @@ function formatDate([date, format]) {
 window.Dark.formatDate = formatDate;
 
 setTimeout(function () {
+  // ---------------------------
+  // Load the client
+  // ---------------------------
   const canvasName = new URL(window.location).pathname.split("/")[2];
   const params = JSON.stringify({
     complete: complete,
@@ -481,6 +510,9 @@ setTimeout(function () {
     app = app.debugging(document.body, params);
   }
 
+  // ---------------------------
+  // Load webworkers
+  // ---------------------------
   async function fetcher(url) {
     url = "//" + staticUrl + (hashReplacements[url] || url);
     return fetch(url)
@@ -521,6 +553,9 @@ setTimeout(function () {
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
   })();
 
+  // ---------------------------
+  // Detect window focus change
+  // ---------------------------
   window.onfocus = function (evt) {
     windowFocusChange(true);
   };
@@ -528,10 +563,20 @@ setTimeout(function () {
     windowFocusChange(false);
   };
   setInterval(visibilityCheck, 2000);
+
+  // ---------------------------
+  // Wheel
+  // ---------------------------
   addWheelListener(document);
 
+  // ---------------------------
+  // Fullstory
+  // ---------------------------
   Dark.fullstory.init(canvasName);
 
+  // ---------------------------
+  // Pusher channels
+  // ---------------------------
   if (pusherConfig.enabled) {
     var pusherChannel = pusherConnection.subscribe(`canvas_${canvasID}`);
     pusherChannel.bind("new_trace", data => {
