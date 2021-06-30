@@ -15,6 +15,4 @@ let stringifyInput (event : event) : string =
       Js.Json.stringify (Encoders.performFunctionAnalysisParams fParams)
 
 let decodeOutput (str) =
-  Js.Console.log2 "Decoding output" str ;
-  (* Belt.Result.Ok (Decoders.analysisEnvelope (Json.parseOrRaise str)) *)
-  Belt.Result.Ok (Decoders.dval (Json.parseOrRaise str))
+  Belt.Result.Ok (Decoders.analysisEnvelope (Json.parseOrRaise str))

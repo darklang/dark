@@ -285,10 +285,9 @@ window.Dark = {
         return;
       }
 
-      // Convert the params into a string
-      console.log("params are", params);
+      // OCaml would take a value that would be converted on the other side of
+      // the worker, we need to stringify here to get the value to the worker.
       params = analysis.utils.stringifyInput(params);
-      console.log("stringified params are", params);
 
       // analysis queue: run immediately or store if busy
       if (analysis.busy) {
@@ -387,7 +386,6 @@ window.Dark = {
         analysis.initialized = true;
       }
       function onmessage(data) {
-        console.log("Blazor callback", data);
         analysis.callback(data);
       }
       window.BlazorWorker.initWorker(1, onload, onmessage, conf);

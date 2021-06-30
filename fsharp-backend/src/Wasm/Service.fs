@@ -11,7 +11,7 @@ type EvalService(messageService : IWorkerMessageService) as this =
 
   member this.OnMessage(message : string) =
     task {
-      let! result = Eval.run 7
-      do! messageService.PostMessageAsync(result)
+      let! result = Eval.performHandlerAnalysis message
+      do! messageService.PostMessageAsync result
     }
     |> ignore

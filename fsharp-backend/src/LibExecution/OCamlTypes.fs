@@ -238,6 +238,8 @@ module RuntimeT =
     | DResult of resultT
     | DBytes of byte []
 
+type secret = { secret_name : string; secret_value : string }
+
 module PackageManager =
   type parameter = { name : string; tipe : tipe; description : string }
 
@@ -981,7 +983,7 @@ module Convert =
     | RT.DBool false -> ORT.DBool false
     | RT.DFloat f -> ORT.DFloat f
     | RT.DNull -> ORT.DNull
-    | RT.DFnVal (RT.FnName _) -> failwith "not supported in ocaml"
+    | RT.DFnVal (RT.FnName _) -> ORT.DNull // ignore these intermediate values
     | RT.DFnVal (RT.Lambda args) ->
         ORT.DBlock
           { ``params`` = args.parameters
