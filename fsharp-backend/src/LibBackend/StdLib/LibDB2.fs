@@ -621,7 +621,7 @@ let fns : List<BuiltInFn> =
         | state, [ DDB dbname ] ->
             taskv {
               let db = state.program.dbs.[dbname]
-              let! count = UserDB.count state db
+              let! (count : int) = UserDB.count state db
               return count |> bigint |> DInt
             }
         | _ -> incorrectArgs ())

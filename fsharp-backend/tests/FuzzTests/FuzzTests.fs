@@ -34,15 +34,6 @@ let (.=.) actual expected : bool =
     false
 
 
-module GeneratorUtils =
-  let nonNullString (s : string) : bool = s <> null
-
-  let safeOCamlString (s : string) : bool =
-    // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
-    s <> null && not (s.Contains('\u0000'))
-
-open GeneratorUtils
-
 let baseConfig : FsCheckConfig =
   { FsCheckConfig.defaultConfig with maxTest = 100000 }
 
@@ -55,6 +46,63 @@ let testProperty (name : string) (x : 'a) : Test =
 let testPropertyWithGenerator (typ : System.Type) (name : string) (x : 'a) : Test =
   testPropertyWithConfig (baseConfigWithGenerator typ) name x
 
+module Generators =
+  let nonNullString (s : string) : bool = s <> null
+
+  let safeOCamlString (s : string) : bool =
+    // We disallow \u0000 in OCaml because postgres doesn't like it, see of_utf8_encoded_string
+    s <> null && not (s.Contains('\u0000'))
+
+  let alphaNumericString =
+    (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
+
+  let string () =
+    let isValid (s : string) : bool =
+      try
+        let (_ : string) = s.Normalize()
+        true
+      with _ ->
+        debuG
+          "Failed to normalize :"
+          $"'{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+
+        false
+
+    Arb.generate<UnicodeString>
+    |> Gen.map (fun (UnicodeString s) -> s)
+    |> Gen.filter isValid
+    // Now that we know it can be normalized, actually normalize it
+    |> Gen.map (fun s -> s.Normalize())
+    |> Gen.filter safeOCamlString
+
+
+
+  let nonNegativeInt () =
+    gen {
+      let! (NonNegativeInt i) = Arb.generate<NonNegativeInt>
+      return i
+    }
+
+  // https://github.com/minimaxir/big-list-of-naughty-strings
+  let naughtyStrings : Lazy<List<string>> =
+    lazy
+      (LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
+       |> String.splitOnNewline
+       |> List.filter (String.startsWith "#" >> not))
+
+  let char () : Gen<string> =
+    string ()
+    |> Gen.map String.toEgcSeq
+    |> Gen.map Seq.toList
+    |> Gen.map List.head
+    |> Gen.filter ((<>) None)
+    |> Gen.map (Option.defaultValue "")
+    |> Gen.filter ((<>) "")
+
+
+module G = Generators
+
+
 
 module FQFnName =
   let nameGenerator (first : char list) (other : char list) : Gen<string> =
@@ -65,19 +113,15 @@ module FQFnName =
       return System.String(Array.append [| head |] tail)
     }
 
-  let alphaNumeric =
-    (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ]; [ 'A' .. 'Z' ]; [ '_' ] ])
-
   let ownerName : Gen<string> =
     nameGenerator [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
   let packageName = ownerName
-  let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] alphaNumeric
-  let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] alphaNumeric
+  let modName : Gen<string> = nameGenerator [ 'A' .. 'Z' ] G.alphaNumericString
+  let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericString
 
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter nonNullString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
       { new Arbitrary<PT.FQFnName.T>() with
@@ -86,15 +130,11 @@ module FQFnName =
               gen {
                 let! module_ = modName
                 let! function_ = fnName
-                let! NonNegativeInt version = Arb.generate<NonNegativeInt>
+                let! version = G.nonNegativeInt ()
                 return PT.FQFnName.stdlibFqName module_ function_ version
               }
 
-            let user =
-              gen {
-                let! function_ = fnName
-                return PT.FQFnName.userFqName function_
-              }
+            let user = Gen.map PT.FQFnName.userFqName fnName
 
             let package =
               gen {
@@ -102,7 +142,7 @@ module FQFnName =
                 let! package = packageName
                 let! module_ = modName
                 let! function_ = fnName
-                let! NonNegativeInt version = Arb.generate<NonNegativeInt>
+                let! version = G.nonNegativeInt ()
 
                 return
                   PT.FQFnName.packageFqName owner package module_ function_ version
@@ -114,8 +154,7 @@ module FQFnName =
       { new Arbitrary<RT.FQFnName.T>() with
           member x.Generator = Generator.PTFQFnName().Generator }
 
-  let ptRoundtrip (a : PT.FQFnName.T) : bool =
-    a.ToString() |> PT.FQFnName.parse .=. a
+  let ptRoundtrip (a : PT.FQFnName.T) : bool = string a |> PT.FQFnName.parse .=. a
 
   let tests =
     testList
@@ -166,14 +205,11 @@ module OCamlInterop =
   type Generator =
     static member Expr() =
       Arb.Default.Derive()
-      |> Arb.mapFilter
-           (function
-           // make sure we get numbers in our floats
-           | other -> other)
+      |> Arb.filter
            (function
            // characters are not yet supported in OCaml
            | PT.ECharacter _ -> false
-           | other -> true)
+           | _ -> true)
 
     static member Pattern() =
       Arb.Default.Derive()
@@ -183,8 +219,7 @@ module OCamlInterop =
            | PT.PCharacter _ -> false
            | _ -> true)
 
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter nonNullString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
 
   let yojsonExprRoundtrip (a : PT.Expr) : bool =
@@ -250,8 +285,7 @@ module OCamlInterop =
 
 module Roundtrippable =
   type Generator =
-    static member String() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -260,8 +294,7 @@ module Roundtrippable =
       Arb.Default.Derive() |> Arb.filter (DvalRepr.isRoundtrippableDval false)
 
   type GeneratorWithBugs =
-    static member String() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member String() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -299,8 +332,7 @@ module Roundtrippable =
 
 module Queryable =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
@@ -354,8 +386,7 @@ module Queryable =
 
 module DeveloperRepr =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     // The format here is only used for errors so it doesn't matter all the
     // much. These are places where we've manually checked the differing
@@ -381,8 +412,7 @@ module DeveloperRepr =
 
 module EndUserReadable =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -403,8 +433,7 @@ module EndUserReadable =
 
 module Hashing =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -439,12 +468,9 @@ module Hashing =
         testPropertyWithGenerator typeof<Generator> "hashv1" equalsOCamlV1 ]
 
 
-
-
 module PrettyMachineJson =
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
     // This should produce identical JSON to the OCaml function or customers will have an unexpected change
     static member Dval() : Arbitrary<RT.Dval> =
@@ -479,13 +505,6 @@ module PrettyMachineJson =
 module ExecutePureFunctions =
   open LibBackend.ProgramTypes.Shortcuts
 
-  // https://github.com/minimaxir/big-list-of-naughty-strings
-  let naughtyStrings : Lazy<List<string>> =
-    lazy
-      (LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
-       |> String.splitOnNewline
-       |> List.filter (String.startsWith "#" >> not))
-
   let filterFloat (f : float) : bool =
     match f with
     | System.Double.PositiveInfinity -> false
@@ -500,12 +519,41 @@ module ExecutePureFunctions =
   let ocamlIntLowerLimit = -4611686018427387904I
 
   let isValidOCamlInt (i : bigint) : bool =
-    i < ocamlIntUpperLimit && i > ocamlIntLowerLimit
+    i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
 
 
   type Generator =
-    static member SafeString() : Arbitrary<string> =
-      Arb.Default.String() |> Arb.filter safeOCamlString
+    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+
+    static member Float() : Arbitrary<float> =
+      Arb.fromGen (
+        gen {
+          let specials =
+            TestUtils.interestingFloats
+            |> List.map Tuple2.second
+            |> List.filter filterFloat
+            |> List.map Gen.constant
+            |> Gen.oneof
+
+          let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
+          return! Gen.filter filterFloat v
+        }
+      )
+
+    static member BigInt() : Arbitrary<bigint> =
+      Arb.fromGen (
+        gen {
+          let specials =
+            TestUtils.interestingInts
+            |> List.map Tuple2.second
+            |> List.filter isValidOCamlInt
+            |> List.map Gen.constant
+            |> Gen.oneof
+
+          let v = Gen.frequency [ (5, specials); (5, Arb.generate<bigint>) ]
+          return! Gen.filter isValidOCamlInt v
+        }
+      )
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
@@ -520,61 +568,35 @@ module ExecutePureFunctions =
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
       let genExpr (typ' : RT.DType) : Gen<RT.Expr> =
         let rec genExpr' typ s =
+          let call mod_ fn version args =
+            let call =
+              RT.EFQFnValue(
+                gid (),
+                RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName mod_ fn version)
+              )
+
+            RT.EApply(gid (), call, args, RT.NotInPipe, RT.NoRail)
+
           gen {
             match typ with
             | RT.TInt ->
-                let specials =
-                  TestUtils.interestingInts
-                  |> List.map Tuple2.second
-                  |> List.filter isValidOCamlInt
-                  |> List.map Gen.constant
-                  |> Gen.oneof
-
-                let v = Gen.frequency [ (1, specials); (1, Arb.generate<bigint>) ]
-                let! v = Gen.filter isValidOCamlInt v
+                let! v = Arb.generate<bigint>
                 return RT.EInteger(gid (), v)
-
             | RT.TStr ->
-                let naughty =
-                  naughtyStrings |> Lazy.force |> List.map Gen.constant |> Gen.oneof
-
-                let! v = Gen.frequency [ (7, naughty); (3, Arb.generate<string>) ]
+                let! v = Generators.string ()
                 return RT.EString(gid (), v)
             | RT.TChar ->
                 // We don't have a construct for characters, so create code to generate the character
                 let! str =
-                  Arb.generate<string> |> Gen.filter (fun s -> String.length s > 0)
+                  Generators.string () |> Gen.resize 1 |> Gen.filter ((<>) "")
 
-                let charAsString = String.take 1 str
-
-                let call =
-                  RT.EFQFnValue(
-                    gid (),
-                    RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName "String" "toChar" 0)
-                  )
-
-                return
-                  RT.EApply(
-                    gid (),
-                    call,
-                    [ RT.EString(gid (), charAsString) ],
-                    RT.NotInPipe,
-                    RT.NoRail
-                  )
+                return call "String" "toChar" 0 [ RT.EString(gid (), str) ]
             // Don't generate a random value as some random values are invalid
             // (eg constructor outside certain names). Ints should be fine for
             // whatever purpose there is here
             | RT.TVariable _ -> return! genExpr' RT.TInt s
             | RT.TFloat ->
-                let specials =
-                  TestUtils.interestingFloats
-                  |> List.map Tuple2.second
-                  |> List.filter filterFloat
-                  |> List.map Gen.constant
-                  |> Gen.oneof
-
-                let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
-                let! v = Gen.filter filterFloat v
+                let! v = Arb.generate<float>
                 return RT.EFloat(gid (), v)
             | RT.TBool ->
                 let! v = Arb.generate<bool>
@@ -589,7 +611,7 @@ module ExecutePureFunctions =
                     (fun l -> RT.ERecord(gid (), l))
                     (Gen.listOfLength
                       s
-                      (Gen.zip Arb.generate<string> (genExpr' typ (s / 2))))
+                      (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
             | RT.TOption typ ->
                 match! Gen.optionOf (genExpr' typ s) with
                 | Some v -> return RT.EConstructor(gid (), "Just", [ v ])
@@ -611,7 +633,17 @@ module ExecutePureFunctions =
 
                 let! body = genExpr' returnType s
                 return RT.ELambda(gid (), parameters, body)
-
+            | RT.TBytes ->
+                // FSTODO: this doesn't really do anything useful
+                let! bytes = Arb.generate<byte []>
+                let v = RT.EString(gid (), base64Encode bytes)
+                return call "String" "toBytes" 0 [ v ]
+            | RT.TDate ->
+                let! d = Arb.generate<System.DateTime>
+                return call "Date" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
+            | RT.TUuid ->
+                let! u = Arb.generate<System.Guid>
+                return call "String" "toUUID" 0 [ RT.EString(gid (), string u) ]
             | _ -> return failwith $"Not supported yet: {typ}"
 
           }
@@ -620,37 +652,40 @@ module ExecutePureFunctions =
 
 
       let genDval (typ' : RT.DType) : Gen<RT.Dval> =
-        let rec genDval' typ s =
+        let rec genDval' typ s : Gen<RT.Dval> =
           gen {
             match typ with
             | RT.TInt ->
-                let specials =
-                  TestUtils.interestingInts
-                  |> List.map Tuple2.second
-                  |> List.filter isValidOCamlInt
-                  |> List.map Gen.constant
-                  |> Gen.oneof
-
-                let v = Gen.frequency [ (1, specials); (1, Arb.generate<bigint>) ]
-                return! Gen.filter isValidOCamlInt v |> Gen.map RT.DInt
-
+                let! v = Arb.generate<bigint>
+                return RT.DInt v
             | RT.TStr ->
-                let naughty =
-                  naughtyStrings |> Lazy.force |> List.map Gen.constant |> Gen.oneof
-
-                let! v = Gen.frequency [ (7, naughty); (3, Arb.generate<string>) ]
+                let! v = Generators.string ()
                 return RT.DStr v
-            | RT.TVariable _ -> return! Arb.generate<RT.Dval>
-            | RT.TFloat ->
-                let specials =
-                  TestUtils.interestingFloats
-                  |> List.map Tuple2.second
-                  |> List.filter filterFloat
-                  |> List.map Gen.constant
-                  |> Gen.oneof
+            | RT.TVariable _ ->
+                let rec supportedType =
+                  (function
+                  | RT.TInt
+                  | RT.TFloat
+                  | RT.TBool
+                  | RT.TNull
+                  | RT.TUuid
+                  | RT.TNull
+                  | RT.TDate
+                  | RT.TBytes
+                  | RT.TChar
+                  | RT.TStr -> true
+                  | RT.TList t
+                  | RT.TDict t
+                  | RT.TOption t -> supportedType t
+                  | RT.TResult (t1, t2) -> supportedType t1 && supportedType t2
+                  | RT.TFn (ts, rt) -> supportedType rt && List.all supportedType ts
+                  | _ -> false)
 
-                let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
-                return! Gen.filter filterFloat v |> Gen.map RT.DFloat
+                let! newtyp = Arb.generate<RT.DType> |> Gen.filter supportedType
+                return! genDval' newtyp s
+            | RT.TFloat ->
+                let! v = Arb.generate<float>
+                return RT.DFloat v
             | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
             | RT.TNull -> return RT.DNull
             | RT.TList typ ->
@@ -661,7 +696,7 @@ module ExecutePureFunctions =
                     (fun l -> RT.DObj(Map.ofList l))
                     (Gen.listOfLength
                       s
-                      (Gen.zip Arb.generate<string> (genDval' typ (s / 2))))
+                      (Gen.zip (Generators.string ()) (genDval' typ (s / 2))))
             // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
             // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
             // | RT.THttpResponse of DType -> return! Gen.map RT.THttpResponse  Arb.generate<httpresponse >
@@ -675,14 +710,17 @@ module ExecutePureFunctions =
                       RT.DDate dt)
                     Arb.generate<System.DateTime>
             | RT.TChar ->
-                return! Gen.map RT.DChar (Gen.resize 1 Arb.generate<string>)
+                let! v = G.char ()
+                return RT.DChar v
             // | RT.TPassword -> return! Gen.map RT.TPassword Arb.generate<password>
             | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
             | RT.TOption typ ->
                 return! Gen.map RT.DOption (Gen.optionOf (genDval' typ s))
             // | RT.TErrorRail -> return! Gen.map RT.TErrorRail Arb.generate<errorrail>
             // | RT.TUserType of string * int -> return! Gen.map RT.TUserType  Arb.generate<usertype >
-            | RT.TBytes -> return! Gen.map RT.DBytes Arb.generate<byte []>
+            | RT.TBytes ->
+                let! v = Arb.generate<byte []>
+                return RT.DBytes v
             | RT.TResult (okType, errType) ->
                 return!
                   Gen.map
@@ -720,12 +758,21 @@ module ExecutePureFunctions =
                            (ApiServer.Functions.fsharpOnlyFns.Force())
                        ))
                 |> List.filter
+                     // FSTODO: all these differences should be removed
                      (function
-                     // FSTODO: These use a different sort order in OCaml
-                     | { name = { module_ = "List"; function_ = "sort" } } -> false
-                     | { name = { module_ = "List"; function_ = "sortBy" } } -> false
+                     | { name = { module_ = "List"; function_ = "sort" } }
+                     | { name = { module_ = "List"; function_ = "sortBy" } } ->
+                         // FSTODO: These use a different sort order in OCaml
+                         false
+                     | { name = { module_ = "Object"; function_ = "toJSON" } }
+                     | { name = { module_ = "Dict"; function_ = "toJSON" } } ->
+                         // Known formatting differences
+                         false
                      | { name = { module_ = "String"; function_ = "base64Decode" } } ->
                          // Don't know what the bug is
+                         false
+                     | { name = { module_ = "String"; function_ = "trim" } } ->
+                         // OCaml seems to trim wrong here
                          false
                      | { name = { module_ = "AWS"; function_ = "urlencode" } } ->
                          // Bug in unicode probably
@@ -785,7 +832,7 @@ module ExecutePureFunctions =
                     | "String::padStart", 1
                     | "String::padEnd", 1 ->
                         // FSTODO: allow more than just chars
-                        let! v = Arb.generate<char>
+                        let! v = Arb.generate<char> |> Gen.filter ((<>) (char 0))
                         return RT.DStr(System.String([| v |]))
                     | _ -> return! genDval signature.[i].typ
                   }
@@ -823,7 +870,9 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
                            isValidOCamlInt (e + i)
-                       | 0, RT.DList l, [ RT.DInt e ], "Int", "sum", 0 ->
+                       | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
+                           isValidOCamlInt (e - i)
+                       | 0, RT.DList l, _, "Int", "sum", 0 ->
                            l
                            |> List.map
                                 (function
@@ -922,6 +971,10 @@ module ExecutePureFunctions =
           | "Char::toASCIICode"
           | "Char::toASCIIChar"
           | "String::foreach" -> true
+          // Known acceptable difference
+          | "Object::toJSON"
+          | "Object::toJSON_v1"
+          | "Dict::toJSON" -> true
           // Messages are close-enough
           | "%"
           | "Int::mod" ->
@@ -945,13 +998,26 @@ module ExecutePureFunctions =
                 "Expected a string representation of an IEEE float"
           | _ -> false
 
+        let debugFn () =
+          debuG "fn" fn
+          debuG "args" (List.map (fun (_, v) -> debugDval v) args)
+
+        if not (Expect.isCanonical expected) then
+          debugFn ()
+          debuG "ocaml (expected) is not normalized" (debugDval expected)
+          return false
+        else
+
+        if not (Expect.isCanonical actual) then
+          debugFn ()
+          debuG "fsharp (actual) is not normalized" (debugDval actual)
+          return false
+        else
+
         if dvalEquality actual expected then
+
           return true
         else
-          let debugFn () =
-            debuG "fn" fn
-            debuG "args" (List.map (fun (_, v) -> debugDval v) args)
-
           match actual, expected with
           | RT.DError (_, msg1), RT.DError (_, msg2) ->
               let allowed = errorAllowed msg1 msg2
@@ -972,8 +1038,9 @@ module ExecutePureFunctions =
               // FSTODO make false
               return true
           | _ ->
-              debuG "ocaml (expected)" expected
-              debuG "fsharp (actual) " actual
+              debugFn ()
+              debuG "ocaml (expected)" (debugDval expected)
+              debuG "fsharp (actual) " (debugDval actual)
               return false
       }
 

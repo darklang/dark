@@ -260,8 +260,8 @@ jobs:
       - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json > ../checksum
       - restore_cache:
           keys:
-            - v1-fsharp-backend-{{ checksum "../checksum" }}
-            - v1-fsharp-backend
+            - v2-fsharp-backend-{{ checksum "../checksum" }}
+            - v2-fsharp-backend
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # so the ocamltestserver will load
@@ -279,7 +279,7 @@ jobs:
       - show-large-files-and-directories
       - save_cache:
           paths: [fsharp-backend/Build]
-          key: v1-fsharp-backend-{{ checksum "../checksum" }}
+          key: v2-fsharp-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
 

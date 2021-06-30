@@ -167,7 +167,8 @@ let fns : List<BuiltInFn> =
           Param.makeWithArgs "f" (TFn([ varA ], TBool)) "" [ "val" ] ]
       returnType = varA
       description =
-        "Returns the first value of `list` for which `f val` returns `true`. Returns `null` if no such value exists."
+        // CLEANUP: returns null, not Nothing
+        "Returns the first value of `list` for which `f val` returns `true`. Returns `Nothing` if no such value exists."
       fn =
         (function
         | state, [ DList l; DFnVal fn ] ->
@@ -180,7 +181,7 @@ let fns : List<BuiltInFn> =
                   return result = DBool true
                 }
 
-              let! result = find_s f l
+              let! result = List.find_s f l
               return Option.defaultValue DNull result
             }
         | _ -> incorrectArgs ())
@@ -206,7 +207,7 @@ let fns : List<BuiltInFn> =
                   return result = DBool true
                 }
 
-              let! result = find_s f l
+              let! result = List.find_s f l
               return DOption result
             }
         | _ -> incorrectArgs ())
@@ -232,7 +233,7 @@ let fns : List<BuiltInFn> =
                   return result = DBool true
                 }
 
-              let! result = find_s f l
+              let! result = List.find_s f l
               return Dval.option result
             }
         | _ -> incorrectArgs ())
@@ -457,7 +458,7 @@ let fns : List<BuiltInFn> =
               // FSNOTE: This isn't exactly the same as the ocaml one. We get all the keys in one pass.
               let! withKeys =
                 list
-                |> map_s
+                |> List.map_s
                      (fun v ->
                        taskv {
                          let! key = fn v
@@ -579,7 +580,7 @@ let fns : List<BuiltInFn> =
               if !incomplete then
                 return DIncomplete SourceNone
               else
-                let! result = filter_s f l
+                let! result = List.filter_s f l
                 return DList(result)
             }
         | _ -> incorrectArgs ())
@@ -626,7 +627,7 @@ let fns : List<BuiltInFn> =
     //           if !incomplete then
     //             return DIncomplete SourceNone
     //           else
-    //             let! result = filter_s f l
+    //             let! result = List.filter_s f l
     //             return DBool((result.Length) = (l.Length))
     //         }
     //     | _ -> incorrectArgs ())
@@ -669,7 +670,7 @@ let fns : List<BuiltInFn> =
                     return false
                 }
 
-              let! result = filter_s f l
+              let! result = List.filter_s f l
 
               match !fakecf with
               | None -> return DList(result)
@@ -723,7 +724,7 @@ let fns : List<BuiltInFn> =
                     return false
                 }
 
-              let! result = filter_s f l
+              let! result = List.filter_s f l
 
               match !abortReason with
               | None -> return DList(result)
@@ -910,7 +911,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList l; DFnVal b ] ->
             taskv {
               let! result =
-                map_s
+                List.map_s
                   (fun dv ->
                     Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                   l
@@ -933,7 +934,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList l; DFnVal b ] ->
             taskv {
               let! result =
-                map_s
+                List.map_s
                   (fun dv ->
                     Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
                   l
@@ -1030,8 +1031,8 @@ let fns : List<BuiltInFn> =
             let l2 = List.take (int len) l2
 
             List.zip l1 l2
-            |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
-            |> DList
+            |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+            |> Dval.list
             |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -1052,8 +1053,8 @@ let fns : List<BuiltInFn> =
               Value(DOption None)
             else
               List.zip l1 l2
-              |> List.map (fun (val1, val2) -> DList [ val1; val2 ])
-              |> DList
+              |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+              |> Dval.list
               |> Some
               |> DOption
               |> Value

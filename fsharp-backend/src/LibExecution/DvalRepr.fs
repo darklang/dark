@@ -345,7 +345,7 @@ let responseOfJson (dv : Dval) (j : JToken) : DHTTP =
              | JList [ JString k; JString v ] -> (k, v)
              | _ -> failwith "Invalid DHttpResponse headers")
 
-      Response(int code, headers, dv)
+      Response(bigint code, headers, dv)
   | _ -> failwith "invalid response json"
 
 #nowarn "104" // ignore warnings about enums out of range
