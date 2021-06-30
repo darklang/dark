@@ -222,7 +222,6 @@ window.Dark = {
 
       worker.onmessage = function (e) {
         var result = e.data;
-        console.log("returned message", result);
 
         var event = new CustomEvent("receiveAnalysis", { detail: result });
         document.dispatchEvent(event);
