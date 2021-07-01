@@ -1,6 +1,7 @@
 open Prelude
+module Decode = Json_decode_extended
 
-type event = (Types.performAnalysisParams Js.nullable)
+type event = Types.performAnalysisParams Js.nullable
 
 type response = { responseType : string ; json : string }
 
@@ -14,5 +15,6 @@ let stringifyInput (event : event) : response =
   | Some params ->
       { responseType = "success"; json = Js.Json.stringify (Encoders.performAnalysisParams params) }
 
+
 let decodeOutput (str) =
-  Belt.Result.Ok (Decoders.analysisEnvelope (Json.parseOrRaise str))
+  Decode.result Decoders.analysisEnvelope Decode.string (Json.parseOrRaise str)

@@ -86,93 +86,97 @@ module Eval =
     (userTypes : List<ORT.user_tipe>)
     (dbs : List<ORT.fluidExpr ORT.DbT.db>)
     (expr : ORT.fluidExpr)
-    : Task<string> =
+    : Task<OCamlInterop.AnalysisEnvelope> =
     task {
-      try
-        let program : RT.ProgramContext =
-          { accountID = System.Guid.NewGuid()
-            canvasID = System.Guid.NewGuid()
-            userFns =
-              userFns
-              |> List.map OT.Convert.ocamlUserFunction2PT
-              |> List.map PT.UserFunction.toRuntimeType
-              |> List.map (fun fn -> fn.name, fn)
-              |> Map
-            userTypes =
-              userTypes
-              |> List.map OT.Convert.ocamlUserType2PT
-              |> List.map PT.UserType.toRuntimeType
-              |> List.map (fun t -> (t.name, t.version), t)
-              |> Map
-            dbs =
-              dbs
-              |> List.map (OT.Convert.ocamlDB2PT { x = 0; y = 0 })
-              |> List.map PT.DB.toRuntimeType
-              |> List.map (fun t -> t.name, t)
-              |> Map
-            secrets = [] }
+      let program : RT.ProgramContext =
+        { accountID = System.Guid.NewGuid()
+          canvasID = System.Guid.NewGuid()
+          userFns =
+            userFns
+            |> List.map OT.Convert.ocamlUserFunction2PT
+            |> List.map PT.UserFunction.toRuntimeType
+            |> List.map (fun fn -> fn.name, fn)
+            |> Map
+          userTypes =
+            userTypes
+            |> List.map OT.Convert.ocamlUserType2PT
+            |> List.map PT.UserType.toRuntimeType
+            |> List.map (fun t -> (t.name, t.version), t)
+            |> Map
+          dbs =
+            dbs
+            |> List.map (OT.Convert.ocamlDB2PT { x = 0; y = 0 })
+            |> List.map PT.DB.toRuntimeType
+            |> List.map (fun t -> t.name, t)
+            |> Map
+          secrets = [] }
 
-        // FSTODO: get packages from caller
-        let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
-        let dvalResults, traceDvalFn = Exe.traceDvals ()
-        let functionResults = traceData.function_results
+      // FSTODO: get packages from caller
+      let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
+      let dvalResults, traceDvalFn = Exe.traceDvals ()
+      let functionResults = traceData.function_results
 
-        let tracing =
-          { LibExecution.Execution.noTracing RT.Preview with
-              traceDval = traceDvalFn
-              loadFnResult = loadFromTrace functionResults }
+      let tracing =
+        { LibExecution.Execution.noTracing RT.Preview with
+            traceDval = traceDvalFn
+            loadFnResult = loadFromTrace functionResults }
 
-        let state = Exe.createState libraries tracing tlid program
+      let state = Exe.createState libraries tracing tlid program
 
-        let ast = (expr |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
-        let inputVars = Map traceData.input
-        let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
+      let ast = (expr |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
+      let inputVars = Map traceData.input
+      let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
 
 
-        let ocamlResults =
-          dvalResults
-          |> Dictionary.toList
-          |> List.map
-               (fun (k, v) ->
-                 k,
-                 match v with
-                 | AT.ExecutedResult dv ->
-                     OCamlInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
-                 | AT.NonExecutedResult dv ->
-                     OCamlInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
-          |> Dictionary.fromList
+      let ocamlResults =
+        dvalResults
+        |> Dictionary.toList
+        |> List.map
+             (fun (k, v) ->
+               k,
+               match v with
+               | AT.ExecutedResult dv ->
+                   OCamlInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
+               | AT.NonExecutedResult dv ->
+                   OCamlInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
+        |> Dictionary.fromList
 
-        let results : OCamlInterop.AnalysisEnvelope = (traceID, ocamlResults)
-        let serialized = Json.OCamlCompatible.serialize results
-        return serialized
-      with e ->
-        System.Console.WriteLine(string e)
-        return "error"
+      return (traceID, ocamlResults)
     }
 
   // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
   // or DotNet.invokeMethodAsync('Wasm', 'run', 8)
   [<Microsoft.JSInterop.JSInvokable>]
   let performAnalysis (str : string) : Task<string> =
-    let args =
-      Json.OCamlCompatible.deserialize<OCamlInterop.performAnalysisParams> str
+    task {
+      try
+        let args =
+          Json.OCamlCompatible.deserialize<OCamlInterop.performAnalysisParams> str
 
-    match args with
-    | OCamlInterop.AnalyzeHandler ah ->
-        runAnalysis
-          ah.handler.tlid
-          ah.trace_id
-          ah.trace_data
-          ah.user_fns
-          ah.user_tipes
-          ah.dbs
-          ah.handler.ast
-    | OCamlInterop.AnalyzeFunction af ->
-        runAnalysis
-          af.func.tlid
-          af.trace_id
-          af.trace_data
-          af.user_fns
-          af.user_tipes
-          af.dbs
-          af.func.ast
+        let! (result : OCamlInterop.AnalysisEnvelope) =
+          match args with
+          | OCamlInterop.AnalyzeHandler ah ->
+              runAnalysis
+                ah.handler.tlid
+                ah.trace_id
+                ah.trace_data
+                ah.user_fns
+                ah.user_tipes
+                ah.dbs
+                ah.handler.ast
+          | OCamlInterop.AnalyzeFunction af ->
+              runAnalysis
+                af.func.tlid
+                af.trace_id
+                af.trace_data
+                af.user_fns
+                af.user_tipes
+                af.dbs
+                af.func.ast
+
+        return Ok result
+      with e ->
+        System.Console.WriteLine("Error running analysis in Blazor", str, string e)
+        return Error(string e)
+    }
+    |> Task.map Json.OCamlCompatible.serialize
