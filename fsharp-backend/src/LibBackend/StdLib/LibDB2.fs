@@ -251,39 +251,38 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-    // ; { name = fn "DB" "delete" 1
-//   ; parameters = [keyParam; tableParam]
-//   ; returnType = TNull
-//   ; description = "Delete `key` from `table`"
-//   ; fn =
-//          (function
-//         | state, [DStr key; DDB dbname] -> taskv {
-//             let db = state.program.dbs.[dbname]
-//             let key = Unicode_string.to_string key in
-//             UserDB.delete state db key ;
-//             DNull
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
-// ; { name = fn "DB" "deleteAll" 1
-//   ; parameters = [tableParam]
-//   ; returnType = TNull
-//   ; description = "Delete everything from `table`"
-//   ; fn =
-//          (function
-//         | state, [DDB dbname] -> taskv {
-//             let db = state.program.dbs.[dbname]
-//             UserDB.delete_all state db ;
-//             DNull
-//           }
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotQueryable
-//   ; previewable = Impure
-//   ; deprecated = NotDeprecated }
+    { name = fn "DB" "delete" 1
+      parameters = [ keyParam; tableParam ]
+      returnType = TNull
+      description = "Delete `key` from `table`"
+      fn =
+        (function
+        | state, [ DStr key; DDB dbname ] ->
+            taskv {
+              let db = state.program.dbs.[dbname]
+              let! _result = UserDB.delete state db key
+              return DNull
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+    { name = fn "DB" "deleteAll" 1
+      parameters = [ tableParam ]
+      returnType = TNull
+      description = "Delete everything from `table`"
+      fn =
+        (function
+        | state, [ DDB dbname ] ->
+            taskv {
+              let db = state.program.dbs.[dbname]
+              let! _result = UserDB.deleteAll state db
+              return DNull
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
     { name = fn "DB" "query" 1
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA // heterogenous list
