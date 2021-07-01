@@ -379,6 +379,8 @@ window.Dark = {
           "mscorlib.dll",
           "netstandard.dll",
         ],
+        endInvokeCallBackEndpoint:
+          "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.JSInvokeService:EndInvokeCallBack",
         deployPrefix: "blazor",
         initEndPoint:
           "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService:Init",
@@ -387,14 +389,27 @@ window.Dark = {
         useConventionalServiceAssembly: true,
         wasmRoot: "blazor",
       };
-      function onload() {
-        console.log("Blazor loaded");
-        analysis.initialized = true;
-      }
-      function onmessage(data) {
-        analysis.callback(data);
-      }
-      window.BlazorWorker.initWorker(1, onload, onmessage, conf);
+      let initInstance = {
+        invokeMethod: (message, eventData) => {
+          console.log("calling invokemethod", message, eventData);
+          let initMessage =
+            "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitServiceResult::";
+          let initInstanceMessage =
+            "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstanceResult::|1|1||";
+          let evalServiceMessage =
+            "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstance::|1|3|Wasm.EvalService|Wasm, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null";
+
+          if (eventData.startsWith(initMessage)) {
+            window.BlazorWorker.postMessage(1, evalServiceMessage);
+          } else if (eventData.startsWith(initInstanceMessage)) {
+            console.log("Blazor loaded");
+            analysis.initialized = true;
+          } else {
+            analysis.callback(eventData);
+          }
+        },
+      };
+      window.BlazorWorker.initWorker(1, initInstance, conf);
     },
   },
   analysis: {
