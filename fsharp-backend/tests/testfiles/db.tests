@@ -219,6 +219,38 @@
  let two = DB.set_v1 { x = "foo" } "two" X in
  DB.queryOneWithKey_v2 { x = "foo" } X) = Nothing
 
+// DB.delete
+[test.db.delete_v1 does delete] with DB X
+(let one = DB.set_v1 { x = "foo"} "one" X in
+ let delete = DB.delete_v1 "one" X in
+ DB.getAllWithKeys_v1 X) = []
+
+[test.db.delete_v1 deletes nothing] with DB X
+(let one = DB.set_v1 { x = "foo"} "one" X in
+ let delete = DB.delete_v1 "two" X in
+ DB.getAllWithKeys_v1 X) = [["one"; { x = "foo"}]]
+
+[test.db.delete_v1 deletes only one] with DB X
+(let one = DB.set_v1 { x = "foo"} "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ let delete = DB.delete_v1 "one" X in
+ DB.getAllWithKeys_v1 X) = [["two"; { x = "bar"}]]
+
+// // DB.deleteAll
+[test.db.deleteAll_v1 works] with DB X
+(let one = DB.set_v1 { x = "foo"} "one" X in
+ let delete = DB.deleteAll_v1 X in
+ DB.getAll_v1 X) = []
+
+[test.db.deleteAll_v1 delete all] with DB X
+(let one = DB.set_v1 { x = "foo"} "one" X in
+ let two = DB.set_v1 { x = "bar" } "two" X in
+ let delete = DB.deleteAll_v1 X in
+ DB.getAll_v1 X) = []
+
+[test.db.deleteAll_v1 works] with DB X
+(let delete = DB.deleteAll_v1 X in
+ DB.getAll_v1 X) = []
 
 // ------------
 // SqlCompiler queries
