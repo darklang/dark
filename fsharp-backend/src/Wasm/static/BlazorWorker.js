@@ -325,10 +325,7 @@ window.BlazorWorker = (function () {
     };
 
     // Initialize worker
-    const renderedConfig = JSON.stringify(initConf).replace(
-      "$appRoot$",
-      appRoot,
-    );
+    const renderedConfig = JSON.stringify(initConf);
     const renderedInlineWorker = inlineWorker.replace(
       "$initConf$",
       renderedConfig,
