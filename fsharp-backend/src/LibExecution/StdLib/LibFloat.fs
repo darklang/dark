@@ -290,4 +290,16 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "Float" "roundTowardsZero" 0
+      parameters = [ Param.make "a" TFloat "" ]
+      returnType = TInt
+      description =
+        "Discard the fractional portion of the float, rounding towards zero."
+      fn =
+        (function
+        | _, [ DFloat a ] -> bigint (Math.Truncate a) |> DInt |> Value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
       deprecated = NotDeprecated } ]
