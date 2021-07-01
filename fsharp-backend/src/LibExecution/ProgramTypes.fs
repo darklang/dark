@@ -218,7 +218,7 @@ type Expr =
     | ELeftPartial (id, _, oldExpr) -> RT.EPartial(id, r oldExpr)
     | EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapItem2 r) pairs)
-    | EPipe (id, expr1, expr2, rest) ->
+    | EPipe (pipeID, expr1, expr2, rest) ->
         // Convert v |> fn1 a |> fn2 |> fn3 b c
         // into fn3 (fn2 (fn1 v a)) b c
         // This conversion should correspond to ast.ml:inject_param_and_execute
@@ -235,7 +235,7 @@ type Expr =
                   id,
                   RT.EFQFnValue(ptID, name),
                   prev :: List.map r exprs,
-                  RT.InPipe,
+                  RT.InPipe pipeID,
                   rail.toRuntimeType ()
                 )
             // TODO: support currying
@@ -244,14 +244,20 @@ type Expr =
                   id,
                   RT.EFQFnValue(ptID, name),
                   [ prev; r expr2 ],
-                  RT.InPipe,
+                  RT.InPipe pipeID,
                   rail.toRuntimeType ()
                 )
             // If there's a hole, run the computation right through it as if it wasn't there
             | EBlank _ -> prev
             // Here, the expression evaluates to an FnValue. This is for eg variables containing values
             | other ->
-                RT.EApply(id, r other, [ prev ], RT.InPipe, NoRail.toRuntimeType ()))
+                RT.EApply(
+                  pipeID,
+                  r other,
+                  [ prev ],
+                  RT.InPipe pipeID,
+                  NoRail.toRuntimeType ()
+                ))
           (expr2 :: rest)
 
     | EConstructor (id, name, exprs) -> RT.EConstructor(id, name, List.map r exprs)
