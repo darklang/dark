@@ -266,7 +266,7 @@ window.Dark = {
       } else {
         // an analysis is waiting, run it
         analysis.next = null;
-        worker.postMessage(params);
+        worker.postMessage(1, params);
       }
 
       analysis.lastRun = new Date();
