@@ -366,6 +366,8 @@ window.Dark = {
           "System.Runtime.Serialization.Formatters.dll",
           "System.Runtime.Serialization.Primitives.dll",
           "System.Runtime.dll",
+          "System.Security.Cryptography.Algorithms.dll",
+          "System.Security.Cryptography.Primitives.dll",
           "System.Text.RegularExpressions.dll",
           "System.Threading.Tasks.Extensions.dll",
           "System.Threading.Tasks.dll",
