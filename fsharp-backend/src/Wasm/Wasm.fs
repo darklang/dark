@@ -35,6 +35,10 @@ module OCamlInterop =
       user_tipes : ORT.user_tipe list
       secrets : OT.secret list }
 
+  type performAnalysisParams =
+    | AnalyzeHandler of handler_analysis_param // called performHandlerAnalysisParam in the client
+    | AnalyzeFunction of function_analysis_param // called performHandlerFunctionParam in the client
+
   type ExecutionResult =
     | ExecutedResult of ORT.dval
     | NonExecutedResult of ORT.dval
@@ -74,35 +78,34 @@ module Eval =
     LibExecution.StdLib.StdLib.fns
     |> Tablecloth.Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
-
-  // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
-  // or DotNet.invokeMethodAsync('Wasm', 'run', 8)
-  [<Microsoft.JSInterop.JSInvokable>]
-  let performHandlerAnalysis (str : string) : Task<string> =
+  let runAnalysis
+    (tlid : tlid)
+    (traceID : AT.TraceID)
+    (traceData : AT.TraceData)
+    (userFns : List<ORT.fluidExpr ORT.user_fn>)
+    (userTypes : List<ORT.user_tipe>)
+    (dbs : List<ORT.fluidExpr ORT.DbT.db>)
+    (expr : ORT.fluidExpr)
+    : Task<string> =
     task {
       try
-        let args =
-          Json.OCamlCompatible.deserialize<OCamlInterop.handler_analysis_param> str
-
-        let traceID = args.trace_id
-
         let program : RT.ProgramContext =
           { accountID = System.Guid.NewGuid()
             canvasID = System.Guid.NewGuid()
             userFns =
-              args.user_fns
+              userFns
               |> List.map OT.Convert.ocamlUserFunction2PT
               |> List.map PT.UserFunction.toRuntimeType
               |> List.map (fun fn -> fn.name, fn)
               |> Map
             userTypes =
-              args.user_tipes
+              userTypes
               |> List.map OT.Convert.ocamlUserType2PT
               |> List.map PT.UserType.toRuntimeType
               |> List.map (fun t -> (t.name, t.version), t)
               |> Map
             dbs =
-              args.dbs
+              dbs
               |> List.map (OT.Convert.ocamlDB2PT { x = 0; y = 0 })
               |> List.map PT.DB.toRuntimeType
               |> List.map (fun t -> t.name, t)
@@ -112,17 +115,17 @@ module Eval =
         // FSTODO: get packages from caller
         let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
         let dvalResults, traceDvalFn = Exe.traceDvals ()
-        let functionResults = args.trace_data.function_results
+        let functionResults = traceData.function_results
 
         let tracing =
           { LibExecution.Execution.noTracing RT.Preview with
               traceDval = traceDvalFn
               loadFnResult = loadFromTrace functionResults }
 
-        let state = Exe.createState libraries tracing args.handler.tlid program
+        let state = Exe.createState libraries tracing tlid program
 
-        let ast = (args.handler.ast |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
-        let inputVars = Map args.trace_data.input
+        let ast = (expr |> OT.Convert.ocamlExpr2PT).toRuntimeType ()
+        let inputVars = Map traceData.input
         let! (_result : RT.Dval) = Exe.executeExpr state inputVars ast
 
 
@@ -146,3 +149,30 @@ module Eval =
         System.Console.WriteLine(string e)
         return "error"
     }
+
+  // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
+  // or DotNet.invokeMethodAsync('Wasm', 'run', 8)
+  [<Microsoft.JSInterop.JSInvokable>]
+  let performAnalysis (str : string) : Task<string> =
+    let args =
+      Json.OCamlCompatible.deserialize<OCamlInterop.performAnalysisParams> str
+
+    match args with
+    | OCamlInterop.AnalyzeHandler ah ->
+        runAnalysis
+          ah.handler.tlid
+          ah.trace_id
+          ah.trace_data
+          ah.user_fns
+          ah.user_tipes
+          ah.dbs
+          ah.handler.ast
+    | OCamlInterop.AnalyzeFunction af ->
+        runAnalysis
+          af.func.tlid
+          af.trace_id
+          af.trace_data
+          af.user_fns
+          af.user_tipes
+          af.dbs
+          af.func.ast

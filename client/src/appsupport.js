@@ -287,9 +287,14 @@ window.Dark = {
       // OCaml would take a value that would be converted on the other side of
       // the worker, we need to stringify here to get the value to the worker.
       params = analysis.utils.stringifyInput(params);
+      if (params.responseType === "error") {
+        console.log("error calling F# analysis", params.json, params);
+      } else {
+        params = params.json;
+      }
 
-      // analysis queue: run immediately or store if busy
       if (analysis.busy) {
+        // analysis queue: run immediately or store if busy
         // busy: record for next time
         analysis.next = params;
       } else {

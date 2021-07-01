@@ -515,6 +515,14 @@ and performFunctionAnalysisParams (params : Types.performFunctionAnalysisParams)
     ; ("user_tipes", list userTipe params.userTipes)
     ; ("secrets", list secret params.secrets) ]
 
+and performAnalysisParams (params : Types.performAnalysisParams)
+    : Js.Json.t =
+  let ev = variant in
+  match params with
+  | AnalyzeHandler h ->
+      ev "AnalyzeHandler" [performHandlerAnalysisParams h]
+  | AnalyzeFunction h ->
+      ev "AnalyzeFunction" [performFunctionAnalysisParams h]
 
 and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
