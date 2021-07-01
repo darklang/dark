@@ -110,6 +110,12 @@ Float.multiply_v0 26.0 0.5 = 13.0
 Float.power_v0 4.0 -0.5 = 0.5
 Float.power_v0 4.0 0.5 = 2.0
 
+Float.roundTowardsZero -2367.9267 = -2367
+Float.roundTowardsZero 000000.9 = 0
+Float.roundTowardsZero -000000.9 = 0
+Float.roundTowardsZero 0.0 = 0
+Float.roundTowardsZero 2147483647.000009 = 2147483647
+
 Float.sqrt_v0 25.0 = 5.0
 Float.sqrt_v0 0.0 = 0.0
 //Float.sqrt_v0 111111111111111111111111111111111111111111.1 = 333333333333333400000 // Ocaml accepts this large number
