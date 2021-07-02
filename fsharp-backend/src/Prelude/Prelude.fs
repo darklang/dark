@@ -587,7 +587,11 @@ module Json =
       override _.ReadJson(reader, destinationType, _, serializer : JsonSerializer) =
         match reader.TokenType with
         | JsonToken.StartArray -> ()
-        | _ -> failwith "Incorrect starting token for union: should be array"
+        | _ ->
+            failwith (
+              "Incorrect starting token for union, should be array, was "
+              + $"{reader.TokenType}, with type {destinationType}"
+            )
 
         let caseName : string =
           reader.Read() |> ignore

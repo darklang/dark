@@ -14,13 +14,60 @@ module OT = LibExecution.OCamlTypes
 module ORT = LibExecution.OCamlTypes.RuntimeT
 module DvalRepr = LibExecution.DvalRepr
 
-module OCamlInterop =
+module ClientInterop =
+  // CLEANUP There is a subtly different definition of DBs, which is that the
+  // type should be a DType, but the client gives us a string instead.
+
+  type client_col = string OT.or_blank * string OT.or_blank
+
+  type client_db_migration =
+    { starting_version : int64
+      version : int64
+      state : ORT.DbT.db_migration_state
+      rollforward : ORT.fluidExpr
+      rollback : ORT.fluidExpr
+      cols : client_col list }
+
+  type client_db =
+    { tlid : tlid
+      name : string OT.or_blank
+      cols : client_col list
+      version : int64
+      old_migrations : client_db_migration list
+      active_migration : client_db_migration option }
+
+  let convert_col ((name, tipe) : client_col) : ORT.DbT.col =
+    match tipe with
+    | OT.Blank id -> (name, OT.Blank id)
+    | OT.Partial (id, str) -> (name, OT.Partial(id, str))
+    | OT.Filled (id, tipe) ->
+        (name, (OT.Filled(id, PT.DType.parse tipe |> OT.Convert.pt2ocamlTipe)))
+
+  let convert_migration
+    (m : client_db_migration)
+    : ORT.fluidExpr ORT.DbT.db_migration =
+    { starting_version = m.starting_version
+      version = m.version
+      state = m.state
+      rollforward = m.rollforward
+      rollback = m.rollback
+      cols = List.map convert_col m.cols }
+
+
+  let convert_db (db : client_db) : ORT.fluidExpr ORT.DbT.db =
+    { tlid = db.tlid
+      name = db.name
+      cols = List.map convert_col db.cols
+      version = db.version
+      old_migrations = List.map convert_migration db.old_migrations
+      active_migration = Option.map convert_migration db.active_migration }
+
   type handler_analysis_param =
     { handler : ORT.fluidExpr ORT.HandlerT.handler
       trace_id : AT.TraceID
       trace_data : AT.TraceData
       (* dont use a trace as this isn't optional *)
-      dbs : ORT.fluidExpr ORT.DbT.db list
+      dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
       user_tipes : ORT.user_tipe list
       secrets : OT.secret list }
@@ -30,7 +77,7 @@ module OCamlInterop =
       trace_id : AT.TraceID
       trace_data : AT.TraceData
       (* dont use a trace as this isn't optional *)
-      dbs : ORT.fluidExpr ORT.DbT.db list
+      dbs : client_db list
       user_fns : ORT.fluidExpr ORT.user_fn list
       user_tipes : ORT.user_tipe list
       secrets : OT.secret list }
@@ -86,7 +133,7 @@ module Eval =
     (userTypes : List<ORT.user_tipe>)
     (dbs : List<ORT.fluidExpr ORT.DbT.db>)
     (expr : ORT.fluidExpr)
-    : Task<OCamlInterop.AnalysisEnvelope> =
+    : Task<ClientInterop.AnalysisEnvelope> =
     task {
       let program : RT.ProgramContext =
         { accountID = System.Guid.NewGuid()
@@ -136,9 +183,9 @@ module Eval =
                k,
                match v with
                | AT.ExecutedResult dv ->
-                   OCamlInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
+                   ClientInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
                | AT.NonExecutedResult dv ->
-                   OCamlInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
+                   ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
         |> Dictionary.fromList
 
       return (traceID, ocamlResults)
@@ -151,27 +198,27 @@ module Eval =
     task {
       try
         let args =
-          Json.OCamlCompatible.deserialize<OCamlInterop.performAnalysisParams> str
+          Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams> str
 
-        let! (result : OCamlInterop.AnalysisEnvelope) =
+        let! (result : ClientInterop.AnalysisEnvelope) =
           match args with
-          | OCamlInterop.AnalyzeHandler ah ->
+          | ClientInterop.AnalyzeHandler ah ->
               runAnalysis
                 ah.handler.tlid
                 ah.trace_id
                 ah.trace_data
                 ah.user_fns
                 ah.user_tipes
-                ah.dbs
+                (List.map ClientInterop.convert_db ah.dbs)
                 ah.handler.ast
-          | OCamlInterop.AnalyzeFunction af ->
+          | ClientInterop.AnalyzeFunction af ->
               runAnalysis
                 af.func.tlid
                 af.trace_id
                 af.trace_data
                 af.user_fns
                 af.user_tipes
-                af.dbs
+                (List.map ClientInterop.convert_db af.dbs)
                 af.func.ast
 
         return Ok result
