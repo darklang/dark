@@ -106,11 +106,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let! args = List.map_s (eval state st) exprs
         let! result = applyFn state id fnVal (Seq.toList args) inPipe ster
 
-        // Pipes have been removed at this point, but the editor still needs to
-        // show a value for the pipe
-        // CLEANUP: instead of saving this, fetch it in the right place (the
-        // last pipe entry) in the editor
         do
+          // Pipes have been removed at this point, but the editor still needs to
+          // show a value for the pipe
+          // CLEANUP: instead of saving this, fetch it in the right place (the
+          // last pipe entry) in the editor
           match inPipe with
           | InPipe pipeID ->
               state.tracing.traceDval state.onExecutionPath pipeID result
