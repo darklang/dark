@@ -370,8 +370,8 @@ type TaskOrValueBuilder() =
           }
         )
 
-  member builder.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> = f ()
-// Task(task { return! TaskOrValue.toTask (f ()) }) // FSTODO - reenable
+  member builder.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
+    Task(task { return! TaskOrValue.toTask (f ()) })
 
 
 let taskv = TaskOrValueBuilder()
