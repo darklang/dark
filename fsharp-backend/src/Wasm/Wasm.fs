@@ -121,9 +121,6 @@ module Eval =
     |> Option.map (fun dv -> (dv, System.DateTime.Now))
 
 
-  let stdlib =
-    LibExecution.StdLib.StdLib.fns
-    |> Tablecloth.Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
   let runAnalysis
     (tlid : tlid)
@@ -157,6 +154,10 @@ module Eval =
             |> List.map (fun t -> t.name, t)
             |> Map
           secrets = [] }
+
+      let stdlib =
+        LibExecution.StdLib.StdLib.fns
+        |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       // FSTODO: get packages from caller
       let libraries : RT.Libraries = { stdlib = stdlib; packageFns = Map.empty }
@@ -223,7 +224,25 @@ module Eval =
 
         return Ok result
       with e ->
-        System.Console.WriteLine("Error running analysis in Blazor", str, string e)
+        System.Console.WriteLine("Error running analysis in Blazor")
+        System.Console.WriteLine(str)
+        System.Console.WriteLine(string e)
         return Error(string e)
     }
     |> Task.map Json.OCamlCompatible.serialize
+
+
+
+open BlazorWorker.WorkerCore
+
+#nowarn "988"
+
+type EvalService(messageService : IWorkerMessageService) as this =
+  do messageService.IncomingMessage.Add(this.OnMessage) |> ignore
+
+  member this.OnMessage(message : string) =
+    task {
+      let! result = Eval.performAnalysis message
+      do! messageService.PostMessageAsync result
+    }
+    |> ignore
