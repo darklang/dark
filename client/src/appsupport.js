@@ -391,7 +391,6 @@ window.Dark = {
       };
       let initInstance = {
         invokeMethod: (message, eventData) => {
-          console.log("calling invokemethod", message, eventData);
           let initMessage =
             "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitServiceResult::";
           let initInstanceMessage =
