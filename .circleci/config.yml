@@ -183,6 +183,7 @@ jobs:
             - v2-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
             - v2-client-{{ checksum "package-lock.json" }}
             - v2-client
+      - run: mkdir -p fsharp-backend/Build/out/wwwroot/_framework # dont fail when files missing
       - run: scripts/support/compile-project client --test
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
