@@ -72,12 +72,12 @@ let variants (decoders : (string * 'a decoder) list) : 'a decoder =
                   ^ ", expected one of "
                   ^ constructors ))
 
-let result (decoderOk : 'ok decoder) (decoderError : 'error decoder) : ('ok, 'error) result decoder =
-  variants [
-    ("Ok", variant1 (fun j -> Ok j) decoderOk) ;
-    ("Error", variant1 (fun j -> Error j) decoderError) ;
-  ]
 
+let result (decoderOk : 'ok decoder) (decoderError : 'error decoder) :
+    ('ok, 'error) result decoder =
+  variants
+    [ ("Ok", variant1 (fun j -> Ok j) decoderOk)
+    ; ("Error", variant1 (fun j -> Error j) decoderError) ]
 
 
 let tryDecode2 try1 try2 json = try try1 json with DecodeError _ -> try2 json
