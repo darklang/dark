@@ -82,6 +82,11 @@ def copy_static():
   start = time.time()
   return run_frontend(start, "npm run copy:static")
 
+def copy_fsharp_static():
+  start = time.time()
+  blazor = run_backend(start, "cp -f fsharp-backend/src/Wasm/static/BlazorWorker.js backend/static/")
+  wwwroot = run_backend(start, "rsync -a fsharp-backend/Build/out/wwwroot/_framework/ backend/static/blazor/")
+  return blazor and wwwroot
 
 def client_build():
   start = time.time()
@@ -333,6 +338,7 @@ class Should:
     self.client_test = False
     self.sass_compile = False
     self.copy_static = False
+    self.copy_fsharp_static = False
     self.test_nginx = False
     self.reload_browser = False
     self.reload_server = False
@@ -373,13 +379,13 @@ def execute(should):
 
   if should.fsharp_backend_full_build:
     if not fsharp_backend_full_build(): success = False
-    should.copy_static |= success
+    should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
 
   if should.fsharp_backend_quick_build:
     if not fsharp_backend_quick_build(): success = False
-    should.copy_static |= success
+    should.copy_fsharp_static |= success
     should.fsharp_backend_test |= success
     should.reload_fsharp_server |= success
 
@@ -403,6 +409,11 @@ def execute(should):
 
   if should.copy_static:
     if not copy_static(): success = False
+    should.generate_etags |= success
+    should.reload_browser |= success
+
+  if should.copy_fsharp_static:
+    if not copy_fsharp_static(): success = False
     should.generate_etags |= success
     should.reload_browser |= success
 
@@ -578,7 +589,7 @@ def mark(should, f):
     should.copy_static = True
 
   elif "/fsharp-backend/src/Wasm/static/" in f:
-    should.copy_static = True
+    should.copy_fsharp_static = True
 
   elif ("/scripts" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
