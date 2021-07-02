@@ -627,13 +627,12 @@ and execFn
                 else
                   let! result = f (state, arglist)
                   // there's no point storing data we'll never ask for
-                  // FSTODO - reenable
-                  // let! () =
-                  //   if fn.previewable <> Pure then
-                  //     state.tracing.storeFnResult fnRecord arglist result
-                  //   else
-                  //     task { return () }
-                  //
+                  let! () =
+                    if fn.previewable <> Pure then
+                      state.tracing.storeFnResult fnRecord arglist result
+                    else
+                      task { return () }
+
                   return result
             | PackageFunction (tlid, body) ->
                 // This is similar to InProcess but also has elements of UserCreated.
