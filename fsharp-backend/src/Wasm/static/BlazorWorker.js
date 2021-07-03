@@ -28,7 +28,7 @@ window.BlazorWorker = (function () {
     let endInvokeCallBack;
     const onReady = () => {
       endInvokeCallBack = Module.mono_bind_static_method(
-        initConf.endInvokeCallBackEndpoint,
+        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.JSInvokeService:EndInvokeCallBack",
       );
       const messageHandler = Module.mono_bind_static_method(
         initConf.MessageEndPoint,
@@ -275,11 +275,10 @@ window.BlazorWorker = (function () {
       }
 
       try {
-        //console.debug("endInvokeCallBack", {method, invokeId, isError, resultString})
         endInvokeCallBack(invokeId, isError, resultString);
       } catch (e) {
         console.error(
-          `BlazorWorker: beginInvokeAsync: Callback to ${initConf.endInvokeCallBackEndpoint} failed. Method: ${method}, args: ${argsString}`,
+          `BlazorWorker: beginInvokeAsync: Callback to endInvokeCallBackEndpoint failed. Method: ${method}, args: ${argsString}`,
           e,
         );
         throw e;
@@ -318,7 +317,6 @@ window.BlazorWorker = (function () {
       deploy_prefix: initOptions.deployPrefix,
       MessageEndPoint: initOptions.messageEndPoint,
       InitEndPoint: initOptions.initEndPoint,
-      endInvokeCallBackEndpoint: initOptions.endInvokeCallBackEndpoint,
       wasmRoot: initOptions.wasmRoot,
       blazorBoot: `${initOptions.wasmRoot}/blazor.boot.json`,
       debug: initOptions.debug,

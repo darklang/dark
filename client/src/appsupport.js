@@ -309,8 +309,6 @@ window.Dark = {
       const conf = {
         callbackMethod: "OnMessage",
         debug: false,
-        endInvokeCallBackEndpoint:
-          "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.JSInvokeService:EndInvokeCallBack",
         deployPrefix: "blazor",
         initEndPoint:
           "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService:Init",
