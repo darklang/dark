@@ -31,21 +31,20 @@ window.BlazorWorker = (function () {
         "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.JSInvokeService:EndInvokeCallBack",
       );
       const messageHandler = Module.mono_bind_static_method(
-        initConf.MessageEndPoint,
+        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.MessageService:OnMessage"
       );
       // Future messages goes directly to the message handler
       self.onmessage = msg => {
         messageHandler(msg.data);
       };
 
-      if (!initConf.InitEndPoint) {
-        return;
-      }
+      let initEndPoint =
+        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService:Init";
 
       try {
-        Module.mono_call_static_method(initConf.InitEndPoint, []);
+        Module.mono_call_static_method(initEndPoint, []);
       } catch (e) {
-        console.error(`Init method ${initConf.InitEndPoint} failed`, e);
+        console.error("Init method initEndPoint failed", e);
         throw e;
       }
     };
@@ -315,8 +314,6 @@ window.BlazorWorker = (function () {
     const initConf = {
       appRoot: appRoot,
       deploy_prefix: initOptions.deployPrefix,
-      MessageEndPoint: initOptions.messageEndPoint,
-      InitEndPoint: initOptions.initEndPoint,
       wasmRoot: initOptions.wasmRoot,
       blazorBoot: `${initOptions.wasmRoot}/blazor.boot.json`,
       debug: initOptions.debug,
@@ -343,7 +340,6 @@ window.BlazorWorker = (function () {
       if (initOptions.debug) {
         console.debug(
           `BlazorWorker.js:worker[${id}]->blazor`,
-          initOptions.callbackMethod,
           ev.data,
         );
       }

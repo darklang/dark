@@ -307,13 +307,8 @@ window.Dark = {
     initializeBlazorWorker: function () {
       const analysis = window.Dark.fsharpAnalysis;
       const conf = {
-        callbackMethod: "OnMessage",
         debug: false,
         deployPrefix: "blazor",
-        initEndPoint:
-          "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService:Init",
-        messageEndPoint:
-          "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.MessageService:OnMessage",
         useConventionalServiceAssembly: true,
         wasmRoot: "blazor",
       };
