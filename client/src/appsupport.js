@@ -250,10 +250,10 @@ window.Dark = {
     /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
     lastRun: 0,
     utils: require("../../lib/js/client/workers/FSharpAnalysisWrapper.bs.js"),
-    callback: function (result) {
+    callback: function (event) {
       const analysis = window.Dark.fsharpAnalysis;
       const worker = window.BlazorWorker;
-      var result = analysis.utils.decodeOutput(result);
+      var result = analysis.utils.decodeOutput(event.data);
 
       var event = new CustomEvent("receiveAnalysis", { detail: result });
       document.dispatchEvent(event);
@@ -319,26 +319,16 @@ window.Dark = {
         useConventionalServiceAssembly: true,
         wasmRoot: "blazor",
       };
-      let initInstance = {
-        invokeMethod: (message, eventData) => {
-          let initMessage =
-            "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitServiceResult::";
-          let initInstanceMessage =
-            "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstanceResult::|1|1||";
-          let evalServiceMessage =
-            "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstance::|1|3|Wasm.EvalService|Wasm, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null";
-
-          if (eventData.startsWith(initMessage)) {
-            window.BlazorWorker.postMessage(1, evalServiceMessage);
-          } else if (eventData.startsWith(initInstanceMessage)) {
-            console.log("Blazor loaded");
-            analysis.initialized = true;
-          } else {
-            analysis.callback(eventData);
-          }
-        },
+      let initializedCallback = () => {
+        console.log("Blazor loaded");
+        analysis.initialized = true;
       };
-      window.BlazorWorker.initWorker(1, initInstance, conf);
+      window.BlazorWorker.initWorker(
+        1,
+        initializedCallback,
+        analysis.callback,
+        conf,
+      );
     },
   },
   analysis: {

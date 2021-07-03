@@ -302,7 +302,7 @@ window.BlazorWorker = (function () {
 
   const inlineWorker = `self.onmessage = ${workerDef}()`;
 
-  const initWorker = function (id, callbackInstance, initOptions) {
+  const initWorker = function (id, initCallback, onMessageCallback, initOptions) {
     let appRoot =
       (
         document.getElementsByTagName("base")[0] || {
@@ -349,7 +349,20 @@ window.BlazorWorker = (function () {
           ev.data,
         );
       }
-      callbackInstance.invokeMethod(initOptions.callbackMethod, ev.data);
+      let initMessage =
+        "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitServiceResult::";
+      let initInstanceMessage =
+        "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstanceResult::|1|1||";
+      let evalServiceMessage =
+        "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstance::|1|3|Wasm.EvalService|Wasm, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null";
+
+      if (ev.data.startsWith(initMessage)) {
+        window.BlazorWorker.postMessage(1, evalServiceMessage);
+      } else if (ev.data.startsWith(initInstanceMessage)) {
+        initCallback();
+      } else {
+        onMessageCallback(ev);
+      }
     };
   };
 
