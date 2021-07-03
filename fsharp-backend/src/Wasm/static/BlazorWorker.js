@@ -120,7 +120,7 @@ window.BlazorWorker = (function () {
       MONO.loaded_files = [];
       var baseUrl = `${initConf.appRoot}/${initConf.deploy_prefix}`;
 
-      initConf.DependentAssemblyFilenames.forEach(url => {
+      Object.keys(Module.blazorboot.resources.assembly).forEach(url => {
         if (!blazorBootManifest.resources.assembly.hasOwnProperty(url)) {
           //Do not attempt to load a dll which is not present anyway
           nonExistingDlls.push(url);
@@ -183,6 +183,7 @@ window.BlazorWorker = (function () {
     // (PWA et al) do this already if configured ?
     asyncLoad(`${initConf.appRoot}/${initConf.blazorBoot}`, "json").then(
       blazorboot => {
+        Module.blazorboot = blazorboot;
         blazorBootManifest = blazorboot;
         let dotnetjsfilename = "";
         const runttimeSection = blazorboot.resources.runtime;
@@ -314,7 +315,6 @@ window.BlazorWorker = (function () {
 
     const initConf = {
       appRoot: appRoot,
-      DependentAssemblyFilenames: initOptions.dependentAssemblyFilenames,
       deploy_prefix: initOptions.deployPrefix,
       MessageEndPoint: initOptions.messageEndPoint,
       InitEndPoint: initOptions.initEndPoint,
