@@ -442,6 +442,31 @@ module List =
       (Value None)
       list
 
+  let filter_map
+    (f : 'a -> TaskOrValue<Option<'b>>)
+    (list : List<'a>)
+    : TaskOrValue<List<'b>> =
+    taskv {
+      let! filtered =
+        List.fold
+          (fun (accum : TaskOrValue<List<'b>>) (arg : 'a) ->
+            taskv {
+              let! (accum : List<'b>) = accum
+              let! keep = f arg
+
+              let result =
+                match keep with
+                | Some v -> v :: accum
+                | None -> accum
+
+              return result
+            })
+          (Value [])
+          list
+
+      return List.rev filtered
+    }
+
 module Map =
   let map_s
     (f : 'a -> TaskOrValue<'b>)

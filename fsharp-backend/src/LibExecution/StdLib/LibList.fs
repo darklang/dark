@@ -16,6 +16,7 @@ let err (str : string) = Value(Dval.errStr str)
 
 let varA = TVariable "a"
 let varB = TVariable "b"
+let varC = TVariable "c"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "List" "singleton" 0
@@ -402,23 +403,36 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "uniqueBy" 0
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let fn dv = Ast.execute_dblock ~state b [dv] in
-//               DList
-//                 (List.dedup_and_sort l (fun a b ->
-//                      compare_dval (fn a) (fn b)))
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "uniqueBy" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+      returnType = TList varA
+      description =
+        "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained."
+      fn =
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let! projected =
+                List.map_s
+                  (fun dv ->
+                    taskv {
+                      let! key =
+                        Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+
+                      return (dv, key)
+                    })
+                  l
+
+              let distinct = List.distinctBy snd projected
+
+              return distinct |> List.sortBy fst |> List.map fst |> DList
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "isEmpty" 0
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TBool
@@ -734,52 +748,62 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "filterMap" 0
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Calls `f` on every `val` in `list`, returning a new list that drops some values (filter) and transforms others (map).
-//         If `f val` returns `Nothing`, drops `val` from the list.
-//         If `f val` returns `Just newValue`, replaces `val` with `newValue`.
-//         Preserves the order of values that were not dropped.
-//         This function combines `List::filter` and `List::map`."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let abortReason = ref None in
-//               let f (dv : dval) : dval option =
-//                 if !abortReason = None
-//                 then (
-//                   match Ast.execute_dblock ~state b [dv] with
-//                   | DOption (OptJust o) ->
-//                       Some o
-//                   | DOption OptNothing ->
-//                       None
-//                   | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-//                       abortReason := Some dv ;
-//                       None
-//                   | v ->
-//                       abortReason :=
-//                         Some
-//                           (DError
-//                              ( SourceNone
-//                              , "Expected the argument `f` passed to `"
-//                                ^ state.executing_fnname
-//                                ^ "` to return `Just` or `Nothing` for every value in `list`. However, it returned `"
-//                                ^ Dval.to_developer_repr_v0 v
-//                                ^ "` for the input `"
-//                                ^ Dval.to_developer_repr_v0 dv
-//                                ^ "`." )) ;
-//                       None )
-//                 else None
-//               in
-//               let result = List.filter_map ~f l in
-//               (match !abortReason with None -> DList result | Some v -> v)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "filterMap" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], TOption varB)) "" [ "val" ] ]
+      returnType = TList varB
+      description = "Calls `f` on every `val` in `list`, returning a new list that drops some values (filter) and transforms others (map).
+        If `f val` returns `Nothing`, drops `val` from the list.
+        If `f val` returns `Just newValue`, replaces `val` with `newValue`.
+        Preserves the order of values that were not dropped.
+        This function combines `List::filter` and `List::map`."
+      fn =
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let abortReason = ref None
+
+              let f (dv : Dval) : TaskOrValue<Dval option> =
+                taskv {
+                  let run = !abortReason = None
+
+                  if run then
+                    let! result =
+                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+
+                    match result with
+                    | DOption (Some o) -> return Some o
+                    | DOption None -> return None
+                    | (DIncomplete _
+                    | DErrorRail _
+                    | DError _) as dv ->
+                        abortReason := Some dv
+                        return None
+                    | v ->
+                        Errors.throw (
+                          Errors.argumentWasnt
+                            "`Just` or `Nothing` for every value in `list`"
+                            "f"
+                            v
+                          + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
+                        )
+
+                        return None
+                  else
+                    return None
+                }
+
+              let! result = List.filter_map f l
+
+              match !abortReason with
+              | None -> return DList result
+              | Some v -> return v
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "drop" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
@@ -794,51 +818,68 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "dropWhile" 0
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Drops the longest prefix of `list` which satisfies the predicate `val`"
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let abortReason = ref None in
-//               let rec f = function
-//                 | [] ->
-//                     []
-//                 | dv :: dvs ->
-//                     if !abortReason = None
-//                     then (
-//                       match Ast.execute_dblock ~state b [dv] with
-//                       | DBool true ->
-//                           f dvs
-//                       | DBool false ->
-//                           dv :: dvs
-//                       | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-//                           abortReason := Some dv ;
-//                           []
-//                       | v ->
-//                           abortReason :=
-//                             Some
-//                               (DError
-//                                  ( SourceNone
-//                                  , "Expected the argument `f` passed to `"
-//                                    ^ state.executing_fnname
-//                                    ^ "` to return a boolean value for every value in `list`. However, it returned `"
-//                                    ^ Dval.to_developer_repr_v0 v
-//                                    ^ "` for the input `"
-//                                    ^ Dval.to_developer_repr_v0 dv
-//                                    ^ "`." )) ;
-//                           [] )
-//                     else []
-//               in
-//               let result = f l in
-//               (match !abortReason with None -> DList result | Some v -> v)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "dropWhile" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
+      returnType = TList varB
+      description =
+        "Drops the longest prefix of `list` which satisfies the predicate `val`"
+      fn =
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let abortReason = ref None
+
+              let rec f : List<Dval> -> TaskOrValue<List<Dval>> =
+                function
+                | [] -> Value []
+                | dv :: dvs ->
+                    taskv {
+                      let run = !abortReason = None
+
+                      if run then
+                        let! result =
+                          Interpreter.applyFnVal
+                            state
+                            (id 0)
+                            b
+                            [ dv ]
+                            NotInPipe
+                            NoRail
+
+                        match result with
+                        | DBool true -> return! f dvs
+                        | DBool false -> return dv :: dvs
+                        | (DIncomplete _
+                        | DErrorRail _
+                        | DError _) as dv ->
+                            abortReason := Some dv
+                            return []
+                        | v ->
+                            Errors.throw (
+                              Errors.argumentWasnt
+                                "boolean value for every value in `list`"
+                                "f"
+                                v
+                              + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
+                            )
+
+                            return []
+                      else
+                        return []
+                    }
+
+              let! result = f l
+
+              match !abortReason with
+              | None -> return DList result
+              | Some v -> return v
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "take" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
@@ -853,51 +894,70 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "takeWhile" 0
-//     ; parameters = [Param.make "list" TList ""; func ["val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Return the longest prefix of `list` which satisfies the predicate `val`"
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let abortReason = ref None in
-//               let rec f = function
-//                 | [] ->
-//                     []
-//                 | dv :: dvs ->
-//                     if !abortReason = None
-//                     then (
-//                       match Ast.execute_dblock ~state b [dv] with
-//                       | DBool true ->
-//                           dv :: f dvs
-//                       | DBool false ->
-//                           []
-//                       | (DIncomplete _ | DErrorRail _ | DError _) as dv ->
-//                           abortReason := Some dv ;
-//                           []
-//                       | v ->
-//                           abortReason :=
-//                             Some
-//                               (DError
-//                                  ( SourceNone
-//                                  , "Expected the argument `f` passed to `"
-//                                    ^ state.executing_fnname
-//                                    ^ "` to return a boolean value for every value in `list`. However, it returned `"
-//                                    ^ Dval.to_developer_repr_v0 v
-//                                    ^ "` for the input `"
-//                                    ^ Dval.to_developer_repr_v0 dv
-//                                    ^ "`." )) ;
-//                           [] )
-//                     else []
-//               in
-//               let result = f l in
-//               (match !abortReason with None -> DList result | Some v -> v)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "takeWhile" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+      returnType = TList varA
+      description =
+        "Return the longest prefix of `list` which satisfies the predicate `val`"
+      fn =
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let abortReason = ref None
+
+              let rec f : List<Dval> -> TaskOrValue<List<Dval>> =
+                function
+                | [] -> Value []
+                | dv :: dvs ->
+                    taskv {
+                      let run = !abortReason = None
+
+                      if run then
+                        let! result =
+                          Interpreter.applyFnVal
+                            state
+                            (id 0)
+                            b
+                            [ dv ]
+                            NotInPipe
+                            NoRail
+
+                        match result with
+                        | DBool true ->
+                            let! tail = f dvs
+                            return dv :: tail
+                        | DBool false -> return []
+                        | (DIncomplete _
+                        | DErrorRail _
+                        | DError _) as dv ->
+                            abortReason := Some dv
+                            return []
+                        | v ->
+                            Errors.throw (
+                              Errors.argumentWasnt
+                                "boolean value for every value in `list`"
+                                "f"
+                                v
+                              + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
+                            )
+
+                            return []
+                      else
+                        return []
+                    }
+
+              let! result = f l
+
+              match !abortReason with
+              | None -> return DList result
+              | Some v -> return v
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "foreach" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -945,73 +1005,112 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "indexedMap" 0
-//     ; parameters = [Param.make "list" TList ""; func ["index"; "val"]]
-//     ; returnType = TList
-//     ; description =
-//         "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
-//         Consider `List::map` if you don't need the index."
-//     ; fn =
-//           (function
-//           | state, [DList l; DFnVal b] ->
-//               let f (idx : int) (dv : dval) : dval =
-//                 Ast.execute_dblock ~state b [Dval.dint idx; dv]
-//               in
-//               Dval.to_list (List.mapi ~f l)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "map2shortest" 0
-//     ; parameters = [Param.make "as" TList ""; Param.make "bs" TList ""; func ["a"; "b"]]
-//     ; returnType = TList
-//     ; description =
-//         {|Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of values from `as` and `bs`.
-//         If the lists differ in length, values from the longer list are dropped.
-//         For example, if `as` is `[1,2]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y")]`.
-//         Use `List::map2` if you want to enforce equivalent lengths for `as` and `bs`.|}
-//     ; fn =
-//           (function
-//           | state, [DList l1; DList l2; DFnVal b] ->
-//               (* We have to do this munging because OCaml's map2 enforces lists of the same length *)
-//               let len = min (List.length l1) (List.length l2) in
-//               let l1 = List.take l1 len in
-//               let l2 = List.take l2 len in
-//               let f (l1Item : dval) (l2Item : dval) : dval =
-//                 Ast.execute_dblock ~state b [l1Item; l2Item]
-//               in
-//               Dval.to_list (List.map2_exn ~f l1 l2)
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
-//   ; { name = fn "List" "map2" 0
-//     ; parameters = [Param.make "as" TList ""; Param.make "bs" TList ""; func ["a"; "b"]]
-//     ; returnType = TOption
-//     ; description =
-//         {|If the lists are the same length, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
-//          calling `f a b` on every pair of values from `as` and `bs`.
-//          For example, if `as` is `[1,2,3]` and `bs` is `["x","y","z"]`, returns `[(f 1 "x"), (f 2 "y"), (f 3 "z")]`.
-//          If the lists differ in length, returns `Nothing` (consider `List::map2shortest` if you want to drop values from the longer list instead).|}
-//     ; fn =
-//           (function
-//           | state, [DList l1; DList l2; DFnVal b] ->
-//               let f (l1Item : dval) (l2Item : dval) : dval =
-//                 Ast.execute_dblock ~state b [l1Item; l2Item]
-//               in
-//               DOption
-//                 ( match List.map2 ~f l1 l2 with
-//                 | Ok res ->
-//                     OptJust (Dval.to_list res)
-//                 | Unequal_lengths ->
-//                     OptNothing )
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "indexedMap" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ TInt; varA ], varB)) "" [ "index"; "val" ] ]
+      returnType = TList varB
+      description = "Calls `f` on every `val` and its `index` in `list`, returning a list of the results of those calls.
+        Consider `List::map` if you don't need the index."
+      fn =
+        (function
+        | state, [ DList l; DFnVal b ] ->
+            taskv {
+              let list = List.mapi (fun i v -> (i, v)) l
+
+              let! result =
+                List.map_s
+                  (fun ((i, dv) : int * Dval) ->
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ DInt(bigint i); dv ]
+                      NotInPipe
+                      NoRail)
+                  list
+
+              return Dval.list result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "List" "map2shortest" 0
+      parameters =
+        [ Param.make "as" (TList varA) ""
+          Param.make "bs" (TList varB) ""
+          Param.makeWithArgs "f" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
+      returnType = TList varC
+      description = "Maps `f` over `as` and `bs` in parallel, calling `f a b` on every pair of values from `as` and `bs`.
+        If the lists differ in length, values from the longer list are dropped.
+        For example, if `as` is `[1,2]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[(f 1 \"x\"), (f 2 \"y\")]`.
+        Use `List::map2` if you want to enforce equivalent lengths for `as` and `bs`."
+      fn =
+        (function
+        | state, [ DList l1; DList l2; DFnVal b ] ->
+            taskv {
+              let len = min (List.length l1) (List.length l2)
+              let l1 = List.take (int len) l1
+              let l2 = List.take (int len) l2
+
+              let list = List.zip l1 l2
+
+              let! result =
+                List.map_s
+                  (fun ((dv1, dv2) : Dval * Dval) ->
+                    Interpreter.applyFnVal
+                      state
+                      (id 0)
+                      b
+                      [ dv1; dv2 ]
+                      NotInPipe
+                      NoRail)
+                  list
+
+              return Dval.list result
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
+    { name = fn "List" "map2" 0
+      parameters =
+        [ Param.make "as" (TList varA) ""
+          Param.make "bs" (TList varB) ""
+          Param.makeWithArgs "f" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
+      returnType = TOption varC
+      description = "If the lists are the same length, returns `Just list` formed by mapping `f` over `as` and `bs` in parallel,
+         calling `f a b` on every pair of values from `as` and `bs`.
+         For example, if `as` is `[1,2,3]` and `bs` is `[\"x\",\"y\",\"z\"]`, returns `[(f 1 \"x\"), (f 2 \"y\"), (f 3 \"z\")]`.
+         If the lists differ in length, returns `Nothing` (consider `List::map2shortest` if you want to drop values from the longer list instead)."
+      fn =
+        (function
+        | state, [ DList l1; DList l2; DFnVal b ] ->
+            taskv {
+              if List.length l1 <> List.length l2 then
+                return DOption None
+              else
+                let list = List.zip l1 l2
+
+                let! result =
+                  List.map_s
+                    (fun ((dv1, dv2) : Dval * Dval) ->
+                      Interpreter.applyFnVal
+                        state
+                        (id 0)
+                        b
+                        [ dv1; dv2 ]
+                        NotInPipe
+                        NoRail)
+                    list
+
+                return DOption(Some(Dval.list result))
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "zipShortest" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
