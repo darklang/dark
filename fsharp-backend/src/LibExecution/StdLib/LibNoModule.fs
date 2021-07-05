@@ -64,82 +64,73 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
       deprecated = NotDeprecated }
-    // ; { name = fn "" "assoc" 0
-//   ; parameters = [Param.make "obj" TObj ""; Param.make "key" TStr ""; Param.make "val" varA ""]
-//   ; returnType = TObj
-//   ; description = "Return a copy of `obj` with the `key` set to `val`."
-//   ; fn =
-//         (function
-//         | _, [DObj o; DStr k; v] ->
-//             DObj (Map.set o (Unicode_string.to_string k) v)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "" "dissoc" 0
-//   ; parameters = [Param.make "obj" TObj ""; Param.make "key" TStr ""]
-//   ; returnType = TObj
-//   ; description = "Return a copy of `obj` with `key` unset."
-//   ; fn =
-//         (function
-//         | _, [DObj o; DStr k] ->
-//             DObj (Map.remove o (Unicode_string.to_string k))
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "" "toForm" 0
-//   ; parameters = [Param.make "obj" TObj ""; Param.make "submit" TStr ""]
-//   ; returnType = TStr
-//   ; description =
-//       "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
-//   ; fn =
-//         (function
-//         | _, [DObj o; DStr uri] ->
-//             let fmt =
-//               format_of_string
-//                 "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
-//             in
-//             let to_input (k, v) =
-//               let label =
-//                 Printf.sprintf "<label for=\"%s\">%s:</label>" k k
-//               in
-//               let input =
-//                 Printf.sprintf
-//                   "<input id=\"%s\" type=\"text\" name=\"%s\">"
-//                   k
-//                   k
-//               in
-//               label ^ "\n" ^ input
-//             in
-//             let inputs =
-//               o
-//               |> Map.to_alist
-//               |> List.map to_input
-//               |> String.concat "\n"
-//             in
-//             DStr
-//               (Printf.sprintf fmt (Unicode_string.to_string uri) inputs)
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
-// ; { name = fn "Error" "toString" 0
-//   ; parameters = [Param.make "err" TError ""]
-//   ; returnType = TStr
-//   ; description = "Return a string representing the error"
-//   ; fn =
-//         (function
-//         | _, [DError (_, err)] ->
-//             DStr err
-//         | _ ->
-//             incorrectArgs ())
-//   ; sqlSpec = NotYetImplementedTODO
-// ; previewable = Pure
-//   ; deprecated = ReplacedBy(fn "" "" 0) }
+    { name = fn "" "assoc" 0
+      parameters =
+        [ Param.make "obj" (TDict varA) ""
+          Param.make "key" TStr ""
+          Param.make "val" varA "" ]
+      returnType = TDict varA
+      description = "Return a copy of `obj` with the `key` set to `val`."
+      fn =
+        (function
+        | _, [ DObj o; DStr k; v ] -> Value(DObj(Map.add k v o))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Dict" "set" 0) }
+    { name = fn "" "dissoc" 0
+      parameters = [ Param.make "obj" (TDict varA) ""; Param.make "key" TStr "" ]
+      returnType = TDict varA
+      description = "Return a copy of `obj` with `key` unset."
+      fn =
+        (function
+        | _, [ DObj o; DStr k ] -> Value(DObj(Map.remove k o))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = ReplacedBy(fn "Dict" "remove" 0) }
+    { name = fn "" "toForm" 0
+      parameters = [ Param.make "obj" (TDict varA) ""; Param.make "submit" TStr "" ]
+      returnType = TStr
+      description =
+        "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
+      fn =
+        (function
+        | _, [ DObj o; DStr uri ] ->
+            let toInput (k, v) =
+              let label = Printf.sprintf "<label for=\"%s\">%s:</label>" k k
+
+              let input =
+                Printf.sprintf "<input id=\"%s\" type=\"text\" name=\"%s\">" k k
+
+              label + "\n" + input
+
+            let inputs = o |> Map.toList |> List.map toInput |> String.concat "\n"
+
+            Value(
+              DStr(
+                Printf.sprintf
+                  "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
+                  uri
+                  inputs
+              )
+            )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = DeprecatedBecause "It is just a demo function" }
+    { name = fn "Error" "toString" 0 // CLEANUP can’t actually call this
+      parameters = [ Param.make "err" TError "" ]
+      returnType = TStr
+      description = "Return a string representing the error"
+      fn =
+        (function
+        | _, [ DError (_, err) ] -> Value(DStr err)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated =
+        DeprecatedBecause "It is no longer allowed to use errors as arguments" }
     { name = fn "AWS" "urlencode" 0
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
