@@ -196,8 +196,6 @@ window.Dark = {
       next is not set, reset busy. */
     next: null,
     busy: false,
-    /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
-    lastRun: 0,
     requestAnalysis: function (params) {
       const analysis = window.Dark.ocamlAnalysis;
       const worker = window.analysisWorker;
@@ -237,7 +235,7 @@ window.Dark = {
           worker.postMessage(params);
         }
 
-        analysis.lastRun = new Date();
+        window.Dark.analysis.lastRun = new Date();
       };
     },
   },
@@ -248,7 +246,6 @@ window.Dark = {
     next: null,
     busy: false,
     /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
-    lastRun: 0,
     utils: require("../../lib/js/client/workers/FSharpAnalysisWrapper.bs.js"),
     callback: function (event) {
       const analysis = window.Dark.fsharpAnalysis;
@@ -269,7 +266,7 @@ window.Dark = {
         worker.postMessage(params);
       }
 
-      analysis.lastRun = new Date();
+      window.Dark.analysis.lastRun = new Date();
     },
     initialized: false,
     requestAnalysis: function (params) {
@@ -329,6 +326,8 @@ window.Dark = {
         window.Dark.ocamlAnalysis.requestAnalysis(params);
       }
     },
+    // Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp
+    lastRun: 0,
   },
 
   // ---------------------------
