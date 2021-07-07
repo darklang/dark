@@ -6,6 +6,8 @@
 // https://github.com/Tewr/BlazorWorker/blob/073c7b01e79319119947b427674b91804b784632/LICENSE
 
 // This file loads .NET in a webWorker, including the Dark LibExecution WASM.
+// It creates and initializes the webworker, which then downloads all the
+// WASM/Blazor code needed from the server.
 
 window.BlazorWorker = (function () {
   let worker;
@@ -87,7 +89,7 @@ window.BlazorWorker = (function () {
 
       MONO.loaded_files = [];
 
-      Object.keys(Module.blazorboot.resources.assembly).forEach(url => {
+      Object.keys(blazorBootManifest.resources.assembly).forEach(url => {
         if (!blazorBootManifest.resources.assembly.hasOwnProperty(url)) {
           // Do not attempt to load a dll which is not present anyway
           nonExistingDlls.push(url);
@@ -130,7 +132,7 @@ window.BlazorWorker = (function () {
         "string",
         "number",
       ]);
-      load_runtime("appBinDir", 0);
+      load_runtime("appBinDir", 0); // why appBinDir? Dunno
       MONO.mono_wasm_runtime_is_ready = true;
       onReady();
       if (nonExistingDlls.length > 0) {
@@ -141,49 +143,27 @@ window.BlazorWorker = (function () {
       }
     });
 
-    global = globalThis;
     self.Module = Module;
 
     //TODO: This call could/should be session cached. But will the built-in blazor fetch service worker override
     // (PWA et al) do this already if configured ?
     asyncLoad(`${appRoot}/blazor/blazor.boot.json`, "json").then(
       blazorboot => {
-        Module.blazorboot = blazorboot;
+        // Save this for loading other scripts later
         blazorBootManifest = blazorboot;
-        let dotnetjsfilename = "";
-        const runttimeSection = blazorboot.resources.runtime;
-        for (var p in runttimeSection) {
-          if (
-            Object.prototype.hasOwnProperty.call(runttimeSection, p) &&
-            p.endsWith(".js")
-          ) {
-            dotnetjsfilename = p;
-          }
-        }
 
+        // Start loading scripts
+        let runtimeResources = Object.keys(blazorboot.resources.runtime);
+        let dotnetjsfilename = runtimeResources.find(p => p.startsWith("dotnet.") && p.endsWith(".js"))
         if (dotnetjsfilename === "") {
           throw "BlazorWorker: Unable to locate dotnetjs file in blazor boot config.";
         }
-
         self.importScripts(
           `${appRoot}/blazor/${dotnetjsfilename}`,
         );
       },
       errorInfo => onError(errorInfo),
     );
-
-    // Import script from a path relative to approot
-    self.importLocalScripts = (...urls) => {
-      self.importScripts(
-        urls.map(
-          url => appRoot + (url.startsWith("/") ? "" : "/") + url,
-        ),
-      );
-    };
-
-    self.isObjectDefined = workerScopeObject => {
-      return getChildFromDotNotation(workerScopeObject) !== empty;
-    };
   };
 
   // Initialize the worker
