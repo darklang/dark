@@ -5,18 +5,7 @@
 // https://github.com/Tewr/BlazorWorker/blob/073c7b01e79319119947b427674b91804b784632/LICENSE
 
 window.BlazorWorker = (function () {
-  const workers = {};
-  const disposeWorker = function (workerId) {
-    const worker = workers[workerId];
-    if (worker) {
-      if (worker.worker.terminate) {
-        worker.worker.terminate();
-      }
-      URL.revokeObjectURL(worker.url);
-      delete workers[workerId];
-    }
-  };
-
+  let worker;
   const workerDef = function () {
     const initConf = JSON.parse('$initConf$');
 
@@ -25,28 +14,18 @@ window.BlazorWorker = (function () {
       resources: { assembly: { "AssemblyName.dll": "sha256-<sha256>" } },
     };
 
-    let endInvokeCallBack;
     const onReady = () => {
-      endInvokeCallBack = Module.mono_bind_static_method(
-        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.JSInvokeService:EndInvokeCallBack",
-      );
+      console.log("OnReady called")
       const messageHandler = Module.mono_bind_static_method(
-        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.MessageService:OnMessage"
+        "[Wasm]Wasm.EvalService:OnMessage"
       );
       // Future messages goes directly to the message handler
       self.onmessage = msg => {
+        console.log("Calling into WASM")
         messageHandler(msg.data);
       };
-
-      let initEndPoint =
-        "[BlazorWorker.WorkerCore]BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService:Init";
-
-      try {
-        Module.mono_call_static_method(initEndPoint, []);
-      } catch (e) {
-        console.error("Init method initEndPoint failed", e);
-        throw e;
-      }
+      console.log("postmessage is", self.postMessage);
+      self.postMessage("darkWebWorkerInitializedMessage");
     };
 
     const onError = err => {
@@ -86,10 +65,6 @@ window.BlazorWorker = (function () {
     Module.print = line =>
       suppressMessages.indexOf(line) < 0 && console.log(`WASM-WORKER: ${line}`);
 
-    Module.printErr = line => {
-      console.error(`WASM-WORKER: ${line}`);
-      showErrorNotification();
-    };
     Module.preRun = [];
     Module.postRun = [];
     Module.preloadPlugins = [];
@@ -206,84 +181,6 @@ window.BlazorWorker = (function () {
       errorInfo => onError(errorInfo),
     );
 
-    self.jsRuntimeSerializers = new Map();
-    self.jsRuntimeSerializers.set("nativejson", {
-      serialize: o => JSON.stringify(o),
-      deserialize: s => JSON.parse(s),
-    });
-
-    const empty = {};
-
-    // reduce dot notation to last member of chain
-    const getChildFromDotNotation = member =>
-      member
-        .split(".")
-        .reduce(
-          (m, prop) => (Object.hasOwnProperty.call(m, prop) ? m[prop] : empty),
-          self,
-        );
-
-    // Async invocation with callback.
-    self.beginInvokeAsync = async function (
-      serializerId,
-      invokeId,
-      method,
-      isVoid,
-      argsString,
-    ) {
-      //console.debug("beginInvokeAsync call", { serializerId, invokeId, method, isVoid, argsString });
-      let result;
-      let isError = false;
-      let serializer = self.jsRuntimeSerializers.get(serializerId);
-      if (!serializer) {
-        result = `beginInvokeAsync: Unknown serializer with id '${serializerId}'`;
-        serializer = self.jsRuntimeSerializers.get("nativejson");
-        isError = true;
-      }
-
-      // todo: remove me.
-      //console.debug('beginInvokeAsync::serializer', serializer);
-
-      const methodHandle = getChildFromDotNotation(method);
-
-      if (!isError && methodHandle === empty) {
-        result = `beginInvokeAsync: Method '${method}' not defined`;
-        isError = true;
-      }
-
-      if (!isError) {
-        try {
-          const argsArray = serializer.deserialize(argsString);
-          result = await methodHandle(...argsArray);
-        } catch (e) {
-          result = `${e}\nJS Stacktrace:${e.stack || new Error().stack}`;
-          isError = true;
-        }
-      }
-
-      let resultString;
-      if (isVoid && !isError) {
-        resultString = null;
-      } else {
-        try {
-          resultString = serializer.serialize(result);
-        } catch (e) {
-          result = `${e}\nJS Stacktrace:${e.stack || new Error().stack}`;
-          isError = true;
-        }
-      }
-
-      try {
-        endInvokeCallBack(invokeId, isError, resultString);
-      } catch (e) {
-        console.error(
-          `BlazorWorker: beginInvokeAsync: Callback to endInvokeCallBackEndpoint failed. Method: ${method}, args: ${argsString}`,
-          e,
-        );
-        throw e;
-      }
-    };
-
     // Import script from a path relative to approot
     self.importLocalScripts = (...urls) => {
       self.importScripts(
@@ -330,29 +227,16 @@ window.BlazorWorker = (function () {
       type: "application/javascript",
     });
     const workerUrl = URL.createObjectURL(blob);
-    const worker = new Worker(workerUrl);
-    workers[id] = {
-      worker: worker,
-      url: workerUrl,
-    };
+    worker = new Worker(workerUrl);
 
     worker.onmessage = function (ev) {
-      if (initOptions.debug) {
+      if (true) {
         console.debug(
-          `BlazorWorker.js:worker[${id}]->blazor`,
-          ev.data,
+          `BlazorWorker.js:worker[]->blazor`,
+          ev,
         );
       }
-      let initMessage =
-        "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitServiceResult::";
-      let initInstanceMessage =
-        "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstanceResult::|1|1||";
-      let evalServiceMessage =
-        "BlazorWorker.WorkerCore.SimpleInstanceService.SimpleInstanceService::InitInstance::|1|3|Wasm.EvalService|Wasm, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null";
-
-      if (ev.data.startsWith(initMessage)) {
-        window.BlazorWorker.postMessage(1, evalServiceMessage);
-      } else if (ev.data.startsWith(initInstanceMessage)) {
+      if (ev.data === "darkWebWorkerInitializedMessage") {
         initCallback();
       } else {
         onMessageCallback(ev);
@@ -360,12 +244,11 @@ window.BlazorWorker = (function () {
     };
   };
 
-  const postMessage = function (workerId, message) {
-    workers[workerId].worker.postMessage(message);
+  const postMessage = function (message) {
+    worker.postMessage(message);
   };
 
   return {
-    disposeWorker,
     initWorker,
     postMessage,
   };

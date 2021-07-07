@@ -266,7 +266,7 @@ window.Dark = {
       } else {
         // an analysis is waiting, run it
         analysis.next = null;
-        worker.postMessage(1, params);
+        worker.postMessage(params);
       }
 
       analysis.lastRun = new Date();
@@ -300,7 +300,7 @@ window.Dark = {
       } else {
         // not busy: run it immediately
 
-        worker.postMessage(1, params);
+        worker.postMessage(params);
         analysis.busy = true;
       }
     },

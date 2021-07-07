@@ -304,12 +304,11 @@ type MyRuntime() =
     result
 
 
-type EvalService(messageService : IWorkerMessageService) as this =
-  do messageService.IncomingMessage.Add(this.OnMessage) |> ignore
-
+type EvalService =
   member this.OnMessage(message : string) =
     task {
       System.Console.WriteLine("Before runtime call")
+      System.Console.WriteLine(message)
 
       let! result = Eval.performAnalysis message
       System.Console.WriteLine("WASM After performAnalysis call")
