@@ -41,7 +41,7 @@ module ClientInterop =
     | OT.Blank id -> (name, OT.Blank id)
     | OT.Partial (id, str) -> (name, OT.Partial(id, str))
     | OT.Filled (id, tipe) ->
-        (name, (OT.Filled(id, PT.DType.parse tipe |> OT.Convert.pt2ocamlTipe)))
+      (name, (OT.Filled(id, PT.DType.parse tipe |> OT.Convert.pt2ocamlTipe)))
 
   let convert_migration
     (m : client_db_migration)
@@ -184,9 +184,9 @@ module Eval =
                k,
                match v with
                | AT.ExecutedResult dv ->
-                   ClientInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
+                 ClientInterop.ExecutedResult(OT.Convert.rt2ocamlDval dv)
                | AT.NonExecutedResult dv ->
-                   ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
+                 ClientInterop.NonExecutedResult(OT.Convert.rt2ocamlDval dv))
         |> Dictionary.fromList
 
       return (traceID, ocamlResults)
@@ -204,26 +204,27 @@ module Eval =
         let! (result : ClientInterop.AnalysisEnvelope) =
           match args with
           | ClientInterop.AnalyzeHandler ah ->
-              runAnalysis
-                ah.handler.tlid
-                ah.trace_id
-                ah.trace_data
-                ah.user_fns
-                ah.user_tipes
-                (List.map ClientInterop.convert_db ah.dbs)
-                ah.handler.ast
+            runAnalysis
+              ah.handler.tlid
+              ah.trace_id
+              ah.trace_data
+              ah.user_fns
+              ah.user_tipes
+              (List.map ClientInterop.convert_db ah.dbs)
+              ah.handler.ast
           | ClientInterop.AnalyzeFunction af ->
-              runAnalysis
-                af.func.tlid
-                af.trace_id
-                af.trace_data
-                af.user_fns
-                af.user_tipes
-                (List.map ClientInterop.convert_db af.dbs)
-                af.func.ast
+            runAnalysis
+              af.func.tlid
+              af.trace_id
+              af.trace_data
+              af.user_fns
+              af.user_tipes
+              (List.map ClientInterop.convert_db af.dbs)
+              af.func.ast
 
         return Ok result
-      with e ->
+      with
+      | e ->
         System.Console.WriteLine("Error running analysis in Blazor")
         System.Console.WriteLine(str)
         System.Console.WriteLine(string e)
@@ -251,7 +252,7 @@ type MyRuntime() =
   [<Inject>]
   member this.JSRuntime : Microsoft.JSInterop.IJSRuntime = null
 
-  static member getRuntime() : obj =
+  static member postMessage(message : string) : obj =
     let assemblyName = "System.Private.Runtime.InteropServices.JavaScript"
     let typeName = "System.Runtime.InteropServices.JavaScript.Runtime"
 
@@ -296,7 +297,7 @@ type MyRuntime() =
     System.Console.WriteLine("WASM Invoke method delegate")
     System.Console.WriteLine(invokeMethodDelegate)
 
-    let result = invokeMethodDelegate.Invoke("postMessage", [| "a single string" |])
+    let result = invokeMethodDelegate.Invoke("postMessage", message)
 
     System.Console.WriteLine("WASM result")
     System.Console.WriteLine(result)
@@ -310,22 +311,11 @@ type EvalService(messageService : IWorkerMessageService) as this =
     task {
       System.Console.WriteLine("Before runtime call")
 
-      try
-        // do! MyRuntime().JSRuntime.InvokeVoidAsync("testFunction")
-        let result = MyRuntime.getRuntime ()
-        System.Console.WriteLine "WASM done with getRuntime call"
-        System.Console.WriteLine result
-
-      with
-      | e ->
-        System.Console.WriteLine "WASM Exception"
-        System.Console.WriteLine e
-
-      System.Console.WriteLine("WASM After runtime call")
-
       let! result = Eval.performAnalysis message
       System.Console.WriteLine("WASM After performAnalysis call")
-      do! messageService.PostMessageAsync result
-      System.Console.WriteLine("WASM After PostMessageAsync call")
+      let pmResult = MyRuntime.postMessage result
+      System.Console.WriteLine(pmResult)
+      // do! messageService.PostMessageAsync result
+      System.Console.WriteLine("WASM After PostMessage call")
     }
     |> ignore
