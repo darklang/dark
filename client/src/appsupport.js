@@ -280,7 +280,7 @@ window.Dark = {
         setTimeout(function () {
           console.log("Trying BlazorWorker again");
           analysis.requestAnalysis(params);
-        }, 100);
+        }, 500);
         return;
       }
 
