@@ -306,21 +306,15 @@ window.Dark = {
     },
     initializeBlazorWorker: function () {
       const analysis = window.Dark.fsharpAnalysis;
-      const conf = {
-        debug: false,
-        deployPrefix: "blazor",
-        useConventionalServiceAssembly: true,
-        wasmRoot: "blazor",
-      };
       let initializedCallback = () => {
         console.log("Blazor loaded");
         analysis.initialized = true;
       };
-      window.BlazorWorker.initWorker(
-        initializedCallback,
-        analysis.callback,
-        conf,
-      );
+      // Only load when asked for
+      if (window.Dark.analysis.useBlazor) {
+        // FSTODO: make default
+        window.BlazorWorker.initWorker(initializedCallback, analysis.callback);
+      }
     },
   },
   analysis: {

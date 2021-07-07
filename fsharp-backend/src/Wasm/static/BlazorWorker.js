@@ -1,31 +1,32 @@
-// This file taken from https://github.com/Tewr/BlazorWorker/blob/073c7b01e79319119947b427674b91804b784632/src/BlazorWorker/BlazorWorker.js
+// This file adapted taken from https://github.com/Tewr/BlazorWorker/blob/073c7b01e79319119947b427674b91804b784632/src/BlazorWorker/BlazorWorker.js
+// It seems this was the original source: https://github.com/dotnet/aspnetcore/blob/main/src/Components/Web.JS/src/Platform/Mono/MonoPlatform.ts
 
 // MIT license
 // Copyright (c) 2019-2020 Tor
 // https://github.com/Tewr/BlazorWorker/blob/073c7b01e79319119947b427674b91804b784632/LICENSE
 
+// This file loads .NET in a webWorker, including the Dark LibExecution WASM.
+
 window.BlazorWorker = (function () {
   let worker;
-  const workerDef = function () {
-    const initConf = JSON.parse('$initConf$');
-
+  const workerDef = function (appRoot) {
     const nonExistingDlls = [];
-    let blazorBootManifest = {
-      resources: { assembly: { "AssemblyName.dll": "sha256-<sha256>" } },
-    };
+    let blazorBootManifest;
 
     const onReady = () => {
+      // Setup the onmessage handler to call F#
       const messageHandler = Module.mono_bind_static_method(
         "[Wasm]Wasm.EvalWorker:OnMessage"
       );
-      // Future messages goes directly to the message handler
       self.onmessage = msg => {
         messageHandler(msg.data);
       };
+      // Send a message to indicate initialization complete
       self.postMessage("darkWebWorkerInitializedMessage");
     };
 
     const onError = err => {
+      // FSTODO: add rollbar to error handler
       console.error(err);
     };
 
@@ -52,24 +53,20 @@ window.BlazorWorker = (function () {
       });
     }
 
-    var config = {};
+    // This module is part of Emscripten, and the functions are used to set up
+    // the Wasm-compiled version of .NET
     var Module = {};
 
-    const wasmBinaryFile = `${initConf.appRoot}/blazor/dotnet.wasm`;
-    const suppressMessages = ["DEBUGGING ENABLED"];
-    const appBinDirName = "appBinDir";
-
     Module.print = line =>
-      suppressMessages.indexOf(line) < 0 && console.log(`WASM-WORKER: ${line}`);
+      console.log(`WASM-WORKER: ${line}`);
 
     Module.preRun = [];
     Module.postRun = [];
-    Module.preloadPlugins = [];
 
     Module.locateFile = fileName => {
       switch (fileName) {
         case "dotnet.wasm":
-          return wasmBinaryFile;
+          return `${appRoot}/blazor/dotnet.wasm`;
         default:
           return fileName;
       }
@@ -89,11 +86,10 @@ window.BlazorWorker = (function () {
       );
 
       MONO.loaded_files = [];
-      var baseUrl = `${initConf.appRoot}/blazor`;
 
       Object.keys(Module.blazorboot.resources.assembly).forEach(url => {
         if (!blazorBootManifest.resources.assembly.hasOwnProperty(url)) {
-          //Do not attempt to load a dll which is not present anyway
+          // Do not attempt to load a dll which is not present anyway
           nonExistingDlls.push(url);
           return;
         }
@@ -101,7 +97,7 @@ window.BlazorWorker = (function () {
         const runDependencyId = `blazor:${url}`;
         addRunDependency(runDependencyId);
 
-        asyncLoad(baseUrl + "/" + url).then(
+        asyncLoad(`${appRoot}/blazor/${url}`).then(
           data => {
             const heapAddress = Module._malloc(data.length);
             const heapMemory = new Uint8Array(
@@ -134,10 +130,10 @@ window.BlazorWorker = (function () {
         "string",
         "number",
       ]);
-      load_runtime(appBinDirName, 0);
+      load_runtime("appBinDir", 0);
       MONO.mono_wasm_runtime_is_ready = true;
       onReady();
-      if (initConf.debug && nonExistingDlls.length > 0) {
+      if (nonExistingDlls.length > 0) {
         console.warn(
           `BlazorWorker: Module.postRun: ${nonExistingDlls.length} assemblies was specified as a dependency for the worker but was not present in the bootloader. This may be normal if trimmming is used. To remove this warning, either configure the linker not to trim the specified assemblies if they were removed in error, or conditionally remove the specified dependencies for builds that uses trimming. If trimming is not used, make sure that the assembly is included in the build.`,
           nonExistingDlls,
@@ -145,14 +141,12 @@ window.BlazorWorker = (function () {
       }
     });
 
-    config.file_list = [];
-
     global = globalThis;
     self.Module = Module;
 
     //TODO: This call could/should be session cached. But will the built-in blazor fetch service worker override
     // (PWA et al) do this already if configured ?
-    asyncLoad(`${initConf.appRoot}/blazor/blazor.boot.json`, "json").then(
+    asyncLoad(`${appRoot}/blazor/blazor.boot.json`, "json").then(
       blazorboot => {
         Module.blazorboot = blazorboot;
         blazorBootManifest = blazorboot;
@@ -172,7 +166,7 @@ window.BlazorWorker = (function () {
         }
 
         self.importScripts(
-          `${initConf.appRoot}/blazor/${dotnetjsfilename}`,
+          `${appRoot}/blazor/${dotnetjsfilename}`,
         );
       },
       errorInfo => onError(errorInfo),
@@ -182,7 +176,7 @@ window.BlazorWorker = (function () {
     self.importLocalScripts = (...urls) => {
       self.importScripts(
         urls.map(
-          url => initConf.appRoot + (url.startsWith("/") ? "" : "/") + url,
+          url => appRoot + (url.startsWith("/") ? "" : "/") + url,
         ),
       );
     };
@@ -192,29 +186,11 @@ window.BlazorWorker = (function () {
     };
   };
 
-  const inlineWorker = `self.onmessage = ${workerDef}()`;
+  // Initialize the worker
+  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.origin}")`;
 
-  const initWorker = function (initCallback, onMessageCallback, initOptions) {
-    let appRoot =
-      (
-        document.getElementsByTagName("base")[0] || {
-          href: window.location.origin,
-        }
-      ).href || "";
-    if (appRoot.endsWith("/")) {
-      appRoot = appRoot.substr(0, appRoot.length - 1);
-    }
-
-    const initConf = {
-      appRoot: appRoot,
-    };
-
-    // Initialize worker
-    const renderedInlineWorker = inlineWorker.replace(
-      "$initConf$",
-      JSON.stringify(initConf),
-    );
-    const blob = new Blob([renderedInlineWorker], {
+  const initWorker = function (initCallback, onMessageCallback) {
+    const blob = new Blob([inlineWorker], {
       type: "application/javascript",
     });
     worker = new Worker(URL.createObjectURL(blob));
