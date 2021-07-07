@@ -317,7 +317,6 @@ window.Dark = {
         analysis.initialized = true;
       };
       window.BlazorWorker.initWorker(
-        1,
         initializedCallback,
         analysis.callback,
         conf,

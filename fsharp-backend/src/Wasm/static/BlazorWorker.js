@@ -15,16 +15,13 @@ window.BlazorWorker = (function () {
     };
 
     const onReady = () => {
-      console.log("OnReady called")
       const messageHandler = Module.mono_bind_static_method(
-        "[Wasm]Wasm.EvalService:OnMessage"
+        "[Wasm]Wasm.EvalWorker:OnMessage"
       );
       // Future messages goes directly to the message handler
       self.onmessage = msg => {
-        console.log("Calling into WASM")
         messageHandler(msg.data);
       };
-      console.log("postmessage is", self.postMessage);
       self.postMessage("darkWebWorkerInitializedMessage");
     };
 
@@ -58,7 +55,7 @@ window.BlazorWorker = (function () {
     var config = {};
     var Module = {};
 
-    const wasmBinaryFile = `${initConf.appRoot}/${initConf.wasmRoot}/dotnet.wasm`;
+    const wasmBinaryFile = `${initConf.appRoot}/blazor/dotnet.wasm`;
     const suppressMessages = ["DEBUGGING ENABLED"];
     const appBinDirName = "appBinDir";
 
@@ -92,7 +89,7 @@ window.BlazorWorker = (function () {
       );
 
       MONO.loaded_files = [];
-      var baseUrl = `${initConf.appRoot}/${initConf.deploy_prefix}`;
+      var baseUrl = `${initConf.appRoot}/blazor`;
 
       Object.keys(Module.blazorboot.resources.assembly).forEach(url => {
         if (!blazorBootManifest.resources.assembly.hasOwnProperty(url)) {
@@ -155,7 +152,7 @@ window.BlazorWorker = (function () {
 
     //TODO: This call could/should be session cached. But will the built-in blazor fetch service worker override
     // (PWA et al) do this already if configured ?
-    asyncLoad(`${initConf.appRoot}/${initConf.blazorBoot}`, "json").then(
+    asyncLoad(`${initConf.appRoot}/blazor/blazor.boot.json`, "json").then(
       blazorboot => {
         Module.blazorboot = blazorboot;
         blazorBootManifest = blazorboot;
@@ -175,7 +172,7 @@ window.BlazorWorker = (function () {
         }
 
         self.importScripts(
-          `${initConf.appRoot}/${initConf.wasmRoot}/${dotnetjsfilename}`,
+          `${initConf.appRoot}/blazor/${dotnetjsfilename}`,
         );
       },
       errorInfo => onError(errorInfo),
@@ -197,7 +194,7 @@ window.BlazorWorker = (function () {
 
   const inlineWorker = `self.onmessage = ${workerDef}()`;
 
-  const initWorker = function (id, initCallback, onMessageCallback, initOptions) {
+  const initWorker = function (initCallback, onMessageCallback, initOptions) {
     let appRoot =
       (
         document.getElementsByTagName("base")[0] || {
@@ -210,32 +207,19 @@ window.BlazorWorker = (function () {
 
     const initConf = {
       appRoot: appRoot,
-      deploy_prefix: initOptions.deployPrefix,
-      wasmRoot: initOptions.wasmRoot,
-      blazorBoot: `${initOptions.wasmRoot}/blazor.boot.json`,
-      debug: initOptions.debug,
     };
 
     // Initialize worker
-    const renderedConfig = JSON.stringify(initConf);
     const renderedInlineWorker = inlineWorker.replace(
       "$initConf$",
-      renderedConfig,
+      JSON.stringify(initConf),
     );
-    window.URL = window.URL || window.webkitURL;
     const blob = new Blob([renderedInlineWorker], {
       type: "application/javascript",
     });
-    const workerUrl = URL.createObjectURL(blob);
-    worker = new Worker(workerUrl);
+    worker = new Worker(URL.createObjectURL(blob));
 
     worker.onmessage = function (ev) {
-      if (true) {
-        console.debug(
-          `BlazorWorker.js:worker[]->blazor`,
-          ev,
-        );
-      }
       if (ev.data === "darkWebWorkerInitializedMessage") {
         initCallback();
       } else {

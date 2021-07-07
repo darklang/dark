@@ -237,81 +237,47 @@ module Eval =
 #nowarn "988"
 
 type GetGlobalObjectDelegate = delegate of string -> obj
+type InvokeDelegate = WasmDelegate.InvokeDelegate
 // type InvokeDelegate = delegate of (string * string) -> obj
 
-type WebWorker() =
+open System.Reflection
+
+type EvalWorker =
   static member GetGlobalObject(globalObjectName : string) : unit = ()
 
-  static member postMessage(message : string) : obj =
+  static member getPostMessageDelegate() : InvokeDelegate =
     let assemblyName = "System.Private.Runtime.InteropServices.JavaScript"
     let typeName = "System.Runtime.InteropServices.JavaScript.Runtime"
 
-    let sourceAssembly : System.Reflection.Assembly =
-      System.Reflection.Assembly.Load(assemblyName)
-
+    // Get the `self` object from the webworker.
+    let sourceAssembly : Assembly = Assembly.Load(assemblyName)
     let typ = sourceAssembly.GetType(typeName)
-    let method = typ.GetMethod(nameof (WebWorker.GetGlobalObject))
+    // I do not have any clue what this does
+    let method = typ.GetMethod(nameof (EvalWorker.GetGlobalObject))
     let delegate_ = method.CreateDelegate<GetGlobalObjectDelegate>()
-
     let target = delegate_.Invoke("self")
-    System.Console.WriteLine("WASM target is")
-    System.Console.WriteLine(target)
 
+    // Get a `postMessage` method from the `self` object
     let typ = target.GetType()
-    System.Console.WriteLine("WASM type is")
-    System.Console.WriteLine(typ)
-
     let invokeMethod = typ.GetMethod("Invoke")
 
-    System.Console.WriteLine("WASM Invoke method")
-    System.Console.WriteLine(invokeMethod)
+    System.Delegate.CreateDelegate(typeof<InvokeDelegate>, target, invokeMethod)
+    :?> InvokeDelegate
 
-    System.Console.WriteLine("WASM Delegate type")
+  static member postMessageDelegate = EvalWorker.getPostMessageDelegate ()
 
-    System.Console.WriteLine(typeof<WasmDelegate.InvokeDelegate>)
+  static member postMessage(message : string) : unit =
+    let (_ : obj) = EvalWorker.postMessageDelegate.Invoke("postMessage", message)
+    ()
 
-    System.Console.WriteLine("WASM Is delegate type the same")
-
-    System.Console.WriteLine(
-      typeof<BlazorWorker.WorkerCore.WebAssemblyBindingsProxy.InvokeDelegate> =
-        typeof<WasmDelegate.InvokeDelegate>
-    )
-
-    let (invokeMethodDelegate : WasmDelegate.InvokeDelegate) =
-      System.Delegate.CreateDelegate(
-        typeof<WasmDelegate.InvokeDelegate>,
-        target,
-        invokeMethod
-      )
-      :?> WasmDelegate.InvokeDelegate
-
-    System.Console.WriteLine("WASM Invoke method delegate")
-    System.Console.WriteLine(invokeMethodDelegate)
-
-    let result = invokeMethodDelegate.Invoke("postMessage", message)
-
-    System.Console.WriteLine("WASM result")
-    System.Console.WriteLine(result)
-    result
-
-
-type EvalService =
   member this.OnMessage(message : string) =
     task {
       try
-        System.Console.WriteLine("Before runtime call")
-        System.Console.WriteLine(message)
-
         let! result = Eval.performAnalysis message
-        System.Console.WriteLine("WASM After performAnalysis call")
-        let pmResult = WebWorker.postMessage result
-        System.Console.WriteLine(pmResult)
-        // do! messageService.PostMessageAsync result
-        System.Console.WriteLine("WASM After PostMessage call")
+        return EvalWorker.postMessage result
       with
       | e ->
         System.Console.WriteLine("Error making OnMessage call")
         System.Console.WriteLine(e)
-
     }
     |> ignore
