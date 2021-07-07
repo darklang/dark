@@ -192,45 +192,28 @@ module Eval =
       return (traceID, ocamlResults)
     }
 
-  // call this from JS with DotNet.invokeMethod('Wasm', 'run', 7)
-  // or DotNet.invokeMethodAsync('Wasm', 'run', 8)
-  [<Microsoft.JSInterop.JSInvokable>]
-  let performAnalysis (str : string) : Task<string> =
-    task {
-      try
-        let args =
-          Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams> str
-
-        let! (result : ClientInterop.AnalysisEnvelope) =
-          match args with
-          | ClientInterop.AnalyzeHandler ah ->
-            runAnalysis
-              ah.handler.tlid
-              ah.trace_id
-              ah.trace_data
-              ah.user_fns
-              ah.user_tipes
-              (List.map ClientInterop.convert_db ah.dbs)
-              ah.handler.ast
-          | ClientInterop.AnalyzeFunction af ->
-            runAnalysis
-              af.func.tlid
-              af.trace_id
-              af.trace_data
-              af.user_fns
-              af.user_tipes
-              (List.map ClientInterop.convert_db af.dbs)
-              af.func.ast
-
-        return Ok result
-      with
-      | e ->
-        System.Console.WriteLine("Error running analysis in Blazor")
-        System.Console.WriteLine(str)
-        System.Console.WriteLine(string e)
-        return Error(string e)
-    }
-    |> Task.map Json.OCamlCompatible.serialize
+  let performAnalysis
+    (args : ClientInterop.performAnalysisParams)
+    : Task<ClientInterop.AnalysisEnvelope> =
+    match args with
+    | ClientInterop.AnalyzeHandler ah ->
+      runAnalysis
+        ah.handler.tlid
+        ah.trace_id
+        ah.trace_data
+        ah.user_fns
+        ah.user_tipes
+        (List.map ClientInterop.convert_db ah.dbs)
+        ah.handler.ast
+    | ClientInterop.AnalyzeFunction af ->
+      runAnalysis
+        af.func.tlid
+        af.trace_id
+        af.trace_data
+        af.user_fns
+        af.user_tipes
+        (List.map ClientInterop.convert_db af.dbs)
+        af.func.ast
 
 
 
@@ -243,8 +226,7 @@ type InvokeDelegate = WasmDelegate.InvokeDelegate
 open System.Reflection
 
 type EvalWorker =
-  static member GetGlobalObject(globalObjectName : string) : unit = ()
-
+  // Create a delegate with which to call self.postMessage
   static member getPostMessageDelegate() : InvokeDelegate =
     let assemblyName = "System.Private.Runtime.InteropServices.JavaScript"
     let typeName = "System.Runtime.InteropServices.JavaScript.Runtime"
@@ -264,20 +246,30 @@ type EvalWorker =
     System.Delegate.CreateDelegate(typeof<InvokeDelegate>, target, invokeMethod)
     :?> InvokeDelegate
 
+  static member GetGlobalObject(globalObjectName : string) : unit = ()
+
   static member postMessageDelegate = EvalWorker.getPostMessageDelegate ()
 
   static member postMessage(message : string) : unit =
     let (_ : obj) = EvalWorker.postMessageDelegate.Invoke("postMessage", message)
     ()
 
+  // receive messages from the BlazorWorker.js
   member this.OnMessage(message : string) =
     task {
       try
-        let! result = Eval.performAnalysis message
-        return EvalWorker.postMessage result
+        let args =
+          Json.OCamlCompatible.deserialize<ClientInterop.performAnalysisParams>
+            message
+
+        let! result = Eval.performAnalysis args
+        return Ok result
       with
       | e ->
-        System.Console.WriteLine("Error making OnMessage call")
+        System.Console.WriteLine("Error running analysis in Blazor")
         System.Console.WriteLine(e)
+        return Error(string e)
     }
+    |> Task.map Json.OCamlCompatible.serialize
+    |> Task.map EvalWorker.postMessage
     |> ignore
