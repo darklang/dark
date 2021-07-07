@@ -237,12 +237,95 @@ open BlazorWorker.WorkerCore
 
 #nowarn "988"
 
+type GetGlobalObjectDelegate = delegate of string -> obj
+
+
+type PostMessageDelegate = delegate of (string * (obj [])) -> obj
+
+open Microsoft.AspNetCore.Components
+open Microsoft.JSInterop
+
+type MyRuntime() =
+  static member GetGlobalObject(globalObjectName : string) : unit = ()
+
+  [<Inject>]
+  member this.JSRuntime : Microsoft.JSInterop.IJSRuntime = null
+
+  static member getRuntime() : obj =
+    let assemblyName = "System.Private.Runtime.InteropServices.JavaScript"
+    let typeName = "System.Runtime.InteropServices.JavaScript.Runtime"
+
+    let sourceAssembly : System.Reflection.Assembly =
+      System.Reflection.Assembly.Load(assemblyName)
+
+    let typ = sourceAssembly.GetType(typeName)
+    let method = typ.GetMethod(nameof (MyRuntime.GetGlobalObject))
+    let delegate_ = method.CreateDelegate<GetGlobalObjectDelegate>()
+
+    let target = delegate_.Invoke("self")
+    System.Console.WriteLine("WASM target is")
+    System.Console.WriteLine(target)
+
+    let typ = target.GetType()
+    System.Console.WriteLine("WASM type is")
+    System.Console.WriteLine(typ)
+
+    let invokeMethod = typ.GetMethod("Invoke")
+
+    System.Console.WriteLine("WASM Invoke method")
+    System.Console.WriteLine(invokeMethod)
+
+    System.Console.WriteLine("WASM Delegate type")
+    System.Console.WriteLine(typeof<WebAssemblyBindingsProxy.InvokeDelegate>)
+
+    System.Console.WriteLine("WASM Is delegate type the same")
+
+    System.Console.WriteLine(
+      typeof<WebAssemblyBindingsProxy.InvokeDelegate> = typeof<PostMessageDelegate>
+    )
+
+
+    let (invokeMethodDelegate : WebAssemblyBindingsProxy.InvokeDelegate) =
+      System.Delegate.CreateDelegate(
+        typeof<WebAssemblyBindingsProxy.InvokeDelegate>,
+        target,
+        invokeMethod
+      )
+      :?> WebAssemblyBindingsProxy.InvokeDelegate
+
+    System.Console.WriteLine("WASM Invoke method delegate")
+    System.Console.WriteLine(invokeMethodDelegate)
+
+    let result = invokeMethodDelegate.Invoke("postMessage", [| "a single string" |])
+
+    System.Console.WriteLine("WASM result")
+    System.Console.WriteLine(result)
+    result
+
+
 type EvalService(messageService : IWorkerMessageService) as this =
   do messageService.IncomingMessage.Add(this.OnMessage) |> ignore
 
   member this.OnMessage(message : string) =
     task {
+      System.Console.WriteLine("Before runtime call")
+
+      try
+        // do! MyRuntime().JSRuntime.InvokeVoidAsync("testFunction")
+        let result = MyRuntime.getRuntime ()
+        System.Console.WriteLine "WASM done with getRuntime call"
+        System.Console.WriteLine result
+
+      with
+      | e ->
+        System.Console.WriteLine "WASM Exception"
+        System.Console.WriteLine e
+
+      System.Console.WriteLine("WASM After runtime call")
+
       let! result = Eval.performAnalysis message
+      System.Console.WriteLine("WASM After performAnalysis call")
       do! messageService.PostMessageAsync result
+      System.Console.WriteLine("WASM After PostMessageAsync call")
     }
     |> ignore

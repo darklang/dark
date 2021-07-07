@@ -526,7 +526,7 @@ def mark(should, f):
     (".fsproj" in f or ".sln" in f or "Directory.Build.props" in f):
       should.fsharp_backend_full_build = True
 
-  elif ("/fsharp-backend/" in f) and ((f.endswith(".fs")) or (f.endswith(".fsi"))):
+  elif ("/fsharp-backend/" in f) and (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):
     if in_ci:
       should.fsharp_backend_full_build = True
     else:
