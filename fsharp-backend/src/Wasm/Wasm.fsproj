@@ -6,7 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../WasmDelegate/WasmDelegate.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Wasm.fs" />

@@ -217,13 +217,16 @@ module Eval =
 
 
 
+open System
+open System.Reflection
+
 #nowarn "988"
 
 type GetGlobalObjectDelegate = delegate of string -> obj
-type InvokeDelegate = WasmDelegate.InvokeDelegate
-// type InvokeDelegate = delegate of (string * string) -> obj
 
-open System.Reflection
+// This is F# equivalant of the C# delegate:
+// public delegate object InvokeDelegate(string m, params object[] ps);
+type InvokeDelegate = delegate of m : string * [<ParamArray>] ps : obj [] -> obj
 
 type EvalWorker =
   // Create a delegate with which to call self.postMessage
