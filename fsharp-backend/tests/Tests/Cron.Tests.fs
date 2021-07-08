@@ -10,7 +10,7 @@ open Prelude.Tablecloth
 open Tablecloth
 open TestUtils
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Cron = LibBackend.Cron
 module Canvas = LibBackend.Canvas

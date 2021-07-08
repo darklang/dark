@@ -10,7 +10,7 @@ open Tablecloth
 open TestUtils
 
 module Canvas = LibBackend.Canvas
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 module S = PT.Shortcuts

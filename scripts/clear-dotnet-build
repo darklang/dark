@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -uo pipefail
+
+rm -Rf fsharp-backend/Build/*
+echo "To build fsharp-backend/ from scratch, save fsharp-backend/global.json"

@@ -16,7 +16,7 @@ open Prelude
 open Tablecloth
 open Prelude.Tablecloth
 
-module PT = ProgramTypes
+module PT = LibExecution.ProgramTypes
 
 // FSTODO inline this file into canvas
 

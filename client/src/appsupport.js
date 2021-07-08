@@ -6,6 +6,9 @@ const mousewheel = function (callback) {
   });
 };
 
+// ---------------------------
+// Check unsupported browser
+// ---------------------------
 function unsupportedBrowser() {
   var isChrome =
     /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
@@ -96,6 +99,9 @@ function stopKeys(event) {
 }
 window.stopKeys = stopKeys;
 
+// ---------------------------
+// Is it chrome?
+// ---------------------------
 function getBrowserPlatform(event) {
   // Checks if mac
   var isMac = window.navigator.platform == "MacIntel";
@@ -157,11 +163,10 @@ if (pusherConfig.enabled) {
   });
 }
 
-// ---------------------------
-// Analysis
-// ---------------------------
-
 window.Dark = {
+  // ---------------------------
+  // Worker to fetch and decode traces in the background
+  // ---------------------------
   fetcher: {
     fetch: function (params) {
       if (!window.fetcherWorker) {
@@ -181,20 +186,24 @@ window.Dark = {
       };
     },
   },
-  analysis: {
+
+  // ---------------------------
+  // Run analysis
+  // ---------------------------
+  ocamlAnalysis: {
     /* Next and busy are used to queue analyses. If busy is false, run
       immediately; else wait until the analysis is done and then run next. If
       next is not set, reset busy. */
     next: null,
     busy: false,
-    /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
-    lastRun: 0,
     requestAnalysis: function (params) {
-      if (!window.analysisWorker) {
+      const analysis = window.Dark.ocamlAnalysis;
+      const worker = window.analysisWorker;
+      if (!worker) {
         console.log("AnalysisWorker not loaded yet");
         setTimeout(function () {
           console.log("Trying AnalysisWorker again");
-          window.Dark.analysis.requestAnalysis(params);
+          analysis.requestAnalysis(params);
         }, 100);
         return;
       }
@@ -202,34 +211,128 @@ window.Dark = {
       // analysis queue: run immediately or store if busy
       if (window.Dark.analysis.busy) {
         // busy: record for next time
-        window.Dark.analysis.next = params;
+        analysis.next = params;
       } else {
         // not busy: run it immediately
-        window.analysisWorker.postMessage(params);
-        window.Dark.analysis.busy = true;
+        worker.postMessage(params);
+        analysis.busy = true;
       }
 
-      window.analysisWorker.onmessage = function (e) {
+      worker.onmessage = function (e) {
         var result = e.data;
 
         var event = new CustomEvent("receiveAnalysis", { detail: result });
         document.dispatchEvent(event);
 
         // analysis queue: run the next analysis or mark not busy
-        let params = window.Dark.analysis.next;
+        let params = analysis.next;
         if (params === null) {
           // no analyses waiting, we're done
-          window.Dark.analysis.busy = false;
+          analysis.busy = false;
         } else {
           // an analysis is waiting, run it
-          window.Dark.analysis.next = null;
-          window.analysisWorker.postMessage(params);
+          analysis.next = null;
+          worker.postMessage(params);
         }
 
         window.Dark.analysis.lastRun = new Date();
       };
     },
   },
+  fsharpAnalysis: {
+    /* Next and busy are used to queue analyses. If busy is false, run
+      immediately; else wait until the analysis is done and then run next. If
+      next is not set, reset busy. */
+    next: null,
+    busy: false,
+    /* Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp */
+    utils: require("../../lib/js/client/workers/FSharpAnalysisWrapper.bs.js"),
+    callback: function (event) {
+      const analysis = window.Dark.fsharpAnalysis;
+      const worker = window.BlazorWorker;
+      var result = analysis.utils.decodeOutput(event.data);
+
+      var event = new CustomEvent("receiveAnalysis", { detail: result });
+      document.dispatchEvent(event);
+
+      // analysis queue: run the next analysis or mark not busy
+      let params = analysis.next;
+      if (params === null) {
+        // no analyses waiting, we're done
+        analysis.busy = false;
+      } else {
+        // an analysis is waiting, run it
+        analysis.next = null;
+        worker.postMessage(params);
+      }
+
+      window.Dark.analysis.lastRun = new Date();
+    },
+    initialized: false,
+    requestAnalysis: function (params) {
+      const analysis = window.Dark.fsharpAnalysis;
+      const worker = window.BlazorWorker;
+      if (!analysis.initialized) {
+        console.log("BlazorWorker not loaded yet");
+        setTimeout(function () {
+          console.log("Trying BlazorWorker again");
+          analysis.requestAnalysis(params);
+        }, 500);
+        return;
+      }
+
+      // OCaml would take a value that would be converted on the other side of
+      // the worker, we need to stringify here to get the value to the worker.
+      params = analysis.utils.stringifyInput(params);
+      if (params.responseType === "error") {
+        console.log("error calling F# analysis", params.json, params);
+      } else {
+        params = params.json;
+      }
+
+      if (analysis.busy) {
+        // analysis queue: run immediately or store if busy
+        // busy: record for next time
+        analysis.next = params;
+      } else {
+        // not busy: run it immediately
+
+        worker.postMessage(params);
+        analysis.busy = true;
+      }
+    },
+    initializeBlazorWorker: function () {
+      const analysis = window.Dark.fsharpAnalysis;
+      let initializedCallback = () => {
+        console.log("Blazor loaded");
+        analysis.initialized = true;
+      };
+      // Only load when asked for
+      if (window.Dark.analysis.useBlazor) {
+        // FSTODO: make default
+        window.BlazorWorker.initWorker(initializedCallback, analysis.callback);
+      }
+    },
+  },
+  analysis: {
+    useBlazor: (function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("use-blazor");
+    })(),
+    requestAnalysis: function (params) {
+      if (window.Dark.analysis.useBlazor) {
+        window.Dark.fsharpAnalysis.requestAnalysis(params);
+      } else {
+        window.Dark.ocamlAnalysis.requestAnalysis(params);
+      }
+    },
+    // Records the last time a result returned. So Integration tests will know has analysis finished running since a given timestamp
+    lastRun: 0,
+  },
+
+  // ---------------------------
+  // Calculate AST positions
+  // ---------------------------
   ast: {
     positions: function (tlid) {
       var extractId = function (elem) {
@@ -276,6 +379,10 @@ window.Dark = {
       };
     },
   },
+
+  // ---------------------------
+  // Capturing screenshots
+  // ---------------------------
   view: {
     capture: function () {
       var html2canvas = require("html2canvas");
@@ -294,6 +401,9 @@ window.Dark = {
       );
     },
   },
+  // ---------------------------
+  // Fullstory
+  // ---------------------------
   fullstory: {
     init: function (canvas) {
       const maxAccountAgeToRecordMs =
@@ -343,6 +453,9 @@ window.Dark = {
   },
 };
 
+// ---------------------------
+// Focus
+// ---------------------------
 function windowFocusChange(visible) {
   var event = new CustomEvent("windowFocusChange", { detail: visible });
   document.dispatchEvent(event);
@@ -368,6 +481,9 @@ function visibilityCheck() {
   }
 }
 
+// ---------------------------
+// Wheel
+// ---------------------------
 function addWheelListener(elem) {
   var prefix = "";
   var _addEventListener;
@@ -458,6 +574,9 @@ function formatDate([date, format]) {
 window.Dark.formatDate = formatDate;
 
 setTimeout(function () {
+  // ---------------------------
+  // Load the client
+  // ---------------------------
   const canvasName = new URL(window.location).pathname.split("/")[2];
   const params = JSON.stringify({
     complete: complete,
@@ -481,6 +600,9 @@ setTimeout(function () {
     app = app.debugging(document.body, params);
   }
 
+  // ---------------------------
+  // Load webworkers
+  // ---------------------------
   async function fetcher(url) {
     url = "//" + staticUrl + (hashReplacements[url] || url);
     return fetch(url)
@@ -521,6 +643,14 @@ setTimeout(function () {
     window.fetcherWorker = new Worker(fetcherWorkerUrl);
   })();
 
+  // ---------------------------
+  // Initialize blazorworker
+  // ---------------------------
+  window.Dark.fsharpAnalysis.initializeBlazorWorker();
+
+  // ---------------------------
+  // Detect window focus change
+  // ---------------------------
   window.onfocus = function (evt) {
     windowFocusChange(true);
   };
@@ -528,10 +658,20 @@ setTimeout(function () {
     windowFocusChange(false);
   };
   setInterval(visibilityCheck, 2000);
+
+  // ---------------------------
+  // Wheel
+  // ---------------------------
   addWheelListener(document);
 
+  // ---------------------------
+  // Fullstory
+  // ---------------------------
   Dark.fullstory.init(canvasName);
 
+  // ---------------------------
+  // Pusher channels
+  // ---------------------------
   if (pusherConfig.enabled) {
     var pusherChannel = pusherConnection.subscribe(`canvas_${canvasID}`);
     pusherChannel.bind("new_trace", data => {

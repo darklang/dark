@@ -4,10 +4,10 @@ open Expecto
 open Prelude
 open TestUtils
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
-open LibBackend.ProgramTypes
+open LibExecution.ProgramTypes
 
 let fuzzedTests =
   [ testListUsingProperty

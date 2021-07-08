@@ -13,7 +13,7 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
@@ -441,12 +441,17 @@ module Expect =
         eq els els'
     | EList (_, l), EList (_, l') -> eqList l l'
     | EFQFnValue (_, v), EFQFnValue (_, v') -> check v v'
-    | EApply (_, name, args, toRail, inPipe),
-      EApply (_, name', args', toRail', inPipe') ->
+    | EApply (_, name, args, inPipe, toRail),
+      EApply (_, name', args', inPipe', toRail') ->
         eq name name'
         eqList args args'
+
+        match (inPipe, inPipe') with
+        | InPipe id, InPipe id' -> if checkIDs then check id id'
+        | _ -> check inPipe inPipe'
+
         check toRail toRail'
-        check inPipe inPipe'
+
     | ERecord (_, pairs), ERecord (_, pairs') ->
         List.iter2
           (fun (k, v) (k', v') ->

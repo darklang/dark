@@ -9,7 +9,7 @@ open TestUtils
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Exe = LibExecution.Execution
 

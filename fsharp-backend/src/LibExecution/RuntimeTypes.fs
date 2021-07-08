@@ -180,7 +180,7 @@ and SendToRail =
 // argument (which is the first parameter). This is to allow editing live code
 // by creating a new pipe entry and then filling it in.
 and IsInPipe =
-  | InPipe
+  | InPipe of id // the ID of the original pipe
   | NotInPipe
 
 and Pattern =

@@ -373,6 +373,7 @@ type TaskOrValueBuilder() =
   member builder.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
     Task(task { return! TaskOrValue.toTask (f ()) })
 
+
 let taskv = TaskOrValueBuilder()
 
 // Processes each item of the list in order, waiting for the previous one to
@@ -586,7 +587,11 @@ module Json =
       override _.ReadJson(reader, destinationType, _, serializer : JsonSerializer) =
         match reader.TokenType with
         | JsonToken.StartArray -> ()
-        | _ -> failwith "Incorrect starting token for union: should be array"
+        | _ ->
+            failwith (
+              "Incorrect starting token for union, should be array, was "
+              + $"{reader.TokenType}, with type {destinationType}"
+            )
 
         let caseName : string =
           reader.Read() |> ignore

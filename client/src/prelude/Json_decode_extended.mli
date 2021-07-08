@@ -50,6 +50,8 @@ val recordVariant3 :
 
 val variants : (string * 'a decoder) list -> 'a decoder
 
+val result : 'ok decoder -> 'error decoder -> ('ok, 'error) result decoder
+
 val succeed : 'a -> 'a decoder
 
 val index : int -> 'a decoder -> 'a decoder

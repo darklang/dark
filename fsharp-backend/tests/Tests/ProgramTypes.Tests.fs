@@ -5,7 +5,7 @@ open Prelude
 open TestUtils
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module S = LibExecution.Shortcuts
 
 let rtFQFnName =
