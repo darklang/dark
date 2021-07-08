@@ -317,7 +317,7 @@ window.Dark = {
   analysis: {
     useBlazor: (function () {
       const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get("useBlazor");
+      return urlParams.get("use-blazor");
     })(),
     requestAnalysis: function (params) {
       if (window.Dark.analysis.useBlazor) {
