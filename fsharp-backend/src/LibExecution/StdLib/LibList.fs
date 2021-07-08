@@ -40,10 +40,11 @@ module Sort =
       let mutable leftHalfIndex = 0
       let mutable rightHalfIndex = index + halfLen
       let rightHalfEnd = index + length
+
+      // this whole thing is just a hacky for-loop with breaks
       let mutable i' = 0
       let mutable cont = true
 
-      // this whole thing is just a hacky for-loop with breaks
       while (cont && i' < length) do
         // Advance the array here to make sure we do it, but use `i` for the calculations
         let i = i'
@@ -52,15 +53,13 @@ module Sort =
         if (leftHalfIndex = halfLen) then
           // All of the remaining elements must be from the right half, and thus must already be in position
           cont <- false // break
-        else
-
-        if (rightHalfIndex = rightHalfEnd) then
+        elif rightHalfIndex = rightHalfEnd then
           // Copy remaining elements from the local copy
           copy
             localCopyofHalfOfArray
             leftHalfIndex
             arrayToSort
-            (index + 1)
+            (index + i)
             (length - i)
 
           cont <- false // break
@@ -69,16 +68,12 @@ module Sort =
           let v1 = arrayToSort.[rightHalfIndex]
           let! comparisonResult = comparer v0 v1
 
-          if comparisonResult = 0 then
-            // default(TCompareAsEqualAction).CompareAsEqual();
-            // This are already equal, so do nothing
-            ()
-          else if comparisonResult <= 0 then
+          if comparisonResult <= 0 then
+            arrayToSort.[i + index] <- v0
             leftHalfIndex <- leftHalfIndex + 1
-            arrayToSort.[i + index] <- localCopyofHalfOfArray.[leftHalfIndex]
           else
+            arrayToSort.[i + index] <- v1
             rightHalfIndex <- rightHalfIndex + 1
-            arrayToSort.[i + index] <- arrayToSort.[rightHalfIndex]
     }
 
   let rec mergeSortHelper
@@ -89,26 +84,23 @@ module Sort =
     (scratchSpace : Array)
     : TaskOrValue<unit> =
     taskv {
-      if length = 1 then
+      if length <= 1 then
         return ()
-      else
-
-      if length = 2 then
+      elif length = 2 then
         let v0 = arrayToSort.[index]
         let v1 = arrayToSort.[index + 1]
         let! result = comparer v0 v1
 
         if result > 0 then
-          do arrayToSort.[index] <- v1
-          do arrayToSort.[index + 1] <- v0
-        else
-          return ()
+          arrayToSort.[index] <- v1
+          arrayToSort.[index + 1] <- v0
+
       else
         let halfLen = length / 2
         do! mergeSortHelper arrayToSort index halfLen comparer scratchSpace
 
-        let nextIndex = (index + halfLen)
-        let nextLength = (length - halfLen)
+        let nextIndex = index + halfLen
+        let nextLength = length - halfLen
         do! mergeSortHelper arrayToSort nextIndex nextLength comparer scratchSpace
 
         copy arrayToSort index scratchSpace 0 halfLen
