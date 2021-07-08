@@ -18,7 +18,7 @@ window.BlazorWorker = (function () {
     const onReady = () => {
       // Setup the onmessage handler to call F#
       const messageHandler = Module.mono_bind_static_method(
-        "[Wasm]Wasm.EvalWorker:OnMessage"
+        "[Wasm]Wasm.EvalWorker:OnMessage",
       );
       self.onmessage = msg => {
         messageHandler(msg.data);
@@ -59,8 +59,7 @@ window.BlazorWorker = (function () {
     // the Wasm-compiled version of .NET
     var Module = {};
 
-    Module.print = line =>
-      console.log(`WASM-WORKER: ${line}`);
+    Module.print = line => console.log(`WASM-WORKER: ${line}`);
 
     Module.preRun = [];
     Module.postRun = [];
@@ -154,13 +153,13 @@ window.BlazorWorker = (function () {
 
         // Start loading scripts
         let runtimeResources = Object.keys(blazorboot.resources.runtime);
-        let dotnetjsfilename = runtimeResources.find(p => p.startsWith("dotnet.") && p.endsWith(".js"))
+        let dotnetjsfilename = runtimeResources.find(
+          p => p.startsWith("dotnet.") && p.endsWith(".js"),
+        );
         if (dotnetjsfilename === "") {
           throw "BlazorWorker: Unable to locate dotnetjs file in blazor boot config.";
         }
-        self.importScripts(
-          `${appRoot}/blazor/${dotnetjsfilename}`,
-        );
+        self.importScripts(`${appRoot}/blazor/${dotnetjsfilename}`);
       },
       errorInfo => onError(errorInfo),
     );
