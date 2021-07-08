@@ -210,9 +210,9 @@ List.sortBy_v0 [6;2;8;3] (fun x -> 0 - x) = [8;6;3;2]
 List.sort_v0 ["6";"2";"8";"3"] = ["2";"3";"6";"8"]
 List.sort_v0 [6;2;8;3] = [2;3;6;8]
 
-//List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "`f` must return one of -1, 0, 1, but returned non-int: 0.1" // List.sortByComparator works
-//List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "`f` must return one of -1, 0, 1, but returned another int: 3" // List.sortByComparator works
-//List.sortByComparator_v0 [3;1;2] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [ 1, 2, 3 ] // List.sortByComparator works
+//List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "`f` must return one of -1, 0, 1, but returned non-int: 0.1"
+//List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "`f` must return one of -1, 0, 1, but returned another int: 3"
+List.sortByComparator_v0 [3;1;2] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [ 1, 2, 3 ]
 
 List.tail_v0 [10, 20, 30, 40] = Just [20, 30, 40]
 List.tail_v0 [] = Nothing

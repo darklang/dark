@@ -14,6 +14,122 @@ let incorrectArgs = Errors.incorrectArgs
 
 let err (str : string) = Value(Dval.errStr str)
 
+// Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
+module Sort =
+  type Comparer = Dval -> Dval -> TaskOrValue<int>
+  type Array = array<Dval>
+
+  let copy
+    (source : Array)
+    (sourceIndex : int)
+    (target : Array)
+    (destIndex : int)
+    (length : int)
+    : unit =
+    System.Array.Copy(source, sourceIndex, target, destIndex, length)
+
+  let merge
+    (localCopyofHalfOfArray : Array)
+    (arrayToSort : Array)
+    (index : int)
+    (halfLen : int)
+    (length : int)
+    (comparer : Comparer)
+    : TaskOrValue<unit> =
+    taskv {
+      let mutable leftHalfIndex = 0
+      let mutable rightHalfIndex = index + halfLen
+      let rightHalfEnd = index + length
+      let mutable i' = 0
+      let mutable cont = true
+
+      // this whole thing is just a hacky for-loop with breaks
+      while (cont && i' < length) do
+        // Advance the array here to make sure we do it, but use `i` for the calculations
+        let i = i'
+        i' <- i' + 1
+
+        if (leftHalfIndex = halfLen) then
+          // All of the remaining elements must be from the right half, and thus must already be in position
+          cont <- false // break
+        else
+
+        if (rightHalfIndex = rightHalfEnd) then
+          // Copy remaining elements from the local copy
+          copy
+            localCopyofHalfOfArray
+            leftHalfIndex
+            arrayToSort
+            (index + 1)
+            (length - i)
+
+          cont <- false // break
+        else
+          let v0 = localCopyofHalfOfArray.[leftHalfIndex]
+          let v1 = arrayToSort.[rightHalfIndex]
+          let! comparisonResult = comparer v0 v1
+
+          if comparisonResult = 0 then
+            // default(TCompareAsEqualAction).CompareAsEqual();
+            // This are already equal, so do nothing
+            ()
+          else if comparisonResult <= 0 then
+            leftHalfIndex <- leftHalfIndex + 1
+            arrayToSort.[i + index] <- localCopyofHalfOfArray.[leftHalfIndex]
+          else
+            rightHalfIndex <- rightHalfIndex + 1
+            arrayToSort.[i + index] <- arrayToSort.[rightHalfIndex]
+    }
+
+  let rec mergeSortHelper
+    (arrayToSort : Array)
+    (index : int)
+    (length : int)
+    (comparer : Comparer)
+    (scratchSpace : Array)
+    : TaskOrValue<unit> =
+    taskv {
+      if length = 1 then
+        return ()
+      else
+
+      if length = 2 then
+        let v0 = arrayToSort.[index]
+        let v1 = arrayToSort.[index + 1]
+        let! result = comparer v0 v1
+
+        if result > 0 then
+          do arrayToSort.[index] <- v1
+          do arrayToSort.[index + 1] <- v0
+        else
+          return ()
+      else
+        let halfLen = length / 2
+        do! mergeSortHelper arrayToSort index halfLen comparer scratchSpace
+
+        let nextIndex = (index + halfLen)
+        let nextLength = (length - halfLen)
+        do! mergeSortHelper arrayToSort nextIndex nextLength comparer scratchSpace
+
+        copy arrayToSort index scratchSpace 0 halfLen
+        return! merge scratchSpace arrayToSort index halfLen length comparer
+    }
+
+  let sequentialSort
+    (arrayToSort : Array)
+    (index : int)
+    (length : int)
+    (comparer : Comparer)
+    : TaskOrValue<unit> =
+    let scratchSpace =
+      System.Array.CreateInstance(typeof<Dval>, arrayToSort.Length / 2) :?> Array
+
+    mergeSortHelper arrayToSort index length comparer scratchSpace
+
+  let sort (comparer : Comparer) (arrayToSort : Array) : TaskOrValue<unit> =
+    sequentialSort arrayToSort 0 arrayToSort.Length comparer
+
+
 let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
@@ -485,70 +601,40 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
       deprecated = NotDeprecated }
-    //   ; { name = fn "List" "sortByComparator" 0
-//     ; parameters = [Param.make "list" TList ""; func ["a"; "b"]]
-//     ; returnType = TResult
-//     ; description =
-//         "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
-//         `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
-//         Consider `List::sort` or `List::sortBy` if you don't need this level of control."
-//     ; fn =
-//           (function
-//           | state, [DList list; DFnVal b] ->
-//               let fn dv1 dv2 = Ast.execute_dblock ~state b [dv1; dv2] in
-//               ( try
-//                   list
-//                   |> List.sort (fun a b ->
-//                          match fn a b with
-//                          | DInt i ->
-//                              (* to_int_exn is just
-//                               * Int63.to_int_exn; from docs
-//                               * (https://ocaml.janestreet.com/ocaml-core/latest/doc/base/Base/Int63/index.html),
-//                               * "The size of Int63 is always 63 bits. On a 64-bit
-//                               * platform it is just an int (63-bits), and on a
-//                               * 32-bit platform it is an int64 wrapped to respect
-//                               * the semantics of 63-bit integers."
-//                               *
-//                               * We run these fns in two environments: native
-//                               * ocaml, in our containers, which are a 64-bit
-//                               * platform, and jsoo, which is a 32-bit platform.
-//                               * But you'll only get an _exn there if you manage to
-//                               * get a DInt constructed that is more than 32 bits.
-//                               *
-//                               * Not worrying about that because:
-//                               * - you'd have to really try to get here with such a
-//                               *   value, I think (constructing a DInt with a
-//                               *   >32bit int ...)
-//                               * - if you do, it'll only affect the editor
-//                               *   runtime, not bwd execution *)
-//                              let i = Dint.to_int_exn i in
-//                              ( match i with
-//                              | 0 | 1 | -1 ->
-//                                  i
-//                              | _ ->
-//                                  Exception.code
-//                                    ( "`f` must return one of -1, 0, 1, but returned another int: "
-//                                      ^ string_of_int i
-//                                    |> String.substr_replace_all
-//                                         "\n"
-//                                         ~with_:"" ) )
-//                          | nonInt ->
-//                              Exception.code
-//                                ( "`f` must return one of -1, 0, 1, but returned non-int: "
-//                                  ^ Dval.to_developer_repr_v0 nonInt
-//                                |> String.substr_replace_all
-//                                     "\n"
-//                                     ~with_:"" ))
-//                   |> DList
-//                   |> ResOk
-//                   |> DResult
-//                 with Exception.DarkException e ->
-//                   DResult (ResError (DStr e.short)) )
-//           | _ ->
-//               incorrectArgs ())
-//     ; sqlSpec = NotYetImplementedTODO
-//     ; previewable = Pure
-//     ; deprecated = NotDeprecated }
+    { name = fn "List" "sortByComparator" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "f" (TFn([ varA; varA ], TBool)) "" [ "a"; "b" ] ]
+      returnType = TResult(varA, TStr)
+      description = "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
+        `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
+        Consider `List::sort` or `List::sortBy` if you don't need this level of control."
+      fn =
+        (function
+        | state, [ DList list; DFnVal f ] ->
+            let fn (dv1 : Dval) (dv2 : Dval) : TaskOrValue<int> =
+              taskv {
+                let! result =
+                  Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe NoRail
+
+                match result with
+                | DInt i when i = 1I || i = 0I || i = -1I -> return int i
+                | _ ->
+                    return
+                      Errors.throw (Errors.expectedLambdaValue "-1, 0, 1" result)
+              }
+
+            try
+              taskv {
+                let array = List.toArray list
+                do! Sort.sort fn array
+                return array |> Array.toList |> DList |> Ok |> DResult
+              }
+            with e -> Value(DResult(Error(DStr(string e))))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplementedTODO
+      previewable = Pure
+      deprecated = NotDeprecated }
     { name = fn "List" "append" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varA) "" ]

@@ -373,6 +373,30 @@ type TaskOrValueBuilder() =
   member builder.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
     Task(task { return! TaskOrValue.toTask (f ()) })
 
+  member builder.While
+    (
+      guard : unit -> bool,
+      body : TaskOrValue<'a>
+    ) : TaskOrValue<unit> =
+    // evaluate test function
+    if not (guard ()) then
+      // exit loop
+      builder.Zero()
+    else
+      // evaluate the body function
+      builder.Bind(
+        body,
+        fun _ ->
+          // call recursively
+          builder.While(guard, body)
+      )
+
+  member builder.Combine
+    (
+      v0 : TaskOrValue<unit>,
+      v1 : TaskOrValue<'a>
+    ) : TaskOrValue<'a> =
+    builder.Bind(v0, (fun () -> v1))
 
 let taskv = TaskOrValueBuilder()
 
@@ -527,7 +551,6 @@ module Map =
         })
       Map.empty
       dict
-
 
 
 // ----------------------
