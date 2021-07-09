@@ -299,27 +299,27 @@ module Dictionary =
 
 type TaskOrValue<'T> =
   | Task of Task<'T>
-  | Delayed of (unit -> TaskOrValue<'T>)
   | Value of 'T
+
+// It seems from the docs that Delay needs to return a TaskOrValue<'T>, and
+// that other functions take a TaskOrValue<'T>. However, the truth is that
+// those functions (Run, Combine, While, at least), actually take the return
+// type of Delay, which can be anything.
+// https://fsharpforfunandprofit.com/posts/computation-expressions-builder-part3/
+type Delayed<'T> = unit -> TaskOrValue<'T>
 
 module TaskOrValue =
   let rec toTask (v : TaskOrValue<'T>) : Task<'T> =
     match v with
     | Task t -> t
-    | Delayed d -> toTask (d ())
     | Value v -> Task.FromResult v
 
 
 // https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-// This lets us use let!, do! - These can be overloaded
-// so I define two overloads for 'let!' - one taking regular
-// Task and one our TaskOrValue. You can then call both using
-// the let! syntax.
 type TaskOrValueBuilder() =
   member x.Bind(tv : TaskOrValue<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
     match tv with
     | Value v -> f v
-    | Delayed d -> x.Bind(d (), f)
     | Task t ->
         Task(
           task {
@@ -352,15 +352,10 @@ type TaskOrValueBuilder() =
   member x.Zero() : TaskOrValue<unit> = Value()
 
   // These lets us use try
-  member x.TryWith
-    (
-      tv : unit -> TaskOrValue<'a>,
-      f : exn -> TaskOrValue<'a>
-    ) : TaskOrValue<'a> =
+  member x.TryWith(tv : Delayed<'a>, f : exn -> TaskOrValue<'a>) : TaskOrValue<'a> =
     try
       match tv () with
       | Value v -> Value v
-      | Delayed d -> x.TryWith(d, f)
       | Task t ->
           Task(
             task {
@@ -372,19 +367,14 @@ type TaskOrValueBuilder() =
           )
     with e -> f e
 
-  member x.Delay(f : unit -> TaskOrValue<'a>) : unit -> TaskOrValue<'a> = f
+  member x.Delay(f : unit -> TaskOrValue<'a>) : Delayed<'a> = f
 
-  member x.Run(tv : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
+  member x.Run(tv : Delayed<'a>) : TaskOrValue<'a> =
     match tv () with
     | Value v -> Value v
-    | Delayed d -> d ()
     | Task t -> x.Bind(t, (fun v -> Value v))
 
-  member x.While
-    (
-      cond : unit -> bool,
-      body : unit -> TaskOrValue<unit>
-    ) : TaskOrValue<unit> =
+  member x.While(cond : unit -> bool, body : Delayed<'a>) : TaskOrValue<unit> =
     if not (cond ()) then
       // exit loop
       x.Zero()
@@ -392,12 +382,7 @@ type TaskOrValueBuilder() =
       // evaluate the body function, and call recursively
       x.Bind(body (), (fun _ -> x.While(cond, body)))
 
-
-  member x.Combine
-    (
-      v0 : TaskOrValue<unit>,
-      v1 : unit -> TaskOrValue<'a>
-    ) : TaskOrValue<'a> =
+  member x.Combine(v0 : TaskOrValue<unit>, v1 : Delayed<'a>) : TaskOrValue<'a> =
     x.Bind(v0, (fun () -> v1 ()))
 
 
