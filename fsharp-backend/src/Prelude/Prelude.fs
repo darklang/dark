@@ -299,12 +299,14 @@ module Dictionary =
 
 type TaskOrValue<'T> =
   | Task of Task<'T>
+  | Delayed of (unit -> TaskOrValue<'T>)
   | Value of 'T
 
 module TaskOrValue =
-  let toTask (v : TaskOrValue<'T>) : Task<'T> =
+  let rec toTask (v : TaskOrValue<'T>) : Task<'T> =
     match v with
     | Task t -> t
+    | Delayed d -> toTask (d ())
     | Value v -> Task.FromResult v
 
 
@@ -314,13 +316,10 @@ module TaskOrValue =
 // Task and one our TaskOrValue. You can then call both using
 // the let! syntax.
 type TaskOrValueBuilder() =
-  member builder.Bind
-    (
-      tv : TaskOrValue<'a>,
-      f : 'a -> TaskOrValue<'b>
-    ) : TaskOrValue<'b> =
+  member x.Bind(tv : TaskOrValue<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
     match tv with
     | Value v -> f v
+    | Delayed d -> x.Bind(d (), f)
     | Task t ->
         Task(
           task {
@@ -330,7 +329,7 @@ type TaskOrValueBuilder() =
           }
         )
 
-  member builder.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
+  member x.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
     Task(
       task {
         let! v = t
@@ -339,7 +338,7 @@ type TaskOrValueBuilder() =
       }
     )
 
-  member builder.Bind(t : Task, f : unit -> TaskOrValue<'b>) : TaskOrValue<'b> =
+  member x.Bind(t : Task, f : unit -> TaskOrValue<'b>) : TaskOrValue<'b> =
     Task(
       task {
         do! t
@@ -355,48 +354,53 @@ type TaskOrValueBuilder() =
   // These lets us use try
   member x.TryWith
     (
-      tv : TaskOrValue<'a>,
+      tv : unit -> TaskOrValue<'a>,
       f : exn -> TaskOrValue<'a>
     ) : TaskOrValue<'a> =
-    match tv with
+    try
+      match tv () with
+      | Value v -> Value v
+      | Delayed d -> x.TryWith(d, f)
+      | Task t ->
+          Task(
+            task {
+              try
+                let! x = t
+                return x
+              with e -> return! TaskOrValue.toTask (f e)
+            }
+          )
+    with e -> f e
+
+  member x.Delay(f : unit -> TaskOrValue<'a>) : unit -> TaskOrValue<'a> = f
+
+  member x.Run(tv : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
+    match tv () with
     | Value v -> Value v
-    | Task t ->
-        Task(
-          task {
-            try
-              let! result = t
-              return result
-            with e -> return! TaskOrValue.toTask (f e)
-          }
-        )
+    | Delayed d -> d ()
+    | Task t -> x.Bind(t, (fun v -> Value v))
 
-  member builder.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
-    Task(task { return! TaskOrValue.toTask (f ()) })
-
-  member builder.While
+  member x.While
     (
-      guard : unit -> bool,
-      body : TaskOrValue<'a>
+      cond : unit -> bool,
+      body : unit -> TaskOrValue<unit>
     ) : TaskOrValue<unit> =
-    // evaluate test function
-    if not (guard ()) then
+    if not (cond ()) then
       // exit loop
-      builder.Zero()
+      x.Zero()
     else
-      // evaluate the body function
-      builder.Bind(
-        body,
-        fun _ ->
-          // call recursively
-          builder.While(guard, body)
-      )
+      // evaluate the body function, and call recursively
+      x.Bind(body (), (fun _ -> x.While(cond, body)))
 
-  member builder.Combine
+
+  member x.Combine
     (
       v0 : TaskOrValue<unit>,
-      v1 : TaskOrValue<'a>
+      v1 : unit -> TaskOrValue<'a>
     ) : TaskOrValue<'a> =
-    builder.Bind(v0, (fun () -> v1))
+    x.Bind(v0, (fun () -> v1 ()))
+
+
 
 let taskv = TaskOrValueBuilder()
 
