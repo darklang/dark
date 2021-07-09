@@ -622,7 +622,8 @@ let fns : List<BuiltInFn> =
                 do! Sort.sort fn array
                 return array |> Array.toList |> DList |> Ok |> DResult
               }
-            with e -> Value(DResult(Error(DStr(string e))))
+            with Errors.StdlibException (Errors.StringError m) ->
+              Value(DResult(Error(DStr m)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
