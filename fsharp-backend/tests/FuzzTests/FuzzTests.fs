@@ -953,50 +953,67 @@ module ExecutePureFunctions =
         // Error messages are not required to be directly the same between
         // old and new implementations. However, this can hide errors, so we
         // manually verify them all to make sure we didn't miss any.
-        let errorAllowed actualMsg expectedMsg =
+        let errorAllowed (actualMsg : string) (expectedMsg : string) =
+          let expectedMsg =
+            // Some OCaml errors are in a JSON struct, so get the message and compare that
+            try
+              let jsonDocument = System.Text.Json.JsonDocument.Parse(expectedMsg)
+              let mutable elem = System.Text.Json.JsonElement()
 
-          let e2 actualPat expectedPat =
-            System.Text.RegularExpressions.Regex.IsMatch(actualMsg, actualPat)
-            && System.Text.RegularExpressions.Regex.IsMatch(expectedMsg, expectedPat)
+              if jsonDocument.RootElement.TryGetProperty("short", &elem) then
+                elem.GetString()
+              else
+                expectedMsg
+            with _ -> expectedMsg
 
-          let e pat = e2 pat pat
+          if actualMsg = expectedMsg then
+            true
+          else
 
-          match fn.ToString() with
-          // Removed
-          | "String::fromChar"
-          | "String::toList"
-          | "String::fromList"
-          | "Char::toUppercase"
-          | "Char::toLowercase"
-          | "Char::toASCIICode"
-          | "Char::toASCIIChar"
-          | "String::foreach" -> true
-          // Known acceptable difference
-          | "Object::toJSON"
-          | "Object::toJSON_v1"
-          | "Dict::toJSON" -> true
-          // Messages are close-enough
-          | "%"
-          | "Int::mod" ->
-              e2
-                "Expected the argument `b` to be positive, but it was"
-                "Expected the argument `b` argument passed to"
-          | "Int::remainder" ->
-              e2 "`divisor` cannot be zero" "`divisor` must be non-zero"
-          | "Date::parse" -> e "Invalid date format"
-          | "Option::andThen" ->
-              e2
-                "Expecting the function to return Option, but the result was"
-                "Expected `f` to return an option"
-          | "List::filter" ->
-              e2
-                "Expecting the function to return Bool, but the result was"
-                "Expecting fn to return bool"
-          | "String::toFloat" ->
-              e2
-                "Expected the argument `s` to be a string representation of an IEEE float, but it was"
-                "Expected a string representation of an IEEE float"
-          | _ -> false
+            // Keep a list of allowed errors where we can edit it without recompiling
+            let allowedErrors =
+              use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
+              let json = r.ReadToEnd()
+
+              Newtonsoft.Json.JsonConvert.DeserializeObject<List<List<string>>>(json)
+
+            List.any
+              (function
+              | [ name; actualPat; expectedPat; _notes ] ->
+                  let nameMatches =
+                    System.Text.RegularExpressions.Regex.IsMatch(string fn, name)
+
+                  let actualMatch =
+                    System.Text.RegularExpressions.Regex.Match(actualMsg, actualPat)
+
+                  let expectedMatch =
+                    System.Text.RegularExpressions.Regex.Match(
+                      expectedMsg,
+                      expectedPat
+                    )
+
+                  // Not only should we check that the error message matches, but also that the
+                  let mutable capturesMatch =
+                    actualMatch.Success
+                    && expectedMatch.Success
+                    && actualMatch.Captures.Count = expectedMatch.Captures.Count
+
+                  if capturesMatch && actualMatch.Captures.Count > 1 then
+                    for i = 1 to actualMatch.Captures.Count - 1 do // start at 1, because 0 is the whole match
+                      capturesMatch <-
+                        capturesMatch
+                        && (actualMatch.Captures.[i].Value = expectedMatch.Captures.[i]
+                          .Value)
+
+                  nameMatches
+                  && actualMatch.Success
+                  && expectedMatch.Success
+                  && capturesMatch
+              | _ -> failwith "Invalid json in tests/allowedFuzzerErrors.json")
+              allowedErrors
+
+
+
 
         let debugFn () =
           debuG "fn" fn
@@ -1014,23 +1031,27 @@ module ExecutePureFunctions =
           return true
         else
           match actual, expected with
-          | RT.DError (_, msg1), RT.DError (_, msg2) ->
-              let allowed = errorAllowed msg1 msg2
+          | RT.DError (_, aMsg), RT.DError (_, eMsg) ->
+              let allowed = errorAllowed aMsg eMsg
 
               if not allowed then
                 debugFn ()
-                printfn $"Got different error msgs: \"{msg1}\" vs \"{msg2}\""
 
-              // FSTODO make false
+                printfn
+                  $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+
+              // FSTODO return (not allowed)
               return true
-          | RT.DResult (Error (RT.DStr msg1)), RT.DResult (Error (RT.DStr msg2)) ->
-              let allowed = errorAllowed msg1 msg2
+          | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
+              let allowed = errorAllowed aMsg eMsg
 
               if not allowed then
                 debugFn ()
-                printfn $"Got different Results msgs: \"{msg1}\" vs \"{msg2}\""
 
-              // FSTODO make false
+                printfn
+                  $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+
+              // FSTODO return (not allowed)
               return true
           | _ ->
               debugFn ()
