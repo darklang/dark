@@ -33,6 +33,8 @@ String.join_v0 ["🧟‍♀️🧟‍♂️", "🧟‍♀️🧑🏽‍🦰"] ""
 String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "‍⚧️‍️🇵🇷"] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.join_v0 ["🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
 String.join_v0 ["🧑🏽‍🦰‍", "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
+String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected string" // OCAMLONLY
+String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strings, but the list contained `0`" // FSHARPONLY
 
 Bytes.length_v0 (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
 Bytes.length_v0 (String.toBytes_v0 "😄APPLE🍏") = 13
@@ -307,6 +309,8 @@ String.fromList_v1 [] = ""
 ("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "String::fromList was removed from Dark") // FSHARPONLY
 ("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
 ("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
+String.fromList_v1 [6] = Test.typeError_v0 "expected a char" // OCAMLONLY
+String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`" // FSHARPONLY
 
 String.split_v0 "hello😄world" "😄" = [ "hello", "world" ] // String split works on strings with emoji + ascii
 String.split_v0 "hello&&&&world" "&&&&" = [ "hello", "world" ]
