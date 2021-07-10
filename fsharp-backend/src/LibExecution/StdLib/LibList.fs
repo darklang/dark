@@ -976,7 +976,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "takeWhile" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varA
       description =
         "Return the longest prefix of `list` which satisfies the predicate `val`"
