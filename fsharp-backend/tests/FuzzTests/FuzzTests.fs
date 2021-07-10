@@ -61,10 +61,10 @@ module Generators =
       try
         let (_ : string) = s.Normalize()
         true
-      with _ ->
-        debuG
-          "Failed to normalize :"
-          $"'{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+      with e ->
+        // debuG
+        //   "Failed to normalize :"
+        //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
 
         false
 
@@ -740,6 +740,10 @@ module ExecutePureFunctions =
                     RT.Lambda
                       { parameters = parameters; symtable = Map.empty; body = body }
                   ))
+            | RT.TError ->
+                let! source = Arb.generate<RT.DvalSource>
+                let! str = Arb.generate<string>
+                return RT.DError(source, str)
             | _ -> return failwith $"Not supported yet: {typ}"
           }
 
@@ -776,6 +780,10 @@ module ExecutePureFunctions =
                          false
                      | { name = { module_ = "AWS"; function_ = "urlencode" } } ->
                          // Bug in unicode probably
+                         false
+                     | { name = { module_ = "List"; function_ = "uniqueBy" } } ->
+                         // The lambda gives the same value for all elements,
+                         // and we don't guarantee which one wins
                          false
                      | fn -> fn.previewable = RT.Pure)
 
@@ -883,6 +891,7 @@ module ExecutePureFunctions =
                        // Int overflow converting from Floats
                        | 0, RT.DFloat f, _, "Float", "floor", 0
                        | 0, RT.DFloat f, _, "Float", "roundDown", 0
+                       | 0, RT.DFloat f, _, "Float", "roundTowardsZero", 0
                        | 0, RT.DFloat f, _, "Float", "round", 0
                        | 0, RT.DFloat f, _, "Float", "ceiling", 0
                        | 0, RT.DFloat f, _, "Float", "roundUp", 0
