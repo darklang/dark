@@ -917,7 +917,7 @@ let ofUnknownJsonV1 str =
   try
     str |> parseJson |> convert
   with :? JsonReaderException as e ->
-    let msg = if str = "" then "Empty JSON" else e.Message
+    let msg = if str = "" then "JSON string was empty" else e.Message
     failwith msg
 
 

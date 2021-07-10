@@ -38,9 +38,9 @@ List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if ite
 List.filter_v0 [1;2;3] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3]
 List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = [1, 3]
 List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expecting the function to return Bool, but the result was 2" // FSHARPONLY
+List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned 2" // FSHARPONLY
 List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting the function to return Bool, but the result was \"a\"" // FSHARPONLY
+List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned \"a\"" // FSHARPONLY
 
 List.filter_v1 [-20; 5; 9;] (fun x -> x < 1) = [-20]
 List.filter_v1 [-20; 5; 9;] (fun x -> x > 20) = []
@@ -50,9 +50,9 @@ List.filter_v1 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if ite
 List.filter_v1 [] (fun x -> x < 20) = []
 List.filter_v1 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
 List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expecting the function to return Bool, but the result was \"a\"" // FSHARPONLY
+List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned \"a\"" // FSHARPONLY
 List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting the function to return Bool, but the result was \"a\"" // FSHARPONLY
+List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned \"a\"" // FSHARPONLY
 
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`. However, it returned `Nothing` for the input `1`." // OCAMLONLY
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` to be `true` or `false` for every value in `list`, but it was `Nothing` for the input 1" // FSHARPONLY
@@ -213,11 +213,11 @@ List.sort_v0 [6;2;8;3] = [2;3;6;8]
 List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "`f` must return one of -1, 0, 1, but returned non-int: 0.1" // OCAMLONLY
 List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "`f` must return one of -1, 0, 1, but returned another int: 3" // OCAMLONLY
 
-List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "Expecting the function to return -1, 0, 1, but the result was 0.1" // FSHARPONLY
-List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "Expecting the function to return -1, 0, 1, but the result was 3" // FSHARPONLY
+List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "Expected `f` to return -1, 0, 1, but the result was 0.1" // FSHARPONLY
+List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "Expected `f` to return -1, 0, 1, but the result was 3" // FSHARPONLY
 
 List.sortByComparator_v0 [3;1;2] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [ 1, 2, 3 ]
-List.sortByComparator_v0 [3;1;2;67;3;-1;6;3;5;6;2;5;63;2;3;5;-1;-1;-1] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok[-1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67]
+List.sortByComparator_v0 [3;1;2;67;3;-1;6;3;5;6;2;5;63;2;3;5;-1;-1;-1] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [-1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67]
 
 List.tail_v0 [10, 20, 30, 40] = Just [20, 30, 40]
 List.tail_v0 [] = Nothing
@@ -244,11 +244,11 @@ List.uniqueBy_v0 [1;1;1;1] (fun x -> x) = [ 1 ]
 List.uniqueBy_v0 [7;42;7;2;10] (fun x -> x) = [ 2, 7, 10, 42 ]
 
 List.unzip_v0 [[1;10];10;[3;30]] = Test.typeError_v0 "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index 1: 10. It is of type `Int` instead of `List`." // OCAMLONLY
-List.unzip_v0 [[1;10];10;[3;30]] = Test.typeError_v0 "Expected the argument `pairs` to be a list with exactly two values, but it was `10`It is of type Int instead of `List`" // FSHARPONLY
+List.unzip_v0 [[1;10];10;[3;30]] = Test.typeError_v0 "Expected the argument `pairs` to be a list with exactly two values, but it was `10`. It is of type Int instead of `List`" // FSHARPONLY
 List.unzip_v0 [[1;10];[2;20];[3;30;40]] = Test.typeError_v0 "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index 2: [ \n  3, 30, 40\n]. It has length 3 but must have length 2." // OCAMLONLY
-List.unzip_v0 [[1;10];[2;20];[3;30;40]] = Test.typeError_v0 "Expected the argument `pairs` to be a list with exactly two values, but it was `[ \n  3, 30, 40\n]`It has length 3 but must have length 2" // FSHARPONLY
+List.unzip_v0 [[1;10];[2;20];[3;30;40]] = Test.typeError_v0 "Expected the argument `pairs` to be a list with exactly two values, but it was `[ \n  3, 30, 40\n]`. It has length 3 but should have length 2" // FSHARPONLY
 List.unzip_v0 [[]] = Test.typeError_v0 "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index 0: []. It has length 0 but must have length 2." // OCAMLONLY
-List.unzip_v0 [[]] = Test.typeError_v0 "Expected the argument `pairs` to be a list with exactly two values, but it was `[]`It has length 0 but must have length 2" // FSHARPONLY
+List.unzip_v0 [[]] = Test.typeError_v0 "Expected the argument `pairs` to be a list with exactly two values, but it was `[]`. It has length 0 but should have length 2" // FSHARPONLY
 List.unzip_v0 [[1;10];[2;20];[3;30]] = [ [ 1, 2, 3 ], [ 10, 20, 30 ] ]
 List.unzip_v0 [[10;6]] = [[10],[6]]
 

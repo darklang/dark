@@ -325,7 +325,8 @@ let fns : List<BuiltInFn> =
                       | (DIncomplete _ as e)
                       | (DError _ as e) -> return Error e
                       | other ->
-                          return Errors.throw (Errors.expectedLambdaType TBool other)
+                          return
+                            Errors.throw (Errors.expectedLambdaType "f" TBool other)
                     }
 
               let! filtered_result =

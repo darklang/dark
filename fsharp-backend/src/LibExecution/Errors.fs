@@ -34,14 +34,18 @@ exception FakeValFoundInQuery of Dval
 // ------------------
 // Messages
 // ------------------
-let expectedLambdaType (typ : DType) (actual : Dval) : string =
+let expectedLambdaType (fnName : string) (typ : DType) (actual : Dval) : string =
   let actual = DvalRepr.toDeveloperReprV0 actual
   let typ = DvalRepr.typeToDeveloperReprV0 typ
-  $"Expecting the function to return {typ}, but the result was {actual}"
+  $"Expected `{fnName}` to return a {typ}, but it returned {actual}"
 
-let expectedLambdaValue (expected : string) (actual : Dval) : string =
+let expectedLambdaValue
+  (fnName : string)
+  (expected : string)
+  (actual : Dval)
+  : string =
   let actual = DvalRepr.toDeveloperReprV0 actual
-  $"Expecting the function to return {expected}, but the result was {actual}"
+  $"Expected `{fnName}` to return {expected}, but the result was {actual}"
 
 
 
@@ -50,6 +54,12 @@ let expectedLambdaValue (expected : string) (actual : Dval) : string =
 let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string =
   let actual = DvalRepr.toDeveloperReprV0 dv
   $"Expected the argument `{paramName}` to be {expected}, but it was `{actual}`"
+
+// Used for lists which contain invalid values for some reason.
+let argumentMemberWasnt (typ : DType) (paramName : string) (dv : Dval) : string =
+  let actual = DvalRepr.toDeveloperReprV0 dv
+  let typ = DvalRepr.typeToDeveloperReprV0 typ
+  $"Expected `{paramName}` to be a list of {typ}s, but the list contained `{actual}`"
 
 let dividingByZero (paramName : string) : string = $"`{paramName}` cannot be zero"
 

@@ -613,7 +613,7 @@ let fns : List<BuiltInFn> =
                 | DInt i when i = 1I || i = 0I || i = -1I -> return int i
                 | _ ->
                     return
-                      Errors.throw (Errors.expectedLambdaValue "-1, 0, 1" result)
+                      Errors.throw (Errors.expectedLambdaValue "f" "-1, 0, 1" result)
               }
 
             try
@@ -666,7 +666,7 @@ let fns : List<BuiltInFn> =
                       incomplete := true
                       return false
                   | v ->
-                      Errors.throw (Errors.expectedLambdaType TBool v)
+                      Errors.throw (Errors.expectedLambdaType "f" TBool v)
                       return false
                 }
 
@@ -756,7 +756,7 @@ let fns : List<BuiltInFn> =
                         fakecf := Some dv
                         return false
                     | v ->
-                        Errors.throw (Errors.expectedLambdaType TBool v)
+                        Errors.throw (Errors.expectedLambdaType "f" TBool v)
                         return false
 
                   else
@@ -1259,9 +1259,9 @@ let fns : List<BuiltInFn> =
                   let err_details =
                     match v with
                     | DList l ->
-                        $"It has length {List.length l} but must have length 2"
+                        $". It has length {List.length l} but should have length 2"
                     | nonList ->
-                        $"It is of type {DvalRepr.prettyTypename v} instead of `List`"
+                        $". It is of type {DvalRepr.prettyTypename v} instead of `List`"
 
                   Errors.throw (
                     Errors.argumentWasnt "a list with exactly two values" "pairs" v
