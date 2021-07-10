@@ -749,6 +749,6 @@ and execFn
           // message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
           // this, give it a nice exception via RT.error. *)
           // FSTODO: the message above needs to be handled
-          | e -> return (Dval.errSStr sourceID (toString e))
+          | e -> return (Dval.errSStr sourceID e.Message)
 
   }
