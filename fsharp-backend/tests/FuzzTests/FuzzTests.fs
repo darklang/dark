@@ -1006,16 +1006,11 @@ module ExecutePureFunctions =
           debugFn ()
           debuG "ocaml (expected) is not normalized" (debugDval expected)
           return false
-        else
-
-        if not (Expect.isCanonical actual) then
+        elif not (Expect.isCanonical actual) then
           debugFn ()
           debuG "fsharp (actual) is not normalized" (debugDval actual)
           return false
-        else
-
-        if dvalEquality actual expected then
-
+        elif dvalEquality actual expected then
           return true
         else
           match actual, expected with
