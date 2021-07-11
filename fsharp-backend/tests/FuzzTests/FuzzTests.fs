@@ -938,6 +938,10 @@ module ExecutePureFunctions =
                   return (name, [])
             } }
 
+  type AllowedFuzzerErrorFileStructure =
+    { functionsOfInterest : List<string>
+      knownErrors : List<List<string>> }
+
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
@@ -984,7 +988,12 @@ module ExecutePureFunctions =
               use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
               let json = r.ReadToEnd()
 
-              Newtonsoft.Json.JsonConvert.DeserializeObject<List<List<string>>>(json)
+              Newtonsoft.Json.JsonConvert.DeserializeObject<AllowedFuzzerErrorFileStructure>(
+                json
+              )
+
+            let functionOfInterest =
+              List.contains (string fn) allowedErrors.functionsOfInterest
 
             List.any
               (function
@@ -1019,7 +1028,7 @@ module ExecutePureFunctions =
                   && expectedMatch.Success
                   && capturesMatch
               | _ -> failwith "Invalid json in tests/allowedFuzzerErrors.json")
-              allowedErrors
+              allowedErrors.knownErrors
 
 
 

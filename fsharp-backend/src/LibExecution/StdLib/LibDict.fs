@@ -343,7 +343,11 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filterMap" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "f" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs
+            "f"
+            (TFn([ TStr; varA ], TOption varB))
+            ""
+            [ "key"; "value" ] ]
       returnType = TDict varB
       description = "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
           If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
@@ -378,13 +382,7 @@ let fns : List<BuiltInFn> =
                         abortReason := Some dv
                         return None
                     | v ->
-                        Errors.throw (
-                          Errors.argumentWasnt
-                            "`Just` or `Nothing` for every entry in `dict`"
-                            "f"
-                            v
-                          + $" for the entry {key}: {DvalRepr.toDeveloperReprV0 data}."
-                        )
+                        Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
 
                         return None
 

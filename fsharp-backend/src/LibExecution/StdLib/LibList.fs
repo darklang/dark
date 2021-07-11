@@ -665,9 +665,7 @@ let fns : List<BuiltInFn> =
                   | DIncomplete _ ->
                       incomplete := true
                       return false
-                  | v ->
-                      Errors.throw (Errors.expectedLambdaType "f" TBool v)
-                      return false
+                  | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
                 }
 
               if !incomplete then
@@ -756,9 +754,7 @@ let fns : List<BuiltInFn> =
                         fakecf := Some dv
                         return false
                     | v ->
-                        Errors.throw (Errors.expectedLambdaType "f" TBool v)
-                        return false
-
+                        return Errors.throw (Errors.expectedLambdaType "f" TBool v)
                   else
                     return false
                 }
@@ -803,16 +799,7 @@ let fns : List<BuiltInFn> =
                         abortReason := Some dv
                         return false
                     | v ->
-                        Errors.throw (
-                          Errors.argumentWasnt
-                            "`true` or `false` for every value in `list`"
-                            "f"
-                            v
-                          + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
-                        )
-
-                        return false
-
+                        return Errors.throw (Errors.expectedLambdaType "f" TBool v)
                   else
                     return false
                 }
@@ -860,15 +847,10 @@ let fns : List<BuiltInFn> =
                         abortReason := Some dv
                         return None
                     | v ->
-                        Errors.throw (
-                          Errors.argumentWasnt
-                            "`Just` or `Nothing` for every value in `list`"
-                            "f"
-                            v
-                          + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
-                        )
-
-                        return None
+                        return
+                          Errors.throw (
+                            Errors.expectedLambdaType "f" (TOption varB) v
+                          )
                   else
                     return None
                 }
@@ -936,15 +918,8 @@ let fns : List<BuiltInFn> =
                             abortReason := Some dv
                             return []
                         | v ->
-                            Errors.throw (
-                              Errors.argumentWasnt
-                                "boolean value for every value in `list`"
-                                "f"
-                                v
-                              + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
-                            )
-
-                            return []
+                            return
+                              Errors.throw (Errors.expectedLambdaType "f" TBool v)
                       else
                         return []
                     }
@@ -1014,15 +989,8 @@ let fns : List<BuiltInFn> =
                             abortReason := Some dv
                             return []
                         | v ->
-                            Errors.throw (
-                              Errors.argumentWasnt
-                                "boolean value for every value in `list`"
-                                "f"
-                                v
-                              + $" for the input {DvalRepr.toDeveloperReprV0 dv}"
-                            )
-
-                            return []
+                            return
+                              Errors.throw (Errors.expectedLambdaType "f" TBool v)
                       else
                         return []
                     }
@@ -1040,7 +1008,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "foreach" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          // CLEANUP rename these ares to "fn"
+          // CLEANUP rename these args to "fn"
           Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TList varB
       description = "Call `f` on every `val` in the list, returning a list of the results of
@@ -1256,7 +1224,7 @@ let fns : List<BuiltInFn> =
               | DErrorRail _
               | DError _) as dv -> Errors.foundFakeDval dv
               | v ->
-                  let err_details =
+                  let errDetails =
                     match v with
                     | DList l ->
                         $". It has length {List.length l} but should have length 2"
@@ -1265,7 +1233,7 @@ let fns : List<BuiltInFn> =
 
                   Errors.throw (
                     Errors.argumentWasnt "a list with exactly two values" "pairs" v
-                    + err_details
+                    + errDetails
                   )
 
             let result = l |> List.rev |> List.fold f ([], [])
@@ -1275,6 +1243,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
+      // CLEANUP deprecate and replace with tuples
       deprecated = NotDeprecated }
     { name = fn "List" "getAt" 0
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]

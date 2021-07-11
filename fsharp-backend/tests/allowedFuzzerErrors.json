@@ -1,63 +1,67 @@
-[
-  [
-    "function name",
-    "actual (F#) error message",
-    "expected (OCaml) error message",
-    "a notes field, which is ignored"
-  ],
-  [
-    "Dict::fromList.*",
-    "All list items must be `[key, value]`",
-    "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `[key, value]` list. However, that is not the case for the value at index \\d: `.*`. It is of type `.*` instead of `List`.",
-    "The old message was better, but this will go away with tuples so who cares"
-  ],
-  [
-    "Http::setCookie_v2",
-    "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was .*",
-    "Expected the params dict passed to `Http::setCookie_v2` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was ``.",
-    ""
-  ],
-  [
-    ".*",
-    "Expected `f` to return a Result, but it returned .*",
-    "Expected `.*` to return a result",
-    "FSTODO: would be better with an indefinite article and a parameter being referred to"
-  ],
-  [
-    "List::unzip",
-    "Expected the argument `pairs` to be a list with exactly two values, but it was `(<pairs>.*)`. It has length (?<len>\\d+) but must have length 2",
-    "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index \\d: (?<pairs>.*). It has length (?<len>\\d+) but must have length 2.",
-    "tuples coming soon, bad error doesn't matter"
-  ],
-  [
-    ".*",
-    "Expected `.*` to return a result",
-    "Expected the function to return `(?<arg>.*)`, but the result was .*",
-    "FSTODO: could be worded much better - not clear that this is the lambda function"
-  ],
-  [
-    ".*",
-    "Expected the argument `(?<arg>.*)` to be .*, but it was .* for the input .*",
-    "Expected the argument `(?<arg>.*)` passed to `.*` to return .*. However, it returned `.*` for the entry `.*`.",
-    "FSTODO: are there parameters here we could improve"
-  ],
-  [
-    ".*",
-    "Expected the argument `value` to be a string, but it was `.*`",
-    "expecting str",
-    ""
-  ],
-  [
-    "JSON::parse.*",
-    "Unexpected character encountered while parsing value: (?<arg>.*). Path '', line (?<line>\\d+), position (?<pos>\\d+).",
-    "Json Err: Line (?<line>\\d+), bytes (?<pos>\\d+)-3:\nInvalid token '(?<arg>.*)'",
-    ""
-  ],
-  [
-    ".*",
-    "Expected the argument `(?<arg>.*)` to be positive, but it was `(?<result>.*)`",
-    "Expected the argument `(?<arg>.*)` argument passed to `%` to be positive, but it was `(?<result>.*)`.",
-    ""
-  ],
-  [".*", ".* was removed from Dark", "This function no longer exists.", ""]
-]
+{
+  "functionsOfInterest": ["Dict::fromList"],
+  "knownErrors": [
+    [
+      "function name",
+      "actual (F#) error message",
+      "expected (OCaml) error message",
+      "a notes field, which is ignored"
+    ],
+    [
+      "Dict::fromList.*",
+      "All list items must be `\\[key, value\\]`",
+      "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d: `.*`. It is of type `.*` instead of `List`.",
+      "The old message was better, but this will go away with tuples so who cares"
+    ],
+    [
+      "Http::setCookie_v2",
+      "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was .*",
+      "Expected the params dict passed to `Http::setCookie_v2` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was ``.",
+      ""
+    ],
+    [
+      ".*",
+      "Expected `f` to return a Result, but it returned .*",
+      "Expected `.*` to return a result",
+      "FSTODO: would be better with an indefinite article and a parameter being referred to"
+    ],
+    [
+      "List::unzip",
+      "Expected the argument `pairs` to be a list with exactly two values, but it was `(<pairs>.*)`. It has length (?<len>\\d+) but must have length 2",
+      "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index \\d: (?<pairs>.*). It has length (?<len>\\d+) but must have length 2.",
+      "tuples coming soon, bad error doesn't matter"
+    ],
+    [
+      ".*",
+      "Expected `.*` to return a result",
+      "Expected the function to return `(?<arg>.*)`, but the result was .*",
+      "FSTODO: could be worded much better - not clear that this is the lambda function"
+    ],
+    [
+      ".*",
+      "Expected `(?<arg>.*)` to return a .*, but it returned `.*`",
+      "Expected the argument `(?<arg>.*)` passed to `.*` to return .*. However, it returned `.*` for the input `.*`.",
+      "FSTODO: are there parameters here we could improve"
+    ],
+    [
+      ".*",
+      "Expected the argument `value` to be a string, but it was `.*`",
+      "expecting str",
+      ""
+    ],
+    [
+      "JSON::parse.*",
+      "Unexpected character encountered while parsing value: (?<arg>.*). Path '', line \\d+, position (?<pos>\\d+).",
+      "Json Err: Line \\d+, bytes (?<pos>\\d+)-3:\nInvalid token '(?<arg>.*)'",
+      "Line is off by one - ocaml starts counting at 1"
+    ],
+    [
+      "(Int::mod|%)",
+      "Expected the argument `(?<arg>.*)` to be positive, but it was `(?<result>\\d+)`",
+      "Expected the argument `(?<arg>.*)` argument passed to `.*` to be positive, but it was `(?<result>\\d+)`.",
+      ""
+    ],
+    [".*", "JSON string was empty", "Json Err: Blank input data", ""],
+    [".*", ".* was removed from Dark", "This function no longer exists.", ""]
+  ]
+}

@@ -37,7 +37,7 @@ exception FakeValFoundInQuery of Dval
 let expectedLambdaType (fnName : string) (typ : DType) (actual : Dval) : string =
   let actual = DvalRepr.toDeveloperReprV0 actual
   let typ = DvalRepr.typeToDeveloperReprV0 typ
-  $"Expected `{fnName}` to return a {typ}, but it returned {actual}"
+  $"Expected `{fnName}` to return a {typ}, but it returned `{actual}`"
 
 let expectedLambdaValue
   (fnName : string)
@@ -45,8 +45,7 @@ let expectedLambdaValue
   (actual : Dval)
   : string =
   let actual = DvalRepr.toDeveloperReprV0 actual
-  $"Expected `{fnName}` to return {expected}, but the result was {actual}"
-
+  $"Expected `{fnName}` to return {expected}, but it returned `{actual}`"
 
 
 // Used for values which are outside the range of expected values for some
