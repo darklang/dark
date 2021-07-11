@@ -522,6 +522,21 @@ module ExecutePureFunctions =
     i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
 
 
+  type AllowedFuzzerErrorFileStructure =
+    { functionsOfInterest : Set<string>
+      knownErrors : List<List<string>> }
+
+  // Keep a list of allowed errors where we can edit it without recompiling
+  let readAllowedErrors () =
+    use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
+    let json = r.ReadToEnd()
+
+    Newtonsoft.Json.JsonConvert.DeserializeObject<AllowedFuzzerErrorFileStructure>(
+      json
+    )
+
+  let allowedErrors = readAllowedErrors ()
+
   type Generator =
     static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
 
@@ -938,10 +953,6 @@ module ExecutePureFunctions =
                   return (name, [])
             } }
 
-  type AllowedFuzzerErrorFileStructure =
-    { functionsOfInterest : List<string>
-      knownErrors : List<List<string>> }
-
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
@@ -982,55 +993,52 @@ module ExecutePureFunctions =
           if actualMsg = expectedMsg then
             true
           else
-
-            // Keep a list of allowed errors where we can edit it without recompiling
-            let allowedErrors =
-              use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
-              let json = r.ReadToEnd()
-
-              Newtonsoft.Json.JsonConvert.DeserializeObject<AllowedFuzzerErrorFileStructure>(
-                json
-              )
+            // enable to allow dynamically updating without restarting
+            // let allowedErrors = readAllowedErrors ()
 
             let functionOfInterest =
-              List.contains (string fn) allowedErrors.functionsOfInterest
+              Set.contains (string fn) allowedErrors.functionsOfInterest
 
             List.any
               (function
-              | [ name; actualPat; expectedPat; _notes ] ->
-                  let nameMatches =
-                    System.Text.RegularExpressions.Regex.IsMatch(string fn, name)
-
-                  let actualMatch =
-                    System.Text.RegularExpressions.Regex.Match(actualMsg, actualPat)
-
-                  let expectedMatch =
+              | [ namePat; actualPat; expectedPat; _notes ] ->
+                  let regexMatch str regex =
                     System.Text.RegularExpressions.Regex.Match(
-                      expectedMsg,
-                      expectedPat
+                      str,
+                      regex,
+                      System.Text.RegularExpressions.RegexOptions.Singleline
                     )
 
-                  // Not only should we check that the error message matches, but also that the
-                  let mutable capturesMatch =
+                  let nameMatches = (regexMatch (string fn) namePat).Success
+                  let actualMatch = regexMatch actualMsg actualPat
+                  let expectedMatch = regexMatch expectedMsg expectedPat
+
+                  // Not only should we check that the error message matches,
+                  // but also that the captures match in both. This way we can
+                  // add notes that we expect certain values to be the same in
+                  // both
+                  let mutable groupsMatch =
                     actualMatch.Success
                     && expectedMatch.Success
-                    && actualMatch.Captures.Count = expectedMatch.Captures.Count
+                    && actualMatch.Groups.Count = expectedMatch.Groups.Count
 
-                  if capturesMatch && actualMatch.Captures.Count > 1 then
-                    for i = 1 to actualMatch.Captures.Count - 1 do // start at 1, because 0 is the whole match
-                      capturesMatch <-
-                        capturesMatch
-                        && (actualMatch.Captures.[i].Value = expectedMatch.Captures.[i]
-                          .Value)
+                  if nameMatches && functionOfInterest then
+                    // This is a good place to set the debugger to figure out what's going wrong
+                    printfn "function of interest found"
+
+                  if groupsMatch && actualMatch.Groups.Count > 1 then
+                    for i = 1 to actualMatch.Groups.Count - 1 do // start at 1, because 0 is the whole match
+                      let groupMatches =
+                        actualMatch.Groups.[i].Value = expectedMatch.Groups.[i].Value
+
+                      groupsMatch <- groupsMatch && groupMatches
 
                   nameMatches
                   && actualMatch.Success
                   && expectedMatch.Success
-                  && capturesMatch
+                  && groupsMatch
               | _ -> failwith "Invalid json in tests/allowedFuzzerErrors.json")
               allowedErrors.knownErrors
-
-
 
 
         let debugFn () =
@@ -1051,26 +1059,28 @@ module ExecutePureFunctions =
           match actual, expected with
           | RT.DError (_, aMsg), RT.DError (_, eMsg) ->
               let allowed = errorAllowed aMsg eMsg
+              // For easier debugging. Check once then step through
+              let allowed2 = if not allowed then errorAllowed aMsg eMsg else allowed
 
-              if not allowed then
+              if not allowed2 then
                 debugFn ()
 
                 printfn
                   $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
 
-              // FSTODO return (not allowed)
-              return true
+              return allowed
           | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
               let allowed = errorAllowed aMsg eMsg
+              // For easier debugging. Check once then step through
+              let allowed2 = if not allowed then errorAllowed aMsg eMsg else allowed
 
-              if not allowed then
+              if not allowed2 then
                 debugFn ()
 
                 printfn
                   $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
 
-              // FSTODO return (not allowed)
-              return true
+              return allowed
           | _ ->
               debugFn ()
               debuG "ocaml (expected)" (debugDval expected)

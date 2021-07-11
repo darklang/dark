@@ -1,5 +1,5 @@
 {
-  "functionsOfInterest": ["Dict::fromList"],
+  "functionsOfInterest": [],
   "knownErrors": [
     [
       "function name",
@@ -10,25 +10,37 @@
     [
       "Dict::fromList.*",
       "All list items must be `\\[key, value\\]`",
-      "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d: `.*`. It is of type `.*` instead of `List`.",
+      "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. It is of type `.*` instead of `List`.",
+      "The old message was better, but this will go away with tuples so who cares"
+    ],
+    [
+      "Dict::fromList.*",
+      "All list items must be `\\[key, value\\]`",
+      "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. It has length \\d+ but must have length 2.",
       "The old message was better, but this will go away with tuples so who cares"
     ],
     [
       "Http::setCookie_v2",
-      "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was .*",
-      "Expected the params dict passed to `Http::setCookie_v2` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was ``.",
+      "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was (?<result>.*)",
+      "Expected the params dict passed to `Http::setCookie_v2` to only contain the keys `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was `(?<result>.*)`.",
       ""
     ],
     [
       ".*",
       "Expected `f` to return a Result, but it returned .*",
       "Expected `.*` to return a result",
-      "FSTODO: would be better with an indefinite article and a parameter being referred to"
+      ""
+    ],
+    [
+      "List::sortByComparator",
+      "Expected `f` to return -1, 0, 1, but it returned `(?<result>.*)`",
+      "`f` must return one of -1, 0, 1, but returned non-int: (?<result>.*)",
+      ""
     ],
     [
       "List::unzip",
-      "Expected the argument `pairs` to be a list with exactly two values, but it was `(<pairs>.*)`. It has length (?<len>\\d+) but must have length 2",
-      "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index \\d: (?<pairs>.*). It has length (?<len>\\d+) but must have length 2.",
+      "Expected the argument `pairs` to be a list with exactly two values, but it was `(?<pairs>.*)`. It has length (?<len>\\d+) but should have length 2",
+      "Expected every value within the `pairs` argument passed to `List::unzip` to be a list with exactly two values. However, that is not the case for the value at index \\d+: (?<pairs>.*). It has length (?<len>\\d+) but must have length 2.",
       "tuples coming soon, bad error doesn't matter"
     ],
     [
@@ -50,18 +62,23 @@
       ""
     ],
     [
-      "JSON::parse.*",
-      "Unexpected character encountered while parsing value: (?<arg>.*). Path '', line \\d+, position (?<pos>\\d+).",
-      "Json Err: Line \\d+, bytes (?<pos>\\d+)-3:\nInvalid token '(?<arg>.*)'",
+      "(JSON::parse|JSON::read).*",
+      "Unexpected character encountered while parsing (?:number|value): .*. Path '', line \\d+, position (?<pos>\\d+).",
+      "Json Err: Line \\d+, bytes (?<pos>\\d+)-\\d+:\nInvalid token '.*'",
       "Line is off by one - ocaml starts counting at 1"
     ],
     [
       "(Int::mod|%)",
-      "Expected the argument `(?<arg>.*)` to be positive, but it was `(?<result>\\d+)`",
-      "Expected the argument `(?<arg>.*)` argument passed to `.*` to be positive, but it was `(?<result>\\d+)`.",
+      "Expected the argument `(?<arg>.*)` to be positive, but it was `(?<result>.*)`",
+      "Expected the argument `(?<arg>.*)` argument passed to `.*` to be positive, but it was `(?<result>.*)`.",
       ""
     ],
-    [".*", "JSON string was empty", "Json Err: Blank input data", ""],
+    [
+      "(JSON::parse|JSON::read).*",
+      "JSON string was empty",
+      "Json Err: Blank input data",
+      ""
+    ],
     [".*", ".* was removed from Dark", "This function no longer exists.", ""]
   ]
 }
