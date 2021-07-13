@@ -4,7 +4,9 @@ set -euo pipefail
 
 echo "Starting build server"
 
-nohup ./scripts/support/build-server --compile --watch > /home/dark/app/rundir/logs/build-server.txt &
+mkdir -p rundir/logs/
+
+nohup ./scripts/support/build-server --compile --watch > /home/dark/app/rundir/logs/build-server.log &
 
 # It seems that if we don't sleep here, the server does not start properly in all cases
 sleep 2

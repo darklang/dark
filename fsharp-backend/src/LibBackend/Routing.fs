@@ -12,7 +12,7 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = ProgramTypes
+module PT = LibExecution.ProgramTypes
 
 // Functions related to the HTTP server
 
@@ -78,9 +78,7 @@ let routeInputVars
   if splitRoute.Length > splitRequestPath.Length then
     // Can't match. Route *must* be the <= the length of path
     None
-  else
-
-  if splitRequestPath.Length = splitRoute.Length then
+  elif splitRequestPath.Length = splitRoute.Length then
     // If the route/path are the same length we can zip a binding down
     doBinding splitRoute splitRequestPath
   else

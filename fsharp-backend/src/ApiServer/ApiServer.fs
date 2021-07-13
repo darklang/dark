@@ -91,6 +91,7 @@ let configureApp (appBuilder : IApplicationBuilder) =
        if Config.apiServerServeStaticContent then
          app.UseStaticFiles(
            StaticFileOptions(
+             ServeUnknownFileTypes = true,
              FileProvider = new PhysicalFileProvider(Config.webrootDir),
              OnPrepareResponse =
                (fun ctx ->

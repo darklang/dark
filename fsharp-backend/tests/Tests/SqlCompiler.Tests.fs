@@ -7,7 +7,7 @@ open TestUtils
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 open LibExecution.RuntimeTypes
 
 module C = LibBackend.SqlCompiler

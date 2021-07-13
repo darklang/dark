@@ -309,24 +309,23 @@ type TaskOrValue<'T> =
   | Task of Task<'T>
   | Value of 'T
 
+// It seems from the docs that Delay needs to return a TaskOrValue<'T>, and
+// that other functions take a TaskOrValue<'T>. However, the truth is that
+// those functions (Run, Combine, While, at least), actually take the return
+// type of Delay, which can be anything.
+// https://fsharpforfunandprofit.com/posts/computation-expressions-builder-part3/
+type Delayed<'T> = unit -> TaskOrValue<'T>
+
 module TaskOrValue =
-  let toTask (v : TaskOrValue<'T>) : Task<'T> =
+  let rec toTask (v : TaskOrValue<'T>) : Task<'T> =
     match v with
     | Task t -> t
     | Value v -> Task.FromResult v
 
 
 // https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-// This lets us use let!, do! - These can be overloaded
-// so I define two overloads for 'let!' - one taking regular
-// Task and one our TaskOrValue. You can then call both using
-// the let! syntax.
 type TaskOrValueBuilder() =
-  member builder.Bind
-    (
-      tv : TaskOrValue<'a>,
-      f : 'a -> TaskOrValue<'b>
-    ) : TaskOrValue<'b> =
+  member x.Bind(tv : TaskOrValue<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
     match tv with
     | Value v -> f v
     | Task t ->
@@ -338,7 +337,7 @@ type TaskOrValueBuilder() =
           }
         )
 
-  member builder.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
+  member x.Bind(t : Task<'a>, f : 'a -> TaskOrValue<'b>) : TaskOrValue<'b> =
     Task(
       task {
         let! v = t
@@ -347,7 +346,7 @@ type TaskOrValueBuilder() =
       }
     )
 
-  member builder.Bind(t : Task, f : unit -> TaskOrValue<'b>) : TaskOrValue<'b> =
+  member x.Bind(t : Task, f : unit -> TaskOrValue<'b>) : TaskOrValue<'b> =
     Task(
       task {
         do! t
@@ -361,25 +360,40 @@ type TaskOrValueBuilder() =
   member x.Zero() : TaskOrValue<unit> = Value()
 
   // These lets us use try
-  member x.TryWith
-    (
-      tv : TaskOrValue<'a>,
-      f : exn -> TaskOrValue<'a>
-    ) : TaskOrValue<'a> =
-    match tv with
-    | Value v -> Value v
-    | Task t ->
-        Task(
-          task {
-            try
-              let! result = t
-              return result
-            with e -> return! TaskOrValue.toTask (f e)
-          }
-        )
+  member x.TryWith(tv : Delayed<'a>, f : exn -> TaskOrValue<'a>) : TaskOrValue<'a> =
+    try
+      match tv () with
+      | Value v -> Value v
+      | Task t ->
+          Task(
+            task {
+              try
+                let! x = t
+                return x
+              with e -> return! TaskOrValue.toTask (f e)
+            }
+          )
+    with e -> f e
 
-  member builder.Delay(f : unit -> TaskOrValue<'a>) : TaskOrValue<'a> =
-    Task(task { return! TaskOrValue.toTask (f ()) })
+  member x.Delay(f : unit -> TaskOrValue<'a>) : Delayed<'a> = f
+
+  member x.Run(tv : Delayed<'a>) : TaskOrValue<'a> =
+    match tv () with
+    | Value v -> Value v
+    | Task t -> x.Bind(t, (fun v -> Value v))
+
+  member x.While(cond : unit -> bool, body : Delayed<'a>) : TaskOrValue<unit> =
+    if not (cond ()) then
+      // exit loop
+      x.Zero()
+    else
+      // evaluate the body function, and call recursively
+      x.Bind(body (), (fun _ -> x.While(cond, body)))
+
+  member x.Combine(v0 : TaskOrValue<unit>, v1 : Delayed<'a>) : TaskOrValue<'a> =
+    x.Bind(v0, (fun () -> v1 ()))
+
+
 
 let taskv = TaskOrValueBuilder()
 
@@ -536,7 +550,6 @@ module Map =
       dict
 
 
-
 // ----------------------
 // Lazy utilities
 // ----------------------
@@ -594,7 +607,11 @@ module Json =
       override _.ReadJson(reader, destinationType, _, serializer : JsonSerializer) =
         match reader.TokenType with
         | JsonToken.StartArray -> ()
-        | _ -> failwith "Incorrect starting token for union: should be array"
+        | _ ->
+            failwith (
+              "Incorrect starting token for union, should be array, was "
+              + $"{reader.TokenType}, with type {destinationType}"
+            )
 
         let caseName : string =
           reader.Read() |> ignore

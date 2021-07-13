@@ -98,5 +98,5 @@
 
   // Show the build-server output in a terminal
   // Use -F as it the build-server might not have output by the time this starts
-  "postAttachCommand": "tail -n 1000 -F rundir/logs/build-server.txt"
+  "postAttachCommand": "tail -n 1000 -F rundir/logs/build-server.log"
 }

@@ -8,7 +8,7 @@ open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
-module PT = ProgramTypes
+module PT = LibExecution.ProgramTypes
 
 // -------------------------
 // Input variables (including samples)

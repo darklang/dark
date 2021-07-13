@@ -40,9 +40,9 @@ let rec toStringRepr (e : Expr) : string =
   | EApply (_, expr, args, pipe, ster) ->
       let fn, suffix =
         match pipe, ster with
-        | InPipe, NoRail -> "ePipeApply", ""
+        | InPipe _, NoRail -> "ePipeApply", ""
         | NotInPipe, Rail -> "eRailApply", ""
-        | InPipe, Rail -> "ePipeAndRailApply", ""
+        | InPipe _, Rail -> "ePipeAndRailApply", ""
         | _ -> "eApply'", "{rail} {ster}"
 
       let args = List.map r args |> String.concat "; "
@@ -176,13 +176,13 @@ let eApply (fnVal : Expr) (args : List<Expr>) : Expr =
   eApply' fnVal args NotInPipe NoRail
 
 let ePipeApply (fnVal : Expr) (args : List<Expr>) : Expr =
-  eApply' fnVal args InPipe NoRail
+  eApply' fnVal args (InPipe(gid ())) NoRail
 
 let eRailApply (fnVal : Expr) (args : List<Expr>) : Expr =
   eApply' fnVal args NotInPipe Rail
 
 let ePipeAndRailApply (fnVal : Expr) (args : List<Expr>) : Expr =
-  eApply' fnVal args InPipe Rail
+  eApply' fnVal args (InPipe(gid ())) Rail
 
 let eStr (str : string) : Expr = EString(gid (), str)
 

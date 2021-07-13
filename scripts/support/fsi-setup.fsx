@@ -21,7 +21,7 @@ printfn
 
 // Convenience shortcuts
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module DvalRepr = LibExecution.DvalRepr
 module OCamlInterop = LibBackend.OCamlInterop
 

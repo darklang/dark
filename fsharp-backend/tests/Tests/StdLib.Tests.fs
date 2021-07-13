@@ -13,7 +13,7 @@ open Prelude.Tablecloth
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module Exe = LibExecution.Execution
 
 open TestUtils

@@ -5,7 +5,7 @@ module LibBackend.Op
 open Prelude
 open Tablecloth
 
-module PT = ProgramTypes
+module PT = LibExecution.ProgramTypes
 
 let eventNameOfOp (op : PT.Op) : string =
   match op with

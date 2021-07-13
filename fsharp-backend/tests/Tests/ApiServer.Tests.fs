@@ -16,11 +16,11 @@ open Prelude
 open Prelude.Tablecloth
 open TestUtils
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module OT = LibBackend.OCamlInterop.OCamlTypes
+module OT = LibExecution.OCamlTypes
 module ORT = OT.RuntimeT
-module Convert = LibBackend.OCamlInterop.Convert
+module Convert = LibExecution.OCamlTypes.Convert
 module TI = LibBackend.TraceInputs
 
 type AuthData = LibBackend.Session.AuthData

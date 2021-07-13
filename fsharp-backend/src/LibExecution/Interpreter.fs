@@ -104,7 +104,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EApply (id, fnVal, exprs, inPipe, ster) ->
         let! fnVal = eval state st fnVal
         let! args = List.map_s (eval state st) exprs
-        return! applyFn state id fnVal (Seq.toList args) inPipe ster
+        let! result = applyFn state id fnVal (Seq.toList args) inPipe ster
+
+        do
+          // Pipes have been removed at this point, but the editor still needs to
+          // show a value for the pipe
+          // CLEANUP: instead of saving this, fetch it in the right place (the
+          // last pipe entry) in the editor
+          match inPipe with
+          | InPipe pipeID ->
+              state.tracing.traceDval state.onExecutionPath pipeID result
+          | NotInPipe -> ()
+
+        return result
     | EFQFnValue (id, desc) -> return DFnVal(FnName(desc))
     | EFieldAccess (id, e, field) ->
         let! obj = eval state st e
@@ -390,16 +402,18 @@ and applyFn
   taskv {
     let sourceID = SourceID(state.tlid, id)
 
-    match fn with
-    | DFnVal fnVal -> return! applyFnVal state id fnVal args isInPipe ster
-    // Incompletes are allowed in pipes
-    | DIncomplete _ when isInPipe = InPipe ->
-        return Option.defaultValue fn (List.tryHead args)
-    | other ->
-        return
-          Dval.errSStr
-            sourceID
-            $"Expected a function value, got something else: {other}"
+    return!
+      match fn, isInPipe with
+      | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe ster
+      // Incompletes are allowed in pipes
+      | DIncomplete _, InPipe _ -> Value(Option.defaultValue fn (List.tryHead args))
+      | other, _ ->
+          Value(
+            Dval.errSStr
+              sourceID
+              $"Expected a function value, got something else: {other}"
+          )
+
   }
 
 and applyFnVal
@@ -590,14 +604,14 @@ and execFn
           | _ -> false)
           arglist
 
-      match badArg with
-      | Some (DIncomplete src) when isInPipe = InPipe ->
+      match badArg, isInPipe with
+      | Some (DIncomplete src), InPipe _ ->
           // That is, unless it's an incomplete in a pipe. In a pipe, we treat
           // the entire expression as a blank, and skip it, returning the input
           // (first) value to be piped into the next statement instead. *)
           return List.head arglist
-      | Some (DIncomplete src) -> return DIncomplete src
-      | Some (DError (src, _) as err) ->
+      | Some (DIncomplete src), _ -> return DIncomplete src
+      | Some (DError (src, _) as err), _ ->
           // CLEANUP: kept old error to make testing easier, but this is an
           // easy and safe change to make
           return DError(src, "Fn called with an error as an argument")
@@ -612,7 +626,6 @@ and execFn
                   | None -> return DIncomplete sourceID
                 else
                   let! result = f (state, arglist)
-
                   // there's no point storing data we'll never ask for
                   let! () =
                     if fn.previewable <> Pure then

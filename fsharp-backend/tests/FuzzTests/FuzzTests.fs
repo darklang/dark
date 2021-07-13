@@ -16,7 +16,7 @@ open Prelude.Tablecloth
 open Tablecloth
 open TestUtils
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module OCamlInterop = LibBackend.OCamlInterop
 module DvalRepr = LibExecution.DvalRepr
@@ -163,7 +163,7 @@ module FQFnName =
 
 
 module OCamlInterop =
-  open OCamlInterop.Convert
+  open LibExecution.OCamlTypes.Convert
   open OCamlInterop
   open Json.OCamlCompatible
 
@@ -503,7 +503,7 @@ module PrettyMachineJson =
           equalsOCaml ]
 
 module ExecutePureFunctions =
-  open LibBackend.ProgramTypes.Shortcuts
+  open LibExecution.ProgramTypes.Shortcuts
 
   let filterFloat (f : float) : bool =
     match f with
@@ -1006,16 +1006,11 @@ module ExecutePureFunctions =
           debugFn ()
           debuG "ocaml (expected) is not normalized" (debugDval expected)
           return false
-        else
-
-        if not (Expect.isCanonical actual) then
+        elif not (Expect.isCanonical actual) then
           debugFn ()
           debuG "fsharp (actual) is not normalized" (debugDval actual)
           return false
-        else
-
-        if dvalEquality actual expected then
-
+        elif dvalEquality actual expected then
           return true
         else
           match actual, expected with
@@ -1068,7 +1063,7 @@ let knownGood =
 
 let tests = testList "FuzzTests" [ knownGood; stillBuggy ]
 
-
+// FSTODO: add fuzz test that running analysis gets the same results for different exprs
 
 [<EntryPoint>]
 let main args = runTestsWithCLIArgs [] args tests

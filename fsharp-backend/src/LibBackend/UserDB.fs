@@ -11,7 +11,7 @@ open Db
 open Prelude
 open Tablecloth
 
-module PT = ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Errors = LibExecution.Errors
 

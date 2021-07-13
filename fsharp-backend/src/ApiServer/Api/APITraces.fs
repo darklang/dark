@@ -12,13 +12,13 @@ open FSharpPlus
 open Prelude
 open Tablecloth
 
-module PT = LibBackend.ProgramTypes
-module ORT = LibBackend.OCamlInterop.OCamlTypes.RuntimeT
+module PT = LibExecution.ProgramTypes
+module ORT = LibExecution.OCamlTypes.RuntimeT
 module AT = LibExecution.AnalysisTypes
 
 module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
-module Convert = LibBackend.OCamlInterop.Convert
+module Convert = LibExecution.OCamlTypes.Convert
 
 module TraceData =
   type Params = { tlid : tlid; trace_id : AT.TraceID }

@@ -6,7 +6,7 @@ open Prelude.Tablecloth
 open Tablecloth
 open TestUtils
 
-module PT = LibBackend.ProgramTypes
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 module DvalRepr = LibExecution.DvalRepr

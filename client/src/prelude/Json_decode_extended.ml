@@ -55,7 +55,7 @@ let recordVariant3 constructor (k1, d1) (k2, d2) (k3, d3) =
     (index 1 (field k3 d3))
 
 
-let variants decoders =
+let variants (decoders : (string * 'a decoder) list) : 'a decoder =
   index 0 string
   |> andThen (fun str_constructor ->
          match Belt.List.getAssoc decoders str_constructor ( = ) with
@@ -71,6 +71,13 @@ let variants decoders =
                   ^ str_constructor
                   ^ ", expected one of "
                   ^ constructors ))
+
+
+let result (decoderOk : 'ok decoder) (decoderError : 'error decoder) :
+    ('ok, 'error) result decoder =
+  variants
+    [ ("Ok", variant1 (fun j -> Ok j) decoderOk)
+    ; ("Error", variant1 (fun j -> Error j) decoderError) ]
 
 
 let tryDecode2 try1 try2 json = try try1 json with DecodeError _ -> try2 json

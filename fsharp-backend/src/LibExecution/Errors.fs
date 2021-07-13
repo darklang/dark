@@ -39,6 +39,12 @@ let expectedLambdaType (typ : DType) (actual : Dval) : string =
   let typ = DvalRepr.typeToDeveloperReprV0 typ
   $"Expecting the function to return {typ}, but the result was {actual}"
 
+let expectedLambdaValue (expected : string) (actual : Dval) : string =
+  let actual = DvalRepr.toDeveloperReprV0 actual
+  $"Expecting the function to return {expected}, but the result was {actual}"
+
+
+
 // Used for values which are outside the range of expected values for some
 // reason. Really, any function using this should have a Result type instead.
 let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string =
