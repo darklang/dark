@@ -450,56 +450,32 @@ module List =
       (Value None)
       list
 
-module Map =
-  let map_s
-    (f : 'a -> TaskOrValue<'b>)
-    (dict : Map<'key, 'a>)
-    : TaskOrValue<Map<'key, 'b>> =
-    Map.fold
-      (fun (accum : TaskOrValue<Map<'key, 'b>>) (key : 'key) (arg : 'a) ->
-        taskv {
-          let! accum = accum
-          let! result = f arg
-          return Map.add key result accum
-        })
-      (Value(Map.empty))
-      dict
-
-  let filter_s
-    (f : 'key -> 'a -> TaskOrValue<bool>)
-    (dict : Map<'key, 'a>)
-    : TaskOrValue<Map<'key, 'a>> =
-    Map.fold
-      (fun (accum : TaskOrValue<Map<'key, 'a>>) (key : 'key) (arg : 'a) ->
-        taskv {
-          let! (accum : Map<'key, 'a>) = accum
-          let! keep = f key arg
-
-          return (if keep then (Map.add key arg accum) else accum)
-        })
-      (Value(Map.empty))
-      dict
-
   let filter_map
-    (f : 'key -> 'a -> TaskOrValue<Option<'b>>)
-    (dict : Map<'key, 'a>)
-    : TaskOrValue<Map<'key, 'b>> =
-    Map.fold
-      (fun (accum : TaskOrValue<Map<'key, 'b>>) (key : 'key) (arg : 'a) ->
-        taskv {
-          let! (accum : Map<'key, 'b>) = accum
-          let! keep = f key arg
+    (f : 'a -> TaskOrValue<Option<'b>>)
+    (list : List<'a>)
+    : TaskOrValue<List<'b>> =
+    taskv {
+      let! filtered =
+        List.fold
+          (fun (accum : TaskOrValue<List<'b>>) (arg : 'a) ->
+            taskv {
+              let! (accum : List<'b>) = accum
+              let! keep = f arg
 
-          let result =
-            match keep with
-            | Some v -> Map.add key v accum
-            | None -> accum
+              let result =
+                match keep with
+                | Some v -> v :: accum
+                | None -> accum
 
-          return result
-        })
-      (Value(Map.empty))
-      dict
+              return result
+            })
+          (Value [])
+          list
 
+      return List.rev filtered
+    }
+
+module Map =
   let fold_s
     (f : 'state -> 'key -> 'a -> TaskOrValue<'state>)
     (initial : 'state)
@@ -513,6 +489,53 @@ module Map =
         })
       (Value(initial))
       dict
+
+  let map_s
+    (f : 'a -> TaskOrValue<'b>)
+    (dict : Map<'key, 'a>)
+    : TaskOrValue<Map<'key, 'b>> =
+    fold_s
+      (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
+        taskv {
+          let! result = f arg
+          return Map.add key result accum
+        })
+      Map.empty
+      dict
+
+  let filter_s
+    (f : 'key -> 'a -> TaskOrValue<bool>)
+    (dict : Map<'key, 'a>)
+    : TaskOrValue<Map<'key, 'a>> =
+    fold_s
+      (fun (accum : Map<'key, 'a>) (key : 'key) (arg : 'a) ->
+        taskv {
+          let! keep = f key arg
+          return (if keep then (Map.add key arg accum) else accum)
+        })
+      Map.empty
+      dict
+
+  let filter_map
+    (f : 'key -> 'a -> TaskOrValue<Option<'b>>)
+    (dict : Map<'key, 'a>)
+    : TaskOrValue<Map<'key, 'b>> =
+    fold_s
+      (fun (accum : Map<'key, 'b>) (key : 'key) (arg : 'a) ->
+        taskv {
+          let! keep = f key arg
+
+          let result =
+            match keep with
+            | Some v -> Map.add key v accum
+            | None -> accum
+
+          return result
+        })
+      Map.empty
+      dict
+
+
 
 // ----------------------
 // Lazy utilities
