@@ -713,9 +713,12 @@ module ExecutePureFunctions =
             | RT.TFn (paramTypes, returnType) ->
                 let parameters =
                   List.mapi
-                    (fun i (v : RT.DType) -> (id i, $"{v.toOldString ()}_{i}"))
+                    (fun i (v : RT.DType) ->
+                      (id i, $"{v.toOldString().ToLower()}_{i}"))
                     paramTypes
 
+                // FSTODO: occasionally use the wrong return type
+                // FSTODO: can we use the argument to get this type?
                 let! body = genExpr' returnType s
                 return RT.ELambda(gid (), parameters, body)
             | RT.TBytes ->
@@ -937,9 +940,14 @@ module ExecutePureFunctions =
                         return RT.DStr(System.String([| v |]))
                     | _ -> return! genDval signature.[i].typ
                   }
-                // Still throw in random data 10% of the time to test errors, edge-cases, etc.
-                // FSTODO: re-enable the random data
-                Gen.frequency [ (0, genDval signature.[i].typ); (9, specific) ]
+                // Still throw in random data occasionally test errors, edge-cases, etc.
+                let randomValue =
+                  gen {
+                    let! typ = Arb.generate<RT.DType>
+                    return! genDval typ
+                  }
+
+                Gen.frequency [ (1, randomValue); (99, specific) ]
                 |> Gen.filter
                      (fun dv ->
                        // Avoid triggering known errors in OCaml
