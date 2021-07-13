@@ -731,8 +731,7 @@ and execFn
               else
                 let invalid =
                   List.zip fn.parameters arglist
-                  |> List.filter
-                       (fun (p, a) -> Dval.toType a <> p.typ && not (p.typ.isAny ()))
+                  |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
 
                 match invalid with
                 | [] ->
