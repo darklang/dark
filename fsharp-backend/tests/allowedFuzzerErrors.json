@@ -15,6 +15,13 @@
     ],
     [
       "Dict::fromList.*",
+      "Expected the argument `key` to be a string, but it was `.*`",
+      "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. Keys must be `String`s but the type of `.*` is `.*`.",
+      "The old message was better, but this will go away with tuples so who cares"
+    ],
+
+    [
+      "Dict::fromList.*",
       "All list items must be `\\[key, value\\]`",
       "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. It has length \\d+ but must have length 2.",
       "The old message was better, but this will go away with tuples so who cares"
@@ -27,14 +34,20 @@
     ],
     [
       ".*",
-      "Expected `f` to return a .*, but it returned .*",
-      "Expected `.*` to return a .*",
+      "Expected `f` to return .*, but it returned .*",
+      "Expected .* to return .*",
+      ""
+    ],
+    [
+      ".*",
+      "Expected `f` to return .*, but it returned .*",
+      "Expecting .* to return .*",
       ""
     ],
     [
       "List::sortByComparator",
       "Expected `f` to return -1, 0, 1, but it returned `(?<result>.*)`",
-      "`f` must return one of -1, 0, 1, but returned non-int: (?<result>.*)",
+      "`f` must return one of -1, 0, 1, but returned .*: (?<result>.*)",
       ""
     ],
     [
