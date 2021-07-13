@@ -581,6 +581,18 @@ module ExecutePureFunctions =
            | _ -> true)
 
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
+      // Ensure we pick a type instead of having heterogeneous lists
+      let rec selectNestedType (typ : RT.DType) : Gen<RT.DType> =
+        gen {
+          match typ with
+          | RT.TVariable name ->
+              // Generally return a homogenous list. We'll sometimes get a
+              // TVariable which will give us a heterogenous list. It's fine to
+              // do that occasionally
+              return! Arb.generate<RT.DType>
+          | typ -> return typ
+        }
+
       let genExpr (typ' : RT.DType) : Gen<RT.Expr> =
         let rec genExpr' typ s =
           let call mod_ fn version args =
@@ -618,9 +630,12 @@ module ExecutePureFunctions =
                 return RT.EBool(gid (), v)
             | RT.TNull -> return RT.ENull(gid ())
             | RT.TList typ ->
+                let! typ = selectNestedType typ
                 let! v = (Gen.listOfLength s (genExpr' typ (s / 2)))
                 return RT.EList(gid (), v)
             | RT.TDict typ ->
+                let! typ = selectNestedType typ
+
                 return!
                   Gen.map
                     (fun l -> RT.ERecord(gid (), l))
@@ -694,7 +709,7 @@ module ExecutePureFunctions =
                   | RT.TOption t -> supportedType t
                   | RT.TResult (t1, t2) -> supportedType t1 && supportedType t2
                   | RT.TFn (ts, rt) -> supportedType rt && List.all supportedType ts
-                  | _ -> false)
+                  | _ -> false) // FSTODO: expand list and support all types
 
                 let! newtyp = Arb.generate<RT.DType> |> Gen.filter supportedType
                 return! genDval' newtyp s
@@ -704,8 +719,11 @@ module ExecutePureFunctions =
             | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
             | RT.TNull -> return RT.DNull
             | RT.TList typ ->
+                let! typ = selectNestedType typ
                 return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
             | RT.TDict typ ->
+                let! typ = selectNestedType typ
+
                 return!
                   Gen.map
                     (fun l -> RT.DObj(Map.ofList l))
