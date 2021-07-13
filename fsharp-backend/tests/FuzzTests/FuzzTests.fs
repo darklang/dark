@@ -722,6 +722,11 @@ module ExecutePureFunctions =
                 let! bytes = Arb.generate<byte []>
                 let v = RT.EString(gid (), base64Encode bytes)
                 return call "String" "toBytes" 0 [ v ]
+            | RT.TDB _ ->
+                let! name = Generators.string ()
+                let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
+                let name = ti.ToTitleCase name
+                return RT.EVariable(gid (), name)
             | RT.TDate ->
                 let! d = Arb.generate<System.DateTime>
                 return call "Date" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
@@ -818,8 +823,12 @@ module ExecutePureFunctions =
                 let! str = Arb.generate<string>
                 return RT.DError(source, str)
             | RT.TUserType (_name, _version) ->
-                let! map = Arb.generate<Map<string, RT.Dval>>
-                return RT.DObj map
+                let! list =
+                  Gen.listOfLength
+                    s
+                    (Gen.zip (Generators.string ()) (genDval' typ (s / 2)))
+
+                return RT.DObj(Map list)
             | RT.TRecord (pairs) ->
                 let map =
                   List.fold
