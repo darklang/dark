@@ -989,6 +989,7 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
                            isValidOCamlInt (e + i)
+                       | 1, RT.DInt i, [ RT.DInt e ], "", "-", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
                            isValidOCamlInt (e - i)
                        | 0, RT.DList l, _, "Int", "sum", 0 ->
