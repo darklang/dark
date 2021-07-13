@@ -646,10 +646,8 @@ module ExecutePureFunctions =
                 return RT.EString(gid (), v)
             | RT.TChar ->
                 // We don't have a construct for characters, so create code to generate the character
-                let! str =
-                  Generators.string () |> Gen.resize 1 |> Gen.filter ((<>) "")
-
-                return call "String" "toChar" 0 [ RT.EString(gid (), str) ]
+                let! v = G.char ()
+                return call "String" "toChar" 0 [ RT.EString(gid (), v) ]
             // Don't generate a random value as some random values are invalid
             // (eg constructor outside certain names). Ints should be fine for
             // whatever purpose there is here
@@ -674,6 +672,16 @@ module ExecutePureFunctions =
                     (Gen.listOfLength
                       s
                       (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+            | RT.TUserType (_name, _version) ->
+                let! typ = Arb.generate<RT.DType>
+
+                return!
+                  Gen.map
+                    (fun l -> RT.ERecord(gid (), l))
+                    (Gen.listOfLength
+                      s
+                      (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+
             | RT.TRecord pairs ->
                 let! entries =
                   List.fold
@@ -720,8 +728,15 @@ module ExecutePureFunctions =
             | RT.TUuid ->
                 let! u = Arb.generate<System.Guid>
                 return call "String" "toUUID" 0 [ RT.EString(gid (), string u) ]
-            | _ -> return failwith $"Not supported yet: {typ}"
+            | RT.THttpResponse typ ->
+                let! code = genExpr' RT.TInt s
+                let! body = genExpr' typ s
+                return call "Http" "response" 0 [ body; code ]
+            | RT.TError ->
+                let! msg = genExpr' RT.TStr s
+                return call "Test" "typeError" 0 [ msg ]
 
+            | _ -> return failwith $"Not supported yet: {typ}"
           }
 
         Gen.sized (genExpr' typ')
