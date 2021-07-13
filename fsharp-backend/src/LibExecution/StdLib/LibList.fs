@@ -596,7 +596,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "sortByComparator" 0
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "f" (TFn([ varA; varA ], TBool)) "" [ "a"; "b" ] ]
+          Param.makeWithArgs "f" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
       returnType = TResult(varA, TStr)
       description = "Returns a copy of `list`, sorted using `f a b` to compare values `a` and `b`.
         `f` must return `-1` if `a` should appear before `b`, `1` if `a` should appear after `b`, and `0` if the order of `a` and `b` doesn't matter.
@@ -620,6 +620,7 @@ let fns : List<BuiltInFn> =
               taskv {
                 let array = List.toArray list
                 do! Sort.sort fn array
+                // CLEANUP: check fakevals
                 return array |> Array.toList |> DList |> Ok |> DResult
               }
             with Errors.StdlibException (Errors.StringError m) ->
