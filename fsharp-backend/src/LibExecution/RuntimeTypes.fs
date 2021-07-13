@@ -546,8 +546,15 @@ module Dval =
 
   let resultError (dv : Dval) : Dval = if isFake dv then dv else DResult(Error dv)
 
+  // Wraps in a DResult after checking that the value is not a fakeval
+  let result (dv : Result<Dval, Dval>) : Dval =
+    match dv with
+    | Ok dv -> resultOk dv
+    | Error dv -> resultError dv
+
   let optionJust (dv : Dval) : Dval = if isFake dv then dv else DOption(Some dv)
 
+  // Wraps in a DOption after checking that the value is not a fakeval
   let option (dv : Option<Dval>) : Dval =
     match dv with
     | Some dv -> optionJust dv // checks isFake
