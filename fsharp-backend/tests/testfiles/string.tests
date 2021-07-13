@@ -503,7 +503,12 @@ String.toUppercase_v1 "ჾ" = "Ჾ"
 
 // Discussed at https://github.com/dotnet/runtime/issues/30960, specifially
 // https://github.com/dotnet/runtime/issues/30960#issuecomment-535274401
-// The solution
+
+// A possible solution is to write our own case mapper, or reuse an existing
+// one. A potential candidate is
+// https://github.com/dotnet/corefxlab/tree/archive/src/System.Text.CaseFolding
+// (packaged at
+// https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
 
 //String.toUppercase_v1 "ﬁﬂ" = "FIFL"
 //String.toUppercase_v1 "և" = "ԵՒ"
