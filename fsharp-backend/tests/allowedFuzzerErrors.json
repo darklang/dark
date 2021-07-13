@@ -111,13 +111,18 @@
     // -----------------------------
     [
       ".*",
-      "(?<name>.*) was called with a .* \\(.*\\), but `(?<arg>.*)` expected .*.",
+      "(?<name>.*) was called with a .* \\(.*\\), but `(?<arg>.*)` expected a .*.",
       "(?<name>.*) was called with the wrong type to parameter: (?<arg>.*)"
     ],
     [
       ".*",
       "Expected the argument `value` to be a string, but it was `.*`",
       "expecting str"
+    ],
+    [
+      "(Int::subtract|-)",
+      "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected an Int. Try using Float::(?<suggested>.*), or use Float::truncate to truncate Floats to Ints.",
+      "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints. Use Float::(?<suggested>.*) to .* Floats or use Float::truncate to truncate Floats to Ints."
     ],
     // -----------------------------
     // Incorrect return type from a lambda

@@ -96,7 +96,7 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
     | _ -> ""
 
   $"{fnname} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
-  + $"an {expectedTypeRepr}.{conversionMsg}"
+  + $"a {expectedTypeRepr}.{conversionMsg}"
 
 
 // When a function has been removed (rarely happens but does happen occasionally)
