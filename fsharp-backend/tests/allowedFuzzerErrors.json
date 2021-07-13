@@ -1,5 +1,29 @@
 {
   "functionsOfInterest": [],
+  // FSTODO: These use a different sort order in OCaml
+  "knownDifferingFunctions": [
+    "List::sort",
+    "List::sortBy",
+    // Known formatting differences
+    "Object::toJSON",
+    "Object::toJSON_v1",
+    "Dict::toJSON",
+    "Dict::toJSON_v1",
+    // Don't know what the bug is
+    "String::base64Decode",
+    // OCaml seems to trim wrong here
+    "String::trim",
+    "String::trimEnd",
+    "String::trimStart",
+    // .NET doesn't handle "full" case mapping
+    "String::toUppercase_v1",
+    "String::toLowercase_v1",
+    // Bug in unicode probably
+    "AWS::urlencode",
+    // The lambda gives the same value for all elements,
+    // and we don't guarantee which one wins
+    "List::uniqueBy"
+  ],
   "knownErrors": [
     [
       "function name",
@@ -43,6 +67,12 @@
       "Expected `f` to return .*, but it returned .*",
       "Expecting .* to return .*",
       ""
+    ],
+    [
+      "List::sortByComparator",
+      "Expected `f` to return -1, 0, 1, but it returned `<Error: .*>`",
+      "`f` must return one of -1, 0, 1, but returned .*: <Error: .*>",
+      "FSTODO: the different impls run comparisons in a different order, so if the arguments are Errors, a different one might be compared first"
     ],
     [
       "List::sortByComparator",

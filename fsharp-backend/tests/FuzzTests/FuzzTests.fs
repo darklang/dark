@@ -524,6 +524,7 @@ module ExecutePureFunctions =
 
   type AllowedFuzzerErrorFileStructure =
     { functionsOfInterest : Set<string>
+      knownDifferingFunctions : Set<string>
       knownErrors : List<List<string>> }
 
   // Keep a list of allowed errors where we can edit it without recompiling
@@ -867,36 +868,17 @@ module ExecutePureFunctions =
                 (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
                 |> List.filter
                      (fun fn ->
-                       not (
-                         Set.contains
-                           (toString fn.name)
-                           (ApiServer.Functions.fsharpOnlyFns.Force())
-                       ))
-                |> List.filter
-                     // FSTODO: all these differences should be removed
-                     (function
-                     | { name = { module_ = "List"; function_ = "sort" } }
-                     | { name = { module_ = "List"; function_ = "sortBy" } } ->
-                         // FSTODO: These use a different sort order in OCaml
+                       let name = string fn.name
+                       let has set = Set.contains name set
+                       let different = has allowedErrors.knownDifferingFunctions
+                       let fsOnly = has (ApiServer.Functions.fsharpOnlyFns.Force())
+
+                       if different || fsOnly then
                          false
-                     | { name = { module_ = "Object"; function_ = "toJSON" } }
-                     | { name = { module_ = "Dict"; function_ = "toJSON" } } ->
-                         // Known formatting differences
-                         false
-                     | { name = { module_ = "String"; function_ = "base64Decode" } } ->
-                         // Don't know what the bug is
-                         false
-                     | { name = { module_ = "String"; function_ = "trim" } } ->
-                         // OCaml seems to trim wrong here
-                         false
-                     | { name = { module_ = "AWS"; function_ = "urlencode" } } ->
-                         // Bug in unicode probably
-                         false
-                     | { name = { module_ = "List"; function_ = "uniqueBy" } } ->
-                         // The lambda gives the same value for all elements,
-                         // and we don't guarantee which one wins
-                         false
-                     | fn -> fn.previewable = RT.Pure)
+                       else
+                         // FSTODO: make a list of safe functions which are
+                         // marked unsafe since they're backend only
+                         fn.previewable = RT.Pure)
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
               let name = fns.[fnIndex].name
