@@ -1,0 +1,63 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ApiServer",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "/home/dark/app/fsharp-backend/Build/out/ApiServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    },
+    {
+      "name": "BwdServer",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "/home/dark/app/fsharp-backend/Build/out/BwdServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    },
+    {
+      "name": "Tests",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "/home/dark/app/fsharp-backend/Build/out/Tests",
+      "args": [
+        "--filter-test-case",
+        "((let _ = String.foreach_v1 \"a string\" (fun x -> Test.incrementSideEffectCounter_v0 false) in Test.sideEffectCount_v0) = 8)"
+      ],
+      "cwd": "${workspaceFolder}/fsharp-backend",
+      "stopAtEntry": false,
+      "console": "internalConsole",
+      "env": {
+        "DARK_CONFIG_TELEMETRY_EXPORTER": "none",
+        "DARK_CONFIG_ROLLBAR_ENABLED": "n",
+        "DARK_CONFIG_DB_HOST": "localhost",
+        "DARK_CONFIG_DB_DBNAME": "testdb",
+        "DARK_CONFIG_DB_USER": "dark",
+        "DARK_CONFIG_DB_PASSWORD": "eapnsdc"
+      }
+    },
+    {
+      "name": "FuzzTests",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "/home/dark/app/fsharp-backend/Build/out/FuzzTests",
+      "args": ["--filter-test-list", "executePure"],
+      "cwd": "${workspaceFolder}/fsharp-backend",
+      "stopAtEntry": false,
+      "console": "internalConsole",
+      "env": {}
+    }
+  ]
+}
