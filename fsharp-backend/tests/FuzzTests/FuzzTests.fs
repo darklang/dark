@@ -1060,7 +1060,12 @@ module ExecutePureFunctions =
           let expectedMsg =
             // Some OCaml errors are in a JSON struct, so get the message and compare that
             try
-              let jsonDocument = System.Text.Json.JsonDocument.Parse(expectedMsg)
+              let mutable options = System.Text.Json.JsonDocumentOptions()
+              options.CommentHandling <- System.Text.Json.JsonCommentHandling.Skip
+
+              let jsonDocument =
+                System.Text.Json.JsonDocument.Parse(expectedMsg, options)
+
               let mutable elem = System.Text.Json.JsonElement()
 
               if jsonDocument.RootElement.TryGetProperty("short", &elem) then
@@ -1080,7 +1085,7 @@ module ExecutePureFunctions =
 
             List.any
               (function
-              | [ namePat; actualPat; expectedPat; _notes ] ->
+              | [ namePat; actualPat; expectedPat ] ->
                   let regexMatch str regex =
                     System.Text.RegularExpressions.Regex.Match(
                       str,
