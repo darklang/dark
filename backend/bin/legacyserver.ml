@@ -142,7 +142,7 @@ let () =
     let () = Lwt.async_exception_hook := ignore in
     Libbackend.Init.init ~run_side_effects:false ;
     Libexecution.Libs.init F.fns ;
-    Lwt_main.run (server ()) |> ignore
+    ignore (Lwt_main.run (Nocrypto_entropy_lwt.initialize () >>= server))
   with e ->
     let bt = Libexecution.Exception.get_backtrace () in
     Libbackend.Rollbar.last_ditch e ~bt "server" "no execution id"
