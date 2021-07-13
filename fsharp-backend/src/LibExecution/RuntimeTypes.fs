@@ -471,8 +471,6 @@ module Dval =
   // matched the actual runtime parameter type of the called function. So more
   // accuracy is better, as the runtime is perfectly accurate.
   let rec typeMatches (typ : DType) (dv : Dval) : bool =
-    debuG "typeMatches" (typ, dv)
-
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt _, TInt
