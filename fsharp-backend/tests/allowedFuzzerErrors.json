@@ -27,8 +27,8 @@
     ],
     [
       ".*",
-      "Expected `f` to return a Result, but it returned .*",
-      "Expected `.*` to return a result",
+      "Expected `f` to return a .*, but it returned .*",
+      "Expected `.*` to return a .*",
       ""
     ],
     [
