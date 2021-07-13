@@ -580,7 +580,39 @@ module ExecutePureFunctions =
            | RT.DFloat f -> filterFloat f
            | _ -> true)
 
+    static member DType() : Arbitrary<RT.DType> =
+      let rec isSupportedType =
+        (function
+        | RT.TInt
+        | RT.TStr
+        | RT.TVariable _
+        | RT.TFloat
+        | RT.TBool
+        | RT.TNull
+        | RT.TNull
+        | RT.TDate
+        | RT.TChar
+        | RT.TUuid
+        | RT.TBytes
+        | RT.TError
+        | RT.TDB (RT.TUserType _)
+        | RT.TDB (RT.TRecord _)
+        | RT.TUserType _ -> true
+        | RT.TList t
+        | RT.TDict t
+        | RT.TOption t
+        | RT.THttpResponse t -> isSupportedType t
+        | RT.TResult (t1, t2) -> isSupportedType t1 && isSupportedType t2
+        | RT.TFn (ts, rt) -> isSupportedType rt && List.all isSupportedType ts
+        | RT.TRecord (pairs) ->
+            pairs |> List.map Tuple2.second |> List.all isSupportedType
+        | _ -> false) // FSTODO: expand list and support all types
+
+      Arb.Default.Derive() |> Arb.filter isSupportedType
+
+
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
+
       // Ensure we pick a type instead of having heterogeneous lists
       let rec selectNestedType (typ : RT.DType) : Gen<RT.DType> =
         gen {
@@ -642,6 +674,20 @@ module ExecutePureFunctions =
                     (Gen.listOfLength
                       s
                       (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+            | RT.TRecord pairs ->
+                let! entries =
+                  List.fold
+                    (Gen.constant [])
+                    (fun (l : Gen<List<string * RT.Expr>>) ((k, t) : string * RT.DType) ->
+                      gen {
+                        let! l = l
+                        let! v = genExpr' t s
+                        return (k, v) :: l
+                      })
+                    pairs
+                  |> Gen.map List.reverse
+
+                return RT.ERecord(gid (), entries)
             | RT.TOption typ ->
                 match! Gen.optionOf (genExpr' typ s) with
                 | Some v -> return RT.EConstructor(gid (), "Just", [ v ])
@@ -682,6 +728,7 @@ module ExecutePureFunctions =
 
 
       let genDval (typ' : RT.DType) : Gen<RT.Dval> =
+
         let rec genDval' typ s : Gen<RT.Dval> =
           gen {
             match typ with
@@ -692,26 +739,7 @@ module ExecutePureFunctions =
                 let! v = Generators.string ()
                 return RT.DStr v
             | RT.TVariable _ ->
-                let rec supportedType =
-                  (function
-                  | RT.TInt
-                  | RT.TFloat
-                  | RT.TBool
-                  | RT.TNull
-                  | RT.TUuid
-                  | RT.TNull
-                  | RT.TDate
-                  | RT.TBytes
-                  | RT.TChar
-                  | RT.TStr -> true
-                  | RT.TList t
-                  | RT.TDict t
-                  | RT.TOption t -> supportedType t
-                  | RT.TResult (t1, t2) -> supportedType t1 && supportedType t2
-                  | RT.TFn (ts, rt) -> supportedType rt && List.all supportedType ts
-                  | _ -> false) // FSTODO: expand list and support all types
-
-                let! newtyp = Arb.generate<RT.DType> |> Gen.filter supportedType
+                let! newtyp = Arb.generate<RT.DType>
                 return! genDval' newtyp s
             | RT.TFloat ->
                 let! v = Arb.generate<float>
@@ -732,8 +760,7 @@ module ExecutePureFunctions =
                       (Gen.zip (Generators.string ()) (genDval' typ (s / 2))))
             // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
             // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
-            // | RT.THttpResponse of DType -> return! Gen.map RT.THttpResponse  Arb.generate<httpresponse >
-            // | RT.TDB of DType -> return! Gen.map RT.TDB  Arb.generate<db >
+            | RT.TDB _ -> return! Gen.map RT.DDB (Generators.string ())
             | RT.TDate ->
                 return!
                   Gen.map
@@ -749,8 +776,6 @@ module ExecutePureFunctions =
             | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
             | RT.TOption typ ->
                 return! Gen.map RT.DOption (Gen.optionOf (genDval' typ s))
-            // | RT.TErrorRail -> return! Gen.map RT.TErrorRail Arb.generate<errorrail>
-            // | RT.TUserType of string * int -> return! Gen.map RT.TUserType  Arb.generate<usertype >
             | RT.TBytes ->
                 let! v = Arb.generate<byte []>
                 return RT.DBytes v
@@ -777,6 +802,35 @@ module ExecutePureFunctions =
                 let! source = Arb.generate<RT.DvalSource>
                 let! str = Arb.generate<string>
                 return RT.DError(source, str)
+            | RT.TUserType (_name, _version) ->
+                let! map = Arb.generate<Map<string, RT.Dval>>
+                return RT.DObj map
+            | RT.TRecord (pairs) ->
+                let map =
+                  List.fold
+                    (Gen.constant Map.empty)
+                    (fun (m : Gen<RT.DvalMap>) ((k, t) : string * RT.DType) ->
+                      gen {
+                        let! m = m
+                        let! v = genDval' t s
+                        return Map.add k v m
+                      })
+                    pairs
+
+                return! Gen.map RT.DObj map
+            | RT.THttpResponse typ ->
+                let! url = Arb.generate<string>
+                let! code = Arb.generate<bigint>
+                let! headers = Arb.generate<List<string * string>>
+                let! body = genDval' typ s
+
+                return!
+                  Gen.oneof [ Gen.constant (RT.Response(code, headers, body))
+                              Gen.constant (RT.Redirect url) ]
+                  |> Gen.map RT.DHttpResponse
+            | RT.TErrorRail ->
+                let! typ = Arb.generate<RT.DType>
+                return! Gen.map RT.DErrorRail (genDval' typ s)
             | _ -> return failwith $"Not supported yet: {typ}"
           }
 
