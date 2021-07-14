@@ -1113,9 +1113,6 @@ let fns : List<BuiltInFn> =
               let targetLength = int l
               let currentLength = String.lengthInEgcs s
               let requiredPads = max 0 (targetLength - currentLength)
-              debuG "targetlength" targetLength
-              debuG "currentLength" currentLength
-              debuG "requiredPads" requiredPads
 
               let stringBuilder = new StringBuilder()
 
@@ -1146,9 +1143,6 @@ let fns : List<BuiltInFn> =
               let targetLength = int l
               let currentLength = String.lengthInEgcs s
               let requiredPads = max 0 (targetLength - currentLength)
-              debuG "targetlength" targetLength
-              debuG "currentLength" currentLength
-              debuG "requiredPads" requiredPads
 
               let stringBuilder = new StringBuilder()
               stringBuilder.Append(s) |> ignore<StringBuilder>
