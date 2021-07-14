@@ -78,6 +78,9 @@ let throw (str : string) : 'a = raise (StdlibException(StringError str))
 // When a function in called with the wrong number of arguments. Used in almost every function signature.
 let incorrectArgs () = raise (StdlibException IncorrectArgs)
 
+// FSTODO: add a test that this matches LibExecution.StdLib.infixFnMapping Int functions
+let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
+
 let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   let actualRepr = DvalRepr.toDeveloperReprV0 actual
   let actualType = Dval.toType actual
@@ -87,12 +90,15 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
 
   let conversionMsg =
     match p.typ, actualType, name with
-    | TInt, TFloat, FQFnName.Stdlib std when std.module_ = "Int" ->
+    | TInt, TFloat, FQFnName.Stdlib std when
+      std.module_ = "Int"
+      || (std.module_ = "" && Set.contains std.function_ intInfixFns) ->
         let altfn = { std with module_ = "Float" }
 
         $" Try using {altfn.ToString()}, or use Float::truncate to truncate Floats to Ints."
     | TInt, TStr, FQFnName.Stdlib std when
-      std.module_ = "Int" && std.function_ = "add" -> " Use ++ to concatenate"
+      (std.module_ = "Int" && std.function_ = "add")
+      || (std.module_ = "" && std.function_ = "+") -> " Use ++ to concatenate"
     | _ -> ""
 
   $"{fnname} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
