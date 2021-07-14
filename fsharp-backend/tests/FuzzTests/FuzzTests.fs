@@ -523,8 +523,7 @@ module ExecutePureFunctions =
 
 
   type AllowedFuzzerErrorFileStructure =
-    { functionsOfInterest : Set<string>
-      knownDifferingFunctions : Set<string>
+    { knownDifferingFunctions : Set<string>
       knownErrors : List<List<string>> }
 
   // Keep a list of allowed errors where we can edit it without recompiling
@@ -1042,7 +1041,6 @@ module ExecutePureFunctions =
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
-        let origArgs = args
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
 
@@ -1063,7 +1061,7 @@ module ExecutePureFunctions =
         // Error messages are not required to be directly the same between
         // old and new implementations. However, this can hide errors, so we
         // manually verify them all to make sure we didn't miss any.
-        let errorAllowed (actualMsg : string) (expectedMsg : string) =
+        let errorAllowed (debug : bool) (actualMsg : string) (expectedMsg : string) =
           let expectedMsg =
             // Some OCaml errors are in a JSON struct, so get the message and compare that
             try
@@ -1087,9 +1085,6 @@ module ExecutePureFunctions =
             // enable to allow dynamically updating without restarting
             // let allowedErrors = readAllowedErrors ()
 
-            let functionOfInterest =
-              Set.contains (string fn) allowedErrors.functionsOfInterest
-
             List.any
               (function
               | [ namePat; actualPat; expectedPat ] ->
@@ -1104,6 +1099,14 @@ module ExecutePureFunctions =
                   let actualMatch = regexMatch actualMsg actualPat
                   let expectedMatch = regexMatch expectedMsg expectedPat
 
+                  if debug then
+                    printfn "===============================================\n\n\n"
+                    printfn $"Name: (match: {nameMatches}): {string fn} ~= {namePat}"
+                    printfn $"Actual: (match: {actualMatch.Success})"
+                    printfn $"\n{actualMsg}\n\n~= {actualPat}"
+                    printfn $"Expected: (match: {expectedMatch.Success})"
+                    printfn $"\n{expectedMsg}\n\n~=\n\n{expectedPat}"
+
                   // Not only should we check that the error message matches,
                   // but also that the captures match in both. This way we can
                   // add notes that we expect certain values to be the same in
@@ -1113,14 +1116,15 @@ module ExecutePureFunctions =
                     && expectedMatch.Success
                     && actualMatch.Groups.Count = expectedMatch.Groups.Count
 
-                  if nameMatches && functionOfInterest then
-                    // This is a good place to set the debugger to figure out what's going wrong
-                    printfn "function of interest found"
-
                   if groupsMatch && actualMatch.Groups.Count > 1 then
                     for i = 1 to actualMatch.Groups.Count - 1 do // start at 1, because 0 is the whole match
                       let groupMatches =
                         actualMatch.Groups.[i].Value = expectedMatch.Groups.[i].Value
+
+                      if debug then
+                        printfn $"Group {i}: (match: {groupMatches}): "
+                        printfn $"{actualMatch.Groups.[i].Value} ~="
+                        printfn $"{expectedMatch.Groups.[i].Value}"
 
                       groupsMatch <- groupsMatch && groupMatches
 
@@ -1149,9 +1153,10 @@ module ExecutePureFunctions =
         else
           match actual, expected with
           | RT.DError (_, aMsg), RT.DError (_, eMsg) ->
-              let allowed = errorAllowed aMsg eMsg
+              let allowed = errorAllowed false aMsg eMsg
               // For easier debugging. Check once then step through
-              let allowed2 = if not allowed then errorAllowed aMsg eMsg else allowed
+              let allowed2 =
+                if not allowed then errorAllowed true aMsg eMsg else allowed
 
               if not allowed2 then
                 debugFn ()
@@ -1161,9 +1166,10 @@ module ExecutePureFunctions =
 
               return allowed
           | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
-              let allowed = errorAllowed aMsg eMsg
+              let allowed = errorAllowed false aMsg eMsg
               // For easier debugging. Check once then step through
-              let allowed2 = if not allowed then errorAllowed aMsg eMsg else allowed
+              let allowed2 =
+                if not allowed then errorAllowed true aMsg eMsg else allowed
 
               if not allowed2 then
                 debugFn ()

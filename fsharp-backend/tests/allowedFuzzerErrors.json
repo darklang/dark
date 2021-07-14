@@ -1,5 +1,4 @@
 {
-  "functionsOfInterest": [],
   // FSTODO: These use a different sort order in OCaml
   "knownDifferingFunctions": [
     "List::sort",
@@ -144,13 +143,13 @@
       "expecting str"
     ],
     [
-      "(Int::multiply|Int::subtract|Int::divide|Int::add|Int::lessThan|Int::greaterThan|Int::lessThanOrEquals|Int::greaterThanOrEquals|\\+\\|\\-|\\*|/|\\<|\\>|<=|>=)",
-      "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected an Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
-      "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate Floats to Ints."
+      "(Int::multiply|Int::subtract|Int::divide|Int::add|Int::lessThan|Int::greaterThan|Int::lessThanOrEquals|Int::greaterThanOrEquals|\\+\\|\\-|\\*|\\/|\\<|\\>|<=|>=)",
+      "(?<fn>.*) was called with a Float \\((?<value>.*)\\), but `.*` expected a Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
+      "The .* param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate Floats to Ints."
     ],
     [
       "(Int:add|\\+)",
-      "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected an Int.",
+      "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected a Int.",
       "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints.  Use \\+\\+ or String::append to join Strings or parse Strings to Ints with String::toInt."
     ],
 
