@@ -1,12 +1,8 @@
 module LibBackend.StdLib.LibJwt
 
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
 open FSharpPlus
 open System.Security.Cryptography
-//open System.Text.Json
-open Newtonsoft.Json
+
 open LibExecution.RuntimeTypes
 open Prelude
 
@@ -54,23 +50,22 @@ let signAndEncode (key : RSA) (extraHeaders : DvalMap) (payload : string) : stri
     |> Map.add "alg" (DStr "RS256")
     |> Map.add "typ" (DStr "JWT")
     |> DObj
-    |> DvalRepr.toPrettyMachineJsonStringV1
+    |> Json.Vanilla.serialize
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
 
   let payload = payload |> toBytes |> base64Encode |> base64ToUrlEncoded
-
   let body = header + "." + payload
-
   let sha256 = SHA256.Create()
-  let hash = body |> toBytes |> sha256.ComputeHash
 
   let RSAFormatter = RSAPKCS1SignatureFormatter key
   RSAFormatter.SetHashAlgorithm "SHA256"
 
   let signature =
-    RSAFormatter.CreateSignature hash |> base64Encode |> base64ToUrlEncoded
+    RSAFormatter.CreateSignature (body |> toBytes |> sha256.ComputeHash)
+                                  |> base64Encode
+                                  |> base64ToUrlEncoded
 
   body + "." + signature
 
@@ -78,8 +73,8 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
 
   match Seq.toList (String.split [| "." |] token) with
   | [ header; payload; signature ] ->
-      (* do the minimum of parsing and decoding before verifying signature.
-        c.f. "cryptographic doom principle". *)
+      // do the minimum of parsing and decoding before verifying signature.
+      // c.f. "cryptographic doom principle".
       try
         let sha256 = SHA256.Create()
         let hash = (header + "." + payload) |> toBytes |> sha256.ComputeHash
@@ -108,8 +103,8 @@ let verifyAndExtractV1
 
   match Seq.toList (String.split [| "." |] token) with
   | [ header; payload; signature ] ->
-      (* do the minimum of parsing and decoding before verifying signature.
-        c.f. "cryptographic doom principle". *)
+      //do the minimum of parsing and decoding before verifying signature.
+      //c.f. "cryptographic doom principle".
       try
         let sha256 = SHA256.Create()
         let hash = (header + "." + payload) |> toBytes |> sha256.ComputeHash
