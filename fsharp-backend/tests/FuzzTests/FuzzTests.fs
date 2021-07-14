@@ -935,9 +935,8 @@ module ExecutePureFunctions =
                         return v |> toString |> RT.DStr
                     | "String::padStart", 1
                     | "String::padEnd", 1 ->
-                        // FSTODO: allow more than just chars
-                        let! v = Arb.generate<char> |> Gen.filter ((<>) (char 0))
-                        return RT.DStr(System.String([| v |]))
+                        let! v = Generators.char ()
+                        return RT.DStr v
                     | _ -> return! genDval signature.[i].typ
                   }
                 // Still throw in random data occasionally test errors, edge-cases, etc.
