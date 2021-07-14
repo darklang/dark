@@ -32,10 +32,7 @@
       "request": "launch",
       "preLaunchTask": "build",
       "program": "/home/dark/app/fsharp-backend/Build/out/Tests",
-      "args": [
-        "--filter-test-case",
-        "((let _ = String.foreach_v1 \"a string\" (fun x -> Test.incrementSideEffectCounter_v0 false) in Test.sideEffectCount_v0) = 8)"
-      ],
+      "args": ["--filter-test-case", "String.padEnd"],
       "cwd": "${workspaceFolder}/fsharp-backend",
       "stopAtEntry": false,
       "console": "internalConsole",
