@@ -10,6 +10,7 @@ open FsCheck
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open System.Text.RegularExpressions
 
 open Prelude
 open Prelude.Tablecloth
@@ -1089,44 +1090,47 @@ module ExecutePureFunctions =
               (function
               | [ namePat; actualPat; expectedPat ] ->
                   let regexMatch str regex =
-                    System.Text.RegularExpressions.Regex.Match(
-                      str,
-                      regex,
-                      System.Text.RegularExpressions.RegexOptions.Singleline
-                    )
+                    Regex.Match(str, regex, RegexOptions.Singleline)
 
                   let nameMatches = (regexMatch (string fn) namePat).Success
                   let actualMatch = regexMatch actualMsg actualPat
                   let expectedMatch = regexMatch expectedMsg expectedPat
 
-                  if debug then
-                    printfn "===============================================\n\n\n"
+                  if nameMatches && debug then
                     printfn $"Name: (match: {nameMatches}): {string fn} ~= {namePat}"
+
+                    printfn
+                      "\n\n\n===============================================\n\n\n"
+
                     printfn $"Actual: (match: {actualMatch.Success})"
                     printfn $"\n{actualMsg}\n\n~= {actualPat}"
                     printfn $"Expected: (match: {expectedMatch.Success})"
                     printfn $"\n{expectedMsg}\n\n~=\n\n{expectedPat}"
 
                   // Not only should we check that the error message matches,
-                  // but also that the captures match in both. This way we can
-                  // add notes that we expect certain values to be the same in
-                  // both
-                  let mutable groupsMatch =
-                    actualMatch.Success
-                    && expectedMatch.Success
-                    && actualMatch.Groups.Count = expectedMatch.Groups.Count
+                  // but also that the captures match in both.
+                  let sameGroups =
+                    actualMatch.Groups.Count = expectedMatch.Groups.Count
 
-                  if groupsMatch && actualMatch.Groups.Count > 1 then
+                  let actualGroupMatches = Dictionary.empty ()
+                  let expectedGroupMatches = Dictionary.empty ()
+
+                  if sameGroups && actualMatch.Groups.Count > 1 then
                     for i = 1 to actualMatch.Groups.Count - 1 do // start at 1, because 0 is the whole match
-                      let groupMatches =
-                        actualMatch.Groups.[i].Value = expectedMatch.Groups.[i].Value
+                      let group = actualMatch.Groups.[i]
+                      actualGroupMatches.Add(group.Name, group.Value)
+                      let group = expectedMatch.Groups.[i]
+                      expectedGroupMatches.Add(group.Name, group.Value)
 
-                      if debug then
-                        printfn $"Group {i}: (match: {groupMatches}): "
-                        printfn $"{actualMatch.Groups.[i].Value} ~="
-                        printfn $"{expectedMatch.Groups.[i].Value}"
+                  let dToL = Dictionary.toList
 
-                      groupsMatch <- groupsMatch && groupMatches
+                  let groupsMatch =
+                    (dToL actualGroupMatches) = (dToL expectedGroupMatches)
+
+                  if nameMatches && debug then
+                    printfn $"Groups match: {groupsMatch}"
+                    printfn $"actualGroupMatches: {dToL actualGroupMatches}"
+                    printfn $"expectedGroupMatches: {dToL expectedGroupMatches}"
 
                   nameMatches
                   && actualMatch.Success
