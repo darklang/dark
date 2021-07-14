@@ -21,7 +21,7 @@ List.drop_v0 [3; 3; 3] 0 = [3; 3; 3]
 List.drop_v0 [5; 4; 3; 2; 1]  5 = []
 List.drop_v0 [5] 4 = []
 
-List.dropWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected the argument `f` to be boolean value for every value in `list`, but it was `-1` for the input 1" // FSHARPONLY
+List.dropWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `-1`" // FSHARPONLY
 List.dropWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected the argument `f` passed to `List::dropWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." // OCAMLONLY
 List.dropWhile_v0 [1;2;3;4] (fun item -> item < 3) = [ 3, 4 ]
 List.dropWhile_v0 [1;2;3;4] (fun item -> item >= 1) = []
@@ -38,9 +38,9 @@ List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if ite
 List.filter_v0 [1;2;3] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3]
 List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = [1, 3]
 List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned 2" // FSHARPONLY
+List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `2`" // FSHARPONLY
 List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned \"a\"" // FSHARPONLY
+List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `\"a\"`" // FSHARPONLY
 
 List.filter_v1 [-20; 5; 9;] (fun x -> x < 1) = [-20]
 List.filter_v1 [-20; 5; 9;] (fun x -> x > 20) = []
@@ -50,13 +50,13 @@ List.filter_v1 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if ite
 List.filter_v1 [] (fun x -> x < 20) = []
 List.filter_v1 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
 List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned \"a\"" // FSHARPONLY
+List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `\"a\"`" // FSHARPONLY
 List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expecting fn to return bool" // OCAMLONLY
-List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned \"a\"" // FSHARPONLY
+List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `\"a\"`" // FSHARPONLY
 
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`. However, it returned `Nothing` for the input `1`." // OCAMLONLY
-List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected the argument `f` to be `true` or `false` for every value in `list`, but it was `Nothing` for the input 1" // FSHARPONLY
-List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected the argument `f` to be `true` or `false` for every value in `list`, but it was `\"a\"` for the input true" // FSHARPONLY
+List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `Nothing`" // FSHARPONLY
+List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `\"a\"`" // FSHARPONLY
 List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected the argument `f` passed to `List::filter_v2` to return `true` or `false` for every value in `list`. However, it returned `\"a\"` for the input `true`." // OCAMLONLY
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1, 3 ]
@@ -66,7 +66,7 @@ List.filter_v2 [-20; 5; 9;] (fun x -> x > 20) = []
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then Nothing else (Just (item * 2))) = [ 2, 6 ]
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then blank else (Just (item * 2))) = blank
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected the argument `f` passed to `List::filterMap` to return `Just` or `Nothing` for every value in `list`. However, it returned `false` for the input `2`." // OCAMLONLY
-List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected the argument `f` to be `Just` or `Nothing` for every value in `list`, but it was `false` for the input 2" // FSHARPONLY
+List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected `f` to return a Option, but it returned `false`" // FSHARPONLY
 List.filterMap_v0 [] (fun item -> 0) = []
 
 List.findFirst_v0 [1;2;3] (fun x -> x > 5) = null
@@ -232,7 +232,7 @@ List.take_v0 [3; 3; 3] 0 = []
 List.take_v0 [5; 4; 3; 2; 1]  5 = [5; 4; 3; 2; 1]
 List.take_v0 [5] 4 = [5]
 
-List.takeWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected the argument `f` to be boolean value for every value in `list`, but it was `-1` for the input 1" // FSHARPONLY
+List.takeWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected `f` to return a Bool, but it returned `-1`" // FSHARPONLY
 List.takeWhile_v0 [1;2;3;4] (fun item -> 0 - 1) = Test.typeError_v0 "Expected the argument `f` passed to `List::takeWhile` to return a boolean value for every value in `list`. However, it returned `-1` for the input `1`." // OCAMLONLY
 List.takeWhile_v0 [1;2;3;4] (fun item -> item < 1) = []
 List.takeWhile_v0 [1;2;3;4] (fun item -> item < 3) = [ 1, 2 ]
