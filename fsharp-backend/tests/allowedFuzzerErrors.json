@@ -22,7 +22,9 @@
     "AWS::urlencode",
     // The lambda gives the same value for all elements,
     // and we don't guarantee which one wins
-    "List::uniqueBy"
+    "List::uniqueBy",
+    // Returns a DError on invalid UTF-8 strings, while F# returns a Result.Error
+    "JSON::parse_v1"
   ],
   "knownErrors": [
     [
@@ -41,10 +43,11 @@
       "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. It is of type `.*` instead of `List`."
     ],
     [
-      // The old message was better, but this will go away with tuples so who cares
+      // The old message was better, but this will go away with tuples so who cares.
+      // There's two versions here, one is missing the word "is"
       "Dict::fromList.*",
       "Expected the argument `key` to be a string, but it was `.*`",
-      "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. Keys must be `String`s but the type of `.*` is `.*`."
+      "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. Keys must be `String`s but the type of `.*`."
     ],
     [
       // The old message was better, but this will go away with tuples so who cares
@@ -106,13 +109,34 @@
       "JSON string was empty",
       "Json Err: Blank input data"
     ],
+    [
+      // JSON::parse in ocaml actually has the _v0 in the name
+      "JSON::parse",
+      "(?<name>.*) was called with a .* \\(.*\\), but `(?<arg>.*)` expected a .*.",
+      "(?<name>.*)_v0 was called with the wrong type to parameter: (?<arg>.*)"
+    ],
     // -----------------------------
     // Incorrect argument
     // -----------------------------
     [
+      "Float::sum",
+      "Expected the argument `.*` to be a list of floats, but it was `.*`",
+      "Sum expects you to pass a list of floats"
+    ],
+    [
+      "String::pad.*",
+      "Expected the argument `padWith` to be 1 character long, but it was `\"(?<arg>.*)\"`",
+      "Expected the argument `padWith` passed to `String::padEnd` to be one character long. However, `\"(?<arg>.*)\"` is \\d+ characters long."
+    ],
+    [
       ".*",
       "(?<name>.*) was called with a .* \\(.*\\), but `(?<arg>.*)` expected a .*.",
       "(?<name>.*) was called with the wrong type to parameter: (?<arg>.*)"
+    ],
+    [
+      "String::fromList",
+      "Expected `l` to be a list of Characters, but the list contained `.*`",
+      "expected a char"
     ],
     [
       ".*",
@@ -120,10 +144,16 @@
       "expecting str"
     ],
     [
-      "(Int::subtract|-)",
-      "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected an Int. Try using Float::(?<suggested>.*), or use Float::truncate to truncate Floats to Ints.",
-      "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints. Use Float::(?<suggested>.*) to .* Floats or use Float::truncate to truncate Floats to Ints."
+      "(Int::multiply|Int::subtract|Int::divide|Int::add|Int::lessThan|Int::greaterThan|Int::lessThanOrEquals|Int::greaterThanOrEquals|\\+\\|\\-|\\*|/|\\<|\\>|<=|>=)",
+      "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected an Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
+      "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate Floats to Ints."
     ],
+    [
+      "(Int:add|\\+)",
+      "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected an Int.",
+      "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints.  Use \\+\\+ or String::append to join Strings or parse Strings to Ints with String::toInt."
+    ],
+
     // -----------------------------
     // Incorrect return type from a lambda
     // -----------------------------
