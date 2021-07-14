@@ -56,6 +56,7 @@ Int.mod_v0 5 0 = Test.typeError_v0 "Expected the argument `b` argument passed to
 Int.mod_v0 5 (-5) = Test.typeError_v0 "Expected the argument `b` argument passed to `Int::mod` to be positive, but it was `-5`." // OCAMLONLY
 List.map_v0 (List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [3;0;1;2;3;0;1;2;3;0;1]
 
+15 % 5 = 0
 5 % 0 = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `0`" // FSHARPONLY
 5 % (-5) = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `-5`"  // FSHARPONLY
 5 % 0 = Test.typeError_v0 "Expected the argument `b` argument passed to `%` to be positive, but it was `0`." // OCAMLONLY
@@ -129,12 +130,18 @@ Int.subtract_v0 -55 -55 = 0
 
 Int.multiply_v0 8 8 = 64
 Int.multiply_v0 5145 5145 = 26471025
+Int.multiply_v0 1 1.0 = Test.typeError_v0 "The second param (1.) is a Float, but Int::multiply only works on Ints. Use Float::multiply to multiply Floats or use Float::truncate to truncate Floats to Ints." // OCAMLONLY
+Int.multiply_v0 1 1.0 = Test.typeError_v0 "Int::multiply was called with a Float (1.), but `b` expected a Int. Try using Float::multiply, or use Float::truncate to truncate Floats to Ints."" // FSHARPONLY
+
+8 * 8 = 64
 
 Int.divide_v0 10 5 = 2
 Int.divide_v0 17 3 = 5
 Int.divide_v0 -8 5 = -1
 Int.divide_v0 0 1 = 0
 Int.divide_v0 1 0 = Test.typeError_v0 "Division by zero" // FSHARPONLY
+
+10 / 5 = 2
 
 (List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0  1  5) |> List.map_v0 (fun x -> (x >=  1) && (x <= 5)) |> List.member_v0 false = false
 (List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0 10 20) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) |> List.member_v0 false = false
