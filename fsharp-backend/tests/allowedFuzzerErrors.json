@@ -1,6 +1,6 @@
 {
-  // FSTODO: These use a different sort order in OCaml
   "knownDifferingFunctions": [
+    // These use a different sort order in OCaml
     "List::sort",
     "List::sortBy",
     // Known formatting differences
@@ -8,6 +8,10 @@
     "Object::toJSON_v1",
     "Dict::toJSON",
     "Dict::toJSON_v1",
+    // Sorting odities
+    "Dict::toList",
+    "Dict::keys",
+    "Dict::values",
     // Don't know what the bug is
     "String::base64Decode",
     // OCaml seems to trim wrong here
@@ -66,15 +70,10 @@
     // List::sortByComparator
     // -----------------------------
     [
-      // FSTODO: the different impls run comparisons in a different order, so if the arguments are Errors, a different one might be compared first
+      // the different impls run comparisons in a different order, if it fails, it may fail on a different element
       "List::sortByComparator",
-      "Expected `f` to return -1, 0, 1, but it returned `<Error: .*>`",
-      "`f` must return one of -1, 0, 1, but returned .*: <Error: .*>"
-    ],
-    [
-      "List::sortByComparator",
-      "Expected `f` to return -1, 0, 1, but it returned `(?<result>.*)`",
-      "`f` must return one of -1, 0, 1, but returned .*: (?<result>.*)"
+      "Expected `f` to return -1, 0, 1, but it returned `.*`",
+      "`f` must return one of -1, 0, 1, but returned .*: .*"
     ],
     // -----------------------------
     // List::unzip
@@ -104,6 +103,12 @@
       "Json Err: Line \\d+, bytes (?<pos>\\d+)-\\d+:\nInvalid token '.*'"
     ],
     [
+      // Line is off by one - ocaml starts counting at 1
+      "(JSON::parse|JSON::read).*",
+      "Unexpected end while reading JSON: .*. Path '', line \\d+, position (?<pos>\\d+).",
+      "Json Err: Line \\d+, bytes (?<pos>\\d+)-\\d+:\nInvalid token '.*'"
+    ],
+    [
       "(JSON::parse|JSON::read).*",
       "JSON string was empty",
       "Json Err: Blank input data"
@@ -117,6 +122,11 @@
     // -----------------------------
     // Incorrect argument
     // -----------------------------
+    [
+      "String::toFloat",
+      "Expected the argument `.*` to be a string representation of an IEEE float, but it was `.*`",
+      "Expected a string representation of an IEEE float"
+    ],
     [
       "Float::sum",
       "Expected the argument `.*` to be a list of floats, but it was `.*`",
@@ -143,12 +153,12 @@
       "expecting str"
     ],
     [
-      "(Int::multiply|Int::subtract|Int::divide|Int::add|Int::lessThan|Int::greaterThan|Int::lessThanOrEquals|Int::greaterThanOrEquals|\\+\\|\\-|\\*|\\/|\\<|\\>|<=|>=)",
+      "(Int::multiply|Int::subtract|Int::divide|Int::add|Int::lessThan|Int::greaterThan|Int::lessThanOrEquals|Int::greaterThanOrEquals|Int::sqrt|\\+|\\-|\\*|\\/|\\<|\\>|<=|>=)",
       "(?<fn>.*) was called with a Float \\((?<value>.*)\\), but `.*` expected a Int. Try using Float::.*, or use Float::truncate to truncate Floats to Ints.",
       "The .* param \\((?<value>.*)\\) is a Float, but (?<fn>.*) only works on Ints. Use Float::.* to .* Floats or use Float::truncate to truncate Floats to Ints."
     ],
     [
-      "(Int:add|\\+)",
+      "(Int::add|\\+)",
       "(?<fn>.*) was called with a Float ((?<value>.*)), but `.*` expected a Int.",
       "The .* param ((?<value>.*)) is a Float, but (?<fn>.*) only works on Ints.  Use \\+\\+ or String::append to join Strings or parse Strings to Ints with String::toInt."
     ],
