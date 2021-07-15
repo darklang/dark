@@ -459,7 +459,7 @@ String.toLowercase_v1 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺
 
 String.toUppercase_v0 "hello😄world" = "HELLO😄WORLD"
 String.toUppercase_v0 "" = ""
-String.toUppercase_v0 "abcdef" = "ABCDEF" // String.toUppercase_v0 works for ASCII range
+String.toUppercase_v0 "abcdef" = "ABCDEF"
 String.toUppercase_v0 "ab323cdef" = "AB323CDEF"
 String.toUppercase_v0 "sánchez" = "SáNCHEZ" // note lowercase a
 String.toUppercase_v0 "SÁNChEZ" = "SÁNCHEZ"
@@ -511,9 +511,10 @@ String.toUppercase_v1 "ჾ" = "Ჾ"
 // (packaged at
 // https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
 
-//String.toUppercase_v1 "ﬁﬂ" = "FIFL"
-//String.toUppercase_v1 "և" = "ԵՒ"
-
+String.toUppercase_v1 "ﬁﬂ" = "FIFL" // OCAMLONLY
+String.toUppercase_v1 "և" = "ԵՒ" // OCAMLONLY
+String.toUppercase_v1 "ﬁﬂ" = "ﬁﬂ" // FSHARPONLY
+String.toUppercase_v1 "և" = "և" // FSHARPONLY
 
 
 String.toUppercase_v1 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
