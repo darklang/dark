@@ -1043,6 +1043,7 @@ module ExecutePureFunctions =
                   return (name, [])
             } }
 
+
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
@@ -1100,17 +1101,6 @@ module ExecutePureFunctions =
                   let actualMatch = regexMatch actualMsg actualPat
                   let expectedMatch = regexMatch expectedMsg expectedPat
 
-                  if nameMatches && debug then
-                    printfn $"Name: (match: {nameMatches}): {string fn} ~= {namePat}"
-
-                    printfn
-                      "\n\n\n===============================================\n\n\n"
-
-                    printfn $"Actual: (match: {actualMatch.Success})"
-                    printfn $"\n{actualMsg}\n\n~= {actualPat}"
-                    printfn $"Expected: (match: {expectedMatch.Success})"
-                    printfn $"\n{expectedMsg}\n\n~=\n\n{expectedPat}"
-
                   // Not only should we check that the error message matches,
                   // but also that the captures match in both.
                   let sameGroups =
@@ -1126,13 +1116,23 @@ module ExecutePureFunctions =
                       let group = expectedMatch.Groups.[i]
                       expectedGroupMatches.Add(group.Name, group.Value)
 
-                  let dToL = Dictionary.toList
+                  let dToL d = Dictionary.toList d |> List.sortBy Tuple2.first
 
                   let groupsMatch =
                     (dToL actualGroupMatches) = (dToL expectedGroupMatches)
 
                   if nameMatches && debug then
-                    printfn $"Groups match: {groupsMatch}"
+                    printfn "\n\n\n======================"
+                    printfn (if nameMatches then "✅" else "❌")
+                    printfn (if actualMatch.Success then "✅" else "❌")
+                    printfn (if expectedMatch.Success then "✅" else "❌")
+                    printfn (if groupsMatch then "✅" else "❌")
+                    printfn $"{string fn}"
+                    printfn $"{actualMsg}"
+                    printfn $"{expectedMsg}\n\n"
+                    printfn $"{namePat}"
+                    printfn $"{actualPat}"
+                    printfn $"{expectedPat}"
                     printfn $"actualGroupMatches: {dToL actualGroupMatches}"
                     printfn $"expectedGroupMatches: {dToL expectedGroupMatches}"
 
@@ -1145,7 +1145,7 @@ module ExecutePureFunctions =
 
 
         let debugFn () =
-          debuG "fn" fn
+          debuG "\n\n\nfn" fn
           debuG "args" (List.map (fun (_, v) -> debugDval v) args)
 
         if not (Expect.isCanonical expected) then
