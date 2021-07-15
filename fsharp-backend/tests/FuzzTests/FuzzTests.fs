@@ -122,7 +122,8 @@ module FQFnName =
   let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericString
 
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> =
+      Arb.fromGenShrink (G.string (), Arb.shrink<string>)
 
     static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
       { new Arbitrary<PT.FQFnName.T>() with
@@ -539,10 +540,11 @@ module ExecutePureFunctions =
   let allowedErrors = readAllowedErrors ()
 
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> =
+      Arb.fromGenShrink (G.string (), Arb.shrink<string>)
 
     static member Float() : Arbitrary<float> =
-      Arb.fromGen (
+      Arb.fromGenShrink (
         gen {
           let specials =
             TestUtils.interestingFloats
@@ -553,11 +555,12 @@ module ExecutePureFunctions =
 
           let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
           return! Gen.filter filterFloat v
-        }
+        },
+        Arb.shrinkNumber
       )
 
     static member BigInt() : Arbitrary<bigint> =
-      Arb.fromGen (
+      Arb.fromGenShrink (
         gen {
           let specials =
             TestUtils.interestingInts
@@ -568,7 +571,8 @@ module ExecutePureFunctions =
 
           let v = Gen.frequency [ (5, specials); (5, Arb.generate<bigint>) ]
           return! Gen.filter isValidOCamlInt v
-        }
+        },
+        Arb.shrinkNumber
       )
 
     static member Dval() : Arbitrary<RT.Dval> =
