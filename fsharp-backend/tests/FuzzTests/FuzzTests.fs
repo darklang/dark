@@ -990,7 +990,7 @@ module ExecutePureFunctions =
                            |> List.map
                                 (function
                                 | RT.DInt i -> i
-                                | _ -> failwith "should be an int")
+                                | _ -> 0I)
                            |> List.fold 0I (+)
                            |> isValidOCamlInt
                        // Int overflow converting from Floats
