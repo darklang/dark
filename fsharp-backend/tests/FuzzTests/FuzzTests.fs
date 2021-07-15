@@ -964,8 +964,6 @@ module ExecutePureFunctions =
                               name.function_,
                               name.version) with
                        // Specific OCaml exception (use `when`s here)
-                       | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false
-                       | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false
                        | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
                        | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" ->
                            false

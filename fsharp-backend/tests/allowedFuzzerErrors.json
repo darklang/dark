@@ -59,6 +59,10 @@
       "Expected every value within the `entries` argument passed to `Dict::fromList.*` to be a `\\[key, value\\]` list. However, that is not the case for the value at index \\d+: `.*`. It has length \\d+ but must have length 2."
     ],
     // -----------------------------
+    // Int::divide
+    // -----------------------------
+    ["Int::divide", "Division by zero", "Unknown Err: \\(Division_by_zero\\)"],
+    // -----------------------------
     // Http::setCookie_v2
     // -----------------------------
     [

@@ -198,6 +198,8 @@ List.repeat_v0 118446744073709551616I 1 = Test.typeError_v0 "Expected the argume
 List.repeat_v0 3 1 = [1; 1; 1]
 List.repeat_v0 3 3 = [3; 3; 3]
 List.repeat_v0 5 "a" = ["a"; "a"; "a"; "a"; "a"]
+List.repeat_v0 -4 "a" = Test.typeError_v0 "Unknown Err: (Invalid_argument \"List.init -4\")" // OCAMLONLY
+List.repeat_v0 -4 "a" = Test.typeError_v0 "Expected the argument `times` to be positive, but it was `-4`" // FSHARPONLY
 
 List.reverse_v0 ["a"; "b"; "c"; "d"] = ["d";"c";"b";"a"]
 List.reverse_v0 [5; 4; 3; 2; 1] = [1;2;3;4;5]
