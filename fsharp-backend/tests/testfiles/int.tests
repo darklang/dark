@@ -141,8 +141,6 @@ Int.divide_v0 -8 5 = -1
 Int.divide_v0 0 1 = 0
 Int.divide_v0 1 0 = Test.typeError_v0 "Division by zero" // FSHARPONLY
 
-10 / 5 = 2
-
 (List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0  1  5) |> List.map_v0 (fun x -> (x >=  1) && (x <= 5)) |> List.member_v0 false = false
 (List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0 10 20) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) |> List.member_v0 false = false
 (List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v0 10 30) |> List.map_v0 (fun x -> (x >= 10) && (x <= 30)) |> List.member_v0 false = false
