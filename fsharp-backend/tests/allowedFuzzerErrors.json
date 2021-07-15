@@ -1,4 +1,7 @@
 {
+  // If None, test anything. If `Some fn`, only test fn
+  "functionToTest": ["None"],
+  //"functionToTest": ["Some", "List::repeat"],
   "knownDifferingFunctions": [
     // These use a different sort order in OCaml
     "List::sort",
@@ -62,6 +65,14 @@
     // Int::divide
     // -----------------------------
     ["Int::divide", "Division by zero", "Unknown Err: \\(Division_by_zero\\)"],
+    // -----------------------------
+    // List::repeat
+    // -----------------------------
+    [
+      "List::repeat",
+      "Expected the argument `times` to be positive, but it was `(?<arg>.*)`",
+      "Unknown Err: \\(Invalid_argument \"List.init (?<arg>.*)\"\\)"
+    ],
     // -----------------------------
     // Http::setCookie_v2
     // -----------------------------
