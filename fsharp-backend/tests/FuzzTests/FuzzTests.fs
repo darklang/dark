@@ -525,7 +525,8 @@ module ExecutePureFunctions =
 
 
   type AllowedFuzzerErrorFileStructure =
-    { knownDifferingFunctions : Set<string>
+    { functionToTest : Option<string>
+      knownDifferingFunctions : Set<string>
       knownErrors : List<List<string>> }
 
   // Keep a list of allowed errors where we can edit it without recompiling
@@ -533,9 +534,7 @@ module ExecutePureFunctions =
     use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
     let json = r.ReadToEnd()
 
-    Newtonsoft.Json.JsonConvert.DeserializeObject<AllowedFuzzerErrorFileStructure>(
-      json
-    )
+    Json.Vanilla.deserialize<AllowedFuzzerErrorFileStructure> json
 
   let allowedErrors = readAllowedErrors ()
 
@@ -882,10 +881,14 @@ module ExecutePureFunctions =
 
                        if different || fsOnly then
                          false
-                       else
+                       elif allowedErrors.functionToTest = None then
                          // FSTODO: make a list of safe functions which are
                          // marked unsafe since they're backend only
-                         fn.previewable = RT.Pure)
+                         fn.previewable = RT.Pure
+                       elif Some name = allowedErrors.functionToTest then
+                         true
+                       else
+                         false)
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
               let name = fns.[fnIndex].name
