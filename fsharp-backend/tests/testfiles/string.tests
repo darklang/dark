@@ -96,16 +96,33 @@ String.base64Decode_v0 "Kw" = "+"
 String.base64Decode_v0 "yLo" = "Ⱥ"
 String.base64Decode_v0 "xbzDs8WCdw" = "żółw"
 String.base64Decode_v0 "LyotKygmQDk4NTIx" = "/*-+(&@98521"
-String.base64Decode_v0 "" = ""
+String.base64Decode_v0 "" = "" // empty case
+// Test cases from the spec with padding added
 String.base64Decode_v0 "Zg" = "f"
+String.base64Decode_v0 "Zg==" = "f"
 String.base64Decode_v0 "Zm8" = "fo"
+String.base64Decode_v0 "Zm8=" = "fo"
 String.base64Decode_v0 "Zm9v" = "foo"
 String.base64Decode_v0 "Zm9vYg" = "foob"
+String.base64Decode_v0 "Zm9vYg==" = "foob"
 String.base64Decode_v0 "Zm9vYmE" = "fooba"
+String.base64Decode_v0 "Zm9vYmE=" = "fooba"
 String.base64Decode_v0 "Zm9vYmFy" = "foobar"
-//String.base64Decode_v0 "-p" = "" // FSHARPONLY
-//String.base64Decode_v0 "lI" = "" // FSHARPONLY
-//String.base64Decode_v0 "5Sk" = "\xEF\xBF\xBD\x29" // FSHARPONLY
+// "Impossible cases" from apache
+// https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
+String.base64Decode_v0 "ZE==" = "d"
+String.base64Decode_v0 "ZmC=" = "f`"
+String.base64Decode_v0 "Zm9vYE==" = "foo`"
+String.base64Decode_v0 "Zm9vYmC=" = "foob`"
+String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = "from=06/07/2013 query=\"Καλώς ορίσατε\""
+String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+// These produce strings of bytes which are technically legal it seems
+String.base64Decode_v0 "-p" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\250\"" // OCAMLONLY
+String.base64Decode_v0 "-p" = "�" // FSHARPONLY
+String.base64Decode_v0 "lI" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\148\"" // OCAMLONLY
+String.base64Decode_v0 "lI" = "�" // FSHARPONLY
+String.base64Decode_v0 "5Sk" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\229)\"" // OCAMLONLY
+String.base64Decode_v0 "5Sk" = "�)" // FSHARPONLY
 
 
 String.base64Encode_v0 "+" = "Kw"
@@ -119,6 +136,9 @@ String.base64Encode_v0 "foo" = "Zm9v"
 String.base64Encode_v0 "foob" = "Zm9vYg"
 String.base64Encode_v0 "fooba" = "Zm9vYmE"
 String.base64Encode_v0 "foobar" = "Zm9vYmFy"
+String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
+String.base64Encode_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
+String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
 
 String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
 String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"

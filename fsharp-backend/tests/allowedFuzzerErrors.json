@@ -1,23 +1,21 @@
 {
   // If None, test anything. If `Some fn`, only test fn
   "functionToTest": ["None"],
-  //"functionToTest": ["Some", "List::repeat"],
+  //"functionToTest": ["Some", "String::base64Decode"],
   "knownDifferingFunctions": [
     // These use a different sort order in OCaml
-    "List::sort",
-    "List::sortBy",
-    // Known formatting differences
+    "List::sort", // FSTODO
+    "List::sortBy", // FSTODO
+    // Known formatting differences FSTODO
     "Object::toJSON",
     "Object::toJSON_v1",
     "Dict::toJSON",
     "Dict::toJSON_v1",
-    // Sorting odities
+    // Sorting odities, these are fine
     "Dict::toList",
     "Dict::keys",
     "Dict::values",
-    // Don't know what the bug is
-    "String::base64Decode",
-    // OCaml seems to trim wrong here
+    // OCaml seems to trim wrong here,
     "String::trim",
     "String::trimEnd",
     "String::trimStart",

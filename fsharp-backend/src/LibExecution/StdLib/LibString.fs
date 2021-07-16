@@ -626,23 +626,23 @@ let fns : List<BuiltInFn> =
               else initial
 
             if s = "" then
-              // This seems valid
+              // This seems like we should allow it
               Value(DStr "")
             // dotnet ignores whitespace but we don't allow it
-            else if Regex.IsMatch(s, @"\s") then
+            else
+
+            if Regex.IsMatch(s, @"\s") then
               err "Not a valid base64 string"
             else
               try
-                let decodedBytes =
-                  try
-                    // Try regular
-                    System.Convert.FromBase64String s
-                  with e ->
-                    // try URL safe
-                    s |> base64FromUrlEncoded |> System.Convert.FromBase64String
-
-                decodedBytes |> ofBytes |> fun s -> s.Normalize() |> DStr |> Value
-              with _ -> err "Not a valid base64 string"
+                s
+                |> base64FromUrlEncoded
+                |> Convert.FromBase64String
+                |> System.Text.Encoding.UTF8.GetString
+                |> String.normalize
+                |> DStr
+                |> Value
+              with e -> err "Not a valid base64 string"
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
