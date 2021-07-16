@@ -1111,7 +1111,8 @@ module ExecutePureFunctions =
                   let expectedGroupMatches = Dictionary.empty ()
 
                   if sameGroups && actualMatch.Groups.Count > 1 then
-                    for i = 1 to actualMatch.Groups.Count - 1 do // start at 1, because 0 is the whole match
+                    // start at 1, because 0 is the whole match
+                    for i = 1 to actualMatch.Groups.Count - 1 do
                       let group = actualMatch.Groups.[i]
                       actualGroupMatches.Add(group.Name, group.Value)
                       let group = expectedMatch.Groups.[i]
