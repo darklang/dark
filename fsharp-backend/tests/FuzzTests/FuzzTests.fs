@@ -882,9 +882,9 @@ module ExecutePureFunctions =
                        if different || fsOnly then
                          false
                        elif allowedErrors.functionToTest = None then
-                         // FSTODO: make a list of safe functions which are
-                         // marked unsafe since they're backend only
+                         // FSTODO: Add JWT and X509 functions here
                          fn.previewable = RT.Pure
+                         || fn.previewable = RT.ImpurePreviewable
                        elif Some name = allowedErrors.functionToTest then
                          true
                        else
