@@ -34,15 +34,18 @@ exception FakeValFoundInQuery of Dval
 // ------------------
 // Messages
 // ------------------
-let expectedLambdaType (typ : DType) (actual : Dval) : string =
+let expectedLambdaType (fnName : string) (typ : DType) (actual : Dval) : string =
   let actual = DvalRepr.toDeveloperReprV0 actual
   let typ = DvalRepr.typeToDeveloperReprV0 typ
-  $"Expecting the function to return {typ}, but the result was {actual}"
+  $"Expected `{fnName}` to return a {typ}, but it returned `{actual}`"
 
-let expectedLambdaValue (expected : string) (actual : Dval) : string =
+let expectedLambdaValue
+  (fnName : string)
+  (expected : string)
+  (actual : Dval)
+  : string =
   let actual = DvalRepr.toDeveloperReprV0 actual
-  $"Expecting the function to return {expected}, but the result was {actual}"
-
+  $"Expected `{fnName}` to return {expected}, but it returned `{actual}`"
 
 
 // Used for values which are outside the range of expected values for some
@@ -51,7 +54,11 @@ let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string 
   let actual = DvalRepr.toDeveloperReprV0 dv
   $"Expected the argument `{paramName}` to be {expected}, but it was `{actual}`"
 
-let dividingByZero (paramName : string) : string = $"`{paramName}` cannot be zero"
+// Used for lists which contain invalid values for some reason.
+let argumentMemberWasnt (typ : DType) (paramName : string) (dv : Dval) : string =
+  let actual = DvalRepr.toDeveloperReprV0 dv
+  let typ = DvalRepr.typeToDeveloperReprV0 typ
+  $"Expected `{paramName}` to be a list of {typ}s, but the list contained `{actual}`"
 
 let queryCompilerErrorTemplate =
   "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably faster.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Dark's functionality, but will be expanding it in the future.\n\nSome Dark code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general.\n\nError: "
@@ -71,6 +78,9 @@ let throw (str : string) : 'a = raise (StdlibException(StringError str))
 // When a function in called with the wrong number of arguments. Used in almost every function signature.
 let incorrectArgs () = raise (StdlibException IncorrectArgs)
 
+// FSTODO: add a test that this matches LibExecution.StdLib.infixFnMapping Int functions
+let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
+
 let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   let actualRepr = DvalRepr.toDeveloperReprV0 actual
   let actualType = Dval.toType actual
@@ -80,16 +90,19 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
 
   let conversionMsg =
     match p.typ, actualType, name with
-    | TInt, TFloat, FQFnName.Stdlib std when std.module_ = "Int" ->
+    | TInt, TFloat, FQFnName.Stdlib std when
+      std.module_ = "Int"
+      || (std.module_ = "" && Set.contains std.function_ intInfixFns) ->
         let altfn = { std with module_ = "Float" }
 
         $" Try using {altfn.ToString()}, or use Float::truncate to truncate Floats to Ints."
     | TInt, TStr, FQFnName.Stdlib std when
-      std.module_ = "Int" && std.function_ = "add" -> " Use ++ to concatenate"
+      (std.module_ = "Int" && std.function_ = "add")
+      || (std.module_ = "" && std.function_ = "+") -> " Use ++ to concatenate"
     | _ -> ""
 
   $"{fnname} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
-  + $"an {expectedTypeRepr}.{conversionMsg}"
+  + $"a {expectedTypeRepr}.{conversionMsg}"
 
 
 // When a function has been removed (rarely happens but does happen occasionally)

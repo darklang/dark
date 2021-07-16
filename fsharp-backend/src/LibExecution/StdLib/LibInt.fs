@@ -86,7 +86,8 @@ let fns : List<BuiltInFn> =
               BigInteger.Remainder(v, d) |> DInt |> Ok |> DResult |> Value
              with e ->
                if d = bigint 0 then
-                 Value(DResult(Error(DStr(Errors.dividingByZero "divisor"))))
+                 Value(DResult(Error(DStr($"`divisor` must be non-zero"))))
+
                else // In case there's another failure mode, rollbar
                  raise e)
         | _ -> incorrectArgs ())

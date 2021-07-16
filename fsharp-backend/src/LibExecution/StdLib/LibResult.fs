@@ -219,7 +219,7 @@ let fns : List<BuiltInFn> =
                       NotInPipe
                       NoRail
 
-                  return DResult(Ok result) //FSTODO
+                  return Dval.resultOk result
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
@@ -246,7 +246,10 @@ let fns : List<BuiltInFn> =
                   | other ->
                       return
                         Errors.throw (
-                          Errors.expectedLambdaType (TResult(varOk, varErr)) other
+                          Errors.expectedLambdaType
+                            "f"
+                            (TResult(varOk, varErr))
+                            other
                         )
               | Error msg -> return DResult(Error msg)
             }
@@ -276,7 +279,10 @@ let fns : List<BuiltInFn> =
                   | other ->
                       return
                         Errors.throw (
-                          Errors.expectedLambdaType (TResult(varOk, varErr)) other
+                          Errors.expectedLambdaType
+                            "f"
+                            (TResult(varOk, varErr))
+                            other
                         )
               | Error msg -> return DResult(Error msg)
             }

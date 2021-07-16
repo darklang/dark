@@ -21,6 +21,9 @@ JSON.read_v1 "{Id : 1.}" = {Id = 1.0} // FSHARPONLY
 JSON.read_v1 "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = [ {date = "2013-11-05"; locations = {Japan = 3; Germany = 1}} ]
 JSON.read_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = {id = 555; edition = "First"; author = "Dennis Ritchie"}
 JSON.read_v1 "\"\"" = ""
+JSON.read_v1 "" = Test.typeError "Json Err: Blank input data" // OCAMLONLY
+JSON.read_v1 "" = Test.typeError "JSON string was empty" // FSHARPONLY
+
 
 JSON.parse_v0 "[97, 2, 30, 4]" = [97, 2, 30, 4]
 JSON.parse_v0 "[97, 2, 30, 4,]" = Test.typeError "Json Err: Line 1, bytes 14-15:\nInvalid token ']'" // OCAMLONLY
@@ -34,7 +37,7 @@ JSON.parse_v0 "\"\"" = ""
 JSON.parse_v0 "''" = Test.typeError_v0 "Json Err: Line 1, bytes 0-2:\nInvalid token ''''" // OCAMLONLY
 JSON.parse_v0 "''" = "" // FSHARPONLY
 JSON.parse_v0 "" = Test.typeError_v0 "Json Err: Blank input data" // OCAMLONLY
-JSON.parse_v0 "" = Test.typeError_v0 "Invalid type in json: " // FSHARPONLY
+JSON.parse_v0 "" = Test.typeError_v0 "JSON string was empty" // FSHARPONLY
 
 // FSTODO all of these weird things that JSON.net allows are ridiculous, we shouldn't expose them.
 JSON.parse_v1 "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
@@ -52,9 +55,9 @@ JSON.parse_v1 "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = O
 JSON.parse_v1 "{id : 555, edition : 'First' }" = Error "Json Err: Line 1, bytes 21-30:\nInvalid token ''First' }'" // OCAMLONLY
 JSON.parse_v1 "{id : 555, edition : 'First' }" = Ok {id = 555; edition = "First"} // FSHARPONLY
 JSON.parse_v1 "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = Error "Dark Exception.DarkInternal Err: We dont use tuples" // OCAMLONLY
-JSON.parse_v1 "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = Error "Invalid type in json: ({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" // FSHARPONLY
+JSON.parse_v1 "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = Error "Unexpected character encountered while parsing value: (. Path '', line 0, position 0." // FSHARPONLY
 JSON.parse_v1 "\"\"" = Ok ""
 JSON.parse_v1 "" = Error "Json Err: Blank input data" // OCAMLONLY
-JSON.parse_v1 "" = Error "Invalid type in json: " // FSHARPONLY
+JSON.parse_v1 "" = Error "JSON string was empty" // FSHARPONLY
 JSON.parse_v1 "{3: false}" = Error "Json Err: Line 1, bytes 1-10:\nExpected string or identifier but found '3: false}'"  // OCAMLONLY
 //JSON.parse_v1 "{3: false}" = {3 = false} // FSHARPONLY  It should throws an error, but expects Ok { 3 = false} that is not a valid map (key should be a str)

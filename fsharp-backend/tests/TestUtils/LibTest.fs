@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "Test" "okWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
-      returnType = TOption varA
+      returnType = TResult(varA, varB)
       description = "Returns a DError in an OK"
       fn =
         (function
@@ -172,8 +172,8 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
     { name = fn "Test" "errorWithTypeError" 0
       parameters = [ Param.make "msg" TStr "" ]
-      returnType = TOption varA
-      description = "Returns a DError in a Result.error"
+      returnType = TResult(varA, varB)
+      description = "Returns a DError in a Result.Error"
       fn =
         (function
         | _, [ DStr msg ] -> Value(DResult(Ok(DError(SourceNone, msg))))

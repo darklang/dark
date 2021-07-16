@@ -270,7 +270,7 @@ let fns : Types.RuntimeT.fn list =
           (function
           | state, [DStr msg] ->
               let msg = Unicode_string.to_string msg in
-              DOption (OptJust (DError (SourceNone, msg)))
+              DResult (ResOk (DError (SourceNone, msg)))
           | args ->
               Lib.fail args)
     ; preview_safety = Safe
@@ -278,14 +278,14 @@ let fns : Types.RuntimeT.fn list =
   ; { prefix_names = ["Test::errorWithTypeError"]
     ; infix_names = []
     ; parameters = [Lib.par "msg" TStr]
-    ; return_type = TOption
+    ; return_type = TResult
     ; description = "Returns a DError in a Just"
     ; func =
         InProcess
           (function
           | state, [DStr msg] ->
               let msg = Unicode_string.to_string msg in
-              DOption (OptJust (DError (SourceNone, msg)))
+              DResult (ResError (DError (SourceNone, msg)))
           | args ->
               Lib.fail args)
     ; preview_safety = Safe

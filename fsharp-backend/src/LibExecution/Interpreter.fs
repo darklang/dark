@@ -731,8 +731,7 @@ and execFn
               else
                 let invalid =
                   List.zip fn.parameters arglist
-                  |> List.filter
-                       (fun (p, a) -> Dval.toType a <> p.typ && not (p.typ.isAny ()))
+                  |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
 
                 match invalid with
                 | [] ->
@@ -749,6 +748,6 @@ and execFn
           // message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
           // this, give it a nice exception via RT.error. *)
           // FSTODO: the message above needs to be handled
-          | e -> return (Dval.errSStr sourceID (toString e))
+          | e -> return (Dval.errSStr sourceID e.Message)
 
   }
