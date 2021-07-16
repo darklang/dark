@@ -30,9 +30,11 @@
       "name": "Tests",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
       "program": "/home/dark/app/fsharp-backend/Build/out/Tests",
-      "args": ["--filter-test-case", "String.padEnd"],
+      "args": [
+        "--filter-test-case",
+        "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
+      ],
       "cwd": "${workspaceFolder}/fsharp-backend",
       "stopAtEntry": false,
       "console": "internalConsole",
