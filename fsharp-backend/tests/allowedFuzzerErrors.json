@@ -22,8 +22,6 @@
     // .NET doesn't handle "full" case mapping
     "String::toUppercase_v1",
     "String::toLowercase_v1",
-    // Bug in unicode probably
-    "AWS::urlencode",
     // The lambda gives the same value for all elements,
     // and we don't guarantee which one wins
     "List::uniqueBy",
