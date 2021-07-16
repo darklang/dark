@@ -246,7 +246,10 @@ let fns : List<BuiltInFn> =
                   | other ->
                       return
                         Errors.throw (
-                          Errors.expectedLambdaType "f" (TResult(varOk, varErr)) other
+                          Errors.expectedLambdaType
+                            "f"
+                            (TResult(varOk, varErr))
+                            other
                         )
               | Error msg -> return DResult(Error msg)
             }
@@ -276,7 +279,10 @@ let fns : List<BuiltInFn> =
                   | other ->
                       return
                         Errors.throw (
-                          Errors.expectedLambdaType "f" (TResult(varOk, varErr)) other
+                          Errors.expectedLambdaType
+                            "f"
+                            (TResult(varOk, varErr))
+                            other
                         )
               | Error msg -> return DResult(Error msg)
             }

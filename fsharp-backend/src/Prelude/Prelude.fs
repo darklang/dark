@@ -245,8 +245,7 @@ module String =
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
-  let normalize (s : string) : string =
-    s.Normalize()
+  let normalize (s : string) : string = s.Normalize()
 
 module HashSet =
   type T<'v> = System.Collections.Generic.HashSet<'v>
