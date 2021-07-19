@@ -301,11 +301,6 @@ and DType =
   | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
 
-  member this.isAny() =
-    match this with
-    | TVariable _ -> true
-    | _ -> false
-
   // This string was created in the very old days, and is barely used anymore
   member this.toOldString() : string =
     // Used in DB::schema_v0, to save type in honeycomb after queue execution
@@ -469,6 +464,75 @@ module Dval =
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
 
+  // In OCaml, we had simpler types so we could just call toType and compare.
+  // But now we have nested types so they need to be checked deeper. Note:
+  // there is also "real" type checking elsewhere - this should be unified.
+  // Note, this is primarily used to figure out which argument has ALREADY not
+  // matched the actual runtime parameter type of the called function. So more
+  // accuracy is better, as the runtime is perfectly accurate.
+  let rec typeMatches (typ : DType) (dv : Dval) : bool =
+    match (dv, typ) with
+    | _, TVariable _ -> true
+    | DInt _, TInt
+    | DFloat _, TFloat
+    | DBool _, TBool
+    | DNull, TNull
+    | DStr _, TStr
+    | DDate _, TDate
+    | DPassword _, TPassword
+    | DUuid _, TUuid
+    | DChar _, TChar
+    | DDB _, TDB _
+    | DBytes _, TBytes -> true
+    | DList l, TList t -> List.all (typeMatches t) l
+    | DObj m, TDict t -> Map.all (typeMatches t) m
+    | DObj m, TRecord pairs ->
+        let actual = Map.toList m |> List.sortBy Tuple2.first
+        let expected = pairs |> List.sortBy Tuple2.first
+
+        if List.length actual <> List.length expected then
+          false
+        else
+          List.zip actual expected
+          |> List.all
+               (fun ((aField, aVal), (eField, eType)) ->
+                 aField = eField && typeMatches eType aVal)
+    | DObj _, TUserType _ -> false // not used
+    | DFnVal (Lambda l), TFn (parameters, _) ->
+        List.length parameters = List.length l.parameters
+    | DFnVal (FnName fnName), TFn _ -> false // not used
+    | DOption None, TOption _ -> true
+    | DOption (Some v), TOption t
+    | DResult (Ok v), TResult (t, _) -> typeMatches t v
+    | DResult (Error v), TResult (_, t) -> typeMatches t v
+    | DHttpResponse (Redirect _), THttpResponse _ -> true
+    | DHttpResponse (Response (_, _, body)), THttpResponse t -> typeMatches t body
+    // Dont match these fakevals, functions do not have these types
+    | DError _, _
+    | DErrorRail _, _
+    | DIncomplete _, _ -> false
+    // exhaustiveness checking
+    | DInt _, _
+    | DFloat _, _
+    | DBool _, _
+    | DNull, _
+    | DStr _, _
+    | DDate _, _
+    | DPassword _, _
+    | DUuid _, _
+    | DChar _, _
+    | DDB _, _
+    | DBytes _, _
+    | DList _, _
+    | DObj _, _
+    | DObj _, _
+    | DFnVal _, _
+    | DOption _, _
+    | DResult _, _
+    | DHttpResponse _, _
+    | DObj _, _ -> false
+
+
   let int (i : int) = DInt(bigint i)
   let parseInt (i : string) = DInt(parseBigint i)
 
@@ -546,8 +610,15 @@ module Dval =
 
   let resultError (dv : Dval) : Dval = if isFake dv then dv else DResult(Error dv)
 
+  // Wraps in a DResult after checking that the value is not a fakeval
+  let result (dv : Result<Dval, Dval>) : Dval =
+    match dv with
+    | Ok dv -> resultOk dv
+    | Error dv -> resultError dv
+
   let optionJust (dv : Dval) : Dval = if isFake dv then dv else DOption(Some dv)
 
+  // Wraps in a DOption after checking that the value is not a fakeval
   let option (dv : Option<Dval>) : Dval =
     match dv with
     | Some dv -> optionJust dv // checks isFake

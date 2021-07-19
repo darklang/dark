@@ -1,3 +1,5 @@
+// CLEANUP move all these to LibMisc
+
 toString_v0 "test" = "test"
 toString_v0 123 = "123"
 toString_v0 (Date.parse_v0 "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
@@ -37,5 +39,6 @@ AWS.urlencode_v0 "%%" = ""
 AWS.urlencode_v0 "%A" = "A"
 AWS.urlencode_v0 "%AA" = "%AA"
 AWS.urlencode_v0 "" = ""
+AWS.urlencode_v0 "殢" = "%E6%AE%A2"
 
 Twitter.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding

@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes data ] -> SHA256.HashData(ReadOnlySpan data) |> DBytes |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
     { name = fn "Crypto" "sha384" 0
       parameters = [ Param.make "data" TBytes "" ]
@@ -97,7 +97,7 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes data ] -> SHA384.HashData(ReadOnlySpan data) |> DBytes |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
     { name = fn "Crypto" "md5" 0
       parameters = [ Param.make "data" TBytes "" ]
@@ -109,7 +109,7 @@ let fns : List<BuiltInFn> =
         | _, [ DBytes data ] -> MD5.HashData(ReadOnlySpan data) |> DBytes |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
     { name = fn "Crypto" "sha256hmac" 0
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
@@ -123,7 +123,7 @@ let fns : List<BuiltInFn> =
             data |> hmac.ComputeHash |> DBytes |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated }
     { name = fn "Crypto" "sha1hmac" 0
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
@@ -137,5 +137,5 @@ let fns : List<BuiltInFn> =
             data |> hmac.ComputeHash |> DBytes |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
-      previewable = Impure
+      previewable = ImpurePreviewable
       deprecated = NotDeprecated } ]

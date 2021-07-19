@@ -10,6 +10,7 @@ open FsCheck
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+open System.Text.RegularExpressions
 
 open Prelude
 open Prelude.Tablecloth
@@ -61,10 +62,10 @@ module Generators =
       try
         let (_ : string) = s.Normalize()
         true
-      with _ ->
-        debuG
-          "Failed to normalize :"
-          $"'{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
+      with e ->
+        // debuG
+        //   "Failed to normalize :"
+        //   $"{e}\n '{s}': (len {s.Length}, {System.BitConverter.ToString(toBytes s)})"
 
         false
 
@@ -121,7 +122,8 @@ module FQFnName =
   let fnName : Gen<string> = nameGenerator [ 'a' .. 'z' ] G.alphaNumericString
 
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> =
+      Arb.fromGenShrink (G.string (), Arb.shrink<string>)
 
     static member PTFQFnName() : Arbitrary<PT.FQFnName.T> =
       { new Arbitrary<PT.FQFnName.T>() with
@@ -522,11 +524,26 @@ module ExecutePureFunctions =
     i <= ocamlIntUpperLimit && i >= ocamlIntLowerLimit
 
 
+  type AllowedFuzzerErrorFileStructure =
+    { functionToTest : Option<string>
+      knownDifferingFunctions : Set<string>
+      knownErrors : List<List<string>> }
+
+  // Keep a list of allowed errors where we can edit it without recompiling
+  let readAllowedErrors () =
+    use r = new System.IO.StreamReader "tests/allowedFuzzerErrors.json"
+    let json = r.ReadToEnd()
+
+    Json.Vanilla.deserialize<AllowedFuzzerErrorFileStructure> json
+
+  let allowedErrors = readAllowedErrors ()
+
   type Generator =
-    static member SafeString() : Arbitrary<string> = Arb.fromGen (G.string ())
+    static member SafeString() : Arbitrary<string> =
+      Arb.fromGenShrink (G.string (), Arb.shrink<string>)
 
     static member Float() : Arbitrary<float> =
-      Arb.fromGen (
+      Arb.fromGenShrink (
         gen {
           let specials =
             TestUtils.interestingFloats
@@ -537,11 +554,12 @@ module ExecutePureFunctions =
 
           let v = Gen.frequency [ (5, specials); (5, Arb.generate<float>) ]
           return! Gen.filter filterFloat v
-        }
+        },
+        Arb.shrinkNumber
       )
 
     static member BigInt() : Arbitrary<bigint> =
-      Arb.fromGen (
+      Arb.fromGenShrink (
         gen {
           let specials =
             TestUtils.interestingInts
@@ -552,7 +570,8 @@ module ExecutePureFunctions =
 
           let v = Gen.frequency [ (5, specials); (5, Arb.generate<bigint>) ]
           return! Gen.filter isValidOCamlInt v
-        }
+        },
+        Arb.shrinkNumber
       )
 
     static member Dval() : Arbitrary<RT.Dval> =
@@ -565,7 +584,51 @@ module ExecutePureFunctions =
            | RT.DFloat f -> filterFloat f
            | _ -> true)
 
+    static member DType() : Arbitrary<RT.DType> =
+      let rec isSupportedType =
+        (function
+        | RT.TInt
+        | RT.TStr
+        | RT.TVariable _
+        | RT.TFloat
+        | RT.TBool
+        | RT.TNull
+        | RT.TNull
+        | RT.TDate
+        | RT.TChar
+        | RT.TUuid
+        | RT.TBytes
+        | RT.TError
+        | RT.TDB (RT.TUserType _)
+        | RT.TDB (RT.TRecord _)
+        | RT.TUserType _ -> true
+        | RT.TList t
+        | RT.TDict t
+        | RT.TOption t
+        | RT.THttpResponse t -> isSupportedType t
+        | RT.TResult (t1, t2) -> isSupportedType t1 && isSupportedType t2
+        | RT.TFn (ts, rt) -> isSupportedType rt && List.all isSupportedType ts
+        | RT.TRecord (pairs) ->
+            pairs |> List.map Tuple2.second |> List.all isSupportedType
+        | _ -> false) // FSTODO: expand list and support all types
+
+      Arb.Default.Derive() |> Arb.filter isSupportedType
+
+
     static member Fn() : Arbitrary<PT.FQFnName.StdlibFnName * List<RT.Dval>> =
+
+      // Ensure we pick a type instead of having heterogeneous lists
+      let rec selectNestedType (typ : RT.DType) : Gen<RT.DType> =
+        gen {
+          match typ with
+          | RT.TVariable name ->
+              // Generally return a homogenous list. We'll sometimes get a
+              // TVariable which will give us a heterogenous list. It's fine to
+              // do that occasionally
+              return! Arb.generate<RT.DType>
+          | typ -> return typ
+        }
+
       let genExpr (typ' : RT.DType) : Gen<RT.Expr> =
         let rec genExpr' typ s =
           let call mod_ fn version args =
@@ -587,10 +650,8 @@ module ExecutePureFunctions =
                 return RT.EString(gid (), v)
             | RT.TChar ->
                 // We don't have a construct for characters, so create code to generate the character
-                let! str =
-                  Generators.string () |> Gen.resize 1 |> Gen.filter ((<>) "")
-
-                return call "String" "toChar" 0 [ RT.EString(gid (), str) ]
+                let! v = G.char ()
+                return call "String" "toChar" 0 [ RT.EString(gid (), v) ]
             // Don't generate a random value as some random values are invalid
             // (eg constructor outside certain names). Ints should be fine for
             // whatever purpose there is here
@@ -603,15 +664,42 @@ module ExecutePureFunctions =
                 return RT.EBool(gid (), v)
             | RT.TNull -> return RT.ENull(gid ())
             | RT.TList typ ->
+                let! typ = selectNestedType typ
                 let! v = (Gen.listOfLength s (genExpr' typ (s / 2)))
                 return RT.EList(gid (), v)
             | RT.TDict typ ->
+                let! typ = selectNestedType typ
+
                 return!
                   Gen.map
                     (fun l -> RT.ERecord(gid (), l))
                     (Gen.listOfLength
                       s
                       (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+            | RT.TUserType (_name, _version) ->
+                let! typ = Arb.generate<RT.DType>
+
+                return!
+                  Gen.map
+                    (fun l -> RT.ERecord(gid (), l))
+                    (Gen.listOfLength
+                      s
+                      (Gen.zip (Generators.string ()) (genExpr' typ (s / 2))))
+
+            | RT.TRecord pairs ->
+                let! entries =
+                  List.fold
+                    (Gen.constant [])
+                    (fun (l : Gen<List<string * RT.Expr>>) ((k, t) : string * RT.DType) ->
+                      gen {
+                        let! l = l
+                        let! v = genExpr' t s
+                        return (k, v) :: l
+                      })
+                    pairs
+                  |> Gen.map List.reverse
+
+                return RT.ERecord(gid (), entries)
             | RT.TOption typ ->
                 match! Gen.optionOf (genExpr' typ s) with
                 | Some v -> return RT.EConstructor(gid (), "Just", [ v ])
@@ -628,9 +716,12 @@ module ExecutePureFunctions =
             | RT.TFn (paramTypes, returnType) ->
                 let parameters =
                   List.mapi
-                    (fun i (v : RT.DType) -> (id i, $"{v.toOldString ()}_{i}"))
+                    (fun i (v : RT.DType) ->
+                      (id i, $"{v.toOldString().ToLower()}_{i}"))
                     paramTypes
 
+                // FSTODO: occasionally use the wrong return type
+                // FSTODO: can we use the argument to get this type?
                 let! body = genExpr' returnType s
                 return RT.ELambda(gid (), parameters, body)
             | RT.TBytes ->
@@ -638,20 +729,33 @@ module ExecutePureFunctions =
                 let! bytes = Arb.generate<byte []>
                 let v = RT.EString(gid (), base64Encode bytes)
                 return call "String" "toBytes" 0 [ v ]
+            | RT.TDB _ ->
+                let! name = Generators.string ()
+                let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
+                let name = ti.ToTitleCase name
+                return RT.EVariable(gid (), name)
             | RT.TDate ->
                 let! d = Arb.generate<System.DateTime>
                 return call "Date" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
             | RT.TUuid ->
                 let! u = Arb.generate<System.Guid>
                 return call "String" "toUUID" 0 [ RT.EString(gid (), string u) ]
-            | _ -> return failwith $"Not supported yet: {typ}"
+            | RT.THttpResponse typ ->
+                let! code = genExpr' RT.TInt s
+                let! body = genExpr' typ s
+                return call "Http" "response" 0 [ body; code ]
+            | RT.TError ->
+                let! msg = genExpr' RT.TStr s
+                return call "Test" "typeError" 0 [ msg ]
 
+            | _ -> return failwith $"Not supported yet: {typ}"
           }
 
         Gen.sized (genExpr' typ')
 
 
       let genDval (typ' : RT.DType) : Gen<RT.Dval> =
+
         let rec genDval' typ s : Gen<RT.Dval> =
           gen {
             match typ with
@@ -662,26 +766,7 @@ module ExecutePureFunctions =
                 let! v = Generators.string ()
                 return RT.DStr v
             | RT.TVariable _ ->
-                let rec supportedType =
-                  (function
-                  | RT.TInt
-                  | RT.TFloat
-                  | RT.TBool
-                  | RT.TNull
-                  | RT.TUuid
-                  | RT.TNull
-                  | RT.TDate
-                  | RT.TBytes
-                  | RT.TChar
-                  | RT.TStr -> true
-                  | RT.TList t
-                  | RT.TDict t
-                  | RT.TOption t -> supportedType t
-                  | RT.TResult (t1, t2) -> supportedType t1 && supportedType t2
-                  | RT.TFn (ts, rt) -> supportedType rt && List.all supportedType ts
-                  | _ -> false)
-
-                let! newtyp = Arb.generate<RT.DType> |> Gen.filter supportedType
+                let! newtyp = Arb.generate<RT.DType>
                 return! genDval' newtyp s
             | RT.TFloat ->
                 let! v = Arb.generate<float>
@@ -689,8 +774,11 @@ module ExecutePureFunctions =
             | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
             | RT.TNull -> return RT.DNull
             | RT.TList typ ->
+                let! typ = selectNestedType typ
                 return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
             | RT.TDict typ ->
+                let! typ = selectNestedType typ
+
                 return!
                   Gen.map
                     (fun l -> RT.DObj(Map.ofList l))
@@ -699,8 +787,7 @@ module ExecutePureFunctions =
                       (Gen.zip (Generators.string ()) (genDval' typ (s / 2))))
             // | RT.TIncomplete -> return! Gen.map RT.TIncomplete Arb.generate<incomplete>
             // | RT.TError -> return! Gen.map RT.TError Arb.generate<error>
-            // | RT.THttpResponse of DType -> return! Gen.map RT.THttpResponse  Arb.generate<httpresponse >
-            // | RT.TDB of DType -> return! Gen.map RT.TDB  Arb.generate<db >
+            | RT.TDB _ -> return! Gen.map RT.DDB (Generators.string ())
             | RT.TDate ->
                 return!
                   Gen.map
@@ -716,8 +803,6 @@ module ExecutePureFunctions =
             | RT.TUuid -> return! Gen.map RT.DUuid Arb.generate<System.Guid>
             | RT.TOption typ ->
                 return! Gen.map RT.DOption (Gen.optionOf (genDval' typ s))
-            // | RT.TErrorRail -> return! Gen.map RT.TErrorRail Arb.generate<errorrail>
-            // | RT.TUserType of string * int -> return! Gen.map RT.TUserType  Arb.generate<usertype >
             | RT.TBytes ->
                 let! v = Arb.generate<byte []>
                 return RT.DBytes v
@@ -740,6 +825,43 @@ module ExecutePureFunctions =
                     RT.Lambda
                       { parameters = parameters; symtable = Map.empty; body = body }
                   ))
+            | RT.TError ->
+                let! source = Arb.generate<RT.DvalSource>
+                let! str = Arb.generate<string>
+                return RT.DError(source, str)
+            | RT.TUserType (_name, _version) ->
+                let! list =
+                  Gen.listOfLength
+                    s
+                    (Gen.zip (Generators.string ()) (genDval' typ (s / 2)))
+
+                return RT.DObj(Map list)
+            | RT.TRecord (pairs) ->
+                let map =
+                  List.fold
+                    (Gen.constant Map.empty)
+                    (fun (m : Gen<RT.DvalMap>) ((k, t) : string * RT.DType) ->
+                      gen {
+                        let! m = m
+                        let! v = genDval' t s
+                        return Map.add k v m
+                      })
+                    pairs
+
+                return! Gen.map RT.DObj map
+            | RT.THttpResponse typ ->
+                let! url = Arb.generate<string>
+                let! code = Arb.generate<bigint>
+                let! headers = Arb.generate<List<string * string>>
+                let! body = genDval' typ s
+
+                return!
+                  Gen.oneof [ Gen.constant (RT.Response(code, headers, body))
+                              Gen.constant (RT.Redirect url) ]
+                  |> Gen.map RT.DHttpResponse
+            | RT.TErrorRail ->
+                let! typ = Arb.generate<RT.DType>
+                return! Gen.map RT.DErrorRail (genDval' typ s)
             | _ -> return failwith $"Not supported yet: {typ}"
           }
 
@@ -752,32 +874,21 @@ module ExecutePureFunctions =
                 (LibExecution.StdLib.StdLib.fns @ LibBackend.StdLib.StdLib.fns)
                 |> List.filter
                      (fun fn ->
-                       not (
-                         Set.contains
-                           (toString fn.name)
-                           (ApiServer.Functions.fsharpOnlyFns.Force())
-                       ))
-                |> List.filter
-                     // FSTODO: all these differences should be removed
-                     (function
-                     | { name = { module_ = "List"; function_ = "sort" } }
-                     | { name = { module_ = "List"; function_ = "sortBy" } } ->
-                         // FSTODO: These use a different sort order in OCaml
+                       let name = string fn.name
+                       let has set = Set.contains name set
+                       let different = has allowedErrors.knownDifferingFunctions
+                       let fsOnly = has (ApiServer.Functions.fsharpOnlyFns.Force())
+
+                       if different || fsOnly then
                          false
-                     | { name = { module_ = "Object"; function_ = "toJSON" } }
-                     | { name = { module_ = "Dict"; function_ = "toJSON" } } ->
-                         // Known formatting differences
-                         false
-                     | { name = { module_ = "String"; function_ = "base64Decode" } } ->
-                         // Don't know what the bug is
-                         false
-                     | { name = { module_ = "String"; function_ = "trim" } } ->
-                         // OCaml seems to trim wrong here
-                         false
-                     | { name = { module_ = "AWS"; function_ = "urlencode" } } ->
-                         // Bug in unicode probably
-                         false
-                     | fn -> fn.previewable = RT.Pure)
+                       elif allowedErrors.functionToTest = None then
+                         // FSTODO: Add JWT and X509 functions here
+                         fn.previewable = RT.Pure
+                         || fn.previewable = RT.ImpurePreviewable
+                       elif Some name = allowedErrors.functionToTest then
+                         true
+                       else
+                         false)
 
               let! fnIndex = Gen.choose (0, List.length fns - 1)
               let name = fns.[fnIndex].name
@@ -831,14 +942,18 @@ module ExecutePureFunctions =
                         return v |> toString |> RT.DStr
                     | "String::padStart", 1
                     | "String::padEnd", 1 ->
-                        // FSTODO: allow more than just chars
-                        let! v = Arb.generate<char> |> Gen.filter ((<>) (char 0))
-                        return RT.DStr(System.String([| v |]))
+                        let! v = Generators.char ()
+                        return RT.DStr v
                     | _ -> return! genDval signature.[i].typ
                   }
-                // Still throw in random data 10% of the time to test errors, edge-cases, etc.
-                // FSTODO: re-enable the random data
-                Gen.frequency [ (0, genDval signature.[i].typ); (9, specific) ]
+                // Still throw in random data occasionally test errors, edge-cases, etc.
+                let randomValue =
+                  gen {
+                    let! typ = Arb.generate<RT.DType>
+                    return! genDval typ
+                  }
+
+                Gen.frequency [ (1, randomValue); (99, specific) ]
                 |> Gen.filter
                      (fun dv ->
                        // Avoid triggering known errors in OCaml
@@ -849,8 +964,6 @@ module ExecutePureFunctions =
                               name.function_,
                               name.version) with
                        // Specific OCaml exception (use `when`s here)
-                       | 1, RT.DInt i, _, "Int", "divide", 0 when i = 0I -> false
-                       | 0, RT.DInt i, _, "List", "repeat", 0 when i < 0I -> false
                        | 1, RT.DStr s, _, "String", "split", 0 when s = "" -> false
                        | 1, RT.DStr s, _, "String", "replaceAll", 0 when s = "" ->
                            false
@@ -870,6 +983,7 @@ module ExecutePureFunctions =
                        | 1, RT.DInt i, [ RT.DInt e ], "", "+", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "add", 0 ->
                            isValidOCamlInt (e + i)
+                       | 1, RT.DInt i, [ RT.DInt e ], "", "-", 0
                        | 1, RT.DInt i, [ RT.DInt e ], "Int", "subtract", 0 ->
                            isValidOCamlInt (e - i)
                        | 0, RT.DList l, _, "Int", "sum", 0 ->
@@ -877,12 +991,13 @@ module ExecutePureFunctions =
                            |> List.map
                                 (function
                                 | RT.DInt i -> i
-                                | _ -> failwith "should be an int")
+                                | _ -> 0I)
                            |> List.fold 0I (+)
                            |> isValidOCamlInt
                        // Int overflow converting from Floats
                        | 0, RT.DFloat f, _, "Float", "floor", 0
                        | 0, RT.DFloat f, _, "Float", "roundDown", 0
+                       | 0, RT.DFloat f, _, "Float", "roundTowardsZero", 0
                        | 0, RT.DFloat f, _, "Float", "round", 0
                        | 0, RT.DFloat f, _, "Float", "ceiling", 0
                        | 0, RT.DFloat f, _, "Float", "roundUp", 0
@@ -929,10 +1044,10 @@ module ExecutePureFunctions =
                   return (name, [])
             } }
 
+
   let equalsOCaml ((fn, args) : (PT.FQFnName.StdlibFnName * List<RT.Dval>)) : bool =
     let t =
       task {
-        let origArgs = args
         let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
         let fnArgList = List.map (fun (name, _) -> eVar name) args
 
@@ -953,53 +1068,86 @@ module ExecutePureFunctions =
         // Error messages are not required to be directly the same between
         // old and new implementations. However, this can hide errors, so we
         // manually verify them all to make sure we didn't miss any.
-        let errorAllowed actualMsg expectedMsg =
+        let errorAllowed (debug : bool) (actualMsg : string) (expectedMsg : string) =
+          let expectedMsg =
+            // Some OCaml errors are in a JSON struct, so get the message and compare that
+            try
+              let mutable options = System.Text.Json.JsonDocumentOptions()
+              options.CommentHandling <- System.Text.Json.JsonCommentHandling.Skip
 
-          let e2 actualPat expectedPat =
-            System.Text.RegularExpressions.Regex.IsMatch(actualMsg, actualPat)
-            && System.Text.RegularExpressions.Regex.IsMatch(expectedMsg, expectedPat)
+              let jsonDocument =
+                System.Text.Json.JsonDocument.Parse(expectedMsg, options)
 
-          let e pat = e2 pat pat
+              let mutable elem = System.Text.Json.JsonElement()
 
-          match fn.ToString() with
-          // Removed
-          | "String::fromChar"
-          | "String::toList"
-          | "String::fromList"
-          | "Char::toUppercase"
-          | "Char::toLowercase"
-          | "Char::toASCIICode"
-          | "Char::toASCIIChar"
-          | "String::foreach" -> true
-          // Known acceptable difference
-          | "Object::toJSON"
-          | "Object::toJSON_v1"
-          | "Dict::toJSON" -> true
-          // Messages are close-enough
-          | "%"
-          | "Int::mod" ->
-              e2
-                "Expected the argument `b` to be positive, but it was"
-                "Expected the argument `b` argument passed to"
-          | "Int::remainder" ->
-              e2 "`divisor` cannot be zero" "`divisor` must be non-zero"
-          | "Date::parse" -> e "Invalid date format"
-          | "Option::andThen" ->
-              e2
-                "Expecting the function to return Option, but the result was"
-                "Expected `f` to return an option"
-          | "List::filter" ->
-              e2
-                "Expecting the function to return Bool, but the result was"
-                "Expecting fn to return bool"
-          | "String::toFloat" ->
-              e2
-                "Expected the argument `s` to be a string representation of an IEEE float, but it was"
-                "Expected a string representation of an IEEE float"
-          | _ -> false
+              if jsonDocument.RootElement.TryGetProperty("short", &elem) then
+                elem.GetString()
+              else
+                expectedMsg
+            with _ -> expectedMsg
+
+          if actualMsg = expectedMsg then
+            true
+          else
+            // enable to allow dynamically updating without restarting
+            // let allowedErrors = readAllowedErrors ()
+
+            List.any
+              (function
+              | [ namePat; actualPat; expectedPat ] ->
+                  let regexMatch str regex =
+                    Regex.Match(str, regex, RegexOptions.Singleline)
+
+                  let nameMatches = (regexMatch (string fn) namePat).Success
+                  let actualMatch = regexMatch actualMsg actualPat
+                  let expectedMatch = regexMatch expectedMsg expectedPat
+
+                  // Not only should we check that the error message matches,
+                  // but also that the captures match in both.
+                  let sameGroups =
+                    actualMatch.Groups.Count = expectedMatch.Groups.Count
+
+                  let actualGroupMatches = Dictionary.empty ()
+                  let expectedGroupMatches = Dictionary.empty ()
+
+                  if sameGroups && actualMatch.Groups.Count > 1 then
+                    // start at 1, because 0 is the whole match
+                    for i = 1 to actualMatch.Groups.Count - 1 do
+                      let group = actualMatch.Groups.[i]
+                      actualGroupMatches.Add(group.Name, group.Value)
+                      let group = expectedMatch.Groups.[i]
+                      expectedGroupMatches.Add(group.Name, group.Value)
+
+                  let dToL d = Dictionary.toList d |> List.sortBy Tuple2.first
+
+                  let groupsMatch =
+                    (dToL actualGroupMatches) = (dToL expectedGroupMatches)
+
+                  if nameMatches && debug then
+                    printfn "\n\n\n======================"
+                    printfn (if nameMatches then "✅" else "❌")
+                    printfn (if actualMatch.Success then "✅" else "❌")
+                    printfn (if expectedMatch.Success then "✅" else "❌")
+                    printfn (if groupsMatch then "✅" else "❌")
+                    printfn $"{string fn}"
+                    printfn $"{actualMsg}"
+                    printfn $"{expectedMsg}\n\n"
+                    printfn $"{namePat}"
+                    printfn $"{actualPat}"
+                    printfn $"{expectedPat}"
+                    printfn $"actualGroupMatches: {dToL actualGroupMatches}"
+                    printfn $"expectedGroupMatches: {dToL expectedGroupMatches}"
+
+                  nameMatches
+                  && actualMatch.Success
+                  && expectedMatch.Success
+                  && groupsMatch
+              | _ -> failwith "Invalid json in tests/allowedFuzzerErrors.json")
+              allowedErrors.knownErrors
+
 
         let debugFn () =
-          debuG "fn" fn
+          debuG "\n\n\nfn" fn
           debuG "args" (List.map (fun (_, v) -> debugDval v) args)
 
         if not (Expect.isCanonical expected) then
@@ -1014,24 +1162,32 @@ module ExecutePureFunctions =
           return true
         else
           match actual, expected with
-          | RT.DError (_, msg1), RT.DError (_, msg2) ->
-              let allowed = errorAllowed msg1 msg2
+          | RT.DError (_, aMsg), RT.DError (_, eMsg) ->
+              let allowed = errorAllowed false aMsg eMsg
+              // For easier debugging. Check once then step through
+              let allowed2 =
+                if not allowed then errorAllowed true aMsg eMsg else allowed
 
-              if not allowed then
+              if not allowed2 then
                 debugFn ()
-                printfn $"Got different error msgs: \"{msg1}\" vs \"{msg2}\""
 
-              // FSTODO make false
-              return true
-          | RT.DResult (Error (RT.DStr msg1)), RT.DResult (Error (RT.DStr msg2)) ->
-              let allowed = errorAllowed msg1 msg2
+                printfn
+                  $"Got different error msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
 
-              if not allowed then
+              return allowed
+          | RT.DResult (Error (RT.DStr aMsg)), RT.DResult (Error (RT.DStr eMsg)) ->
+              let allowed = errorAllowed false aMsg eMsg
+              // For easier debugging. Check once then step through
+              let allowed2 =
+                if not allowed then errorAllowed true aMsg eMsg else allowed
+
+              if not allowed2 then
                 debugFn ()
-                printfn $"Got different Results msgs: \"{msg1}\" vs \"{msg2}\""
 
-              // FSTODO make false
-              return true
+                printfn
+                  $"Got different DError msgs:\n\"{aMsg}\"\n\nvs\n\"{eMsg}\"\n\n"
+
+              return allowed
           | _ ->
               debugFn ()
               debuG "ocaml (expected)" (debugDval expected)

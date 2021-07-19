@@ -138,40 +138,49 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-            (* Based on the original OCaml implementation which was slightly modified from
-               * https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
-               * Buffer.add_string instead of add_bytes); see also
-               * https://github.com/mirage/ocaml-uri/issues/65. It's pretty much a straight
-               * up port from the Java example at
-               * https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html,
-               * which calls it UriEncode *)
-            (* Percent encode the path as s3 wants it. Uri doesn't
-                 encode $, or the other sep characters in a path.
-                 If upstream allows that we can nix this function *)
-            let n = String.length s
-
+            // Based on the original OCaml implementation which was slightly modified from
+            // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
+            // Buffer.add_string instead of add_bytes); see also
+            // https://github.com/mirage/ocaml-uri/issues/65. It's pretty much a straight
+            // up port from the Java example at
+            // https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html,
+            // which calls it UriEncode
             let sb = new Text.StringBuilder()
 
-            let is_hex (ch : char) =
-              (ch >= 'A' && ch <= 'Z')
-              || (ch >= 'a' && ch <= 'z')
-              || (ch >= '0' && ch <= '9')
+            // Percent encode the path as s3 wants it. Uri doesn't
+            // encode $, or the other sep characters in a path.
+            // If upstream allows that we can nix this function
+            let bytes = toBytes s
+            let n = Array.length bytes
 
-            let is_special (ch : char) =
-              ch = '_' || ch = '-' || ch = '~' || ch = '.' || ch = '/'
+            let is_hex (ch : byte) =
+              (ch >= byte 'A' && ch <= byte 'Z')
+              || (ch >= byte 'a' && ch <= byte 'z')
+              || (ch >= byte '0' && ch <= byte '9')
 
-            for i in 0 .. n - 1 do
-              if ((is_hex s.[i]) || (is_special s.[i])) then
-                sb.Append(s.[i]) |> ignore
-              elif (s.[i] = '%') then
+            let is_special (ch : byte) =
+              ch = byte '_'
+              || ch = byte '-'
+              || ch = byte '~'
+              || ch = byte '.'
+              || ch = byte '/'
+
+
+            for i = 0 to n - 1 do
+              let (c : byte) = bytes.[i]
+
+              if ((is_hex c) || (is_special c)) then
+                sb.Append(char c) |> ignore<Text.StringBuilder>
+              elif (bytes.[i] = byte '%') then
                 // We're expecting already escaped strings so ignore the escapes
                 if i + 2 < n then
-                  if is_hex s.[i + 1] && is_hex s.[i + 2] then
-                    sb.Append s.[i] |> ignore
+                  if is_hex bytes.[i + 1] && is_hex bytes.[i + 2] then
+                    sb.Append(char c) |> ignore<Text.StringBuilder>
                   else
-                    sb.Append "%25" |> ignore
+                    sb.Append "%25" |> ignore<Text.StringBuilder>
               else
-                sb.Append(s.[i] |> int |> sprintf "%%%X") |> ignore
+                sb.Append(c |> char |> int |> sprintf "%%%X")
+                |> ignore<Text.StringBuilder>
 
             sb.ToString() |> DStr |> Value
         | _ -> incorrectArgs ())

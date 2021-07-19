@@ -224,7 +224,7 @@ let fns : List<BuiltInFn> =
         "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
       fn =
         (function
-        | _, [ msg ] -> Value(DHttpResponse(Response(400I, [], msg)))
+        | _, [ DStr _ as msg ] -> Value(DHttpResponse(Response(400I, [], msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

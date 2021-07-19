@@ -33,6 +33,8 @@ String.join_v0 ["🧟‍♀️🧟‍♂️", "🧟‍♀️🧑🏽‍🦰"] ""
 String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "‍⚧️‍️🇵🇷"] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.join_v0 ["🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
 String.join_v0 ["🧑🏽‍🦰‍", "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
+String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected string" // OCAMLONLY
+String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strings, but the list contained `0`" // FSHARPONLY
 
 Bytes.length_v0 (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
 Bytes.length_v0 (String.toBytes_v0 "😄APPLE🍏") = 13
@@ -94,16 +96,33 @@ String.base64Decode_v0 "Kw" = "+"
 String.base64Decode_v0 "yLo" = "Ⱥ"
 String.base64Decode_v0 "xbzDs8WCdw" = "żółw"
 String.base64Decode_v0 "LyotKygmQDk4NTIx" = "/*-+(&@98521"
-String.base64Decode_v0 "" = ""
+String.base64Decode_v0 "" = "" // empty case
+// Test cases from the spec with padding added
 String.base64Decode_v0 "Zg" = "f"
+String.base64Decode_v0 "Zg==" = "f"
 String.base64Decode_v0 "Zm8" = "fo"
+String.base64Decode_v0 "Zm8=" = "fo"
 String.base64Decode_v0 "Zm9v" = "foo"
 String.base64Decode_v0 "Zm9vYg" = "foob"
+String.base64Decode_v0 "Zm9vYg==" = "foob"
 String.base64Decode_v0 "Zm9vYmE" = "fooba"
+String.base64Decode_v0 "Zm9vYmE=" = "fooba"
 String.base64Decode_v0 "Zm9vYmFy" = "foobar"
-//String.base64Decode_v0 "-p" = "" // FSHARPONLY
-//String.base64Decode_v0 "lI" = "" // FSHARPONLY
-//String.base64Decode_v0 "5Sk" = "\xEF\xBF\xBD\x29" // FSHARPONLY
+// "Impossible cases" from apache
+// https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
+String.base64Decode_v0 "ZE==" = "d"
+String.base64Decode_v0 "ZmC=" = "f`"
+String.base64Decode_v0 "Zm9vYE==" = "foo`"
+String.base64Decode_v0 "Zm9vYmC=" = "foob`"
+String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = "from=06/07/2013 query=\"Καλώς ορίσατε\""
+String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+// These produce strings of bytes which are technically legal it seems
+String.base64Decode_v0 "-p" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\250\"" // OCAMLONLY
+String.base64Decode_v0 "-p" = "�" // FSHARPONLY
+String.base64Decode_v0 "lI" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\148\"" // OCAMLONLY
+String.base64Decode_v0 "lI" = "�" // FSHARPONLY
+String.base64Decode_v0 "5Sk" = Test.typeError_v0 "Unknown Err: \"Invalid UTF-8 string:\\229)\"" // OCAMLONLY
+String.base64Decode_v0 "5Sk" = "�)" // FSHARPONLY
 
 
 String.base64Encode_v0 "+" = "Kw"
@@ -117,6 +136,9 @@ String.base64Encode_v0 "foo" = "Zm9v"
 String.base64Encode_v0 "foob" = "Zm9vYg"
 String.base64Encode_v0 "fooba" = "Zm9vYmE"
 String.base64Encode_v0 "foobar" = "Zm9vYmFy"
+String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
+String.base64Encode_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
+String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
 
 String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
 String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
@@ -307,8 +329,10 @@ String.fromList_v1 [] = ""
 ("ab" |> String.toList_v1 |> String.fromList_v0)  = (Test.typeError_v0 "String::fromList was removed from Dark") // FSHARPONLY
 ("ab1" |> String.toList_v1 |> String.fromList_v1) = "ab1"
 ("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
+String.fromList_v1 [6] = Test.typeError_v0 "expected a char" // OCAMLONLY
+String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`" // FSHARPONLY
 
-String.split_v0 "hello😄world" "😄" = [ "hello", "world" ] // String split works on strings with emoji + ascii
+String.split_v0 "hello😄world" "😄" = [ "hello", "world" ]
 String.split_v0 "hello&&&&world" "&&&&" = [ "hello", "world" ]
 String.split_v0 "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
 String.split_v0 "hello34564world34564sun" "34564" = [ "hello", "world", "sun" ]
@@ -348,6 +372,7 @@ String.split_v0 "x333y" "3" = ["x"; ""; ""; "y"]
 String.split_v0 "x22y" "2" = ["x"; ""; "y"]
 String.split_v0 "x1y" "1" = ["x"; "y"]
 String.split_v0 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""]
+String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"] // FSHARPONLY
 
 String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`" // FSHARPONLY
 String.toInt_v0 "" = Test.typeError_v0 "Expected a string with only numbers" // OCAMLONLY
@@ -454,7 +479,7 @@ String.toLowercase_v1 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺
 
 String.toUppercase_v0 "hello😄world" = "HELLO😄WORLD"
 String.toUppercase_v0 "" = ""
-String.toUppercase_v0 "abcdef" = "ABCDEF" // String.toUppercase_v0 works for ASCII range
+String.toUppercase_v0 "abcdef" = "ABCDEF"
 String.toUppercase_v0 "ab323cdef" = "AB323CDEF"
 String.toUppercase_v0 "sánchez" = "SáNCHEZ" // note lowercase a
 String.toUppercase_v0 "SÁNChEZ" = "SÁNCHEZ"
@@ -476,11 +501,11 @@ String.toUppercase_v0 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺
 
 String.toUppercase_v1 "" = ""
 String.toUppercase_v1 "hello😄world" = "HELLO😄WORLD"
-String.toUppercase_v1 "abcdef" = "ABCDEF" // String.toUppercase_v0 works for ASCII range
+String.toUppercase_v1 "abcdef" = "ABCDEF"
 String.toUppercase_v1 "ab323cdef" = "AB323CDEF"
 String.toUppercase_v1 "sánchez" = "SÁNCHEZ" // not lowercase a
 String.toUppercase_v1 "SÁNChEZ" = "SÁNCHEZ"
-String.toUppercase_v1 "żółw" = "ŻÓŁW" // String.toUppercase_v1 works on non-ascii strings
+String.toUppercase_v1 "żółw" = "ŻÓŁW"
 String.toUppercase_v1 "😄orange" = "😄ORANGE"
 String.toUppercase_v1 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.toUppercase_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
@@ -489,7 +514,28 @@ String.toUppercase_v1 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️
 String.toUppercase_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.toUppercase_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 String.toUppercase_v1 "ჾ" = "Ჾ"
-//String.toUppercase_v1 "`⁄€‹›ﬁﬂ‡°·‚—±" = "`⁄€‹›FIFL‡°·‚—±"
+
+// FSTODO: There are two types of unicode case "mapping" (conversion), "simple"
+// and "full". .NET supports simple mapping, which maps a single character to a
+// single character. It does not support "full" mapping, which maps a single
+// character to multiple characters. OCaml does correctly support this however,
+// so some of these tests need to be disabled for now while we come up with a
+// solution.
+
+// Discussed at https://github.com/dotnet/runtime/issues/30960, specifially
+// https://github.com/dotnet/runtime/issues/30960#issuecomment-535274401
+
+// A possible solution is to write our own case mapper, or reuse an existing
+// one. A potential candidate is
+// https://github.com/dotnet/corefxlab/tree/archive/src/System.Text.CaseFolding
+// (packaged at
+// https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
+
+String.toUppercase_v1 "ﬁﬂ" = "FIFL" // OCAMLONLY
+String.toUppercase_v1 "և" = "ԵՒ" // OCAMLONLY
+String.toUppercase_v1 "ﬁﬂ" = "ﬁﬂ" // FSHARPONLY
+String.toUppercase_v1 "և" = "և" // FSHARPONLY
+
 
 String.toUppercase_v1 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
 
@@ -675,6 +721,7 @@ String.padStart_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = "
 String.padStart_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = "0000👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = "000🧟‍♀️🧟‍♂️"
 String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
+String.padStart_v0 "鷝" "觌഻" 0 = "鷝"
 
 String.padEnd_v0 "123" "0" 3 = "123"
 String.padEnd_v0 "123" "0" -3 = "123"
@@ -691,6 +738,7 @@ String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = "�
 String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000"
 String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = "🧟‍♀️🧟‍♂️000"
 String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
+String.padEnd_v0 "鷝" "觌഻" 0 = "鷝"
 
 // String.toUUID
 String.toUUID_v0 "👱🏼" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"

@@ -892,6 +892,8 @@ let ofUnknownJsonV0 str =
 
 
 let ofUnknownJsonV1 str =
+  // FSTODO: there doesn't seem to be a good reason that we use JSON.NET here,
+  // might be better to switch to STJ
   let rec convert json =
     match json with
     | JInteger i -> DInt(bigint i)
@@ -914,7 +916,9 @@ let ofUnknownJsonV1 str =
 
   try
     str |> parseJson |> convert
-  with _ -> failwith $"Invalid type in json: {str}"
+  with :? JsonReaderException as e ->
+    let msg = if str = "" then "JSON string was empty" else e.Message
+    failwith msg
 
 
 // let rec show dv =

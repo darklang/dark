@@ -98,7 +98,8 @@ let fns : List<BuiltInFn> =
                        List.map
                          (function
                          | DChar c -> c
-                         | dv -> Errors.throw (Errors.expectedLambdaType TChar dv))
+                         | dv ->
+                             Errors.throw (Errors.expectedLambdaType "f" TChar dv))
                          dvals
 
                      let str = String.concat "" chars
@@ -533,7 +534,7 @@ let fns : List<BuiltInFn> =
                 (fun s ->
                   match s with
                   | DStr st -> st
-                  | _ -> Errors.throw (Errors.expectedLambdaType TStr s))
+                  | dv -> Errors.throw (Errors.argumentMemberWasnt TStr "l" dv))
                 l
 
             // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
@@ -565,7 +566,7 @@ let fns : List<BuiltInFn> =
               |> List.map
                    (function
                    | DChar c -> c
-                   | dv -> Errors.throw (Errors.expectedLambdaType TChar dv))
+                   | dv -> Errors.throw (Errors.argumentMemberWasnt TChar "l" dv))
               |> String.concat ""
             )
             |> Value
@@ -625,23 +626,23 @@ let fns : List<BuiltInFn> =
               else initial
 
             if s = "" then
-              // This seems valid
+              // This seems like we should allow it
               Value(DStr "")
             // dotnet ignores whitespace but we don't allow it
-            else if Regex.IsMatch(s, @"\s") then
+            else
+
+            if Regex.IsMatch(s, @"\s") then
               err "Not a valid base64 string"
             else
               try
-                let decodedBytes =
-                  try
-                    // Try regular
-                    System.Convert.FromBase64String s
-                  with e ->
-                    // try URL safe
-                    s |> base64FromUrlEncoded |> System.Convert.FromBase64String
-
-                decodedBytes |> ofBytes |> fun s -> s.Normalize() |> DStr |> Value
-              with _ -> err "Not a valid base64 string"
+                s
+                |> base64FromUrlEncoded
+                |> Convert.FromBase64String
+                |> System.Text.Encoding.UTF8.GetString
+                |> String.normalize
+                |> DStr
+                |> Value
+              with e -> err "Not a valid base64 string"
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1031,9 +1032,9 @@ let fns : List<BuiltInFn> =
 
             let dropLastN s (numEgcs : bigint) =
               let stringBuilder = new StringBuilder(String.length s) in
-              (* We iterate through every EGC, adding it to the buffer
-               * if its [idx] < ([stringEgcCount] - [numEgcs]).
-               * This works by the inverse of the logic for [lastN]. *)
+              // We iterate through every EGC, adding it to the buffer
+              // if its [idx] < ([stringEgcCount] - [numEgcs]).
+              // This works by the inverse of the logic for [lastN].
 
               let startIdx = bigint stringEgcCount - numEgcs in
 
@@ -1071,8 +1072,8 @@ let fns : List<BuiltInFn> =
         | _, [ DStr s; DInt n ] ->
             let dropFirstN s (numEgcs : bigint) =
               let stringBuilder = new StringBuilder(String.length s) in
-              (* We iterate through every EGC, adding it to the buffer
-               * if its index >= numEgcs. This works by the inverse of the logic for [first_n]: *)
+              // We iterate through every EGC, adding it to the buffer
+              // if its index >= numEgcs. This works by the inverse of the logic for [first_n]:
               let firstFunc (idx : bigint) (seg : string) =
                 if idx >= numEgcs then
                   stringBuilder.Append seg |> ignore
@@ -1086,8 +1087,8 @@ let fns : List<BuiltInFn> =
                 |> Seq.toList
                 |> List.mapi (fun index value -> (firstFunc (bigint index) value))
               )
-              (* We don't need to renormalize because all normalization forms are closed
-               * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
+              // We don't need to renormalize because all normalization forms are closed
+              // under substringing (see https://unicode.org/reports/tr15/#Concatenation).
               stringBuilder.ToString()
 
             Value(DStr(dropFirstN s n))
@@ -1105,43 +1106,22 @@ let fns : List<BuiltInFn> =
       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
       fn =
         (function
-        | state, [ DStr s; DStr padWith as dv; DInt l ] ->
-
-            let egcSeq = String.toEgcSeq s
-
-            let padStart s padWith targetEgcs =
-              let max a b = if a > b then a else b in
-              (* Compute the size in bytes and # of required EGCs for s and padWith: *)
-              let padSize = String.length padWith in
-
-              let padEgcs = length padWith in
-              let stringSize = String.length s in
-              let stringEgcs = length egcSeq in
-              (* Compute how many copies of padWith we require,
-               * accounting for the string longer than [targetEgcs]: *)
-              let requiredEgcs = targetEgcs - stringEgcs in
-
-              let reqPads = max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
-              (* Create a buffer large enough to hold the padded result: *)
-              let requiredSize = stringSize + (reqPads * padSize) in
-
-              let stringBuilder = new StringBuilder(requiredSize) in
-              (* Fill with the required number of pads: *)
-              for i = 1 to reqPads do
-                stringBuilder.Append padWith |> ignore
-              (* Finish by filling with the string: *)
-              stringBuilder.Append s |> ignore
-              (* Renormalize because concatenation may break normalization
-               * (see https://unicode.org/reports/tr15/#Concatenation): *)
-
-              stringBuilder.ToString().Normalize()
-
-            let padLen = length padWith in
-
-            if padLen = 1 then
-              let l = int l in Value(DStr(padStart s padWith (int l)))
-            else
+        | _, [ DStr s; DStr padWith as dv; DInt l ] ->
+            if String.lengthInEgcs padWith <> 1 then
               err (Errors.argumentWasnt "1 character long" "padWith" dv)
+            else
+              let targetLength = int l
+              let currentLength = String.lengthInEgcs s
+              let requiredPads = max 0 (targetLength - currentLength)
+
+              let stringBuilder = new StringBuilder()
+
+              for _ = 1 to requiredPads do
+                stringBuilder.Append(padWith) |> ignore<StringBuilder>
+
+              stringBuilder.Append(s) |> ignore<StringBuilder>
+
+              stringBuilder.ToString().Normalize() |> DStr |> Value
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
@@ -1156,44 +1136,22 @@ let fns : List<BuiltInFn> =
       If the `string` is longer than `goalLength`, returns an unchanged copy of `string`."
       fn =
         (function
-        | state, [ DStr s; DStr padWith as dv; DInt l ] ->
-
-            let egcSeq = String.toEgcSeq s
-
-            let padEnd s padWith targetEgcs =
-              let max a b = if a > b then a else b in
-              // Compute the size in bytes and # of required EGCs for s and padWith:
-              let padSize = String.length padWith in
-
-              let padEgcs = length padWith in
-              let stringSize = String.length s in
-              let stringEgcs = length egcSeq in
-              // Compute how many copies of padWith we require,
-              // accounting for the string longer than [targetEgcs]:
-              let requiredEgcs = targetEgcs - stringEgcs in
-
-              let requiredPads =
-                max 0 (if padEgcs = 0 then 0 else requiredEgcs / padEgcs) in
-              // Create a buffer large enough to hold the padded result:
-              let requiredSize = stringSize + (requiredPads * padSize) in
-
-              let stringBuilder = new StringBuilder(requiredSize) in
-              // Start the buffer with the string: *)
-              stringBuilder.Append s |> ignore
-              // Finish by filling with the required number of pads:
-              for i = 1 to requiredPads do
-                stringBuilder.Append padWith |> ignore
-              // Renormalize because concatenation may break normalization
-              // (see https://unicode.org/reports/tr15/#Concatenation):
-
-              stringBuilder.ToString().Normalize()
-
-            let padLen = length padWith in
-
-            if padLen = 1 then
-              Value(DStr(padEnd s padWith (int l)))
-            else
+        | _, [ DStr s; DStr padWith as dv; DInt l ] ->
+            if String.lengthInEgcs padWith <> 1 then
               err (Errors.argumentWasnt "1 character long" "padWith" dv)
+            else
+              let targetLength = int l
+              let currentLength = String.lengthInEgcs s
+              let requiredPads = max 0 (targetLength - currentLength)
+
+              let stringBuilder = new StringBuilder()
+              stringBuilder.Append(s) |> ignore<StringBuilder>
+
+              for _ = 1 to requiredPads do
+                stringBuilder.Append(padWith) |> ignore<StringBuilder>
+
+              stringBuilder.ToString().Normalize() |> DStr |> Value
+
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure

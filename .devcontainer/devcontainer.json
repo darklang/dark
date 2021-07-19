@@ -89,7 +89,7 @@
   "updateRemoteUserUID": true,
 
   // `mounts` (above) expects some files to exist on the host, so create them.
-  "initializeCommand": "bash ./scripts/support/initialize-vscode ${localEnv:USERPROFILE}${localEnv:HOME}",
+  "initializeCommand": "./scripts/support/initialize-vscode ${localEnv:USERPROFILE}${localEnv:HOME}",
 
   // Run one build-server, and keep it running for the life of the
   // devcontainer. This is in postStart rather than postAttach as postAttach would

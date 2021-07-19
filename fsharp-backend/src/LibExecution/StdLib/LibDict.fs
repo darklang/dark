@@ -197,7 +197,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "foreach" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
+          Param.makeWithArgs "f" (TFn([ varA ], varB)) "" [ "val" ] ]
       returnType = TDict varB
       description =
         "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each value."
@@ -216,11 +216,11 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = ReplacedBy(fn "Dict" "map" 0) }
     { name = fn "Dict" "map" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "val" ] ]
+          Param.makeWithArgs "f" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description = "Returns a new dictionary that contains the same keys as the original `dict` with values that have been transformed by `f`, which operates on each key-value pair.
           Consider `Dict::filterMap` if you also want to drop some of the entries."
@@ -251,7 +251,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filter" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "f" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varA
       description = "Calls `f` on every entry in `dict`, returning a dictionary of only those entries for which `f key value` returns `true`.
               Consider `Dict::filterMap` if you also want to transform the entries."
@@ -277,7 +277,7 @@ let fns : List<BuiltInFn> =
                   | DIncomplete _ ->
                       incomplete := true
                       return false
-                  | v -> return Errors.throw (Errors.expectedLambdaType TBool v)
+                  | v -> return Errors.throw (Errors.expectedLambdaType "f" TBool v)
                 }
 
               if !incomplete then
@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filter" 1
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs "f" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
       returnType = TDict varB
       description =
         "Evaluates `f key value` on every entry in `dict`. Returns a new dictionary that contains only the entries of `dict` for which `f` returned `true`."
@@ -325,7 +325,8 @@ let fns : List<BuiltInFn> =
                       | (DIncomplete _ as e)
                       | (DError _ as e) -> return Error e
                       | other ->
-                          return Errors.throw (Errors.expectedLambdaType TBool other)
+                          return
+                            Errors.throw (Errors.expectedLambdaType "f" TBool other)
                     }
 
               let! filtered_result =
@@ -342,7 +343,11 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "filterMap" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs
+            "f"
+            (TFn([ TStr; varA ], TOption varB))
+            ""
+            [ "key"; "value" ] ]
       returnType = TDict varB
       description = "Calls `f` on every entry in `dict`, returning a new dictionary that drops some entries (filter) and transforms others (map).
           If `f key value` returns `Nothing`, does not add `key` or `value` to the new dictionary, dropping the entry.
@@ -377,13 +382,7 @@ let fns : List<BuiltInFn> =
                         abortReason := Some dv
                         return None
                     | v ->
-                        Errors.throw (
-                          Errors.argumentWasnt
-                            "`Just` or `Nothing` for every entry in `dict`"
-                            "f"
-                            v
-                          + $" for the entry {key}: {DvalRepr.toDeveloperReprV0 data}."
-                        )
+                        Errors.throw (Errors.expectedLambdaType "f" (TOption varB) v)
 
                         return None
 

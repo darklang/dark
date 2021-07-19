@@ -143,7 +143,7 @@ let base64Encode (input : byte []) : string = input |> System.Convert.ToBase64St
 let base64ToUrlEncoded (str : string) : string =
   str.Replace('+', '-').Replace('/', '_').Replace("=", "")
 
-// Convert a url-safe base64 string to one that users the more traditional format
+// Convert a url-safe base64 string to one that uses the more traditional format
 let base64FromUrlEncoded (str : string) : string =
   let initial = str.Replace('-', '+').Replace('_', '/')
   let length = initial.Length
@@ -251,6 +251,8 @@ module String =
 
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
+
+  let normalize (s : string) : string = s.Normalize()
 
 module HashSet =
   type T<'v> = System.Collections.Generic.HashSet<'v>
