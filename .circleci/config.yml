@@ -279,6 +279,7 @@ jobs:
             - fsharp-backend/Build/out/net6.0/publish/ApiServer
             - fsharp-backend/Build/out/net6.0/publish/BwdServer
             - backend/static/BlazorWorker.js
+            - backend/static/blazor
       - show-large-files-and-directories
       - save_cache:
           paths: [fsharp-backend/Build]
