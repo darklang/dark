@@ -8,25 +8,43 @@ rm -rf gzipped_assets; mkdir -p gzipped_assets
 # for debugging in CI
 find backend/static
 
+function copyHashed {
+  file="$1"
+  basefile="${file//$PREFIX_TO_REMOVE}"
+  mkdir -p "gzipped_assets/$(dirname "${basefile}")"
+
+  filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' backend/static/etags.json)"
+  hashed_file="${file%.*}-${filehash}.${basefile##*.}"
+
+  # No .gz extension because gcloud cloud cdn doesn't want that
+  gzip -c "${file}" > "gzipped_assets/${hashed_file//$PREFIX_TO_REMOVE}"
+}
+
+function copyUnhashed {
+  file=$1
+  basefile="${file//$PREFIX_TO_REMOVE}"
+  mkdir -p "gzipped_assets/$(dirname "${basefile}")"
+
+  # No .gz extension because gcloud cloud cdn doesn't want that
+  gzip -c "${file}" > "gzipped_assets/${file//$PREFIX_TO_REMOVE}"
+}
+
 # We're not hashing the files in backend/static/vendor
-for file in $(find backend/static -maxdepth 1 -type f -and -not -name etags.json -and -not -name "*.gz"); do
-    basefile="$(basename "$file")"
-    filehash="$(jq -r --arg FILE "${basefile}" '.[$FILE]' backend/static/etags.json)"
-    hashed_file="${file%.*}-${filehash}.${basefile##*.}"
-
-    # No .gz extension because gcloud cloud cdn doesn't want that
-    gzip -c "${file}" > "gzipped_assets/${hashed_file//$PREFIX_TO_REMOVE}"
-done
-
-# We do want to compress the vendored files, though
-for file in $(find backend/static -mindepth 2 -type f -and -not -name "*.gz"); do
-    mkdir -p "gzipped_assets/$(dirname "${file//$PREFIX_TO_REMOVE}")"
-    # No .gz extension because gcloud cloud cdn doesn't want that
-    gzip -c "${file}" > "gzipped_assets/${file//$PREFIX_TO_REMOVE}"
+for file in $(find backend/static -type f -and -not -name "*.gz"); do
+  echo -e "\n\n\n$file"
+  if [[ "${file}" == "backend/static/vendor/"* ]]; then
+    copyUnhashed "${file}"
+  elif [[ "${file}" == "backend/static/etags.json" ]]; then
+    echo "skipping etags"
+  else
+    copyHashed "${file}"
+  fi
 done
 
 (
   cd gzipped_assets
+  find .
+
   # -m parallelizes upload
   # -n no-clobber - we don't need upload assets already there
   # -r recursive
