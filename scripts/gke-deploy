@@ -20,7 +20,7 @@ PREFIX=""
 # Doing this instead of ${CIRCLE_BUILD_URL-manual-deploy} because
 # CIRCLE_BUILD_URL='' is the unset case. (Because of the docker run command in
 # scripts/builder,)
-if [[ "${CIRCLE_BUILD_URL}" == "" ]]; then
+if [[ ! -v CIRCLE_BUILD_URL ]]; then
   CIRCLE_BUILD_URL='manual-deploy'
 fi
 
@@ -110,11 +110,11 @@ LOCAL_USERNAME="$(grep 'account' ~/.config/gcloud/configurations/config_default 
 GCR="gcr.io/$DARK_PROJECT"
 
 ## Only fetch if we haven't just built, which we do on CI
-if [[ "$CI" == "" ]]; then
+if [[ -v CI ]]; then
+  echo "On CI: not fetching latest containers"
+else
   echo "Not on CI: fetching latest containers"
   ./scripts/gcp-fetch-latest-containers ${PREFIX:+"--prefix=${PREFIX}"} "--project=${DARK_PROJECT}"
-else
-  echo "On CI: not fetching latest containers"
 fi
 
 #########################
@@ -211,10 +211,10 @@ cleanup_deploy_lock() {
 }
 
 deploy_lock_claimed=""
-if [[ "$CI" == "" ]]; then
-  LOCKFILE_ID="manual-deploy"
-else
+if [[ -v CI ]]; then
   LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
+else
+  LOCKFILE_ID="manual-deploy"
 fi
 echo "Lock file: ${LOCKFILE_ID}"
 LOCKFILE_NAME="deploy-lock-${LOCKFILE_ID}"
