@@ -424,13 +424,13 @@ jobs:
       - show-large-files-and-directories
       - run: |
           scripts/gke-deploy       \
-            --server-image-id=`cat gcr-image-ids/server` \
-            --qw-image-id=`    cat gcr-image-ids/qw`     \
-            --cron-image-id=`  cat gcr-image-ids/cron`   \
+            --server-image-id=`            cat gcr-image-ids/server` \
+            --qw-image-id=`                cat gcr-image-ids/qw`     \
+            --cron-image-id=`              cat gcr-image-ids/cron`   \
             --garbagecollector-image-id=`  cat gcr-image-ids/garbagecollector`   \
-            --stroller-image-id=`cat gcr-image-ids/stroller` \
-            --queue-scheduler-image-id=`cat gcr-image-ids/queue-scheduler` \
-            --tunnel-image-id=`cat gcr-image-ids/tunnel` \
+            --stroller-image-id=`          cat gcr-image-ids/stroller` \
+            --queue-scheduler-image-id=`   cat gcr-image-ids/queue-scheduler` \
+            --tunnel-image-id=`            cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
           scripts/honeymarker.sh
 
