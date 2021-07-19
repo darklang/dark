@@ -11,9 +11,20 @@
 
 window.BlazorWorker = (function () {
   let worker;
-  const workerDef = function (appRoot) {
+  const workerDef = function (appRoot, hashReplacements) {
+    hashReplacements = JSON.parse(hashReplacements);
     const nonExistingDlls = [];
     let blazorBootManifest;
+    const hashFile = file => {
+      const hash = hashReplacements[file];
+      if (hash) {
+        // split variable on last double-colon
+        let s = hash.split(".");
+        return `${s[0]}-${hash}.${s[1]}`;
+      } else {
+        return file;
+      }
+    };
 
     const onReady = () => {
       // Setup the onmessage handler to call F#
@@ -67,9 +78,11 @@ window.BlazorWorker = (function () {
     Module.locateFile = fileName => {
       switch (fileName) {
         case "dotnet.wasm":
-          return `${appRoot}/blazor/dotnet.wasm`;
+          let hashed = hashFile("blazor/dotnet.wasm");
+          return `${appRoot}/${hashed}`;
         default:
-          return fileName;
+          console.log("file wanted", file, hash);
+          return hashFile(fileName);
       }
     };
 
@@ -146,7 +159,8 @@ window.BlazorWorker = (function () {
 
     //TODO: This call could/should be session cached. But will the built-in blazor fetch service worker override
     // (PWA et al) do this already if configured ?
-    asyncLoad(`${appRoot}/blazor/blazor.boot.json`, "json").then(
+    let hashed = hashFile("blazor/blazor.boot.json");
+    asyncLoad(`${appRoot}/${hashed}`, "json").then(
       blazorboot => {
         // Save this for loading other scripts later
         blazorBootManifest = blazorboot;
@@ -166,7 +180,8 @@ window.BlazorWorker = (function () {
   };
 
   // Initialize the worker
-  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.protocol}//${staticUrl}")`;
+  let hashes = JSON.stringify(hashReplacements);
+  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.protocol}//${staticUrl}", "${hashes}")`;
 
   const initWorker = function (initCallback, onMessageCallback) {
     const blob = new Blob([inlineWorker], {
