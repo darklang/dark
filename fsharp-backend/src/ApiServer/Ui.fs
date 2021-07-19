@@ -51,18 +51,30 @@ let prodHashReplacements : Lazy<Map<string, string>> =
      |> Map.remove "__date"
      |> Map.remove ".gitkeep"
      // Only hash our assets, not vendored assets
-     |> Map.filterWithIndex (fun k _ -> not (String.includes "vendor/" k || String.includes "blazor/" k))
+     |> Map.filterWithIndex
+          (fun k _ ->
+            not (String.includes "vendor/" k || String.includes "blazor/" k))
      |> Map.toList
-     |> List.map (fun (filename, hash) -> ($"/{filename}", hashedFilename filename hash))
+     |> List.map
+          (fun (filename, hash) -> ($"/{filename}", hashedFilename filename hash))
      |> Map.ofList)
 
-let prodHashReplacementsString : Lazy<string> = lazy (prodHashReplacements.Force() |> Json.Vanilla.serialize)
+let prodHashReplacementsString : Lazy<string> =
+  lazy (prodHashReplacements.Force() |> Json.Vanilla.serialize)
 
 
 // FSTODO: clickjacking/ CSP/ frame-ancestors
-let uiHtml (canvasID : CanvasID) (canvasName : CanvasName.T) (csrfToken : string) (localhostAssets : string option) (accountCreated : System.DateTime) (user : Account.UserInfo) : string =
+let uiHtml
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  (csrfToken : string)
+  (localhostAssets : string option)
+  (accountCreated : System.DateTime)
+  (user : Account.UserInfo)
+  : string =
 
-  let shouldHash = if localhostAssets = None then Config.hashStaticFilenames else false
+  let shouldHash =
+    if localhostAssets = None then Config.hashStaticFilenames else false
 
   let hashReplacements =
 
@@ -107,7 +119,9 @@ let uiHtml (canvasID : CanvasID) (canvasName : CanvasName.T) (csrfToken : string
   if shouldHash then
     prodHashReplacements
     |> Lazy.force
-    |> Map.iter (fun filename hash -> t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
+    |> Map.iter
+         (fun filename hash ->
+           t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
 
   t.ToString()
 
@@ -119,5 +133,12 @@ let uiHandler (ctx : HttpContext) : Task<string> =
     let! createdAt = Account.getUserCreatedAt user.username
     let localhostAssets = ctx.TryGetQueryStringValue "localhost-assets"
 
-    return uiHtml canvasInfo.id canvasInfo.name sessionData.csrfToken localhostAssets createdAt user
+    return
+      uiHtml
+        canvasInfo.id
+        canvasInfo.name
+        sessionData.csrfToken
+        localhostAssets
+        createdAt
+        user
   }
