@@ -155,6 +155,7 @@ commands:
             cat backend/static/etags.json
             scripts/support/check-etags
             cp backend/static/etags.json rundir/
+      - store_artifacts: { path: backend/static/etags.json }
       - run: scripts/gcp-build-containers
 
   ##########################
