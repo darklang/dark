@@ -166,7 +166,7 @@ window.BlazorWorker = (function () {
   };
 
   // Initialize the worker
-  const inlineWorker = `self.onmessage = ${workerDef}("${window.staticUrl}")`;
+  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.protocol}//${staticUrl}")`;
 
   const initWorker = function (initCallback, onMessageCallback) {
     const blob = new Blob([inlineWorker], {
