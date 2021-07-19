@@ -50,7 +50,7 @@ let signAndEncode (key : RSA) (extraHeaders : DvalMap) (payload : string) : stri
     |> Map.add "alg" (DStr "RS256")
     |> Map.add "typ" (DStr "JWT")
     |> DObj
-    |> Json.Vanilla.serialize
+    |> DvalRepr.toPrettyMachineJsonStringV1
     |> toBytes
     |> base64Encode
     |> base64ToUrlEncoded
@@ -63,9 +63,9 @@ let signAndEncode (key : RSA) (extraHeaders : DvalMap) (payload : string) : stri
   RSAFormatter.SetHashAlgorithm "SHA256"
 
   let signature =
-    RSAFormatter.CreateSignature (body |> toBytes |> sha256.ComputeHash)
-                                  |> base64Encode
-                                  |> base64ToUrlEncoded
+    RSAFormatter.CreateSignature(body |> toBytes |> sha256.ComputeHash)
+    |> base64Encode
+    |> base64ToUrlEncoded
 
   body + "." + signature
 
@@ -82,16 +82,21 @@ let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
         let RSADeformatter = RSAPKCS1SignatureDeformatter key
         RSADeformatter.SetHashAlgorithm "SHA256"
 
-        let signature = signature |> base64FromUrlEncoded |> base64Decode
-        let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-        let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+        let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
 
-        if RSADeformatter.VerifySignature(hash, signature) then
-          match (header, payload) with
-          | Some header, Some payload -> Some(header, payload)
-          | _ -> None
-        else
-          None
+        match signature with
+        | None -> None
+        | Some signature ->
+            let header = header |> base64FromUrlEncoded |> base64DecodeOpt
+            let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+
+            if RSADeformatter.VerifySignature(hash, signature) then
+              match (header, payload) with
+              | Some header, Some payload ->
+                  Some(header |> ofBytes, payload |> ofBytes)
+              | _ -> None
+            else
+              None
 
       with e -> Errors.throw (e.ToString())
   | _ -> None
@@ -112,17 +117,22 @@ let verifyAndExtractV1
         let RSADeformatter = RSAPKCS1SignatureDeformatter key
         RSADeformatter.SetHashAlgorithm "SHA256"
 
-        let signature = signature |> base64FromUrlEncoded |> base64Decode
-        let header = header |> base64FromUrlEncoded |> base64DecodeOpt
-        let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+        let signature = signature |> base64FromUrlEncoded |> base64DecodeOpt
 
-        if RSADeformatter.VerifySignature(hash, signature) then
-          match (header, payload) with
-          | Some header, Some payload -> Ok(header, payload)
-          | Some _, None -> Error "Unable to base64-decode header"
-          | _ -> Error "Unable to base64-decode payload"
-        else
-          Error "Unable to verify signature"
+        match signature with
+        | None -> Error "Unable to base64-decode signature"
+        | Some signature ->
+            let header = header |> base64FromUrlEncoded |> base64DecodeOpt
+            let payload = payload |> base64FromUrlEncoded |> base64DecodeOpt
+
+            if RSADeformatter.VerifySignature(hash, signature) then
+              match (header, payload) with
+              | Some header, Some payload ->
+                  Ok(header |> ofBytes, payload |> ofBytes)
+              | Some _, None -> Error "Unable to base64-decode header"
+              | _ -> Error "Unable to base64-decode payload"
+            else
+              Error "Unable to verify signature"
 
       with e -> Error e.Message
   | _ -> Error "Invalid token format"
@@ -259,15 +269,7 @@ let fns : List<BuiltInFn> =
                   |> DResult
                   |> Value
               | Error msg -> Value(DResult(Error(DStr msg)))
-            with _ ->
-              Value(
-                DResult(
-                  Error(
-                    DStr
-                      "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
-                  )
-                )
-              )
+            with _ -> Value(DResult(Error(DStr "Invalid public key")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplementedTODO
       previewable = Impure
