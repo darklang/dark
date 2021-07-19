@@ -31,7 +31,7 @@ echo "Fetching latest containers from GCR"
 
 gcloud auth configure-docker
 for dir in containers/*/; do
-  if [[ -e "${dir}/Dockerfile " ]]; then
+  if [[ -e "${dir}/Dockerfile" ]]; then
     c=$(basename $dir)
     IMAGE="gcr.io/$PROJECT/${PREFIX}$c:latest"
     docker pull $IMAGE
