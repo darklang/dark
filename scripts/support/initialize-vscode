@@ -1,17 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/sh
+
 # this is run on the host when starting the vscode devcontainer. It makes sure
 # the host is in the right shape so that the devcontainer can start up. This is
-# cross-platform, and must run on windows, linux and Mac.
+# cross-platform, and must run on windows, linux and Mac. In particular, it
+# must run in vscode's default docker container.
 
-if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
-  echo "We require bash >= 4, but this ran with bash ${BASH_VERSINFO[0]}"
-  exit 1
-fi
-
-if [[ -v WSLENV ]]; then
-  home=$(wslpath $1)
-else
+if [ -z "$WSLENV" ]; then
   home=$1
+else
+  home=$(wslpath $1)
 fi
 
 echo "making ~/.dark_bash_history to share bash history with the Dark container"
