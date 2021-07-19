@@ -20,4 +20,5 @@ check_presence analysiswrapper.js
 check_presence app.css
 check_presence app.js
 check_presence reset-normalize.css
+check_presence BlazorWorker.js
 

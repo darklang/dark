@@ -2,6 +2,7 @@ module ApiServer.Ui
 
 open Microsoft.AspNetCore.Http
 open Giraffe
+open System.Text
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -9,37 +10,57 @@ open FSharpPlus
 open Prelude
 open Tablecloth
 
+module File = LibBackend.File
 module Config = LibBackend.Config
 module Session = LibBackend.Session
 module Account = LibBackend.Account
 
 let adminUiTemplate : Lazy<string> =
-  lazy (LibBackend.File.readfile Config.Templates "ui.html")
+  lazy
+    (let liveReloadStr =
+      "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
 
-let appSupportFile : Lazy<string> =
-  lazy (LibBackend.File.readfile LibBackend.Config.Webroot "appsupport.js")
+     let liveReloadJs = if Config.browserReloadEnabled then liveReloadStr else ""
+     let uiHtml = File.readfile Config.Templates "ui.html"
+     let appSupport = File.readfile Config.Webroot "appsupport.js"
 
-let prodHashReplacements : Lazy<string> =
+     // Load as much of this as we can in advance
+     // CLEANUP make APIs to load the dynamic data
+     uiHtml
+       .Replace("{{ENVIRONMENT_NAME}}", LibService.Config.envDisplayName)
+       .Replace("{{LIVERELOADJS}}", liveReloadJs)
+       .Replace("{{HEAPIO_ID}}", Config.heapioId)
+       .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
+       .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
+       .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
+       .Replace("{{APPSUPPORT}}", appSupport)
+       .Replace("{{BUILD_HASH}}", LibService.Config.buildHash))
+
+let hashedFilename (filename : string) (hash : string) : string =
+  match filename.Split '.' with
+  | [| name; extension |] -> $"/{name}-{hash}{extension}"
+  | _ -> failwith "incorrect hash name"
+
+
+
+let prodHashReplacements : Lazy<Map<string, string>> =
   lazy
     ("etags.json"
-     |> LibBackend.File.readfile Config.Webroot
+     |> File.readfile Config.Webroot
      |> Json.Vanilla.deserialize<Map<string, string>>
      |> Map.remove "__date"
      |> Map.remove ".gitkeep"
      // Only hash our assets, not vendored assets
-     |> Map.filterWithIndex (fun k v -> not (String.includes "vendor/" k))
+     |> Map.filterWithIndex
+          (fun k _ ->
+            not (String.includes "vendor/" k || String.includes "blazor/" k))
      |> Map.toList
      |> List.map
-          (fun (filename, hash) ->
-            let hashed =
-              match filename.Split '.' with
-              | [| name; extension |] -> $"/{name}-{hash}{extension}"
-              | _ -> failwith "incorrect hash name"
+          (fun (filename, hash) -> ($"/{filename}", hashedFilename filename hash))
+     |> Map.ofList)
 
-            ($"/{filename}", hashed))
-     |> Map.ofList
-     |> Json.Vanilla.serialize)
-
+let prodHashReplacementsString : Lazy<string> =
+  lazy (prodHashReplacements.Force() |> Json.Vanilla.serialize)
 
 
 // FSTODO: clickjacking/ CSP/ frame-ancestors
@@ -52,11 +73,12 @@ let uiHtml
   (user : Account.UserInfo)
   : string =
 
-  let hashReplacements =
-    let shouldHash =
-      if localhostAssets = None then Config.hashStaticFilenames else false
+  let shouldHash =
+    if localhostAssets = None then Config.hashStaticFilenames else false
 
-    if shouldHash then prodHashReplacements.Force() else "{}"
+  let hashReplacements =
+
+    if shouldHash then prodHashReplacementsString.Force() else "{}"
 
   let accountCreatedMsTs =
     System.DateTimeOffset(accountCreated).ToUnixTimeMilliseconds()
@@ -71,23 +93,14 @@ let uiHtml
     | _ -> Config.apiServerStaticHost
 
 
-  let liveReloadJs =
-    if Config.browserReloadEnabled then
-      "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-    else
-      ""
+  // TODO: allow APPSUPPORT in here
+  let t = StringBuilder(adminUiTemplate.Force())
 
-  (* TODO: allow APPSUPPORT in here *)
-  let t = System.Text.StringBuilder(adminUiTemplate.Force())
-
+  // CLEANUP move functions into an API call, or even to the CDN
+  // CLEANUP move the user info into an API call
   t
-    .Replace("{{ENVIRONMENT_NAME}}", LibService.Config.envDisplayName)
     .Replace("{{ALLFUNCTIONS}}", (Functions.functions user.admin).Force())
-    .Replace("{{LIVERELOADJS}}", liveReloadJs)
     .Replace("{{STATIC}}", staticHost)
-    .Replace("{{HEAPIO_ID}}", Config.heapioId)
-    .Replace("{{ROLLBARCONFIG}}", Config.rollbarJs)
-    .Replace("{{PUSHERCONFIG}}", LibBackend.Pusher.jsConfigString)
     .Replace("{{USER_CONTENT_HOST}}", Config.bwdServerContentHost)
     .Replace("{{USER_USERNAME}}", user.username.ToString())
     .Replace("{{USER_EMAIL}}", user.email)
@@ -97,11 +110,20 @@ let uiHtml
     .Replace("{{USER_ID}}", user.id.ToString())
     .Replace("{{CANVAS_ID}}", (canvasID.ToString()))
     .Replace("{{CANVAS_NAME}}", canvasName.ToString())
-    .Replace("{{APPSUPPORT}}", appSupportFile.Force())
+    .Replace("{{STATIC}}", staticHost)
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
-    .Replace("{{BUILD_HASH}}", LibService.Config.buildHash)
-    .ToString()
+  |> ignore<StringBuilder>
+
+  // Replace any filenames in the file with the hashed version
+  if shouldHash then
+    prodHashReplacements
+    |> Lazy.force
+    |> Map.iter
+         (fun filename hash ->
+           t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
+
+  t.ToString()
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
