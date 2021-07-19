@@ -158,11 +158,10 @@ let base64UrlEncode (bytes : byte []) : string =
 let base64Decode (encoded : string) : byte [] =
   encoded |> System.Convert.FromBase64String
 
-let base64DecodeOpt (encoded : string) : string option =
+let base64DecodeOpt (encoded : string) : byte [] option =
   try
     encoded
     |> System.Convert.FromBase64String
-    |> System.Text.Encoding.UTF8.GetString
     |> Some
   with e -> None
 
