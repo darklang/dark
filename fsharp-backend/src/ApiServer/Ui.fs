@@ -2,6 +2,7 @@ module ApiServer.Ui
 
 open Microsoft.AspNetCore.Http
 open Giraffe
+open System.Text
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -35,6 +36,13 @@ let adminUiTemplate : Lazy<string> =
        .Replace("{{APPSUPPORT}}", appSupport)
        .Replace("{{BUILD_HASH}}", LibService.Config.buildHash))
 
+let hashedFilename (filename : string) (hash : string) : string =
+  match filename.Split '.' with
+  | [| name; extension |] -> $"/{name}-{hash}{extension}"
+  | _ -> failwith "incorrect hash name"
+
+
+
 let prodHashReplacements : Lazy<Map<string, string>> =
   lazy
     ("etags.json"
@@ -43,18 +51,9 @@ let prodHashReplacements : Lazy<Map<string, string>> =
      |> Map.remove "__date"
      |> Map.remove ".gitkeep"
      // Only hash our assets, not vendored assets
-     |> Map.filterWithIndex
-          (fun k _ ->
-            not (String.includes "vendor/" k || String.includes "blazor/" k))
+     |> Map.filterWithIndex (fun k _ -> not (String.includes "vendor/" k || String.includes "blazor/" k))
      |> Map.toList
-     |> List.map
-          (fun (filename, hash) ->
-            let hashed =
-              match filename.Split '.' with
-              | [| name; extension |] -> $"/{name}-{hash}{extension}"
-              | _ -> failwith "incorrect hash name"
-
-            ($"/{filename}", hashed))
+     |> List.map (fun (filename, hash) -> ($"/{filename}", hashedFilename filename hash))
      |> Map.ofList)
 
 let prodHashReplacementsString : Lazy<string> = lazy (prodHashReplacements.Force() |> Json.Vanilla.serialize)
@@ -63,8 +62,9 @@ let prodHashReplacementsString : Lazy<string> = lazy (prodHashReplacements.Force
 // FSTODO: clickjacking/ CSP/ frame-ancestors
 let uiHtml (canvasID : CanvasID) (canvasName : CanvasName.T) (csrfToken : string) (localhostAssets : string option) (accountCreated : System.DateTime) (user : Account.UserInfo) : string =
 
+  let shouldHash = if localhostAssets = None then Config.hashStaticFilenames else false
+
   let hashReplacements =
-    let shouldHash = if localhostAssets = None then Config.hashStaticFilenames else false
 
     if shouldHash then prodHashReplacementsString.Force() else "{}"
 
@@ -82,7 +82,7 @@ let uiHtml (canvasID : CanvasID) (canvasName : CanvasName.T) (csrfToken : string
 
 
   // TODO: allow APPSUPPORT in here
-  let t = System.Text.StringBuilder(adminUiTemplate.Force())
+  let t = StringBuilder(adminUiTemplate.Force())
 
   // CLEANUP move functions into an API call, or even to the CDN
   // CLEANUP move the user info into an API call
@@ -101,7 +101,15 @@ let uiHtml (canvasID : CanvasID) (canvasName : CanvasName.T) (csrfToken : string
     .Replace("{{STATIC}}", staticHost)
     .Replace("{{HASH_REPLACEMENTS}}", hashReplacements)
     .Replace("{{CSRF_TOKEN}}", csrfToken)
-    .ToString()
+  |> ignore<StringBuilder>
+
+  // Replace any filenames in the file with the hashed version
+  if shouldHash then
+    prodHashReplacements
+    |> Lazy.force
+    |> Map.iter (fun filename hash -> t.Replace(filename, hashedFilename filename hash) |> ignore<StringBuilder>)
+
+  t.ToString()
 
 let uiHandler (ctx : HttpContext) : Task<string> =
   task {
