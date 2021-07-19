@@ -285,7 +285,7 @@ kubectl create configmap nginx --from-file=containers/ocaml-nginx/nginx.conf -o 
 # they're ready to deploy if we need to.
 # kubectl apply -f services/bwd-deployment/bwd-deployment.yaml
 # kubectl apply -f services/cron-deployment/cron-deployment.yaml
-# kubectl apply -f services/editor-deployment/editor-deployment.yaml
+kubectl apply -f services/editor-deployment/editor-deployment.yaml
 # kubectl apply -f services/qw-deployment/qw-deployment.yaml
 kubectl apply -f services/postgres-honeytail-deployment/postgres-honeytail-deployment.yaml
 kubectl apply -f services/scheduler-deployment/scheduler-deployment.yaml
