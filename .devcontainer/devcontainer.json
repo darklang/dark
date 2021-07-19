@@ -89,7 +89,14 @@
   "updateRemoteUserUID": true,
 
   // `mounts` (above) expects some files to exist on the host, so create them.
-  "initializeCommand": "./scripts/support/initialize-vscode ${localEnv:USERPROFILE}${localEnv:HOME}",
+
+  // Note that we use an array here as when cloning directly into a new
+  // container, the bootstrap container used by the Remote Containers extension
+  // doesn't have bash, which is needed to interpolate string values here
+  "initializeCommand": [
+    "./scripts/support/initialize-vscode",
+    "${localEnv:USERPROFILE}${localEnv:HOME}"
+  ],
 
   // Run one build-server, and keep it running for the life of the
   // devcontainer. This is in postStart rather than postAttach as postAttach would
