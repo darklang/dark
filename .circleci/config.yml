@@ -152,6 +152,7 @@ commands:
           name: Regenerate combined ETags
           command: |
             scripts/support/generate-etags
+            cat backend/static/etags.json
             scripts/support/check-etags
             cp backend/static/etags.json rundir/
       - run: scripts/gcp-build-containers
