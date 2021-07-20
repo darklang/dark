@@ -15,16 +15,7 @@ window.BlazorWorker = (function () {
     hashReplacements = JSON.parse(hashReplacements);
     const nonExistingDlls = [];
     let blazorBootManifest;
-    const hashFile = file => {
-      const hash = hashReplacements[file];
-      if (hash) {
-        // split variable on last double-colon
-        let s = hash.split(".");
-        return `${s[0]}-${hash}.${s[1]}`;
-      } else {
-        return file;
-      }
-    };
+    const hashFile = file => hashReplacements[file];
 
     const onReady = () => {
       // Setup the onmessage handler to call F#
@@ -78,11 +69,10 @@ window.BlazorWorker = (function () {
     Module.locateFile = fileName => {
       switch (fileName) {
         case "dotnet.wasm":
-          let hashed = hashFile("blazor/dotnet.wasm");
+          let hashed = hashReplacements["blazor/dotnet.wasm"];
           return `${appRoot}/${hashed}`;
         default:
-          console.log("file wanted", file, hash);
-          return hashFile(fileName);
+          return hashReplacements[fileName];
       }
     };
 
@@ -159,7 +149,7 @@ window.BlazorWorker = (function () {
 
     //TODO: This call could/should be session cached. But will the built-in blazor fetch service worker override
     // (PWA et al) do this already if configured ?
-    let hashed = hashFile("blazor/blazor.boot.json");
+    let hashed = hashReplacements["blazor/blazor.boot.json"];
     asyncLoad(`${appRoot}/${hashed}`, "json").then(
       blazorboot => {
         // Save this for loading other scripts later
@@ -181,7 +171,7 @@ window.BlazorWorker = (function () {
 
   // Initialize the worker
   let hashes = JSON.stringify(hashReplacements);
-  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.protocol}//${staticUrl}", "${hashes}")`;
+  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.protocol}//${staticUrl}", '${hashes}')`;
 
   const initWorker = function (initCallback, onMessageCallback) {
     const blob = new Blob([inlineWorker], {
