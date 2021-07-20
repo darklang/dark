@@ -16,7 +16,7 @@ window.BlazorWorker = (function () {
     const nonExistingDlls = [];
     let blazorBootManifest;
     const hashFile = file => {
-      hashed = hashReplacements[file];
+      let hashed = hashReplacements[file];
       if (hashed) {
         return "/" + hashed;
       } else {
