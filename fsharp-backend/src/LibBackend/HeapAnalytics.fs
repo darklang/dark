@@ -1,41 +1,57 @@
 module LibBackend.HeapAnalytics
 
-// type heapio_type =
-//   | Track
-//   | Identify
-//
-// let show_heapio_type (st : heapio_type) : string =
-//   match st with Track -> "track" | Identify -> "identify"
-//
-//
-// let _payload_for_heapio_event
-//     ~execution_id ~canvas ~canvas_id (payload : Yojson.Safe.t) : Yojson.Safe.t =
-//   let timestamp =
-//     Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
-//   in
-//   match payload with
-//   | `Assoc orig_payload_items ->
-//       `Assoc
-//         ( orig_payload_items
-//         @ ( canvas
-//           |> Option.map ~f:(fun c ->
-//                  [ ("canvas", `String c)
-//                  ; ("organization", `String (Account.auth_domain_for c)) ])
-//           |> Option.value ~default:[] )
-//         @ ( canvas_id
-//           |> Option.map ~f:(fun c ->
-//                  [("canvas_id", `String (c |> Uuidm.to_string))])
-//           |> Option.value ~default:[] )
-//         @ ( execution_id
-//           |> Option.map ~f:(fun eid ->
-//                  [("execution_id", `String (eid |> Types.string_of_id))])
-//           |> Option.value ~default:[] )
-//         @ [("timestamp", `String timestamp)] )
-//   | _ ->
-//       Exception.internal
-//         "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
-//
-//
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
+open System.Net.Http
+open System.Net.Http.Json
+open System.Net.Http.Headers
+
+open Prelude
+open Tablecloth
+
+type IdentifyPayload =
+  { identity : string
+    app_id : string
+    properties : Map<string, string> }
+
+type TrackPayload =
+  { identity : string
+    app_id : string
+    event : string
+    timestamp : System.DateTime
+    properties : Map<string, string> }
+
+type Type =
+  | Track
+  | Identify
+
+
+let _payloadForEvent
+  (executionID : id)
+  (canvasName : CanvasName.T)
+  (canvasID : CanvasID)
+  (event : string)
+  (owner : UserID)
+  (properties : Map<string, string>)
+  : TrackPayload =
+  let timestamp = System.DateTime.Now
+
+  let properties =
+    properties
+    |> Map.add "canvas" (string canvasName)
+    |> Map.add "organization" (string owner)
+    |> Map.add "canvas_id" (string canvasID)
+    |> Map.add "execution_id" (string executionID)
+    |> Map.add "timestamp" (string timestamp)
+
+  { identity = string owner
+    timestamp = timestamp
+    event = event
+    app_id = Config.heapioId
+    properties = properties }
+
+// FSTODO
 // let _log_params_for_heapio ~canvas ~canvas_id ~event ~(user_id : Uuidm.t) :
 //     (string * string) list =
 //   [ ("canvas", canvas)
@@ -44,115 +60,87 @@ module LibBackend.HeapAnalytics
 //   ; ("userid", Some (user_id |> Uuidm.to_string)) ]
 //   |> List.filter_map ~f:(fun (k, v) ->
 //          match v with Some v -> Some (k, v) | _ -> None)
-//
-//
-// let heapio_event
-//     ?canvas_id
-//     ?canvas
-//     ~(user_id : Uuidm.t)
-//     ?execution_id
-//     ?event
-//     (msg_type : heapio_type)
-//     (payload : Yojson.Safe.t) : unit Lwt.t =
-//   let log_params = _log_params_for_heapio ~canvas ~canvas_id ~event ~user_id in
-//   let payload =
-//     payload |> _payload_for_heapio_event ~execution_id ~canvas ~canvas_id
-//   in
-//   match Config.stroller_port with
-//   | None ->
-//       Log.infO "stroller not configured, skipping heapio" ~params:log_params ;
-//       Lwt.return ()
-//   | Some port ->
-//       Log.infO "pushing heapio event via stroller" ~params:log_params ;
-//       let uri =
-//         Uri.make
-//           ()
-//           ~scheme:"http"
-//           ~host:"127.0.0.1"
-//           ~port
-//           ~path:
-//             (sprintf
-//                "heapio/%s/%s/event/%s"
-//                (Uuidm.to_string user_id)
-//                (msg_type |> show_heapio_type)
-//                (event |> Option.value ~default:(msg_type |> show_heapio_type)))
-//       in
-//       ( try%lwt
-//           let%lwt resp, _ =
-//             let payload = payload |> Yojson.Safe.to_string in
-//             Clu.Client.post uri ~body:(Cl.Body.of_string payload)
-//           in
-//           let code = resp |> CResponse.status |> Cohttp.Code.code_of_status in
-//           Log.infO
-//             "pushed to heapio via stroller"
-//             ~jsonparams:[("status", `Int code)]
-//             ~params:log_params ;
-//           Lwt.return ()
-//         with e ->
-//           let bt = Exception.get_backtrace () in
-//           let%lwt _ =
-//             Rollbar.report_lwt
-//               e
-//               bt
-//               (Heapio
-//                  (event |> Option.value ~default:(msg_type |> show_heapio_type)))
-//               ( execution_id
-//               |> Option.map ~f:Types.show_id
-//               |> Option.value ~default:"no execution_id" )
-//           in
-//           Lwt.return () )
-//
-// let heapio_event_blocking
-//     ?canvas_id
-//     ?canvas
-//     ~(user_id : Uuidm.t)
-//     ?execution_id
-//     ?event
-//     (msg_type : heapio_type)
-//     (payload : Yojson.Safe.t) =
-//   let payload =
-//     payload |> _payload_for_heapio_event ~execution_id ~canvas ~canvas_id
-//   in
-//   let log_params = _log_params_for_heapio ~canvas_id ~canvas ~event ~user_id in
-//   match Config.stroller_port with
-//   | None ->
-//       Log.infO "stroller not configured, skipping heapio" ~params:log_params
-//   | Some port ->
-//       Log.infO "pushing heapio event via stroller" ~params:log_params ;
-//       let path =
-//         sprintf
-//           "heapio/%s/%s/event/%s"
-//           (Uuidm.to_string user_id)
-//           (msg_type |> show_heapio_type)
-//           (event |> Option.value ~default:(msg_type |> show_heapio_type))
-//       in
-//       let uri = Uri.make () ~scheme:"http" ~host:"127.0.0.1" ~port ~path in
-//       let payload = payload |> Yojson.Safe.to_string in
-//       let code, _, _ = blocking_curl_post (uri |> Uri.to_string) payload in
-//       ( match code with
-//       | 202 ->
-//           Log.infO
-//             "pushed to heapio via stroller"
-//             ~jsonparams:[("status", `Int code)]
-//             ~params:log_params
-//       | _ ->
-//           Log.erroR
-//             "failed to push to heapio via stroller"
-//             ~jsonparams:[("status", `Int code)]
-//             ~params:log_params ) ;
-//       ()
-//
-//
-// let heapio_track
-//     ~(canvas_id : Uuidm.t)
-//     ~(user_id : Uuidm.t)
-//     ~(canvas : string)
-//     ~(execution_id : Types.id)
-//     ~(event : string)
-//     (msg_type : heapio_type)
-//     (payload : Yojson.Safe.t) : unit Lwt.t =
-//   heapio_event ~canvas_id ~canvas ~user_id ~execution_id ~event msg_type payload
-//
+
+// https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
+let _socketsHandler =
+  let socketsHandler = new SocketsHttpHandler()
+  socketsHandler.PooledConnectionIdleTimeout <- System.TimeSpan.FromMinutes 5.0
+  socketsHandler.PooledConnectionLifetime <- System.TimeSpan.FromMinutes 10.0
+  socketsHandler
+
+let httpClient () : HttpClient = new HttpClient(_socketsHandler)
+
+
+let heapioEvent
+  (executionID : id)
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  (owner : System.Guid)
+  (event : string)
+  (msgType : Type)
+  (payload : Map<string, string>)
+  : Task<unit> =
+  // FSTODO: discard the task, don't use it, same as with pusher
+  task {
+    // FSTODO
+    // let log_params = _log_params_for_heapio canvas_id canvas event user_id in
+    // Log.infO "pushing heapio event via stroller" log_params ;
+    use client = httpClient ()
+
+    // path
+    let endpoint =
+      match msgType with
+      | Track -> "api/track"
+      | Identify -> "api/add_user_properties"
+
+    let url = $"https://heapanalytics.com/{endpoint}"
+    let requestMessage = new HttpRequestMessage(HttpMethod.Post, url)
+
+    // body
+    let payload =
+      _payloadForEvent executionID canvasName canvasID event owner payload
+
+    requestMessage.Content <- JsonContent.Create payload
+
+    // auth
+    let authenticationString = $":{Config.heapioId}" |> toBytes |> base64Encode
+
+    requestMessage.Headers.Authorization <-
+      AuthenticationHeaderValue("Basic", authenticationString)
+
+    let! result = client.SendAsync(requestMessage)
+
+    match result.StatusCode with
+    | System.Net.HttpStatusCode.Accepted ->
+        // FSTODO
+        // Log.infO
+        //   "pushed to heapio via stroller"
+        //   ~jsonparams:[("status", `Int code)]
+        //   ~params:log_params
+        ()
+    | _ ->
+        // FSTODO
+        // Log.erroR
+        //   "failed to push to heapio via stroller"
+        //   ~jsonparams:[("status", `Int code)]
+        //   ~params:log_params ) ;
+        ()
+
+    return ()
+  }
+
+// CLEANUP do bulk track
+let track
+  (executionID : id)
+  (canvasID : CanvasID)
+  (canvasName : CanvasName.T)
+  (owner : System.Guid)
+  (event : string)
+  (payload : Map<string, string>)
+  : unit =
+  heapioEvent executionID canvasID canvasName owner event Track payload
+  |> ignore<Task<unit>>
+
 //
 // (* We call this in two contexts: DarkInternal:: fns, and
 //  * bin/heapio_identify_users.exe. Neither of those is an async/lwt context, so
