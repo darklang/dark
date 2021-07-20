@@ -70,6 +70,10 @@ let addOp (ctx : HttpContext) : Task<T> =
     let c = Result.unwrapUnsafe c
     t "2-load-saved-ops"
 
+    // Actually add the ops
+    let c = c |> C.addOps [] ops |> C.verify |> Result.unwrapUnsafe
+    t "3-add-ops"
+
     let ocamlToplevels = c |> C.toplevels |> Convert.pt2ocamlToplevels
 
     let ocamlDeletedToplevels = c |> C.deletedToplevels |> Convert.pt2ocamlToplevels
