@@ -48,8 +48,7 @@ module TraceData =
       t "read-api"
 
       let! (c : Canvas.T) =
-        Canvas.loadTLIDsFromCache canvasInfo [ p.tlid ]
-        |> Task.map Result.unwrapUnsafe
+        Canvas.loadTLIDs canvasInfo [ p.tlid ] |> Task.map Result.unwrapUnsafe
 
       t "load-canvas"
 

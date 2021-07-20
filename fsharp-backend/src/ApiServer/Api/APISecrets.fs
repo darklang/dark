@@ -71,6 +71,7 @@ module Delete =
       let! p = ctx.BindModelAsync<Params>()
       t "read-api"
 
+      // CLEANUP: only do this if the secret is not used on the canvas
       do! LibBackend.Secret.delete canvasInfo.id p.secret_name
       t "delete-secret"
 

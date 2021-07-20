@@ -6,6 +6,9 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
+module OT = LibExecution.OCamlTypes
+module ORT = LibExecution.OCamlTypes.RuntimeT
+
 
 let eventNameOfOp (op : PT.Op) : string =
   match op with
@@ -60,11 +63,11 @@ let requiredContextToValidate (op : PT.Op) : RequiredContext =
   | PT.SetExpr _ -> NoContext
   | PT.TLSavepoint _ -> NoContext
   | PT.UndoTL _ ->
-      (* Can undo/redo ops on dbs *)
-      AllDatastores
+    (* Can undo/redo ops on dbs *)
+    AllDatastores
   | PT.RedoTL _ ->
-      (* Can undo/redo ops on dbs *)
-      AllDatastores
+    (* Can undo/redo ops on dbs *)
+    AllDatastores
   | PT.DeleteTL _ -> NoContext
   | PT.MoveTL _ -> NoContext
   | PT.SetFunction _ -> NoContext
@@ -97,9 +100,9 @@ let requiredContextToValidateOplist (oplist : PT.Oplist) : RequiredContext =
          | NoContext -> 0)
 
 
-let is_deprecated (op : PT.Op) : bool = false
+let isDeprecated (op : PT.Op) : bool = false
 
-let has_effect (op : PT.Op) : bool =
+let hasEffect (op : PT.Op) : bool =
   match op with
   | PT.TLSavepoint _ -> false
   | _ -> true
@@ -185,7 +188,7 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   | PT.SetFunction userfn -> PT.SetFunction { userfn with body = newAST }
   | PT.SetExpr (tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
   | PT.SetHandler (tlid, id, handler) ->
-      PT.SetHandler(tlid, id, { handler with ast = newAST })
+    PT.SetHandler(tlid, id, { handler with ast = newAST })
   | PT.CreateDB (_, _, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)
@@ -221,7 +224,7 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
 // SetHandler2's value is "aa", applying them out of order (SH2,
 // SH1) will result in SH2's update being overwritten
 // NOTE: DO NOT UPDATE WITHOUT UPDATING THE CLIENT-SIDE LIST
-let filter_ops_received_out_of_order (ops : PT.Oplist) : PT.Oplist =
+let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
   ops
   |> List.filter
        (fun op ->
@@ -256,3 +259,20 @@ let filter_ops_received_out_of_order (ops : PT.Oplist) : PT.Oplist =
          | PT.DeleteFunctionForever _
          | PT.DeleteType _
          | PT.DeleteTypeForever _ -> true)
+
+type AddOpResult =
+  { toplevels : ORT.toplevel list (* replace *)
+    deleted_toplevels : ORT.toplevel list (* replace, see note above *)
+    user_functions : ORT.fluidExpr ORT.user_fn list (* replace *)
+    deleted_user_functions : ORT.fluidExpr ORT.user_fn list
+    user_tipes : ORT.user_tipe list
+    deleted_user_tipes : ORT.user_tipe list (* replace, see deleted_toplevels *)  }
+
+type AddOpParams =
+  { ops : ORT.fluidExpr OT.oplist
+    opCtr : int
+    // option means that we can still deserialize if this field is null, as
+    // doc'd at https://github.com/ocaml-ppx/ppx_deriving_yojson
+    clientOpCtrId : string option }
+
+type AddOpEvent = { result : AddOpResult; ``params`` : AddOpParams }

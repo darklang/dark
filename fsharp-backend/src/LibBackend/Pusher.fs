@@ -88,14 +88,10 @@ let pushNewStaticDeploy
   =
   push executionID canvasID "new_static_deploy" asset
 
-//
-// (* For exposure as a DarkInternal function *)
-// let push_new_event
-//     ~(execution_id : Types.id)
-//     ~(canvas_id : Uuidm.t)
-//     ~(event : string)
-//     (payload : string) =
-//   push ~execution_id ~canvas_id ~event payload
+
+// For exposure as a DarkInternal function
+let pushAddOpEvent (executionID : id) (canvasID : CanvasID) (event : Op.AddOpEvent) =
+  push executionID canvasID "add_op" event
 
 let pushWorkerStates
   (executionID : id)

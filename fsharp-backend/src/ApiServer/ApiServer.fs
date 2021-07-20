@@ -41,7 +41,7 @@ let endpoints : Endpoint list =
 
     POST [ route "/login" Login.loginHandler
            route "/logout" Login.logout
-           // FSTODO: add_op RW
+           api "add_op" (h AddOps.addOp RW)
            api "all_traces" (h Traces.AllTraces.fetchAll R)
            api "delete_404" (h F404s.Delete.delete RW)
            api "delete_secret" (h Secrets.Delete.delete RW)

@@ -20,40 +20,45 @@ module PT = LibExecution.ProgramTypes
 
 // FSTODO inline this file into canvas
 
-// (* -------------------------------------------------------- *)
-// (* Moved from op.ml as it touches the DB *)
-// (* -------------------------------------------------------- *)
-// let is_latest_op_request
-//     (client_op_ctr_id : string option) (op_ctr : int) (canvas_id : Uuidm.t) :
-//     bool =
-//   let client_op_ctr_id =
-//     match client_op_ctr_id with
-//     | Some s when s = "" ->
-//         Uuidm.v `V4 |> Uuidm.to_string
-//     | None ->
-//         Uuidm.v `V4 |> Uuidm.to_string
-//     | Some s ->
-//         s
-//   in
-//   Db.run
-//     ~name:"update-browser_id-op_ctr"
-//     (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
-//              * that it also handles the initial case where there is no
-//              * browser_id record yet *)
-//     "INSERT INTO op_ctrs(browser_id,ctr,canvas_id) VALUES($1, $2, $3)
-//              ON CONFLICT (browser_id)
-//              DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW()
-//                        WHERE op_ctrs.ctr < EXCLUDED.ctr"
-//     ~params:
-//       [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
-//       ; Db.Int op_ctr
-//       ; Db.Uuid canvas_id ] ;
-//   Db.exists
-//     ~name:"check-if-op_ctr-is-latest"
-//     "SELECT 1 FROM op_ctrs WHERE browser_id = $1 AND ctr = $2"
-//     ~params:
-//       [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
-//       ; Db.Int op_ctr ]
+// --------------------------------------------------------
+// Moved from op.ml as it touches the DB *)
+// --------------------------------------------------------
+let isLatestOpRequest
+  (clientOpCtrID : Option<string>)
+  (opCtr : int)
+  (canvasID : CanvasID)
+  : Task<bool> =
+  task {
+    let clientOpCtrID =
+      match clientOpCtrID with
+      | Some ""
+      | None -> System.Guid.NewGuid()
+      | Some s -> System.Guid.Parse s
+
+    do!
+      (Sql.query
+        // This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
+        // that it also handles the initial case where there is no
+        // browser_id record yet
+        "INSERT INTO op_ctrs(browser_id, ctr, canvas_id)
+           VALUES(@clientOpCtrID, @opCtr, @canvasID)
+           ON CONFLICT (browser_id)
+           DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW()
+           WHERE op_ctrs.ctr < EXCLUDED.ctr"
+       |> Sql.parameters [ "clientOpCtrID", Sql.uuid clientOpCtrID
+                           "opCtr", Sql.int opCtr
+                           "canvasID", Sql.uuid canvasID ]
+       |> Sql.executeStatementAsync)
+
+    return!
+      Sql.query
+        "SELECT TRUE FROM op_ctrs
+           WHERE browser_id = @clientOpCtrID
+             AND ctr = @opCtr"
+      |> Sql.parameters [ "clientOpCtrID", Sql.uuid clientOpCtrID
+                          "opCtr", Sql.int opCtr ]
+      |> Sql.executeExistsAsync
+  }
 
 
 // --------------------------------------------------------
@@ -108,19 +113,7 @@ let loadOnlyRenderedTLIDs
          list |> List.map OCamlInterop.toplevelOfCachedBinary |> Task.flatten)
 
 
-// let load_with_dbs ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
-//     Types.tlid_oplists =
-//   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
-//   Db.fetch
-//     ~name:"load_with_dbs"
-//     "SELECT data FROM toplevel_oplists
-//       WHERE canvas_id = $1
-//         AND (tlid = ANY (string_to_array($2, $3)::bigint[])
-//              OR tipe = 'db'::toplevel_type)"
-//     ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
-//     ~result:BinaryResult
-//   |> Binary_serialization.strs2tlid_oplists
-//
+
 
 let fetchReleventTLIDsForHTTP
   (canvasID : CanvasID)
@@ -182,6 +175,7 @@ let fetchRelevantTLIDsForEvent
 //              Types.id_of_string data
 //          | _ ->
 //              Exception.internal "Shape of per_tlid oplists")
+
 
 
 let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =

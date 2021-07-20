@@ -434,44 +434,8 @@ let fromOplist (meta : Meta) (oplist : PT.Oplist) : Task<T> =
 //     (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
 //   load_from ~f:(Serialize.load_only_undeleted_tlids ~tlids) host owner newops
-//
-//
-// let load_with_dbs ~tlids host (newops : Types.oplist) :
-//     (canvas ref, string list) Result.t =
-//   let owner = Account.for_host_exn host in
-//   load_from ~f:(Serialize.load_with_dbs ~tlids) host owner newops
 
 
-// This is a special `load_*` function that specifically loads toplevels via
-// the `rendered_oplist_cache` column on `toplevel_oplists`. This column stores
-// a binary-serialized representation of the toplevel after the oplist is
-// applied. This should be much faster because we don't have to ship the full
-// oplist across the network from Postgres to the application servers, and
-// similarly they don't have to apply the full history of the canvas in memory
-// before they can execute the code.
-let loadOnlyRenderedTLIDs (canvasID : CanvasID) (tlids : List<tlid>) () =
-  // Binary_serialization.rendered_oplist_cache_query_result =
-  // We specifically only load where `deleted` IS FALSE (even though the column
-  // is nullable). This means we will not load undeleted handlers from the
-  // cache if we've never written their `deleted` state. This is less
-  // efficient, but still correct, as they'll still be loaded via their oplist.
-  // It avoids loading deleted handlers that have had their cached version
-  // written but never their deleted state, which could be true for some
-  // handlers that were touched between the addition of the
-  // `rendered_oplist_cache` column and the addition of the `deleted` column.
-  Sql.query
-    "SELECT rendered_oplist_cache, pos FROM toplevel_oplists
-      WHERE canvas_id = $1
-        AND tlid = ANY (string_to_array($2, $3)::bigint[])
-        AND deleted IS FALSE
-        AND (((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type) AND pos IS NOT NULL)
-             OR tipe = 'user_function'::toplevel_type OR tipe = 'user_tipe'::toplevel_type)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync
-       (fun read ->
-         (read.bytea "rendered_oplist_cache", read.stringOrNone "pos")
-
-         |> OCamlInterop.toplevelOfCachedBinary)
 
 type LoadAmount =
   | LiveToplevels
@@ -537,6 +501,7 @@ let loadFrom
     let! uncachedOplists = loadOplists loadAmount meta.id notLoadedTLIDs
     let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
     let! c = loadEmpty meta
+    // FSTODO: where are secrets loaded
 
     return c |> addToplevels fastLoadedTLs |> addOps uncachedOplists [] |> verify
   }
@@ -557,10 +522,7 @@ let loadHttpHandlersFromCache
     return! loadFrom LiveToplevels meta tlids
   }
 
-let loadTLIDsFromCache
-  (meta : Meta)
-  (tlids : tlid list)
-  : Task<Result<T, List<string>>> =
+let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<Result<T, List<string>>> =
   loadFrom LiveToplevels meta tlids
 
 
@@ -586,6 +548,15 @@ let loadAllDBs (meta : Meta) : Task<Result<T, List<string>>> =
     let! tlids = Serialize.fetchTLIDsForAllDBs meta.id
     return! loadFrom LiveToplevels meta tlids
   }
+
+let loadWithDBs (meta : Meta) (tlids : List<tlid>) : Task<Result<T, List<string>>> =
+  task {
+    let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id
+    return! loadFrom LiveToplevels meta (tlids @ dbTLIDs)
+  }
+
+
+
 
 // let load_for_cron_checker_from_cache host : (canvas ref, string list) Result.t =
 //   let owner = Account.for_host_exn host in
