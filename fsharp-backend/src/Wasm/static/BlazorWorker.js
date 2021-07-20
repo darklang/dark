@@ -181,7 +181,7 @@ window.BlazorWorker = (function () {
 
   // Initialize the worker
   let hashes = JSON.stringify(hashReplacements);
-  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.protocol}//${staticUrl}", "${hashes}")`;
+  const inlineWorker = `self.onmessage = ${workerDef}("${window.location.protocol}//${staticUrl}", '${hashes}')`;
 
   const initWorker = function (initCallback, onMessageCallback) {
     const blob = new Blob([inlineWorker], {
